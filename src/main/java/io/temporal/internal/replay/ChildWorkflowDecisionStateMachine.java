@@ -19,20 +19,20 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
 final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
 
-  private StartChildWorkflowExecutionDecisionAttributes startAttributes;
+  private StartChildWorkflowExecutionCommandAttributes startAttributes;
 
   private String runId;
 
   public ChildWorkflowDecisionStateMachine(
-      DecisionId id, StartChildWorkflowExecutionDecisionAttributes startAttributes) {
+      DecisionId id, StartChildWorkflowExecutionCommandAttributes startAttributes) {
     super(id);
     this.startAttributes = startAttributes;
   }
@@ -40,14 +40,14 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
   /** Used for unit testing */
   ChildWorkflowDecisionStateMachine(
       DecisionId id,
-      StartChildWorkflowExecutionDecisionAttributes startAttributes,
+      StartChildWorkflowExecutionCommandAttributes startAttributes,
       DecisionState state) {
     super(id, state);
     this.startAttributes = startAttributes;
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getDecision() {
     switch (state) {
       case CREATED:
         return createStartChildWorkflowExecutionDecision();
@@ -59,13 +59,13 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   @Override
-  public void handleDecisionTaskStartedEvent() {
+  public void handleWorkflowTaskStartedEvent() {
     switch (state) {
       case CANCELED_AFTER_STARTED:
         state = DecisionState.CANCELLATION_DECISION_SENT;
         break;
       default:
-        super.handleDecisionTaskStartedEvent();
+        super.handleWorkflowTaskStartedEvent();
     }
   }
 
@@ -137,20 +137,20 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
     }
   }
 
-  private Decision createRequestCancelExternalWorkflowExecutionDecision() {
-    return Decision.newBuilder()
-        .setRequestCancelExternalWorkflowExecutionDecisionAttributes(
-            RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+  private Command createRequestCancelExternalWorkflowExecutionDecision() {
+    return Command.newBuilder()
+        .setRequestCancelExternalWorkflowExecutionCommandAttributes(
+            RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
                 .setWorkflowId(startAttributes.getWorkflowId())
                 .setRunId(runId))
-        .setDecisionType(DecisionType.DECISION_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
+        .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
         .build();
   }
 
-  private Decision createStartChildWorkflowExecutionDecision() {
-    return Decision.newBuilder()
-        .setStartChildWorkflowExecutionDecisionAttributes(startAttributes)
-        .setDecisionType(DecisionType.DECISION_TYPE_START_CHILD_WORKFLOW_EXECUTION)
+  private Command createStartChildWorkflowExecutionDecision() {
+    return Command.newBuilder()
+        .setStartChildWorkflowExecutionCommandAttributes(startAttributes)
+        .setCommandType(CommandType.COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION)
         .build();
   }
 }

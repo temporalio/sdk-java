@@ -60,10 +60,10 @@ abstract class DecisionStateMachineBase implements DecisionStateMachine {
   }
 
   @Override
-  public void handleDecisionTaskStartedEvent() {
+  public void handleWorkflowTaskStartedEvent() {
     switch (state) {
       case CREATED:
-        stateHistory.add("handleDecisionTaskStartedEvent");
+        stateHistory.add("handleWorkflowTaskStartedEvent");
         state = DecisionState.DECISION_SENT;
         stateHistory.add(state.toString());
         break;

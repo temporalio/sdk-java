@@ -21,16 +21,16 @@ package io.temporal.internal.replay;
 
 import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
 
+import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.decision.v1.StartTimerDecisionAttributes;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.TimerCanceledEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.LocalActivityMarkerData;
@@ -138,8 +138,8 @@ public final class ClockDecisionContext {
     }
     long firingTime = currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
     final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
-    final StartTimerDecisionAttributes timer =
-        StartTimerDecisionAttributes.newBuilder()
+    final StartTimerCommandAttributes timer =
+        StartTimerCommandAttributes.newBuilder()
             .setStartToFireTimeoutSeconds(delaySeconds)
             .setTimerId(String.valueOf(decisions.getAndIncrementNextId()))
             .build();
@@ -348,7 +348,7 @@ public final class ClockDecisionContext {
 
   Consumer<Exception> scheduleLocalActivityTask(
       ExecuteLocalActivityParameters params, BiConsumer<Optional<Payloads>, Exception> callback) {
-    PollForActivityTaskResponse.Builder activityTask = params.getActivityTask();
+    PollActivityTaskQueueResponse.Builder activityTask = params.getActivityTask();
     final OpenRequestInfo<Optional<Payloads>, ActivityType> context =
         new OpenRequestInfo<>(activityTask.getActivityType());
     context.setCompletionHandle(callback);

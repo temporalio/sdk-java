@@ -20,13 +20,13 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.workflow.Functions.Func;
@@ -55,9 +55,9 @@ public interface DecisionContext extends ReplayAware {
 
   boolean isCancelRequested();
 
-  ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion();
+  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
 
-  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes attributes);
+  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
 
   Optional<String> getContinuedExecutionRunId();
 
@@ -127,18 +127,18 @@ public interface DecisionContext extends ReplayAware {
       BiConsumer<Optional<Payloads>, Exception> callback);
 
   Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
       BiConsumer<Void, Exception> callback);
 
   Promise<Void> requestCancelWorkflowExecution(WorkflowExecution execution);
 
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes attributes);
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
 
   Optional<Payloads> mutableSideEffect(
       String id, DataConverter dataConverter, Func1<Optional<Payloads>, Optional<Payloads>> func);
 
   /**
-   * @return time of the {@link PollForDecisionTaskResponse} start event of the decision being
+   * @return time of the {@link PollWorkflowTaskQueueResponse} start event of the decision being
    *     processed or replayed.
    */
   long currentTimeMillis();

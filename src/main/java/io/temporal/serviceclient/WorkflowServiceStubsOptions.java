@@ -283,9 +283,9 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Sets the rpc timeout value for the following long poll based operations: PollForDecisionTask,
-     * PollForActivityTask, GetWorkflowExecutionHistory. Should never be below 60000 as this is
-     * server side timeout for the long poll. Default is 61000.
+     * Sets the rpc timeout value for the following long poll based operations:
+     * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory. Should never be
+     * below 60000 as this is server side timeout for the long poll. Default is 61000.
      *
      * @param timeoutMillis timeout, in millis.
      */

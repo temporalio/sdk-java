@@ -36,7 +36,7 @@ class GrpcTracingInterceptor implements ClientInterceptor {
   private static final Logger log = LoggerFactory.getLogger(GrpcTracingInterceptor.class);
 
   /**
-   * Separate logger for PollForDecisionTask reply which includes history. It is separate to allow
+   * Separate logger for PollWorkflowTaskQueue reply which includes history. It is separate to allow
    * disabling independently through configuration.
    */
   private static final Logger decision_task_log =
@@ -61,7 +61,7 @@ class GrpcTracingInterceptor implements ClientInterceptor {
               @Override
               public void onMessage(RespT message) {
                 // Skip printing the whole history
-                if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()) {
+                if (method == WorkflowServiceGrpc.getPollWorkflowTaskQueueMethod()) {
                   if (decision_task_log.isTraceEnabled()) {
                     decision_task_log.trace(
                         "Returned \""

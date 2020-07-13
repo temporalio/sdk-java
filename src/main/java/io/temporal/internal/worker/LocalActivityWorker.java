@@ -24,7 +24,7 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.LocalActivityMarkerData;
@@ -201,7 +201,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       ActivityTaskHandler.Result result = handleLocalActivity(task);
 
       LocalActivityMarkerData.Builder markerBuilder = new LocalActivityMarkerData.Builder();
-      PollForActivityTaskResponse.Builder activityTask = task.params.getActivityTask();
+      PollActivityTaskQueueResponse.Builder activityTask = task.params.getActivityTask();
       markerBuilder.setActivityId(activityTask.getActivityId());
       markerBuilder.setActivityType(activityTask.getActivityType());
       long replayTimeMillis =
@@ -233,7 +233,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
     private ActivityTaskHandler.Result handleLocalActivity(Task task) throws InterruptedException {
       ExecuteLocalActivityParameters params = task.params;
-      PollForActivityTaskResponse.Builder activityTask = params.getActivityTask();
+      PollActivityTaskQueueResponse.Builder activityTask = params.getActivityTask();
       Map<String, String> activityTypeTag =
           new ImmutableMap.Builder<String, String>(1)
               .put(MetricsTag.ACTIVITY_TYPE, activityTask.getActivityType().getName())

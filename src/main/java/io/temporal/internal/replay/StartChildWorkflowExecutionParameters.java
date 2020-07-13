@@ -19,22 +19,22 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 
 public final class StartChildWorkflowExecutionParameters {
 
-  private final StartChildWorkflowExecutionDecisionAttributes.Builder request;
+  private final StartChildWorkflowExecutionCommandAttributes.Builder request;
   private final ChildWorkflowCancellationType cancellationType;
 
   public StartChildWorkflowExecutionParameters(
-      StartChildWorkflowExecutionDecisionAttributes.Builder request,
+      StartChildWorkflowExecutionCommandAttributes.Builder request,
       ChildWorkflowCancellationType cancellationType) {
     this.request = request;
     this.cancellationType = cancellationType;
   }
 
-  public StartChildWorkflowExecutionDecisionAttributes.Builder getRequest() {
+  public StartChildWorkflowExecutionCommandAttributes.Builder getRequest() {
     return request;
   }
 

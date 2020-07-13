@@ -33,10 +33,10 @@ import com.google.protobuf.TextFormat;
 import com.uber.m3.tally.Scope;
 import io.grpc.Deadline;
 import io.grpc.Status;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.enums.v1.RetryState;
@@ -173,7 +173,7 @@ public class WorkflowExecutionUtils {
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
         throw new WorkflowExecutionFailedException(
-            failed.getFailure(), failed.getDecisionTaskCompletedEventId(), failed.getRetryState());
+            failed.getFailure(), failed.getWorkflowTaskCompletedEventId(), failed.getRetryState());
       case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
         WorkflowExecutionTerminatedEventAttributes terminated =
             closeEvent.getWorkflowExecutionTerminatedEventAttributes();
@@ -413,13 +413,13 @@ public class WorkflowExecutionUtils {
             || event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED));
   }
 
-  public static boolean isWorkflowExecutionCompleteDecision(Decision decision) {
+  public static boolean isWorkflowExecutionCompleteDecision(Command decision) {
     return ((decision != null)
-        && (decision.getDecisionType() == DecisionType.DECISION_TYPE_COMPLETE_WORKFLOW_EXECUTION
-            || decision.getDecisionType() == DecisionType.DECISION_TYPE_CANCEL_WORKFLOW_EXECUTION
-            || decision.getDecisionType() == DecisionType.DECISION_TYPE_FAIL_WORKFLOW_EXECUTION
-            || decision.getDecisionType()
-                == DecisionType.DECISION_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION));
+        && (decision.getCommandType() == CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION
+            || decision.getCommandType() == CommandType.COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION
+            || decision.getCommandType() == CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION
+            || decision.getCommandType()
+                == CommandType.COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION));
   }
 
   public static boolean isActivityTaskClosedEvent(HistoryEvent event) {
@@ -752,9 +752,9 @@ public class WorkflowExecutionUtils {
     return result.toString();
   }
 
-  public static String prettyPrintDecisions(Iterable<Decision> decisions) {
+  public static String prettyPrintDecisions(Iterable<Command> decisions) {
     StringBuilder result = new StringBuilder();
-    for (Decision decision : decisions) {
+    for (Command decision : decisions) {
       result.append(prettyPrintObject(decision));
     }
     return result.toString();
@@ -815,36 +815,36 @@ public class WorkflowExecutionUtils {
     return result;
   }
 
-  public static EventType getEventTypeForDecision(DecisionType decisionType) {
-    switch (decisionType) {
-      case DECISION_TYPE_SCHEDULE_ACTIVITY_TASK:
+  public static EventType getEventTypeForDecision(CommandType commandType) {
+    switch (commandType) {
+      case COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK:
         return EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED;
-      case DECISION_TYPE_REQUEST_CANCEL_ACTIVITY_TASK:
+      case COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK:
         return EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED;
-      case DECISION_TYPE_START_TIMER:
+      case COMMAND_TYPE_START_TIMER:
         return EventType.EVENT_TYPE_TIMER_STARTED;
-      case DECISION_TYPE_COMPLETE_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED;
-      case DECISION_TYPE_FAIL_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED;
-      case DECISION_TYPE_CANCEL_TIMER:
+      case COMMAND_TYPE_CANCEL_TIMER:
         return EventType.EVENT_TYPE_TIMER_CANCELED;
-      case DECISION_TYPE_CANCEL_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED;
-      case DECISION_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED;
-      case DECISION_TYPE_RECORD_MARKER:
+      case COMMAND_TYPE_RECORD_MARKER:
         return EventType.EVENT_TYPE_MARKER_RECORDED;
-      case DECISION_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW;
-      case DECISION_TYPE_START_CHILD_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED;
-      case DECISION_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED;
-      case DECISION_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
+      case COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
         return EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES;
     }
-    throw new IllegalArgumentException("Unknown decisionType");
+    throw new IllegalArgumentException("Unknown commandType");
   }
 
   public static WorkflowExecutionHistory readHistoryFromResource(String resourceFileName)

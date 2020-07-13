@@ -418,7 +418,7 @@ class WorkflowStubImpl implements WorkflowStub {
       throw new WorkflowFailedException(
           execution.get(),
           workflowType.orElse(null),
-          executionFailed.getDecisionTaskCompletedEventId(),
+          executionFailed.getWorkflowTaskCompletedEventId(),
           executionFailed.getRetryState(),
           cause);
     } else if (failure instanceof StatusRuntimeException) {

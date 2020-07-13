@@ -19,10 +19,10 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.CancelTimerDecisionAttributes;
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.decision.v1.StartTimerDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.command.v1.CancelTimerCommandAttributes;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.StartTimerCommandAttributes;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
 /**
@@ -34,24 +34,24 @@ import io.temporal.api.history.v1.HistoryEvent;
  */
 class TimerDecisionStateMachine extends DecisionStateMachineBase {
 
-  private StartTimerDecisionAttributes attributes;
+  private StartTimerCommandAttributes attributes;
 
   private boolean canceled;
 
-  public TimerDecisionStateMachine(DecisionId id, StartTimerDecisionAttributes attributes) {
+  public TimerDecisionStateMachine(DecisionId id, StartTimerCommandAttributes attributes) {
     super(id);
     this.attributes = attributes;
   }
 
   /** Used for unit testing */
   TimerDecisionStateMachine(
-      DecisionId id, StartTimerDecisionAttributes attributes, DecisionState state) {
+      DecisionId id, StartTimerCommandAttributes attributes, DecisionState state) {
     super(id, state);
     this.attributes = attributes;
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getDecision() {
     switch (state) {
       case CREATED:
         return createStartTimerDecision();
@@ -63,15 +63,15 @@ class TimerDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   @Override
-  public void handleDecisionTaskStartedEvent() {
+  public void handleWorkflowTaskStartedEvent() {
     switch (state) {
       case CANCELED_AFTER_INITIATED:
-        stateHistory.add("handleDecisionTaskStartedEvent");
+        stateHistory.add("handleWorkflowTaskStartedEvent");
         state = DecisionState.CANCELLATION_DECISION_SENT;
         stateHistory.add(state.toString());
         break;
       default:
-        super.handleDecisionTaskStartedEvent();
+        super.handleWorkflowTaskStartedEvent();
     }
   }
 
@@ -104,18 +104,18 @@ class TimerDecisionStateMachine extends DecisionStateMachineBase {
     return state == DecisionState.COMPLETED || canceled;
   }
 
-  private Decision createCancelTimerDecision() {
-    return Decision.newBuilder()
-        .setCancelTimerDecisionAttributes(
-            CancelTimerDecisionAttributes.newBuilder().setTimerId(attributes.getTimerId()))
-        .setDecisionType(DecisionType.DECISION_TYPE_CANCEL_TIMER)
+  private Command createCancelTimerDecision() {
+    return Command.newBuilder()
+        .setCancelTimerCommandAttributes(
+            CancelTimerCommandAttributes.newBuilder().setTimerId(attributes.getTimerId()))
+        .setCommandType(CommandType.COMMAND_TYPE_CANCEL_TIMER)
         .build();
   }
 
-  private Decision createStartTimerDecision() {
-    return Decision.newBuilder()
-        .setStartTimerDecisionAttributes(attributes)
-        .setDecisionType(DecisionType.DECISION_TYPE_START_TIMER)
+  private Command createStartTimerDecision() {
+    return Command.newBuilder()
+        .setStartTimerCommandAttributes(attributes)
+        .setCommandType(CommandType.COMMAND_TYPE_START_TIMER)
         .build();
   }
 }

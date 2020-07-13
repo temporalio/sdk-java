@@ -26,6 +26,10 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Memo;
@@ -35,14 +39,10 @@ import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
@@ -319,8 +319,8 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
     if (taskQueue == null) {
       taskQueue = context.getTaskQueue();
     }
-    ScheduleActivityTaskDecisionAttributes.Builder attributes =
-        ScheduleActivityTaskDecisionAttributes.newBuilder()
+    ScheduleActivityTaskCommandAttributes.Builder attributes =
+        ScheduleActivityTaskCommandAttributes.newBuilder()
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue))
             .setScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
@@ -367,8 +367,8 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       int attempt) {
     options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
 
-    PollForActivityTaskResponse.Builder activityTask =
-        PollForActivityTaskResponse.newBuilder()
+    PollActivityTaskQueueResponse.Builder activityTask =
+        PollActivityTaskQueueResponse.newBuilder()
             .setWorkflowNamespace(this.context.getNamespace())
             .setWorkflowExecution(this.context.getWorkflowExecution())
             .setScheduledTimestamp(System.currentTimeMillis())
@@ -420,8 +420,8 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       propagators = this.contextPropagators;
     }
 
-    final StartChildWorkflowExecutionDecisionAttributes.Builder attributes =
-        StartChildWorkflowExecutionDecisionAttributes.newBuilder()
+    final StartChildWorkflowExecutionCommandAttributes.Builder attributes =
+        StartChildWorkflowExecutionCommandAttributes.newBuilder()
             .setWorkflowType(WorkflowType.newBuilder().setName(name).build());
     String workflowId = options.getWorkflowId();
     if (workflowId == null) {
@@ -749,8 +749,8 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
   @Override
   public Promise<Void> signalExternalWorkflow(
       WorkflowExecution execution, String signalName, Object[] args) {
-    SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes =
-        SignalExternalWorkflowExecutionDecisionAttributes.newBuilder();
+    SignalExternalWorkflowExecutionCommandAttributes.Builder attributes =
+        SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
     attributes.setSignalName(signalName);
     attributes.setExecution(execution);
     Optional<Payloads> input = getDataConverter().toPayloads(args);
@@ -805,8 +805,8 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
   @Override
   public void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
-    ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
-        ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
+    ContinueAsNewWorkflowExecutionCommandAttributes.Builder attributes =
+        ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder();
     if (workflowType.isPresent()) {
       attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()));
     }

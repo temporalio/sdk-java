@@ -23,7 +23,7 @@ import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 import static io.temporal.testUtils.TestServiceUtils.*;
 
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.concurrent.TimeUnit;
@@ -36,12 +36,12 @@ public class HistoryUtils {
   public static final String HOST_TASK_QUEUE = "stickyTaskQueue";
   public static final String WORKFLOW_TYPE = "workflowType";
 
-  public static PollForDecisionTaskResponse generateDecisionTaskWithInitialHistory()
+  public static PollWorkflowTaskQueueResponse generateWorkflowTaskWithInitialHistory()
       throws Exception {
     TestWorkflowService testService = new TestWorkflowService(true);
     WorkflowServiceStubs service = testService.newClientStub();
     try {
-      return generateDecisionTaskWithInitialHistory(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
+      return generateWorkflowTaskWithInitialHistory(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
     } finally {
       service.shutdownNow();
       service.awaitTermination(1, TimeUnit.SECONDS);
@@ -49,26 +49,26 @@ public class HistoryUtils {
     }
   }
 
-  public static PollForDecisionTaskResponse generateDecisionTaskWithInitialHistory(
+  public static PollWorkflowTaskQueueResponse generateWorkflowTaskWithInitialHistory(
       String namespace, String taskqueueName, String workflowType, WorkflowServiceStubs service)
       throws Exception {
     startWorkflowExecution(namespace, taskqueueName, workflowType, service);
-    return pollForDecisionTask(namespace, createNormalTaskQueue(taskqueueName), service);
+    return pollWorkflowTaskQueue(namespace, createNormalTaskQueue(taskqueueName), service);
   }
 
-  public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistory()
+  public static PollWorkflowTaskQueueResponse generateWorkflowTaskWithPartialHistory()
       throws Exception {
-    return generateDecisionTaskWithPartialHistory(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE);
+    return generateWorkflowTaskWithPartialHistory(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE);
   }
 
-  public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistory(
+  public static PollWorkflowTaskQueueResponse generateWorkflowTaskWithPartialHistory(
       String namespace, String taskqueueName, String workflowType) throws Exception {
     TestWorkflowService testService = new TestWorkflowService(true);
     WorkflowServiceStubs service = testService.newClientStub();
     try {
-      PollForDecisionTaskResponse response =
-          generateDecisionTaskWithInitialHistory(namespace, taskqueueName, workflowType, service);
-      return generateDecisionTaskWithPartialHistoryFromExistingTask(
+      PollWorkflowTaskQueueResponse response =
+          generateWorkflowTaskWithInitialHistory(namespace, taskqueueName, workflowType, service);
+      return generateWorkflowTaskWithPartialHistoryFromExistingTask(
           response, namespace, HOST_TASK_QUEUE, service);
     } finally {
       service.shutdownNow();
@@ -77,14 +77,15 @@ public class HistoryUtils {
     }
   }
 
-  public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistoryFromExistingTask(
-      PollForDecisionTaskResponse response,
-      String namespace,
-      String stickyTaskQueueName,
-      WorkflowServiceStubs service)
-      throws Exception {
+  public static PollWorkflowTaskQueueResponse
+      generateWorkflowTaskWithPartialHistoryFromExistingTask(
+          PollWorkflowTaskQueueResponse response,
+          String namespace,
+          String stickyTaskQueueName,
+          WorkflowServiceStubs service)
+          throws Exception {
     signalWorkflow(response.getWorkflowExecution(), namespace, service);
-    respondDecisionTaskCompletedWithSticky(response.getTaskToken(), stickyTaskQueueName, service);
-    return pollForDecisionTask(namespace, createStickyTaskQueue(stickyTaskQueueName), service);
+    respondWorkflowTaskCompletedWithSticky(response.getTaskToken(), stickyTaskQueueName, service);
+    return pollWorkflowTaskQueue(namespace, createStickyTaskQueue(stickyTaskQueueName), service);
   }
 }

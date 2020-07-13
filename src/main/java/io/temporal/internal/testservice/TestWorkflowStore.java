@@ -23,10 +23,10 @@ import io.grpc.Deadline;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
@@ -95,12 +95,12 @@ interface TestWorkflowStore {
     }
   }
 
-  class DecisionTask {
+  class WorkflowTask {
 
     private final TaskQueueId taskQueueId;
-    private final PollForDecisionTaskResponse.Builder task;
+    private final PollWorkflowTaskQueueResponse.Builder task;
 
-    public DecisionTask(TaskQueueId taskQueueId, PollForDecisionTaskResponse.Builder task) {
+    public WorkflowTask(TaskQueueId taskQueueId, PollWorkflowTaskQueueResponse.Builder task) {
       this.taskQueueId = taskQueueId;
       this.task = task;
     }
@@ -109,7 +109,7 @@ interface TestWorkflowStore {
       return taskQueueId;
     }
 
-    public PollForDecisionTaskResponse.Builder getTask() {
+    public PollWorkflowTaskQueueResponse.Builder getTask() {
       return task;
     }
   }
@@ -117,9 +117,9 @@ interface TestWorkflowStore {
   class ActivityTask {
 
     private final TaskQueueId taskQueueId;
-    private final PollForActivityTaskResponse.Builder task;
+    private final PollActivityTaskQueueResponse.Builder task;
 
-    public ActivityTask(TaskQueueId taskQueueId, PollForActivityTaskResponse.Builder task) {
+    public ActivityTask(TaskQueueId taskQueueId, PollActivityTaskQueueResponse.Builder task) {
       this.taskQueueId = taskQueueId;
       this.task = task;
     }
@@ -128,7 +128,7 @@ interface TestWorkflowStore {
       return taskQueueId;
     }
 
-    public PollForActivityTaskResponse.Builder getTask() {
+    public PollActivityTaskQueueResponse.Builder getTask() {
       return task;
     }
   }
@@ -144,16 +144,16 @@ interface TestWorkflowStore {
   void registerDelayedCallback(Duration delay, Runnable r);
 
   /** @return empty if deadline exprired */
-  Optional<PollForDecisionTaskResponse.Builder> pollForDecisionTask(
-      PollForDecisionTaskRequest pollRequest, Deadline deadline);
+  Optional<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
+      PollWorkflowTaskQueueRequest pollRequest, Deadline deadline);
 
   /** @return empty if deadline exprired */
-  Optional<PollForActivityTaskResponse.Builder> pollForActivityTask(
-      PollForActivityTaskRequest pollRequest, Deadline deadline);
+  Optional<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
+      PollActivityTaskQueueRequest pollRequest, Deadline deadline);
 
   /** @return queryId */
   void sendQueryTask(
-      ExecutionId executionId, TaskQueueId taskQueue, PollForDecisionTaskResponse.Builder task);
+      ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
       ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest, Deadline deadline);

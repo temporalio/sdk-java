@@ -25,14 +25,14 @@ import io.temporal.api.failure.v1.Failure;
 /** Framework level exception. Do not throw or catch in the application level code. */
 public final class WorkflowExecutionFailedException extends RuntimeException {
 
-  private final long decisionTaskCompletedEventId;
+  private final long workflowTaskCompletedEventId;
   private final Failure failure;
   private final RetryState retryState;
 
   WorkflowExecutionFailedException(
-      Failure failure, long decisionTaskCompletedEventId, RetryState retryState) {
+      Failure failure, long workflowTaskCompletedEventId, RetryState retryState) {
     this.failure = failure;
-    this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
+    this.workflowTaskCompletedEventId = workflowTaskCompletedEventId;
     this.retryState = retryState;
   }
 
@@ -40,8 +40,8 @@ public final class WorkflowExecutionFailedException extends RuntimeException {
     return failure;
   }
 
-  public long getDecisionTaskCompletedEventId() {
-    return decisionTaskCompletedEventId;
+  public long getWorkflowTaskCompletedEventId() {
+    return workflowTaskCompletedEventId;
   }
 
   public RetryState getRetryState() {

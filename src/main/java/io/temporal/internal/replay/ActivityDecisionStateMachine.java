@@ -19,20 +19,20 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.decision.v1.RequestCancelActivityTaskDecisionAttributes;
-import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
 final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
 
-  private ScheduleActivityTaskDecisionAttributes scheduleAttributes;
+  private ScheduleActivityTaskCommandAttributes scheduleAttributes;
   private long scheduledEventId;
 
   public ActivityDecisionStateMachine(
       DecisionId id,
-      ScheduleActivityTaskDecisionAttributes scheduleAttributes,
+      ScheduleActivityTaskCommandAttributes scheduleAttributes,
       long scheduledEventId) {
     super(id);
     this.scheduleAttributes = scheduleAttributes;
@@ -42,7 +42,7 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
   /** Used for unit testing */
   ActivityDecisionStateMachine(
       DecisionId id,
-      ScheduleActivityTaskDecisionAttributes scheduleAttributes,
+      ScheduleActivityTaskCommandAttributes scheduleAttributes,
       DecisionState state,
       long scheduledEventId) {
     super(id, state);
@@ -51,7 +51,7 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getDecision() {
     switch (state) {
       case CREATED:
         return createScheduleActivityTaskDecision();
@@ -63,15 +63,15 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   @Override
-  public void handleDecisionTaskStartedEvent() {
+  public void handleWorkflowTaskStartedEvent() {
     switch (state) {
       case CANCELED_AFTER_INITIATED:
-        stateHistory.add("handleDecisionTaskStartedEvent");
+        stateHistory.add("handleWorkflowTaskStartedEvent");
         state = DecisionState.CANCELLATION_DECISION_SENT;
         stateHistory.add(state.toString());
         break;
       default:
-        super.handleDecisionTaskStartedEvent();
+        super.handleWorkflowTaskStartedEvent();
     }
   }
 
@@ -88,20 +88,20 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
     }
   }
 
-  private Decision createRequestCancelActivityTaskDecision() {
-    return Decision.newBuilder()
-        .setRequestCancelActivityTaskDecisionAttributes(
-            RequestCancelActivityTaskDecisionAttributes.newBuilder()
+  private Command createRequestCancelActivityTaskDecision() {
+    return Command.newBuilder()
+        .setRequestCancelActivityTaskCommandAttributes(
+            RequestCancelActivityTaskCommandAttributes.newBuilder()
                 .setScheduledEventId(scheduledEventId))
-        .setDecisionType(DecisionType.DECISION_TYPE_REQUEST_CANCEL_ACTIVITY_TASK)
+        .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK)
         .build();
   }
 
-  private Decision createScheduleActivityTaskDecision() {
+  private Command createScheduleActivityTaskDecision() {
     scheduledEventId = getId().getDecisionEventId();
-    return Decision.newBuilder()
-        .setScheduleActivityTaskDecisionAttributes(scheduleAttributes)
-        .setDecisionType(DecisionType.DECISION_TYPE_SCHEDULE_ACTIVITY_TASK)
+    return Command.newBuilder()
+        .setScheduleActivityTaskCommandAttributes(scheduleAttributes)
+        .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK)
         .build();
   }
 }

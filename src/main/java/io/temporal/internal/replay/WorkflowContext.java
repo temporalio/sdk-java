@@ -19,14 +19,14 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
 import java.util.HashMap;
@@ -36,10 +36,10 @@ import java.util.Optional;
 
 final class WorkflowContext {
 
-  private final PollForDecisionTaskResponseOrBuilder decisionTask;
+  private final PollWorkflowTaskQueueResponseOrBuilder workflowTask;
   private final long runStartedTimestampMillis;
   private boolean cancelRequested;
-  private ContinueAsNewWorkflowExecutionDecisionAttributes continueAsNewOnCompletion;
+  private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
   private WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String namespace;
   // RunId can change when reset happens. This remembers the actual runId that is used
@@ -50,12 +50,12 @@ final class WorkflowContext {
 
   WorkflowContext(
       String namespace,
-      PollForDecisionTaskResponseOrBuilder decisionTask,
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       long runStartedTimestampMillis,
       List<ContextPropagator> contextPropagators) {
     this.namespace = namespace;
-    this.decisionTask = decisionTask;
+    this.workflowTask = workflowTask;
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
     if (startedAttributes.hasSearchAttributes()) {
@@ -66,11 +66,11 @@ final class WorkflowContext {
   }
 
   WorkflowExecution getWorkflowExecution() {
-    return decisionTask.getWorkflowExecution();
+    return workflowTask.getWorkflowExecution();
   }
 
   WorkflowType getWorkflowType() {
-    return decisionTask.getWorkflowType();
+    return workflowTask.getWorkflowType();
   }
 
   boolean isCancelRequested() {
@@ -81,11 +81,11 @@ final class WorkflowContext {
     cancelRequested = flag;
   }
 
-  ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion() {
+  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
     return continueAsNewOnCompletion;
   }
 
-  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes parameters) {
+  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes parameters) {
     this.continueAsNewOnCompletion = parameters;
   }
 
@@ -119,7 +119,7 @@ final class WorkflowContext {
     return runStartedTimestampMillis;
   }
 
-  int getDecisionTaskTimeoutSeconds() {
+  int getWorkflowTaskTimeoutSeconds() {
     return startedAttributes.getWorkflowTaskTimeoutSeconds();
   }
 

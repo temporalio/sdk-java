@@ -264,10 +264,10 @@ public class MetricsTest {
     reporter.assertCounter("temporal-poller-start", tagsB.build());
     reporter.assertCounter(
         MetricsType.TEMPORAL_LONG_REQUEST,
-        tagsB.put(MetricsTag.OPERATION_NAME, "PollForActivityTask").build());
+        tagsB.put(MetricsTag.OPERATION_NAME, "PollActivityTaskQueue").build());
     reporter.assertCounter(
         MetricsType.TEMPORAL_LONG_REQUEST,
-        tagsB.put(MetricsTag.OPERATION_NAME, "PollForDecisionTask").build());
+        tagsB.put(MetricsTag.OPERATION_NAME, "PollWorkflowTaskQueue").build());
 
     ImmutableMap<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
@@ -324,7 +324,7 @@ public class MetricsTest {
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
-            .put(MetricsTag.OPERATION_NAME, "RespondDecisionTaskCompleted")
+            .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
             .build();
     reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, decisionCompletionTags, 4);
   }

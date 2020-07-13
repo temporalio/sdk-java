@@ -19,23 +19,23 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
 final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionStateMachineBase {
 
-  private RequestCancelExternalWorkflowExecutionDecisionAttributes attributes;
+  private RequestCancelExternalWorkflowExecutionCommandAttributes attributes;
 
   ExternalWorkflowCancellationDecisionStateMachine(
-      DecisionId decisionId, RequestCancelExternalWorkflowExecutionDecisionAttributes attributes) {
+      DecisionId decisionId, RequestCancelExternalWorkflowExecutionCommandAttributes attributes) {
     super(decisionId);
     this.attributes = attributes;
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getDecision() {
     switch (state) {
       case CREATED:
         return createRequestCancelExternalWorkflowExecutionDecision();
@@ -103,11 +103,11 @@ final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionSta
     throw new UnsupportedOperationException();
   }
 
-  private Decision createRequestCancelExternalWorkflowExecutionDecision() {
-    Decision decision =
-        Decision.newBuilder()
-            .setRequestCancelExternalWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DECISION_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
+  private Command createRequestCancelExternalWorkflowExecutionDecision() {
+    Command decision =
+        Command.newBuilder()
+            .setRequestCancelExternalWorkflowExecutionCommandAttributes(attributes)
+            .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
             .build();
     return decision;
   }

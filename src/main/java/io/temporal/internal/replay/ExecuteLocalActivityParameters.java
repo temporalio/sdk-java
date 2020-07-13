@@ -19,20 +19,20 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 
 public class ExecuteLocalActivityParameters {
 
-  private final PollForActivityTaskResponse.Builder activityTask;
+  private final PollActivityTaskQueueResponse.Builder activityTask;
   private final long elapsedTime;
 
   public ExecuteLocalActivityParameters(
-      PollForActivityTaskResponse.Builder activityTask, long elapsedTime) {
+      PollActivityTaskQueueResponse.Builder activityTask, long elapsedTime) {
     this.activityTask = activityTask;
     this.elapsedTime = elapsedTime;
   }
 
-  public PollForActivityTaskResponse.Builder getActivityTask() {
+  public PollActivityTaskQueueResponse.Builder getActivityTask() {
     return activityTask;
   }
 

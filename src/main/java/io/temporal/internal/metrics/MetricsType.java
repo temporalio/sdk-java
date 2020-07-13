@@ -31,7 +31,7 @@ public class MetricsType {
   // measure workflow execution from start to close
   public static final String WORKFLOW_E2E_LATENCY =
       TEMPORAL_METRICS_PREFIX + "workflow-endtoend-latency";
-  public static final String DECISION_TASK_REPLAY_LATENCY =
+  public static final String WORKFLOW_TASK_REPLAY_LATENCY =
       TEMPORAL_METRICS_PREFIX + "decision-task-replay-latency";
 
   public static final String DECISION_POLL_COUNTER =
@@ -52,7 +52,7 @@ public class MetricsType {
       TEMPORAL_METRICS_PREFIX + "decision-execution-failed";
   public static final String DECISION_EXECUTION_LATENCY =
       TEMPORAL_METRICS_PREFIX + "decision-execution-latency";
-  public static final String DECISION_TASK_ERROR_COUNTER =
+  public static final String WORKFLOW_TASK_ERROR_COUNTER =
       TEMPORAL_METRICS_PREFIX + "decision-task-error";
 
   public static final String ACTIVITY_POLL_NO_TASK_COUNTER =

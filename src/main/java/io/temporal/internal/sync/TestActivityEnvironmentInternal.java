@@ -36,7 +36,7 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.RetryState;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
@@ -234,8 +234,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         ActivityOptions options) {
       Optional<Payloads> input =
           testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toPayloads(args);
-      PollForActivityTaskResponse.Builder taskBuilder =
-          PollForActivityTaskResponse.newBuilder()
+      PollActivityTaskQueueResponse.Builder taskBuilder =
+          PollActivityTaskQueueResponse.newBuilder()
               .setScheduleToCloseTimeoutSeconds(
                   roundUpToSeconds(options.getScheduleToCloseTimeout()))
               .setHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()))
@@ -253,7 +253,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       if (input.isPresent()) {
         taskBuilder.setInput(input.get());
       }
-      PollForActivityTaskResponse task = taskBuilder.build();
+      PollActivityTaskQueueResponse task = taskBuilder.build();
       Result taskResult =
           activityTaskHandler.handle(task, testEnvironmentOptions.getMetricsScope(), false);
       return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
@@ -371,7 +371,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     private <T> T getReply(
-        PollForActivityTaskResponse task,
+        PollActivityTaskQueueResponse task,
         ActivityTaskHandler.Result response,
         Class<T> resultClass,
         Type resultType) {

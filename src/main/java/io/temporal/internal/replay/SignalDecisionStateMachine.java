@@ -19,19 +19,19 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
 class SignalDecisionStateMachine extends DecisionStateMachineBase {
 
-  private SignalExternalWorkflowExecutionDecisionAttributes attributes;
+  private SignalExternalWorkflowExecutionCommandAttributes attributes;
 
   private boolean canceled;
 
   public SignalDecisionStateMachine(
-      DecisionId id, SignalExternalWorkflowExecutionDecisionAttributes attributes) {
+      DecisionId id, SignalExternalWorkflowExecutionCommandAttributes attributes) {
     super(id);
     this.attributes = attributes;
   }
@@ -39,14 +39,14 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
   /** Used for unit testing */
   SignalDecisionStateMachine(
       DecisionId id,
-      SignalExternalWorkflowExecutionDecisionAttributes attributes,
+      SignalExternalWorkflowExecutionCommandAttributes attributes,
       DecisionState state) {
     super(id, state);
     this.attributes = attributes;
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getDecision() {
     switch (state) {
       case CREATED:
         return createSignalExternalWorkflowExecutionDecision();
@@ -147,11 +147,11 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
     throw new UnsupportedOperationException();
   }
 
-  private Decision createSignalExternalWorkflowExecutionDecision() {
-    Decision decision =
-        Decision.newBuilder()
-            .setSignalExternalWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DECISION_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
+  private Command createSignalExternalWorkflowExecutionDecision() {
+    Command decision =
+        Command.newBuilder()
+            .setSignalExternalWorkflowExecutionCommandAttributes(attributes)
+            .setCommandType(CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
             .build();
     return decision;
   }

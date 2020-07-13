@@ -19,19 +19,19 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
+import io.temporal.api.command.v1.Command;
 
 public class UpsertSearchAttributesDecisionStateMachine extends DecisionStateMachineBase {
 
-  private final Decision decision;
+  private final Command decision;
 
-  UpsertSearchAttributesDecisionStateMachine(DecisionId id, Decision decision) {
+  UpsertSearchAttributesDecisionStateMachine(DecisionId id, Command decision) {
     super(id);
     this.decision = decision;
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getDecision() {
     if (state == DecisionState.CREATED) {
       return decision;
     }

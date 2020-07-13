@@ -19,12 +19,12 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.history.v1.HistoryEvent;
 
 interface DecisionStateMachine {
 
-  Decision getDecision();
+  Command getDecision();
 
   /** @return true if produced a decision */
   boolean cancel(Runnable immediateCancellationCallback);
@@ -43,7 +43,7 @@ interface DecisionStateMachine {
 
   void handleInitiatedEvent(HistoryEvent event);
 
-  void handleDecisionTaskStartedEvent();
+  void handleWorkflowTaskStartedEvent();
 
   DecisionState getState();
 

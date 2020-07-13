@@ -32,8 +32,8 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
@@ -746,7 +746,7 @@ public class DeterministicRunnerTest {
             },
             cache);
     Decider decider = new DetermisiticRunnerContainerDecider(d);
-    PollForDecisionTaskResponse response = HistoryUtils.generateDecisionTaskWithInitialHistory();
+    PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> decider);
     cache.addToCache(response, decider);
@@ -811,7 +811,7 @@ public class DeterministicRunnerTest {
             },
             cache);
     Decider decider = new DetermisiticRunnerContainerDecider(d);
-    PollForDecisionTaskResponse response = HistoryUtils.generateDecisionTaskWithInitialHistory();
+    PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> decider);
     cache.addToCache(response, decider);
@@ -853,13 +853,13 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) {
+    public DecisionResult decide(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
       return new DecisionResult(new ArrayList<>(), Maps.newHashMap(), false, false);
     }
 
     @Override
     public Optional<Payloads> query(
-        PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query) throws Throwable {
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) throws Throwable {
       return Optional.empty();
     }
 

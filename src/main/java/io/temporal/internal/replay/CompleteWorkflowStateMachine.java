@@ -19,15 +19,15 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.history.v1.HistoryEvent;
 
 final class CompleteWorkflowStateMachine implements DecisionStateMachine {
 
-  private Decision decision;
+  private Command decision;
   private final DecisionId id;
 
-  public CompleteWorkflowStateMachine(DecisionId id, Decision decision) {
+  public CompleteWorkflowStateMachine(DecisionId id, Command decision) {
     this.id = id;
     this.decision = decision;
   }
@@ -38,7 +38,7 @@ final class CompleteWorkflowStateMachine implements DecisionStateMachine {
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getDecision() {
     return decision;
   }
 
@@ -93,7 +93,7 @@ final class CompleteWorkflowStateMachine implements DecisionStateMachine {
   }
 
   @Override
-  public void handleDecisionTaskStartedEvent() {}
+  public void handleWorkflowTaskStartedEvent() {}
 
   @Override
   public String toString() {

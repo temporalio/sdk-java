@@ -19,12 +19,12 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
@@ -83,8 +83,8 @@ final class WorkflowDecisionContext {
         case WAIT_CANCELLATION_REQUESTED:
         case WAIT_CANCELLATION_COMPLETED:
         case TRY_CANCEL:
-          RequestCancelExternalWorkflowExecutionDecisionAttributes cancelAttributes =
-              RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+          RequestCancelExternalWorkflowExecutionCommandAttributes cancelAttributes =
+              RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
                   .setWorkflowId(workflowId)
                   .setChildWorkflowOnly(true)
                   .build();
@@ -126,8 +126,7 @@ final class WorkflowDecisionContext {
       StartChildWorkflowExecutionParameters parameters,
       Consumer<WorkflowExecution> executionCallback,
       BiConsumer<Optional<Payloads>, Exception> callback) {
-    final StartChildWorkflowExecutionDecisionAttributes.Builder attributes =
-        parameters.getRequest();
+    final StartChildWorkflowExecutionCommandAttributes.Builder attributes = parameters.getRequest();
     long initiatedEventId = decisions.startChildWorkflowExecution(attributes.build());
     final OpenChildWorkflowRequestInfo context =
         new OpenChildWorkflowRequestInfo(parameters.getCancellationType(), executionCallback);
@@ -138,7 +137,7 @@ final class WorkflowDecisionContext {
   }
 
   Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
       BiConsumer<Void, Exception> callback) {
     OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
     attributes.setControl(decisions.getAndIncrementNextId());
@@ -160,15 +159,15 @@ final class WorkflowDecisionContext {
   }
 
   void requestCancelWorkflowExecution(WorkflowExecution execution) {
-    RequestCancelExternalWorkflowExecutionDecisionAttributes attributes =
-        RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+    RequestCancelExternalWorkflowExecutionCommandAttributes attributes =
+        RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
             .setWorkflowId(execution.getWorkflowId())
             .setRunId(execution.getRunId())
             .build();
     decisions.requestCancelExternalWorkflowExecution(attributes);
   }
 
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     // TODO: add validation to check if continueAsNew is not set
     workflowContext.setContinueAsNewOnCompletion(attributes);
   }

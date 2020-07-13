@@ -24,13 +24,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.worker.PollDecisionTaskDispatcher;
+import io.temporal.internal.worker.PollWorkflowTaskDispatcher;
 import io.temporal.internal.worker.Poller;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
@@ -69,8 +69,8 @@ public final class WorkerFactory {
   private final AtomicInteger workflowThreadCounter = new AtomicInteger();
   private final WorkerFactoryOptions factoryOptions;
 
-  private Poller<PollForDecisionTaskResponse> stickyPoller;
-  private PollDecisionTaskDispatcher dispatcher;
+  private Poller<PollWorkflowTaskQueueResponse> stickyPoller;
+  private PollWorkflowTaskDispatcher dispatcher;
   private DeciderCache cache;
 
   private State state = State.Initial;
@@ -118,7 +118,7 @@ public final class WorkerFactory {
                 .put(MetricsTag.TASK_QUEUE, "sticky")
                 .build());
     dispatcher =
-        new PollDecisionTaskDispatcher(workflowClient.getWorkflowServiceStubs(), metricsScope);
+        new PollWorkflowTaskDispatcher(workflowClient.getWorkflowServiceStubs(), metricsScope);
     stickyPoller =
         new Poller<>(
             id.toString(),

@@ -27,10 +27,10 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -65,44 +65,44 @@ public class TestServiceUtils {
     service.blockingStub().startWorkflowExecution(request.build());
   }
 
-  public static void respondDecisionTaskCompletedWithSticky(
+  public static void respondWorkflowTaskCompletedWithSticky(
       ByteString taskToken, String stickyTaskqueueName, WorkflowServiceStubs service)
       throws Exception {
-    respondDecisionTaskCompletedWithSticky(taskToken, stickyTaskqueueName, 100, service);
+    respondWorkflowTaskCompletedWithSticky(taskToken, stickyTaskqueueName, 100, service);
   }
 
-  public static void respondDecisionTaskCompletedWithSticky(
+  public static void respondWorkflowTaskCompletedWithSticky(
       ByteString taskToken,
       String stickyTaskqueueName,
       int startToCloseTimeout,
       WorkflowServiceStubs service)
       throws Exception {
-    RespondDecisionTaskCompletedRequest.Builder request =
-        RespondDecisionTaskCompletedRequest.newBuilder();
+    RespondWorkflowTaskCompletedRequest.Builder request =
+        RespondWorkflowTaskCompletedRequest.newBuilder();
     StickyExecutionAttributes.Builder attributes = StickyExecutionAttributes.newBuilder();
     attributes.setWorkerTaskQueue(createStickyTaskQueue(stickyTaskqueueName));
     attributes.setScheduleToStartTimeoutSeconds(startToCloseTimeout);
     request.setStickyAttributes(attributes);
     request.setTaskToken(taskToken);
-    request.addAllDecisions(new ArrayList<>());
-    service.blockingStub().respondDecisionTaskCompleted(request.build());
+    request.addAllCommands(new ArrayList<>());
+    service.blockingStub().respondWorkflowTaskCompleted(request.build());
   }
 
-  public static void respondDecisionTaskFailedWithSticky(
+  public static void respondWorkflowTaskFailedWithSticky(
       ByteString taskToken, WorkflowServiceStubs service) throws Exception {
-    RespondDecisionTaskFailedRequest request =
-        RespondDecisionTaskFailedRequest.newBuilder().setTaskToken(taskToken).build();
-    service.blockingStub().respondDecisionTaskFailed(request);
+    RespondWorkflowTaskFailedRequest request =
+        RespondWorkflowTaskFailedRequest.newBuilder().setTaskToken(taskToken).build();
+    service.blockingStub().respondWorkflowTaskFailed(request);
   }
 
-  public static PollForDecisionTaskResponse pollForDecisionTask(
+  public static PollWorkflowTaskQueueResponse pollWorkflowTaskQueue(
       String namespace, TaskQueue taskqueue, WorkflowServiceStubs service) throws Exception {
-    PollForDecisionTaskRequest request =
-        PollForDecisionTaskRequest.newBuilder()
+    PollWorkflowTaskQueueRequest request =
+        PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
             .setTaskQueue(taskqueue)
             .build();
-    return service.blockingStub().pollForDecisionTask(request);
+    return service.blockingStub().pollWorkflowTaskQueue(request);
   }
 
   public static void signalWorkflow(

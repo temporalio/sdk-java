@@ -21,18 +21,18 @@ package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.replay.ReplayDecisionTaskHandler;
-import io.temporal.internal.worker.DecisionTaskHandler;
+import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.SuspendableWorker;
+import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.internal.worker.WorkflowWorker;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -49,7 +49,7 @@ import java.util.function.Consumer;
 
 /** Workflow worker that supports POJO workflow implementations. */
 public class SyncWorkflowWorker
-    implements SuspendableWorker, Consumer<PollForDecisionTaskResponse> {
+    implements SuspendableWorker, Consumer<PollWorkflowTaskQueueResponse> {
 
   private final WorkflowWorker workflowWorker;
   private final LocalActivityWorker laWorker;
@@ -90,8 +90,8 @@ public class SyncWorkflowWorker
             activityInterceptors);
     laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
 
-    DecisionTaskHandler taskHandler =
-        new ReplayDecisionTaskHandler(
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
             namespace,
             factory,
             cache,
@@ -211,7 +211,7 @@ public class SyncWorkflowWorker
   }
 
   @Override
-  public void accept(PollForDecisionTaskResponse pollForDecisionTaskResponse) {
-    workflowWorker.accept(pollForDecisionTaskResponse);
+  public void accept(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
+    workflowWorker.accept(pollWorkflowTaskQueueResponse);
   }
 }

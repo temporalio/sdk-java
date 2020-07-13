@@ -35,10 +35,10 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.common.WorkflowExecutionHistory;
@@ -57,13 +57,13 @@ import java.util.function.Consumer;
 import org.slf4j.MDC;
 
 public final class WorkflowWorker
-    implements SuspendableWorker, Consumer<PollForDecisionTaskResponse> {
+    implements SuspendableWorker, Consumer<PollWorkflowTaskQueueResponse> {
 
   private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskQueue=";
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
-  private PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
-  private final DecisionTaskHandler handler;
+  private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
+  private final WorkflowTaskHandler handler;
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String taskQueue;
@@ -76,7 +76,7 @@ public final class WorkflowWorker
       String namespace,
       String taskQueue,
       SingleWorkerOptions options,
-      DecisionTaskHandler handler,
+      WorkflowTaskHandler handler,
       String stickyTaskQueueName) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
@@ -175,8 +175,8 @@ public final class WorkflowWorker
     if (args.isPresent()) {
       query.setQueryArgs(args.get());
     }
-    PollForDecisionTaskResponse.Builder task =
-        PollForDecisionTaskResponse.newBuilder()
+    PollWorkflowTaskQueueResponse.Builder task =
+        PollWorkflowTaskQueueResponse.newBuilder()
             .setWorkflowExecution(history.getWorkflowExecution())
             .setStartedEventId(Long.MAX_VALUE)
             .setPreviousStartedEventId(Long.MAX_VALUE)
@@ -193,7 +193,7 @@ public final class WorkflowWorker
     WorkflowType workflowType = started.getWorkflowType();
     task.setWorkflowType(workflowType);
     task.setHistory(History.newBuilder().addAllEvents(events));
-    DecisionTaskHandler.Result result = handler.handleDecisionTask(task.build());
+    WorkflowTaskHandler.Result result = handler.handleWorkflowTask(task.build());
     if (result.getQueryCompleted() != null) {
       RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
       if (!r.getErrorMessage().isEmpty()) {
@@ -266,21 +266,21 @@ public final class WorkflowWorker
   }
 
   @Override
-  public void accept(PollForDecisionTaskResponse pollForDecisionTaskResponse) {
-    pollTaskExecutor.process(pollForDecisionTaskResponse);
+  public void accept(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
+    pollTaskExecutor.process(pollWorkflowTaskQueueResponse);
   }
 
   private class TaskHandlerImpl
-      implements PollTaskExecutor.TaskHandler<PollForDecisionTaskResponse> {
+      implements PollTaskExecutor.TaskHandler<PollWorkflowTaskQueueResponse> {
 
-    final DecisionTaskHandler handler;
+    final WorkflowTaskHandler handler;
 
-    private TaskHandlerImpl(DecisionTaskHandler handler) {
+    private TaskHandlerImpl(WorkflowTaskHandler handler) {
       this.handler = handler;
     }
 
     @Override
-    public void handle(PollForDecisionTaskResponse task) throws Exception {
+    public void handle(PollWorkflowTaskQueueResponse task) throws Exception {
       Scope metricsScope =
           options
               .getMetricsScope()
@@ -298,7 +298,7 @@ public final class WorkflowWorker
 
       try {
         Stopwatch sw = metricsScope.timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
-        DecisionTaskHandler.Result response = handler.handleDecisionTask(task);
+        WorkflowTaskHandler.Result response = handler.handleWorkflowTask(task);
         sw.stop();
 
         sendReply(service, task.getTaskToken(), response);
@@ -315,7 +315,7 @@ public final class WorkflowWorker
     }
 
     @Override
-    public Throwable wrapFailure(PollForDecisionTaskResponse task, Throwable failure) {
+    public Throwable wrapFailure(PollWorkflowTaskQueueResponse task, Throwable failure) {
       WorkflowExecution execution = task.getWorkflowExecution();
       return new RuntimeException(
           "Failure processing decision task. WorkflowId="
@@ -326,13 +326,13 @@ public final class WorkflowWorker
     }
 
     private void sendReply(
-        WorkflowServiceStubs service, ByteString taskToken, DecisionTaskHandler.Result response) {
+        WorkflowServiceStubs service, ByteString taskToken, WorkflowTaskHandler.Result response) {
       RpcRetryOptions ro = response.getRequestRetryOptions();
-      RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
+      RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
-        RespondDecisionTaskCompletedRequest request =
+        RespondWorkflowTaskCompletedRequest request =
             taskCompleted
                 .toBuilder()
                 .setIdentity(options.getIdentity())
@@ -350,16 +350,16 @@ public final class WorkflowWorker
                     .blockingStub()
                     .withOption(
                         METRICS_TAGS_CALL_OPTIONS_KEY, options.getMetricsScope().tagged(tags))
-                    .respondDecisionTaskCompleted(request));
+                    .respondWorkflowTaskCompleted(request));
       } else {
-        RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
+        RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
           ro =
               RpcRetryOptions.newBuilder(DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS)
                   .setRetryOptions(ro)
                   .validateBuildWithDefaults();
 
-          RespondDecisionTaskFailedRequest request =
+          RespondWorkflowTaskFailedRequest request =
               taskFailed
                   .toBuilder()
                   .setIdentity(options.getIdentity())
@@ -371,7 +371,7 @@ public final class WorkflowWorker
                   service
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, options.getMetricsScope())
-                      .respondDecisionTaskFailed(request));
+                      .respondWorkflowTaskFailed(request));
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {

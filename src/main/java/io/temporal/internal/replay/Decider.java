@@ -19,47 +19,47 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.decision.v1.Decision;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 public interface Decider {
 
-  DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable;
+  DecisionResult decide(PollWorkflowTaskQueueResponseOrBuilder workflowTask) throws Throwable;
 
-  Optional<Payloads> query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
+  Optional<Payloads> query(PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query)
       throws Throwable;
 
   void close();
 
   class DecisionResult {
-    private final List<Decision> decisions;
-    private final boolean forceCreateNewDecisionTask;
+    private final List<Command> decisions;
+    private final boolean forceCreateNewWorkflowTask;
     private final boolean finalDecision;
     private final Map<String, WorkflowQueryResult> queryResults;
 
     public DecisionResult(
-        List<Decision> decisions,
+        List<Command> decisions,
         Map<String, WorkflowQueryResult> queryResults,
-        boolean forceCreateNewDecisionTask,
+        boolean forceCreateNewWorkflowTask,
         boolean finalDecision) {
       this.decisions = decisions;
       this.queryResults = queryResults;
-      this.forceCreateNewDecisionTask = forceCreateNewDecisionTask;
+      this.forceCreateNewWorkflowTask = forceCreateNewWorkflowTask;
       this.finalDecision = finalDecision;
     }
 
-    public List<Decision> getDecisions() {
+    public List<Command> getDecisions() {
       return decisions;
     }
 
-    public boolean getForceCreateNewDecisionTask() {
-      return forceCreateNewDecisionTask;
+    public boolean getForceCreateNewWorkflowTask() {
+      return forceCreateNewWorkflowTask;
     }
 
     public Map<String, WorkflowQueryResult> getQueryResults() {

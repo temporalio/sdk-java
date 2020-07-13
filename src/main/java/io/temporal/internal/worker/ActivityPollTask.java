@@ -28,14 +28,14 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskResponse> {
+final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueResponse> {
 
   private final WorkflowServiceStubs service;
   private final String namespace;
@@ -61,9 +61,9 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
   }
 
   @Override
-  public PollForActivityTaskResponse poll() {
-    PollForActivityTaskRequest.Builder pollRequest =
-        PollForActivityTaskRequest.newBuilder()
+  public PollActivityTaskQueueResponse poll() {
+    PollActivityTaskQueueRequest.Builder pollRequest =
+        PollActivityTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
             .setIdentity(options.getIdentity())
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
@@ -86,13 +86,13 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }
-    PollForActivityTaskResponse result;
+    PollActivityTaskQueueResponse result;
     try {
       result =
           service
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-              .pollForActivityTask(pollRequest.build());
+              .pollActivityTaskQueue(pollRequest.build());
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
           && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {

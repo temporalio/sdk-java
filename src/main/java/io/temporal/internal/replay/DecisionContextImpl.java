@@ -20,18 +20,18 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionTaskFailedCause;
-import io.temporal.api.history.v1.DecisionTaskFailedEventAttributes;
+import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.api.history.v1.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.api.history.v1.WorkflowTaskFailedEventAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
@@ -139,19 +139,19 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion() {
+  public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
     return workflowContext.getContinueAsNewOnCompletion();
   }
 
   @Override
   public void setContinueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+      ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     workflowContext.setContinueAsNewOnCompletion(attributes);
   }
 
   @Override
   public Duration getWorkflowTaskTimeout() {
-    return Duration.ofSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
+    return Duration.ofSeconds(workflowContext.getWorkflowTaskTimeoutSeconds());
   }
 
   @Override
@@ -236,7 +236,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
       BiConsumer<Void, Exception> callback) {
     return workflowClient.signalWorkflowExecution(attributes, callback);
   }
@@ -250,7 +250,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public void continueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+      ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     workflowClient.continueAsNewOnCompletion(attributes);
   }
 
@@ -393,10 +393,10 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     workflowClock.handleMarkerRecorded(event);
   }
 
-  public void handleDecisionTaskFailed(HistoryEvent event) {
-    DecisionTaskFailedEventAttributes attr = event.getDecisionTaskFailedEventAttributes();
+  public void handleWorkflowTaskFailed(HistoryEvent event) {
+    WorkflowTaskFailedEventAttributes attr = event.getWorkflowTaskFailedEventAttributes();
     if (attr != null
-        && attr.getCause() == DecisionTaskFailedCause.DECISION_TASK_FAILED_CAUSE_RESET_WORKFLOW) {
+        && attr.getCause() == WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_WORKFLOW) {
       workflowContext.setCurrentRunId(attr.getNewRunId());
     }
   }

@@ -27,8 +27,8 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.history.v1.History;
@@ -40,8 +40,8 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.GrpcRetryer;
@@ -49,10 +49,10 @@ import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
-import io.temporal.internal.worker.DecisionTaskWithHistoryIterator;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.internal.worker.WorkflowTaskWithHistoryIterator;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
@@ -99,17 +99,17 @@ class ReplayDecider implements Decider {
       WorkflowServiceStubs service,
       String namespace,
       ReplayWorkflow workflow,
-      PollForDecisionTaskResponse.Builder decisionTask,
+      PollWorkflowTaskQueueResponse.Builder workflowTask,
       SingleWorkerOptions options,
       Scope metricsScope,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
     this.service = service;
     this.workflow = workflow;
-    this.decisionsHelper = new DecisionsHelper(decisionTask);
+    this.decisionsHelper = new DecisionsHelper(workflowTask);
     this.metricsScope = metricsScope;
     this.converter = options.getDataConverter();
 
-    HistoryEvent firstEvent = decisionTask.getHistory().getEvents(0);
+    HistoryEvent firstEvent = workflowTask.getHistory().getEvents(0);
     if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
           "First event in the history is not WorkflowExecutionStarted");
@@ -186,15 +186,15 @@ class ReplayDecider implements Decider {
       case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
         context.handleChildWorkflowExecutionTimedOut(event);
         break;
-      case EVENT_TYPE_DECISION_TASK_COMPLETED:
+      case EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
         // NOOP
         break;
-      case EVENT_TYPE_DECISION_TASK_SCHEDULED:
+      case EVENT_TYPE_WORKFLOW_TASK_SCHEDULED:
         // NOOP
         break;
-      case EVENT_TYPE_DECISION_TASK_STARTED:
+      case EVENT_TYPE_WORKFLOW_TASK_STARTED:
         throw new IllegalArgumentException("not expected");
-      case EVENT_TYPE_DECISION_TASK_TIMED_OUT:
+      case EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT:
         // Handled in the processEvent(event)
         break;
       case EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED:
@@ -269,8 +269,8 @@ class ReplayDecider implements Decider {
       case EVENT_TYPE_CANCEL_TIMER_FAILED:
         decisionsHelper.handleCancelTimerFailed(event);
         break;
-      case EVENT_TYPE_DECISION_TASK_FAILED:
-        context.handleDecisionTaskFailed(event);
+      case EVENT_TYPE_WORKFLOW_TASK_FAILED:
+        context.handleWorkflowTaskFailed(event);
         break;
       case EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
         context.handleUpsertSearchAttributes(event);
@@ -317,7 +317,7 @@ class ReplayDecider implements Decider {
       decisionsHelper.cancelWorkflowExecution();
       metricsScope.counter(MetricsType.WORKFLOW_CANCELLED_COUNTER).inc(1);
     } else {
-      ContinueAsNewWorkflowExecutionDecisionAttributes attributes =
+      ContinueAsNewWorkflowExecutionCommandAttributes attributes =
           context.getContinueAsNewOnCompletion();
       if (attributes != null) {
         decisionsHelper.continueAsNewWorkflowExecution(attributes);
@@ -399,13 +399,14 @@ class ReplayDecider implements Decider {
   }
 
   @Override
-  public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable {
+  public DecisionResult decide(PollWorkflowTaskQueueResponseOrBuilder workflowTask)
+      throws Throwable {
     lock.lock();
     try {
       queryResults.clear();
-      boolean forceCreateNewDecisionTask = decideImpl(decisionTask, null);
+      boolean forceCreateNewWorkflowTask = decideImpl(workflowTask, null);
       return new DecisionResult(
-          decisionsHelper.getDecisions(), queryResults, forceCreateNewDecisionTask, completed);
+          decisionsHelper.getDecisions(), queryResults, forceCreateNewWorkflowTask, completed);
     } finally {
       lock.unlock();
     }
@@ -414,23 +415,23 @@ class ReplayDecider implements Decider {
   // Returns boolean to indicate whether we need to force create new decision task for local
   // activity heartbeating.
   private boolean decideImpl(
-      PollForDecisionTaskResponseOrBuilder decisionTask, Functions.Proc legacyQueryCallback)
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, Functions.Proc legacyQueryCallback)
       throws Throwable {
-    boolean forceCreateNewDecisionTask = false;
-    Stopwatch sw = metricsScope.timer(MetricsType.DECISION_TASK_REPLAY_LATENCY).start();
+    boolean forceCreateNewWorkflowTask = false;
+    Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_REPLAY_LATENCY).start();
     boolean timerStopped = false;
     try {
       long startTime = System.currentTimeMillis();
-      DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator =
-          new DecisionTaskWithHistoryIteratorImpl(
-              decisionTask, Duration.ofSeconds(startedEvent.getWorkflowTaskTimeoutSeconds()));
+      WorkflowTaskWithHistoryIterator workflowTaskWithHistoryIterator =
+          new WorkflowTaskWithHistoryIteratorImpl(
+              workflowTask, Duration.ofSeconds(startedEvent.getWorkflowTaskTimeoutSeconds()));
       HistoryHelper historyHelper =
           new HistoryHelper(
-              decisionTaskWithHistoryIterator, context.getReplayCurrentTimeMilliseconds());
+              workflowTaskWithHistoryIterator, context.getReplayCurrentTimeMilliseconds());
       Iterator<DecisionEvents> iterator = historyHelper.getIterator();
       if (decisionsHelper.getLastStartedEventId() > 0
           && decisionsHelper.getLastStartedEventId() != historyHelper.getPreviousStartedEventId()
-          && decisionTask.getHistory().getEventsCount() > 0) {
+          && workflowTask.getHistory().getEventsCount() > 0) {
         throw new IllegalStateException(
             String.format(
                 "ReplayDecider processed up to event id %d. History's previous started event id is %d",
@@ -446,7 +447,7 @@ class ReplayDecider implements Decider {
         context.setReplaying(decision.isReplay());
         context.setReplayCurrentTimeMilliseconds(decision.getReplayCurrentTimeMilliseconds());
 
-        decisionsHelper.handleDecisionTaskStartedEvent(decision);
+        decisionsHelper.handleWorkflowTaskStartedEvent(decision);
         // Markers must be cached first as their data is needed when processing events.
         for (HistoryEvent event : decision.getMarkers()) {
           if (!event
@@ -461,12 +462,12 @@ class ReplayDecider implements Decider {
           processEvent(event);
         }
 
-        forceCreateNewDecisionTask =
+        forceCreateNewWorkflowTask =
             processEventLoop(
                 startTime,
                 startedEvent.getWorkflowTaskTimeoutSeconds(),
                 decision,
-                decisionTask.hasQuery());
+                workflowTask.hasQuery());
 
         mayBeCompleteWorkflow();
         if (decision.isReplay()) {
@@ -477,9 +478,9 @@ class ReplayDecider implements Decider {
           processEvent(event);
         }
         // Reset state to before running the event loop
-        decisionsHelper.handleDecisionTaskStartedEvent(decision);
+        decisionsHelper.handleWorkflowTaskStartedEvent(decision);
       }
-      return forceCreateNewDecisionTask;
+      return forceCreateNewWorkflowTask;
     } catch (Error e) {
       if (this.workflow.getWorkflowImplementationOptions().getWorkflowErrorPolicy()
           == FailWorkflow) {
@@ -489,7 +490,7 @@ class ReplayDecider implements Decider {
         completeWorkflow();
         return false;
       } else {
-        metricsScope.counter(MetricsType.DECISION_TASK_ERROR_COUNTER).inc(1);
+        metricsScope.counter(MetricsType.WORKFLOW_TASK_ERROR_COUNTER).inc(1);
         // fail decision, not a workflow
         throw e;
       }
@@ -497,7 +498,7 @@ class ReplayDecider implements Decider {
       if (!timerStopped) {
         sw.stop();
       }
-      Map<String, WorkflowQuery> queries = decisionTask.getQueriesMap();
+      Map<String, WorkflowQuery> queries = workflowTask.getQueriesMap();
       for (Map.Entry<String, WorkflowQuery> entry : queries.entrySet()) {
         WorkflowQuery query = entry.getValue();
         try {
@@ -625,7 +626,7 @@ class ReplayDecider implements Decider {
 
   @Override
   public Optional<Payloads> query(
-      PollForDecisionTaskResponseOrBuilder response, WorkflowQuery query) throws Throwable {
+      PollWorkflowTaskQueueResponseOrBuilder response, WorkflowQuery query) throws Throwable {
     lock.lock();
     try {
       AtomicReference<Optional<Payloads>> result = new AtomicReference<>();
@@ -640,19 +641,19 @@ class ReplayDecider implements Decider {
     return localActivityCompletionSink;
   }
 
-  private class DecisionTaskWithHistoryIteratorImpl implements DecisionTaskWithHistoryIterator {
+  private class WorkflowTaskWithHistoryIteratorImpl implements WorkflowTaskWithHistoryIterator {
 
     private final Duration retryServiceOperationInitialInterval = Duration.ofMillis(200);
     private final Duration retryServiceOperationMaxInterval = Duration.ofSeconds(4);
     private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
     private Duration workflowTaskTimeout;
 
-    private final PollForDecisionTaskResponseOrBuilder task;
+    private final PollWorkflowTaskQueueResponseOrBuilder task;
     private Iterator<HistoryEvent> current;
     private ByteString nextPageToken;
 
-    DecisionTaskWithHistoryIteratorImpl(
-        PollForDecisionTaskResponseOrBuilder task, Duration workflowTaskTimeout) {
+    WorkflowTaskWithHistoryIteratorImpl(
+        PollWorkflowTaskQueueResponseOrBuilder task, Duration workflowTaskTimeout) {
       this.task = Objects.requireNonNull(task);
       this.workflowTaskTimeout = Objects.requireNonNull(workflowTaskTimeout);
 
@@ -662,7 +663,7 @@ class ReplayDecider implements Decider {
     }
 
     @Override
-    public PollForDecisionTaskResponseOrBuilder getDecisionTask() {
+    public PollWorkflowTaskQueueResponseOrBuilder getWorkflowTask() {
       lock.lock();
       try {
         return task;

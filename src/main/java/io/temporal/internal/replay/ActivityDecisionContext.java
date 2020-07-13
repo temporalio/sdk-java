@@ -22,9 +22,9 @@ package io.temporal.internal.replay;
 import static io.temporal.failure.FailureConverter.JAVA_SDK;
 
 import io.temporal.activity.ActivityCancellationType;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.ActivityTaskCanceledEventAttributes;
@@ -135,7 +135,7 @@ final class ActivityDecisionContext {
 
   Consumer<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, BiConsumer<Optional<Payloads>, Exception> callback) {
-    final ScheduleActivityTaskDecisionAttributes.Builder attributes = parameters.getAttributes();
+    final ScheduleActivityTaskCommandAttributes.Builder attributes = parameters.getAttributes();
 
     if (attributes.getActivityId().isEmpty()) {
       attributes.setActivityId(decisions.getAndIncrementNextId());

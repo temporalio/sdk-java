@@ -28,12 +28,12 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
-final class DecisionTaskToken {
+final class WorkflowTaskToken {
 
   private final ExecutionId executionId;
   private final int historySize;
 
-  DecisionTaskToken(ExecutionId executionId, int historySize) {
+  WorkflowTaskToken(ExecutionId executionId, int historySize) {
     this.executionId = Objects.requireNonNull(executionId);
     this.historySize = historySize;
   }
@@ -63,13 +63,13 @@ final class DecisionTaskToken {
     out.writeInt(historySize);
   }
 
-  static DecisionTaskToken fromBytes(ByteString serialized) {
+  static WorkflowTaskToken fromBytes(ByteString serialized) {
     ByteArrayInputStream bin = new ByteArrayInputStream(serialized.toByteArray());
     DataInputStream in = new DataInputStream(bin);
     try {
       ExecutionId executionId = ExecutionId.readFromBytes(in);
       int historySize = in.readInt();
-      return new DecisionTaskToken(executionId, historySize);
+      return new WorkflowTaskToken(executionId, historySize);
     } catch (IOException e) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Failure parsing decision task token")

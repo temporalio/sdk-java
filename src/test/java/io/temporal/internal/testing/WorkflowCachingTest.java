@@ -25,7 +25,7 @@ import static org.junit.Assert.*;
 
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.TestServiceUtils;
@@ -70,40 +70,43 @@ public class WorkflowCachingTest {
       throws Exception {
 
     TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
-    PollForDecisionTaskResponse response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+    PollWorkflowTaskQueueResponse response =
+        TestServiceUtils.pollWorkflowTaskQueue(
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
-    TestServiceUtils.respondDecisionTaskCompletedWithSticky(
+    TestServiceUtils.respondWorkflowTaskCompletedWithSticky(
         response.getTaskToken(), HOST_TASKQUEUE, service);
     TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
     response =
-        TestServiceUtils.pollForDecisionTask(
+        TestServiceUtils.pollWorkflowTaskQueue(
             NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
 
     assertEquals(4, response.getHistory().getEventsCount());
     assertEquals(TASK_QUEUE, response.getWorkflowExecutionTaskQueue().getName());
     List<HistoryEvent> events = response.getHistory().getEventsList();
-    assertEquals(EventType.EVENT_TYPE_DECISION_TASK_COMPLETED, events.get(0).getEventType());
+    assertEquals(EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED, events.get(0).getEventType());
     assertEquals(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED, events.get(1).getEventType());
-    assertEquals(EventType.EVENT_TYPE_DECISION_TASK_SCHEDULED, events.get(2).getEventType());
-    assertEquals(EventType.EVENT_TYPE_DECISION_TASK_STARTED, events.get(3).getEventType());
+    assertEquals(EventType.EVENT_TYPE_WORKFLOW_TASK_SCHEDULED, events.get(2).getEventType());
+    assertEquals(EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED, events.get(3).getEventType());
   }
 
   @Test
   public void taskFailureWillRescheduleTheTaskOnTheGlobalList() throws Exception {
     TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
-    PollForDecisionTaskResponse response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+    PollWorkflowTaskQueueResponse response =
+        TestServiceUtils.pollWorkflowTaskQueue(
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
-    TestServiceUtils.respondDecisionTaskCompletedWithSticky(
+    TestServiceUtils.respondWorkflowTaskCompletedWithSticky(
         response.getTaskToken(), HOST_TASKQUEUE, service);
     TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
     response =
-        TestServiceUtils.pollForDecisionTask(
+        TestServiceUtils.pollWorkflowTaskQueue(
             NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
-    TestServiceUtils.respondDecisionTaskFailedWithSticky(response.getTaskToken(), service);
+    TestServiceUtils.respondWorkflowTaskFailedWithSticky(response.getTaskToken(), service);
     response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+        TestServiceUtils.pollWorkflowTaskQueue(
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
     // Assert Full history
     // Make sure first is workflow execution started
@@ -115,18 +118,21 @@ public class WorkflowCachingTest {
   @Test
   public void taskTimeoutWillRescheduleTheTaskOnTheGlobalList() throws Exception {
     TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, 10, 2, service);
-    PollForDecisionTaskResponse response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+    PollWorkflowTaskQueueResponse response =
+        TestServiceUtils.pollWorkflowTaskQueue(
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
-    TestServiceUtils.respondDecisionTaskCompletedWithSticky(
+    TestServiceUtils.respondWorkflowTaskCompletedWithSticky(
         response.getTaskToken(), HOST_TASKQUEUE, 1, service);
     TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
-    TestServiceUtils.pollForDecisionTask(NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
+    TestServiceUtils.pollWorkflowTaskQueue(
+        NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
     testService.unlockTimeSkipping(CALLER);
     testService.sleep(Duration.ofMillis(1100));
 
     response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+        TestServiceUtils.pollWorkflowTaskQueue(
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
     // Assert Full history
     // Make sure first is workflow execution started

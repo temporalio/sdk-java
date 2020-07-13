@@ -22,9 +22,9 @@ package io.temporal.internal.replay;
 import com.google.common.collect.PeekingIterator;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.worker.DecisionTaskWithHistoryIterator;
+import io.temporal.internal.worker.WorkflowTaskWithHistoryIterator;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -162,7 +162,7 @@ class HistoryHelper {
   }
 
   /**
-   * Iterates through decisions and returns one DecisionEvents instance per DecisionTaskStarted
+   * Iterates through decisions and returns one DecisionEvents instance per WorkflowTaskStarted
    * event.
    */
   private static class DecisionEventsIterator implements Iterator<DecisionEvents> {
@@ -171,9 +171,9 @@ class HistoryHelper {
     private long replayCurrentTimeMilliseconds;
 
     DecisionEventsIterator(
-        DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator,
+        WorkflowTaskWithHistoryIterator workflowTaskWithHistoryIterator,
         long replayCurrentTimeMilliseconds) {
-      this.events = new EventsIterator(decisionTaskWithHistoryIterator.getHistory());
+      this.events = new EventsIterator(workflowTaskWithHistoryIterator.getHistory());
       this.replayCurrentTimeMilliseconds = replayCurrentTimeMilliseconds;
     }
 
@@ -192,14 +192,14 @@ class HistoryHelper {
         HistoryEvent event = events.next();
         EventType eventType = event.getEventType();
 
-        // Sticky workers receive an event history that starts with DecisionTaskCompleted
-        if (eventType == EventType.EVENT_TYPE_DECISION_TASK_COMPLETED
+        // Sticky workers receive an event history that starts with WorkflowTaskCompleted
+        if (eventType == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
             && nextDecisionEventId == -1) {
           nextDecisionEventId = event.getEventId() + 1;
           break;
         }
 
-        if (eventType == EventType.EVENT_TYPE_DECISION_TASK_STARTED || !events.hasNext()) {
+        if (eventType == EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED || !events.hasNext()) {
           replayCurrentTimeMilliseconds = TimeUnit.NANOSECONDS.toMillis(event.getTimestamp());
           if (!events.hasNext()) {
             replay = false;
@@ -208,18 +208,18 @@ class HistoryHelper {
           }
           HistoryEvent peeked = events.peek();
           EventType peekedType = peeked.getEventType();
-          if (peekedType == EventType.EVENT_TYPE_DECISION_TASK_TIMED_OUT
-              || peekedType == EventType.EVENT_TYPE_DECISION_TASK_FAILED) {
+          if (peekedType == EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT
+              || peekedType == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED) {
             continue;
-          } else if (peekedType == EventType.EVENT_TYPE_DECISION_TASK_COMPLETED) {
-            events.next(); // consume DecisionTaskCompleted
+          } else if (peekedType == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
+            events.next(); // consume WorkflowTaskCompleted
             nextDecisionEventId = peeked.getEventId() + 1; // +1 for next and skip over completed
             break;
           } else {
             throw new Error(
-                "Unexpected event after DecisionTaskStarted: "
+                "Unexpected event after WorkflowTaskStarted: "
                     + peeked
-                    + " DecisionTaskStarted Event: "
+                    + " WorkflowTaskStarted Event: "
                     + event);
           }
         }
@@ -242,30 +242,30 @@ class HistoryHelper {
     }
   }
 
-  private final DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator;
+  private final WorkflowTaskWithHistoryIterator workflowTaskWithHistoryIterator;
   private final Iterator<DecisionEvents> iterator;
 
-  HistoryHelper(DecisionTaskWithHistoryIterator decisionTasks, long replayCurrentTimeMilliseconds) {
-    this.decisionTaskWithHistoryIterator = decisionTasks;
-    this.iterator = new DecisionEventsIterator(decisionTasks, replayCurrentTimeMilliseconds);
+  HistoryHelper(WorkflowTaskWithHistoryIterator workflowTasks, long replayCurrentTimeMilliseconds) {
+    this.workflowTaskWithHistoryIterator = workflowTasks;
+    this.iterator = new DecisionEventsIterator(workflowTasks, replayCurrentTimeMilliseconds);
   }
 
   public Iterator<DecisionEvents> getIterator() {
     return iterator;
   }
 
-  public PollForDecisionTaskResponseOrBuilder getDecisionTask() {
-    return decisionTaskWithHistoryIterator.getDecisionTask();
+  public PollWorkflowTaskQueueResponseOrBuilder getWorkflowTask() {
+    return workflowTaskWithHistoryIterator.getWorkflowTask();
   }
 
   @Override
   public String toString() {
     return WorkflowExecutionUtils.prettyPrintHistory(
-        decisionTaskWithHistoryIterator.getDecisionTask().getHistory().getEventsList().iterator(),
+        workflowTaskWithHistoryIterator.getWorkflowTask().getHistory().getEventsList().iterator(),
         true);
   }
 
   long getPreviousStartedEventId() {
-    return getDecisionTask().getPreviousStartedEventId();
+    return getWorkflowTask().getPreviousStartedEventId();
   }
 }

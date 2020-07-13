@@ -22,12 +22,12 @@ package io.temporal.internal.sync;
 import com.google.common.primitives.Ints;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
@@ -599,13 +599,13 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion() {
+    public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public void setContinueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -697,7 +697,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public Consumer<Exception> signalWorkflowExecution(
-        SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+        SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
         BiConsumer<Void, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -709,7 +709,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public void continueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 

@@ -20,7 +20,7 @@
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
@@ -116,11 +116,11 @@ public interface ActivityTaskHandler {
    * task. This method shouldn't throw any exception unless there is a need to not reply to the
    * task.
    *
-   * @param activityTask activity task which is response to PollForActivityTask call.
+   * @param activityTask activity task which is response to PollActivityTaskQueue call.
    * @return One of the possible decision task replies.
    */
   Result handle(
-      PollForActivityTaskResponse activityTask, Scope metricsScope, boolean isLocalActivity);
+      PollActivityTaskQueueResponse activityTask, Scope metricsScope, boolean isLocalActivity);
 
   /** True if this handler handles at least one activity type. */
   boolean isAnyTypeSupported();

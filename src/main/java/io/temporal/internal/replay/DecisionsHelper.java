@@ -19,22 +19,22 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.FailWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
+import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.StartTimerCommandAttributes;
+import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.decision.v1.CancelWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.CompleteWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.decision.v1.FailWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.RecordMarkerDecisionAttributes;
-import io.temporal.api.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.StartTimerDecisionAttributes;
-import io.temporal.api.decision.v1.UpsertWorkflowSearchAttributesDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.ActivityTaskCancelRequestedEventAttributes;
@@ -53,7 +53,7 @@ import io.temporal.api.history.v1.RequestCancelExternalWorkflowExecutionFailedEv
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.TimerCanceledEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
@@ -83,7 +83,7 @@ final class DecisionsHelper {
       "The possible causes are a nondeterministic workflow definition code or an incompatible "
           + "change in the workflow definition.";
 
-  private final PollForDecisionTaskResponse.Builder task;
+  private final PollWorkflowTaskQueueResponse.Builder task;
 
   /**
    * When workflow task completes the decisions are converted to events that follow the decision
@@ -105,7 +105,7 @@ final class DecisionsHelper {
   // TODO: removal of completed activities
   private final Map<String, Long> activityIdToScheduledEventId = new HashMap<>();
 
-  DecisionsHelper(PollForDecisionTaskResponse.Builder task) {
+  DecisionsHelper(PollWorkflowTaskQueueResponse.Builder task) {
     this.task = task;
   }
 
@@ -117,7 +117,7 @@ final class DecisionsHelper {
     return lastStartedEventId;
   }
 
-  long scheduleActivityTask(ScheduleActivityTaskDecisionAttributes schedule) {
+  long scheduleActivityTask(ScheduleActivityTaskCommandAttributes schedule) {
     addAllMissingVersionMarker();
 
     long nextDecisionEventId = getNextDecisionEventId();
@@ -187,7 +187,7 @@ final class DecisionsHelper {
     return decision.isDone();
   }
 
-  long startChildWorkflowExecution(StartChildWorkflowExecutionDecisionAttributes childWorkflow) {
+  long startChildWorkflowExecution(StartChildWorkflowExecutionCommandAttributes childWorkflow) {
     addAllMissingVersionMarker();
 
     long nextDecisionEventId = getNextDecisionEventId();
@@ -217,7 +217,7 @@ final class DecisionsHelper {
    *     list
    */
   long requestCancelExternalWorkflowExecution(
-      RequestCancelExternalWorkflowExecutionDecisionAttributes schedule) {
+      RequestCancelExternalWorkflowExecutionCommandAttributes schedule) {
     addAllMissingVersionMarker();
 
     long nextDecisionEventId = getNextDecisionEventId();
@@ -254,7 +254,7 @@ final class DecisionsHelper {
     decision.handleCompletionEvent();
   }
 
-  long signalExternalWorkflowExecution(SignalExternalWorkflowExecutionDecisionAttributes signal) {
+  long signalExternalWorkflowExecution(SignalExternalWorkflowExecutionCommandAttributes signal) {
     addAllMissingVersionMarker();
 
     long nextDecisionEventId = getNextDecisionEventId();
@@ -287,7 +287,7 @@ final class DecisionsHelper {
     return decision.isDone();
   }
 
-  long startTimer(StartTimerDecisionAttributes request) {
+  long startTimer(StartTimerCommandAttributes request) {
     addAllMissingVersionMarker();
 
     long startEventId = getNextDecisionEventId();
@@ -412,21 +412,21 @@ final class DecisionsHelper {
   void completeWorkflowExecution(Optional<Payloads> output) {
     addAllMissingVersionMarker();
 
-    CompleteWorkflowExecutionDecisionAttributes.Builder attributes =
-        CompleteWorkflowExecutionDecisionAttributes.newBuilder();
+    CompleteWorkflowExecutionCommandAttributes.Builder attributes =
+        CompleteWorkflowExecutionCommandAttributes.newBuilder();
     if (output.isPresent()) {
       attributes.setResult(output.get());
     }
-    Decision decision =
-        Decision.newBuilder()
-            .setCompleteWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DECISION_TYPE_COMPLETE_WORKFLOW_EXECUTION)
+    Command decision =
+        Command.newBuilder()
+            .setCompleteWorkflowExecutionCommandAttributes(attributes)
+            .setCommandType(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
   }
 
-  void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+  void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     addAllMissingVersionMarker();
 
     HistoryEvent firstEvent = task.getHistory().getEvents(0);
@@ -435,10 +435,10 @@ final class DecisionsHelper {
           "The first event is not WorkflowExecutionStarted: " + firstEvent);
     }
 
-    Decision decision =
-        Decision.newBuilder()
-            .setDecisionType(DecisionType.DECISION_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION)
-            .setContinueAsNewWorkflowExecutionDecisionAttributes(attributes)
+    Command decision =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION)
+            .setContinueAsNewWorkflowExecutionCommandAttributes(attributes)
             .build();
 
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
@@ -448,12 +448,12 @@ final class DecisionsHelper {
   void failWorkflowExecution(WorkflowExecutionException exception) {
     addAllMissingVersionMarker();
 
-    FailWorkflowExecutionDecisionAttributes.Builder attributes =
-        FailWorkflowExecutionDecisionAttributes.newBuilder().setFailure(exception.getFailure());
-    Decision decision =
-        Decision.newBuilder()
-            .setFailWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DECISION_TYPE_FAIL_WORKFLOW_EXECUTION)
+    FailWorkflowExecutionCommandAttributes.Builder attributes =
+        FailWorkflowExecutionCommandAttributes.newBuilder().setFailure(exception.getFailure());
+    Command decision =
+        Command.newBuilder()
+            .setFailWorkflowExecutionCommandAttributes(attributes)
+            .setCommandType(CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
@@ -466,11 +466,11 @@ final class DecisionsHelper {
   void cancelWorkflowExecution() {
     addAllMissingVersionMarker();
 
-    Decision decision =
-        Decision.newBuilder()
-            .setCancelWorkflowExecutionDecisionAttributes(
-                CancelWorkflowExecutionDecisionAttributes.getDefaultInstance())
-            .setDecisionType(DecisionType.DECISION_TYPE_CANCEL_WORKFLOW_EXECUTION)
+    Command decision =
+        Command.newBuilder()
+            .setCancelWorkflowExecutionCommandAttributes(
+                CancelWorkflowExecutionCommandAttributes.getDefaultInstance())
+            .setCommandType(CommandType.COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
@@ -483,8 +483,8 @@ final class DecisionsHelper {
       Optional<Failure> failure) {
     // no need to call addAllMissingVersionMarker here as all the callers are already doing it.
 
-    RecordMarkerDecisionAttributes.Builder marker =
-        RecordMarkerDecisionAttributes.newBuilder().setMarkerName(markerName);
+    RecordMarkerCommandAttributes.Builder marker =
+        RecordMarkerCommandAttributes.newBuilder().setMarkerName(markerName);
     marker.putAllDetails(details);
     if (header.isPresent()) {
       marker.setHeader(header.get());
@@ -492,10 +492,10 @@ final class DecisionsHelper {
     if (failure.isPresent()) {
       marker.setFailure(failure.get());
     }
-    Decision decision =
-        Decision.newBuilder()
-            .setDecisionType(DecisionType.DECISION_TYPE_RECORD_MARKER)
-            .setRecordMarkerDecisionAttributes(marker)
+    Command decision =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
+            .setRecordMarkerCommandAttributes(marker)
             .build();
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId = new DecisionId(DecisionTarget.MARKER, nextDecisionEventId);
@@ -503,11 +503,11 @@ final class DecisionsHelper {
   }
 
   void upsertSearchAttributes(SearchAttributes searchAttributes) {
-    Decision decision =
-        Decision.newBuilder()
-            .setDecisionType(DecisionType.DECISION_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES)
-            .setUpsertWorkflowSearchAttributesDecisionAttributes(
-                UpsertWorkflowSearchAttributesDecisionAttributes.newBuilder()
+    Command decision =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES)
+            .setUpsertWorkflowSearchAttributesCommandAttributes(
+                UpsertWorkflowSearchAttributesCommandAttributes.newBuilder()
                     .setSearchAttributes(searchAttributes))
             .build();
     long nextDecisionEventId = getNextDecisionEventId();
@@ -516,10 +516,10 @@ final class DecisionsHelper {
     addDecision(decisionId, new UpsertSearchAttributesDecisionStateMachine(decisionId, decision));
   }
 
-  List<Decision> getDecisions() {
-    List<Decision> result = new ArrayList<>(MAXIMUM_DECISIONS_PER_COMPLETION + 1);
+  List<Command> getDecisions() {
+    List<Command> result = new ArrayList<>(MAXIMUM_DECISIONS_PER_COMPLETION + 1);
     for (DecisionStateMachine decisionStateMachine : decisions.values()) {
-      Decision decision = decisionStateMachine.getDecision();
+      Command decision = decisionStateMachine.getDecision();
       if (decision != null) {
         result.add(decision);
       }
@@ -529,13 +529,13 @@ final class DecisionsHelper {
     if (size > MAXIMUM_DECISIONS_PER_COMPLETION
         && !isCompletionEvent(result.get(MAXIMUM_DECISIONS_PER_COMPLETION - 2))) {
       result = result.subList(0, MAXIMUM_DECISIONS_PER_COMPLETION - 1);
-      Decision d =
-          Decision.newBuilder()
-              .setStartTimerDecisionAttributes(
-                  StartTimerDecisionAttributes.newBuilder()
+      Command d =
+          Command.newBuilder()
+              .setStartTimerCommandAttributes(
+                  StartTimerCommandAttributes.newBuilder()
                       .setStartToFireTimeoutSeconds(0)
                       .setTimerId(FORCE_IMMEDIATE_DECISION_TIMER))
-              .setDecisionType(DecisionType.DECISION_TYPE_START_TIMER)
+              .setCommandType(CommandType.COMMAND_TYPE_START_TIMER)
               .build();
       result.add(d);
     }
@@ -543,20 +543,20 @@ final class DecisionsHelper {
     return result;
   }
 
-  private boolean isCompletionEvent(Decision decision) {
-    DecisionType type = decision.getDecisionType();
+  private boolean isCompletionEvent(Command decision) {
+    CommandType type = decision.getCommandType();
     switch (type) {
-      case DECISION_TYPE_CANCEL_WORKFLOW_EXECUTION:
-      case DECISION_TYPE_COMPLETE_WORKFLOW_EXECUTION:
-      case DECISION_TYPE_FAIL_WORKFLOW_EXECUTION:
-      case DECISION_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION:
+      case COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:
         return true;
       default:
         return false;
     }
   }
 
-  public void handleDecisionTaskStartedEvent(DecisionEvents decision) {
+  public void handleWorkflowTaskStartedEvent(DecisionEvents decision) {
     this.decisionEvents = decision;
     this.nextDecisionEventId = decision.getNextDecisionEventId();
     // Account for DecisionCompleted
@@ -576,11 +576,11 @@ final class DecisionsHelper {
           && !isCompletionEvent(next.getDecision())) {
         break;
       }
-      decisionStateMachine.handleDecisionTaskStartedEvent();
+      decisionStateMachine.handleWorkflowTaskStartedEvent();
       decisionStateMachine = next;
     }
     if (next != null && count < MAXIMUM_DECISIONS_PER_COMPLETION) {
-      next.handleDecisionTaskStartedEvent();
+      next.handleWorkflowTaskStartedEvent();
     }
   }
 
@@ -600,7 +600,7 @@ final class DecisionsHelper {
     return WorkflowExecutionUtils.prettyPrintDecisions(getDecisions());
   }
 
-  PollForDecisionTaskResponse.Builder getTask() {
+  PollWorkflowTaskQueueResponse.Builder getTask() {
     return task;
   }
 
@@ -686,8 +686,8 @@ final class DecisionsHelper {
       MarkerRecordedEventAttributes eventAttributes =
           markerEvent.get().getMarkerRecordedEventAttributes();
       // If we have a version marker in history event but not in decisions, let's add one.
-      RecordMarkerDecisionAttributes.Builder attributes =
-          RecordMarkerDecisionAttributes.newBuilder()
+      RecordMarkerCommandAttributes.Builder attributes =
+          RecordMarkerCommandAttributes.newBuilder()
               .setMarkerName(ClockDecisionContext.VERSION_MARKER_NAME);
       if (eventAttributes.hasHeader()) {
         attributes.setHeader(eventAttributes.getHeader());
@@ -696,10 +696,10 @@ final class DecisionsHelper {
         attributes.setFailure(eventAttributes.getFailure());
       }
       attributes.putAllDetails(eventAttributes.getDetailsMap());
-      Decision markerDecision =
-          Decision.newBuilder()
-              .setDecisionType(DecisionType.DECISION_TYPE_RECORD_MARKER)
-              .setRecordMarkerDecisionAttributes(attributes)
+      Command markerDecision =
+          Command.newBuilder()
+              .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
+              .setRecordMarkerCommandAttributes(attributes)
               .build();
       DecisionId markerDecisionId = new DecisionId(DecisionTarget.MARKER, nextDecisionEventId);
       decisions.put(
