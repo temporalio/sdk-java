@@ -99,8 +99,8 @@ class SyncWorkflow implements ReplayWorkflow {
         startEvent.hasLastCompletionResult()
             ? Optional.of(startEvent.getLastCompletionResult())
             : Optional.empty();
-    SyncDecisionContext syncContext =
-        new SyncDecisionContext(context, dataConverter, contextPropagators, result);
+    SyncWorkflowContext syncContext =
+        new SyncWorkflowContext(context, dataConverter, contextPropagators, result);
 
     workflowProc = new WorkflowExecuteRunnable(syncContext, workflow, startEvent);
     // The following order is ensured by this code and DeterministicRunner implementation:

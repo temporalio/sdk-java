@@ -49,7 +49,7 @@ public interface ReplayWorkflow {
   long getNextWakeUpTime();
 
   /**
-   * Called after all history is replayed and workflow cannot make any progress if decision task is
+   * Called after all history is replayed and workflow cannot make any progress if workflow task is
    * a query.
    *
    * @param query arguments

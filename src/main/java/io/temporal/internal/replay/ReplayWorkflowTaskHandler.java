@@ -104,8 +104,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       return handleWorkflowTaskImpl(workflowTask.toBuilder(), metricsScope);
     } catch (Throwable e) {
       metricsScope.counter(MetricsType.DECISION_EXECUTION_FAILED_COUNTER).inc(1);
-      // Only fail decision on first attempt, subsequent failure on the same decision task will
-      // timeout. This is to avoid spin on the failed decision task.
+      // Only fail decision on first attempt, subsequent failure on the same workflow task will
+      // timeout. This is to avoid spin on the failed workflow task.
       if (workflowTask.getAttempt() > 0) {
         if (e instanceof Error) {
           throw (Error) e;
@@ -304,7 +304,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();
-    // Sticky decision task with partial history
+    // Sticky workflow task with partial history
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
       GetWorkflowExecutionHistoryRequest getHistoryRequest =
           GetWorkflowExecutionHistoryRequest.newBuilder()

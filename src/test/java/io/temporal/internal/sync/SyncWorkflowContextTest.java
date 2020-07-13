@@ -30,14 +30,14 @@ import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 
-public class SyncDecisionContextTest {
-  SyncDecisionContext context;
-  DecisionContext mockDecisionContext = mock(DecisionContext.class);;
+public class SyncWorkflowContextTest {
+  SyncWorkflowContext context;
+  DecisionContext mockDecisionContext = mock(DecisionContext.class);
 
   @Before
   public void setUp() {
     this.context =
-        new SyncDecisionContext(
+        new SyncWorkflowContext(
             mockDecisionContext, DataConverter.getDefaultInstance(), null, null);
   }
 

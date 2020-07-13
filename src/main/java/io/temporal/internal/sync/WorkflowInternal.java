@@ -260,12 +260,12 @@ public final class WorkflowInternal {
 
   private static WorkflowOutboundCallsInterceptor getWorkflowInterceptor() {
     return DeterministicRunnerImpl.currentThreadInternal()
-        .getDecisionContext()
+        .getWorkflowContext()
         .getWorkflowInterceptor();
   }
 
-  static SyncDecisionContext getRootDecisionContext() {
-    return DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
+  static SyncWorkflowContext getRootDecisionContext() {
+    return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
   }
 
   public static void await(String reason, Supplier<Boolean> unblockCondition)

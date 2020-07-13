@@ -53,7 +53,7 @@ interface DeterministicRunner {
    */
   static DeterministicRunner newRunner(
       ExecutorService threadPool,
-      SyncDecisionContext decisionContext,
+      SyncWorkflowContext decisionContext,
       Supplier<Long> clock,
       String rootThreadName,
       Runnable root,
@@ -72,7 +72,7 @@ interface DeterministicRunner {
    */
   static DeterministicRunner newRunner(
       ExecutorService threadPool,
-      SyncDecisionContext decisionContext,
+      SyncWorkflowContext decisionContext,
       Supplier<Long> clock,
       String rootThreadName,
       Runnable root) {

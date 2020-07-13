@@ -94,7 +94,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private final Lock lock = new ReentrantLock();
   private final ExecutorService threadPool;
-  private final SyncDecisionContext decisionContext;
+  private final SyncWorkflowContext decisionContext;
 
   // Note that threads field is a set. So we need to make sure that getPriority never returns the
   // same value for different threads. We use addedThreads variable for this.
@@ -168,7 +168,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
     this(
         getDefaultThreadPool(),
-        newDummySyncDecisionContext(),
+        newDummySyncWorkflowContext(),
         clock,
         WORKFLOW_ROOT_THREAD_NAME,
         root,
@@ -184,7 +184,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
-      SyncDecisionContext decisionContext,
+      SyncWorkflowContext decisionContext,
       Supplier<Long> clock,
       Runnable root) {
     this(threadPool, decisionContext, clock, WORKFLOW_ROOT_THREAD_NAME, root, null);
@@ -192,14 +192,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
-      SyncDecisionContext decisionContext,
+      SyncWorkflowContext decisionContext,
       Supplier<Long> clock,
       String rootName,
       Runnable root,
       DeciderCache cache) {
     this.threadPool = threadPool;
     this.decisionContext =
-        decisionContext != null ? decisionContext : newDummySyncDecisionContext();
+        decisionContext != null ? decisionContext : newDummySyncWorkflowContext();
     this.decisionContext.setRunner(this);
     this.clock = clock;
     this.cache = cache;
@@ -222,12 +222,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         getPropagatedContexts());
   }
 
-  private static SyncDecisionContext newDummySyncDecisionContext() {
-    return new SyncDecisionContext(
+  private static SyncWorkflowContext newDummySyncWorkflowContext() {
+    return new SyncWorkflowContext(
         new DummyDecisionContext(), DataConverter.getDefaultInstance(), null, null);
   }
 
-  SyncDecisionContext getDecisionContext() {
+  SyncWorkflowContext getWorkflowContext() {
     return decisionContext;
   }
 

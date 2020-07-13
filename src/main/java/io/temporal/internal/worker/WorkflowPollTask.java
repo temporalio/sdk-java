@@ -84,7 +84,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
     }
     if (log.isTraceEnabled()) {
       log.trace(
-          "poll request returned decision task: workflowType="
+          "poll request returned workflow task: workflowType="
               + result.getWorkflowType()
               + ", workflowExecution="
               + result.getWorkflowExecution()

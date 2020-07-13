@@ -412,7 +412,7 @@ class ReplayDecider implements Decider {
     }
   }
 
-  // Returns boolean to indicate whether we need to force create new decision task for local
+  // Returns boolean to indicate whether we need to force create new workflow task for local
   // activity heartbeating.
   private boolean decideImpl(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, Functions.Proc legacyQueryCallback)
@@ -574,7 +574,7 @@ class ReplayDecider implements Decider {
     return false;
   }
 
-  // Return whether we would need a new decision task immediately.
+  // Return whether we would need a new workflow task immediately.
   private boolean executeLocalActivities(long startTime, int decisionTimeoutSecs) {
     Duration maxProcessingTime = Duration.ofSeconds((long) (0.8 * decisionTimeoutSecs));
 
@@ -585,7 +585,7 @@ class ReplayDecider implements Decider {
       boolean started = context.startUnstartedLaTasks(maxWaitAllowed);
       if (!started) {
         // We were not able to send the current batch of la tasks before deadline.
-        // Return true to indicate that we need a new decision task immediately.
+        // Return true to indicate that we need a new workflow task immediately.
         return true;
       }
 
@@ -601,7 +601,7 @@ class ReplayDecider implements Decider {
         return false;
       }
 
-      // Break local activity processing loop if we almost reach decision task timeout.
+      // Break local activity processing loop if we almost reach workflow task timeout.
       processingTime = Duration.ofMillis(System.currentTimeMillis() - startTime);
       if (processingTime.compareTo(maxProcessingTime) > 0) {
         return true;
@@ -691,7 +691,7 @@ class ReplayDecider implements Decider {
           if (expiration.isZero() || expiration.isNegative()) {
             throw Status.DEADLINE_EXCEEDED
                 .withDescription(
-                    "getWorkflowExecutionHistory pagination took longer than decision task timeout")
+                    "getWorkflowExecutionHistory pagination took longer than workflow task timeout")
                 .asRuntimeException();
           }
           RpcRetryOptions retryOptions =

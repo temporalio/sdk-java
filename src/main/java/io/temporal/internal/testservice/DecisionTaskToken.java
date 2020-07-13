@@ -72,7 +72,7 @@ final class WorkflowTaskToken {
       return new WorkflowTaskToken(executionId, historySize);
     } catch (IOException e) {
       throw Status.INVALID_ARGUMENT
-          .withDescription("Failure parsing decision task token")
+          .withDescription("Failure parsing workflow task token")
           .withCause(e)
           .asRuntimeException();
     }

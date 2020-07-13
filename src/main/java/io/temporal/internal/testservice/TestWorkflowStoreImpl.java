@@ -331,7 +331,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         getWorkflowTaskQueueQueue(taskQueueId);
     if (log.isTraceEnabled()) {
       log.trace(
-          "Poll request on decision task queue about to block waiting for a task on "
+          "Poll request on workflow task queue about to block waiting for a task on "
               + taskQueueId);
     }
     PollWorkflowTaskQueueResponse.Builder result = null;

@@ -189,7 +189,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     this.task =
         new RunnableWrapper(
             context,
-            runner.getDecisionContext().getContext(),
+            runner.getWorkflowContext().getContext(),
             name,
             detached,
             parentCancellationScope,
@@ -241,7 +241,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     context.setStatus(Status.RUNNING);
 
     if (metricsRateLimiter.tryAcquire(1)) {
-      getDecisionContext()
+      getWorkflowContext()
           .getMetricsScope()
           .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
           .update(((ThreadPoolExecutor) threadPool).getActiveCount());
@@ -252,12 +252,12 @@ class WorkflowThreadImpl implements WorkflowThread {
         taskFuture = threadPool.submit(task);
         return;
       } catch (RejectedExecutionException e) {
-        getDecisionContext()
+        getWorkflowContext()
             .getMetricsScope()
             .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
             .inc(1);
         if (cache != null) {
-          SyncDecisionContext decisionContext = this.runner.getDecisionContext();
+          SyncWorkflowContext decisionContext = this.runner.getWorkflowContext();
           boolean evicted =
               cache.evictAnyNotInProcessing(
                   decisionContext.getContext().getRunId(), decisionContext.getMetricsScope());
@@ -289,8 +289,8 @@ class WorkflowThreadImpl implements WorkflowThread {
   }
 
   @Override
-  public SyncDecisionContext getDecisionContext() {
-    return runner.getDecisionContext();
+  public SyncWorkflowContext getWorkflowContext() {
+    return runner.getWorkflowContext();
   }
 
   @Override

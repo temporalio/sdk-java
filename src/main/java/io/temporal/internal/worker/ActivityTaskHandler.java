@@ -117,7 +117,7 @@ public interface ActivityTaskHandler {
    * task.
    *
    * @param activityTask activity task which is response to PollActivityTaskQueue call.
-   * @return One of the possible decision task replies.
+   * @return One of the possible workflow task replies.
    */
   Result handle(
       PollActivityTaskQueueResponse activityTask, Scope metricsScope, boolean isLocalActivity);

@@ -5819,7 +5819,7 @@ public class WorkflowTest {
     WorkflowClient.start(workflowStub::execute, taskQueue);
 
     // Ensure that query doesn't see intermediate results of the local activities execution
-    // as all these activities are executed in a single decision task.
+    // as all these activities are executed in a single workflow task.
     while (true) {
       String queryResult = workflowStub.query();
       assertTrue(queryResult, queryResult.equals("run4"));
@@ -5880,7 +5880,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(SignalOrderingWorkflow.class, options);
     WorkflowClient.start(workflowStub::run);
 
-    // Suspend polling so that all the signals will be received in the same decision task.
+    // Suspend polling so that all the signals will be received in the same workflow task.
     if (useExternalService) {
       workerFactory.suspendPolling();
     } else {
@@ -6088,7 +6088,7 @@ public class WorkflowTest {
       // exception expected here.
     }
 
-    // Suspend polling so that decision tasks are not retried. Otherwise it will affect our thread
+    // Suspend polling so that workflow tasks are not retried. Otherwise it will affect our thread
     // count.
     if (useExternalService) {
       workerFactory.suspendPolling();
@@ -6096,7 +6096,7 @@ public class WorkflowTest {
       testEnvironment.getWorkerFactory().suspendPolling();
     }
 
-    // Wait for decision task retry to finish.
+    // Wait for workflow task retry to finish.
     Thread.sleep(10000);
 
     int workflowThreads = 0;
@@ -6134,7 +6134,7 @@ public class WorkflowTest {
           SearchAttributesUtil.getValueFromSearchAttributes(
               searchAttributes, "CustomKeywordField", String.class));
 
-      // Running the activity below ensures that we have one more decision task to be executed after
+      // Running the activity below ensures that we have one more workflow task to be executed after
       // adding the search attributes. This helps with replaying the history one more time to check
       // against a possible NonDeterminisicWorkflowError which could be caused by missing
       // UpsertWorkflowSearchAttributes event in history.

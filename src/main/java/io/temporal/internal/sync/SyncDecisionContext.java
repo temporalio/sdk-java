@@ -92,7 +92,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
+final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   private static class SignalData {
     private final Optional<Payloads> payload;
@@ -112,7 +112,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
     }
   }
 
-  private static final Logger log = LoggerFactory.getLogger(SyncDecisionContext.class);
+  private static final Logger log = LoggerFactory.getLogger(SyncWorkflowContext.class);
 
   private final DecisionContext context;
   private DeterministicRunner runner;
@@ -131,7 +131,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
 
   private final Optional<Payloads> lastCompletionResult;
 
-  public SyncDecisionContext(
+  public SyncWorkflowContext(
       DecisionContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
@@ -573,7 +573,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       throw e;
     } catch (Exception e) {
       // SideEffect cannot throw normal exception as it can lead to non deterministic behavior
-      // So fail the decision task by throwing an Error.
+      // So fail the workflow task by throwing an Error.
       throw new Error(e);
     }
   }
@@ -588,7 +588,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
     } catch (Exception e) {
       // MutableSideEffect cannot throw normal exception as it can lead to non deterministic
       // behavior
-      // So fail the decision task by throwing an Error.
+      // So fail the workflow task by throwing an Error.
       throw new Error(e);
     }
   }

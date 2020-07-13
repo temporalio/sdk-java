@@ -730,7 +730,7 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
+            new SyncWorkflowContext(
                 decisionContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
             "test-thread",
@@ -757,7 +757,7 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
+            new SyncWorkflowContext(
                 decisionContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
             "test-thread",

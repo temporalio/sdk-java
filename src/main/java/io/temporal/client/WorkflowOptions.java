@@ -168,14 +168,14 @@ public final class WorkflowOptions {
       return this;
     }
 
-    /** Maximum execution time of a single decision task. Default is 10 seconds. */
+    /** Maximum execution time of a single workflow task. Default is 10 seconds. */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
       this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
     }
 
     /**
-     * Task queue to use for decision tasks. It should match a task queue specified when creating a
+     * Task queue to use for workflow tasks. It should match a task queue specified when creating a
      * {@link io.temporal.worker.Worker} that hosts the workflow code.
      */
     public Builder setTaskQueue(String taskQueue) {

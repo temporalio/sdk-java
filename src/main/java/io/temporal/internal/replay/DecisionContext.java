@@ -159,7 +159,7 @@ public interface DecisionContext extends ReplayAware {
    * guarantees the deterministic requirement for workflow as the exact same result will be returned
    * in replay. Common use case is to run some short non-deterministic code in workflow, like
    * getting random number or new UUID. The only way to fail SideEffect is to throw {@link Error}
-   * which causes decision task failure. The decision task after timeout is rescheduled and
+   * which causes workflow task failure. The workflow task after timeout is rescheduled and
    * re-executed giving SideEffect another chance to succeed.
    *
    * @param func function that is called once to return a value.

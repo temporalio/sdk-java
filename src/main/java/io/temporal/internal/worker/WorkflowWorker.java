@@ -318,7 +318,7 @@ public final class WorkflowWorker
     public Throwable wrapFailure(PollWorkflowTaskQueueResponse task, Throwable failure) {
       WorkflowExecution execution = task.getWorkflowExecution();
       return new RuntimeException(
-          "Failure processing decision task. WorkflowId="
+          "Failure processing workflow task. WorkflowId="
               + execution.getWorkflowId()
               + ", RunId="
               + execution.getRunId(),

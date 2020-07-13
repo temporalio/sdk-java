@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-import static io.temporal.internal.sync.SyncDecisionContext.toRetryPolicy;
+import static io.temporal.internal.sync.SyncWorkflowContext.toRetryPolicy;
 
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;

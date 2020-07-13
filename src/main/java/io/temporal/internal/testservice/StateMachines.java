@@ -227,7 +227,7 @@ class StateMachines {
 
     int attempt;
 
-    /** Query requests received during decision task processing (after start) */
+    /** Query requests received during workflow task processing (after start) */
     final Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queryBuffer = new HashMap<>();
 
     final Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> consistentQueryRequests =
@@ -427,7 +427,7 @@ class StateMachines {
       TestWorkflowStore store, StartWorkflowExecutionRequest startRequest) {
     return new StateMachine<>(new WorkflowTaskData(store, startRequest))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleWorkflowTask)
-        // TODO(maxim): Uncomment once the server supports consistent query only decision tasks
+        // TODO(maxim): Uncomment once the server supports consistent query only workflow tasks
         //        .add(NONE, QUERY, INITIATED_QUERY_ONLY, StateMachines::scheduleQueryWorkflowTask)
         //        .add(INITIATED_QUERY_ONLY, QUERY, INITIATED_QUERY_ONLY,
         // StateMachines::queryWhileScheduled)
@@ -1208,7 +1208,7 @@ class StateMachines {
           }
           if (queryOnly && !data.workflowCompleted) {
             events = new ArrayList<>(events); // convert list to mutable
-            // Add "fake" decision task scheduled and started if workflow is not closed
+            // Add "fake" workflow task scheduled and started if workflow is not closed
             WorkflowTaskScheduledEventAttributes scheduledAttributes =
                 WorkflowTaskScheduledEventAttributes.newBuilder()
                     .setStartToCloseTimeoutSeconds(

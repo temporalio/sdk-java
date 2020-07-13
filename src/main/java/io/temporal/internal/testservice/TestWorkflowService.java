@@ -387,7 +387,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         if (log.isDebugEnabled()) {
-          log.debug("Skipping outdated decision task for " + executionId, e);
+          log.debug("Skipping outdated workflow task for " + executionId, e);
         }
         // The real service doesn't return this call on outdated task.
         // For simplicity we return empty result here.

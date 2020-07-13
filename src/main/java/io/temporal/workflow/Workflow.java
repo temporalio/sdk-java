@@ -876,8 +876,8 @@ public final class Workflow {
    * result on history will be returned without executing the provided function during replay. This
    * guarantees the deterministic requirement for workflow as the exact same result will be returned
    * in replay. Common use case is to run some short non-deterministic code in workflow, like
-   * getting random number. The only way to fail SideEffect is to panic which causes decision task
-   * failure. The decision task after timeout is rescheduled and re-executed giving SideEffect
+   * getting random number. The only way to fail SideEffect is to panic which causes workflow task
+   * failure. The workflow task after timeout is rescheduled and re-executed giving SideEffect
    * another chance to succeed.
    *
    * <p>Caution: do not use sideEffect function to modify any workflow state. Only use the
@@ -930,8 +930,8 @@ public final class Workflow {
    * result on history will be returned without executing the provided function during replay. This
    * guarantees the deterministic requirement for workflow as the exact same result will be returned
    * in replay. Common use case is to run some short non-deterministic code in workflow, like
-   * getting random number. The only way to fail SideEffect is to panic which causes decision task
-   * failure. The decision task after timeout is rescheduled and re-executed giving SideEffect
+   * getting random number. The only way to fail SideEffect is to panic which causes workflow task
+   * failure. The workflow task after timeout is rescheduled and re-executed giving SideEffect
    * another chance to succeed.
    *
    * <p>Caution: do not use sideEffect function to modify any workflow state. Only use the

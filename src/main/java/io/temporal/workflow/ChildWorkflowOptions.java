@@ -171,7 +171,7 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * Maximum execution time of a single decision task. Default is 10 seconds. Maximum accepted
+     * Maximum execution time of a single workflow task. Default is 10 seconds. Maximum accepted
      * value is 60 seconds.
      */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
@@ -184,7 +184,7 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * Task queue to use for decision tasks. It should match a task queue specified when creating a
+     * Task queue to use for workflow tasks. It should match a task queue specified when creating a
      * {@link io.temporal.worker.Worker} that hosts the workflow code.
      */
     public Builder setTaskQueue(String taskQueue) {
