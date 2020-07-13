@@ -20,6 +20,7 @@
 package io.temporal.internal.worker;
 
 import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
@@ -47,6 +48,7 @@ import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedRequest;
 import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import io.temporal.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -143,7 +145,8 @@ public final class WorkflowWorker
   public Optional<Payloads> queryWorkflowExecution(
       WorkflowExecution exec, String queryType, Optional<Payloads> args) throws Exception {
     GetWorkflowExecutionHistoryResponse historyResponse =
-        WorkflowExecutionUtils.getHistoryPage(service, namespace, exec, ByteString.EMPTY);
+        WorkflowExecutionUtils.getHistoryPage(
+            service, namespace, exec, ByteString.EMPTY, options.getMetricsScope());
     History history = historyResponse.getHistory();
     WorkflowExecutionHistory workflowExecutionHistory = new WorkflowExecutionHistory(history);
     return queryWorkflowExecution(
@@ -298,11 +301,8 @@ public final class WorkflowWorker
         DecisionTaskHandler.Result response = handler.handleDecisionTask(task);
         sw.stop();
 
-        sw = metricsScope.timer(MetricsType.DECISION_RESPONSE_LATENCY).start();
         sendReply(service, task.getTaskToken(), response);
         sw.stop();
-
-        metricsScope.counter(MetricsType.DECISION_TASK_COMPLETED_COUNTER).inc(1);
       } finally {
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
@@ -338,7 +338,19 @@ public final class WorkflowWorker
                 .setIdentity(options.getIdentity())
                 .setTaskToken(taskToken)
                 .build();
-        GrpcRetryer.retry(ro, () -> service.blockingStub().respondDecisionTaskCompleted(request));
+        Map<String, String> tags =
+            new ImmutableMap.Builder<String, String>(4)
+                .put(MetricsTag.WORKFLOW_TYPE, response.getWorkflowType())
+                .build();
+        ;
+        GrpcRetryer.retry(
+            ro,
+            () ->
+                service
+                    .blockingStub()
+                    .withOption(
+                        METRICS_TAGS_CALL_OPTIONS_KEY, options.getMetricsScope().tagged(tags))
+                    .respondDecisionTaskCompleted(request));
       } else {
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
@@ -353,13 +365,22 @@ public final class WorkflowWorker
                   .setIdentity(options.getIdentity())
                   .setTaskToken(taskToken)
                   .build();
-          GrpcRetryer.retry(ro, () -> service.blockingStub().respondDecisionTaskFailed(request));
+          GrpcRetryer.retry(
+              ro,
+              () ->
+                  service
+                      .blockingStub()
+                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, options.getMetricsScope())
+                      .respondDecisionTaskFailed(request));
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {
             queryCompleted = queryCompleted.toBuilder().setTaskToken(taskToken).build();
             // Do not retry query response.
-            service.blockingStub().respondQueryTaskCompleted(queryCompleted);
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, options.getMetricsScope())
+                .respondQueryTaskCompleted(queryCompleted);
           }
         }
       }

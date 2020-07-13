@@ -19,7 +19,7 @@
 
 package io.temporal.serviceclient;
 
-import io.temporal.internal.WorkflowServiceStubsImpl;
+import io.temporal.internal.grpc.WorkflowServiceStubsImpl;
 import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import java.util.concurrent.TimeUnit;
 

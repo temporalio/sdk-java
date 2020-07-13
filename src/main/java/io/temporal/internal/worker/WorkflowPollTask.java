@@ -19,8 +19,9 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+
 import com.uber.m3.tally.Scope;
-import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -35,7 +36,7 @@ import org.slf4j.LoggerFactory;
 
 final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskResponse> {
 
-  private final Scope metricScope;
+  private final Scope metricsScope;
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String taskQueue;
@@ -46,20 +47,17 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
       WorkflowServiceStubs service,
       String namespace,
       String taskQueue,
-      Scope metricScope,
+      Scope metricsScope,
       String identity) {
     this.identity = Objects.requireNonNull(identity);
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
-    this.metricScope = Objects.requireNonNull(metricScope);
+    this.metricsScope = Objects.requireNonNull(metricsScope);
   }
 
   @Override
   public PollForDecisionTaskResponse poll() {
-    metricScope.counter(MetricsType.DECISION_POLL_COUNTER).inc(1);
-    Stopwatch sw = metricScope.timer(MetricsType.DECISION_POLL_LATENCY).start();
-
     PollForDecisionTaskRequest pollRequest =
         PollForDecisionTaskRequest.newBuilder()
             .setNamespace(namespace)
@@ -72,17 +70,15 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     }
     PollForDecisionTaskResponse result;
     try {
-      result = service.blockingStub().pollForDecisionTask(pollRequest);
+      result =
+          service
+              .blockingStub()
+              .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+              .pollForDecisionTask(pollRequest);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
           && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
         return null;
-      }
-      if (e.getStatus().getCode() == Status.Code.INTERNAL
-          || e.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
-        metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
-      } else {
-        metricScope.counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
       }
       throw e;
     }
@@ -102,15 +98,13 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     }
 
     if (result == null || result.getTaskToken().isEmpty()) {
-      metricScope.counter(MetricsType.DECISION_POLL_NO_TASK_COUNTER).inc(1);
+      metricsScope.counter(MetricsType.DECISION_POLL_NO_TASK_COUNTER).inc(1);
       return null;
     }
-
-    metricScope.counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
-    metricScope
+    metricsScope.counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
+    metricsScope
         .timer(MetricsType.DECISION_SCHEDULED_TO_START_LATENCY)
         .record(Duration.ofNanos(result.getStartedTimestamp() - result.getScheduledTimestamp()));
-    sw.stop();
     return result;
   }
 }

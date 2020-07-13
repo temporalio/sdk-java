@@ -27,6 +27,8 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.uber.m3.tally.NoopScope;
+import com.uber.m3.tally.Scope;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.taskqueue.v1.TaskQueue;
@@ -49,6 +51,7 @@ public class PollDecisionTaskDispatcherTests {
 
   private TestWorkflowService testService;
   private WorkflowServiceStubs service;
+  private Scope metricsScope = new NoopScope();
 
   @Before
   public void setUp() {
@@ -73,7 +76,7 @@ public class PollDecisionTaskDispatcherTests {
     AtomicBoolean handled = new AtomicBoolean(false);
     Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
 
-    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service);
+    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
     // Act
@@ -94,7 +97,7 @@ public class PollDecisionTaskDispatcherTests {
     Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
     Consumer<PollForDecisionTaskResponse> handler2 = r -> handled2.set(true);
 
-    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service);
+    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue2", handler2);
 
@@ -117,7 +120,7 @@ public class PollDecisionTaskDispatcherTests {
     Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
     Consumer<PollForDecisionTaskResponse> handler2 = r -> handled2.set(true);
 
-    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service);
+    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue1", handler2);
 
@@ -149,7 +152,8 @@ public class PollDecisionTaskDispatcherTests {
     WorkflowServiceStubs mockService = mock(WorkflowServiceStubs.class);
     when(mockService.blockingStub()).thenReturn(stub);
 
-    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(mockService);
+    PollDecisionTaskDispatcher dispatcher =
+        new PollDecisionTaskDispatcher(mockService, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
     // Act

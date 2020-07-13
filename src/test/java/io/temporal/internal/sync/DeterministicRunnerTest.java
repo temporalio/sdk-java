@@ -24,6 +24,7 @@ import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
 import com.google.common.collect.Maps;
+import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
@@ -35,7 +36,6 @@ import io.temporal.common.v1.WorkflowType;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.Decider;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
@@ -748,7 +748,7 @@ public class DeterministicRunnerTest {
     Decider decider = new DetermisiticRunnerContainerDecider(d);
     PollForDecisionTaskResponse response = HistoryUtils.generateDecisionTaskWithInitialHistory();
 
-    cache.getOrCreate(response, () -> decider);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> decider);
     cache.addToCache(response, decider);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
@@ -791,7 +791,7 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    DeciderCache cache = new DeciderCache(3, NoopScope.getInstance());
+    DeciderCache cache = new DeciderCache(3, new NoopScope());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
@@ -813,7 +813,7 @@ public class DeterministicRunnerTest {
     Decider decider = new DetermisiticRunnerContainerDecider(d);
     PollForDecisionTaskResponse response = HistoryUtils.generateDecisionTaskWithInitialHistory();
 
-    cache.getOrCreate(response, () -> decider);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> decider);
     cache.addToCache(response, decider);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());

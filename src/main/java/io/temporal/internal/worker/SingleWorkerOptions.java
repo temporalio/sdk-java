@@ -19,10 +19,10 @@
 
 package io.temporal.internal.worker;
 
+import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.metrics.NoopScope;
 import java.time.Duration;
 import java.util.List;
 
@@ -112,7 +112,7 @@ public final class SingleWorkerOptions {
       }
 
       if (metricsScope == null) {
-        metricsScope = NoopScope.getInstance();
+        metricsScope = new NoopScope();
       }
 
       return new SingleWorkerOptions(

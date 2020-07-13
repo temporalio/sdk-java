@@ -19,6 +19,9 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+
+import com.uber.m3.tally.Scope;
 import io.temporal.enums.v1.DecisionTaskFailedCause;
 import io.temporal.failure.FailureConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -40,18 +43,23 @@ public final class PollDecisionTaskDispatcher
   private static final Logger log = LoggerFactory.getLogger(PollDecisionTaskDispatcher.class);
   private final Map<String, Consumer<PollForDecisionTaskResponse>> subscribers =
       new ConcurrentHashMap<>();
+  private final Scope metricsScope;
   private WorkflowServiceStubs service;
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> log.error("uncaught exception", e);
   private AtomicBoolean shutdown = new AtomicBoolean();
 
-  public PollDecisionTaskDispatcher(WorkflowServiceStubs service) {
+  public PollDecisionTaskDispatcher(WorkflowServiceStubs service, Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
+    this.metricsScope = Objects.requireNonNull(metricsScope);
   }
 
   public PollDecisionTaskDispatcher(
-      WorkflowServiceStubs service, Thread.UncaughtExceptionHandler exceptionHandler) {
+      WorkflowServiceStubs service,
+      Scope metricsScope,
+      Thread.UncaughtExceptionHandler exceptionHandler) {
     this.service = Objects.requireNonNull(service);
+    this.metricsScope = Objects.requireNonNull(metricsScope);
     if (exceptionHandler != null) {
       this.uncaughtExceptionHandler = exceptionHandler;
     }
@@ -80,7 +88,10 @@ public final class PollDecisionTaskDispatcher
       log.warn("unexpected", exception);
 
       try {
-        service.blockingStub().respondDecisionTaskFailed(request);
+        service
+            .blockingStub()
+            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+            .respondDecisionTaskFailed(request);
       } catch (Exception e) {
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
       }

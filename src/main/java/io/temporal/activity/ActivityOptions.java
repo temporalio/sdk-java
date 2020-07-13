@@ -129,10 +129,7 @@ public final class ActivityOptions {
       return this;
     }
 
-    /**
-     * RetryOptions that define how activity is retried in case of failure. Default is null which is
-     * no reties.
-     */
+    /** RetryOptions that define how activity is retried in case of failure. */
     public Builder setRetryOptions(RetryOptions retryOptions) {
       this.retryOptions = retryOptions;
       return this;

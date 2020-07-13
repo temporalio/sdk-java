@@ -19,9 +19,12 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.metrics.MetricsTag.NAMESPACE;
+
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
+import com.uber.m3.util.ImmutableMap;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.BatchRequest;
 import io.temporal.client.WorkflowClient;
@@ -55,6 +58,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final DataConverter dataConverter;
   private final WorkflowClientInterceptor[] interceptors;
   private final WorkflowServiceStubs workflowServiceStubs;
+  private final Scope metricsScope;
 
   /**
    * Creates client that connects to an instance of the Temporal Service.
@@ -73,7 +77,13 @@ public final class WorkflowClientInternal implements WorkflowClient {
     options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
-    Scope metricsScope = workflowServiceStubs.getOptions().getMetricsScope();
+    // For metrics only
+    String namespace = options.getNamespace() == null ? "default" : options.getNamespace();
+    metricsScope =
+        workflowServiceStubs
+            .getOptions()
+            .getMetricsScope()
+            .tagged(new ImmutableMap.Builder<String, String>(1).put(NAMESPACE, namespace).build());
     this.genericClient =
         new GenericWorkflowClientExternalImpl(
             workflowServiceStubs, options.getNamespace(), options.getIdentity(), metricsScope);
@@ -99,7 +109,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
   public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
     checkAnnotation(workflowInterface, WorkflowMethod.class);
     WorkflowInvocationHandler invocationHandler =
-        new WorkflowInvocationHandler(workflowInterface, this.getOptions(), genericClient, options);
+        new WorkflowInvocationHandler(
+            workflowInterface, this.getOptions(), genericClient, options, metricsScope);
     return (T)
         Proxy.newProxyInstance(
             workflowInterface.getClassLoader(),
@@ -148,7 +159,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
-            workflowInterface, this.getOptions(), genericClient, execution);
+            workflowInterface, this.getOptions(), genericClient, execution, metricsScope);
     @SuppressWarnings("unchecked")
     T result =
         (T)
@@ -162,7 +173,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions workflowOptions) {
     WorkflowStub result =
-        new WorkflowStubImpl(options, genericClient, workflowType, workflowOptions);
+        new WorkflowStubImpl(options, genericClient, workflowType, workflowOptions, metricsScope);
     for (WorkflowClientInterceptor i : interceptors) {
       result = i.newUntypedWorkflowStub(workflowType, workflowOptions, result);
     }
@@ -180,7 +191,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
-    return new WorkflowStubImpl(options, genericClient, workflowType, execution);
+    return new WorkflowStubImpl(options, genericClient, workflowType, execution, metricsScope);
   }
 
   @Override

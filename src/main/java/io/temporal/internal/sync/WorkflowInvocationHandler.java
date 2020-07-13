@@ -20,6 +20,7 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
+import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
@@ -111,10 +112,12 @@ class WorkflowInvocationHandler implements InvocationHandler {
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,
       GenericWorkflowClientExternal genericClient,
-      WorkflowExecution execution) {
+      WorkflowExecution execution,
+      Scope metricsScope) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
-    WorkflowStub stub = new WorkflowStubImpl(clientOptions, genericClient, workflowType, execution);
+    WorkflowStub stub =
+        new WorkflowStubImpl(clientOptions, genericClient, workflowType, execution, metricsScope);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(execution, workflowType, stub);
     }
@@ -125,7 +128,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,
       GenericWorkflowClientExternal genericClient,
-      WorkflowOptions options) {
+      WorkflowOptions options,
+      Scope metricsScope) {
     Objects.requireNonNull(options, "options");
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
@@ -140,7 +144,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
     WorkflowOptions mergedOptions = WorkflowOptions.merge(methodRetry, cronSchedule, options);
     String workflowType = workflowMethodMetadata.get().getName();
     WorkflowStub stub =
-        new WorkflowStubImpl(clientOptions, genericClient, workflowType, mergedOptions);
+        new WorkflowStubImpl(
+            clientOptions, genericClient, workflowType, mergedOptions, metricsScope);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(workflowType, mergedOptions, stub);
     }

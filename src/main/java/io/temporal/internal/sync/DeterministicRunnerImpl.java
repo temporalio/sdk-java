@@ -20,6 +20,7 @@
 package io.temporal.internal.sync;
 
 import com.google.common.primitives.Ints;
+import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
@@ -33,7 +34,6 @@ import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.context.ContextThreadLocal;
-import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
@@ -210,7 +210,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private WorkflowThreadImpl newRootWorkflowThread(
       Runnable runnable, boolean detached, String name) {
     return new WorkflowThreadImpl(
-        true,
         threadPool,
         this,
         name,
@@ -261,7 +260,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           for (NamedRunnable nr : toExecuteInWorkflowThread) {
             WorkflowThread thread =
                 new WorkflowThreadImpl(
-                    false,
                     threadPool,
                     this,
                     nr.name,
@@ -484,7 +482,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       checkClosed();
       result =
           new WorkflowThreadImpl(
-              false,
               threadPool,
               this,
               name,
@@ -755,7 +752,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public Scope getMetricsScope() {
-      return NoopScope.getInstance();
+      return new NoopScope();
     }
 
     @Override

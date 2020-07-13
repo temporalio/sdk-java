@@ -237,6 +237,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       Map<String, String> activityTypeTag =
           new ImmutableMap.Builder<String, String>(1)
               .put(MetricsTag.ACTIVITY_TYPE, activityTask.getActivityType().getName())
+              .put(MetricsTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName())
               .build();
 
       Scope metricsScope = options.getMetricsScope().tagged(activityTypeTag);

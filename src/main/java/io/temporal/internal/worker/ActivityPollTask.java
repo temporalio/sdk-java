@@ -19,8 +19,10 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+
 import com.google.protobuf.DoubleValue;
-import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.tally.Scope;
 import com.uber.m3.util.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -41,6 +43,7 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
   private final double taskQueueActivitiesPerSecond;
+  private Scope metricsScope;
 
   public ActivityPollTask(
       WorkflowServiceStubs service,
@@ -53,14 +56,12 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     this.namespace = namespace;
     this.taskQueue = taskQueue;
     this.options = options;
+    this.metricsScope = options.getMetricsScope();
     this.taskQueueActivitiesPerSecond = taskQueueActivitiesPerSecond;
   }
 
   @Override
   public PollForActivityTaskResponse poll() {
-    options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_COUNTER).inc(1);
-    Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_POLL_LATENCY).start();
-
     PollForActivityTaskRequest.Builder pollRequest =
         PollForActivityTaskRequest.newBuilder()
             .setNamespace(namespace)
@@ -87,37 +88,28 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     }
     PollForActivityTaskResponse result;
     try {
-      result = service.blockingStub().pollForActivityTask(pollRequest.build());
+      result =
+          service
+              .blockingStub()
+              .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+              .pollForActivityTask(pollRequest.build());
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
           && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
         return null;
       }
-      if (e.getStatus().getCode() == Status.Code.INTERNAL
-          || e.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
-        options
-            .getMetricsScope()
-            .counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER)
-            .inc(1);
-      } else {
-        options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_FAILED_COUNTER).inc(1);
-      }
       throw e;
     }
 
     if (result == null || result.getTaskToken().isEmpty()) {
-      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
+      metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
       return null;
     }
-
-    options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_SUCCEED_COUNTER).inc(1);
-    options
-        .getMetricsScope()
-        .timer(MetricsType.ACTIVITY_SCHEDULED_TO_START_LATENCY)
+    metricsScope
+        .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
         .record(
             Duration.ofNanos(
                 result.getStartedTimestamp() - result.getScheduledTimestampOfThisAttempt()));
-    sw.stop();
     return result;
   }
 }

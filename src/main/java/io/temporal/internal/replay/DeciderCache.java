@@ -26,7 +26,9 @@ import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -60,22 +62,24 @@ public final class DeciderCache {
   }
 
   public Decider getOrCreate(
-      PollForDecisionTaskResponseOrBuilder decisionTask, Callable<Decider> deciderFunc)
+      PollForDecisionTaskResponseOrBuilder decisionTask,
+      Scope metricsScope,
+      Callable<Decider> deciderFunc)
       throws Exception {
     String runId = decisionTask.getWorkflowExecution().getRunId();
     if (isFullHistory(decisionTask)) {
-      invalidate(runId);
+      invalidate(runId, metricsScope);
       return deciderFunc.call();
     }
 
-    Decider decider = getForProcessing(runId);
+    Decider decider = getForProcessing(runId, metricsScope);
     if (decider != null) {
       return decider;
     }
     return deciderFunc.call();
   }
 
-  private Decider getForProcessing(String runId) throws Exception {
+  private Decider getForProcessing(String runId, Scope metricsScope) throws Exception {
     cacheLock.lock();
     try {
       Decider decider = cache.get(runId);
@@ -107,14 +111,14 @@ public final class DeciderCache {
     cache.put(runId, decider);
   }
 
-  public boolean evictAnyNotInProcessing(String runId) {
+  public boolean evictAnyNotInProcessing(String runId, Scope metricsScope) {
     cacheLock.lock();
     try {
-      metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
+      this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
       for (String key : cache.asMap().keySet()) {
         if (!key.equals(runId) && !inProcessing.contains(key)) {
           cache.invalidate(key);
-          metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
+          this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
           metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
           return true;
         }
@@ -126,7 +130,7 @@ public final class DeciderCache {
     }
   }
 
-  void invalidate(String runId) {
+  void invalidate(String runId, Scope metricsScope) {
     cacheLock.lock();
     try {
       cache.invalidate(runId);

@@ -31,18 +31,17 @@ import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
 
 public interface GenericWorkflowClientExternal {
 
-  WorkflowExecution request(StartWorkflowExecutionRequest request);
+  WorkflowExecution start(StartWorkflowExecutionRequest request);
 
-  void signalWorkflowExecution(SignalWorkflowExecutionRequest request);
+  void signal(SignalWorkflowExecutionRequest request);
 
-  WorkflowExecution signalWithStartWorkflowExecution(
-      SignalWithStartWorkflowExecutionParameters parameters);
+  WorkflowExecution signalWithStart(SignalWithStartWorkflowExecutionParameters parameters);
 
-  void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest parameters);
+  void requestCancel(RequestCancelWorkflowExecutionRequest parameters);
 
-  QueryWorkflowResponse request(QueryWorkflowRequest queryParameters);
+  QueryWorkflowResponse query(QueryWorkflowRequest queryParameters);
 
-  void terminateWorkflowExecution(TerminateWorkflowExecutionRequest request);
+  void terminate(TerminateWorkflowExecutionRequest request);
 
   String generateUniqueId();
 

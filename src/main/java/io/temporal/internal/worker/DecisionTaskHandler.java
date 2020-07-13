@@ -33,6 +33,7 @@ import io.temporal.workflowservice.v1.RespondQueryTaskCompletedRequest;
 public interface DecisionTaskHandler {
 
   final class Result {
+    private final String workflowType;
     private final RespondDecisionTaskCompletedRequest taskCompleted;
     private final RespondDecisionTaskFailedRequest taskFailed;
     private final RespondQueryTaskCompletedRequest queryCompleted;
@@ -40,11 +41,13 @@ public interface DecisionTaskHandler {
     private final boolean finalDecision;
 
     public Result(
+        String workflowType,
         RespondDecisionTaskCompletedRequest taskCompleted,
         RespondDecisionTaskFailedRequest taskFailed,
         RespondQueryTaskCompletedRequest queryCompleted,
         RpcRetryOptions requestRetryOptions,
         boolean finalDecision) {
+      this.workflowType = workflowType;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.queryCompleted = queryCompleted;
@@ -84,6 +87,10 @@ public interface DecisionTaskHandler {
           + ", requestRetryOptions="
           + requestRetryOptions
           + '}';
+    }
+
+    public String getWorkflowType() {
+      return workflowType;
     }
   }
 

@@ -19,15 +19,11 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.internal.metrics.MetricsType.*;
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
-import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.grpc.Status;
@@ -42,6 +38,7 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -53,14 +50,12 @@ import io.temporal.workflow.interceptors.SignalWorkflowOutboundCallsInterceptor;
 import io.temporal.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
-import org.mockito.ArgumentCaptor;
 
 public class MetricsTest {
 
@@ -78,10 +73,11 @@ public class MetricsTest {
   private static final com.uber.m3.util.Duration REPORTING_FREQUENCY =
       com.uber.m3.util.Duration.ofMillis(10);
   private static final long REPORTING_FLUSH_TIME = 600;
-  private static final String TASK_QUEUE = "metrics-test";
+  private static final String TASK_QUEUE = "metrics_test";
 
   private TestWorkflowEnvironment testEnvironment;
-  private StatsReporter reporter;
+  private Scope metricsScope;
+  private TestStatsReporter reporter;
 
   @WorkflowInterface
   public interface TestWorkflow {
@@ -94,7 +90,7 @@ public class MetricsTest {
 
     @Override
     public void execute() {
-      Workflow.getMetricsScope().counter("test-started").inc(1);
+      Workflow.getMetricsScope().counter("test_started").inc(1);
 
       ActivityOptions activityOptions =
           ActivityOptions.newBuilder()
@@ -116,7 +112,7 @@ public class MetricsTest {
       TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
       workflow.executeChild();
 
-      Workflow.getMetricsScope().counter("test-done").inc(1);
+      Workflow.getMetricsScope().counter("test_done").inc(1);
     }
   }
 
@@ -143,13 +139,13 @@ public class MetricsTest {
 
     @Override
     public void executeChild() {
-      Workflow.getMetricsScope().counter("test-child-started").inc(1);
+      Workflow.getMetricsScope().counter("test_child_started").inc(1);
 
-      Stopwatch sw = Workflow.getMetricsScope().timer("test-timer").start();
+      Stopwatch sw = Workflow.getMetricsScope().timer("test_timer").start();
       Workflow.sleep(3000);
       sw.stop();
 
-      Workflow.getMetricsScope().counter("test-child-done").inc(1);
+      Workflow.getMetricsScope().counter("test_child_done").inc(1);
     }
   }
 
@@ -215,14 +211,16 @@ public class MetricsTest {
     public String value;
   }
 
-  public void setUp(
-      com.uber.m3.util.Duration reportingFrequecy, WorkerFactoryOptions workerFactoryOptions) {
-    reporter = mock(StatsReporter.class);
-    Scope scope = new RootScopeBuilder().reporter(reporter).reportEvery(reportingFrequecy);
+  public void setUp(WorkerFactoryOptions workerFactoryOptions) {
+    reporter = new TestStatsReporter();
+    metricsScope =
+        new RootScopeBuilder()
+            .reporter(reporter)
+            .reportEvery(com.uber.m3.util.Duration.ofMillis(10));
 
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
-            .setMetricsScope(scope)
+            .setMetricsScope(metricsScope)
             .setWorkflowClientOptions(
                 WorkflowClientOptions.newBuilder().setNamespace(WorkflowTest.NAMESPACE).build())
             .setWorkerFactoryOptions(workerFactoryOptions)
@@ -238,7 +236,7 @@ public class MetricsTest {
 
   @Test
   public void testWorkflowMetrics() throws InterruptedException {
-    setUp(REPORTING_FREQUENCY, WorkerFactoryOptions.getDefaultInstance());
+    setUp(WorkerFactoryOptions.getDefaultInstance());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(
@@ -257,71 +255,83 @@ public class MetricsTest {
 
     Thread.sleep(REPORTING_FLUSH_TIME);
 
-    Map<String, String> tags =
+    ImmutableMap.Builder<String, String> tagsB =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
+            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+    reporter.assertCounter("temporal_worker_start", tagsB.build(), 3);
+    //    verify(reporter, times(1)).reportCounter("temporal_worker_start", tags, 3);
+    reporter.assertCounter("temporal_poller_start", tagsB.build());
+    reporter.assertCounter(
+        MetricsType.TEMPORAL_LONG_REQUEST,
+        tagsB.put(MetricsTag.OPERATION_NAME, "PollForActivityTask").build());
+    reporter.assertCounter(
+        MetricsType.TEMPORAL_LONG_REQUEST,
+        tagsB.put(MetricsTag.OPERATION_NAME, "PollForDecisionTask").build());
+
+    ImmutableMap<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
+            .put(MetricsTag.TASK_QUEUE, "sticky")
+            .build();
+    reporter.assertCounter("temporal_poller_start", tags);
+
+    tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
+            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .build();
 
-    verify(reporter, times(1)).reportCounter("test-started", tags, 1);
-    verify(reporter, times(1)).reportCounter("test-done", tags, 1);
-    verify(reporter, times(1)).reportCounter("test-child-started", tags, 1);
-    verify(reporter, times(1)).reportCounter("test-child-done", tags, 1);
+    reporter.assertCounter("test_started", tags, 1);
+    reporter.assertCounter("test_done", tags, 1);
+    tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
+            .put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow")
+            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
+            .build();
 
-    ArgumentCaptor<com.uber.m3.util.Duration> sleepDurationCaptor =
-        ArgumentCaptor.forClass(com.uber.m3.util.Duration.class);
-    verify(reporter, times(1)).reportTimer(eq("test-timer"), any(), sleepDurationCaptor.capture());
-
-    com.uber.m3.util.Duration sleepDuration = sleepDurationCaptor.getValue();
-    assertTrue(
-        sleepDuration.toString(),
-        sleepDuration.compareTo(com.uber.m3.util.Duration.ofSeconds(3)) >= 0);
+    reporter.assertCounter("test_child_started", tags, 1);
+    reporter.assertCounter("test_child_done", tags, 1);
+    reporter.assertTimerMinDuration("test_timer", tags, Duration.ofSeconds(3));
 
     Map<String, String> activityCompletionTags =
-        new ImmutableMap.Builder<String, String>(3)
+        new ImmutableMap.Builder<String, String>(5)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.ACTIVITY_TYPE, "RunActivity")
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
+            .put(MetricsTag.OPERATION_NAME, "RespondActivityTaskCompleted")
             .build();
-    verify(reporter, times(1))
-        .reportCounter(ACTIVITY_TASK_COMPLETED_COUNTER, activityCompletionTags, 1);
-    verify(reporter, atLeastOnce())
-        .reportCounter(
-            TEMPORAL_METRICS_PREFIX + "StartWorkflowExecution." + TEMPORAL_REQUEST,
-            new HashMap<>(),
-            1);
-    verify(reporter, atLeastOnce())
-        .reportTimer(
-            eq(TEMPORAL_METRICS_PREFIX + "StartWorkflowExecution." + TEMPORAL_LATENCY),
-            eq(new HashMap<>()),
-            any());
-    verify(reporter, atLeastOnce())
-        .reportCounter(
-            eq(TEMPORAL_METRICS_PREFIX + "PollForDecisionTask." + TEMPORAL_REQUEST),
-            eq(new HashMap<>()),
-            anyLong());
-    verify(reporter, atLeastOnce())
-        .reportCounter(
-            eq(TEMPORAL_METRICS_PREFIX + "RespondDecisionTaskCompleted." + TEMPORAL_REQUEST),
-            eq(new HashMap<>()),
-            anyLong());
-    verify(reporter, atLeastOnce())
-        .reportCounter(
-            eq(TEMPORAL_METRICS_PREFIX + "PollForActivityTask." + TEMPORAL_REQUEST),
-            eq(new HashMap<>()),
-            anyLong());
-    verify(reporter, atLeastOnce())
-        .reportCounter(
-            eq(TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCompleted." + TEMPORAL_REQUEST),
-            eq(new HashMap<>()),
-            anyLong());
+    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, activityCompletionTags, 1);
+
+    tagsB =
+        new ImmutableMap.Builder<String, String>(3)
+            .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
+            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+
+    tags =
+        tagsB
+            .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
+            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
+            .build();
+    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, tags, 1);
+    reporter.assertTimer(MetricsType.TEMPORAL_REQUEST_LATENCY, tags);
+
+    Map<String, String> decisionCompletionTags =
+        new ImmutableMap.Builder<String, String>(4)
+            .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
+            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
+            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
+            .put(MetricsTag.OPERATION_NAME, "RespondDecisionTaskCompleted")
+            .build();
+    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, decisionCompletionTags, 4);
   }
 
   @Test
   public void testCorruptedSignalMetrics() throws InterruptedException {
     setUp(
-        REPORTING_FREQUENCY,
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptors(
                 new CorruptedSignalWorkflowInterceptor(),
@@ -353,9 +363,9 @@ public class MetricsTest {
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
+            .put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectChildWorkflow")
             .build();
-    verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 1);
-    testEnvironment.close();
+    reporter.assertCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 1);
   }
 
   private static class CorruptedSignalWorkflowInterceptor implements WorkflowInterceptor {
@@ -383,7 +393,6 @@ public class MetricsTest {
   @Test
   public void testTemporalFailureMetric() throws InterruptedException {
     setUp(
-        REPORTING_FREQUENCY,
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptors(new CorruptedSignalWorkflowInterceptor())
             .build());
@@ -401,17 +410,22 @@ public class MetricsTest {
     // Wait for reporter
     Thread.sleep(REPORTING_FLUSH_TIME);
 
-    verify(reporter, times(1))
-        .reportCounter("temporal-DescribeNamespace.temporal-request", new HashMap<>(), 1);
-    verify(reporter, times(1))
-        .reportCounter("temporal-DescribeNamespace.temporal-error", new HashMap<>(), 1);
-    testEnvironment.close();
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.OPERATION_NAME, "DescribeNamespace")
+            .build();
+    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, tags, 1);
+    tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.OPERATION_NAME, "DescribeNamespace")
+            .put(MetricsTag.STATUS_CODE, "UNIMPLEMENTED")
+            .build();
+    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST_FAILURE, tags, 1);
   }
 
   @Test
   public void testTemporalInvalidRequestMetric() throws InterruptedException {
     setUp(
-        com.uber.m3.util.Duration.ofMillis(300),
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptors(new CorruptedSignalWorkflowInterceptor())
             .build());
@@ -431,11 +445,17 @@ public class MetricsTest {
     // Wait for reporter
     Thread.sleep(REPORTING_FLUSH_TIME);
 
-    verify(reporter, times(1))
-        .reportCounter("temporal-StartWorkflowExecution.temporal-request", new HashMap<>(), 1);
-    verify(reporter, times(1))
-        .reportCounter(
-            "temporal-StartWorkflowExecution.temporal-invalid-request", new HashMap<>(), 1);
-    testEnvironment.close();
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
+            .build();
+    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, tags, 1);
+
+    tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
+            .put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT")
+            .build();
+    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST_FAILURE, tags, 1);
   }
 }

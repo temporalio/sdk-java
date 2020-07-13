@@ -24,6 +24,7 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import static io.temporal.internal.sync.SyncDecisionContext.toRetryPolicy;
 
 import com.google.common.base.Strings;
+import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.client.WorkflowClientOptions;
@@ -79,6 +80,7 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private final GenericWorkflowClientExternal genericClient;
   private final Optional<String> workflowType;
+  private final Scope metricsScope;
   private AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
   private final Optional<WorkflowOptions> options;
   private final WorkflowClientOptions clientOptions;
@@ -87,10 +89,12 @@ class WorkflowStubImpl implements WorkflowStub {
       WorkflowClientOptions clientOptions,
       GenericWorkflowClientExternal genericClient,
       Optional<String> workflowType,
-      WorkflowExecution execution) {
+      WorkflowExecution execution,
+      Scope metricsScope) {
     this.clientOptions = clientOptions;
     this.genericClient = genericClient;
     this.workflowType = workflowType;
+    this.metricsScope = metricsScope;
     if (execution == null
         || execution.getWorkflowId() == null
         || execution.getWorkflowId().isEmpty()) {
@@ -104,10 +108,12 @@ class WorkflowStubImpl implements WorkflowStub {
       WorkflowClientOptions clientOptions,
       GenericWorkflowClientExternal genericClient,
       String workflowType,
-      WorkflowOptions options) {
+      WorkflowOptions options,
+      Scope metricsScope) {
     this.clientOptions = clientOptions;
     this.genericClient = genericClient;
     this.workflowType = Optional.of(workflowType);
+    this.metricsScope = metricsScope;
     this.options = Optional.of(options);
   }
 
@@ -131,7 +137,7 @@ class WorkflowStubImpl implements WorkflowStub {
       request.setInput(input.get());
     }
     try {
-      genericClient.signalWorkflowExecution(request.build());
+      genericClient.signal(request.build());
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
@@ -146,7 +152,7 @@ class WorkflowStubImpl implements WorkflowStub {
   private WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
     StartWorkflowExecutionRequest request = newStartWorkflowExecutionRequest(o, args);
     try {
-      execution.set(genericClient.request(request));
+      execution.set(genericClient.start(request));
     } catch (StatusRuntimeException e) {
       WorkflowExecutionAlreadyStartedFailure f =
           StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
@@ -268,7 +274,7 @@ class WorkflowStubImpl implements WorkflowStub {
     SignalWithStartWorkflowExecutionParameters p =
         new SignalWithStartWorkflowExecutionParameters(request, signalName, signalInput);
     try {
-      execution.set(genericClient.signalWithStartWorkflowExecution(p));
+      execution.set(genericClient.signalWithStart(p));
     } catch (StatusRuntimeException e) {
       WorkflowExecutionAlreadyStartedFailure f =
           StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
@@ -341,9 +347,10 @@ class WorkflowStubImpl implements WorkflowStub {
               genericClient.getNamespace(),
               execution.get(),
               workflowType,
+              metricsScope,
+              clientOptions.getDataConverter(),
               timeout,
-              unit,
-              clientOptions.getDataConverter());
+              unit);
       return clientOptions.getDataConverter().fromPayloads(resultValue, resultClass, resultType);
     } catch (TimeoutException e) {
       throw e;
@@ -456,7 +463,7 @@ class WorkflowStubImpl implements WorkflowStub {
 
     QueryWorkflowResponse result;
     try {
-      result = genericClient.request(request);
+      result = genericClient.query(request);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
@@ -496,7 +503,7 @@ class WorkflowStubImpl implements WorkflowStub {
                 WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()))
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity());
-    genericClient.requestCancelWorkflowExecution(request.build());
+    genericClient.requestCancel(request.build());
   }
 
   @Override
@@ -517,7 +524,7 @@ class WorkflowStubImpl implements WorkflowStub {
     if (payloads.isPresent()) {
       request.setDetails(payloads.get());
     }
-    genericClient.terminateWorkflowExecution(request.build());
+    genericClient.terminate(request.build());
   }
 
   @Override

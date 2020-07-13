@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal;
+package io.temporal.internal.grpc;
 
 import io.grpc.CallOptions;
 import io.grpc.Channel;
@@ -47,25 +47,20 @@ class GrpcDeadlineInterceptor implements ClientInterceptor {
       MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
     Deadline deadline = callOptions.getDeadline();
     long duration;
-    if (deadline == null) {
-      duration = options.getRpcTimeoutMillis();
-    } else {
-      duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
-    }
-    if (method == WorkflowServiceGrpc.getGetWorkflowExecutionHistoryMethod()) {
-      if (deadline == null) {
-        duration = options.getRpcLongPollTimeoutMillis();
-      } else {
-        duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
-        if (duration > options.getRpcLongPollTimeoutMillis()) {
-          duration = options.getRpcLongPollTimeoutMillis();
-        }
-      }
-    } else if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()
-        || method == WorkflowServiceGrpc.getPollForActivityTaskMethod()) {
+
+    if (LongPollUtil.isLongPoll(method, callOptions)) {
       duration = options.getRpcLongPollTimeoutMillis();
-    } else if (method == WorkflowServiceGrpc.getQueryWorkflowMethod()) {
-      duration = options.getRpcQueryTimeoutMillis();
+      if (deadline != null) {
+        duration = Math.min(duration, deadline.timeRemaining(TimeUnit.MILLISECONDS));
+      }
+    } else if (deadline != null) {
+      duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
+    } else {
+      if (method == WorkflowServiceGrpc.getQueryWorkflowMethod()) {
+        duration = options.getRpcQueryTimeoutMillis();
+      } else {
+        duration = options.getRpcTimeoutMillis();
+      }
     }
     if (log.isTraceEnabled()) {
       String name = method.getFullMethodName();

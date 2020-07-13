@@ -19,6 +19,8 @@
 
 package io.temporal.internal.external;
 
+import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
@@ -33,7 +35,6 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest;
 import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
@@ -108,8 +109,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().respondActivityTaskCompleted(request.build()));
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
+            () ->
+                service
+                    .blockingStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .respondActivityTaskCompleted(request.build()));
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(e);
@@ -132,8 +136,10 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         request.setResult(convertedResult.get());
       }
       try {
-        service.blockingStub().respondActivityTaskCompletedById(request.build());
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_BY_ID_COUNTER).inc(1);
+        service
+            .blockingStub()
+            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+            .respondActivityTaskCompletedById(request.build());
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(activityId, e);
@@ -160,8 +166,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().respondActivityTaskFailed(request));
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
+            () ->
+                service
+                    .blockingStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .respondActivityTaskFailed(request));
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(e);
@@ -185,8 +194,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().respondActivityTaskFailedById(request));
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_BY_ID_COUNTER).inc(1);
+            () ->
+                service
+                    .blockingStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .respondActivityTaskFailedById(request));
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(activityId, e);
@@ -210,7 +222,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       RecordActivityTaskHeartbeatResponse status;
       try {
-        status = service.blockingStub().recordActivityTaskHeartbeat(request.build());
+        status =
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .recordActivityTaskHeartbeat(request.build());
         if (status.getCancelRequested()) {
           throw new ActivityCancelledException();
         }
@@ -234,7 +250,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       RecordActivityTaskHeartbeatByIdResponse status = null;
       try {
-        status = service.blockingStub().recordActivityTaskHeartbeatById(request.build());
+        status =
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .recordActivityTaskHeartbeatById(request.build());
         if (status.getCancelRequested()) {
           throw new ActivityCancelledException();
         }
@@ -262,8 +282,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().respondActivityTaskCanceled(request.build()));
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
+            () ->
+                service
+                    .blockingStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .respondActivityTaskCanceled(request.build()));
       } catch (Exception e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.
@@ -285,8 +308,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().respondActivityTaskCanceledById(request.build()));
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_BY_ID_COUNTER).inc(1);
+            () ->
+                service
+                    .blockingStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .respondActivityTaskCanceledById(request.build()));
       } catch (Exception e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.
