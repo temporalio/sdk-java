@@ -113,6 +113,11 @@ dependencies {
     testImplementation group: 'junit', name: 'junit', version: '4.13'
 }
 
+configurations.all {
+    // Conflicts with logback
+    exclude group: 'org.slf4j', module: 'slf4j-simple'
+}
+
 license {
     header rootProject.file('license-header.txt')
     exclude 'io/temporal/proto/**.java' // generated code
