@@ -914,7 +914,7 @@ public final class Workflow {
    * </code></pre>
    *
    * If function throws any exception it is not delivered to the workflow code. It is wrapped in
-   * {@link Error} causing failure of the current decision.
+   * {@link Error} causing failure of the current workflow task.
    *
    * @param resultClass type of the side effect
    * @param func function that returns side effect value
@@ -968,7 +968,7 @@ public final class Workflow {
    * </code></pre>
    *
    * If function throws any exception it is not delivered to the workflow code. It is wrapped in
-   * {@link Error} causing failure of the current decision.
+   * {@link Error} causing failure of the current workflow task.
    *
    * @param resultClass class of the side effect
    * @param resultType type of the side effect. Differs from resultClass for generic types.
@@ -999,7 +999,7 @@ public final class Workflow {
    * the mutableSideEffect's return value.
    *
    * <p>If function throws any exception it is not delivered to the workflow code. It is wrapped in
-   * {@link Error} causing failure of the current decision.
+   * {@link Error} causing failure of the current workflow task.
    *
    * @param id unique identifier of this side effect
    * @param updated used to decide if a new value should be recorded. A func result is recorded only
@@ -1033,7 +1033,7 @@ public final class Workflow {
    * the mutableSideEffect's return value.
    *
    * <p>If function throws any exception it is not delivered to the workflow code. It is wrapped in
-   * {@link Error} causing failure of the current decision.
+   * {@link Error} causing failure of the current workflow task.
    *
    * @param id unique identifier of this side effect
    * @param updated used to decide if a new value should be recorded. A func result is recorded only

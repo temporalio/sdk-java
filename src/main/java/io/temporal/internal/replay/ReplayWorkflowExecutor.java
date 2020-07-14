@@ -364,7 +364,8 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
             delaySeconds,
             (t) -> {
               // Intentionally left empty.
-              // Timer ensures that decision is scheduled at the time workflow can make progress.
+              // Timer ensures that a workflow task is scheduled at the time workflow can make
+              // progress.
               // But no specific timer related action is necessary as Workflow.sleep is just a
               // Workflow.await with a time based condition.
             });
@@ -438,17 +439,17 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
                 commandHelper.getLastStartedEventId(), historyHelper.getPreviousStartedEventId()));
       }
       while (iterator.hasNext()) {
-        WorkflowTaskEvents decision = iterator.next();
-        if (!timerStopped && !decision.isReplay()) {
+        WorkflowTaskEvents taskEvents = iterator.next();
+        if (!timerStopped && !taskEvents.isReplay()) {
           sw.stop();
           timerStopped = true;
         }
-        context.setReplaying(decision.isReplay());
-        context.setReplayCurrentTimeMilliseconds(decision.getReplayCurrentTimeMilliseconds());
+        context.setReplaying(taskEvents.isReplay());
+        context.setReplayCurrentTimeMilliseconds(taskEvents.getReplayCurrentTimeMilliseconds());
 
-        commandHelper.handleWorkflowTaskStartedEvent(decision);
+        commandHelper.handleWorkflowTaskStartedEvent(taskEvents);
         // Markers must be cached first as their data is needed when processing events.
-        for (HistoryEvent event : decision.getMarkers()) {
+        for (HistoryEvent event : taskEvents.getMarkers()) {
           if (!event
               .getMarkerRecordedEventAttributes()
               .getMarkerName()
@@ -457,7 +458,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           }
         }
 
-        for (HistoryEvent event : decision.getEvents()) {
+        for (HistoryEvent event : taskEvents.getEvents()) {
           processEvent(event);
         }
 
@@ -465,19 +466,19 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
             processEventLoop(
                 startTime,
                 startedEvent.getWorkflowTaskTimeoutSeconds(),
-                decision,
+                taskEvents,
                 workflowTask.hasQuery());
 
         mayBeCompleteWorkflow();
-        if (decision.isReplay()) {
-          commandHelper.notifyDecisionSent();
+        if (taskEvents.isReplay()) {
+          commandHelper.notifyCommandSent();
         }
-        // Updates state machines with results of the previous decisions
-        for (HistoryEvent event : decision.getCommandEvents()) {
+        // Updates state machines with results of the previous commands
+        for (HistoryEvent event : taskEvents.getCommandEvents()) {
           processEvent(event);
         }
         // Reset state to before running the event loop
-        commandHelper.handleWorkflowTaskStartedEvent(decision);
+        commandHelper.handleWorkflowTaskStartedEvent(taskEvents);
       }
       return forceCreateNewWorkflowTask;
     } catch (Error e) {
@@ -490,7 +491,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
         return false;
       } else {
         metricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
-        // fail decision, not a workflow
+        // fail workflow task, not a workflow
         throw e;
       }
     } finally {
@@ -530,20 +531,20 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
   }
 
   private boolean processEventLoop(
-      long startTime, int workflowTaskTimeoutSecs, WorkflowTaskEvents decision, boolean isQuery)
+      long startTime, int workflowTaskTimeoutSecs, WorkflowTaskEvents taskEvents, boolean isQuery)
       throws Throwable {
     eventLoop();
 
-    if (decision.isReplay() || isQuery) {
-      return replayLocalActivities(decision);
+    if (taskEvents.isReplay() || isQuery) {
+      return replayLocalActivities(taskEvents);
     } else {
       return executeLocalActivities(startTime, workflowTaskTimeoutSecs);
     }
   }
 
-  private boolean replayLocalActivities(WorkflowTaskEvents decision) throws Throwable {
+  private boolean replayLocalActivities(WorkflowTaskEvents taskEvents) throws Throwable {
     List<HistoryEvent> localActivityMarkers = new ArrayList<>();
-    for (HistoryEvent event : decision.getMarkers()) {
+    for (HistoryEvent event : taskEvents.getMarkers()) {
       if (event
           .getMarkerRecordedEventAttributes()
           .getMarkerName()

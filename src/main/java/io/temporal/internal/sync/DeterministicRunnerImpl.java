@@ -560,7 +560,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   /**
    * If we're executing as part of a workflow, get the current thread's context. Otherwise get the
-   * context info from the DecisionContext
+   * context info from the workflow context.
    */
   private Map<String, Object> getPropagatedContexts() {
     if (currentThreadThreadLocal.get() != null) {

@@ -318,14 +318,14 @@ public class MetricsTest {
     reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, tags, 1);
     reporter.assertTimer(MetricsType.TEMPORAL_REQUEST_LATENCY, tags);
 
-    Map<String, String> decisionCompletionTags =
+    Map<String, String> workflowTaskCompletionTags =
         new ImmutableMap.Builder<String, String>(4)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
             .build();
-    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, decisionCompletionTags, 4);
+    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, workflowTaskCompletionTags, 4);
   }
 
   @Test

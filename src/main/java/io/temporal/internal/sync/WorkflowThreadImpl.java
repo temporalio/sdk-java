@@ -257,14 +257,14 @@ class WorkflowThreadImpl implements WorkflowThread {
             .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
             .inc(1);
         if (cache != null) {
-          SyncWorkflowContext decisionContext = this.runner.getWorkflowContext();
+          SyncWorkflowContext workflowContext = this.runner.getWorkflowContext();
           boolean evicted =
               cache.evictAnyNotInProcessing(
-                  decisionContext.getContext().getRunId(), decisionContext.getMetricsScope());
+                  workflowContext.getContext().getRunId(), workflowContext.getMetricsScope());
           if (!evicted) {
             // Note here we need to throw error, not exception. Otherwise it will be
             // translated to workflow execution exception and instead of failing the
-            // decision we will be failing the workflow.
+            // workflow task we will be failing the workflow.
             throw new WorkflowRejectedExecutionError(e);
           }
         } else {

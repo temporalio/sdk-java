@@ -264,7 +264,7 @@ public final class WorkflowInternal {
         .getWorkflowInterceptor();
   }
 
-  static SyncWorkflowContext getRootDecisionContext() {
+  static SyncWorkflowContext getRootWorkflowContext() {
     return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
   }
 
@@ -335,11 +335,11 @@ public final class WorkflowInternal {
   /** Returns false if not under workflow code. */
   public static boolean isReplaying() {
     Optional<WorkflowThread> thread = DeterministicRunnerImpl.currentThreadInternalIfPresent();
-    return thread.isPresent() && getRootDecisionContext().isReplaying();
+    return thread.isPresent() && getRootWorkflowContext().isReplaying();
   }
 
   public static WorkflowInfo getWorkflowInfo() {
-    return new WorkflowInfoImpl(getRootDecisionContext().getContext());
+    return new WorkflowInfoImpl(getRootWorkflowContext().getContext());
   }
 
   public static <R> R retry(
@@ -356,8 +356,8 @@ public final class WorkflowInternal {
       Optional<String> workflowType,
       Optional<ContinueAsNewOptions> options,
       Object[] args,
-      WorkflowOutboundCallsInterceptor decisionContext) {
-    decisionContext.continueAsNew(workflowType, options, args);
+      WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
+    outboundCallsInterceptor.continueAsNew(workflowType, options, args);
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {
@@ -369,19 +369,19 @@ public final class WorkflowInternal {
   }
 
   public static Scope getMetricsScope() {
-    return getRootDecisionContext().getMetricsScope();
+    return getRootWorkflowContext().getMetricsScope();
   }
 
   private static boolean isLoggingEnabledInReplay() {
-    return getRootDecisionContext().isLoggingEnabledInReplay();
+    return getRootWorkflowContext().isLoggingEnabledInReplay();
   }
 
   public static UUID randomUUID() {
-    return getRootDecisionContext().randomUUID();
+    return getRootWorkflowContext().randomUUID();
   }
 
   public static Random newRandom() {
-    return getRootDecisionContext().newRandom();
+    return getRootWorkflowContext().newRandom();
   }
 
   public static Logger getLogger(Class<?> clazz) {
@@ -397,7 +397,7 @@ public final class WorkflowInternal {
   }
 
   public static <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
-    return getRootDecisionContext().getLastCompletionResult(resultClass, resultType);
+    return getRootWorkflowContext().getLastCompletionResult(resultClass, resultType);
   }
 
   public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
@@ -405,6 +405,6 @@ public final class WorkflowInternal {
   }
 
   public static DataConverter getDataConverter() {
-    return getRootDecisionContext().getDataConverter();
+    return getRootWorkflowContext().getDataConverter();
   }
 }

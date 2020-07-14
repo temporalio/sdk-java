@@ -425,7 +425,7 @@ public class StickyWorkerTest {
     // Act
     WorkflowClient.start(workflow::getGreeting);
 
-    // Wait for the first decision to go through
+    // Wait for the first workflow task to go through
     WorkflowExecutorCache cache = factory.getCache();
     assertNotNull(cache);
     long start = System.currentTimeMillis();

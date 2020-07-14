@@ -123,18 +123,17 @@ final class CommandHelper {
     long nextCommandEventId = getNextCommandEventId();
     CommandId commandId = new CommandId(CommandTarget.ACTIVITY, nextCommandEventId);
     activityIdToScheduledEventId.put(schedule.getActivityId(), nextCommandEventId);
-    addDecision(
-        commandId, new ActivityCommandStateMachine(commandId, schedule, nextCommandEventId));
+    addCommand(commandId, new ActivityCommandStateMachine(commandId, schedule, nextCommandEventId));
     return nextCommandEventId;
   }
 
   /**
-   * @return true if cancellation already happened as schedule event was found in the new decisions
-   *     list
+   * Returns true if cancellation already happened as schedule event was found in the new commands
+   * list
    */
   boolean requestCancelActivityTask(long scheduledEventId, Runnable immediateCancellationCallback) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.ACTIVITY, scheduledEventId));
+        getCommand(new CommandId(CommandTarget.ACTIVITY, scheduledEventId));
     if (command.cancel(immediateCancellationCallback)) {
       nextCommandEventId++;
     }
@@ -144,19 +143,19 @@ final class CommandHelper {
   void handleActivityTaskStarted(HistoryEvent event) {
     ActivityTaskStartedEventAttributes attributes = event.getActivityTaskStartedEventAttributes();
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.ACTIVITY, attributes.getScheduledEventId()));
+        getCommand(new CommandId(CommandTarget.ACTIVITY, attributes.getScheduledEventId()));
     command.handleStartedEvent(event);
   }
 
   void handleActivityTaskScheduled(HistoryEvent event) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.ACTIVITY, event.getEventId()));
+        getCommand(new CommandId(CommandTarget.ACTIVITY, event.getEventId()));
     command.handleInitiatedEvent(event);
   }
 
   boolean handleActivityTaskClosed(long scheduledEventId) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.ACTIVITY, scheduledEventId));
+        getCommand(new CommandId(CommandTarget.ACTIVITY, scheduledEventId));
     command.handleCompletionEvent();
     return command.isDone();
   }
@@ -166,7 +165,7 @@ final class CommandHelper {
         event.getActivityTaskCancelRequestedEventAttributes();
     long scheduledEventId = attributes.getScheduledEventId();
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.ACTIVITY, scheduledEventId));
+        getCommand(new CommandId(CommandTarget.ACTIVITY, scheduledEventId));
     command.handleCancellationInitiatedEvent();
     return command.isDone();
   }
@@ -182,7 +181,7 @@ final class CommandHelper {
   boolean handleActivityTaskCanceled(HistoryEvent event) {
     ActivityTaskCanceledEventAttributes attributes = event.getActivityTaskCanceledEventAttributes();
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.ACTIVITY, attributes.getScheduledEventId()));
+        getCommand(new CommandId(CommandTarget.ACTIVITY, attributes.getScheduledEventId()));
     command.handleCancellationEvent();
     return command.isDone();
   }
@@ -192,13 +191,13 @@ final class CommandHelper {
 
     long nextCommandEventId = getNextCommandEventId();
     CommandId commandId = new CommandId(CommandTarget.CHILD_WORKFLOW, nextCommandEventId);
-    addDecision(commandId, new ChildWorkflowCommandStateMachine(commandId, childWorkflow));
+    addCommand(commandId, new ChildWorkflowCommandStateMachine(commandId, childWorkflow));
     return nextCommandEventId;
   }
 
   void handleStartChildWorkflowExecutionInitiated(HistoryEvent event) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CHILD_WORKFLOW, event.getEventId()));
+        getCommand(new CommandId(CommandTarget.CHILD_WORKFLOW, event.getEventId()));
     command.handleInitiatedEvent(event);
   }
 
@@ -207,13 +206,13 @@ final class CommandHelper {
         event.getStartChildWorkflowExecutionFailedEventAttributes();
     long initiatedEventId = attributes.getInitiatedEventId();
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CHILD_WORKFLOW, initiatedEventId));
+        getCommand(new CommandId(CommandTarget.CHILD_WORKFLOW, initiatedEventId));
     command.handleInitiationFailedEvent(event);
     return command.isDone();
   }
 
   /**
-   * @return true if cancellation already happened as schedule event was found in the new decisions
+   * @return true if cancellation already happened as schedule event was found in the new commands
    *     list
    */
   long requestCancelExternalWorkflowExecution(
@@ -222,14 +221,13 @@ final class CommandHelper {
 
     long nextCommandEventId = getNextCommandEventId();
     CommandId commandId = new CommandId(CommandTarget.CANCEL_EXTERNAL_WORKFLOW, nextCommandEventId);
-    addDecision(
-        commandId, new ExternalWorkflowCancellationCommandStateMachine(commandId, schedule));
+    addCommand(commandId, new ExternalWorkflowCancellationCommandStateMachine(commandId, schedule));
     return nextCommandEventId;
   }
 
   void handleRequestCancelExternalWorkflowExecutionInitiated(HistoryEvent event) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CANCEL_EXTERNAL_WORKFLOW, event.getEventId()));
+        getCommand(new CommandId(CommandTarget.CANCEL_EXTERNAL_WORKFLOW, event.getEventId()));
     command.handleInitiatedEvent(event);
   }
 
@@ -237,7 +235,7 @@ final class CommandHelper {
     ExternalWorkflowExecutionCancelRequestedEventAttributes attributes =
         event.getExternalWorkflowExecutionCancelRequestedEventAttributes();
     CommandStateMachine command =
-        getDecision(
+        getCommand(
             new CommandId(
                 CommandTarget.CANCEL_EXTERNAL_WORKFLOW, attributes.getInitiatedEventId()));
     command.handleCompletionEvent();
@@ -247,7 +245,7 @@ final class CommandHelper {
     RequestCancelExternalWorkflowExecutionFailedEventAttributes attributes =
         event.getRequestCancelExternalWorkflowExecutionFailedEventAttributes();
     CommandStateMachine command =
-        getDecision(
+        getCommand(
             new CommandId(
                 CommandTarget.CANCEL_EXTERNAL_WORKFLOW, attributes.getInitiatedEventId()));
     command.handleCompletionEvent();
@@ -258,14 +256,14 @@ final class CommandHelper {
 
     long nextCommandEventId = getNextCommandEventId();
     CommandId commandId = new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, nextCommandEventId);
-    addDecision(commandId, new SignalCommandStateMachine(commandId, signal));
+    addCommand(commandId, new SignalCommandStateMachine(commandId, signal));
     return nextCommandEventId;
   }
 
   void cancelSignalExternalWorkflowExecution(
       long initiatedEventId, Runnable immediateCancellationCallback) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, initiatedEventId));
+        getCommand(new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, initiatedEventId));
     if (command.cancel(immediateCancellationCallback)) {
       nextCommandEventId++;
     }
@@ -273,14 +271,14 @@ final class CommandHelper {
 
   boolean handleSignalExternalWorkflowExecutionFailed(long initiatedEventId) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, initiatedEventId));
+        getCommand(new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, initiatedEventId));
     command.handleCompletionEvent();
     return command.isDone();
   }
 
   boolean handleExternalWorkflowExecutionSignaled(long initiatedEventId) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, initiatedEventId));
+        getCommand(new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, initiatedEventId));
     command.handleCompletionEvent();
     return command.isDone();
   }
@@ -290,12 +288,12 @@ final class CommandHelper {
 
     long startEventId = getNextCommandEventId();
     CommandId commandId = new CommandId(CommandTarget.TIMER, startEventId);
-    addDecision(commandId, new TimerCommandStateMachine(commandId, request));
+    addCommand(commandId, new TimerCommandStateMachine(commandId, request));
     return startEventId;
   }
 
   boolean cancelTimer(long startEventId, Runnable immediateCancellationCallback) {
-    CommandStateMachine command = getDecision(new CommandId(CommandTarget.TIMER, startEventId));
+    CommandStateMachine command = getCommand(new CommandId(CommandTarget.TIMER, startEventId));
     if (command.isDone()) {
       // Cancellation callbacks are not deregistered and might be invoked after timer firing
       return true;
@@ -310,14 +308,14 @@ final class CommandHelper {
     ChildWorkflowExecutionStartedEventAttributes attributes =
         event.getChildWorkflowExecutionStartedEventAttributes();
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
+        getCommand(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
     command.handleStartedEvent(event);
   }
 
   boolean handleChildWorkflowExecutionCompleted(
       ChildWorkflowExecutionCompletedEventAttributes attributes) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
+        getCommand(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
     command.handleCompletionEvent();
     return command.isDone();
   }
@@ -325,7 +323,7 @@ final class CommandHelper {
   boolean handleChildWorkflowExecutionTimedOut(
       ChildWorkflowExecutionTimedOutEventAttributes attributes) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
+        getCommand(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
     command.handleCompletionEvent();
     return command.isDone();
   }
@@ -333,7 +331,7 @@ final class CommandHelper {
   boolean handleChildWorkflowExecutionTerminated(
       ChildWorkflowExecutionTerminatedEventAttributes attributes) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
+        getCommand(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
     command.handleCompletionEvent();
     return command.isDone();
   }
@@ -341,7 +339,7 @@ final class CommandHelper {
   boolean handleChildWorkflowExecutionFailed(
       ChildWorkflowExecutionFailedEventAttributes attributes) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
+        getCommand(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
     command.handleCompletionEvent();
     return command.isDone();
   }
@@ -349,20 +347,20 @@ final class CommandHelper {
   boolean handleChildWorkflowExecutionCanceled(
       ChildWorkflowExecutionCanceledEventAttributes attributes) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
+        getCommand(new CommandId(CommandTarget.CHILD_WORKFLOW, attributes.getInitiatedEventId()));
     command.handleCancellationEvent();
     return command.isDone();
   }
 
   void handleSignalExternalWorkflowExecutionInitiated(HistoryEvent event) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, event.getEventId()));
+        getCommand(new CommandId(CommandTarget.SIGNAL_EXTERNAL_WORKFLOW, event.getEventId()));
     command.handleInitiatedEvent(event);
   }
 
   boolean handleTimerClosed(TimerFiredEventAttributes attributes) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.TIMER, attributes.getStartedEventId()));
+        getCommand(new CommandId(CommandTarget.TIMER, attributes.getStartedEventId()));
     command.handleCompletionEvent();
     return command.isDone();
   }
@@ -370,21 +368,21 @@ final class CommandHelper {
   boolean handleTimerCanceled(HistoryEvent event) {
     TimerCanceledEventAttributes attributes = event.getTimerCanceledEventAttributes();
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.TIMER, attributes.getStartedEventId()));
+        getCommand(new CommandId(CommandTarget.TIMER, attributes.getStartedEventId()));
     command.handleCancellationEvent();
     return command.isDone();
   }
 
   boolean handleCancelTimerFailed(HistoryEvent event) {
     long startedEventId = event.getEventId();
-    CommandStateMachine command = getDecision(new CommandId(CommandTarget.TIMER, startedEventId));
+    CommandStateMachine command = getCommand(new CommandId(CommandTarget.TIMER, startedEventId));
     command.handleCancellationFailureEvent(event);
     return command.isDone();
   }
 
   void handleTimerStarted(HistoryEvent event) {
     CommandStateMachine command =
-        getDecision(new CommandId(CommandTarget.TIMER, event.getEventId()));
+        getCommand(new CommandId(CommandTarget.TIMER, event.getEventId()));
     // Timer started event is indeed initiation event for the timer as
     // it doesn't have a separate event for started as an activity does.
     command.handleInitiatedEvent(event);
@@ -393,7 +391,7 @@ final class CommandHelper {
   /** This happens during strongly consistent query processing for completed workflows */
   public void handleWorkflowExecutionCompleted(HistoryEvent event) {
     CommandId commandId = new CommandId(CommandTarget.SELF, 0);
-    CommandStateMachine command = getDecision(commandId);
+    CommandStateMachine command = getCommand(commandId);
     if (!(command instanceof CompleteWorkflowStateMachine)) {
       throw new IllegalStateException("Unexpected command: " + command);
     }
@@ -414,7 +412,7 @@ final class CommandHelper {
             .setCommandType(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION)
             .build();
     CommandId commandId = new CommandId(CommandTarget.SELF, 0);
-    addDecision(commandId, new CompleteWorkflowStateMachine(commandId, command));
+    addCommand(commandId, new CompleteWorkflowStateMachine(commandId, command));
   }
 
   void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
@@ -433,7 +431,7 @@ final class CommandHelper {
             .build();
 
     CommandId commandId = new CommandId(CommandTarget.SELF, 0);
-    addDecision(commandId, new CompleteWorkflowStateMachine(commandId, command));
+    addCommand(commandId, new CompleteWorkflowStateMachine(commandId, command));
   }
 
   void failWorkflowExecution(WorkflowExecutionException exception) {
@@ -447,7 +445,7 @@ final class CommandHelper {
             .setCommandType(CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION)
             .build();
     CommandId commandId = new CommandId(CommandTarget.SELF, 0);
-    addDecision(commandId, new CompleteWorkflowStateMachine(commandId, command));
+    addCommand(commandId, new CompleteWorkflowStateMachine(commandId, command));
   }
 
   /**
@@ -464,7 +462,7 @@ final class CommandHelper {
             .setCommandType(CommandType.COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION)
             .build();
     CommandId commandId = new CommandId(CommandTarget.SELF, 0);
-    addDecision(commandId, new CompleteWorkflowStateMachine(commandId, command));
+    addCommand(commandId, new CompleteWorkflowStateMachine(commandId, command));
   }
 
   void recordMarker(
@@ -490,7 +488,7 @@ final class CommandHelper {
             .build();
     long nextCommandEventId = getNextCommandEventId();
     CommandId commandId = new CommandId(CommandTarget.MARKER, nextCommandEventId);
-    addDecision(commandId, new MarkerCommandStateMachine(commandId, command));
+    addCommand(commandId, new MarkerCommandStateMachine(commandId, command));
   }
 
   void upsertSearchAttributes(SearchAttributes searchAttributes) {
@@ -503,7 +501,7 @@ final class CommandHelper {
             .build();
     long nextCommandEventId = getNextCommandEventId();
     CommandId commandId = new CommandId(CommandTarget.UPSERT_SEARCH_ATTRIBUTES, nextCommandEventId);
-    addDecision(commandId, new UpsertSearchAttributesCommandStateMachine(commandId, command));
+    addCommand(commandId, new UpsertSearchAttributesCommandStateMachine(commandId, command));
   }
 
   List<Command> getCommands() {
@@ -514,7 +512,8 @@ final class CommandHelper {
         result.add(command);
       }
     }
-    // Include FORCE_IMMEDIATE_DECISION timer only if there are more then 100 events
+    // Include FORCE_IMMEDIATE_WORKFLOW_TASK_TIMER only if there are more then
+    // MAXIMUM_COMMANDS_PER_COMPLETION events
     int size = result.size();
     if (size > MAXIMUM_COMMANDS_PER_COMPLETION
         && !isCompletionEvent(result.get(MAXIMUM_COMMANDS_PER_COMPLETION - 2))) {
@@ -549,18 +548,18 @@ final class CommandHelper {
   public void handleWorkflowTaskStartedEvent(WorkflowTaskEvents command) {
     this.workflowTaskEvents = command;
     this.nextCommandEventId = command.getNextCommandEventId();
-    // Account for DecisionCompleted
+    // Account for WorkflowTaskCompleted
     this.lastStartedEventId = command.getNextCommandEventId() - 2;
   }
 
-  void notifyDecisionSent() {
+  void notifyCommandSent() {
     int count = 0;
     Iterator<CommandStateMachine> iterator = commands.values().iterator();
     CommandStateMachine next = null;
 
-    CommandStateMachine commandStateMachine = getNextDecision(iterator);
+    CommandStateMachine commandStateMachine = getNextCommand(iterator);
     while (commandStateMachine != null) {
-      next = getNextDecision(iterator);
+      next = getNextCommand(iterator);
       if (++count == MAXIMUM_COMMANDS_PER_COMPLETION
           && next != null
           && !isCompletionEvent(next.getCommand())) {
@@ -574,7 +573,7 @@ final class CommandHelper {
     }
   }
 
-  private CommandStateMachine getNextDecision(Iterator<CommandStateMachine> iterator) {
+  private CommandStateMachine getNextCommand(Iterator<CommandStateMachine> iterator) {
     CommandStateMachine result = null;
     while (result == null && iterator.hasNext()) {
       result = iterator.next();
@@ -587,20 +586,20 @@ final class CommandHelper {
 
   @Override
   public String toString() {
-    return WorkflowExecutionUtils.prettyPrintDecisions(getCommands());
+    return WorkflowExecutionUtils.prettyPrintCommands(getCommands());
   }
 
   PollWorkflowTaskQueueResponse.Builder getTask() {
     return task;
   }
 
-  // addAllMissingVersionMarker should always be called before addDecision. In non-replay mode,
+  // addAllMissingVersionMarker should always be called before addCommand. In non-replay mode,
   // addAllMissingVersionMarker is a no-op. In replay mode, it tries to insert back missing
-  // version marker decisions, as we allow user to remove getVersion and not breaking their code.
+  // version marker commands, as we allow user to remove getVersion and not breaking their code.
   // Be careful that addAllMissingVersionMarker can add command and hence change
   // nextCommandEventId, so any call to determine the event ID for the next command should happen
   // after that.
-  private void addDecision(CommandId commandId, CommandStateMachine command) {
+  private void addCommand(CommandId commandId, CommandStateMachine command) {
     Objects.requireNonNull(commandId);
     commands.put(commandId, command);
     nextCommandEventId++;
@@ -645,7 +644,7 @@ final class CommandHelper {
     }
 
     // Look ahead to see if there is a marker with changeId following current version marker
-    // If it is the case then all the markers that precede it should be added as decisions
+    // If it is the case then all the markers that precede it should be added as commands
     // as their correspondent getVersion calls were removed.
     long changeIdMarkerEventId = -1;
     if (changeId.isPresent()) {
@@ -675,7 +674,7 @@ final class CommandHelper {
     do {
       MarkerRecordedEventAttributes eventAttributes =
           markerEvent.get().getMarkerRecordedEventAttributes();
-      // If we have a version marker in history event but not in decisions, let's add one.
+      // If we have a version marker in history event but not in commands, let's add one.
       RecordMarkerCommandAttributes.Builder attributes =
           RecordMarkerCommandAttributes.newBuilder()
               .setMarkerName(ReplayClockContext.VERSION_MARKER_NAME);
@@ -686,20 +685,20 @@ final class CommandHelper {
         attributes.setFailure(eventAttributes.getFailure());
       }
       attributes.putAllDetails(eventAttributes.getDetailsMap());
-      Command markerDecision =
+      Command markerCommand =
           Command.newBuilder()
               .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
               .setRecordMarkerCommandAttributes(attributes)
               .build();
       CommandId markerCommandId = new CommandId(CommandTarget.MARKER, nextCommandEventId);
-      commands.put(markerCommandId, new MarkerCommandStateMachine(markerCommandId, markerDecision));
+      commands.put(markerCommandId, new MarkerCommandStateMachine(markerCommandId, markerCommand));
       nextCommandEventId++;
       markerEvent = getVersionMakerEvent(nextCommandEventId);
     } while (markerEvent.isPresent()
         && (changeIdMarkerEventId < 0 || nextCommandEventId < changeIdMarkerEventId));
   }
 
-  private CommandStateMachine getDecision(CommandId commandId) {
+  private CommandStateMachine getCommand(CommandId commandId) {
     CommandStateMachine result = commands.get(commandId);
     if (result == null) {
       throw new NonDeterminisicWorkflowError(

@@ -234,17 +234,17 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       if (id.getTaskQueueName().isEmpty() || id.getNamespace().isEmpty()) {
         throw Status.INTERNAL.withDescription("Invalid TaskQueueId: " + id).asRuntimeException();
       }
-      BlockingQueue<PollWorkflowTaskQueueResponse.Builder> decisionsQueue =
+      BlockingQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
           getWorkflowTaskQueueQueue(id);
-      decisionsQueue.add(workflowTask.getTask());
+      workflowTaskQueue.add(workflowTask.getTask());
     }
 
     List<ActivityTask> activityTasks = ctx.getActivityTasks();
     if (activityTasks != null) {
       for (ActivityTask activityTask : activityTasks) {
-        BlockingQueue<PollActivityTaskQueueResponse.Builder> activitiesQueue =
+        BlockingQueue<PollActivityTaskQueueResponse.Builder> activityTaskQueue =
             getActivityTaskQueueQueue(activityTask.getTaskQueueId());
-        activitiesQueue.add(activityTask.getTask());
+        activityTaskQueue.add(activityTask.getTask());
       }
     }
 
@@ -293,13 +293,13 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     lock.lock();
     try {
       {
-        BlockingQueue<PollActivityTaskQueueResponse.Builder> activitiesQueue =
+        BlockingQueue<PollActivityTaskQueueResponse.Builder> activityTaskQueue =
             activityTaskQueues.get(taskQueueId);
-        if (activitiesQueue == null) {
-          activitiesQueue = new LinkedBlockingQueue<>();
-          activityTaskQueues.put(taskQueueId, activitiesQueue);
+        if (activityTaskQueue == null) {
+          activityTaskQueue = new LinkedBlockingQueue<>();
+          activityTaskQueues.put(taskQueueId, activityTaskQueue);
         }
-        return activitiesQueue;
+        return activityTaskQueue;
       }
     } finally {
       lock.unlock();
@@ -310,13 +310,13 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       TaskQueueId taskQueueId) {
     lock.lock();
     try {
-      BlockingQueue<PollWorkflowTaskQueueResponse.Builder> decisionsQueue =
+      BlockingQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
           workflowTaskQueues.get(taskQueueId);
-      if (decisionsQueue == null) {
-        decisionsQueue = new LinkedBlockingQueue<>();
-        workflowTaskQueues.put(taskQueueId, decisionsQueue);
+      if (workflowTaskQueue == null) {
+        workflowTaskQueue = new LinkedBlockingQueue<>();
+        workflowTaskQueues.put(taskQueueId, workflowTaskQueue);
       }
-      return decisionsQueue;
+      return workflowTaskQueue;
     } finally {
       lock.unlock();
     }
@@ -327,7 +327,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       PollWorkflowTaskQueueRequest pollRequest, Deadline deadline) {
     TaskQueueId taskQueueId =
         new TaskQueueId(pollRequest.getNamespace(), pollRequest.getTaskQueue().getName());
-    BlockingQueue<PollWorkflowTaskQueueResponse.Builder> decisionsQueue =
+    BlockingQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
         getWorkflowTaskQueueQueue(taskQueueId);
     if (log.isTraceEnabled()) {
       log.trace(
@@ -337,10 +337,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     PollWorkflowTaskQueueResponse.Builder result = null;
     try {
       if (deadline == null) {
-        result = decisionsQueue.take();
+        result = workflowTaskQueue.take();
       } else {
         result =
-            decisionsQueue.poll(
+            workflowTaskQueue.poll(
                 deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
       }
     } catch (InterruptedException e) {
@@ -388,9 +388,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     } finally {
       lock.unlock();
     }
-    BlockingQueue<PollWorkflowTaskQueueResponse.Builder> decisionsQueue =
+    BlockingQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
         getWorkflowTaskQueueQueue(taskQueue);
-    decisionsQueue.add(task);
+    workflowTaskQueue.add(task);
   }
 
   @Override

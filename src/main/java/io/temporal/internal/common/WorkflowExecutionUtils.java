@@ -413,12 +413,12 @@ public class WorkflowExecutionUtils {
             || event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED));
   }
 
-  public static boolean isWorkflowExecutionCompleteDecision(Command decision) {
-    return ((decision != null)
-        && (decision.getCommandType() == CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION
-            || decision.getCommandType() == CommandType.COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION
-            || decision.getCommandType() == CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION
-            || decision.getCommandType()
+  public static boolean isWorkflowExecutionCompleteCommand(Command command) {
+    return ((command != null)
+        && (command.getCommandType() == CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION
+            || command.getCommandType() == CommandType.COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION
+            || command.getCommandType() == CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION
+            || command.getCommandType()
                 == CommandType.COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION));
   }
 
@@ -752,10 +752,10 @@ public class WorkflowExecutionUtils {
     return result.toString();
   }
 
-  public static String prettyPrintDecisions(Iterable<Command> decisions) {
+  public static String prettyPrintCommands(Iterable<Command> commands) {
     StringBuilder result = new StringBuilder();
-    for (Command decision : decisions) {
-      result.append(prettyPrintObject(decision));
+    for (Command command : commands) {
+      result.append(prettyPrintObject(command));
     }
     return result.toString();
   }
@@ -815,7 +815,7 @@ public class WorkflowExecutionUtils {
     return result;
   }
 
-  public static EventType getEventTypeForDecision(CommandType commandType) {
+  public static EventType getEventTypeForCommand(CommandType commandType) {
     switch (commandType) {
       case COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK:
         return EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED;

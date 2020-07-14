@@ -338,7 +338,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     }
 
     // Set the context value.  Use the context propagators from the ActivityOptions
-    // if present, otherwise use the ones configured on the DecisionContext
+    // if present, otherwise use the ones configured on the WorkflowContext
     List<ContextPropagator> propagators = options.getContextPropagators();
     if (propagators == null) {
       propagators = this.contextPropagators;

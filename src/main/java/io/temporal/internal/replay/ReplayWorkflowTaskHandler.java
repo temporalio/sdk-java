@@ -185,7 +185,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 + ", RunId="
                 + execution.getRunId()
                 + " completed with \n"
-                + WorkflowExecutionUtils.prettyPrintDecisions(result.getCommands())
+                + WorkflowExecutionUtils.prettyPrintCommands(result.getCommands())
                 + "\nforceCreateNewWorkflowTask "
                 + result.getForceCreateNewWorkflowTask());
       } else if (log.isDebugEnabled()) {
@@ -199,7 +199,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 + execution.getRunId()
                 + " completed with "
                 + result.getCommands().size()
-                + " new decisions"
+                + " new commands"
                 + " forceCreateNewWorkflowTask "
                 + result.getForceCreateNewWorkflowTask());
       }

@@ -497,7 +497,7 @@ public class WorkflowTestingTest {
     assertEquals("signalInput-input1", workflow.workflow1("input1"));
   }
 
-  public static class ConcurrentDecisionWorkflowImpl implements SignaledWorkflow {
+  public static class ConcurrentWorkflowTaskWorkflowImpl implements SignaledWorkflow {
 
     private String signalInput;
 
@@ -522,9 +522,9 @@ public class WorkflowTestingTest {
   }
 
   @Test
-  public void testConcurrentDecision() throws ExecutionException, InterruptedException {
+  public void testConcurrentWorkflowTask() throws ExecutionException, InterruptedException {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(ConcurrentDecisionWorkflowImpl.class);
+    worker.registerWorkflowImplementationTypes(ConcurrentWorkflowTaskWorkflowImpl.class);
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();

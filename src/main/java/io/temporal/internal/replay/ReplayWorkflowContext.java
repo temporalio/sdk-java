@@ -189,7 +189,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /** @return scope to be used for metrics reporting. */
   Scope getMetricsScope();
 
-  /** @return whether we do logging during decision replay. */
+  /** @return whether we do logging during workflow code replay. */
   boolean getEnableLoggingInReplay();
 
   /** @return replay safe UUID */

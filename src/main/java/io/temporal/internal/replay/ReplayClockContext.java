@@ -306,13 +306,13 @@ public final class ReplayClockContext {
    *   <li>There is correspondent Marker with the same changeId: return version from the marker.
    *   <li>There is no Marker with the same changeId: return DEFAULT_VERSION,
    *   <li>There is marker with a different changeId (possibly more than one) and the marker with
-   *       matching changeId follows them: add fake decisions for all the version markers that
+   *       matching changeId follows them: add fake commands for all the version markers that
    *       precede the matching one as the correspondent getVersion calls were removed
    *   <li>There is marker with a different changeId (possibly more than one) and no marker with
    *       matching changeId follows them: return DEFAULT_VERSION as it looks like the getVersion
    *       was added after that part of code has executed
    *   <li>Another case is when there is no call to getVersion and there is a version marker: insert
-   *       fake decisions for all version markers up to the event that caused the lookup.
+   *       fake commands for all version markers up to the event that caused the lookup.
    * </ul>
    */
   int getVersion(String changeId, DataConverter converter, int minSupported, int maxSupported) {

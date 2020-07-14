@@ -81,7 +81,7 @@ class WorkflowThreadContext {
         yieldReason = reason;
       }
     } catch (InterruptedException e) {
-      // Throwing Error in workflow code aborts decision without failing workflow.
+      // Throwing Error in workflow code aborts workflow task without failing workflow.
       throw new Error("Unexpected interrupt", e);
     } finally {
       setStatus(Status.RUNNING);
