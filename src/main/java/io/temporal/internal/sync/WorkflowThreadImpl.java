@@ -55,6 +55,8 @@ class WorkflowThreadImpl implements WorkflowThread {
   class RunnableWrapper implements Runnable {
 
     private final WorkflowThreadContext threadContext;
+    // TODO: Move MDC injection logic into an interceptor as this context shouldn't be leaked
+    // to the WorkflowThreadImpl
     private final ReplayWorkflowContext replayWorkflowContext;
     private String originalName;
     private String name;
