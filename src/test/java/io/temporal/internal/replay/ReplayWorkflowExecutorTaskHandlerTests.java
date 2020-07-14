@@ -42,7 +42,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ReplayDeciderTaskHandlerTests {
+public class ReplayWorkflowExecutorTaskHandlerTests {
 
   private TestWorkflowService testService;
   private WorkflowServiceStubs service;

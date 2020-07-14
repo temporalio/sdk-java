@@ -35,7 +35,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public final class DeciderCache {
   private final Scope metricsScope;
-  private LoadingCache<String, Decider> cache;
+  private LoadingCache<String, WorkflowExecutor> cache;
   private Lock cacheLock = new ReentrantLock();
   private Set<String> inProcessing = new HashSet<>();
 
@@ -47,24 +47,24 @@ public final class DeciderCache {
             .maximumSize(workflowCacheSize)
             .removalListener(
                 e -> {
-                  Decider entry = (Decider) e.getValue();
+                  WorkflowExecutor entry = (WorkflowExecutor) e.getValue();
                   if (entry != null) {
                     entry.close();
                   }
                 })
             .build(
-                new CacheLoader<String, Decider>() {
+                new CacheLoader<String, WorkflowExecutor>() {
                   @Override
-                  public Decider load(String key) {
+                  public WorkflowExecutor load(String key) {
                     return null;
                   }
                 });
   }
 
-  public Decider getOrCreate(
+  public WorkflowExecutor getOrCreate(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       Scope metricsScope,
-      Callable<Decider> deciderFunc)
+      Callable<WorkflowExecutor> deciderFunc)
       throws Exception {
     String runId = workflowTask.getWorkflowExecution().getRunId();
     if (isFullHistory(workflowTask)) {
@@ -72,20 +72,20 @@ public final class DeciderCache {
       return deciderFunc.call();
     }
 
-    Decider decider = getForProcessing(runId, metricsScope);
-    if (decider != null) {
-      return decider;
+    WorkflowExecutor workflowExecutor = getForProcessing(runId, metricsScope);
+    if (workflowExecutor != null) {
+      return workflowExecutor;
     }
     return deciderFunc.call();
   }
 
-  private Decider getForProcessing(String runId, Scope metricsScope) throws Exception {
+  private WorkflowExecutor getForProcessing(String runId, Scope metricsScope) throws Exception {
     cacheLock.lock();
     try {
-      Decider decider = cache.get(runId);
+      WorkflowExecutor workflowExecutor = cache.get(runId);
       inProcessing.add(runId);
       metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
-      return decider;
+      return workflowExecutor;
     } catch (CacheLoader.InvalidCacheLoadException e) {
       // We don't have a default loader and don't want to have one. So it's ok to get null value.
       metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
@@ -106,9 +106,10 @@ public final class DeciderCache {
     }
   }
 
-  public void addToCache(PollWorkflowTaskQueueResponseOrBuilder workflowTask, Decider decider) {
+  public void addToCache(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowExecutor workflowExecutor) {
     String runId = workflowTask.getWorkflowExecution().getRunId();
-    cache.put(runId, decider);
+    cache.put(runId, workflowExecutor);
   }
 
   public boolean evictAnyNotInProcessing(String runId, Scope metricsScope) {

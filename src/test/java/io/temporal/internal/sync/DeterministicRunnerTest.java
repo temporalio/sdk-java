@@ -39,9 +39,9 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.Decider;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.replay.WorkflowExecutor;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -745,11 +745,11 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    Decider decider = new DetermisiticRunnerContainerDecider(d);
+    WorkflowExecutor workflowExecutor = new DetermisiticRunnerContainerWorkflowExecutor(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> decider);
-    cache.addToCache(response, decider);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
+    cache.addToCache(response, workflowExecutor);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -810,11 +810,11 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    Decider decider = new DetermisiticRunnerContainerDecider(d);
+    WorkflowExecutor workflowExecutor = new DetermisiticRunnerContainerWorkflowExecutor(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> decider);
-    cache.addToCache(response, decider);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
+    cache.addToCache(response, workflowExecutor);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -845,10 +845,10 @@ public class DeterministicRunnerTest {
     assertEquals(1, cache.size());
   }
 
-  private static class DetermisiticRunnerContainerDecider implements Decider {
+  private static class DetermisiticRunnerContainerWorkflowExecutor implements WorkflowExecutor {
     DeterministicRunner runner;
 
-    DetermisiticRunnerContainerDecider(DeterministicRunner runner) {
+    DetermisiticRunnerContainerWorkflowExecutor(DeterministicRunner runner) {
       this.runner = Objects.requireNonNull(runner);
     }
 

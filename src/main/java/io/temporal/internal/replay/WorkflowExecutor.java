@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public interface Decider {
+public interface WorkflowExecutor {
 
   DecisionResult decide(PollWorkflowTaskQueueResponseOrBuilder workflowTask) throws Throwable;
 

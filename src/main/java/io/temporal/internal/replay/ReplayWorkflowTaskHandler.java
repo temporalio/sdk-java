@@ -147,13 +147,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
   private Result processDecision(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Throwable {
-    Decider decider = null;
+    WorkflowExecutor workflowExecutor = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
       if (stickyTaskQueueName == null) {
-        decider = createDecider(workflowTask, metricsScope);
+        workflowExecutor = createDecider(workflowTask, metricsScope);
       } else {
-        decider =
+        workflowExecutor =
             cache.getOrCreate(
                 workflowTask,
                 metricsScope,
@@ -163,12 +163,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 });
       }
 
-      Decider.DecisionResult result = decider.decide(workflowTask);
+      WorkflowExecutor.DecisionResult result = workflowExecutor.decide(workflowTask);
 
       if (result.isFinalDecision()) {
         cache.invalidate(workflowTask.getWorkflowExecution().getRunId(), metricsScope);
       } else if (stickyTaskQueueName != null && createdNew.get()) {
-        cache.addToCache(workflowTask, decider);
+        cache.addToCache(workflowTask, workflowExecutor);
       }
 
       if (log.isTraceEnabled()) {
@@ -204,8 +204,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       // Note here that the decider might not be in the cache, even sticky is on. In that case we
       // need to close the decider explicitly.
       // For items in the cache, invalidation callback will try to close again, which should be ok.
-      if (decider != null) {
-        decider.close();
+      if (workflowExecutor != null) {
+        workflowExecutor.close();
       }
 
       if (stickyTaskQueueName != null) {
@@ -213,8 +213,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
       throw e;
     } finally {
-      if (stickyTaskQueueName == null && decider != null) {
-        decider.close();
+      if (stickyTaskQueueName == null && workflowExecutor != null) {
+        workflowExecutor.close();
       } else {
         cache.markProcessingDone(workflowTask);
       }
@@ -225,13 +225,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) {
     RespondQueryTaskCompletedRequest.Builder queryCompletedRequest =
         RespondQueryTaskCompletedRequest.newBuilder().setTaskToken(workflowTask.getTaskToken());
-    Decider decider = null;
+    WorkflowExecutor workflowExecutor = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
       if (stickyTaskQueueName == null) {
-        decider = createDecider(workflowTask, metricsScope);
+        workflowExecutor = createDecider(workflowTask, metricsScope);
       } else {
-        decider =
+        workflowExecutor =
             cache.getOrCreate(
                 workflowTask,
                 metricsScope,
@@ -241,9 +241,10 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 });
       }
 
-      Optional<Payloads> queryResult = decider.query(workflowTask, workflowTask.getQuery());
+      Optional<Payloads> queryResult =
+          workflowExecutor.query(workflowTask, workflowTask.getQuery());
       if (stickyTaskQueueName != null && createdNew.get()) {
-        cache.addToCache(workflowTask, decider);
+        cache.addToCache(workflowTask, workflowExecutor);
       }
       if (queryResult.isPresent()) {
         queryCompletedRequest.setQueryResult(queryResult.get());
@@ -257,8 +258,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       queryCompletedRequest.setErrorMessage(sw.toString());
       queryCompletedRequest.setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED);
     } finally {
-      if (stickyTaskQueueName == null && decider != null) {
-        decider.close();
+      if (stickyTaskQueueName == null && workflowExecutor != null) {
+        workflowExecutor.close();
       } else {
         cache.markProcessingDone(workflowTask);
       }
@@ -275,7 +276,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private Result createCompletedRequest(
       String workflowType,
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      Decider.DecisionResult result) {
+      WorkflowExecutor.DecisionResult result) {
     RespondWorkflowTaskCompletedRequest.Builder completedRequest =
         RespondWorkflowTaskCompletedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())
@@ -300,7 +301,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     return workflowFactory.isAnyTypeSupported();
   }
 
-  private Decider createDecider(
+  private WorkflowExecutor createDecider(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();
@@ -320,7 +321,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       workflowTask.setNextPageToken(getHistoryResponse.getNextPageToken());
     }
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
-    return new ReplayDecider(
+    return new ReplayWorkflowExecutor(
         service, namespace, workflow, workflowTask, options, metricsScope, laTaskPoller);
   }
 }

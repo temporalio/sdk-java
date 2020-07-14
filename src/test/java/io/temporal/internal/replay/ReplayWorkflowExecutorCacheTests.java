@@ -49,7 +49,7 @@ import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ReplayDeciderCacheTests {
+public class ReplayWorkflowExecutorCacheTests {
 
   private Scope metricsScope;
   private TestStatsReporter reporter;
@@ -73,13 +73,13 @@ public class ReplayDeciderCacheTests {
     assertCacheIsEmpty(replayDeciderCache, runId);
 
     // Act
-    Decider decider =
+    WorkflowExecutor workflowExecutor =
         replayDeciderCache.getOrCreate(
             workflowTask, metricsScope, () -> createFakeDecider(workflowTask));
 
     // Assert
     assertNotEquals(
-        decider,
+        workflowExecutor,
         replayDeciderCache.getOrCreate(
             workflowTask, metricsScope, () -> createFakeDecider(workflowTask)));
   }
@@ -95,31 +95,31 @@ public class ReplayDeciderCacheTests {
         HistoryUtils.generateWorkflowTaskWithInitialHistory(
             "namespace", "taskQueue", "workflowType", service);
 
-    Decider decider =
+    WorkflowExecutor workflowExecutor =
         replayDeciderCache.getOrCreate(
             workflowTask1, metricsScope, () -> createFakeDecider(workflowTask1));
-    replayDeciderCache.addToCache(workflowTask1, decider);
+    replayDeciderCache.addToCache(workflowTask1, workflowExecutor);
 
     PollWorkflowTaskQueueResponse workflowTask2 =
         HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
             workflowTask1, "namespace", "stickyTaskQueue", service);
 
     assertEquals(
-        decider,
+        workflowExecutor,
         replayDeciderCache.getOrCreate(
             workflowTask2, metricsScope, () -> doNotCreateFakeDecider(workflowTask2)));
 
     // Act
-    Decider decider2 =
+    WorkflowExecutor workflowExecutor2 =
         replayDeciderCache.getOrCreate(
             workflowTask2, metricsScope, () -> createFakeDecider(workflowTask2));
 
     // Assert
     assertEquals(
-        decider2,
+        workflowExecutor2,
         replayDeciderCache.getOrCreate(
             workflowTask2, metricsScope, () -> createFakeDecider(workflowTask2)));
-    assertSame(decider2, decider);
+    assertSame(workflowExecutor2, workflowExecutor);
     service.shutdownNow();
     try {
       service.awaitTermination(1, TimeUnit.SECONDS);
@@ -146,16 +146,16 @@ public class ReplayDeciderCacheTests {
           HistoryUtils.generateWorkflowTaskWithInitialHistory(
               "namespace", "taskQueue", "workflowType", service);
 
-      Decider decider =
+      WorkflowExecutor workflowExecutor =
           replayDeciderCache.getOrCreate(
               workflowTask, scope, () -> createFakeDecider(workflowTask));
-      replayDeciderCache.addToCache(workflowTask, decider);
+      replayDeciderCache.addToCache(workflowTask, workflowExecutor);
 
       // Act
       PollWorkflowTaskQueueResponse workflowTask2 =
           HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
               workflowTask, "namespace", "stickyTaskQueue", service);
-      Decider decider2 =
+      WorkflowExecutor workflowExecutor2 =
           replayDeciderCache.getOrCreate(
               workflowTask2, scope, () -> doNotCreateFakeDecider(workflowTask2));
 
@@ -164,7 +164,7 @@ public class ReplayDeciderCacheTests {
       Thread.sleep(100);
       reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
 
-      assertEquals(decider, decider2);
+      assertEquals(workflowExecutor, workflowExecutor2);
     } finally {
       service.shutdownNow();
       service.awaitTermination(1, TimeUnit.SECONDS);
@@ -219,18 +219,18 @@ public class ReplayDeciderCacheTests {
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     // Act
-    Decider decider =
+    WorkflowExecutor workflowExecutor =
         replayDeciderCache.getOrCreate(
             workflowTask1, scope, () -> createFakeDecider(workflowTask1));
-    replayDeciderCache.addToCache(workflowTask1, decider);
-    decider =
+    replayDeciderCache.addToCache(workflowTask1, workflowExecutor);
+    workflowExecutor =
         replayDeciderCache.getOrCreate(
             workflowTask2, scope, () -> createFakeDecider(workflowTask2));
-    replayDeciderCache.addToCache(workflowTask2, decider);
-    decider =
+    replayDeciderCache.addToCache(workflowTask2, workflowExecutor);
+    workflowExecutor =
         replayDeciderCache.getOrCreate(
             workflowTask3, scope, () -> createFakeDecider(workflowTask3));
-    replayDeciderCache.addToCache(workflowTask3, decider);
+    replayDeciderCache.addToCache(workflowTask3, workflowExecutor);
 
     assertEquals(3, replayDeciderCache.size());
 
@@ -253,10 +253,10 @@ public class ReplayDeciderCacheTests {
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     // Act
-    Decider decider =
+    WorkflowExecutor workflowExecutor =
         replayDeciderCache.getOrCreate(
             workflowTask1, metricsScope, () -> createFakeDecider(workflowTask1));
-    replayDeciderCache.addToCache(workflowTask1, decider);
+    replayDeciderCache.addToCache(workflowTask1, workflowExecutor);
 
     assertEquals(1, replayDeciderCache.size());
 
@@ -281,14 +281,14 @@ public class ReplayDeciderCacheTests {
     TestCase.assertNotNull(ex);
   }
 
-  private ReplayDecider doNotCreateFakeDecider(
+  private ReplayWorkflowExecutor doNotCreateFakeDecider(
       @SuppressWarnings("unused") PollWorkflowTaskQueueResponse response) {
     fail("should not be called");
     return null;
   }
 
-  private ReplayDecider createFakeDecider(PollWorkflowTaskQueueResponse response) {
-    return new ReplayDecider(
+  private ReplayWorkflowExecutor createFakeDecider(PollWorkflowTaskQueueResponse response) {
+    return new ReplayWorkflowExecutor(
         null,
         "namespace",
         new ReplayWorkflow() {

@@ -74,7 +74,7 @@ import java.util.function.Consumer;
  * Implements decider that relies on replay of a workflow code. An instance of this class is created
  * per decision.
  */
-class ReplayDecider implements Decider {
+class ReplayWorkflowExecutor implements WorkflowExecutor {
 
   private static final int MAXIMUM_PAGE_SIZE = 10000;
 
@@ -95,7 +95,7 @@ class ReplayDecider implements Decider {
   private final Map<String, WorkflowQueryResult> queryResults = new HashMap<>();
   private final DataConverter converter;
 
-  ReplayDecider(
+  ReplayWorkflowExecutor(
       WorkflowServiceStubs service,
       String namespace,
       ReplayWorkflow workflow,

@@ -89,7 +89,7 @@ public final class ClockDecisionContext {
   private final Map<String, OpenRequestInfo<Optional<Payloads>, ActivityType>> pendingLaTasks =
       new HashMap<>();
   private final Map<String, ExecuteLocalActivityParameters> unstartedLaTasks = new HashMap<>();
-  private final ReplayDecider replayDecider;
+  private final ReplayWorkflowExecutor replayDecider;
   private final DataConverter dataConverter;
   private final Condition taskCondition;
   private boolean taskCompleted = false;
@@ -97,7 +97,7 @@ public final class ClockDecisionContext {
   ClockDecisionContext(
       DecisionsHelper decisions,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
-      ReplayDecider replayDecider,
+      ReplayWorkflowExecutor replayDecider,
       DataConverter dataConverter) {
     this.decisions = decisions;
     this.taskCondition = replayDecider.getLock().newCondition();

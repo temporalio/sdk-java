@@ -72,7 +72,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
       SingleWorkerOptions options,
       Scope metricsScope,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
-      ReplayDecider replayDecider) {
+      ReplayWorkflowExecutor replayDecider) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
     this.workflowContext =
         new WorkflowContext(
