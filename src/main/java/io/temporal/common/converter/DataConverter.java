@@ -19,8 +19,8 @@
 
 package io.temporal.common.converter;
 
-import io.temporal.common.v1.Payload;
-import io.temporal.common.v1.Payloads;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.Type;
 import java.util.Optional;
 

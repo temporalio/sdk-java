@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
 
 public class ExecuteLocalActivityParameters {
 

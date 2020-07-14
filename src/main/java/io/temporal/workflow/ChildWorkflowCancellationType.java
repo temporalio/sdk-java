@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.enums.v1.ParentClosePolicy;
+import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.failure.CanceledFailure;
 
 /**

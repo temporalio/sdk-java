@@ -20,9 +20,9 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.WorkflowResult;
-import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;

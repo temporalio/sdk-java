@@ -19,10 +19,10 @@
 
 package io.temporal.internal.common;
 
+import io.temporal.api.common.v1.Header;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.v1.Header;
-import io.temporal.common.v1.Payload;
 import java.util.HashMap;
 import java.util.Map;
 

@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 
 public final class StartChildWorkflowExecutionParameters {

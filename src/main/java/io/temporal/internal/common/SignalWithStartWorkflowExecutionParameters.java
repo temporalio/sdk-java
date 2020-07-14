@@ -19,8 +19,8 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.common.v1.Payloads;
-import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import java.util.Optional;
 
 public class SignalWithStartWorkflowExecutionParameters {

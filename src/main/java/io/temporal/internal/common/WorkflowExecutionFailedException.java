@@ -19,21 +19,21 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.enums.v1.RetryStatus;
-import io.temporal.failure.v1.Failure;
+import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.failure.v1.Failure;
 
 /** Framework level exception. Do not throw or catch in the application level code. */
 public final class WorkflowExecutionFailedException extends RuntimeException {
 
   private final long decisionTaskCompletedEventId;
   private final Failure failure;
-  private final RetryStatus retryStatus;
+  private final RetryState retryState;
 
   WorkflowExecutionFailedException(
-      Failure failure, long decisionTaskCompletedEventId, RetryStatus retryStatus) {
+      Failure failure, long decisionTaskCompletedEventId, RetryState retryState) {
     this.failure = failure;
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
-    this.retryStatus = retryStatus;
+    this.retryState = retryState;
   }
 
   public Failure getFailure() {
@@ -44,7 +44,7 @@ public final class WorkflowExecutionFailedException extends RuntimeException {
     return decisionTaskCompletedEventId;
   }
 
-  public RetryStatus getRetryStatus() {
-    return retryStatus;
+  public RetryState getRetryState() {
+    return retryState;
   }
 }

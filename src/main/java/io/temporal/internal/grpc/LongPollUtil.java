@@ -21,8 +21,8 @@ package io.temporal.internal.grpc;
 
 import io.grpc.CallOptions;
 import io.grpc.MethodDescriptor;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.metrics.MetricsTag;
-import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 
 class LongPollUtil {
 

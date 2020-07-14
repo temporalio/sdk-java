@@ -22,11 +22,11 @@ package io.temporal.internal.worker;
 import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.enums.v1.DecisionTaskFailedCause;
+import io.temporal.api.enums.v1.DecisionTaskFailedCause;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import io.temporal.failure.FailureConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;

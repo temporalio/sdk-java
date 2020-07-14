@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Objects;
 import com.google.common.reflect.TypeToken;
-import io.temporal.common.v1.Payloads;
+import io.temporal.api.common.v1.Payloads;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;

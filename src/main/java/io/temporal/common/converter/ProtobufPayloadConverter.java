@@ -19,31 +19,49 @@
 
 package io.temporal.common.converter;
 
+import com.google.protobuf.MessageLite;
 import io.temporal.api.common.v1.Payload;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.nio.ByteBuffer;
 import java.util.Optional;
 
-/** Encodes and decodes null values. */
-public final class NullPayloadConverter implements PayloadConverter {
+public final class ProtobufPayloadConverter implements PayloadConverter {
+
   @Override
   public String getEncodingType() {
-    return EncodingKeys.METADATA_ENCODING_NULL_NAME;
+    return EncodingKeys.METADATA_ENCODING_PROTOBUF_NAME;
   }
 
   @Override
   public Optional<Payload> toData(Object value) throws DataConverterException {
-    if (value == null) {
+    if (!(value instanceof MessageLite)) {
+      return Optional.empty();
+    }
+    try {
       return Optional.of(
           Payload.newBuilder()
-              .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_NULL)
+              .putMetadata(
+                  EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_PROTOBUF)
+              .setData(((MessageLite) value).toByteString())
               .build());
+    } catch (Exception e) {
+      throw new DataConverterException(e);
     }
-    return Optional.empty();
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> T fromData(Payload content, Class<T> valueClass, Type valueType)
       throws DataConverterException {
-    return null;
+    if (!MessageLite.class.isAssignableFrom(valueClass)) {
+      throw new IllegalArgumentException("Not a protobuf. valueClass=" + valueClass.getName());
+    }
+    try {
+      Method parseFrom = valueClass.getMethod("parseFrom", ByteBuffer.class);
+      return (T) parseFrom.invoke(null, content.getData().asReadOnlyByteBuffer());
+    } catch (Exception e) {
+      throw new DataConverterException(e);
+    }
   }
 }

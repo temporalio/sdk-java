@@ -22,21 +22,21 @@ package io.temporal.internal.testservice;
 import com.google.protobuf.Int64Value;
 import io.grpc.Deadline;
 import io.grpc.Status;
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.enums.v1.EventType;
-import io.temporal.enums.v1.HistoryEventFilterType;
-import io.temporal.history.v1.History;
-import io.temporal.history.v1.HistoryEvent;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.HistoryEventFilterType;
+import io.temporal.api.history.v1.History;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskRequest;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskRequest;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
-import io.temporal.taskqueue.v1.StickyExecutionAttributes;
-import io.temporal.workflow.v1.WorkflowExecutionInfo;
-import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
-import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
-import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -402,7 +402,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     lock.lock();
     try {
       history = getHistoryStore(executionId);
-      if (!getRequest.getWaitForNewEvent()
+      if (!getRequest.getWaitNewEvent()
           && getRequest.getHistoryEventFilterType()
               != HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT) {
         List<HistoryEvent> events = history.getEventsLocked();

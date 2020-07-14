@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowExecution;
 
 public class WorkflowServiceException extends WorkflowException {
   public WorkflowServiceException(

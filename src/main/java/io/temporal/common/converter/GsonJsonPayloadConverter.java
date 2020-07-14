@@ -22,7 +22,7 @@ package io.temporal.common.converter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.protobuf.ByteString;
-import io.temporal.common.v1.Payload;
+import io.temporal.api.common.v1.Payload;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;

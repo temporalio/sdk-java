@@ -22,8 +22,8 @@ package io.temporal.workflow;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -711,8 +711,8 @@ public final class Workflow {
    * <p>An attempt to register a duplicated query is going to fail with {@link
    * IllegalArgumentException}
    */
-  public static void registerListener(Object queryImplementation) {
-    WorkflowInternal.registerListener(queryImplementation);
+  public static void registerListener(Object listener) {
+    WorkflowInternal.registerListener(listener);
   }
 
   /**

@@ -19,11 +19,11 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.common.v1.Payloads;
-import io.temporal.decision.v1.Decision;
-import io.temporal.query.v1.WorkflowQuery;
-import io.temporal.query.v1.WorkflowQueryResult;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.decision.v1.Decision;
+import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

@@ -23,9 +23,9 @@ import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.workflowservice.v1.RegisterNamespaceRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.workflowservice.v1.RegisterNamespaceRequest;
 
 /** Waits for local service to become available and registers UnitTest namespace. */
 public class RegisterTestNamespace {
@@ -44,7 +44,7 @@ public class RegisterTestNamespace {
     RegisterNamespaceRequest request =
         RegisterNamespaceRequest.newBuilder()
             .setName(NAMESPACE)
-            .setWorkflowExecutionRetentionPeriodInDays(1)
+            .setWorkflowExecutionRetentionPeriodDays(1)
             .build();
     while (true) {
       try {

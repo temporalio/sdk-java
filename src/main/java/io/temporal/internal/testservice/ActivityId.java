@@ -21,7 +21,7 @@ package io.temporal.internal.testservice;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowExecution;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;

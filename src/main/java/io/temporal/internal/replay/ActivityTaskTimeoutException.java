@@ -19,9 +19,9 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.common.v1.ActivityType;
-import io.temporal.enums.v1.RetryStatus;
-import io.temporal.failure.v1.Failure;
+import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.failure.v1.Failure;
 
 /**
  * Internal. Do not catch or throw in application level code. Exception that indicates Activity time
@@ -34,7 +34,7 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
   private final long startedEventId;
   private final long eventId;
 
-  private final RetryStatus retryStatus;
+  private final RetryState retryState;
 
   private final Failure failure;
 
@@ -48,14 +48,14 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
       long startedEventId,
       ActivityType activityType,
       String activityId,
-      RetryStatus retryStatus,
+      RetryState retryState,
       Failure failure) {
     this.scheduledEventId = scheduledEventId;
     this.startedEventId = startedEventId;
     this.eventId = eventId;
     this.activityType = activityType;
     this.activityId = activityId;
-    this.retryStatus = retryStatus;
+    this.retryState = retryState;
     this.failure = failure;
   }
 
@@ -75,8 +75,8 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
     return eventId;
   }
 
-  public RetryStatus getRetryStatus() {
-    return retryStatus;
+  public RetryState getRetryState() {
+    return retryState;
   }
 
   public ActivityType getActivityType() {

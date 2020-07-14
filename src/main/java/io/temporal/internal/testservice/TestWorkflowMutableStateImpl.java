@@ -20,8 +20,8 @@
 package io.temporal.internal.testservice;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-import static io.temporal.internal.testservice.RetryState.valiateAndOverrideRetryPolicy;
 import static io.temporal.internal.testservice.StateMachines.*;
+import static io.temporal.internal.testservice.TestServiceRetryState.valiateAndOverrideRetryPolicy;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -32,70 +32,70 @@ import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.common.v1.Payloads;
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.decision.v1.CancelTimerDecisionAttributes;
-import io.temporal.decision.v1.CancelWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.CompleteWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.Decision;
-import io.temporal.decision.v1.FailWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.RecordMarkerDecisionAttributes;
-import io.temporal.decision.v1.RequestCancelActivityTaskDecisionAttributes;
-import io.temporal.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.StartTimerDecisionAttributes;
-import io.temporal.decision.v1.UpsertWorkflowSearchAttributesDecisionAttributes;
-import io.temporal.enums.v1.DecisionTaskFailedCause;
-import io.temporal.enums.v1.EventType;
-import io.temporal.enums.v1.QueryRejectCondition;
-import io.temporal.enums.v1.RetryStatus;
-import io.temporal.enums.v1.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.enums.v1.TimeoutType;
-import io.temporal.enums.v1.WorkflowExecutionStatus;
-import io.temporal.errordetails.v1.QueryFailedFailure;
-import io.temporal.failure.v1.ApplicationFailureInfo;
-import io.temporal.history.v1.ActivityTaskScheduledEventAttributes;
-import io.temporal.history.v1.CancelTimerFailedEventAttributes;
-import io.temporal.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
-import io.temporal.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
-import io.temporal.history.v1.ChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.history.v1.ChildWorkflowExecutionStartedEventAttributes;
-import io.temporal.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
-import io.temporal.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
-import io.temporal.history.v1.HistoryEvent;
-import io.temporal.history.v1.MarkerRecordedEventAttributes;
-import io.temporal.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.history.v1.UpsertWorkflowSearchAttributesEventAttributes;
-import io.temporal.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.history.v1.WorkflowExecutionSignaledEventAttributes;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.decision.v1.CancelTimerDecisionAttributes;
+import io.temporal.api.decision.v1.CancelWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.CompleteWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.Decision;
+import io.temporal.api.decision.v1.FailWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.RecordMarkerDecisionAttributes;
+import io.temporal.api.decision.v1.RequestCancelActivityTaskDecisionAttributes;
+import io.temporal.api.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.StartTimerDecisionAttributes;
+import io.temporal.api.decision.v1.UpsertWorkflowSearchAttributesDecisionAttributes;
+import io.temporal.api.enums.v1.DecisionTaskFailedCause;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.QueryRejectCondition;
+import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
+import io.temporal.api.enums.v1.TimeoutType;
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.errordetails.v1.QueryFailedFailure;
+import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
+import io.temporal.api.history.v1.CancelTimerFailedEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionStartedEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
+import io.temporal.api.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.api.history.v1.UpsertWorkflowSearchAttributesEventAttributes;
+import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
+import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
+import io.temporal.api.query.v1.QueryRejected;
+import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskRequest;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskRequest;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
+import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
+import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.RespondDecisionTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.*;
-import io.temporal.query.v1.QueryRejected;
-import io.temporal.query.v1.WorkflowQueryResult;
-import io.temporal.taskqueue.v1.StickyExecutionAttributes;
-import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
-import io.temporal.workflowservice.v1.PollForActivityTaskResponseOrBuilder;
-import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
-import io.temporal.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
-import io.temporal.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
-import io.temporal.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedRequest;
-import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
-import io.temporal.workflowservice.v1.RespondQueryTaskCompletedRequest;
-import io.temporal.workflowservice.v1.SignalWorkflowExecutionRequest;
-import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -163,7 +163,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   TestWorkflowMutableStateImpl(
       StartWorkflowExecutionRequest startRequest,
       String runId,
-      Optional<RetryState> retryState,
+      Optional<TestServiceRetryState> retryState,
       int backoffStartIntervalInSeconds,
       Payloads lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
@@ -998,7 +998,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
-          child.action(Action.TIME_OUT, ctx, a.getRetryStatus(), 0);
+          child.action(Action.TIME_OUT, ctx, a.getRetryState(), 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleDecision(ctx);
           ctx.unlockTimer();
@@ -1099,23 +1099,24 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity) {
     WorkflowData data = workflow.getData();
     if (data.retryState.isPresent()) {
-      RetryState rs = data.retryState.get();
+      TestServiceRetryState rs = data.retryState.get();
       Optional<String> failureType;
-      RetryState.BackoffInterval backoffInterval;
+      TestServiceRetryState.BackoffInterval backoffInterval;
       if (d.getFailure().hasApplicationFailureInfo()) {
         ApplicationFailureInfo failureInfo = d.getFailure().getApplicationFailureInfo();
         if (failureInfo.getNonRetryable()) {
           backoffInterval =
-              new RetryState.BackoffInterval(RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE);
+              new TestServiceRetryState.BackoffInterval(
+                  RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
         } else {
           failureType = Optional.of(failureInfo.getType());
           backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTimeMillis());
         }
       } else {
         backoffInterval =
-            new RetryState.BackoffInterval(RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE);
+            new TestServiceRetryState.BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
       }
-      if (backoffInterval.getRetryStatus() == RetryStatus.RETRY_STATUS_IN_PROGRESS) {
+      if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
         ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
             ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
                 .setInput(startRequest.getInput())
@@ -1142,7 +1143,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
             event.getWorkflowExecutionContinuedAsNewEventAttributes();
 
-        Optional<RetryState> continuedRetryState = Optional.of(rs.getNextAttempt());
+        Optional<TestServiceRetryState> continuedRetryState = Optional.of(rs.getNextAttempt());
         String runId =
             service.continueAsNew(
                 startRequest,
@@ -1721,8 +1722,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               return;
             }
             // TODO(maxim): real retry status
-            workflow.action(
-                StateMachines.Action.TIME_OUT, ctx, RetryStatus.RETRY_STATUS_TIMEOUT, 0);
+            workflow.action(StateMachines.Action.TIME_OUT, ctx, RetryState.RETRY_STATE_TIMEOUT, 0);
             decision.getData().workflowCompleted = true;
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
@@ -1743,7 +1743,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ChildWorkflowExecutionTimedOutEventAttributes a =
           ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setRetryStatus(RetryStatus.RETRY_STATUS_TIMEOUT) // TODO(maxim): Real status
+              .setRetryState(RetryState.RETRY_STATE_TIMEOUT) // TODO(maxim): Real status
               .setWorkflowType(startRequest.getWorkflowType())
               .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())

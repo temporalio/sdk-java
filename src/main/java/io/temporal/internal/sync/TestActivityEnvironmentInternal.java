@@ -32,12 +32,19 @@ import io.grpc.stub.StreamObserver;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.common.v1.ActivityType;
-import io.temporal.common.v1.Payloads;
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
@@ -54,13 +61,6 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
-import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
-import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
@@ -396,7 +396,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               0,
               task.getActivityType().getName(),
               task.getActivityId(),
-              RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
+              RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
               "TestActivityEnvironment",
               cause);
         } else {

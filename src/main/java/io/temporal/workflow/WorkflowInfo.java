@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.v1.SearchAttributes;
+import io.temporal.api.common.v1.SearchAttributes;
 import java.time.Duration;
 import java.util.Optional;
 

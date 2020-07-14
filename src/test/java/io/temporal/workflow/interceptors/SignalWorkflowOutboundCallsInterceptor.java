@@ -21,8 +21,8 @@ package io.temporal.workflow.interceptors;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;

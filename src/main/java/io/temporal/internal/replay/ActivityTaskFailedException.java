@@ -19,8 +19,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.common.v1.ActivityType;
-import io.temporal.failure.v1.Failure;
+import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.failure.v1.Failure;
 
 /**
  * Internal. Do not catch or throw in application level code. Exception used to communicate failure

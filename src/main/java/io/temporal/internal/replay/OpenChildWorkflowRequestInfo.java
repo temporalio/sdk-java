@@ -19,8 +19,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.common.v1.Payloads;
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import java.util.Optional;
 import java.util.function.Consumer;

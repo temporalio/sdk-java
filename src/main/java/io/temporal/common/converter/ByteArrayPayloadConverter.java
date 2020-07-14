@@ -20,7 +20,7 @@
 package io.temporal.common.converter;
 
 import com.google.protobuf.ByteString;
-import io.temporal.common.v1.Payload;
+import io.temporal.api.common.v1.Payload;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -32,14 +32,14 @@ public final class ByteArrayPayloadConverter implements PayloadConverter {
 
   @Override
   public Optional<Payload> toData(Object value) throws DataConverterException {
-    if (value instanceof byte[]) {
-      return Optional.of(
-          Payload.newBuilder()
-              .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_RAW)
-              .setData(ByteString.copyFrom((byte[]) value))
-              .build());
+    if (!(value instanceof byte[])) {
+      return Optional.empty();
     }
-    return Optional.empty();
+    return Optional.of(
+        Payload.newBuilder()
+            .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_RAW)
+            .setData(ByteString.copyFrom((byte[]) value))
+            .build());
   }
 
   @Override

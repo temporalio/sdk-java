@@ -19,10 +19,10 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.common.v1.WorkflowType;
-import io.temporal.enums.v1.RetryStatus;
-import io.temporal.failure.v1.Failure;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.failure.v1.Failure;
 
 /** Internal. Do not catch or throw by application level code. */
 @SuppressWarnings("serial")
@@ -34,7 +34,7 @@ public class ChildWorkflowTaskFailedException extends RuntimeException {
 
   private final WorkflowType workflowType;
 
-  private final RetryStatus retryStatus;
+  private final RetryState retryState;
 
   private final Failure failure;
 
@@ -42,12 +42,12 @@ public class ChildWorkflowTaskFailedException extends RuntimeException {
       long eventId,
       WorkflowExecution workflowExecution,
       WorkflowType workflowType,
-      RetryStatus retryStatus,
+      RetryState retryState,
       Failure failure) {
     this.eventId = eventId;
     this.workflowExecution = workflowExecution;
     this.workflowType = workflowType;
-    this.retryStatus = retryStatus;
+    this.retryState = retryState;
     this.failure = failure;
   }
 
@@ -67,7 +67,7 @@ public class ChildWorkflowTaskFailedException extends RuntimeException {
     return failure;
   }
 
-  public RetryStatus getRetryStatus() {
-    return retryStatus;
+  public RetryState getRetryState() {
+    return retryState;
   }
 }

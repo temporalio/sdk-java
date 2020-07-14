@@ -26,27 +26,29 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Header;
+import io.temporal.api.common.v1.Memo;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.RetryPolicy;
+import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.api.enums.v1.ParentClosePolicy;
+import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.common.v1.ActivityType;
-import io.temporal.common.v1.Header;
-import io.temporal.common.v1.Memo;
-import io.temporal.common.v1.Payload;
-import io.temporal.common.v1.Payloads;
-import io.temporal.common.v1.RetryPolicy;
-import io.temporal.common.v1.SearchAttributes;
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.common.v1.WorkflowType;
-import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.enums.v1.ParentClosePolicy;
-import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -62,7 +64,6 @@ import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
-import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.CompletablePromise;
@@ -72,7 +73,6 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -231,7 +231,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
           taskFailed.getStartedEventId(),
           taskFailed.getActivityType().getName(),
           taskFailed.getActivityId(),
-          RetryStatus.RETRY_STATUS_TIMEOUT,
+          RetryState.RETRY_STATE_TIMEOUT,
           "",
           exception);
     }
@@ -242,7 +242,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
           timedOut.getStartedEventId(),
           timedOut.getActivityType().getName(),
           timedOut.getActivityId(),
-          timedOut.getRetryStatus(),
+          timedOut.getRetryState(),
           "",
           FailureConverter.failureToException(timedOut.getFailure(), converter));
     }
@@ -530,7 +530,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
         taskFailed.getWorkflowType().getName(),
         taskFailed.getWorkflowExecution(),
         null,
-        taskFailed.getRetryStatus(),
+        taskFailed.getRetryState(),
         cause);
   }
 

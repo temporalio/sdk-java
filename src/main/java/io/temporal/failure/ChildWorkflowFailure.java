@@ -19,8 +19,8 @@
 
 package io.temporal.failure;
 
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.enums.v1.RetryStatus;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.RetryState;
 import java.util.Objects;
 
 public final class ChildWorkflowFailure extends TemporalFailure {
@@ -28,7 +28,7 @@ public final class ChildWorkflowFailure extends TemporalFailure {
   private final long initiatedEventId;
   private final long startedEventId;
   private final String namespace;
-  private final RetryStatus retryStatus;
+  private final RetryState retryState;
   private final WorkflowExecution execution;
   private final String workflowType;
 
@@ -38,11 +38,11 @@ public final class ChildWorkflowFailure extends TemporalFailure {
       String workflowType,
       WorkflowExecution execution,
       String namespace,
-      RetryStatus retryStatus,
+      RetryState retryState,
       Throwable cause) {
     super(
         getMessage(
-            execution, workflowType, initiatedEventId, startedEventId, namespace, retryStatus),
+            execution, workflowType, initiatedEventId, startedEventId, namespace, retryState),
         null,
         cause);
     this.execution = Objects.requireNonNull(execution);
@@ -50,7 +50,7 @@ public final class ChildWorkflowFailure extends TemporalFailure {
     this.initiatedEventId = initiatedEventId;
     this.startedEventId = startedEventId;
     this.namespace = namespace;
-    this.retryStatus = retryStatus;
+    this.retryState = retryState;
   }
 
   public long getInitiatedEventId() {
@@ -65,8 +65,8 @@ public final class ChildWorkflowFailure extends TemporalFailure {
     return namespace;
   }
 
-  public RetryStatus getRetryStatus() {
-    return retryStatus;
+  public RetryState getRetryState() {
+    return retryState;
   }
 
   public WorkflowExecution getExecution() {
@@ -83,7 +83,7 @@ public final class ChildWorkflowFailure extends TemporalFailure {
       long initiatedEventId,
       long startedEventId,
       String namespace,
-      RetryStatus retryStatus) {
+      RetryState retryState) {
     return "workflowId='"
         + execution.getWorkflowId()
         + '\''
@@ -100,7 +100,7 @@ public final class ChildWorkflowFailure extends TemporalFailure {
         + ", namespace='"
         + namespace
         + '\''
-        + ", retryStatus="
-        + retryStatus;
+        + ", retryState="
+        + retryState;
   }
 }
