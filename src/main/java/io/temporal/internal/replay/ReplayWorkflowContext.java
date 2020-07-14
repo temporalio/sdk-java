@@ -45,7 +45,7 @@ import java.util.function.Consumer;
  * Represents the context for decider. Should only be used within the scope of workflow definition
  * code, meaning any code which is not part of activity implementations.
  */
-public interface DecisionContext extends ReplayAware {
+public interface ReplayWorkflowContext extends ReplayAware {
 
   WorkflowExecution getWorkflowExecution();
 

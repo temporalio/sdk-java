@@ -29,8 +29,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ReplayWorkflow;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
@@ -81,7 +81,7 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public void start(HistoryEvent event, DecisionContext context) {
+  public void start(HistoryEvent event, ReplayWorkflowContext context) {
     if (event.getEventType() != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
         || !event.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(

@@ -35,9 +35,9 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -224,7 +224,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private static SyncWorkflowContext newDummySyncWorkflowContext() {
     return new SyncWorkflowContext(
-        new DummyDecisionContext(), DataConverter.getDefaultInstance(), null, null);
+        new DummyReplayWorkflowContext(), DataConverter.getDefaultInstance(), null, null);
   }
 
   SyncWorkflowContext getWorkflowContext() {
@@ -576,7 +576,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
   }
 
-  private static final class DummyDecisionContext implements DecisionContext {
+  private static final class DummyReplayWorkflowContext implements ReplayWorkflowContext {
 
     @Override
     public WorkflowExecution getWorkflowExecution() {

@@ -41,7 +41,7 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.Decider;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.replay.DecisionContext;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -722,16 +722,16 @@ public class DeterministicRunnerTest {
     AtomicReference<String> status = new AtomicReference<>();
 
     DeciderCache cache = new DeciderCache(3, scope);
-    DecisionContext decisionContext = mock(DecisionContext.class);
-    when(decisionContext.getMetricsScope()).thenReturn(scope);
-    when(decisionContext.getNamespace()).thenReturn("namespace");
-    when(decisionContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
+    ReplayWorkflowContext replayWorkflowContext = mock(ReplayWorkflowContext.class);
+    when(replayWorkflowContext.getMetricsScope()).thenReturn(scope);
+    when(replayWorkflowContext.getNamespace()).thenReturn("namespace");
+    when(replayWorkflowContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
             new SyncWorkflowContext(
-                decisionContext, DataConverter.getDefaultInstance(), null, null),
+                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
             "test-thread",
             () -> {
@@ -758,7 +758,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             new SyncWorkflowContext(
-                decisionContext, DataConverter.getDefaultInstance(), null, null),
+                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
             "test-thread",
             () -> {

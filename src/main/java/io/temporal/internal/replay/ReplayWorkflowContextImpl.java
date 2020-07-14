@@ -53,9 +53,9 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class DecisionContextImpl implements DecisionContext, HistoryEventHandler {
+final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryEventHandler {
 
-  private static final Logger log = LoggerFactory.getLogger(DecisionContextImpl.class);
+  private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowContextImpl.class);
 
   private final ActivityDecisionContext activityClient;
   private final WorkflowDecisionContext workflowClient;
@@ -64,7 +64,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
 
-  DecisionContextImpl(
+  ReplayWorkflowContextImpl(
       DecisionsHelper decisionsHelper,
       String namespace,
       WorkflowExecutionStartedEventAttributes startedAttributes,

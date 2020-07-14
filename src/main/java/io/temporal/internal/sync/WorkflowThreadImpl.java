@@ -26,7 +26,7 @@ import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.replay.DecisionContext;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.Promise;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -55,7 +55,7 @@ class WorkflowThreadImpl implements WorkflowThread {
   class RunnableWrapper implements Runnable {
 
     private final WorkflowThreadContext threadContext;
-    private final DecisionContext decisionContext;
+    private final ReplayWorkflowContext replayWorkflowContext;
     private String originalName;
     private String name;
     private CancellationScopeImpl cancellationScope;
@@ -64,7 +64,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
     RunnableWrapper(
         WorkflowThreadContext threadContext,
-        DecisionContext decisionContext,
+        ReplayWorkflowContext replayWorkflowContext,
         String name,
         boolean detached,
         CancellationScopeImpl parent,
@@ -72,7 +72,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         List<ContextPropagator> contextPropagators,
         Map<String, Object> propagatedContexts) {
       this.threadContext = threadContext;
-      this.decisionContext = decisionContext;
+      this.replayWorkflowContext = replayWorkflowContext;
       this.name = name;
       cancellationScope = new CancellationScopeImpl(detached, runnable, parent);
       if (context.getStatus() != Status.CREATED) {
@@ -88,11 +88,11 @@ class WorkflowThreadImpl implements WorkflowThread {
       originalName = thread.getName();
       thread.setName(name);
       DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadImpl.this);
-      MDC.put(LoggerTag.WORKFLOW_ID, decisionContext.getWorkflowId());
-      MDC.put(LoggerTag.WORKFLOW_TYPE, decisionContext.getWorkflowType().getName());
-      MDC.put(LoggerTag.RUN_ID, decisionContext.getRunId());
-      MDC.put(LoggerTag.TASK_QUEUE, decisionContext.getTaskQueue());
-      MDC.put(LoggerTag.NAMESPACE, decisionContext.getNamespace());
+      MDC.put(LoggerTag.WORKFLOW_ID, replayWorkflowContext.getWorkflowId());
+      MDC.put(LoggerTag.WORKFLOW_TYPE, replayWorkflowContext.getWorkflowType().getName());
+      MDC.put(LoggerTag.RUN_ID, replayWorkflowContext.getRunId());
+      MDC.put(LoggerTag.TASK_QUEUE, replayWorkflowContext.getTaskQueue());
+      MDC.put(LoggerTag.NAMESPACE, replayWorkflowContext.getNamespace());
 
       // Repopulate the context(s)
       ContextThreadLocal.setContextPropagators(this.contextPropagators);

@@ -60,9 +60,9 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ActivityTaskFailedException;
 import io.temporal.internal.replay.ActivityTaskTimeoutException;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
-import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -114,7 +114,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   private static final Logger log = LoggerFactory.getLogger(SyncWorkflowContext.class);
 
-  private final DecisionContext context;
+  private final ReplayWorkflowContext context;
   private DeterministicRunner runner;
   private final DataConverter converter;
   private final List<ContextPropagator> contextPropagators;
@@ -132,7 +132,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private final Optional<Payloads> lastCompletionResult;
 
   public SyncWorkflowContext(
-      DecisionContext context,
+      ReplayWorkflowContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
       Optional<Payloads> lastCompletionResult) {
@@ -742,7 +742,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return context.isReplaying();
   }
 
-  public DecisionContext getContext() {
+  public ReplayWorkflowContext getContext() {
     return context;
   }
 

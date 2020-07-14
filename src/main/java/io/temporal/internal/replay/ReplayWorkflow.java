@@ -28,7 +28,7 @@ import java.util.Optional;
 
 public interface ReplayWorkflow {
 
-  void start(HistoryEvent event, DecisionContext context);
+  void start(HistoryEvent event, ReplayWorkflowContext context);
 
   /** Handle an external signal event. */
   void handleSignal(String signalName, Optional<Payloads> input, long eventId);

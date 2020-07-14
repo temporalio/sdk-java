@@ -21,16 +21,16 @@ package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.internal.replay.DecisionContext;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
 import java.util.Optional;
 
 final class WorkflowInfoImpl implements WorkflowInfo {
 
-  private final DecisionContext context;
+  private final ReplayWorkflowContext context;
 
-  WorkflowInfoImpl(DecisionContext context) {
+  WorkflowInfoImpl(ReplayWorkflowContext context) {
     this.context = context;
   }
 

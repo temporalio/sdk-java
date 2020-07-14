@@ -24,7 +24,7 @@ import static org.mockito.Mockito.*;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.replay.DecisionContext;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Before;
@@ -32,13 +32,13 @@ import org.junit.Test;
 
 public class SyncWorkflowContextTest {
   SyncWorkflowContext context;
-  DecisionContext mockDecisionContext = mock(DecisionContext.class);
+  ReplayWorkflowContext mockReplayWorkflowContext = mock(ReplayWorkflowContext.class);
 
   @Before
   public void setUp() {
     this.context =
         new SyncWorkflowContext(
-            mockDecisionContext, DataConverter.getDefaultInstance(), null, null);
+            mockReplayWorkflowContext, DataConverter.getDefaultInstance(), null, null);
   }
 
   @Test
@@ -49,7 +49,7 @@ public class SyncWorkflowContextTest {
         InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
 
     context.upsertSearchAttributes(attr);
-    verify(mockDecisionContext, times(1)).upsertSearchAttributes(serializedAttr);
+    verify(mockReplayWorkflowContext, times(1)).upsertSearchAttributes(serializedAttr);
   }
 
   @Test(expected = IllegalArgumentException.class)

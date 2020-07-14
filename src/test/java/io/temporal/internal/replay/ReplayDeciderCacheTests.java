@@ -293,7 +293,7 @@ public class ReplayDeciderCacheTests {
         "namespace",
         new ReplayWorkflow() {
           @Override
-          public void start(HistoryEvent event, DecisionContext context) {}
+          public void start(HistoryEvent event, ReplayWorkflowContext context) {}
 
           @Override
           public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {}

@@ -79,7 +79,7 @@ class ReplayDecider implements Decider {
   private static final int MAXIMUM_PAGE_SIZE = 10000;
 
   private final DecisionsHelper decisionsHelper;
-  private final DecisionContextImpl context;
+  private final ReplayWorkflowContextImpl context;
   private final WorkflowServiceStubs service;
   private final ReplayWorkflow workflow;
   private boolean cancelRequested;
@@ -118,7 +118,7 @@ class ReplayDecider implements Decider {
     wfStartTimeNanos = firstEvent.getTimestamp();
 
     context =
-        new DecisionContextImpl(
+        new ReplayWorkflowContextImpl(
             decisionsHelper,
             namespace,
             startedEvent,
