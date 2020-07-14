@@ -73,7 +73,7 @@ public class MetricsTest {
   private static final com.uber.m3.util.Duration REPORTING_FREQUENCY =
       com.uber.m3.util.Duration.ofMillis(10);
   private static final long REPORTING_FLUSH_TIME = 600;
-  private static final String TASK_QUEUE = "metrics-test";
+  private static final String TASK_QUEUE = "metrics_test";
 
   private TestWorkflowEnvironment testEnvironment;
   private Scope metricsScope;
@@ -90,7 +90,7 @@ public class MetricsTest {
 
     @Override
     public void execute() {
-      Workflow.getMetricsScope().counter("test-started").inc(1);
+      Workflow.getMetricsScope().counter("test_started").inc(1);
 
       ActivityOptions activityOptions =
           ActivityOptions.newBuilder()
@@ -112,7 +112,7 @@ public class MetricsTest {
       TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
       workflow.executeChild();
 
-      Workflow.getMetricsScope().counter("test-done").inc(1);
+      Workflow.getMetricsScope().counter("test_done").inc(1);
     }
   }
 
@@ -139,13 +139,13 @@ public class MetricsTest {
 
     @Override
     public void executeChild() {
-      Workflow.getMetricsScope().counter("test-child-started").inc(1);
+      Workflow.getMetricsScope().counter("test_child_started").inc(1);
 
-      Stopwatch sw = Workflow.getMetricsScope().timer("test-timer").start();
+      Stopwatch sw = Workflow.getMetricsScope().timer("test_timer").start();
       Workflow.sleep(3000);
       sw.stop();
 
-      Workflow.getMetricsScope().counter("test-child-done").inc(1);
+      Workflow.getMetricsScope().counter("test_child_done").inc(1);
     }
   }
 
@@ -259,9 +259,8 @@ public class MetricsTest {
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
-    reporter.assertCounter("temporal-worker-start", tagsB.build(), 3);
-    //    verify(reporter, times(1)).reportCounter("temporal-worker-start", tags, 3);
-    reporter.assertCounter("temporal-poller-start", tagsB.build());
+    reporter.assertCounter("temporal_worker_start", tagsB.build(), 3);
+    reporter.assertCounter("temporal_poller_start", tagsB.build());
     reporter.assertCounter(
         MetricsType.TEMPORAL_LONG_REQUEST,
         tagsB.put(MetricsTag.OPERATION_NAME, "PollForActivityTask").build());
@@ -274,7 +273,7 @@ public class MetricsTest {
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_QUEUE, "sticky")
             .build();
-    reporter.assertCounter("temporal-poller-start", tags);
+    reporter.assertCounter("temporal_poller_start", tags);
 
     tags =
         new ImmutableMap.Builder<String, String>(2)
@@ -283,8 +282,8 @@ public class MetricsTest {
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .build();
 
-    reporter.assertCounter("test-started", tags, 1);
-    reporter.assertCounter("test-done", tags, 1);
+    reporter.assertCounter("test_started", tags, 1);
+    reporter.assertCounter("test_done", tags, 1);
     tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
@@ -292,9 +291,9 @@ public class MetricsTest {
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .build();
 
-    reporter.assertCounter("test-child-started", tags, 1);
-    reporter.assertCounter("test-child-done", tags, 1);
-    reporter.assertTimerMinDuration("test-timer", tags, Duration.ofSeconds(3));
+    reporter.assertCounter("test_child_started", tags, 1);
+    reporter.assertCounter("test_child_done", tags, 1);
+    reporter.assertTimerMinDuration("test_timer", tags, Duration.ofSeconds(3));
 
     Map<String, String> activityCompletionTags =
         new ImmutableMap.Builder<String, String>(5)

@@ -184,7 +184,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   public WorkflowStub newUntypedWorkflowStub(
       String workflowId, Optional<String> runId, Optional<String> workflowType) {
     WorkflowExecution execution =
-        WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId.get()).build();
+        WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId.orElse("")).build();
     return newUntypedWorkflowStub(execution, workflowType);
   }
 

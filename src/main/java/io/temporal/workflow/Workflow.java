@@ -711,8 +711,8 @@ public final class Workflow {
    * <p>An attempt to register a duplicated query is going to fail with {@link
    * IllegalArgumentException}
    */
-  public static void registerListener(Object queryImplementation) {
-    WorkflowInternal.registerListener(queryImplementation);
+  public static void registerListener(Object listener) {
+    WorkflowInternal.registerListener(listener);
   }
 
   /**
