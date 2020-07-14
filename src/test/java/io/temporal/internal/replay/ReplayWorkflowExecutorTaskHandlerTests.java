@@ -67,7 +67,7 @@ public class ReplayWorkflowExecutorTaskHandlerTests {
   @Test
   public void ifStickyExecutionAttributesAreNotSetThenWorkflowsAreNotCached() throws Throwable {
     // Arrange
-    DeciderCache cache = new DeciderCache(10, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     WorkflowTaskHandler taskHandler =
         new ReplayWorkflowTaskHandler(
             "namespace",
@@ -93,7 +93,7 @@ public class ReplayWorkflowExecutorTaskHandlerTests {
   @Test
   public void ifStickyExecutionAttributesAreSetThenWorkflowsAreCached() throws Throwable {
     // Arrange
-    DeciderCache cache = new DeciderCache(10, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     WorkflowTaskHandler taskHandler =
         new ReplayWorkflowTaskHandler(
             "namespace",
@@ -112,8 +112,8 @@ public class ReplayWorkflowExecutorTaskHandlerTests {
     // Act
     WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask);
 
-    assertTrue(result.isFinalDecision());
-    assertEquals(0, cache.size()); // do not cache if final decision
+    assertTrue(result.isCompletionCommand());
+    assertEquals(0, cache.size()); // do not cache if completion command
     assertNotNull(result.getTaskCompleted());
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
     assertEquals("sticky", attributes.getWorkerTaskQueue().getName());

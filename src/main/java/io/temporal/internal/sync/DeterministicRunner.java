@@ -20,7 +20,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.internal.replay.DeciderCache;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Workflow;
 import java.util.concurrent.ExecutorService;
@@ -44,40 +44,40 @@ interface DeterministicRunner {
   /**
    * Create new instance of DeterministicRunner
    *
-   * @param decisionContext decision context to use
+   * @param workflowContext workflow context to use
    * @param clock Supplier that returns current time that sync should use
    * @param root function that root thread of the runner executes.
-   * @param cache DeciderCache used cache inflight workflows. New workflow threads will evict this
-   *     cache when the thread pool runs out
+   * @param cache WorkflowExecutorCache used cache inflight workflows. New workflow threads will
+   *     evict this cache when the thread pool runs out
    * @return instance of the DeterministicRunner.
    */
   static DeterministicRunner newRunner(
       ExecutorService threadPool,
-      SyncWorkflowContext decisionContext,
+      SyncWorkflowContext workflowContext,
       Supplier<Long> clock,
       String rootThreadName,
       Runnable root,
-      DeciderCache cache) {
+      WorkflowExecutorCache cache) {
     return new DeterministicRunnerImpl(
-        threadPool, decisionContext, clock, rootThreadName, root, cache);
+        threadPool, workflowContext, clock, rootThreadName, root, cache);
   }
 
   /**
    * Create new instance of DeterministicRunner
    *
-   * @param decisionContext decision context to use
+   * @param workflowContext workflow context to use
    * @param clock Supplier that returns current time that sync should use
    * @param root function that root thread of the runner executes.
    * @return instance of the DeterministicRunner.
    */
   static DeterministicRunner newRunner(
       ExecutorService threadPool,
-      SyncWorkflowContext decisionContext,
+      SyncWorkflowContext workflowContext,
       Supplier<Long> clock,
       String rootThreadName,
       Runnable root) {
     return new DeterministicRunnerImpl(
-        threadPool, decisionContext, clock, rootThreadName, root, null);
+        threadPool, workflowContext, clock, rootThreadName, root, null);
   }
 
   /**

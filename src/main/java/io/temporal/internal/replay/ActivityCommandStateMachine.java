@@ -43,7 +43,7 @@ final class ActivityCommandStateMachine extends CommandStateMachineBase {
   ActivityCommandStateMachine(
       CommandId id,
       ScheduleActivityTaskCommandAttributes scheduleAttributes,
-      DecisionState state,
+      CommandState state,
       long scheduledEventId) {
     super(id, state);
     this.scheduleAttributes = scheduleAttributes;
@@ -67,7 +67,7 @@ final class ActivityCommandStateMachine extends CommandStateMachineBase {
     switch (state) {
       case CANCELED_AFTER_INITIATED:
         stateHistory.add("handleWorkflowTaskStartedEvent");
-        state = DecisionState.CANCELLATION_DECISION_SENT;
+        state = CommandState.CANCELLATION_COMMAND_SENT;
         stateHistory.add(state.toString());
         break;
       default:
@@ -78,9 +78,9 @@ final class ActivityCommandStateMachine extends CommandStateMachineBase {
   @Override
   public void handleCancellationFailureEvent(HistoryEvent event) {
     switch (state) {
-      case CANCELLATION_DECISION_SENT:
+      case CANCELLATION_COMMAND_SENT:
         stateHistory.add("handleCancellationFailureEvent");
-        state = DecisionState.INITIATED;
+        state = CommandState.INITIATED;
         stateHistory.add(state.toString());
         break;
       default:
@@ -98,7 +98,7 @@ final class ActivityCommandStateMachine extends CommandStateMachineBase {
   }
 
   private Command createScheduleActivityTaskCommand() {
-    scheduledEventId = getId().getDecisionEventId();
+    scheduledEventId = getId().getCommandEventId();
     return Command.newBuilder()
         .setScheduleActivityTaskCommandAttributes(scheduleAttributes)
         .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK)

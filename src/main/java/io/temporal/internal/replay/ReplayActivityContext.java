@@ -39,7 +39,7 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-final class ActivityDecisionContext {
+final class ReplayActivityContext {
 
   private final class ActivityCancellationHandler implements Consumer<Exception> {
 
@@ -85,12 +85,12 @@ final class ActivityDecisionContext {
         immediateCancellationCallback = () -> {};
       }
       if (cancellationType != ActivityCancellationType.ABANDON) {
-        decisions.requestCancelActivityTask(scheduledEventId, immediateCancellationCallback);
+        commandHelper.requestCancelActivityTask(scheduledEventId, immediateCancellationCallback);
       }
     }
   }
 
-  private final CommandHelper decisions;
+  private final CommandHelper commandHelper;
 
   private static class OpenActivityInfo {
     private final ActivityType activityType;
@@ -129,8 +129,8 @@ final class ActivityDecisionContext {
   private final Map<Long, OpenRequestInfo<Optional<Payloads>, OpenActivityInfo>>
       scheduledActivities = new HashMap<>();
 
-  ActivityDecisionContext(CommandHelper decisions) {
-    this.decisions = decisions;
+  ReplayActivityContext(CommandHelper commandHelper) {
+    this.commandHelper = commandHelper;
   }
 
   Consumer<Exception> scheduleActivityTask(
@@ -138,23 +138,23 @@ final class ActivityDecisionContext {
     final ScheduleActivityTaskCommandAttributes.Builder attributes = parameters.getAttributes();
 
     if (attributes.getActivityId().isEmpty()) {
-      attributes.setActivityId(decisions.getAndIncrementNextId());
+      attributes.setActivityId(commandHelper.getAndIncrementNextId());
     }
 
-    long scheduledEventId = decisions.scheduleActivityTask(attributes.build());
+    long scheduledEventId = commandHelper.scheduleActivityTask(attributes.build());
     final OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> context =
         new OpenRequestInfo<>(
             new OpenActivityInfo(
                 attributes.getActivityType(), attributes.getActivityId(), scheduledEventId));
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
-    return new ActivityDecisionContext.ActivityCancellationHandler(
+    return new ReplayActivityContext.ActivityCancellationHandler(
         scheduledEventId, attributes.getActivityId(), callback, parameters.getCancellationType());
   }
 
   void handleActivityTaskCanceled(HistoryEvent event) {
     ActivityTaskCanceledEventAttributes attributes = event.getActivityTaskCanceledEventAttributes();
-    if (decisions.handleActivityTaskCanceled(event)) {
+    if (commandHelper.handleActivityTaskCanceled(event)) {
       Failure failure =
           Failure.newBuilder()
               .setSource(JAVA_SDK)
@@ -178,7 +178,7 @@ final class ActivityDecisionContext {
   void handleActivityTaskCompleted(HistoryEvent event) {
     ActivityTaskCompletedEventAttributes attributes =
         event.getActivityTaskCompletedEventAttributes();
-    if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
+    if (commandHelper.handleActivityTaskClosed(attributes.getScheduledEventId())) {
       OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
@@ -198,7 +198,7 @@ final class ActivityDecisionContext {
 
   void handleActivityTaskFailed(HistoryEvent event) {
     ActivityTaskFailedEventAttributes attributes = event.getActivityTaskFailedEventAttributes();
-    if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
+    if (commandHelper.handleActivityTaskClosed(attributes.getScheduledEventId())) {
       OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
@@ -220,7 +220,7 @@ final class ActivityDecisionContext {
 
   void handleActivityTaskTimedOut(HistoryEvent event) {
     ActivityTaskTimedOutEventAttributes attributes = event.getActivityTaskTimedOutEventAttributes();
-    if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
+    if (commandHelper.handleActivityTaskClosed(attributes.getScheduledEventId())) {
       OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {

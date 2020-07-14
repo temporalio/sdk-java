@@ -29,7 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.metrics.MetricsTag;
-import io.temporal.internal.replay.DeciderCache;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.PollWorkflowTaskDispatcher;
 import io.temporal.internal.worker.Poller;
 import io.temporal.internal.worker.PollerOptions;
@@ -71,7 +71,7 @@ public final class WorkerFactory {
 
   private Poller<PollWorkflowTaskQueueResponse> stickyPoller;
   private PollWorkflowTaskDispatcher dispatcher;
-  private DeciderCache cache;
+  private WorkflowExecutorCache cache;
 
   private State state = State.Initial;
 
@@ -111,7 +111,8 @@ public final class WorkerFactory {
                     .put(MetricsTag.NAMESPACE, workflowClient.getOptions().getNamespace())
                     .build());
 
-    this.cache = new DeciderCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
+    this.cache =
+        new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
     Scope stickyScope =
         metricsScope.tagged(
             new ImmutableMap.Builder<String, String>(1)
@@ -142,7 +143,7 @@ public final class WorkerFactory {
    * configured at the Factory level. New workers cannot be created after the start() has been
    * called
    *
-   * @param taskQueue task queue name worker uses to poll. It uses this name for both decision and
+   * @param taskQueue task queue name worker uses to poll. It uses this name for both workflow and
    *     activity task queue polls.
    * @return Worker
    */
@@ -155,7 +156,7 @@ public final class WorkerFactory {
    * configured at the Factory level. New workers cannot be created after the start() has been
    * called
    *
-   * @param taskQueue task queue name worker uses to poll. It uses this name for both decision and
+   * @param taskQueue task queue name worker uses to poll. It uses this name for both workflow and
    *     activity task queue polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
    * @return Worker
@@ -303,7 +304,7 @@ public final class WorkerFactory {
   }
 
   @VisibleForTesting
-  DeciderCache getCache() {
+  WorkflowExecutorCache getCache() {
     return this.cache;
   }
 

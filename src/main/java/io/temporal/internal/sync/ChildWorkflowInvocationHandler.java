@@ -39,7 +39,7 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
   ChildWorkflowInvocationHandler(
       Class<?> workflowInterface,
       ChildWorkflowOptions options,
-      WorkflowOutboundCallsInterceptor decisionContext) {
+      WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
@@ -57,7 +57,8 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
             .setCronSchedule(cronSchedule)
             .validateAndBuildWithDefaults();
     this.stub =
-        new ChildWorkflowStubImpl(workflowMethodMetadata.get().getName(), merged, decisionContext);
+        new ChildWorkflowStubImpl(
+            workflowMethodMetadata.get().getName(), merged, outboundCallsInterceptor);
   }
 
   @Override

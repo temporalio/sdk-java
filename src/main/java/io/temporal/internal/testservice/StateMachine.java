@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * State machine of a single server side entity like activity, decision or the whole workflow.
+ * State machine of a single server side entity like activity, workflow task or the whole workflow.
  *
  * <p>Based on the idea that each entity goes through state transitions and the same operation like
  * timeout is applicable to some states only and can lead to different actions in each state. Each

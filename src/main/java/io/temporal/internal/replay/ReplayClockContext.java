@@ -51,14 +51,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Clock that must be used inside workflow definition code to ensure replay determinism. */
-public final class ClockDecisionContext {
+public final class ReplayClockContext {
 
   private static final String SIDE_EFFECT_MARKER_NAME = "SideEffect";
   private static final String MUTABLE_SIDE_EFFECT_MARKER_NAME = "MutableSideEffect";
   public static final String VERSION_MARKER_NAME = "Version";
   public static final String LOCAL_ACTIVITY_MARKER_NAME = "LocalActivity";
 
-  private static final Logger log = LoggerFactory.getLogger(ClockDecisionContext.class);
+  private static final Logger log = LoggerFactory.getLogger(ReplayClockContext.class);
 
   private final class TimerCancellationHandler implements Consumer<Exception> {
 
@@ -70,11 +70,11 @@ public final class ClockDecisionContext {
 
     @Override
     public void accept(Exception reason) {
-      decisions.cancelTimer(startEventId, () -> timerCancelled(startEventId, reason));
+      commandHelper.cancelTimer(startEventId, () -> timerCancelled(startEventId, reason));
     }
   }
 
-  private final CommandHelper decisions;
+  private final CommandHelper commandHelper;
   // key is startedEventId
   private final Map<Long, OpenRequestInfo<?, Long>> scheduledTimers = new HashMap<>();
   private long replayCurrentTimeMilliseconds = -1;
@@ -89,23 +89,23 @@ public final class ClockDecisionContext {
   private final Map<String, OpenRequestInfo<Optional<Payloads>, ActivityType>> pendingLaTasks =
       new HashMap<>();
   private final Map<String, ExecuteLocalActivityParameters> unstartedLaTasks = new HashMap<>();
-  private final ReplayWorkflowExecutor replayDecider;
+  private final ReplayWorkflowExecutor workflowExecutor;
   private final DataConverter dataConverter;
   private final Condition taskCondition;
   private boolean taskCompleted = false;
 
-  ClockDecisionContext(
-      CommandHelper decisions,
+  ReplayClockContext(
+      CommandHelper commandHelper,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
-      ReplayWorkflowExecutor replayDecider,
+      ReplayWorkflowExecutor workflowExecutor,
       DataConverter dataConverter) {
-    this.decisions = decisions;
-    this.taskCondition = replayDecider.getLock().newCondition();
+    this.commandHelper = commandHelper;
+    this.taskCondition = workflowExecutor.getLock().newCondition();
     mutableSideEffectHandler =
-        new MarkerHandler(decisions, MUTABLE_SIDE_EFFECT_MARKER_NAME, () -> replaying);
-    versionHandler = new MarkerHandler(decisions, VERSION_MARKER_NAME, () -> replaying);
+        new MarkerHandler(commandHelper, MUTABLE_SIDE_EFFECT_MARKER_NAME, () -> replaying);
+    versionHandler = new MarkerHandler(commandHelper, VERSION_MARKER_NAME, () -> replaying);
     this.laTaskPoller = laTaskPoller;
-    this.replayDecider = replayDecider;
+    this.workflowExecutor = workflowExecutor;
     this.dataConverter = dataConverter;
   }
 
@@ -141,9 +141,9 @@ public final class ClockDecisionContext {
     final StartTimerCommandAttributes timer =
         StartTimerCommandAttributes.newBuilder()
             .setStartToFireTimeoutSeconds(delaySeconds)
-            .setTimerId(String.valueOf(decisions.getAndIncrementNextId()))
+            .setTimerId(String.valueOf(commandHelper.getAndIncrementNextId()))
             .build();
-    long startEventId = decisions.startTimer(timer);
+    long startEventId = commandHelper.startTimer(timer);
     context.setCompletionHandle((ctx, e) -> callback.accept(e));
     scheduledTimers.put(startEventId, context);
     return new TimerCancellationHandler(startEventId);
@@ -155,7 +155,7 @@ public final class ClockDecisionContext {
 
   void handleTimerFired(TimerFiredEventAttributes attributes) {
     long startedEventId = attributes.getStartedEventId();
-    if (decisions.handleTimerClosed(attributes)) {
+    if (commandHelper.handleTimerClosed(attributes)) {
       OpenRequestInfo<?, Long> scheduled = scheduledTimers.remove(startedEventId);
       if (scheduled != null) {
         // Server doesn't guarantee that the timer fire timestamp is larger or equal of the
@@ -173,7 +173,7 @@ public final class ClockDecisionContext {
   void handleTimerCanceled(HistoryEvent event) {
     TimerCanceledEventAttributes attributes = event.getTimerCanceledEventAttributes();
     long startedEventId = attributes.getStartedEventId();
-    if (decisions.handleTimerCanceled(event)) {
+    if (commandHelper.handleTimerCanceled(event)) {
       timerCancelled(startedEventId, null);
     }
   }
@@ -192,8 +192,8 @@ public final class ClockDecisionContext {
   }
 
   Optional<Payloads> sideEffect(Func<Optional<Payloads>> func) {
-    decisions.addAllMissingVersionMarker();
-    long sideEffectEventId = decisions.getNextDecisionEventId();
+    commandHelper.addAllMissingVersionMarker();
+    long sideEffectEventId = commandHelper.getNextCommandEventId();
     Optional<Payloads> result;
     if (replaying) {
       result = sideEffectResults.get(sideEffectEventId);
@@ -213,7 +213,8 @@ public final class ClockDecisionContext {
     if (result.isPresent()) {
       details.put(MUTABLE_MARKER_DATA_KEY, result.get());
     }
-    decisions.recordMarker(SIDE_EFFECT_MARKER_NAME, Optional.empty(), details, Optional.empty());
+    commandHelper.recordMarker(
+        SIDE_EFFECT_MARKER_NAME, Optional.empty(), details, Optional.empty());
     return result;
   }
 
@@ -225,12 +226,12 @@ public final class ClockDecisionContext {
    */
   Optional<Payloads> mutableSideEffect(
       String id, DataConverter converter, Func1<Optional<Payloads>, Optional<Payloads>> func) {
-    decisions.addAllMissingVersionMarker();
+    commandHelper.addAllMissingVersionMarker();
     return mutableSideEffectHandler.handle(id, converter, func);
   }
 
   void upsertSearchAttributes(SearchAttributes searchAttributes) {
-    decisions.upsertSearchAttributes(searchAttributes);
+    commandHelper.upsertSearchAttributes(searchAttributes);
   }
 
   void handleMarkerRecorded(HistoryEvent event) {
@@ -261,7 +262,7 @@ public final class ClockDecisionContext {
       Map<String, Payloads> details = attributes.getDetailsMap();
       Optional<Header> header =
           attributes.hasHeader() ? Optional.of(attributes.getHeader()) : Optional.empty();
-      decisions.recordMarker(LOCAL_ACTIVITY_MARKER_NAME, header, details, marker.getFailure());
+      commandHelper.recordMarker(LOCAL_ACTIVITY_MARKER_NAME, header, details, marker.getFailure());
 
       OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
           pendingLaTasks.remove(marker.getActivityId());
@@ -315,7 +316,7 @@ public final class ClockDecisionContext {
    * </ul>
    */
   int getVersion(String changeId, DataConverter converter, int minSupported, int maxSupported) {
-    decisions.addAllMissingVersionMarker(Optional.of(changeId), Optional.of(converter));
+    commandHelper.addAllMissingVersionMarker(Optional.of(changeId), Optional.of(converter));
 
     Optional<Payloads> result =
         versionHandler.handle(
@@ -354,7 +355,7 @@ public final class ClockDecisionContext {
     context.setCompletionHandle(callback);
     String activityId = activityTask.getActivityId();
     if (activityId.isEmpty()) {
-      activityId = decisions.getAndIncrementNextId();
+      activityId = commandHelper.getAndIncrementNextId();
       activityTask.setActivityId(activityId);
     }
     pendingLaTasks.put(activityId, context);
@@ -371,8 +372,8 @@ public final class ClockDecisionContext {
           laTaskPoller.apply(
               new LocalActivityWorker.Task(
                   params,
-                  replayDecider.getLocalActivityCompletionSink(),
-                  replayDecider.getWorkflowTaskTimeoutSeconds(),
+                  workflowExecutor.getLocalActivityCompletionSink(),
+                  workflowExecutor.getWorkflowTaskTimeoutSeconds(),
                   this::currentTimeMillis,
                   this::replayTimeUpdatedAtMillis),
               maxWaitAllowed);

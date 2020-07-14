@@ -67,7 +67,7 @@ public interface WorkflowExecutor {
       return queryResults;
     }
 
-    /** Is this result contain a workflow completion decision */
+    /** Is this result contain a workflow completion command */
     public boolean isFinalCommand() {
       return finalCommand;
     }

@@ -37,16 +37,16 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   private final String workflowType;
   private final ChildWorkflowOptions options;
-  private final WorkflowOutboundCallsInterceptor decisionContext;
+  private final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
   private final CompletablePromise<WorkflowExecution> execution;
 
   ChildWorkflowStubImpl(
       String workflowType,
       ChildWorkflowOptions options,
-      WorkflowOutboundCallsInterceptor decisionContext) {
+      WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     this.workflowType = Objects.requireNonNull(workflowType);
     this.options = ChildWorkflowOptions.newBuilder(options).validateAndBuildWithDefaults();
-    this.decisionContext = Objects.requireNonNull(decisionContext);
+    this.outboundCallsInterceptor = Objects.requireNonNull(outboundCallsInterceptor);
     this.execution = Workflow.newPromise();
   }
 
@@ -95,7 +95,8 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   @Override
   public <R> Promise<R> executeAsync(Class<R> resultClass, Type resultType, Object... args) {
     WorkflowResult<R> result =
-        decisionContext.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
+        outboundCallsInterceptor.executeChildWorkflow(
+            workflowType, resultClass, resultType, args, options);
     execution.completeFrom(result.getWorkflowExecution());
     return result.getResult();
   }
@@ -103,7 +104,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   @Override
   public void signal(String signalName, Object... args) {
     Promise<Void> signaled =
-        decisionContext.signalExternalWorkflow(execution.get(), signalName, args);
+        outboundCallsInterceptor.signalExternalWorkflow(execution.get(), signalName, args);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);
       return;

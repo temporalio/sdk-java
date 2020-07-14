@@ -66,8 +66,9 @@ public class WorkflowCachingTest {
   }
 
   @Test
-  public void taskCompletionWithStickyExecutionAttributesWillScheduleDecisionsOnStickyTaskQueue()
-      throws Exception {
+  public void
+      taskCompletionWithStickyExecutionAttributesWillScheduleWorkflowTasksOnStickyTaskQueue()
+          throws Exception {
 
     TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
     PollWorkflowTaskQueueResponse response =

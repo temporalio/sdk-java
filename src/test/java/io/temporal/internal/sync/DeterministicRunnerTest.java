@@ -39,9 +39,9 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutor;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -721,7 +721,7 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 3, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    DeciderCache cache = new DeciderCache(3, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(3, scope);
     ReplayWorkflowContext replayWorkflowContext = mock(ReplayWorkflowContext.class);
     when(replayWorkflowContext.getMetricsScope()).thenReturn(scope);
     when(replayWorkflowContext.getNamespace()).thenReturn("namespace");
@@ -791,7 +791,7 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    DeciderCache cache = new DeciderCache(3, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(3, new NoopScope());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(

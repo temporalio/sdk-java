@@ -48,7 +48,7 @@ import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
+import io.temporal.internal.replay.HistoryHelper.WorkflowTaskEvents;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
@@ -71,8 +71,8 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
- * Implements decider that relies on replay of a workflow code. An instance of this class is created
- * per decision.
+ * Implements workflow executor that relies on replay of a workflow code. An instance of this class
+ * is created per cached workflow run.
  */
 class ReplayWorkflowExecutor implements WorkflowExecutor {
 
@@ -380,7 +380,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
   private void handleTimerFired(HistoryEvent event) {
     TimerFiredEventAttributes attributes = event.getTimerFiredEventAttributes();
     String timerId = attributes.getTimerId();
-    if (timerId.equals(CommandHelper.FORCE_IMMEDIATE_DECISION_TIMER)) {
+    if (timerId.equals(CommandHelper.FORCE_IMMEDIATE_WORKFLOW_TASK_TIMER)) {
       return;
     }
     context.handleTimerFired(attributes);
@@ -406,7 +406,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       queryResults.clear();
       boolean forceCreateNewWorkflowTask = decideImpl(workflowTask, null);
       return new WorkflowTaskResult(
-          commandHelper.getDecisions(), queryResults, forceCreateNewWorkflowTask, completed);
+          commandHelper.getCommands(), queryResults, forceCreateNewWorkflowTask, completed);
     } finally {
       lock.unlock();
     }
@@ -428,17 +428,17 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       HistoryHelper historyHelper =
           new HistoryHelper(
               workflowTaskWithHistoryIterator, context.getReplayCurrentTimeMilliseconds());
-      Iterator<DecisionEvents> iterator = historyHelper.getIterator();
+      Iterator<WorkflowTaskEvents> iterator = historyHelper.getIterator();
       if (commandHelper.getLastStartedEventId() > 0
           && commandHelper.getLastStartedEventId() != historyHelper.getPreviousStartedEventId()
           && workflowTask.getHistory().getEventsCount() > 0) {
         throw new IllegalStateException(
             String.format(
-                "ReplayDecider processed up to event id %d. History's previous started event id is %d",
+                "ReplayWorkflowExecutor processed up to event id %d. History's previous started event id is %d",
                 commandHelper.getLastStartedEventId(), historyHelper.getPreviousStartedEventId()));
       }
       while (iterator.hasNext()) {
-        DecisionEvents decision = iterator.next();
+        WorkflowTaskEvents decision = iterator.next();
         if (!timerStopped && !decision.isReplay()) {
           sw.stop();
           timerStopped = true;
@@ -452,7 +452,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           if (!event
               .getMarkerRecordedEventAttributes()
               .getMarkerName()
-              .equals(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)) {
+              .equals(ReplayClockContext.LOCAL_ACTIVITY_MARKER_NAME)) {
             processEvent(event);
           }
         }
@@ -473,7 +473,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           commandHelper.notifyDecisionSent();
         }
         // Updates state machines with results of the previous decisions
-        for (HistoryEvent event : decision.getDecisionEvents()) {
+        for (HistoryEvent event : decision.getCommandEvents()) {
           processEvent(event);
         }
         // Reset state to before running the event loop
@@ -489,7 +489,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
         completeWorkflow();
         return false;
       } else {
-        metricsScope.counter(MetricsType.WORKFLOW_TASK_FAILURE_COUNTER).inc(1);
+        metricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
         // fail decision, not a workflow
         throw e;
       }
@@ -530,24 +530,24 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
   }
 
   private boolean processEventLoop(
-      long startTime, int decisionTimeoutSecs, DecisionEvents decision, boolean isQuery)
+      long startTime, int workflowTaskTimeoutSecs, WorkflowTaskEvents decision, boolean isQuery)
       throws Throwable {
     eventLoop();
 
     if (decision.isReplay() || isQuery) {
       return replayLocalActivities(decision);
     } else {
-      return executeLocalActivities(startTime, decisionTimeoutSecs);
+      return executeLocalActivities(startTime, workflowTaskTimeoutSecs);
     }
   }
 
-  private boolean replayLocalActivities(DecisionEvents decision) throws Throwable {
+  private boolean replayLocalActivities(WorkflowTaskEvents decision) throws Throwable {
     List<HistoryEvent> localActivityMarkers = new ArrayList<>();
     for (HistoryEvent event : decision.getMarkers()) {
       if (event
           .getMarkerRecordedEventAttributes()
           .getMarkerName()
-          .equals(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)) {
+          .equals(ReplayClockContext.LOCAL_ACTIVITY_MARKER_NAME)) {
         localActivityMarkers.add(event);
       }
     }
@@ -574,8 +574,8 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
   }
 
   // Return whether we would need a new workflow task immediately.
-  private boolean executeLocalActivities(long startTime, int decisionTimeoutSecs) {
-    Duration maxProcessingTime = Duration.ofSeconds((long) (0.8 * decisionTimeoutSecs));
+  private boolean executeLocalActivities(long startTime, int workflowTaskTimeoutSecs) {
+    Duration maxProcessingTime = Duration.ofSeconds((long) (0.8 * workflowTaskTimeoutSecs));
 
     while (context.numPendingLaTasks() > 0) {
       Duration processingTime = Duration.ofMillis(System.currentTimeMillis() - startTime);

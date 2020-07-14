@@ -33,13 +33,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public final class DeciderCache {
+public final class WorkflowExecutorCache {
   private final Scope metricsScope;
   private LoadingCache<String, WorkflowExecutor> cache;
   private Lock cacheLock = new ReentrantLock();
   private Set<String> inProcessing = new HashSet<>();
 
-  public DeciderCache(int workflowCacheSize, Scope scope) {
+  public WorkflowExecutorCache(int workflowCacheSize, Scope scope) {
     Preconditions.checkArgument(workflowCacheSize > 0, "Max cache size must be greater than 0");
     this.metricsScope = Objects.requireNonNull(scope);
     this.cache =
@@ -64,19 +64,19 @@ public final class DeciderCache {
   public WorkflowExecutor getOrCreate(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       Scope metricsScope,
-      Callable<WorkflowExecutor> deciderFunc)
+      Callable<WorkflowExecutor> workflowExecutorFn)
       throws Exception {
     String runId = workflowTask.getWorkflowExecution().getRunId();
     if (isFullHistory(workflowTask)) {
       invalidate(runId, metricsScope);
-      return deciderFunc.call();
+      return workflowExecutorFn.call();
     }
 
     WorkflowExecutor workflowExecutor = getForProcessing(runId, metricsScope);
     if (workflowExecutor != null) {
       return workflowExecutor;
     }
-    return deciderFunc.call();
+    return workflowExecutorFn.call();
   }
 
   private WorkflowExecutor getForProcessing(String runId, Scope metricsScope) throws Exception {

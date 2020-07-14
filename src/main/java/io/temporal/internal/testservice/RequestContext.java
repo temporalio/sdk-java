@@ -78,7 +78,7 @@ final class RequestContext {
   private final List<ActivityTask> activityTasks = new ArrayList<>();
   private final List<Timer> timers = new ArrayList<>();
   private long workflowCompletedAtEventId = -1;
-  private boolean needDecision;
+  private boolean needWorkflowTask;
   // How many times call SelfAdvancedTimer#lockTimeSkipping.
   // Negative means how many times to call SelfAdvancedTimer#unlockTimeSkipping.
   private int timerLocks;
@@ -171,12 +171,12 @@ final class RequestContext {
    * Command needed, but there is one already running. So initiate another one as soon as it
    * completes.
    */
-  void setNeedDecision(boolean needDecision) {
-    this.needDecision = needDecision;
+  void setNeedWorkflowTask(boolean needWorkflowTask) {
+    this.needWorkflowTask = needWorkflowTask;
   }
 
-  boolean isNeedDecision() {
-    return needDecision;
+  boolean isNeedWorkflowTask() {
+    return needWorkflowTask;
   }
 
   void setWorkflowTask(WorkflowTask workflowTask) {

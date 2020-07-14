@@ -155,9 +155,9 @@ public final class WorkflowInternal {
    * @param activityInterface interface type implemented by activities
    */
   public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    WorkflowOutboundCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
-        ActivityInvocationHandler.newInstance(activityInterface, options, decisionContext);
+        ActivityInvocationHandler.newInstance(
+            activityInterface, options, WorkflowInternal.getWorkflowInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -168,9 +168,9 @@ public final class WorkflowInternal {
    */
   public static <T> T newLocalActivityStub(
       Class<T> activityInterface, LocalActivityOptions options) {
-    WorkflowOutboundCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
-        LocalActivityInvocationHandler.newInstance(activityInterface, options, decisionContext);
+        LocalActivityInvocationHandler.newInstance(
+            activityInterface, options, WorkflowInternal.getWorkflowInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 

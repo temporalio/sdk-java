@@ -24,12 +24,12 @@ import io.temporal.api.history.v1.HistoryEvent;
 
 final class CompleteWorkflowStateMachine implements CommandStateMachine {
 
-  private Command decision;
+  private Command command;
   private final CommandId id;
 
-  public CompleteWorkflowStateMachine(CommandId id, Command decision) {
+  public CompleteWorkflowStateMachine(CommandId id, Command command) {
     this.id = id;
-    this.decision = decision;
+    this.command = command;
   }
 
   @Override
@@ -39,12 +39,12 @@ final class CompleteWorkflowStateMachine implements CommandStateMachine {
 
   @Override
   public Command getCommand() {
-    return decision;
+    return command;
   }
 
   @Override
   public void handleInitiationFailedEvent(HistoryEvent event) {
-    decision = null;
+    command = null;
   }
 
   @Override
@@ -78,8 +78,8 @@ final class CompleteWorkflowStateMachine implements CommandStateMachine {
   }
 
   @Override
-  public DecisionState getState() {
-    return DecisionState.CREATED;
+  public CommandState getState() {
+    return CommandState.CREATED;
   }
 
   @Override
@@ -89,7 +89,7 @@ final class CompleteWorkflowStateMachine implements CommandStateMachine {
 
   @Override
   public boolean isDone() {
-    return decision != null;
+    return command != null;
   }
 
   @Override
@@ -97,6 +97,6 @@ final class CompleteWorkflowStateMachine implements CommandStateMachine {
 
   @Override
   public String toString() {
-    return "CompleteWorkflowStateMachine [decision=" + decision + ", id=" + id + "]";
+    return "CompleteWorkflowStateMachine [command=" + command + ", id=" + id + "]";
   }
 }

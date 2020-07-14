@@ -65,7 +65,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
   private final ReplayWorkflowFactory workflowFactory;
   private final String namespace;
-  private final DeciderCache cache;
+  private final WorkflowExecutorCache cache;
   private final SingleWorkerOptions options;
   private final Duration stickyTaskQueueScheduleToStartTimeout;
   private final Functions.Func<Boolean> shutdownFn;
@@ -76,7 +76,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   public ReplayWorkflowTaskHandler(
       String namespace,
       ReplayWorkflowFactory asyncWorkflowFactory,
-      DeciderCache cache,
+      WorkflowExecutorCache cache,
       SingleWorkerOptions options,
       String stickyTaskQueueName,
       Duration stickyTaskQueueScheduleToStartTimeout,
@@ -103,9 +103,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     try {
       return handleWorkflowTaskImpl(workflowTask.toBuilder(), metricsScope);
     } catch (Throwable e) {
-      metricsScope.counter(MetricsType.DECISION_EXECUTION_FAILED_COUNTER).inc(1);
-      // Only fail decision on first attempt, subsequent failure on the same workflow task will
-      // timeout. This is to avoid spin on the failed workflow task.
+      metricsScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
+      // Only fail workflow task on the first attempt, subsequent failures of the same workflow task
+      // should
+      // timeout. This is to avoid spin on the failed workflow task as the service doesn't yet
+      // increase
+      // the retry interval.
       if (workflowTask.getAttempt() > 0) {
         if (e instanceof Error) {
           throw (Error) e;
@@ -138,20 +141,20 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Throwable {
     if (workflowTask.hasQuery()) {
       // Legacy query codepath
-      return processQuery(workflowTask, metricsScope);
+      return handleQueryOnlyWorkflowTask(workflowTask, metricsScope);
     } else {
       // Note that if workflowTask.getQueriesCount() > 0 this branch is taken as well
-      return processDecision(workflowTask, metricsScope);
+      return handleWorkflowTaskWithEmbeddedQuery(workflowTask, metricsScope);
     }
   }
 
-  private Result processDecision(
+  private Result handleWorkflowTaskWithEmbeddedQuery(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Throwable {
     WorkflowExecutor workflowExecutor = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
       if (stickyTaskQueueName == null) {
-        workflowExecutor = createDecider(workflowTask, metricsScope);
+        workflowExecutor = createWorkflowExecutor(workflowTask, metricsScope);
       } else {
         workflowExecutor =
             cache.getOrCreate(
@@ -159,7 +162,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 metricsScope,
                 () -> {
                   createdNew.set(true);
-                  return createDecider(workflowTask, metricsScope);
+                  return createWorkflowExecutor(workflowTask, metricsScope);
                 });
       }
 
@@ -202,8 +205,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
       return createCompletedRequest(workflowTask.getWorkflowType().getName(), workflowTask, result);
     } catch (Throwable e) {
-      // Note here that the decider might not be in the cache, even sticky is on. In that case we
-      // need to close the decider explicitly.
+      // Note here that the executor might not be in the cache, even sticky is on. In that case we
+      // need to close the executor explicitly.
       // For items in the cache, invalidation callback will try to close again, which should be ok.
       if (workflowExecutor != null) {
         workflowExecutor.close();
@@ -222,7 +225,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     }
   }
 
-  private Result processQuery(
+  private Result handleQueryOnlyWorkflowTask(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) {
     RespondQueryTaskCompletedRequest.Builder queryCompletedRequest =
         RespondQueryTaskCompletedRequest.newBuilder().setTaskToken(workflowTask.getTaskToken());
@@ -230,7 +233,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
       if (stickyTaskQueueName == null) {
-        workflowExecutor = createDecider(workflowTask, metricsScope);
+        workflowExecutor = createWorkflowExecutor(workflowTask, metricsScope);
       } else {
         workflowExecutor =
             cache.getOrCreate(
@@ -238,7 +241,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 metricsScope,
                 () -> {
                   createdNew.set(true);
-                  return createDecider(workflowTask, metricsScope);
+                  return createWorkflowExecutor(workflowTask, metricsScope);
                 });
       }
 
@@ -302,7 +305,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     return workflowFactory.isAnyTypeSupported();
   }
 
-  private WorkflowExecutor createDecider(
+  private WorkflowExecutor createWorkflowExecutor(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();

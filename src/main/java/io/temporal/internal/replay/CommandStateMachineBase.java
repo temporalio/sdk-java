@@ -25,7 +25,7 @@ import java.util.List;
 
 abstract class CommandStateMachineBase implements CommandStateMachine {
 
-  protected DecisionState state = DecisionState.CREATED;
+  protected CommandState state = CommandState.CREATED;
 
   protected List<String> stateHistory = new ArrayList<String>();
 
@@ -37,14 +37,14 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
   }
 
   /** Used for unit testing. */
-  protected CommandStateMachineBase(CommandId id, DecisionState state) {
+  protected CommandStateMachineBase(CommandId id, CommandState state) {
     this.id = id;
     this.state = state;
     stateHistory.add(state.toString());
   }
 
   @Override
-  public DecisionState getState() {
+  public CommandState getState() {
     return state;
   }
 
@@ -55,8 +55,8 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
 
   @Override
   public boolean isDone() {
-    return state == DecisionState.COMPLETED
-        || state == DecisionState.COMPLETED_AFTER_CANCELLATION_DECISION_SENT;
+    return state == CommandState.COMPLETED
+        || state == CommandState.COMPLETED_AFTER_CANCELLATION_COMMAND_SENT;
   }
 
   @Override
@@ -64,7 +64,7 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
     switch (state) {
       case CREATED:
         stateHistory.add("handleWorkflowTaskStartedEvent");
-        state = DecisionState.DECISION_SENT;
+        state = CommandState.COMMAND_SENT;
         stateHistory.add(state.toString());
         break;
       default:
@@ -77,17 +77,17 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
     boolean result = false;
     switch (state) {
       case CREATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         if (immediateCancellationCallback != null) {
           immediateCancellationCallback.run();
         }
         break;
-      case DECISION_SENT:
-        state = DecisionState.CANCELED_BEFORE_INITIATED;
+      case COMMAND_SENT:
+        state = CommandState.CANCELED_BEFORE_INITIATED;
         result = true;
         break;
       case INITIATED:
-        state = DecisionState.CANCELED_AFTER_INITIATED;
+        state = CommandState.CANCELED_AFTER_INITIATED;
         result = true;
         break;
       default:
@@ -101,11 +101,11 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
   public void handleInitiatedEvent(HistoryEvent event) {
     stateHistory.add("handleInitiatedEvent");
     switch (state) {
-      case DECISION_SENT:
-        state = DecisionState.INITIATED;
+      case COMMAND_SENT:
+        state = CommandState.INITIATED;
         break;
       case CANCELED_BEFORE_INITIATED:
-        state = DecisionState.CANCELED_AFTER_INITIATED;
+        state = CommandState.CANCELED_AFTER_INITIATED;
         break;
       default:
         failStateTransition();
@@ -118,9 +118,9 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
     stateHistory.add("handleInitiationFailedEvent");
     switch (state) {
       case INITIATED:
-      case DECISION_SENT:
+      case COMMAND_SENT:
       case CANCELED_BEFORE_INITIATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         break;
       default:
         failStateTransition();
@@ -139,10 +139,10 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
     switch (state) {
       case CANCELED_AFTER_INITIATED:
       case INITIATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         break;
-      case CANCELLATION_DECISION_SENT:
-        state = DecisionState.COMPLETED_AFTER_CANCELLATION_DECISION_SENT;
+      case CANCELLATION_COMMAND_SENT:
+        state = CommandState.COMPLETED_AFTER_CANCELLATION_COMMAND_SENT;
         break;
       default:
         failStateTransition();
@@ -154,7 +154,7 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
   public void handleCancellationInitiatedEvent() {
     stateHistory.add("handleCancellationInitiatedEvent");
     switch (state) {
-      case CANCELLATION_DECISION_SENT:
+      case CANCELLATION_COMMAND_SENT:
         // No state change
         break;
       default:
@@ -167,8 +167,8 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
   public void handleCancellationFailureEvent(HistoryEvent event) {
     stateHistory.add("handleCancellationFailureEvent");
     switch (state) {
-      case COMPLETED_AFTER_CANCELLATION_DECISION_SENT:
-        state = DecisionState.COMPLETED;
+      case COMPLETED_AFTER_CANCELLATION_COMMAND_SENT:
+        state = CommandState.COMPLETED;
         break;
       default:
         failStateTransition();
@@ -180,8 +180,8 @@ abstract class CommandStateMachineBase implements CommandStateMachine {
   public void handleCancellationEvent() {
     stateHistory.add("handleCancellationEvent");
     switch (state) {
-      case CANCELLATION_DECISION_SENT:
-        state = DecisionState.COMPLETED;
+      case CANCELLATION_COMMAND_SENT:
+        state = CommandState.COMPLETED;
         break;
       default:
         failStateTransition();

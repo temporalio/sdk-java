@@ -40,7 +40,7 @@ class SignalCommandStateMachine extends CommandStateMachineBase {
   SignalCommandStateMachine(
       CommandId id,
       SignalExternalWorkflowExecutionCommandAttributes attributes,
-      DecisionState state) {
+      CommandState state) {
     super(id, state);
     this.attributes = attributes;
   }
@@ -57,7 +57,7 @@ class SignalCommandStateMachine extends CommandStateMachineBase {
 
   @Override
   public boolean isDone() {
-    return state == DecisionState.COMPLETED || canceled;
+    return state == CommandState.COMPLETED || canceled;
   }
 
   @Override
@@ -67,14 +67,14 @@ class SignalCommandStateMachine extends CommandStateMachineBase {
     switch (state) {
       case CREATED:
       case INITIATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         if (immediateCancellationCallback != null) {
           immediateCancellationCallback.run();
         }
         result = true;
         break;
-      case DECISION_SENT:
-        state = DecisionState.CANCELED_BEFORE_INITIATED;
+      case COMMAND_SENT:
+        state = CommandState.CANCELED_BEFORE_INITIATED;
         if (immediateCancellationCallback != null) {
           immediateCancellationCallback.run();
         }
@@ -92,8 +92,8 @@ class SignalCommandStateMachine extends CommandStateMachineBase {
   public void handleInitiatedEvent(HistoryEvent event) {
     stateHistory.add("handleInitiatedEvent");
     switch (state) {
-      case DECISION_SENT:
-        state = DecisionState.INITIATED;
+      case COMMAND_SENT:
+        state = CommandState.INITIATED;
         break;
       case CANCELED_BEFORE_INITIATED:
         // No state change
@@ -118,10 +118,10 @@ class SignalCommandStateMachine extends CommandStateMachineBase {
   public void handleCompletionEvent() {
     stateHistory.add("handleCompletionEvent");
     switch (state) {
-      case DECISION_SENT:
+      case COMMAND_SENT:
       case INITIATED:
       case CANCELED_BEFORE_INITIATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         break;
       case COMPLETED:
         // No state change
@@ -148,11 +148,9 @@ class SignalCommandStateMachine extends CommandStateMachineBase {
   }
 
   private Command createSignalExternalWorkflowExecutionCommand() {
-    Command decision =
-        Command.newBuilder()
-            .setSignalExternalWorkflowExecutionCommandAttributes(attributes)
-            .setCommandType(CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
-            .build();
-    return decision;
+    return Command.newBuilder()
+        .setSignalExternalWorkflowExecutionCommandAttributes(attributes)
+        .setCommandType(CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
+        .build();
   }
 }

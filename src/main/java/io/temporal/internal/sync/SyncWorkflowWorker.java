@@ -27,8 +27,8 @@ import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
-import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.SuspendableWorker;
@@ -66,9 +66,9 @@ public class SyncWorkflowWorker
       ActivityInterceptor[] activityInterceptors,
       SingleWorkerOptions workflowOptions,
       SingleWorkerOptions localActivityOptions,
-      DeciderCache cache,
+      WorkflowExecutorCache cache,
       String stickyTaskQueueName,
-      Duration stickyDecisionScheduleToStartTimeout,
+      Duration stickyWorkflowTaskScheduleToStartTimeout,
       ThreadPoolExecutor workflowThreadPool) {
     Objects.requireNonNull(workflowThreadPool);
     this.dataConverter = workflowOptions.getDataConverter();
@@ -97,7 +97,7 @@ public class SyncWorkflowWorker
             cache,
             workflowOptions,
             stickyTaskQueueName,
-            stickyDecisionScheduleToStartTimeout,
+            stickyWorkflowTaskScheduleToStartTimeout,
             service,
             this::isShutdown,
             laWorker.getLocalActivityTaskPoller());

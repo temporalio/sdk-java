@@ -23,17 +23,17 @@ import io.temporal.api.command.v1.Command;
 
 final class UpsertSearchAttributesCommandStateMachine extends CommandStateMachineBase {
 
-  private final Command decision;
+  private final Command command;
 
-  UpsertSearchAttributesCommandStateMachine(CommandId id, Command decision) {
+  UpsertSearchAttributesCommandStateMachine(CommandId id, Command command) {
     super(id);
-    this.decision = decision;
+    this.command = command;
   }
 
   @Override
   public Command getCommand() {
-    if (state == DecisionState.CREATED) {
-      return decision;
+    if (state == CommandState.CREATED) {
+      return command;
     }
     return null;
   }

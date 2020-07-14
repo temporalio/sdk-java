@@ -297,7 +297,7 @@ public final class WorkflowWorker
       }
 
       try {
-        Stopwatch sw = metricsScope.timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
+        Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
         WorkflowTaskHandler.Result response = handler.handleWorkflowTask(task);
         sw.stop();
 

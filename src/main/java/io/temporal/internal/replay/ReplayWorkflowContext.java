@@ -42,7 +42,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Represents the context for decider. Should only be used within the scope of workflow definition
+ * Represents the context for workflow. Should only be used within the scope of workflow definition
  * code, meaning any code which is not part of activity implementations.
  */
 public interface ReplayWorkflowContext extends ReplayAware {
@@ -138,8 +138,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
       String id, DataConverter dataConverter, Func1<Optional<Payloads>, Optional<Payloads>> func);
 
   /**
-   * @return time of the {@link PollWorkflowTaskQueueResponse} start event of the decision being
-   *     processed or replayed.
+   * @return time of the {@link PollWorkflowTaskQueueResponse} start event of the workflow task
+   *     being processed or replayed.
    */
   long currentTimeMillis();
 

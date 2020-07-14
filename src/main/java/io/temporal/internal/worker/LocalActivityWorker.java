@@ -167,19 +167,19 @@ public final class LocalActivityWorker implements SuspendableWorker {
     private final LongSupplier currentTimeMillis;
     private final LongSupplier replayTimeUpdatedAtMillis;
     long taskStartTime;
-    private final int decisionTimeoutSeconds;
+    private final int workflowTaskTimeoutSeconds;
 
     public Task(
         ExecuteLocalActivityParameters params,
         Consumer<HistoryEvent> eventConsumer,
-        int decisionTimeoutSeconds,
+        int workflowTaskTimeoutSeconds,
         LongSupplier currentTimeMillis,
         LongSupplier replayTimeUpdatedAtMillis) {
       this.params = params;
       this.eventConsumer = eventConsumer;
       this.currentTimeMillis = currentTimeMillis;
       this.replayTimeUpdatedAtMillis = replayTimeUpdatedAtMillis;
-      this.decisionTimeoutSeconds = decisionTimeoutSeconds;
+      this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     }
   }
 
@@ -280,7 +280,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       }
 
       // For small backoff we do local retry. Otherwise we will schedule timer on server side.
-      if (elapsedTask + sleepMillis < task.decisionTimeoutSeconds * 1000) {
+      if (elapsedTask + sleepMillis < task.workflowTaskTimeoutSeconds * 1000) {
         Thread.sleep(sleepMillis);
         activityTask.setAttempt(attempt + 1);
         return handleLocalActivity(task);

@@ -57,9 +57,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
 
   private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowContextImpl.class);
 
-  private final ActivityDecisionContext activityClient;
-  private final WorkflowDecisionContext workflowClient;
-  private final ClockDecisionContext workflowClock;
+  private final ReplayActivityContext activityClient;
+  private final ReplayChildWorkflowContext workflowClient;
+  private final ReplayClockContext workflowClock;
   private final WorkflowContext workflowContext;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
@@ -72,8 +72,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
       SingleWorkerOptions options,
       Scope metricsScope,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
-      ReplayWorkflowExecutor replayDecider) {
-    this.activityClient = new ActivityDecisionContext(commandHelper);
+      ReplayWorkflowExecutor workflowExecutor) {
+    this.activityClient = new ReplayActivityContext(commandHelper);
     this.workflowContext =
         new WorkflowContext(
             namespace,
@@ -81,10 +81,10 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
             startedAttributes,
             runStartedTimestampMillis,
             options.getContextPropagators());
-    this.workflowClient = new WorkflowDecisionContext(commandHelper, workflowContext);
+    this.workflowClient = new ReplayChildWorkflowContext(commandHelper, workflowContext);
     this.workflowClock =
-        new ClockDecisionContext(
-            commandHelper, laTaskPoller, replayDecider, options.getDataConverter());
+        new ReplayClockContext(
+            commandHelper, laTaskPoller, workflowExecutor, options.getDataConverter());
     this.enableLoggingInReplay = options.getEnableLoggingInReplay();
     this.metricsScope = new ReplayAwareScope(metricsScope, this, workflowClock::currentTimeMillis);
   }

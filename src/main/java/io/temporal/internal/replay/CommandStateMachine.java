@@ -26,7 +26,7 @@ interface CommandStateMachine {
 
   Command getCommand();
 
-  /** @return true if produced a decision */
+  /** @return true if produced a command */
   boolean cancel(Runnable immediateCancellationCallback);
 
   void handleStartedEvent(HistoryEvent event);
@@ -45,7 +45,7 @@ interface CommandStateMachine {
 
   void handleWorkflowTaskStartedEvent();
 
-  DecisionState getState();
+  CommandState getState();
 
   boolean isDone();
 

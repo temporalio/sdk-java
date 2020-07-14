@@ -1371,7 +1371,7 @@ class StateMachines {
       }
     }
     if (!data.consistentQueryRequests.isEmpty()) {
-      ctx.setNeedDecision(true);
+      ctx.setNeedWorkflowTask(true);
     }
     ctx.unlockTimer();
   }
@@ -1395,7 +1395,7 @@ class StateMachines {
             .setWorkflowTaskFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
-    ctx.setNeedDecision(true);
+    ctx.setNeedWorkflowTask(true);
   }
 
   private static void timeoutWorkflowTask(
@@ -1411,7 +1411,7 @@ class StateMachines {
             .setWorkflowTaskTimedOutEventAttributes(a)
             .build();
     ctx.addEvent(event);
-    ctx.setNeedDecision(true);
+    ctx.setNeedWorkflowTask(true);
   }
 
   private static void needsDecision(
@@ -1419,7 +1419,7 @@ class StateMachines {
       WorkflowTaskData workflowTaskData,
       Object notUsedRequest,
       long notUsed) {
-    requestContext.setNeedDecision(true);
+    requestContext.setNeedWorkflowTask(true);
   }
 
   private static void completeActivityTask(

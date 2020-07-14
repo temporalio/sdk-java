@@ -28,9 +28,9 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * SyncWorkflow supports workflows that use synchronous blocking code. An instance is created per
- * decision.
+ * cached workflow run.
  */
 class SyncWorkflow implements ReplayWorkflow {
 
@@ -53,7 +53,7 @@ class SyncWorkflow implements ReplayWorkflow {
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
   WorkflowImplementationOptions workflowImplementationOptions;
-  private DeciderCache cache;
+  private WorkflowExecutorCache cache;
   private WorkflowExecuteRunnable workflowProc;
   private DeterministicRunner runner;
 
@@ -62,7 +62,7 @@ class SyncWorkflow implements ReplayWorkflow {
       WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       ExecutorService threadPool,
-      DeciderCache cache,
+      WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators) {
     this.workflow = Objects.requireNonNull(workflow);
     this.workflowImplementationOptions =

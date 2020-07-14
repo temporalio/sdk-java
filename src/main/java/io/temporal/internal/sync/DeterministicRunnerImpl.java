@@ -34,11 +34,11 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.context.ContextThreadLocal;
-import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -70,7 +70,9 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Throws Error in case of any unexpected condition. It is to fail a decision, not a workflow. */
+/**
+ * Throws Error in case of any unexpected condition. It is to fail a workflow task, not a workflow.
+ */
 class DeterministicRunnerImpl implements DeterministicRunner {
 
   private static final int ROOT_THREAD_PRIORITY = 0;
@@ -94,7 +96,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private final Lock lock = new ReentrantLock();
   private final ExecutorService threadPool;
-  private final SyncWorkflowContext decisionContext;
+  private final SyncWorkflowContext workflowContext;
 
   // Note that threads field is a set. So we need to make sure that getPriority never returns the
   // same value for different threads. We use addedThreads variable for this.
@@ -109,7 +111,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private int addedThreads;
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
   private final Supplier<Long> clock;
-  private DeciderCache cache;
+  private WorkflowExecutorCache cache;
   private boolean inRunUntilAllBlocked;
   private boolean closeRequested;
   private boolean closed;
@@ -184,23 +186,23 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
-      SyncWorkflowContext decisionContext,
+      SyncWorkflowContext workflowContext,
       Supplier<Long> clock,
       Runnable root) {
-    this(threadPool, decisionContext, clock, WORKFLOW_ROOT_THREAD_NAME, root, null);
+    this(threadPool, workflowContext, clock, WORKFLOW_ROOT_THREAD_NAME, root, null);
   }
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
-      SyncWorkflowContext decisionContext,
+      SyncWorkflowContext workflowContext,
       Supplier<Long> clock,
       String rootName,
       Runnable root,
-      DeciderCache cache) {
+      WorkflowExecutorCache cache) {
     this.threadPool = threadPool;
-    this.decisionContext =
-        decisionContext != null ? decisionContext : newDummySyncWorkflowContext();
-    this.decisionContext.setRunner(this);
+    this.workflowContext =
+        workflowContext != null ? workflowContext : newDummySyncWorkflowContext();
+    this.workflowContext.setRunner(this);
     this.clock = clock;
     this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
@@ -228,7 +230,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   SyncWorkflowContext getWorkflowContext() {
-    return decisionContext;
+    return workflowContext;
   }
 
   @Override
@@ -455,8 +457,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     lock.lock();
     try {
       checkClosed();
-      if (decisionContext != null) {
-        long nextFireTime = decisionContext.getNextFireTime();
+      if (workflowContext != null) {
+        long nextFireTime = workflowContext.getNextFireTime();
         if (nextWakeUpTime == 0) {
           return nextFireTime;
         }
@@ -564,7 +566,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     if (currentThreadThreadLocal.get() != null) {
       return ContextThreadLocal.getCurrentContextForPropagation();
     } else {
-      return decisionContext.getContext().getPropagatedContexts();
+      return workflowContext.getContext().getPropagatedContexts();
     }
   }
 
@@ -572,7 +574,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     if (currentThreadThreadLocal.get() != null) {
       return ContextThreadLocal.getContextPropagators();
     } else {
-      return decisionContext.getContext().getContextPropagators();
+      return workflowContext.getContext().getContextPropagators();
     }
   }
 

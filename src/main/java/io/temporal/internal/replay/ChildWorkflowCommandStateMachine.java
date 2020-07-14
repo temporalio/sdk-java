@@ -41,7 +41,7 @@ final class ChildWorkflowCommandStateMachine extends CommandStateMachineBase {
   ChildWorkflowCommandStateMachine(
       CommandId id,
       StartChildWorkflowExecutionCommandAttributes startAttributes,
-      DecisionState state) {
+      CommandState state) {
     super(id, state);
     this.startAttributes = startAttributes;
   }
@@ -62,7 +62,7 @@ final class ChildWorkflowCommandStateMachine extends CommandStateMachineBase {
   public void handleWorkflowTaskStartedEvent() {
     switch (state) {
       case CANCELED_AFTER_STARTED:
-        state = DecisionState.CANCELLATION_DECISION_SENT;
+        state = CommandState.CANCELLATION_COMMAND_SENT;
         break;
       default:
         super.handleWorkflowTaskStartedEvent();
@@ -74,10 +74,10 @@ final class ChildWorkflowCommandStateMachine extends CommandStateMachineBase {
     stateHistory.add("handleStartedEvent");
     switch (state) {
       case INITIATED:
-        state = DecisionState.STARTED;
+        state = CommandState.STARTED;
         break;
       case CANCELED_AFTER_INITIATED:
-        state = DecisionState.CANCELED_AFTER_STARTED;
+        state = CommandState.CANCELED_AFTER_STARTED;
         break;
       default:
     }
@@ -87,9 +87,9 @@ final class ChildWorkflowCommandStateMachine extends CommandStateMachineBase {
   @Override
   public void handleCancellationFailureEvent(HistoryEvent event) {
     switch (state) {
-      case CANCELLATION_DECISION_SENT:
+      case CANCELLATION_COMMAND_SENT:
         stateHistory.add("handleCancellationFailureEvent");
-        state = DecisionState.STARTED;
+        state = CommandState.STARTED;
         stateHistory.add(state.toString());
         break;
       default:
@@ -102,7 +102,7 @@ final class ChildWorkflowCommandStateMachine extends CommandStateMachineBase {
     switch (state) {
       case STARTED:
         stateHistory.add("cancel");
-        state = DecisionState.CANCELED_AFTER_STARTED;
+        state = CommandState.CANCELED_AFTER_STARTED;
         stateHistory.add(state.toString());
         return true;
       default:
@@ -115,7 +115,7 @@ final class ChildWorkflowCommandStateMachine extends CommandStateMachineBase {
     switch (state) {
       case STARTED:
         stateHistory.add("handleCancellationEvent");
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         stateHistory.add(state.toString());
         break;
       default:
@@ -129,7 +129,7 @@ final class ChildWorkflowCommandStateMachine extends CommandStateMachineBase {
       case STARTED:
       case CANCELED_AFTER_STARTED:
         stateHistory.add("handleCompletionEvent");
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         stateHistory.add(state.toString());
         break;
       default:

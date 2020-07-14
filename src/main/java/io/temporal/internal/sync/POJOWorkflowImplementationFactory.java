@@ -35,9 +35,9 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -78,13 +78,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       Collections.synchronizedMap(new HashMap<>());
 
   private final ExecutorService threadPool;
-  private DeciderCache cache;
+  private WorkflowExecutorCache cache;
 
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
       WorkflowInterceptor[] workflowInterceptors,
-      DeciderCache cache,
+      WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);

@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
 public class WorkflowExecutionUtils {
 
   /**
-   * Indentation for history and decisions pretty printing. Do not change it from 2 spaces. The gson
+   * Indentation for history and commands pretty printing. Do not change it from 2 spaces. The gson
    * pretty printer has it hardcoded and changing it breaks the indentation of exception stack
    * traces.
    */
@@ -678,7 +678,7 @@ public class WorkflowExecutionUtils {
   /**
    * Returns workflow instance history in a human readable format.
    *
-   * @param showWorkflowTasks when set to false workflow task events (decider events) are not
+   * @param showWorkflowTasks when set to false workflow task events (command events) are not
    *     included
    * @param metricsScope
    */
@@ -731,7 +731,7 @@ public class WorkflowExecutionUtils {
   /**
    * Returns workflow instance history in a human readable format.
    *
-   * @param showWorkflowTasks when set to false workflow task events (decider events) are not
+   * @param showWorkflowTasks when set to false workflow task events (command events) are not
    *     included
    * @param history Workflow instance history
    */
@@ -791,8 +791,8 @@ public class WorkflowExecutionUtils {
     }
   }
 
-  /** Is this an event that was created to mirror a decision? */
-  public static boolean isDecisionEvent(HistoryEvent event) {
+  /** Is this an event that was created to mirror a command? */
+  public static boolean isCommandEvent(HistoryEvent event) {
     EventType eventType = event.getEventType();
     boolean result =
         ((event != null)

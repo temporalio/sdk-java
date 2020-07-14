@@ -98,12 +98,12 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
     }
 
     if (result == null || result.getTaskToken().isEmpty()) {
-      metricsScope.counter(MetricsType.DECISION_POLL_NO_TASK_COUNTER).inc(1);
+      metricsScope.counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_EMPTY_COUNTER).inc(1);
       return null;
     }
-    metricsScope.counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
+    metricsScope.counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER).inc(1);
     metricsScope
-        .timer(MetricsType.DECISION_SCHEDULED_TO_START_LATENCY)
+        .timer(MetricsType.WORKFLOW_TASK_SCHEDULE_TO_START_LATENCY)
         .record(Duration.ofNanos(result.getStartedTimestamp() - result.getScheduledTimestamp()));
     return result;
   }

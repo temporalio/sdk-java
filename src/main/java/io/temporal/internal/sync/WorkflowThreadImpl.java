@@ -25,8 +25,8 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.Promise;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -150,7 +150,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   private final ExecutorService threadPool;
   private final WorkflowThreadContext context;
-  private final DeciderCache cache;
+  private final WorkflowExecutorCache cache;
   private final DeterministicRunnerImpl runner;
   private final RunnableWrapper task;
   private final int priority;
@@ -174,7 +174,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       boolean detached,
       CancellationScopeImpl parentCancellationScope,
       Runnable runnable,
-      DeciderCache cache,
+      WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators,
       Map<String, Object> propagatedContexts) {
     this.threadPool = threadPool;

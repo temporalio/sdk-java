@@ -26,7 +26,7 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
 /**
- * Timer doesn't have separate initiation decision as it is started immediately. But from the state
+ * Timer doesn't have separate initiation command as it is started immediately. But from the state
  * machine point of view it is modeled the same as activity with no TimerStarted event used as
  * initiation event.
  *
@@ -45,7 +45,7 @@ class TimerCommandStateMachine extends CommandStateMachineBase {
 
   /** Used for unit testing */
   TimerCommandStateMachine(
-      CommandId id, StartTimerCommandAttributes attributes, DecisionState state) {
+      CommandId id, StartTimerCommandAttributes attributes, CommandState state) {
     super(id, state);
     this.attributes = attributes;
   }
@@ -67,7 +67,7 @@ class TimerCommandStateMachine extends CommandStateMachineBase {
     switch (state) {
       case CANCELED_AFTER_INITIATED:
         stateHistory.add("handleWorkflowTaskStartedEvent");
-        state = DecisionState.CANCELLATION_DECISION_SENT;
+        state = CommandState.CANCELLATION_COMMAND_SENT;
         stateHistory.add(state.toString());
         break;
       default:
@@ -78,9 +78,9 @@ class TimerCommandStateMachine extends CommandStateMachineBase {
   @Override
   public void handleCancellationFailureEvent(HistoryEvent event) {
     switch (state) {
-      case CANCELLATION_DECISION_SENT:
+      case CANCELLATION_COMMAND_SENT:
         stateHistory.add("handleCancellationFailureEvent");
-        state = DecisionState.INITIATED;
+        state = CommandState.INITIATED;
         stateHistory.add(state.toString());
         break;
       default:
@@ -96,12 +96,12 @@ class TimerCommandStateMachine extends CommandStateMachineBase {
   }
 
   /**
-   * As timer is canceled immediately there is no need for waiting after cancellation decision was
+   * As timer is canceled immediately there is no need for waiting after cancellation command was
    * sent.
    */
   @Override
   public boolean isDone() {
-    return state == DecisionState.COMPLETED || canceled;
+    return state == CommandState.COMPLETED || canceled;
   }
 
   private Command createCancelTimerCommand() {

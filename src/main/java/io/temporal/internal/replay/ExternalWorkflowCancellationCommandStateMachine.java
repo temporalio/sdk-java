@@ -55,8 +55,8 @@ final class ExternalWorkflowCancellationCommandStateMachine extends CommandState
   public void handleInitiatedEvent(HistoryEvent event) {
     stateHistory.add("handleInitiatedEvent");
     switch (state) {
-      case DECISION_SENT:
-        state = DecisionState.INITIATED;
+      case COMMAND_SENT:
+        state = CommandState.INITIATED;
         break;
       default:
         failStateTransition();
@@ -78,9 +78,9 @@ final class ExternalWorkflowCancellationCommandStateMachine extends CommandState
   public void handleCompletionEvent() {
     stateHistory.add("handleCompletionEvent");
     switch (state) {
-      case DECISION_SENT:
+      case COMMAND_SENT:
       case INITIATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         break;
       default:
         failStateTransition();
@@ -104,11 +104,9 @@ final class ExternalWorkflowCancellationCommandStateMachine extends CommandState
   }
 
   private Command createRequestCancelExternalWorkflowExecutionCommand() {
-    Command decision =
-        Command.newBuilder()
-            .setRequestCancelExternalWorkflowExecutionCommandAttributes(attributes)
-            .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
-            .build();
-    return decision;
+    return Command.newBuilder()
+        .setRequestCancelExternalWorkflowExecutionCommandAttributes(attributes)
+        .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
+        .build();
   }
 }

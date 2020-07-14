@@ -179,7 +179,7 @@ public interface TestWorkflowEnvironment {
   boolean isTerminated();
 
   /**
-   * Initiates an orderly shutdown in which polls are stopped and already received decision and
+   * Initiates an orderly shutdown in which polls are stopped and already received workflow and
    * activity tasks are executed. After the shutdown calls to {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
    * io.temporal.client.ActivityWorkerShutdownException}. Invocation has no additional effect if

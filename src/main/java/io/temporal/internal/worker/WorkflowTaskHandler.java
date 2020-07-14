@@ -38,7 +38,7 @@ public interface WorkflowTaskHandler {
     private final RespondWorkflowTaskFailedRequest taskFailed;
     private final RespondQueryTaskCompletedRequest queryCompleted;
     private final RpcRetryOptions requestRetryOptions;
-    private final boolean finalDecision;
+    private final boolean completionCommand;
 
     public Result(
         String workflowType,
@@ -46,13 +46,13 @@ public interface WorkflowTaskHandler {
         RespondWorkflowTaskFailedRequest taskFailed,
         RespondQueryTaskCompletedRequest queryCompleted,
         RpcRetryOptions requestRetryOptions,
-        boolean finalDecision) {
+        boolean completionCommand) {
       this.workflowType = workflowType;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.queryCompleted = queryCompleted;
       this.requestRetryOptions = requestRetryOptions;
-      this.finalDecision = finalDecision;
+      this.completionCommand = completionCommand;
     }
 
     public RespondWorkflowTaskCompletedRequest getTaskCompleted() {
@@ -71,8 +71,8 @@ public interface WorkflowTaskHandler {
       return requestRetryOptions;
     }
 
-    public boolean isFinalDecision() {
-      return finalDecision;
+    public boolean isCompletionCommand() {
+      return completionCommand;
     }
 
     @Override

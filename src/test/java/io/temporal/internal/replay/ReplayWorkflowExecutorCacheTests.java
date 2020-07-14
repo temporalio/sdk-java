@@ -61,44 +61,41 @@ public class ReplayWorkflowExecutorCacheTests {
   }
 
   @Test
-  public void whenHistoryIsFullNewReplayDeciderIsReturnedAndCached_InitiallyEmpty()
+  public void whenHistoryIsFullNewWorkflowExecutorIsReturnedAndCached_InitiallyEmpty()
       throws Exception {
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(10, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     String runId = workflowTask.getWorkflowExecution().getRunId();
 
-    assertCacheIsEmpty(replayDeciderCache, runId);
+    assertCacheIsEmpty(cache, runId);
 
     // Act
     WorkflowExecutor workflowExecutor =
-        replayDeciderCache.getOrCreate(
-            workflowTask, metricsScope, () -> createFakeDecider(workflowTask));
+        cache.getOrCreate(workflowTask, metricsScope, () -> createFakeExecutor(workflowTask));
 
     // Assert
     assertNotEquals(
         workflowExecutor,
-        replayDeciderCache.getOrCreate(
-            workflowTask, metricsScope, () -> createFakeDecider(workflowTask)));
+        cache.getOrCreate(workflowTask, metricsScope, () -> createFakeExecutor(workflowTask)));
   }
 
   @Test
-  public void whenHistoryIsFullNewReplayDeciderIsReturned_InitiallyCached() throws Exception {
+  public void whenHistoryIsFullNewWorkflowExecutorIsReturned_InitiallyCached() throws Exception {
     TestWorkflowService testService = new TestWorkflowService();
     WorkflowServiceStubs service = testService.newClientStub();
 
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(10, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory(
             "namespace", "taskQueue", "workflowType", service);
 
     WorkflowExecutor workflowExecutor =
-        replayDeciderCache.getOrCreate(
-            workflowTask1, metricsScope, () -> createFakeDecider(workflowTask1));
-    replayDeciderCache.addToCache(workflowTask1, workflowExecutor);
+        cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
+    cache.addToCache(workflowTask1, workflowExecutor);
 
     PollWorkflowTaskQueueResponse workflowTask2 =
         HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
@@ -106,19 +103,17 @@ public class ReplayWorkflowExecutorCacheTests {
 
     assertEquals(
         workflowExecutor,
-        replayDeciderCache.getOrCreate(
-            workflowTask2, metricsScope, () -> doNotCreateFakeDecider(workflowTask2)));
+        cache.getOrCreate(
+            workflowTask2, metricsScope, () -> doNotCreateFakeExecutor(workflowTask2)));
 
     // Act
     WorkflowExecutor workflowExecutor2 =
-        replayDeciderCache.getOrCreate(
-            workflowTask2, metricsScope, () -> createFakeDecider(workflowTask2));
+        cache.getOrCreate(workflowTask2, metricsScope, () -> createFakeExecutor(workflowTask2));
 
     // Assert
     assertEquals(
         workflowExecutor2,
-        replayDeciderCache.getOrCreate(
-            workflowTask2, metricsScope, () -> createFakeDecider(workflowTask2)));
+        cache.getOrCreate(workflowTask2, metricsScope, () -> createFakeExecutor(workflowTask2)));
     assertSame(workflowExecutor2, workflowExecutor);
     service.shutdownNow();
     try {
@@ -138,7 +133,7 @@ public class ReplayWorkflowExecutorCacheTests {
             .build();
     Scope scope = metricsScope.tagged(tags);
 
-    DeciderCache replayDeciderCache = new DeciderCache(10, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, scope);
     TestWorkflowService testService = new TestWorkflowService(true);
     WorkflowServiceStubs service = testService.newClientStub();
     try {
@@ -147,17 +142,15 @@ public class ReplayWorkflowExecutorCacheTests {
               "namespace", "taskQueue", "workflowType", service);
 
       WorkflowExecutor workflowExecutor =
-          replayDeciderCache.getOrCreate(
-              workflowTask, scope, () -> createFakeDecider(workflowTask));
-      replayDeciderCache.addToCache(workflowTask, workflowExecutor);
+          cache.getOrCreate(workflowTask, scope, () -> createFakeExecutor(workflowTask));
+      cache.addToCache(workflowTask, workflowExecutor);
 
       // Act
       PollWorkflowTaskQueueResponse workflowTask2 =
           HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
               workflowTask, "namespace", "stickyTaskQueue", service);
       WorkflowExecutor workflowExecutor2 =
-          replayDeciderCache.getOrCreate(
-              workflowTask2, scope, () -> doNotCreateFakeDecider(workflowTask2));
+          cache.getOrCreate(workflowTask2, scope, () -> doNotCreateFakeExecutor(workflowTask2));
 
       // Assert
       // Wait for reporter
@@ -181,16 +174,16 @@ public class ReplayWorkflowExecutorCacheTests {
             .put(MetricsTag.TASK_QUEUE, "stickyTaskQueue")
             .build();
     Scope scope = metricsScope.tagged(tags);
-    DeciderCache replayDeciderCache = new DeciderCache(10, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, scope);
 
     // Act
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithPartialHistory();
 
     try {
-      replayDeciderCache.getOrCreate(workflowTask, scope, () -> createFakeDecider(workflowTask));
+      cache.getOrCreate(workflowTask, scope, () -> createFakeExecutor(workflowTask));
       fail(
-          "Expected replayDeciderCache.getOrCreate to throw IllegalArgumentException but no exception was thrown");
+          "Expected workflowExecutorCache.getOrCreate to throw IllegalArgumentException but no exception was thrown");
     } catch (IllegalArgumentException ex) {
 
       // Wait for reporter
@@ -210,7 +203,7 @@ public class ReplayWorkflowExecutorCacheTests {
     Scope scope = metricsScope.tagged(tags);
 
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(50, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(50, scope);
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
     PollWorkflowTaskQueueResponse workflowTask2 =
@@ -220,25 +213,21 @@ public class ReplayWorkflowExecutorCacheTests {
 
     // Act
     WorkflowExecutor workflowExecutor =
-        replayDeciderCache.getOrCreate(
-            workflowTask1, scope, () -> createFakeDecider(workflowTask1));
-    replayDeciderCache.addToCache(workflowTask1, workflowExecutor);
+        cache.getOrCreate(workflowTask1, scope, () -> createFakeExecutor(workflowTask1));
+    cache.addToCache(workflowTask1, workflowExecutor);
     workflowExecutor =
-        replayDeciderCache.getOrCreate(
-            workflowTask2, scope, () -> createFakeDecider(workflowTask2));
-    replayDeciderCache.addToCache(workflowTask2, workflowExecutor);
+        cache.getOrCreate(workflowTask2, scope, () -> createFakeExecutor(workflowTask2));
+    cache.addToCache(workflowTask2, workflowExecutor);
     workflowExecutor =
-        replayDeciderCache.getOrCreate(
-            workflowTask3, scope, () -> createFakeDecider(workflowTask3));
-    replayDeciderCache.addToCache(workflowTask3, workflowExecutor);
+        cache.getOrCreate(workflowTask3, scope, () -> createFakeExecutor(workflowTask3));
+    cache.addToCache(workflowTask3, workflowExecutor);
 
-    assertEquals(3, replayDeciderCache.size());
+    assertEquals(3, cache.size());
 
-    replayDeciderCache.evictAnyNotInProcessing(
-        workflowTask3.getWorkflowExecution().getRunId(), scope);
+    cache.evictAnyNotInProcessing(workflowTask3.getWorkflowExecution().getRunId(), scope);
 
     // Assert
-    assertEquals(2, replayDeciderCache.size());
+    assertEquals(2, cache.size());
 
     // Wait for reporter
     Thread.sleep(100);
@@ -248,46 +237,44 @@ public class ReplayWorkflowExecutorCacheTests {
   @Test
   public void evictAnyWillNotInvalidateItself() throws Exception {
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(50, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(50, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     // Act
     WorkflowExecutor workflowExecutor =
-        replayDeciderCache.getOrCreate(
-            workflowTask1, metricsScope, () -> createFakeDecider(workflowTask1));
-    replayDeciderCache.addToCache(workflowTask1, workflowExecutor);
+        cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
+    cache.addToCache(workflowTask1, workflowExecutor);
 
-    assertEquals(1, replayDeciderCache.size());
+    assertEquals(1, cache.size());
 
-    replayDeciderCache.evictAnyNotInProcessing(
-        workflowTask1.getWorkflowExecution().getRunId(), metricsScope);
+    cache.evictAnyNotInProcessing(workflowTask1.getWorkflowExecution().getRunId(), metricsScope);
 
     // Assert
-    assertEquals(1, replayDeciderCache.size());
+    assertEquals(1, cache.size());
   }
 
-  private void assertCacheIsEmpty(DeciderCache cache, String runId) throws Exception {
+  private void assertCacheIsEmpty(WorkflowExecutorCache cache, String runId) throws Exception {
     Throwable ex = null;
     try {
       PollWorkflowTaskQueueResponse workflowTask =
           PollWorkflowTaskQueueResponse.newBuilder()
               .setWorkflowExecution(WorkflowExecution.newBuilder().setRunId(runId))
               .build();
-      cache.getOrCreate(workflowTask, metricsScope, () -> doNotCreateFakeDecider(workflowTask));
+      cache.getOrCreate(workflowTask, metricsScope, () -> doNotCreateFakeExecutor(workflowTask));
     } catch (AssertionError e) {
       ex = e;
     }
     TestCase.assertNotNull(ex);
   }
 
-  private ReplayWorkflowExecutor doNotCreateFakeDecider(
+  private ReplayWorkflowExecutor doNotCreateFakeExecutor(
       @SuppressWarnings("unused") PollWorkflowTaskQueueResponse response) {
     fail("should not be called");
     return null;
   }
 
-  private ReplayWorkflowExecutor createFakeDecider(PollWorkflowTaskQueueResponse response) {
+  private ReplayWorkflowExecutor createFakeExecutor(PollWorkflowTaskQueueResponse response) {
     return new ReplayWorkflowExecutor(
         null,
         "namespace",
