@@ -423,7 +423,7 @@ class StateMachines {
         .add(CANCELLATION_REQUESTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutWorkflow);
   }
 
-  static StateMachine<WorkflowTaskData> newDecisionStateMachine(
+  static StateMachine<WorkflowTaskData> newCommandStateMachine(
       TestWorkflowStore store, StartWorkflowExecutionRequest startRequest) {
     return new StateMachine<>(new WorkflowTaskData(store, startRequest))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleWorkflowTask)

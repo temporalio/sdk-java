@@ -21,13 +21,13 @@ package io.temporal.internal.replay;
 
 import java.util.Objects;
 
-class DecisionId {
+class CommandId {
 
   private final DecisionTarget decisionTarget;
 
   private final long decisionEventId;
 
-  DecisionId(DecisionTarget decisionTarget, long decisionEventId) {
+  CommandId(DecisionTarget decisionTarget, long decisionEventId) {
     this.decisionEventId = decisionEventId;
     this.decisionTarget = Objects.requireNonNull(decisionTarget);
   }
@@ -45,11 +45,11 @@ class DecisionId {
     if (this == o) {
       return true;
     }
-    if (o == null || !(o instanceof DecisionId)) {
+    if (o == null || !(o instanceof CommandId)) {
       return false;
     }
 
-    DecisionId that = (DecisionId) o;
+    CommandId that = (CommandId) o;
 
     if (decisionEventId != that.decisionEventId) {
       return false;

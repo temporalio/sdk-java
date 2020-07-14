@@ -65,7 +65,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
   private final boolean enableLoggingInReplay;
 
   ReplayWorkflowContextImpl(
-      DecisionsHelper decisionsHelper,
+      CommandHelper commandHelper,
       String namespace,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       long runStartedTimestampMillis,
@@ -73,18 +73,18 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
       Scope metricsScope,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
       ReplayWorkflowExecutor replayDecider) {
-    this.activityClient = new ActivityDecisionContext(decisionsHelper);
+    this.activityClient = new ActivityDecisionContext(commandHelper);
     this.workflowContext =
         new WorkflowContext(
             namespace,
-            decisionsHelper.getTask(),
+            commandHelper.getTask(),
             startedAttributes,
             runStartedTimestampMillis,
             options.getContextPropagators());
-    this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
+    this.workflowClient = new WorkflowDecisionContext(commandHelper, workflowContext);
     this.workflowClock =
         new ClockDecisionContext(
-            decisionsHelper, laTaskPoller, replayDecider, options.getDataConverter());
+            commandHelper, laTaskPoller, replayDecider, options.getDataConverter());
     this.enableLoggingInReplay = options.getEnableLoggingInReplay();
     this.metricsScope = new ReplayAwareScope(metricsScope, this, workflowClock::currentTimeMillis);
   }

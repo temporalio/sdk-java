@@ -30,32 +30,33 @@ import java.util.Optional;
 
 public interface WorkflowExecutor {
 
-  DecisionResult decide(PollWorkflowTaskQueueResponseOrBuilder workflowTask) throws Throwable;
-
-  Optional<Payloads> query(PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query)
+  WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask)
       throws Throwable;
+
+  Optional<Payloads> handleQueryWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) throws Throwable;
 
   void close();
 
-  class DecisionResult {
-    private final List<Command> decisions;
+  class WorkflowTaskResult {
+    private final List<Command> commands;
     private final boolean forceCreateNewWorkflowTask;
-    private final boolean finalDecision;
+    private final boolean finalCommand;
     private final Map<String, WorkflowQueryResult> queryResults;
 
-    public DecisionResult(
-        List<Command> decisions,
+    public WorkflowTaskResult(
+        List<Command> commands,
         Map<String, WorkflowQueryResult> queryResults,
         boolean forceCreateNewWorkflowTask,
-        boolean finalDecision) {
-      this.decisions = decisions;
+        boolean finalCommand) {
+      this.commands = commands;
       this.queryResults = queryResults;
       this.forceCreateNewWorkflowTask = forceCreateNewWorkflowTask;
-      this.finalDecision = finalDecision;
+      this.finalCommand = finalCommand;
     }
 
-    public List<Command> getDecisions() {
-      return decisions;
+    public List<Command> getCommands() {
+      return commands;
     }
 
     public boolean getForceCreateNewWorkflowTask() {
@@ -67,8 +68,8 @@ public interface WorkflowExecutor {
     }
 
     /** Is this result contain a workflow completion decision */
-    public boolean isFinalDecision() {
-      return finalDecision;
+    public boolean isFinalCommand() {
+      return finalCommand;
     }
   }
 }

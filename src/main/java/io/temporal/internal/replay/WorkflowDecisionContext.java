@@ -104,7 +104,7 @@ final class WorkflowDecisionContext {
     }
   }
 
-  private final DecisionsHelper decisions;
+  private final CommandHelper decisions;
 
   private final WorkflowContext workflowContext;
 
@@ -117,7 +117,7 @@ final class WorkflowDecisionContext {
   // key is initiatedEventId
   private final Map<Long, OpenRequestInfo<Void, Void>> scheduledSignals = new HashMap<>();
 
-  WorkflowDecisionContext(DecisionsHelper decisions, WorkflowContext workflowContext) {
+  WorkflowDecisionContext(CommandHelper decisions, WorkflowContext workflowContext) {
     this.decisions = decisions;
     this.workflowContext = workflowContext;
   }

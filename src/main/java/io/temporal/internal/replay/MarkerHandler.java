@@ -127,14 +127,14 @@ class MarkerHandler {
     }
   }
 
-  private final DecisionsHelper decisions;
+  private final CommandHelper decisions;
   private final String markerName;
   private final ReplayAware replayContext;
 
   // Key is marker id
   private final Map<String, MarkerResult> mutableMarkerResults = new HashMap<>();
 
-  MarkerHandler(DecisionsHelper decisions, String markerName, ReplayAware replayContext) {
+  MarkerHandler(CommandHelper decisions, String markerName, ReplayAware replayContext) {
     this.decisions = decisions;
     this.markerName = markerName;
     this.replayContext = replayContext;

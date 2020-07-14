@@ -20,34 +20,21 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.command.v1.Command;
-import io.temporal.api.history.v1.HistoryEvent;
 
-interface DecisionStateMachine {
+final class UpsertSearchAttributesCommandStateMachine extends CommandStateMachineBase {
 
-  Command getDecision();
+  private final Command decision;
 
-  /** @return true if produced a decision */
-  boolean cancel(Runnable immediateCancellationCallback);
+  UpsertSearchAttributesCommandStateMachine(CommandId id, Command decision) {
+    super(id);
+    this.decision = decision;
+  }
 
-  void handleStartedEvent(HistoryEvent event);
-
-  void handleCancellationInitiatedEvent();
-
-  void handleCancellationEvent();
-
-  void handleCancellationFailureEvent(HistoryEvent event);
-
-  void handleCompletionEvent();
-
-  void handleInitiationFailedEvent(HistoryEvent event);
-
-  void handleInitiatedEvent(HistoryEvent event);
-
-  void handleWorkflowTaskStartedEvent();
-
-  DecisionState getState();
-
-  boolean isDone();
-
-  DecisionId getId();
+  @Override
+  public Command getCommand() {
+    if (state == DecisionState.CREATED) {
+      return decision;
+    }
+    return null;
+  }
 }

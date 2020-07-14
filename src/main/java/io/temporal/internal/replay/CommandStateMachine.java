@@ -20,21 +20,34 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.command.v1.Command;
+import io.temporal.api.history.v1.HistoryEvent;
 
-final class MarkerDecisionStateMachine extends DecisionStateMachineBase {
+interface CommandStateMachine {
 
-  private final Command decision;
+  Command getCommand();
 
-  MarkerDecisionStateMachine(DecisionId id, Command decision) {
-    super(id);
-    this.decision = decision;
-  }
+  /** @return true if produced a decision */
+  boolean cancel(Runnable immediateCancellationCallback);
 
-  @Override
-  public Command getDecision() {
-    if (state == DecisionState.CREATED) {
-      return decision;
-    }
-    return null;
-  }
+  void handleStartedEvent(HistoryEvent event);
+
+  void handleCancellationInitiatedEvent();
+
+  void handleCancellationEvent();
+
+  void handleCancellationFailureEvent(HistoryEvent event);
+
+  void handleCompletionEvent();
+
+  void handleInitiationFailedEvent(HistoryEvent event);
+
+  void handleInitiatedEvent(HistoryEvent event);
+
+  void handleWorkflowTaskStartedEvent();
+
+  DecisionState getState();
+
+  boolean isDone();
+
+  CommandId getId();
 }

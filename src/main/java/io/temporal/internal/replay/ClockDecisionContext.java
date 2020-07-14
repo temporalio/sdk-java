@@ -74,7 +74,7 @@ public final class ClockDecisionContext {
     }
   }
 
-  private final DecisionsHelper decisions;
+  private final CommandHelper decisions;
   // key is startedEventId
   private final Map<Long, OpenRequestInfo<?, Long>> scheduledTimers = new HashMap<>();
   private long replayCurrentTimeMilliseconds = -1;
@@ -95,7 +95,7 @@ public final class ClockDecisionContext {
   private boolean taskCompleted = false;
 
   ClockDecisionContext(
-      DecisionsHelper decisions,
+      CommandHelper decisions,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
       ReplayWorkflowExecutor replayDecider,
       DataConverter dataConverter) {

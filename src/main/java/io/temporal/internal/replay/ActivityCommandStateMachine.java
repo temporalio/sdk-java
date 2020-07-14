@@ -25,13 +25,13 @@ import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
-final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
+final class ActivityCommandStateMachine extends CommandStateMachineBase {
 
   private ScheduleActivityTaskCommandAttributes scheduleAttributes;
   private long scheduledEventId;
 
-  public ActivityDecisionStateMachine(
-      DecisionId id,
+  public ActivityCommandStateMachine(
+      CommandId id,
       ScheduleActivityTaskCommandAttributes scheduleAttributes,
       long scheduledEventId) {
     super(id);
@@ -40,8 +40,8 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   /** Used for unit testing */
-  ActivityDecisionStateMachine(
-      DecisionId id,
+  ActivityCommandStateMachine(
+      CommandId id,
       ScheduleActivityTaskCommandAttributes scheduleAttributes,
       DecisionState state,
       long scheduledEventId) {
@@ -51,12 +51,12 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   @Override
-  public Command getDecision() {
+  public Command getCommand() {
     switch (state) {
       case CREATED:
-        return createScheduleActivityTaskDecision();
+        return createScheduleActivityTaskCommand();
       case CANCELED_AFTER_INITIATED:
-        return createRequestCancelActivityTaskDecision();
+        return createRequestCancelActivityTaskCommand();
       default:
         return null;
     }
@@ -88,7 +88,7 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
     }
   }
 
-  private Command createRequestCancelActivityTaskDecision() {
+  private Command createRequestCancelActivityTaskCommand() {
     return Command.newBuilder()
         .setRequestCancelActivityTaskCommandAttributes(
             RequestCancelActivityTaskCommandAttributes.newBuilder()
@@ -97,7 +97,7 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
         .build();
   }
 
-  private Command createScheduleActivityTaskDecision() {
+  private Command createScheduleActivityTaskCommand() {
     scheduledEventId = getId().getDecisionEventId();
     return Command.newBuilder()
         .setScheduleActivityTaskCommandAttributes(scheduleAttributes)

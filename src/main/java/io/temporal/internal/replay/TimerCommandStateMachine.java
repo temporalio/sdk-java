@@ -32,31 +32,31 @@ import io.temporal.api.history.v1.HistoryEvent;
  *
  * @author fateev
  */
-class TimerDecisionStateMachine extends DecisionStateMachineBase {
+class TimerCommandStateMachine extends CommandStateMachineBase {
 
   private StartTimerCommandAttributes attributes;
 
   private boolean canceled;
 
-  public TimerDecisionStateMachine(DecisionId id, StartTimerCommandAttributes attributes) {
+  public TimerCommandStateMachine(CommandId id, StartTimerCommandAttributes attributes) {
     super(id);
     this.attributes = attributes;
   }
 
   /** Used for unit testing */
-  TimerDecisionStateMachine(
-      DecisionId id, StartTimerCommandAttributes attributes, DecisionState state) {
+  TimerCommandStateMachine(
+      CommandId id, StartTimerCommandAttributes attributes, DecisionState state) {
     super(id, state);
     this.attributes = attributes;
   }
 
   @Override
-  public Command getDecision() {
+  public Command getCommand() {
     switch (state) {
       case CREATED:
-        return createStartTimerDecision();
+        return createStartTimerCommand();
       case CANCELED_AFTER_INITIATED:
-        return createCancelTimerDecision();
+        return createCancelTimerCommand();
       default:
         return null;
     }
@@ -104,7 +104,7 @@ class TimerDecisionStateMachine extends DecisionStateMachineBase {
     return state == DecisionState.COMPLETED || canceled;
   }
 
-  private Command createCancelTimerDecision() {
+  private Command createCancelTimerCommand() {
     return Command.newBuilder()
         .setCancelTimerCommandAttributes(
             CancelTimerCommandAttributes.newBuilder().setTimerId(attributes.getTimerId()))
@@ -112,7 +112,7 @@ class TimerDecisionStateMachine extends DecisionStateMachineBase {
         .build();
   }
 
-  private Command createStartTimerDecision() {
+  private Command createStartTimerCommand() {
     return Command.newBuilder()
         .setStartTimerCommandAttributes(attributes)
         .setCommandType(CommandType.COMMAND_TYPE_START_TIMER)

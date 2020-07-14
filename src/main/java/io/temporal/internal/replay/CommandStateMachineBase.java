@@ -23,21 +23,21 @@ import io.temporal.api.history.v1.HistoryEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class DecisionStateMachineBase implements DecisionStateMachine {
+abstract class CommandStateMachineBase implements CommandStateMachine {
 
   protected DecisionState state = DecisionState.CREATED;
 
   protected List<String> stateHistory = new ArrayList<String>();
 
-  private final DecisionId id;
+  private final CommandId id;
 
-  public DecisionStateMachineBase(DecisionId id) {
+  public CommandStateMachineBase(CommandId id) {
     this.id = id;
     stateHistory.add(state.toString());
   }
 
   /** Used for unit testing. */
-  protected DecisionStateMachineBase(DecisionId id, DecisionState state) {
+  protected CommandStateMachineBase(CommandId id, DecisionState state) {
     this.id = id;
     this.state = state;
     stateHistory.add(state.toString());
@@ -49,7 +49,7 @@ abstract class DecisionStateMachineBase implements DecisionStateMachine {
   }
 
   @Override
-  public DecisionId getId() {
+  public CommandId getId() {
     return id;
   }
 
@@ -191,7 +191,7 @@ abstract class DecisionStateMachineBase implements DecisionStateMachine {
 
   @Override
   public String toString() {
-    return "DecisionStateMachineBase [id="
+    return "CommandStateMachineBase [id="
         + id
         + ", state="
         + state

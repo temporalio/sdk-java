@@ -163,9 +163,10 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 });
       }
 
-      WorkflowExecutor.DecisionResult result = workflowExecutor.decide(workflowTask);
+      WorkflowExecutor.WorkflowTaskResult result =
+          workflowExecutor.handleWorkflowTask(workflowTask);
 
-      if (result.isFinalDecision()) {
+      if (result.isFinalCommand()) {
         cache.invalidate(workflowTask.getWorkflowExecution().getRunId(), metricsScope);
       } else if (stickyTaskQueueName != null && createdNew.get()) {
         cache.addToCache(workflowTask, workflowExecutor);
@@ -181,7 +182,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 + ", RunId="
                 + execution.getRunId()
                 + " completed with \n"
-                + WorkflowExecutionUtils.prettyPrintDecisions(result.getDecisions())
+                + WorkflowExecutionUtils.prettyPrintDecisions(result.getCommands())
                 + "\nforceCreateNewWorkflowTask "
                 + result.getForceCreateNewWorkflowTask());
       } else if (log.isDebugEnabled()) {
@@ -194,7 +195,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 + ", RunId="
                 + execution.getRunId()
                 + " completed with "
-                + result.getDecisions().size()
+                + result.getCommands().size()
                 + " new decisions"
                 + " forceCreateNewWorkflowTask "
                 + result.getForceCreateNewWorkflowTask());
@@ -242,7 +243,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
 
       Optional<Payloads> queryResult =
-          workflowExecutor.query(workflowTask, workflowTask.getQuery());
+          workflowExecutor.handleQueryWorkflowTask(workflowTask, workflowTask.getQuery());
       if (stickyTaskQueueName != null && createdNew.get()) {
         cache.addToCache(workflowTask, workflowExecutor);
       }
@@ -276,11 +277,11 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private Result createCompletedRequest(
       String workflowType,
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      WorkflowExecutor.DecisionResult result) {
+      WorkflowExecutor.WorkflowTaskResult result) {
     RespondWorkflowTaskCompletedRequest.Builder completedRequest =
         RespondWorkflowTaskCompletedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())
-            .addAllCommands(result.getDecisions())
+            .addAllCommands(result.getCommands())
             .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewWorkflowTask(result.getForceCreateNewWorkflowTask());
 
@@ -293,7 +294,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       completedRequest.setStickyAttributes(attributes);
     }
     return new Result(
-        workflowType, completedRequest.build(), null, null, null, result.isFinalDecision());
+        workflowType, completedRequest.build(), null, null, null, result.isFinalCommand());
   }
 
   @Override

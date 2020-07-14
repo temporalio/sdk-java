@@ -191,7 +191,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             // runId.
             continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
-    this.decision = StateMachines.newDecisionStateMachine(store, startRequest);
+    this.decision = StateMachines.newCommandStateMachine(store, startRequest);
   }
 
   /** Based on overrideStartWorkflowExecutionRequest from historyEngine.go */

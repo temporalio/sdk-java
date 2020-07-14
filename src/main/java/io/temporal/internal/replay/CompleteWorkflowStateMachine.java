@@ -22,23 +22,23 @@ package io.temporal.internal.replay;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.history.v1.HistoryEvent;
 
-final class CompleteWorkflowStateMachine implements DecisionStateMachine {
+final class CompleteWorkflowStateMachine implements CommandStateMachine {
 
   private Command decision;
-  private final DecisionId id;
+  private final CommandId id;
 
-  public CompleteWorkflowStateMachine(DecisionId id, Command decision) {
+  public CompleteWorkflowStateMachine(CommandId id, Command decision) {
     this.id = id;
     this.decision = decision;
   }
 
   @Override
-  public DecisionId getId() {
+  public CommandId getId() {
     return id;
   }
 
   @Override
-  public Command getDecision() {
+  public Command getCommand() {
     return decision;
   }
 

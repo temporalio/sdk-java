@@ -853,12 +853,13 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public DecisionResult decide(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-      return new DecisionResult(new ArrayList<>(), Maps.newHashMap(), false, false);
+    public WorkflowTaskResult handleWorkflowTask(
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
+      return new WorkflowTaskResult(new ArrayList<>(), Maps.newHashMap(), false, false);
     }
 
     @Override
-    public Optional<Payloads> query(
+    public Optional<Payloads> handleQueryWorkflowTask(
         PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) throws Throwable {
       return Optional.empty();
     }

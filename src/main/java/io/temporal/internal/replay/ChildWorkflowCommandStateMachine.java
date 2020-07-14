@@ -25,21 +25,21 @@ import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
-final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
+final class ChildWorkflowCommandStateMachine extends CommandStateMachineBase {
 
   private StartChildWorkflowExecutionCommandAttributes startAttributes;
 
   private String runId;
 
-  public ChildWorkflowDecisionStateMachine(
-      DecisionId id, StartChildWorkflowExecutionCommandAttributes startAttributes) {
+  public ChildWorkflowCommandStateMachine(
+      CommandId id, StartChildWorkflowExecutionCommandAttributes startAttributes) {
     super(id);
     this.startAttributes = startAttributes;
   }
 
   /** Used for unit testing */
-  ChildWorkflowDecisionStateMachine(
-      DecisionId id,
+  ChildWorkflowCommandStateMachine(
+      CommandId id,
       StartChildWorkflowExecutionCommandAttributes startAttributes,
       DecisionState state) {
     super(id, state);
@@ -47,12 +47,12 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   @Override
-  public Command getDecision() {
+  public Command getCommand() {
     switch (state) {
       case CREATED:
-        return createStartChildWorkflowExecutionDecision();
+        return createStartChildWorkflowExecutionCommand();
       case CANCELED_AFTER_STARTED:
-        return createRequestCancelExternalWorkflowExecutionDecision();
+        return createRequestCancelExternalWorkflowExecutionCommand();
       default:
         return null;
     }
@@ -137,7 +137,7 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
     }
   }
 
-  private Command createRequestCancelExternalWorkflowExecutionDecision() {
+  private Command createRequestCancelExternalWorkflowExecutionCommand() {
     return Command.newBuilder()
         .setRequestCancelExternalWorkflowExecutionCommandAttributes(
             RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
@@ -147,7 +147,7 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
         .build();
   }
 
-  private Command createStartChildWorkflowExecutionDecision() {
+  private Command createStartChildWorkflowExecutionCommand() {
     return Command.newBuilder()
         .setStartChildWorkflowExecutionCommandAttributes(startAttributes)
         .setCommandType(CommandType.COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION)

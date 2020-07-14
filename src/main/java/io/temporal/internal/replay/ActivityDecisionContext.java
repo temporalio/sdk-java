@@ -90,7 +90,7 @@ final class ActivityDecisionContext {
     }
   }
 
-  private final DecisionsHelper decisions;
+  private final CommandHelper decisions;
 
   private static class OpenActivityInfo {
     private final ActivityType activityType;
@@ -129,7 +129,7 @@ final class ActivityDecisionContext {
   private final Map<Long, OpenRequestInfo<Optional<Payloads>, OpenActivityInfo>>
       scheduledActivities = new HashMap<>();
 
-  ActivityDecisionContext(DecisionsHelper decisions) {
+  ActivityDecisionContext(CommandHelper decisions) {
     this.decisions = decisions;
   }
 
