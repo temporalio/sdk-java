@@ -147,8 +147,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
       new HashMap<>();
   private StateMachine<WorkflowData> workflow;
-  /** A single decison state machine is used for the whole workflow lifecycle. */
-  private final StateMachine<WorkflowTaskData> workflowTaskDataStateMachine;
+  /** A single workflow task state machine is used for the whole workflow lifecycle. */
+  private final StateMachine<WorkflowTaskData> workflowTaskStateMachine;
 
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
@@ -191,7 +191,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             // runId.
             continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
-    this.workflowTaskDataStateMachine = StateMachines.newCommandStateMachine(store, startRequest);
+    this.workflowTaskStateMachine = StateMachines.newCommandStateMachine(store, startRequest);
   }
 
   /** Based on overrideStartWorkflowExecutionRequest from historyEngine.go */
@@ -293,12 +293,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       }
       boolean concurrentWorkflowTask =
           !completeWorkflowTaskUpdate
-              && (workflowTaskDataStateMachine.getState() == StateMachines.State.STARTED);
+              && (workflowTaskStateMachine.getState() == StateMachines.State.STARTED);
 
       RequestContext ctx = new RequestContext(clock, this, nextEventId);
       updater.apply(ctx);
       if (concurrentWorkflowTask && workflow.getState() != State.TIMED_OUT) {
-        workflowTaskDataStateMachine.getData().bufferedEvents.add(ctx);
+        workflowTaskStateMachine.getData().bufferedEvents.add(ctx);
         ctx.fireCallbacks(0);
         store.applyTimersAndLocks(ctx);
       } else {
@@ -362,9 +362,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (!task.hasQuery()) {
       update(
           ctx -> {
-            WorkflowTaskData data = workflowTaskDataStateMachine.getData();
+            WorkflowTaskData data = workflowTaskStateMachine.getData();
             long scheduledEventId = data.scheduledEventId;
-            workflowTaskDataStateMachine.action(StateMachines.Action.START, ctx, pollRequest, 0);
+            workflowTaskStateMachine.action(StateMachines.Action.START, ctx, pollRequest, 0);
             ctx.addTimer(
                 startRequest.getWorkflowTaskTimeoutSeconds(),
                 () -> timeoutWorkflowTask(scheduledEventId),
@@ -393,7 +393,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           // Fail the workflow task if there are new events and a command tries to complete the
           // workflow
           boolean newEvents = false;
-          for (RequestContext ctx2 : workflowTaskDataStateMachine.getData().bufferedEvents) {
+          for (RequestContext ctx2 : workflowTaskStateMachine.getData().bufferedEvents) {
             if (!ctx2.getEvents().isEmpty()) {
               newEvents = true;
               break;
@@ -405,37 +405,35 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_UNHANDLED_COMMAND)
                     .setIdentity(request.getIdentity())
                     .build();
-            workflowTaskDataStateMachine.action(
+            workflowTaskStateMachine.action(
                 Action.FAIL, ctx, failedRequest, workflowTaskCompletedId);
-            for (RequestContext deferredCtx :
-                workflowTaskDataStateMachine.getData().bufferedEvents) {
+            for (RequestContext deferredCtx : workflowTaskStateMachine.getData().bufferedEvents) {
               ctx.add(deferredCtx);
             }
-            workflowTaskDataStateMachine.getData().bufferedEvents.clear();
+            workflowTaskStateMachine.getData().bufferedEvents.clear();
             scheduleWorkflowTask(ctx);
             return;
           }
           try {
-            workflowTaskDataStateMachine.action(StateMachines.Action.COMPLETE, ctx, request, 0);
+            workflowTaskStateMachine.action(StateMachines.Action.COMPLETE, ctx, request, 0);
             for (Command command : commands) {
               processCommand(ctx, command, request.getIdentity(), workflowTaskCompletedId);
             }
-            for (RequestContext deferredCtx :
-                workflowTaskDataStateMachine.getData().bufferedEvents) {
+            for (RequestContext deferredCtx : workflowTaskStateMachine.getData().bufferedEvents) {
               ctx.add(deferredCtx);
             }
-            WorkflowTaskData data = this.workflowTaskDataStateMachine.getData();
+            WorkflowTaskData data = this.workflowTaskStateMachine.getData();
             boolean completed =
                 workflow.getState() == StateMachines.State.COMPLETED
                     || workflow.getState() == StateMachines.State.FAILED
                     || workflow.getState() == StateMachines.State.CANCELED;
             if (!completed
                 && ((ctx.isNeedWorkflowTask()
-                        || !workflowTaskDataStateMachine.getData().bufferedEvents.isEmpty())
+                        || !workflowTaskStateMachine.getData().bufferedEvents.isEmpty())
                     || request.getForceCreateNewWorkflowTask())) {
               scheduleWorkflowTask(ctx);
             }
-            workflowTaskDataStateMachine.getData().bufferedEvents.clear();
+            workflowTaskStateMachine.getData().bufferedEvents.clear();
             Map<String, ConsistentQuery> queries = data.consistentQueryRequests;
             Map<String, WorkflowQueryResult> queryResultsMap = request.getQueryResultsMap();
             for (Map.Entry<String, WorkflowQueryResult> resultEntry : queryResultsMap.entrySet()) {
@@ -467,9 +465,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 }
               }
             }
-            if (workflowTaskDataStateMachine.getState() == State.INITIATED) {
+            if (workflowTaskStateMachine.getState() == State.INITIATED) {
               for (ConsistentQuery query : data.queryBuffer.values()) {
-                workflowTaskDataStateMachine.action(Action.QUERY, ctx, query, NO_EVENT_ID);
+                workflowTaskStateMachine.action(Action.QUERY, ctx, query, NO_EVENT_ID);
               }
             } else {
               for (ConsistentQuery consistent : data.queryBuffer.values()) {
@@ -929,7 +927,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void failWorkflowTask(RespondWorkflowTaskFailedRequest request) {
     completeWorkflowTaskUpdate(
         ctx -> {
-          workflowTaskDataStateMachine.action(Action.FAIL, ctx, request, 0);
+          workflowTaskStateMachine.action(Action.FAIL, ctx, request, 0);
           scheduleWorkflowTask(ctx);
           ctx.unlockTimer(); // Unlock timer associated with the workflow task
         },
@@ -941,21 +939,21 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     try {
       completeWorkflowTaskUpdate(
           ctx -> {
-            if (workflowTaskDataStateMachine == null
-                || workflowTaskDataStateMachine.getData().scheduledEventId != scheduledEventId
-                || workflowTaskDataStateMachine.getState() == State.NONE) {
+            if (workflowTaskStateMachine == null
+                || workflowTaskStateMachine.getData().scheduledEventId != scheduledEventId
+                || workflowTaskStateMachine.getState() == State.NONE) {
               // timeout for a previous workflow task
               return;
             }
             Iterator<Map.Entry<String, ConsistentQuery>> queries =
-                workflowTaskDataStateMachine.getData().queryBuffer.entrySet().iterator();
+                workflowTaskStateMachine.getData().queryBuffer.entrySet().iterator();
             while (queries.hasNext()) {
               Map.Entry<String, ConsistentQuery> queryEntry = queries.next();
               if (queryEntry.getValue().getResult().isCancelled()) {
                 queries.remove();
               }
             }
-            workflowTaskDataStateMachine.action(
+            workflowTaskStateMachine.action(
                 StateMachines.Action.TIME_OUT, ctx, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, 0);
             scheduleWorkflowTask(ctx);
             ctx.unlockTimer(); // Unlock timer associated with the workflow task
@@ -1147,7 +1145,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         }
         workflow.action(
             Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr.build(), workflowTaskCompletedId);
-        workflowTaskDataStateMachine.getData().workflowCompleted = true;
+        workflowTaskStateMachine.getData().workflowCompleted = true;
         HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
             event.getWorkflowExecutionContinuedAsNewEventAttributes();
@@ -1172,7 +1170,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     workflow.action(StateMachines.Action.FAIL, ctx, d, workflowTaskCompletedId);
-    workflowTaskDataStateMachine.getData().workflowCompleted = true;
+    workflowTaskStateMachine.getData().workflowCompleted = true;
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionFailedEventAttributes a =
@@ -1214,7 +1212,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     workflow.action(StateMachines.Action.COMPLETE, ctx, d, workflowTaskCompletedId);
-    workflowTaskDataStateMachine.getData().workflowCompleted = true;
+    workflowTaskStateMachine.getData().workflowCompleted = true;
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionCompletedEventAttributes a =
@@ -1277,7 +1275,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setLastCompletionResult(lastCompletionResult)
             .build();
     workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, workflowTaskCompletedId);
-    workflowTaskDataStateMachine.getData().workflowCompleted = true;
+    workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
         event.getWorkflowExecutionContinuedAsNewEventAttributes();
@@ -1304,7 +1302,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       CancelWorkflowExecutionCommandAttributes d,
       long workflowTaskCompletedId) {
     workflow.action(StateMachines.Action.CANCEL, ctx, d, workflowTaskCompletedId);
-    workflowTaskDataStateMachine.getData().workflowCompleted = true;
+    workflowTaskStateMachine.getData().workflowCompleted = true;
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionCanceledEventAttributes a =
@@ -1341,7 +1339,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long workflowTaskCompletedId,
       String identity) {
     workflow.action(Action.CONTINUE_AS_NEW, ctx, d, workflowTaskCompletedId);
-    workflowTaskDataStateMachine.getData().workflowCompleted = true;
+    workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     String runId =
         service.continueAsNew(
@@ -1439,7 +1437,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void scheduleWorkflowTask(RequestContext ctx) {
-    workflowTaskDataStateMachine.action(StateMachines.Action.INITIATE, ctx, startRequest, 0);
+    workflowTaskStateMachine.action(StateMachines.Action.INITIATE, ctx, startRequest, 0);
     ctx.lockTimer();
   }
 
@@ -1732,7 +1730,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             // TODO(maxim): real retry status
             workflow.action(StateMachines.Action.TIME_OUT, ctx, RetryState.RETRY_STATE_TIMEOUT, 0);
-            workflowTaskDataStateMachine.getData().workflowCompleted = true;
+            workflowTaskStateMachine.getData().workflowCompleted = true;
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
             }
@@ -1853,7 +1851,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           workflow.action(Action.TERMINATE, ctx, request, 0);
-          workflowTaskDataStateMachine.getData().workflowCompleted = true;
+          workflowTaskStateMachine.getData().workflowCompleted = true;
         });
   }
 
@@ -1878,8 +1876,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     lock.lock();
     boolean safeToDispatchDirectly =
         isTerminalState()
-            || (workflowTaskDataStateMachine.getState() != State.INITIATED
-                && workflowTaskDataStateMachine.getState() != State.STARTED);
+            || (workflowTaskStateMachine.getState() != State.INITIATED
+                && workflowTaskStateMachine.getState() != State.STARTED);
 
     if (safeToDispatchDirectly) {
       return directQuery(queryRequest, deadline);
@@ -1970,7 +1968,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       QueryWorkflowRequest queryRequest, long deadline) {
     ConsistentQuery consistentQuery = new ConsistentQuery(queryRequest);
     try {
-      update(ctx -> workflowTaskDataStateMachine.action(Action.QUERY, ctx, consistentQuery, 0));
+      update(ctx -> workflowTaskStateMachine.action(Action.QUERY, ctx, consistentQuery, 0));
     } finally {
       // Locked in the query method
       lock.unlock();

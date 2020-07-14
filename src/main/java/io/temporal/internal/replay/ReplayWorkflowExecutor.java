@@ -405,7 +405,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     lock.lock();
     try {
       queryResults.clear();
-      boolean forceCreateNewWorkflowTask = decideImpl(workflowTask, null);
+      boolean forceCreateNewWorkflowTask = handleWorkflowTaskImpl(workflowTask, null);
       return new WorkflowTaskResult(
           commandHelper.getCommands(), queryResults, forceCreateNewWorkflowTask, completed);
     } finally {
@@ -415,7 +415,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
 
   // Returns boolean to indicate whether we need to force create new workflow task for local
   // activity heartbeating.
-  private boolean decideImpl(
+  private boolean handleWorkflowTaskImpl(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, Functions.Proc legacyQueryCallback)
       throws Throwable {
     boolean forceCreateNewWorkflowTask = false;
@@ -630,7 +630,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     lock.lock();
     try {
       AtomicReference<Optional<Payloads>> result = new AtomicReference<>();
-      decideImpl(response, () -> result.set(workflow.query(query)));
+      handleWorkflowTaskImpl(response, () -> result.set(workflow.query(query)));
       return result.get();
     } finally {
       lock.unlock();

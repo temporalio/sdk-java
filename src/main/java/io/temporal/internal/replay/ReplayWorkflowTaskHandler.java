@@ -105,10 +105,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     } catch (Throwable e) {
       metricsScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
       // Only fail workflow task on the first attempt, subsequent failures of the same workflow task
-      // should
-      // timeout. This is to avoid spin on the failed workflow task as the service doesn't yet
-      // increase
-      // the retry interval.
+      // should timeout. This is to avoid spin on the failed workflow task as the service doesn't
+      // yet increase the retry interval.
       if (workflowTask.getAttempt() > 0) {
         if (e instanceof Error) {
           throw (Error) e;
@@ -205,9 +203,9 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
       return createCompletedRequest(workflowTask.getWorkflowType().getName(), workflowTask, result);
     } catch (Throwable e) {
-      // Note here that the executor might not be in the cache, even sticky is on. In that case we
-      // need to close the executor explicitly.
-      // For items in the cache, invalidation callback will try to close again, which should be ok.
+      // Note here that the executor might not be in the cache, even when the caching is on. In that
+      // case we need to close the executor explicitly. For items in the cache, invalidation
+      // callback will try to close again, which should be ok.
       if (workflowExecutor != null) {
         workflowExecutor.close();
       }
