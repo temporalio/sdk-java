@@ -1,16 +1,16 @@
 {
   "events": [{
     "eventId": "1",
-    "timestamp": "1594356671573155000",
+    "timestamp": "1594739135111415100",
     "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
     "version": "-24",
-    "taskId": "1068997",
+    "taskId": "1051760",
     "workflowExecutionStartedEventAttributes": {
       "workflowType": {
         "name": "TestWorkflow1"
       },
       "taskQueue": {
-        "name": "WorkflowTest-testChildWorkflowRetry-726e8b59-023b-460f-820f-d5b34176016f",
+        "name": "WorkflowTest-testChildWorkflowRetry-c5c598cd-05d6-4790-b43e-ebf149aee65b",
         "kind": "TASK_QUEUE_KIND_NORMAL"
       },
       "input": {
@@ -18,71 +18,71 @@
           "metadata": {
             "encoding": "anNvbg=="
           },
-          "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LTcyNmU4YjU5LTAyM2ItNDYwZi04MjBmLWQ1YjM0MTc2MDE2ZiI="
+          "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LWM1YzU5OGNkLTA1ZDYtNDc5MC1iNDNlLWViZjE0OWFlZTY1YiI="
         }]
       },
       "workflowExecutionTimeoutSeconds": 315360000,
       "workflowRunTimeoutSeconds": 20,
       "workflowTaskTimeoutSeconds": 2,
-      "initiator": "CONTINUE_AS_NEW_INITIATOR_DECIDER",
-      "originalExecutionRunId": "120f79af-106c-4eed-97cb-3d4634a1f631",
+      "initiator": "CONTINUE_AS_NEW_INITIATOR_WORKFLOW",
+      "originalExecutionRunId": "9a44eb45-aedc-4183-9ed2-63b4e2a799f2",
       "identity": "unknown-mac",
-      "firstExecutionRunId": "120f79af-106c-4eed-97cb-3d4634a1f631"
+      "firstExecutionRunId": "9a44eb45-aedc-4183-9ed2-63b4e2a799f2"
     }
   }, {
     "eventId": "2",
-    "timestamp": "1594356671573230100",
-    "eventType": "EVENT_TYPE_DECISION_TASK_SCHEDULED",
+    "timestamp": "1594739135111502000",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
     "version": "-24",
-    "taskId": "1068998",
-    "decisionTaskScheduledEventAttributes": {
+    "taskId": "1051761",
+    "workflowTaskScheduledEventAttributes": {
       "taskQueue": {
-        "name": "WorkflowTest-testChildWorkflowRetry-726e8b59-023b-460f-820f-d5b34176016f"
+        "name": "WorkflowTest-testChildWorkflowRetry-c5c598cd-05d6-4790-b43e-ebf149aee65b"
       },
       "startToCloseTimeoutSeconds": 2
     }
   }, {
     "eventId": "3",
-    "timestamp": "1594356671587870100",
-    "eventType": "EVENT_TYPE_DECISION_TASK_STARTED",
+    "timestamp": "1594739135124182200",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
     "version": "-24",
-    "taskId": "1069003",
-    "decisionTaskStartedEventAttributes": {
+    "taskId": "1051766",
+    "workflowTaskStartedEventAttributes": {
       "scheduledEventId": "2",
       "identity": "unknown-mac",
-      "requestId": "617b03f8-409a-4216-a991-ccd09a1ec55c"
+      "requestId": "d1dc69e3-94f9-43e0-ac43-8c6db84b35a6"
     }
   }, {
     "eventId": "4",
-    "timestamp": "1594356671599677300",
-    "eventType": "EVENT_TYPE_DECISION_TASK_COMPLETED",
+    "timestamp": "1594739135135211500",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
     "version": "-24",
-    "taskId": "1069006",
-    "decisionTaskCompletedEventAttributes": {
+    "taskId": "1051769",
+    "workflowTaskCompletedEventAttributes": {
       "scheduledEventId": "2",
       "startedEventId": "3",
       "identity": "unknown-mac"
     }
   }, {
     "eventId": "5",
-    "timestamp": "1594356671599730000",
+    "timestamp": "1594739135135244900",
     "eventType": "EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED",
     "version": "-24",
-    "taskId": "1069007",
+    "taskId": "1051770",
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "workflowId": "7c37beb8-3305-33cd-8c36-5089f37632b6",
+      "workflowId": "ea4b69ed-f9cf-379f-8e16-b101c4aa288c",
       "workflowType": {
         "name": "ITestChild"
       },
       "taskQueue": {
-        "name": "WorkflowTest-testChildWorkflowRetry-726e8b59-023b-460f-820f-d5b34176016f"
+        "name": "WorkflowTest-testChildWorkflowRetry-c5c598cd-05d6-4790-b43e-ebf149aee65b"
       },
       "input": {
         "payloads": [{
           "metadata": {
             "encoding": "anNvbg=="
           },
-          "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LTcyNmU4YjU5LTAyM2ItNDYwZi04MjBmLWQ1YjM0MTc2MDE2ZiI="
+          "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LWM1YzU5OGNkLTA1ZDYtNDc5MC1iNDNlLWViZjE0OWFlZTY1YiI="
         }, {
           "metadata": {
             "encoding": "anNvbg=="
@@ -94,7 +94,7 @@
       "workflowRunTimeoutSeconds": 500,
       "workflowTaskTimeoutSeconds": 2,
       "parentClosePolicy": "PARENT_CLOSE_POLICY_TERMINATE",
-      "decisionTaskCompletedEventId": "4",
+      "workflowTaskCompletedEventId": "4",
       "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE",
       "retryPolicy": {
         "initialIntervalInSeconds": 1,
@@ -105,15 +105,15 @@
     }
   }, {
     "eventId": "6",
-    "timestamp": "1594356671613695000",
+    "timestamp": "1594739135149882400",
     "eventType": "EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED",
     "version": "-24",
-    "taskId": "1069010",
+    "taskId": "1051773",
     "childWorkflowExecutionStartedEventAttributes": {
       "initiatedEventId": "5",
       "workflowExecution": {
-        "workflowId": "7c37beb8-3305-33cd-8c36-5089f37632b6",
-        "runId": "74483129-927b-4fc7-b201-abd7962cfb03"
+        "workflowId": "ea4b69ed-f9cf-379f-8e16-b101c4aa288c",
+        "runId": "978856c7-c962-431f-ad20-4f0f281c457d"
       },
       "workflowType": {
         "name": "ITestChild"
@@ -121,44 +121,44 @@
     }
   }, {
     "eventId": "7",
-    "timestamp": "1594356671613730600",
-    "eventType": "EVENT_TYPE_DECISION_TASK_SCHEDULED",
+    "timestamp": "1594739135149925300",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
     "version": "-24",
-    "taskId": "1069012",
-    "decisionTaskScheduledEventAttributes": {
+    "taskId": "1051775",
+    "workflowTaskScheduledEventAttributes": {
       "taskQueue": {
-        "name": "unknown-mac:774c9926-40c6-414d-a93d-4cb8fddad8d4"
+        "name": "unknown-mac:065bf5af-6b61-4767-be7d-2e4f12da4da4"
       },
       "startToCloseTimeoutSeconds": 2
     }
   }, {
     "eventId": "8",
-    "timestamp": "1594356671626297800",
-    "eventType": "EVENT_TYPE_DECISION_TASK_STARTED",
+    "timestamp": "1594739135163322800",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
     "version": "-24",
-    "taskId": "1069016",
-    "decisionTaskStartedEventAttributes": {
+    "taskId": "1051779",
+    "workflowTaskStartedEventAttributes": {
       "scheduledEventId": "7",
-      "identity": "774c9926-40c6-414d-a93d-4cb8fddad8d4",
-      "requestId": "40806d68-3cb7-434a-9760-9e0394ac58be"
+      "identity": "065bf5af-6b61-4767-be7d-2e4f12da4da4",
+      "requestId": "6594d9dc-a686-4ffa-b352-f8934037c4d2"
     }
   }, {
     "eventId": "9",
-    "timestamp": "1594356671635292200",
-    "eventType": "EVENT_TYPE_DECISION_TASK_COMPLETED",
+    "timestamp": "1594739135173518700",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
     "version": "-24",
-    "taskId": "1069019",
-    "decisionTaskCompletedEventAttributes": {
+    "taskId": "1051782",
+    "workflowTaskCompletedEventAttributes": {
       "scheduledEventId": "7",
       "startedEventId": "8",
       "identity": "unknown-mac"
     }
   }, {
     "eventId": "10",
-    "timestamp": "1594356673802690500",
+    "timestamp": "1594739137335479600",
     "eventType": "EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED",
     "version": "-24",
-    "taskId": "1069021",
+    "taskId": "1051784",
     "childWorkflowExecutionFailedEventAttributes": {
       "failure": {
         "message": "simulated failure",
@@ -169,8 +169,8 @@
         }
       },
       "workflowExecution": {
-        "workflowId": "7c37beb8-3305-33cd-8c36-5089f37632b6",
-        "runId": "2f0c497e-34cf-4b98-b1c9-d0cadb3e0cd4"
+        "workflowId": "ea4b69ed-f9cf-379f-8e16-b101c4aa288c",
+        "runId": "7fd59b3e-6eae-4a4d-944b-49cde9f2187e"
       },
       "workflowType": {
         "name": "ITestChild"
@@ -181,48 +181,48 @@
     }
   }, {
     "eventId": "11",
-    "timestamp": "1594356673802726100",
-    "eventType": "EVENT_TYPE_DECISION_TASK_SCHEDULED",
+    "timestamp": "1594739137335518000",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
     "version": "-24",
-    "taskId": "1069023",
-    "decisionTaskScheduledEventAttributes": {
+    "taskId": "1051786",
+    "workflowTaskScheduledEventAttributes": {
       "taskQueue": {
-        "name": "unknown-mac:774c9926-40c6-414d-a93d-4cb8fddad8d4"
+        "name": "unknown-mac:065bf5af-6b61-4767-be7d-2e4f12da4da4"
       },
       "startToCloseTimeoutSeconds": 2
     }
   }, {
     "eventId": "12",
-    "timestamp": "1594356673810982400",
-    "eventType": "EVENT_TYPE_DECISION_TASK_STARTED",
+    "timestamp": "1594739137343051500",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
     "version": "-24",
-    "taskId": "1069027",
-    "decisionTaskStartedEventAttributes": {
+    "taskId": "1051790",
+    "workflowTaskStartedEventAttributes": {
       "scheduledEventId": "11",
-      "identity": "774c9926-40c6-414d-a93d-4cb8fddad8d4",
-      "requestId": "a3bcf024-4596-4ef6-a7df-6b65d5d5ab14"
+      "identity": "065bf5af-6b61-4767-be7d-2e4f12da4da4",
+      "requestId": "45fab3b0-4fe6-4b0d-9e7d-53855b0bea85"
     }
   }, {
     "eventId": "13",
-    "timestamp": "1594356673822181500",
-    "eventType": "EVENT_TYPE_DECISION_TASK_COMPLETED",
+    "timestamp": "1594739137353723800",
+    "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
     "version": "-24",
-    "taskId": "1069030",
-    "decisionTaskCompletedEventAttributes": {
+    "taskId": "1051793",
+    "workflowTaskCompletedEventAttributes": {
       "scheduledEventId": "11",
       "startedEventId": "12",
       "identity": "unknown-mac"
     }
   }, {
     "eventId": "14",
-    "timestamp": "1594356673822225700",
+    "timestamp": "1594739137353751900",
     "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_FAILED",
     "version": "-24",
-    "taskId": "1069031",
+    "taskId": "1051794",
     "workflowExecutionFailedEventAttributes": {
       "failure": {
         "source": "JavaSDK",
-        "stackTrace": "java.lang.Thread.getStackTrace(Thread.java:1559)\nio.temporal.internal.sync.ChildWorkflowStubImpl.execute(ChildWorkflowStubImpl.java:85)\nio.temporal.internal.sync.ChildWorkflowInvocationHandler.invoke(ChildWorkflowInvocationHandler.java:74)\ncom.sun.proxy.$Proxy49.execute(Unknown Source)\nio.temporal.workflow.WorkflowTest$TestChildWorkflowRetryWorkflow.execute(WorkflowTest.java:3355)\nsun.reflect.GeneratedMethodAccessor9.invoke(Unknown Source)\nsun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.lang.reflect.Method.invoke(Method.java:498)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation$RootWorkflowInboundCallsInterceptor.execute(POJOWorkflowImplementationFactory.java:283)\nio.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase.execute(WorkflowInboundCallsInterceptorBase.java:37)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute(POJOWorkflowImplementationFactory.java:247)\nio.temporal.internal.sync.WorkflowExecuteRunnable.run(WorkflowExecuteRunnable.java:52)\nio.temporal.internal.sync.SyncWorkflow.lambda$start$0(SyncWorkflow.java:121)\nio.temporal.internal.sync.CancellationScopeImpl.run(CancellationScopeImpl.java:104)\nio.temporal.internal.sync.WorkflowThreadImpl$RunnableWrapper.run(WorkflowThreadImpl.java:105)\njava.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\njava.util.concurrent.FutureTask.run(FutureTask.java:266)\njava.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\njava.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\njava.lang.Thread.run(Thread.java:748)\n",
+        "stackTrace": "java.lang.Thread.getStackTrace(Thread.java:1559)\nio.temporal.internal.sync.ChildWorkflowStubImpl.execute(ChildWorkflowStubImpl.java:85)\nio.temporal.internal.sync.ChildWorkflowInvocationHandler.invoke(ChildWorkflowInvocationHandler.java:75)\ncom.sun.proxy.$Proxy49.execute(Unknown Source)\nio.temporal.workflow.WorkflowTest$TestChildWorkflowRetryWorkflow.execute(WorkflowTest.java:3355)\nsun.reflect.GeneratedMethodAccessor9.invoke(Unknown Source)\nsun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.lang.reflect.Method.invoke(Method.java:498)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation$RootWorkflowInboundCallsInterceptor.execute(POJOWorkflowImplementationFactory.java:283)\nio.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase.execute(WorkflowInboundCallsInterceptorBase.java:37)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute(POJOWorkflowImplementationFactory.java:247)\nio.temporal.internal.sync.WorkflowExecuteRunnable.run(WorkflowExecuteRunnable.java:52)\nio.temporal.internal.sync.SyncWorkflow.lambda$start$0(SyncWorkflow.java:121)\nio.temporal.internal.sync.CancellationScopeImpl.run(CancellationScopeImpl.java:104)\nio.temporal.internal.sync.WorkflowThreadImpl$RunnableWrapper.run(WorkflowThreadImpl.java:105)\njava.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\njava.util.concurrent.FutureTask.run(FutureTask.java:266)\njava.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\njava.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\njava.lang.Thread.run(Thread.java:748)\n",
         "cause": {
           "message": "simulated failure",
           "source": "JavaSDK",
@@ -233,8 +233,8 @@
         },
         "childWorkflowExecutionFailureInfo": {
           "workflowExecution": {
-            "workflowId": "7c37beb8-3305-33cd-8c36-5089f37632b6",
-            "runId": "2f0c497e-34cf-4b98-b1c9-d0cadb3e0cd4"
+            "workflowId": "ea4b69ed-f9cf-379f-8e16-b101c4aa288c",
+            "runId": "7fd59b3e-6eae-4a4d-944b-49cde9f2187e"
           },
           "workflowType": {
             "name": "ITestChild"
@@ -243,7 +243,7 @@
         }
       },
       "retryState": "RETRY_STATE_RETRY_POLICY_NOT_SET",
-      "decisionTaskCompletedEventId": "13"
+      "workflowTaskCompletedEventId": "13"
     }
   }]
 }
