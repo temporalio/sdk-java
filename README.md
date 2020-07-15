@@ -6,7 +6,7 @@ resilient applications using developer friendly primitives, instead of constantl
 
 `temporal-java-sdk` is the framework for authoring workflows and activities in Java.
 
-If you are authoring in Go, see [Temporal Go SDK](https://github.com/temporalio/temoral-go-sdk).
+If you are authoring in Go, see [Temporal Go SDK](https://github.com/temporalio/go-sdk).
 
 ## Samples
 
