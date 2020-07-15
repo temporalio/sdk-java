@@ -69,7 +69,7 @@ interface WorkflowThread extends CancellationScope {
   static WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
     return (WorkflowThread)
         currentThreadInternal()
-            .getDecisionContext()
+            .getWorkflowContext()
             .getWorkflowInterceptor()
             .newThread(runnable, detached, name);
   }
@@ -90,7 +90,7 @@ interface WorkflowThread extends CancellationScope {
 
   DeterministicRunnerImpl getRunner();
 
-  SyncDecisionContext getDecisionContext();
+  SyncWorkflowContext getWorkflowContext();
 
   long getBlockedUntil();
 

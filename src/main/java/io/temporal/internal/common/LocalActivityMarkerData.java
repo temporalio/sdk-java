@@ -29,7 +29,7 @@ import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.replay.ClockDecisionContext;
+import io.temporal.internal.replay.ReplayClockContext;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -182,7 +182,7 @@ public final class LocalActivityMarkerData {
     Payloads data = converter.toPayloads(this.data).get();
     MarkerRecordedEventAttributes.Builder attributes =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
+            .setMarkerName(ReplayClockContext.LOCAL_ACTIVITY_MARKER_NAME)
             .putDetails(MARKER_DATA_KEY, data);
     if (result.isPresent()) {
       attributes.putDetails(MARKER_RESULT_KEY, result.get());

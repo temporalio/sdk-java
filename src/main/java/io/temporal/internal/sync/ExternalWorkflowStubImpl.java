@@ -30,12 +30,12 @@ import java.util.Objects;
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
-  private final WorkflowOutboundCallsInterceptor decisionContext;
+  private final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
   private final WorkflowExecution execution;
 
   public ExternalWorkflowStubImpl(
-      WorkflowExecution execution, WorkflowOutboundCallsInterceptor decisionContext) {
-    this.decisionContext = Objects.requireNonNull(decisionContext);
+      WorkflowExecution execution, WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
+    this.outboundCallsInterceptor = Objects.requireNonNull(outboundCallsInterceptor);
     this.execution = Objects.requireNonNull(execution);
   }
 
@@ -46,7 +46,8 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
-    Promise<Void> signaled = decisionContext.signalExternalWorkflow(execution, signalName, args);
+    Promise<Void> signaled =
+        outboundCallsInterceptor.signalExternalWorkflow(execution, signalName, args);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);
       return;
@@ -63,7 +64,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
-    Promise<Void> cancelRequested = decisionContext.cancelWorkflow(execution);
+    Promise<Void> cancelRequested = outboundCallsInterceptor.cancelWorkflow(execution);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(cancelRequested);
       return;

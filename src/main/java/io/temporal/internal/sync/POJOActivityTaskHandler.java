@@ -27,7 +27,7 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.client.ActivityCancelledException;
@@ -166,7 +166,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public Result handle(
-      PollForActivityTaskResponse pollResponse, Scope metricsScope, boolean localActivity) {
+      PollActivityTaskQueueResponse pollResponse, Scope metricsScope, boolean localActivity) {
     String activityType = pollResponse.getActivityType().getName();
     ActivityInfoImpl activityTask =
         new ActivityInfoImpl(pollResponse, this.namespace, localActivity);

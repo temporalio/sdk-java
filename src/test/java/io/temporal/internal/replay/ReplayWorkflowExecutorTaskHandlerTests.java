@@ -29,10 +29,10 @@ import static org.mockito.Mockito.when;
 
 import com.uber.m3.tally.NoopScope;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.testservice.TestWorkflowService;
-import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import java.time.Duration;
@@ -42,7 +42,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ReplayDeciderTaskHandlerTests {
+public class ReplayWorkflowExecutorTaskHandlerTests {
 
   private TestWorkflowService testService;
   private WorkflowServiceStubs service;
@@ -67,9 +67,9 @@ public class ReplayDeciderTaskHandlerTests {
   @Test
   public void ifStickyExecutionAttributesAreNotSetThenWorkflowsAreNotCached() throws Throwable {
     // Arrange
-    DeciderCache cache = new DeciderCache(10, new NoopScope());
-    DecisionTaskHandler taskHandler =
-        new ReplayDecisionTaskHandler(
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
             "namespace",
             setUpMockWorkflowFactory(),
             cache,
@@ -81,8 +81,8 @@ public class ReplayDeciderTaskHandlerTests {
             null);
 
     // Act
-    DecisionTaskHandler.Result result =
-        taskHandler.handleDecisionTask(HistoryUtils.generateDecisionTaskWithInitialHistory());
+    WorkflowTaskHandler.Result result =
+        taskHandler.handleWorkflowTask(HistoryUtils.generateWorkflowTaskWithInitialHistory());
 
     // Assert
     assertEquals(0, cache.size());
@@ -93,9 +93,9 @@ public class ReplayDeciderTaskHandlerTests {
   @Test
   public void ifStickyExecutionAttributesAreSetThenWorkflowsAreCached() throws Throwable {
     // Arrange
-    DeciderCache cache = new DeciderCache(10, new NoopScope());
-    DecisionTaskHandler taskHandler =
-        new ReplayDecisionTaskHandler(
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
             "namespace",
             setUpMockWorkflowFactory(),
             cache,
@@ -106,14 +106,14 @@ public class ReplayDeciderTaskHandlerTests {
             () -> false,
             null);
 
-    PollForDecisionTaskResponse decisionTask =
-        HistoryUtils.generateDecisionTaskWithInitialHistory();
+    PollWorkflowTaskQueueResponse workflowTask =
+        HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     // Act
-    DecisionTaskHandler.Result result = taskHandler.handleDecisionTask(decisionTask);
+    WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask);
 
-    assertTrue(result.isFinalDecision());
-    assertEquals(0, cache.size()); // do not cache if final decision
+    assertTrue(result.isCompletionCommand());
+    assertEquals(0, cache.size()); // do not cache if completion command
     assertNotNull(result.getTaskCompleted());
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
     assertEquals("sticky", attributes.getWorkerTaskQueue().getName());

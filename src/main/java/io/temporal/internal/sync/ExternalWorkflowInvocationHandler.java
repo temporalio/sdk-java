@@ -34,9 +34,9 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
   public ExternalWorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowExecution execution,
-      WorkflowOutboundCallsInterceptor decisionContext) {
+      WorkflowOutboundCallsInterceptor workflowOutboundCallsInterceptor) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
-    stub = new ExternalWorkflowStubImpl(execution, decisionContext);
+    stub = new ExternalWorkflowStubImpl(execution, workflowOutboundCallsInterceptor);
   }
 
   @Override

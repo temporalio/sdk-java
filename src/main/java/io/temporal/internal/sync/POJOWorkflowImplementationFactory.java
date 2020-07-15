@@ -35,9 +35,9 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -78,13 +78,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       Collections.synchronizedMap(new HashMap<>());
 
   private final ExecutorService threadPool;
-  private DeciderCache cache;
+  private WorkflowExecutorCache cache;
 
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
       WorkflowInterceptor[] workflowInterceptors,
-      DeciderCache cache,
+      WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
@@ -180,7 +180,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     Functions.Func<SyncWorkflowDefinition> factory =
         workflowDefinitions.get(workflowType.getName());
     if (factory == null) {
-      // throw Error to abort decision, not fail the workflow
+      // throw Error to abort the workflow task task, not fail the workflow
       throw new Error(
           "Unknown workflow type \""
               + workflowType.getName()
@@ -234,7 +234,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       for (WorkflowInterceptor workflowInterceptor : workflowInterceptors) {
         workflowInvoker = workflowInterceptor.interceptWorkflow(workflowInvoker);
       }
-      workflowInvoker.init(WorkflowInternal.getRootDecisionContext());
+      workflowInvoker.init(WorkflowInternal.getRootWorkflowContext());
     }
 
     @Override
@@ -265,7 +265,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
             | InstantiationException
             | IllegalAccessException
             | InvocationTargetException e) {
-          // Error to fail decision as this can be fixed by a new deployment.
+          // Error to fail workflow task as this can be fixed by a new deployment.
           throw new Error(
               "Failure instantiating workflow implementation class "
                   + workflowImplementationClass.getName(),
@@ -288,7 +288,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           if (targetException instanceof Error) {
             throw (Error) targetException;
           }
-          // Cancellation should be delivered as it impacts which decision closes a
+          // Cancellation should be delivered as it impacts which command closes a
           // workflow.
           if (targetException instanceof CanceledFailure) {
             throw (CanceledFailure) targetException;
@@ -310,7 +310,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
       @Override
       public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
-        WorkflowInternal.getRootDecisionContext().setHeadInterceptor(outboundCalls);
+        WorkflowInternal.getRootWorkflowContext().setHeadInterceptor(outboundCalls);
         newInstance();
         WorkflowInternal.registerListener(workflow);
       }

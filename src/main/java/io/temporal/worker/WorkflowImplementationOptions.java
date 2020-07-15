@@ -36,7 +36,7 @@ public final class WorkflowImplementationOptions {
     private Builder() {}
 
     /**
-     * Optional: Sets how decision worker deals with Error thrown from the workflow code which
+     * Optional: Sets how workflow worker deals with Error thrown from the workflow code which
      * include non-deterministic history events (presumably arising from non-deterministic workflow
      * definitions or non-backward compatible workflow definition changes).
      *

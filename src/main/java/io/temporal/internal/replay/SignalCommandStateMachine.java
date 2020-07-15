@@ -19,37 +19,37 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
-class SignalDecisionStateMachine extends DecisionStateMachineBase {
+class SignalCommandStateMachine extends CommandStateMachineBase {
 
-  private SignalExternalWorkflowExecutionDecisionAttributes attributes;
+  private SignalExternalWorkflowExecutionCommandAttributes attributes;
 
   private boolean canceled;
 
-  public SignalDecisionStateMachine(
-      DecisionId id, SignalExternalWorkflowExecutionDecisionAttributes attributes) {
+  public SignalCommandStateMachine(
+      CommandId id, SignalExternalWorkflowExecutionCommandAttributes attributes) {
     super(id);
     this.attributes = attributes;
   }
 
   /** Used for unit testing */
-  SignalDecisionStateMachine(
-      DecisionId id,
-      SignalExternalWorkflowExecutionDecisionAttributes attributes,
-      DecisionState state) {
+  SignalCommandStateMachine(
+      CommandId id,
+      SignalExternalWorkflowExecutionCommandAttributes attributes,
+      CommandState state) {
     super(id, state);
     this.attributes = attributes;
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getCommand() {
     switch (state) {
       case CREATED:
-        return createSignalExternalWorkflowExecutionDecision();
+        return createSignalExternalWorkflowExecutionCommand();
       default:
         return null;
     }
@@ -57,7 +57,7 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
 
   @Override
   public boolean isDone() {
-    return state == DecisionState.COMPLETED || canceled;
+    return state == CommandState.COMPLETED || canceled;
   }
 
   @Override
@@ -67,14 +67,14 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
     switch (state) {
       case CREATED:
       case INITIATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         if (immediateCancellationCallback != null) {
           immediateCancellationCallback.run();
         }
         result = true;
         break;
-      case DECISION_SENT:
-        state = DecisionState.CANCELED_BEFORE_INITIATED;
+      case COMMAND_SENT:
+        state = CommandState.CANCELED_BEFORE_INITIATED;
         if (immediateCancellationCallback != null) {
           immediateCancellationCallback.run();
         }
@@ -92,8 +92,8 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
   public void handleInitiatedEvent(HistoryEvent event) {
     stateHistory.add("handleInitiatedEvent");
     switch (state) {
-      case DECISION_SENT:
-        state = DecisionState.INITIATED;
+      case COMMAND_SENT:
+        state = CommandState.INITIATED;
         break;
       case CANCELED_BEFORE_INITIATED:
         // No state change
@@ -118,10 +118,10 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
   public void handleCompletionEvent() {
     stateHistory.add("handleCompletionEvent");
     switch (state) {
-      case DECISION_SENT:
+      case COMMAND_SENT:
       case INITIATED:
       case CANCELED_BEFORE_INITIATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         break;
       case COMPLETED:
         // No state change
@@ -147,12 +147,10 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
     throw new UnsupportedOperationException();
   }
 
-  private Decision createSignalExternalWorkflowExecutionDecision() {
-    Decision decision =
-        Decision.newBuilder()
-            .setSignalExternalWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DECISION_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
-            .build();
-    return decision;
+  private Command createSignalExternalWorkflowExecutionCommand() {
+    return Command.newBuilder()
+        .setSignalExternalWorkflowExecutionCommandAttributes(attributes)
+        .setCommandType(CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
+        .build();
   }
 }

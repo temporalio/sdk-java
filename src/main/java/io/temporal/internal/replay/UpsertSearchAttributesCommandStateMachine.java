@@ -19,13 +19,22 @@
 
 package io.temporal.internal.replay;
 
-enum DecisionTarget {
-  ACTIVITY,
-  CHILD_WORKFLOW,
-  CANCEL_EXTERNAL_WORKFLOW,
-  SIGNAL_EXTERNAL_WORKFLOW,
-  TIMER,
-  MARKER,
-  UPSERT_SEARCH_ATTRIBUTES,
-  SELF
+import io.temporal.api.command.v1.Command;
+
+final class UpsertSearchAttributesCommandStateMachine extends CommandStateMachineBase {
+
+  private final Command command;
+
+  UpsertSearchAttributesCommandStateMachine(CommandId id, Command command) {
+    super(id);
+    this.command = command;
+  }
+
+  @Override
+  public Command getCommand() {
+    if (state == CommandState.CREATED) {
+      return command;
+    }
+    return null;
+  }
 }

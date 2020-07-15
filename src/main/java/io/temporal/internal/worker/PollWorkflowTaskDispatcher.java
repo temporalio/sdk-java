@@ -22,9 +22,9 @@ package io.temporal.internal.worker;
 import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.enums.v1.DecisionTaskFailedCause;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
+import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.failure.FailureConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Map;
@@ -37,11 +37,11 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class PollDecisionTaskDispatcher
-    implements ShutdownableTaskExecutor<PollForDecisionTaskResponse> {
+public final class PollWorkflowTaskDispatcher
+    implements ShutdownableTaskExecutor<PollWorkflowTaskQueueResponse> {
 
-  private static final Logger log = LoggerFactory.getLogger(PollDecisionTaskDispatcher.class);
-  private final Map<String, Consumer<PollForDecisionTaskResponse>> subscribers =
+  private static final Logger log = LoggerFactory.getLogger(PollWorkflowTaskDispatcher.class);
+  private final Map<String, Consumer<PollWorkflowTaskQueueResponse>> subscribers =
       new ConcurrentHashMap<>();
   private final Scope metricsScope;
   private WorkflowServiceStubs service;
@@ -49,12 +49,12 @@ public final class PollDecisionTaskDispatcher
       (t, e) -> log.error("uncaught exception", e);
   private AtomicBoolean shutdown = new AtomicBoolean();
 
-  public PollDecisionTaskDispatcher(WorkflowServiceStubs service, Scope metricsScope) {
+  public PollWorkflowTaskDispatcher(WorkflowServiceStubs service, Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
     this.metricsScope = Objects.requireNonNull(metricsScope);
   }
 
-  public PollDecisionTaskDispatcher(
+  public PollWorkflowTaskDispatcher(
       WorkflowServiceStubs service,
       Scope metricsScope,
       Thread.UncaughtExceptionHandler exceptionHandler) {
@@ -66,7 +66,7 @@ public final class PollDecisionTaskDispatcher
   }
 
   @Override
-  public void process(PollForDecisionTaskResponse t) {
+  public void process(PollWorkflowTaskQueueResponse t) {
     if (isShutdown()) {
       throw new RejectedExecutionException("shutdown");
     }
@@ -77,12 +77,12 @@ public final class PollDecisionTaskDispatcher
       Exception exception =
           new Exception(
               String.format(
-                  "No handler is subscribed for the PollForDecisionTaskResponse.WorkflowExecutionTaskQueue %s",
+                  "No handler is subscribed for the PollWorkflowTaskQueueResponse.WorkflowExecutionTaskQueue %s",
                   taskQueueName));
-      RespondDecisionTaskFailedRequest request =
-          RespondDecisionTaskFailedRequest.newBuilder()
+      RespondWorkflowTaskFailedRequest request =
+          RespondWorkflowTaskFailedRequest.newBuilder()
               .setTaskToken(t.getTaskToken())
-              .setCause(DecisionTaskFailedCause.DECISION_TASK_FAILED_CAUSE_RESET_STICKY_TASK_QUEUE)
+              .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_STICKY_TASK_QUEUE)
               .setFailure(FailureConverter.exceptionToFailure(exception))
               .build();
       log.warn("unexpected", exception);
@@ -91,14 +91,14 @@ public final class PollDecisionTaskDispatcher
         service
             .blockingStub()
             .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-            .respondDecisionTaskFailed(request);
+            .respondWorkflowTaskFailed(request);
       } catch (Exception e) {
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
       }
     }
   }
 
-  public void subscribe(String taskQueue, Consumer<PollForDecisionTaskResponse> consumer) {
+  public void subscribe(String taskQueue, Consumer<PollWorkflowTaskQueueResponse> consumer) {
     subscribers.put(taskQueue, consumer);
   }
 

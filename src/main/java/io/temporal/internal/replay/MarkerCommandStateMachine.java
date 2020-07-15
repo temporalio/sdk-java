@@ -19,21 +19,21 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
+import io.temporal.api.command.v1.Command;
 
-final class MarkerDecisionStateMachine extends DecisionStateMachineBase {
+final class MarkerCommandStateMachine extends CommandStateMachineBase {
 
-  private final Decision decision;
+  private final Command command;
 
-  MarkerDecisionStateMachine(DecisionId id, Decision decision) {
+  MarkerCommandStateMachine(CommandId id, Command command) {
     super(id);
-    this.decision = decision;
+    this.command = command;
   }
 
   @Override
-  public Decision getDecision() {
-    if (state == DecisionState.CREATED) {
-      return decision;
+  public Command getCommand() {
+    if (state == CommandState.CREATED) {
+      return command;
     }
     return null;
   }

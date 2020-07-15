@@ -19,8 +19,8 @@
 
 package io.temporal.internal.testservice;
 
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
@@ -31,10 +31,10 @@ import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.api.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponseOrBuilder;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
@@ -44,9 +44,9 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdReques
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
@@ -60,10 +60,10 @@ interface TestWorkflowMutableState {
 
   StartWorkflowExecutionRequest getStartRequest();
 
-  void startDecisionTask(
-      PollForDecisionTaskResponse.Builder task, PollForDecisionTaskRequest pollRequest);
+  void startWorkflowTask(
+      PollWorkflowTaskQueueResponse.Builder task, PollWorkflowTaskQueueRequest pollRequest);
 
-  void completeDecisionTask(int historySize, RespondDecisionTaskCompletedRequest request);
+  void completeWorkflowTask(int historySize, RespondWorkflowTaskCompletedRequest request);
 
   void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a);
 
@@ -72,7 +72,7 @@ interface TestWorkflowMutableState {
   void failSignalExternalWorkflowExecution(
       String signalId, SignalExternalWorkflowExecutionFailedCause cause);
 
-  void failDecisionTask(RespondDecisionTaskFailedRequest request);
+  void failWorkflowTask(RespondWorkflowTaskFailedRequest request);
 
   void childWorkflowStarted(ChildWorkflowExecutionStartedEventAttributes a);
 
@@ -91,7 +91,7 @@ interface TestWorkflowMutableState {
       boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal);
 
   void startActivityTask(
-      PollForActivityTaskResponseOrBuilder task, PollForActivityTaskRequest pollRequest);
+      PollActivityTaskQueueResponseOrBuilder task, PollActivityTaskQueueRequest pollRequest);
 
   void completeActivityTask(long scheduledEventId, RespondActivityTaskCompletedRequest request);
 
@@ -108,7 +108,7 @@ interface TestWorkflowMutableState {
 
   void signal(SignalWorkflowExecutionRequest signalRequest);
 
-  void signalFromWorkflow(SignalExternalWorkflowExecutionDecisionAttributes a);
+  void signalFromWorkflow(SignalExternalWorkflowExecutionCommandAttributes a);
 
   void requestCancelWorkflowExecution(
       RequestCancelWorkflowExecutionRequest cancelRequest,

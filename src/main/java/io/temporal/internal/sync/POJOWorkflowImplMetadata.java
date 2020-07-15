@@ -68,10 +68,14 @@ class POJOWorkflowImplMetadata {
   private Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
 
   public static POJOWorkflowImplMetadata newInstance(Class<?> implClass) {
-    return new POJOWorkflowImplMetadata(implClass);
+    return new POJOWorkflowImplMetadata(implClass, false);
   }
 
-  private POJOWorkflowImplMetadata(Class<?> implClass) {
+  public static POJOWorkflowImplMetadata newListenerInstance(Class<?> implClass) {
+    return new POJOWorkflowImplMetadata(implClass, true);
+  }
+
+  private POJOWorkflowImplMetadata(Class<?> implClass, boolean listener) {
     if (implClass.isInterface()
         || implClass.isPrimitive()
         || implClass.isAnnotation()
@@ -83,8 +87,13 @@ class POJOWorkflowImplMetadata {
     Class<?>[] interfaces = implClass.getInterfaces();
     for (int i = 0; i < interfaces.length; i++) {
       Class<?> anInterface = interfaces[i];
-      POJOWorkflowInterfaceMetadata interfaceMetadata =
-          POJOWorkflowInterfaceMetadata.newImplementationInterface(anInterface);
+      POJOWorkflowInterfaceMetadata interfaceMetadata;
+      if (listener) {
+        interfaceMetadata =
+            POJOWorkflowInterfaceMetadata.newInstanceSkipWorkflowAnnotationCheck(anInterface);
+      } else {
+        interfaceMetadata = POJOWorkflowInterfaceMetadata.newImplementationInterface(anInterface);
+      }
       List<POJOWorkflowMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
       for (POJOWorkflowMethodMetadata methodMetadata : methods) {
         EqualsByNameType key =
@@ -116,7 +125,7 @@ class POJOWorkflowImplMetadata {
         }
       }
     }
-    if (byNameType.isEmpty()) {
+    if (byNameType.isEmpty() && !listener) {
       throw new IllegalArgumentException(
           "Class doesn't implement any non empty interface annotated with @WorkflowInterface: "
               + implClass.getName());

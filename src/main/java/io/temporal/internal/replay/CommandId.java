@@ -21,23 +21,23 @@ package io.temporal.internal.replay;
 
 import java.util.Objects;
 
-class DecisionId {
+class CommandId {
 
-  private final DecisionTarget decisionTarget;
+  private final CommandTarget commandTarget;
 
-  private final long decisionEventId;
+  private final long commandEventId;
 
-  DecisionId(DecisionTarget decisionTarget, long decisionEventId) {
-    this.decisionEventId = decisionEventId;
-    this.decisionTarget = Objects.requireNonNull(decisionTarget);
+  CommandId(CommandTarget commandTarget, long commandEventId) {
+    this.commandEventId = commandEventId;
+    this.commandTarget = Objects.requireNonNull(commandTarget);
   }
 
-  DecisionTarget getDecisionTarget() {
-    return decisionTarget;
+  CommandTarget getCommandTarget() {
+    return commandTarget;
   }
 
-  long getDecisionEventId() {
-    return decisionEventId;
+  long getCommandEventId() {
+    return commandEventId;
   }
 
   @Override
@@ -45,32 +45,32 @@ class DecisionId {
     if (this == o) {
       return true;
     }
-    if (o == null || !(o instanceof DecisionId)) {
+    if (o == null || !(o instanceof CommandId)) {
       return false;
     }
 
-    DecisionId that = (DecisionId) o;
+    CommandId that = (CommandId) o;
 
-    if (decisionEventId != that.decisionEventId) {
+    if (commandEventId != that.commandEventId) {
       return false;
     }
-    return decisionTarget == that.decisionTarget;
+    return commandTarget == that.commandTarget;
   }
 
   @Override
   public int hashCode() {
-    int result = decisionTarget.hashCode();
-    result = 31 * result + (int) (decisionEventId ^ (decisionEventId >>> 32));
+    int result = commandTarget.hashCode();
+    result = 31 * result + (int) (commandEventId ^ (commandEventId >>> 32));
     return result;
   }
 
   @Override
   public String toString() {
-    return "DecisionId{"
-        + "decisionTarget="
-        + decisionTarget
-        + ", decisionEventId="
-        + decisionEventId
+    return "CommandId{"
+        + "commandTarget="
+        + commandTarget
+        + ", commandEventId="
+        + commandEventId
         + '}';
   }
 }

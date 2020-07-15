@@ -30,7 +30,7 @@ import ch.qos.logback.core.read.ListAppender;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -44,7 +44,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PollDecisionTaskDispatcherTests {
+public class PollWorkflowTaskDispatcherTests {
 
   LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
   ch.qos.logback.classic.Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
@@ -71,16 +71,16 @@ public class PollDecisionTaskDispatcherTests {
   }
 
   @Test
-  public void pollDecisionTasksAreDispatchedBasedOnTaskQueueName() {
+  public void pollWorkflowTasksAreDispatchedBasedOnTaskQueueName() {
     // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
-    Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
+    Consumer<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
 
-    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service, metricsScope);
+    PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
     // Act
-    PollForDecisionTaskResponse response = CreatePollForDecisionTaskResponse("taskqueue1");
+    PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
     // Assert
@@ -88,21 +88,21 @@ public class PollDecisionTaskDispatcherTests {
   }
 
   @Test
-  public void pollDecisionTasksAreDispatchedToTheCorrectHandler() {
+  public void pollWorkflowTasksAreDispatchedToTheCorrectHandler() {
 
     // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
-    Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
-    Consumer<PollForDecisionTaskResponse> handler2 = r -> handled2.set(true);
+    Consumer<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
+    Consumer<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
 
-    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service, metricsScope);
+    PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue2", handler2);
 
     // Act
-    PollForDecisionTaskResponse response = CreatePollForDecisionTaskResponse("taskqueue1");
+    PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
     // Assert
@@ -117,15 +117,15 @@ public class PollDecisionTaskDispatcherTests {
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
-    Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
-    Consumer<PollForDecisionTaskResponse> handler2 = r -> handled2.set(true);
+    Consumer<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
+    Consumer<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
 
-    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service, metricsScope);
+    PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue1", handler2);
 
     // Act
-    PollForDecisionTaskResponse response = CreatePollForDecisionTaskResponse("taskqueue1");
+    PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
     // Assert
@@ -135,7 +135,7 @@ public class PollDecisionTaskDispatcherTests {
 
   @Test
   @Ignore // TODO: Rewrite as mocking of WorkflowServiceBlockingStub is not possible
-  public void aWarningIsLoggedAndDecisionTaskIsFailedWhenNoHandlerIsRegisteredForTheTaskQueue()
+  public void aWarningIsLoggedAndWorkflowTaskIsFailedWhenNoHandlerIsRegisteredForTheTaskQueue()
       throws Exception {
 
     // Arrange
@@ -145,37 +145,37 @@ public class PollDecisionTaskDispatcherTests {
     logger.addAppender(appender);
 
     AtomicBoolean handled = new AtomicBoolean(false);
-    Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
+    Consumer<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub stub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
     WorkflowServiceStubs mockService = mock(WorkflowServiceStubs.class);
     when(mockService.blockingStub()).thenReturn(stub);
 
-    PollDecisionTaskDispatcher dispatcher =
-        new PollDecisionTaskDispatcher(mockService, metricsScope);
+    PollWorkflowTaskDispatcher dispatcher =
+        new PollWorkflowTaskDispatcher(mockService, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
     // Act
-    PollForDecisionTaskResponse response =
-        CreatePollForDecisionTaskResponse("I Don't Exist TaskQueue");
+    PollWorkflowTaskQueueResponse response =
+        CreatePollWorkflowTaskQueueResponse("I Don't Exist TaskQueue");
     dispatcher.process(response);
 
     // Assert
-    verify(stub, times(1)).respondDecisionTaskFailed(any());
+    verify(stub, times(1)).respondWorkflowTaskFailed(any());
     assertFalse(handled.get());
     assertEquals(1, appender.list.size());
     ILoggingEvent event = appender.list.get(0);
     assertEquals(Level.WARN, event.getLevel());
     assertEquals(
         String.format(
-            "No handler is subscribed for the PollForDecisionTaskResponse.WorkflowExecutionTaskQueue %s",
+            "No handler is subscribed for the PollWorkflowTaskQueueResponse.WorkflowExecutionTaskQueue %s",
             "I Don't Exist TaskQueue"),
         event.getFormattedMessage());
   }
 
-  private PollForDecisionTaskResponse CreatePollForDecisionTaskResponse(String taskQueueName) {
-    return PollForDecisionTaskResponse.newBuilder()
+  private PollWorkflowTaskQueueResponse CreatePollWorkflowTaskQueueResponse(String taskQueueName) {
+    return PollWorkflowTaskQueueResponse.newBuilder()
         .setWorkflowExecutionTaskQueue(TaskQueue.newBuilder().setName(taskQueueName).build())
         .build();
   }

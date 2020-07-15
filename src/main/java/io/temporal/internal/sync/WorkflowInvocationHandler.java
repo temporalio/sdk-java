@@ -114,7 +114,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
       GenericWorkflowClientExternal genericClient,
       WorkflowExecution execution,
       Scope metricsScope) {
-    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    workflowMetadata =
+        POJOWorkflowInterfaceMetadata.newInstanceSkipWorkflowAnnotationCheck(workflowInterface);
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
     WorkflowStub stub =
         new WorkflowStubImpl(clientOptions, genericClient, workflowType, execution, metricsScope);

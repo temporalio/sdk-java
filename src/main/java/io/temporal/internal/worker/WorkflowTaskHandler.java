@@ -19,10 +19,10 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.internal.common.RpcRetryOptions;
 
 /**
@@ -30,36 +30,36 @@ import io.temporal.internal.common.RpcRetryOptions;
  *
  * @author fateev, suskin
  */
-public interface DecisionTaskHandler {
+public interface WorkflowTaskHandler {
 
   final class Result {
     private final String workflowType;
-    private final RespondDecisionTaskCompletedRequest taskCompleted;
-    private final RespondDecisionTaskFailedRequest taskFailed;
+    private final RespondWorkflowTaskCompletedRequest taskCompleted;
+    private final RespondWorkflowTaskFailedRequest taskFailed;
     private final RespondQueryTaskCompletedRequest queryCompleted;
     private final RpcRetryOptions requestRetryOptions;
-    private final boolean finalDecision;
+    private final boolean completionCommand;
 
     public Result(
         String workflowType,
-        RespondDecisionTaskCompletedRequest taskCompleted,
-        RespondDecisionTaskFailedRequest taskFailed,
+        RespondWorkflowTaskCompletedRequest taskCompleted,
+        RespondWorkflowTaskFailedRequest taskFailed,
         RespondQueryTaskCompletedRequest queryCompleted,
         RpcRetryOptions requestRetryOptions,
-        boolean finalDecision) {
+        boolean completionCommand) {
       this.workflowType = workflowType;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.queryCompleted = queryCompleted;
       this.requestRetryOptions = requestRetryOptions;
-      this.finalDecision = finalDecision;
+      this.completionCommand = completionCommand;
     }
 
-    public RespondDecisionTaskCompletedRequest getTaskCompleted() {
+    public RespondWorkflowTaskCompletedRequest getTaskCompleted() {
       return taskCompleted;
     }
 
-    public RespondDecisionTaskFailedRequest getTaskFailed() {
+    public RespondWorkflowTaskFailedRequest getTaskFailed() {
       return taskFailed;
     }
 
@@ -71,8 +71,8 @@ public interface DecisionTaskHandler {
       return requestRetryOptions;
     }
 
-    public boolean isFinalDecision() {
-      return finalDecision;
+    public boolean isCompletionCommand() {
+      return completionCommand;
     }
 
     @Override
@@ -96,13 +96,13 @@ public interface DecisionTaskHandler {
 
   /**
    * Handles a single workflow task. Shouldn't throw any exceptions. A compliant implementation
-   * should return any unexpected errors as RespondDecisionTaskFailedRequest.
+   * should return any unexpected errors as RespondWorkflowTaskFailedRequest.
    *
-   * @param decisionTask The decision task to handle.
-   * @return One of the possible decision task replies: RespondDecisionTaskCompletedRequest,
-   *     RespondQueryTaskCompletedRequest, RespondDecisionTaskFailedRequest
+   * @param workflowTask The workflow task to handle.
+   * @return One of the possible workflow task replies: RespondWorkflowTaskCompletedRequest,
+   *     RespondQueryTaskCompletedRequest, RespondWorkflowTaskFailedRequest
    */
-  Result handleDecisionTask(PollForDecisionTaskResponse decisionTask) throws Exception;
+  Result handleWorkflowTask(PollWorkflowTaskQueueResponse workflowTask) throws Exception;
 
   /** True if this handler handles at least one workflow type. */
   boolean isAnyTypeSupported();

@@ -17,16 +17,15 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.worker;
+package io.temporal.internal.replay;
 
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
-import java.util.Iterator;
-
-/** Contains DecisionTask and history iterator that paginates history behind the scene. */
-public interface DecisionTaskWithHistoryIterator {
-
-  PollForDecisionTaskResponseOrBuilder getDecisionTask();
-
-  Iterator<HistoryEvent> getHistory();
+enum CommandTarget {
+  ACTIVITY,
+  CHILD_WORKFLOW,
+  CANCEL_EXTERNAL_WORKFLOW,
+  SIGNAL_EXTERNAL_WORKFLOW,
+  TIMER,
+  MARKER,
+  UPSERT_SEARCH_ATTRIBUTES,
+  SELF
 }

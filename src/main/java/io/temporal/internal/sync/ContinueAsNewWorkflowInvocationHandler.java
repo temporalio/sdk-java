@@ -30,27 +30,27 @@ import java.util.Optional;
 class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
 
   private final ContinueAsNewOptions options;
-  private final WorkflowOutboundCallsInterceptor decisionContext;
+  private final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   ContinueAsNewWorkflowInvocationHandler(
       Class<?> interfaceClass,
       ContinueAsNewOptions options,
-      WorkflowOutboundCallsInterceptor decisionContext) {
+      WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(interfaceClass);
     if (!workflowMetadata.getWorkflowMethod().isPresent()) {
       throw new IllegalArgumentException(
           "Missing method annotated with @WorkflowMethod: " + interfaceClass.getName());
     }
     this.options = options;
-    this.decisionContext = decisionContext;
+    this.outboundCallsInterceptor = outboundCallsInterceptor;
   }
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
     String workflowType = workflowMetadata.getMethodMetadata(method).getName();
     WorkflowInternal.continueAsNew(
-        Optional.of(workflowType), Optional.ofNullable(options), args, decisionContext);
+        Optional.of(workflowType), Optional.ofNullable(options), args, outboundCallsInterceptor);
     return getValueOrDefault(null, method.getReturnType());
   }
 }

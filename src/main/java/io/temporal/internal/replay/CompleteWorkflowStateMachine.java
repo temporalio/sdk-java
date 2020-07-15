@@ -19,32 +19,32 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.history.v1.HistoryEvent;
 
-final class CompleteWorkflowStateMachine implements DecisionStateMachine {
+final class CompleteWorkflowStateMachine implements CommandStateMachine {
 
-  private Decision decision;
-  private final DecisionId id;
+  private Command command;
+  private final CommandId id;
 
-  public CompleteWorkflowStateMachine(DecisionId id, Decision decision) {
+  public CompleteWorkflowStateMachine(CommandId id, Command command) {
     this.id = id;
-    this.decision = decision;
+    this.command = command;
   }
 
   @Override
-  public DecisionId getId() {
+  public CommandId getId() {
     return id;
   }
 
   @Override
-  public Decision getDecision() {
-    return decision;
+  public Command getCommand() {
+    return command;
   }
 
   @Override
   public void handleInitiationFailedEvent(HistoryEvent event) {
-    decision = null;
+    command = null;
   }
 
   @Override
@@ -78,8 +78,8 @@ final class CompleteWorkflowStateMachine implements DecisionStateMachine {
   }
 
   @Override
-  public DecisionState getState() {
-    return DecisionState.CREATED;
+  public CommandState getState() {
+    return CommandState.CREATED;
   }
 
   @Override
@@ -89,14 +89,14 @@ final class CompleteWorkflowStateMachine implements DecisionStateMachine {
 
   @Override
   public boolean isDone() {
-    return decision != null;
+    return command != null;
   }
 
   @Override
-  public void handleDecisionTaskStartedEvent() {}
+  public void handleWorkflowTaskStartedEvent() {}
 
   @Override
   public String toString() {
-    return "CompleteWorkflowStateMachine [decision=" + decision + ", id=" + id + "]";
+    return "CompleteWorkflowStateMachine [command=" + command + ", id=" + id + "]";
   }
 }

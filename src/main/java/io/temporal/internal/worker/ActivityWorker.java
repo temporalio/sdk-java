@@ -29,7 +29,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
@@ -151,7 +151,7 @@ public final class ActivityWorker implements SuspendableWorker {
   }
 
   private class TaskHandlerImpl
-      implements PollTaskExecutor.TaskHandler<PollForActivityTaskResponse> {
+      implements PollTaskExecutor.TaskHandler<PollActivityTaskQueueResponse> {
 
     final ActivityTaskHandler handler;
 
@@ -160,7 +160,7 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     @Override
-    public void handle(PollForActivityTaskResponse task) throws Exception {
+    public void handle(PollActivityTaskQueueResponse task) throws Exception {
       Scope metricsScope =
           options
               .getMetricsScope()
@@ -219,7 +219,7 @@ public final class ActivityWorker implements SuspendableWorker {
       }
     }
 
-    void propagateContext(PollForActivityTaskResponse response) {
+    void propagateContext(PollActivityTaskQueueResponse response) {
       if (options.getContextPropagators() == null || options.getContextPropagators().isEmpty()) {
         return;
       }
@@ -237,7 +237,7 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     @Override
-    public Throwable wrapFailure(PollForActivityTaskResponse task, Throwable failure) {
+    public Throwable wrapFailure(PollActivityTaskQueueResponse task, Throwable failure) {
       WorkflowExecution execution = task.getWorkflowExecution();
       return new RuntimeException(
           "Failure processing activity task. WorkflowId="
@@ -252,7 +252,9 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     private void sendReply(
-        PollForActivityTaskResponse task, ActivityTaskHandler.Result response, Scope metricsScope) {
+        PollActivityTaskQueueResponse task,
+        ActivityTaskHandler.Result response,
+        Scope metricsScope) {
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {

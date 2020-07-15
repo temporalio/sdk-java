@@ -26,15 +26,15 @@ import com.uber.m3.util.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskResponse> {
+final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueResponse> {
 
   private final Scope metricsScope;
   private final WorkflowServiceStubs service;
@@ -57,9 +57,9 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
   }
 
   @Override
-  public PollForDecisionTaskResponse poll() {
-    PollForDecisionTaskRequest pollRequest =
-        PollForDecisionTaskRequest.newBuilder()
+  public PollWorkflowTaskQueueResponse poll() {
+    PollWorkflowTaskQueueRequest pollRequest =
+        PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build())
@@ -68,13 +68,13 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }
-    PollForDecisionTaskResponse result;
+    PollWorkflowTaskQueueResponse result;
     try {
       result =
           service
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-              .pollForDecisionTask(pollRequest);
+              .pollWorkflowTaskQueue(pollRequest);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
           && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
@@ -84,7 +84,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     }
     if (log.isTraceEnabled()) {
       log.trace(
-          "poll request returned decision task: workflowType="
+          "poll request returned workflow task: workflowType="
               + result.getWorkflowType()
               + ", workflowExecution="
               + result.getWorkflowExecution()
@@ -98,12 +98,12 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     }
 
     if (result == null || result.getTaskToken().isEmpty()) {
-      metricsScope.counter(MetricsType.DECISION_POLL_NO_TASK_COUNTER).inc(1);
+      metricsScope.counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_EMPTY_COUNTER).inc(1);
       return null;
     }
-    metricsScope.counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
+    metricsScope.counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER).inc(1);
     metricsScope
-        .timer(MetricsType.DECISION_SCHEDULED_TO_START_LATENCY)
+        .timer(MetricsType.WORKFLOW_TASK_SCHEDULE_TO_START_LATENCY)
         .record(Duration.ofNanos(result.getStartedTimestamp() - result.getScheduledTimestamp()));
     return result;
   }

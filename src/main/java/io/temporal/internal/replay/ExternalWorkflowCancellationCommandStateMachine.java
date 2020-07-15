@@ -19,26 +19,26 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
-import io.temporal.api.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.enums.v1.DecisionType;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 
-final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionStateMachineBase {
+final class ExternalWorkflowCancellationCommandStateMachine extends CommandStateMachineBase {
 
-  private RequestCancelExternalWorkflowExecutionDecisionAttributes attributes;
+  private RequestCancelExternalWorkflowExecutionCommandAttributes attributes;
 
-  ExternalWorkflowCancellationDecisionStateMachine(
-      DecisionId decisionId, RequestCancelExternalWorkflowExecutionDecisionAttributes attributes) {
-    super(decisionId);
+  ExternalWorkflowCancellationCommandStateMachine(
+      CommandId commandId, RequestCancelExternalWorkflowExecutionCommandAttributes attributes) {
+    super(commandId);
     this.attributes = attributes;
   }
 
   @Override
-  public Decision getDecision() {
+  public Command getCommand() {
     switch (state) {
       case CREATED:
-        return createRequestCancelExternalWorkflowExecutionDecision();
+        return createRequestCancelExternalWorkflowExecutionCommand();
       default:
         return null;
     }
@@ -55,8 +55,8 @@ final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionSta
   public void handleInitiatedEvent(HistoryEvent event) {
     stateHistory.add("handleInitiatedEvent");
     switch (state) {
-      case DECISION_SENT:
-        state = DecisionState.INITIATED;
+      case COMMAND_SENT:
+        state = CommandState.INITIATED;
         break;
       default:
         failStateTransition();
@@ -78,9 +78,9 @@ final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionSta
   public void handleCompletionEvent() {
     stateHistory.add("handleCompletionEvent");
     switch (state) {
-      case DECISION_SENT:
+      case COMMAND_SENT:
       case INITIATED:
-        state = DecisionState.COMPLETED;
+        state = CommandState.COMPLETED;
         break;
       default:
         failStateTransition();
@@ -103,12 +103,10 @@ final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionSta
     throw new UnsupportedOperationException();
   }
 
-  private Decision createRequestCancelExternalWorkflowExecutionDecision() {
-    Decision decision =
-        Decision.newBuilder()
-            .setRequestCancelExternalWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DECISION_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
-            .build();
-    return decision;
+  private Command createRequestCancelExternalWorkflowExecutionCommand() {
+    return Command.newBuilder()
+        .setRequestCancelExternalWorkflowExecutionCommandAttributes(attributes)
+        .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
+        .build();
   }
 }

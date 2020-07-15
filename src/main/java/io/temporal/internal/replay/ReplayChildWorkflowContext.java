@@ -19,12 +19,12 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
@@ -56,7 +56,7 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-final class WorkflowDecisionContext {
+final class ReplayChildWorkflowContext {
 
   private final class ChildWorkflowCancellationHandler implements Consumer<Exception> {
 
@@ -83,13 +83,13 @@ final class WorkflowDecisionContext {
         case WAIT_CANCELLATION_REQUESTED:
         case WAIT_CANCELLATION_COMPLETED:
         case TRY_CANCEL:
-          RequestCancelExternalWorkflowExecutionDecisionAttributes cancelAttributes =
-              RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+          RequestCancelExternalWorkflowExecutionCommandAttributes cancelAttributes =
+              RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
                   .setWorkflowId(workflowId)
                   .setChildWorkflowOnly(true)
                   .build();
           long cancellationInitiatedEventId =
-              decisions.requestCancelExternalWorkflowExecution(cancelAttributes);
+              commandHelper.requestCancelExternalWorkflowExecution(cancelAttributes);
           scheduledExternalCancellations.put(cancellationInitiatedEventId, initiatedEventId);
       }
       switch (cancellationType) {
@@ -104,7 +104,7 @@ final class WorkflowDecisionContext {
     }
   }
 
-  private final DecisionsHelper decisions;
+  private final CommandHelper commandHelper;
 
   private final WorkflowContext workflowContext;
 
@@ -117,8 +117,8 @@ final class WorkflowDecisionContext {
   // key is initiatedEventId
   private final Map<Long, OpenRequestInfo<Void, Void>> scheduledSignals = new HashMap<>();
 
-  WorkflowDecisionContext(DecisionsHelper decisions, WorkflowContext workflowContext) {
-    this.decisions = decisions;
+  ReplayChildWorkflowContext(CommandHelper commandHelper, WorkflowContext workflowContext) {
+    this.commandHelper = commandHelper;
     this.workflowContext = workflowContext;
   }
 
@@ -126,9 +126,8 @@ final class WorkflowDecisionContext {
       StartChildWorkflowExecutionParameters parameters,
       Consumer<WorkflowExecution> executionCallback,
       BiConsumer<Optional<Payloads>, Exception> callback) {
-    final StartChildWorkflowExecutionDecisionAttributes.Builder attributes =
-        parameters.getRequest();
-    long initiatedEventId = decisions.startChildWorkflowExecution(attributes.build());
+    final StartChildWorkflowExecutionCommandAttributes.Builder attributes = parameters.getRequest();
+    long initiatedEventId = commandHelper.startChildWorkflowExecution(attributes.build());
     final OpenChildWorkflowRequestInfo context =
         new OpenChildWorkflowRequestInfo(parameters.getCancellationType(), executionCallback);
     context.setCompletionHandle(callback);
@@ -138,11 +137,11 @@ final class WorkflowDecisionContext {
   }
 
   Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
       BiConsumer<Void, Exception> callback) {
     OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
-    attributes.setControl(decisions.getAndIncrementNextId());
-    long finalSignalId = decisions.signalExternalWorkflowExecution(attributes.build());
+    attributes.setControl(commandHelper.getAndIncrementNextId());
+    long finalSignalId = commandHelper.signalExternalWorkflowExecution(attributes.build());
     context.setCompletionHandle(callback);
     scheduledSignals.put(finalSignalId, context);
     return (e) -> {
@@ -150,7 +149,7 @@ final class WorkflowDecisionContext {
         // Cancellation handlers are not deregistered. So they fire after a signal completion.
         return;
       }
-      decisions.cancelSignalExternalWorkflowExecution(finalSignalId, null);
+      commandHelper.cancelSignalExternalWorkflowExecution(finalSignalId, null);
       OpenRequestInfo<Void, Void> scheduled = scheduledSignals.remove(finalSignalId);
       if (scheduled == null) {
         throw new IllegalArgumentException("Signal \"" + finalSignalId + "\" wasn't scheduled");
@@ -160,15 +159,15 @@ final class WorkflowDecisionContext {
   }
 
   void requestCancelWorkflowExecution(WorkflowExecution execution) {
-    RequestCancelExternalWorkflowExecutionDecisionAttributes attributes =
-        RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+    RequestCancelExternalWorkflowExecutionCommandAttributes attributes =
+        RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
             .setWorkflowId(execution.getWorkflowId())
             .setRunId(execution.getRunId())
             .build();
-    decisions.requestCancelExternalWorkflowExecution(attributes);
+    commandHelper.requestCancelExternalWorkflowExecution(attributes);
   }
 
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     // TODO: add validation to check if continueAsNew is not set
     workflowContext.setContinueAsNewOnCompletion(attributes);
   }
@@ -179,7 +178,7 @@ final class WorkflowDecisionContext {
     if (runId == null) {
       throw new Error("null currentRunId");
     }
-    String id = runId + ":" + decisions.getAndIncrementNextId();
+    String id = runId + ":" + commandHelper.getAndIncrementNextId();
     byte[] bytes = id.getBytes(StandardCharsets.UTF_8);
     return UUID.nameUUIDFromBytes(bytes);
   }
@@ -191,7 +190,7 @@ final class WorkflowDecisionContext {
   void handleChildWorkflowExecutionCancelRequested(HistoryEvent event) {
     ExternalWorkflowExecutionCancelRequestedEventAttributes attributes =
         event.getExternalWorkflowExecutionCancelRequestedEventAttributes();
-    decisions.handleExternalWorkflowExecutionCancelRequested(event);
+    commandHelper.handleExternalWorkflowExecutionCancelRequested(event);
     Long initiatedEventId = scheduledExternalCancellations.remove(attributes.getInitiatedEventId());
     if (initiatedEventId == null) {
       return;
@@ -213,7 +212,7 @@ final class WorkflowDecisionContext {
   void handleChildWorkflowExecutionCanceled(HistoryEvent event) {
     ChildWorkflowExecutionCanceledEventAttributes attributes =
         event.getChildWorkflowExecutionCanceledEventAttributes();
-    if (decisions.handleChildWorkflowExecutionCanceled(attributes)) {
+    if (commandHelper.handleChildWorkflowExecutionCanceled(attributes)) {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
@@ -230,7 +229,7 @@ final class WorkflowDecisionContext {
   void handleChildWorkflowExecutionStarted(HistoryEvent event) {
     ChildWorkflowExecutionStartedEventAttributes attributes =
         event.getChildWorkflowExecutionStartedEventAttributes();
-    decisions.handleChildWorkflowExecutionStarted(event);
+    commandHelper.handleChildWorkflowExecutionStarted(event);
     OpenChildWorkflowRequestInfo scheduled =
         scheduledExternalWorkflows.get(attributes.getInitiatedEventId());
     if (scheduled != null) {
@@ -241,7 +240,7 @@ final class WorkflowDecisionContext {
   void handleChildWorkflowExecutionTimedOut(HistoryEvent event) {
     ChildWorkflowExecutionTimedOutEventAttributes attributes =
         event.getChildWorkflowExecutionTimedOutEventAttributes();
-    if (decisions.handleChildWorkflowExecutionTimedOut(attributes)) {
+    if (commandHelper.handleChildWorkflowExecutionTimedOut(attributes)) {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
@@ -268,7 +267,7 @@ final class WorkflowDecisionContext {
     ChildWorkflowExecutionTerminatedEventAttributes attributes =
         event.getChildWorkflowExecutionTerminatedEventAttributes();
     WorkflowExecution execution = attributes.getWorkflowExecution();
-    if (decisions.handleChildWorkflowExecutionTerminated(attributes)) {
+    if (commandHelper.handleChildWorkflowExecutionTerminated(attributes)) {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
@@ -291,7 +290,7 @@ final class WorkflowDecisionContext {
   void handleStartChildWorkflowExecutionFailed(HistoryEvent event) {
     StartChildWorkflowExecutionFailedEventAttributes attributes =
         event.getStartChildWorkflowExecutionFailedEventAttributes();
-    if (decisions.handleStartChildWorkflowExecutionFailed(event)) {
+    if (commandHelper.handleStartChildWorkflowExecutionFailed(event)) {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
@@ -317,7 +316,7 @@ final class WorkflowDecisionContext {
   void handleChildWorkflowExecutionFailed(HistoryEvent event) {
     ChildWorkflowExecutionFailedEventAttributes attributes =
         event.getChildWorkflowExecutionFailedEventAttributes();
-    if (decisions.handleChildWorkflowExecutionFailed(attributes)) {
+    if (commandHelper.handleChildWorkflowExecutionFailed(attributes)) {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
@@ -338,7 +337,7 @@ final class WorkflowDecisionContext {
   void handleChildWorkflowExecutionCompleted(HistoryEvent event) {
     ChildWorkflowExecutionCompletedEventAttributes attributes =
         event.getChildWorkflowExecutionCompletedEventAttributes();
-    if (decisions.handleChildWorkflowExecutionCompleted(attributes)) {
+    if (commandHelper.handleChildWorkflowExecutionCompleted(attributes)) {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
@@ -355,7 +354,7 @@ final class WorkflowDecisionContext {
     SignalExternalWorkflowExecutionFailedEventAttributes attributes =
         event.getSignalExternalWorkflowExecutionFailedEventAttributes();
     long initiatedEventId = attributes.getInitiatedEventId();
-    if (decisions.handleSignalExternalWorkflowExecutionFailed(initiatedEventId)) {
+    if (commandHelper.handleSignalExternalWorkflowExecutionFailed(initiatedEventId)) {
       OpenRequestInfo<Void, Void> signalContextAndResult =
           scheduledSignals.remove(initiatedEventId);
       if (signalContextAndResult != null) {
@@ -374,7 +373,7 @@ final class WorkflowDecisionContext {
     ExternalWorkflowExecutionSignaledEventAttributes attributes =
         event.getExternalWorkflowExecutionSignaledEventAttributes();
     long initiatedEventId = attributes.getInitiatedEventId();
-    if (decisions.handleExternalWorkflowExecutionSignaled(initiatedEventId)) {
+    if (commandHelper.handleExternalWorkflowExecutionSignaled(initiatedEventId)) {
       OpenRequestInfo<Void, Void> signalCtxAndResult = scheduledSignals.remove(initiatedEventId);
       if (signalCtxAndResult != null) {
         signalCtxAndResult.getCompletionCallback().accept(null, null);

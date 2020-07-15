@@ -32,16 +32,16 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.Decider;
-import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.replay.DecisionContext;
+import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.replay.WorkflowExecutor;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -721,17 +721,17 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 3, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    DeciderCache cache = new DeciderCache(3, scope);
-    DecisionContext decisionContext = mock(DecisionContext.class);
-    when(decisionContext.getMetricsScope()).thenReturn(scope);
-    when(decisionContext.getNamespace()).thenReturn("namespace");
-    when(decisionContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(3, scope);
+    ReplayWorkflowContext replayWorkflowContext = mock(ReplayWorkflowContext.class);
+    when(replayWorkflowContext.getMetricsScope()).thenReturn(scope);
+    when(replayWorkflowContext.getNamespace()).thenReturn("namespace");
+    when(replayWorkflowContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
-                decisionContext, DataConverter.getDefaultInstance(), null, null),
+            new SyncWorkflowContext(
+                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
             "test-thread",
             () -> {
@@ -745,11 +745,11 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    Decider decider = new DetermisiticRunnerContainerDecider(d);
-    PollForDecisionTaskResponse response = HistoryUtils.generateDecisionTaskWithInitialHistory();
+    WorkflowExecutor workflowExecutor = new DetermisiticRunnerContainerWorkflowExecutor(d);
+    PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> decider);
-    cache.addToCache(response, decider);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
+    cache.addToCache(response, workflowExecutor);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -757,8 +757,8 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
-                decisionContext, DataConverter.getDefaultInstance(), null, null),
+            new SyncWorkflowContext(
+                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
             "test-thread",
             () -> {
@@ -791,7 +791,7 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    DeciderCache cache = new DeciderCache(3, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(3, new NoopScope());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
@@ -810,11 +810,11 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    Decider decider = new DetermisiticRunnerContainerDecider(d);
-    PollForDecisionTaskResponse response = HistoryUtils.generateDecisionTaskWithInitialHistory();
+    WorkflowExecutor workflowExecutor = new DetermisiticRunnerContainerWorkflowExecutor(d);
+    PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> decider);
-    cache.addToCache(response, decider);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
+    cache.addToCache(response, workflowExecutor);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -845,21 +845,22 @@ public class DeterministicRunnerTest {
     assertEquals(1, cache.size());
   }
 
-  private static class DetermisiticRunnerContainerDecider implements Decider {
+  private static class DetermisiticRunnerContainerWorkflowExecutor implements WorkflowExecutor {
     DeterministicRunner runner;
 
-    DetermisiticRunnerContainerDecider(DeterministicRunner runner) {
+    DetermisiticRunnerContainerWorkflowExecutor(DeterministicRunner runner) {
       this.runner = Objects.requireNonNull(runner);
     }
 
     @Override
-    public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) {
-      return new DecisionResult(new ArrayList<>(), Maps.newHashMap(), false, false);
+    public WorkflowTaskResult handleWorkflowTask(
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
+      return new WorkflowTaskResult(new ArrayList<>(), Maps.newHashMap(), false, false);
     }
 
     @Override
-    public Optional<Payloads> query(
-        PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query) throws Throwable {
+    public Optional<Payloads> handleQueryWorkflowTask(
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) throws Throwable {
       return Optional.empty();
     }
 

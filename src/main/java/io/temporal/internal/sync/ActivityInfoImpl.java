@@ -21,18 +21,19 @@ package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 final class ActivityInfoImpl implements ActivityInfo {
-  private final PollForActivityTaskResponse response;
+  private final PollActivityTaskQueueResponse response;
   private final String activityNamespace;
   private final boolean local;
 
-  ActivityInfoImpl(PollForActivityTaskResponse response, String activityNamespace, boolean local) {
+  ActivityInfoImpl(
+      PollActivityTaskQueueResponse response, String activityNamespace, boolean local) {
     this.response = Objects.requireNonNull(response);
     this.activityNamespace = Objects.requireNonNull(activityNamespace);
     this.local = local;

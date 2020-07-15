@@ -28,10 +28,10 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
@@ -44,10 +44,10 @@ import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
 import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsResponse;
 import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsRequest;
 import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskRequest;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest;
@@ -68,12 +68,12 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedResponse;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskCompletedResponse;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedResponse;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedResponse;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedResponse;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
@@ -359,39 +359,39 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void pollForDecisionTask(
-      PollForDecisionTaskRequest pollRequest,
-      StreamObserver<PollForDecisionTaskResponse> responseObserver) {
+  public void pollWorkflowTaskQueue(
+      PollWorkflowTaskQueueRequest pollRequest,
+      StreamObserver<PollWorkflowTaskQueueResponse> responseObserver) {
     Deadline deadline = Context.current().getDeadline();
-    Optional<PollForDecisionTaskResponse.Builder> optionalTask =
-        store.pollForDecisionTask(pollRequest, deadline);
+    Optional<PollWorkflowTaskQueueResponse.Builder> optionalTask =
+        store.pollWorkflowTaskQueue(pollRequest, deadline);
     if (!optionalTask.isPresent()) {
-      responseObserver.onNext(PollForDecisionTaskResponse.getDefaultInstance());
+      responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
       responseObserver.onCompleted();
       return;
     }
-    PollForDecisionTaskResponse.Builder task = optionalTask.get();
+    PollWorkflowTaskQueueResponse.Builder task = optionalTask.get();
 
     ExecutionId executionId =
         new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     try {
-      mutableState.startDecisionTask(task, pollRequest);
+      mutableState.startWorkflowTask(task, pollRequest);
       // The task always has the original taskqueue is was created on as part of the response. This
       // may different
       // then the task queue it was scheduled on as in the case of sticky execution.
       task.setWorkflowExecutionTaskQueue(mutableState.getStartRequest().getTaskQueue());
-      PollForDecisionTaskResponse response = task.build();
+      PollWorkflowTaskQueueResponse response = task.build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         if (log.isDebugEnabled()) {
-          log.debug("Skipping outdated decision task for " + executionId, e);
+          log.debug("Skipping outdated workflow task for " + executionId, e);
         }
         // The real service doesn't return this call on outdated task.
         // For simplicity we return empty result here.
-        responseObserver.onNext(PollForDecisionTaskResponse.getDefaultInstance());
+        responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
         responseObserver.onCompleted();
       } else {
         if (e.getStatus().getCode() == Status.Code.INTERNAL) {
@@ -403,14 +403,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void respondDecisionTaskCompleted(
-      RespondDecisionTaskCompletedRequest request,
-      StreamObserver<RespondDecisionTaskCompletedResponse> responseObserver) {
+  public void respondWorkflowTaskCompleted(
+      RespondWorkflowTaskCompletedRequest request,
+      StreamObserver<RespondWorkflowTaskCompletedResponse> responseObserver) {
     try {
-      DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(request.getTaskToken());
+      WorkflowTaskToken taskToken = WorkflowTaskToken.fromBytes(request.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
-      mutableState.completeDecisionTask(taskToken.getHistorySize(), request);
-      responseObserver.onNext(RespondDecisionTaskCompletedResponse.getDefaultInstance());
+      mutableState.completeWorkflowTask(taskToken.getHistorySize(), request);
+      responseObserver.onNext(RespondWorkflowTaskCompletedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.INTERNAL) {
@@ -427,14 +427,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void respondDecisionTaskFailed(
-      RespondDecisionTaskFailedRequest failedRequest,
-      StreamObserver<RespondDecisionTaskFailedResponse> responseObserver) {
+  public void respondWorkflowTaskFailed(
+      RespondWorkflowTaskFailedRequest failedRequest,
+      StreamObserver<RespondWorkflowTaskFailedResponse> responseObserver) {
     try {
-      DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(failedRequest.getTaskToken());
+      WorkflowTaskToken taskToken = WorkflowTaskToken.fromBytes(failedRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
-      mutableState.failDecisionTask(failedRequest);
-      responseObserver.onNext(RespondDecisionTaskFailedResponse.getDefaultInstance());
+      mutableState.failWorkflowTask(failedRequest);
+      responseObserver.onNext(RespondWorkflowTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.INTERNAL) {
@@ -445,19 +445,19 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void pollForActivityTask(
-      PollForActivityTaskRequest pollRequest,
-      StreamObserver<PollForActivityTaskResponse> responseObserver) {
+  public void pollActivityTaskQueue(
+      PollActivityTaskQueueRequest pollRequest,
+      StreamObserver<PollActivityTaskQueueResponse> responseObserver) {
     while (true) {
       Deadline deadline = Context.current().getDeadline();
-      Optional<PollForActivityTaskResponse.Builder> optionalTask =
-          store.pollForActivityTask(pollRequest, deadline);
+      Optional<PollActivityTaskQueueResponse.Builder> optionalTask =
+          store.pollActivityTaskQueue(pollRequest, deadline);
       if (!optionalTask.isPresent()) {
-        responseObserver.onNext(PollForActivityTaskResponse.getDefaultInstance());
+        responseObserver.onNext(PollActivityTaskQueueResponse.getDefaultInstance());
         responseObserver.onCompleted();
         return;
       }
-      PollForActivityTaskResponse.Builder task = optionalTask.get();
+      PollActivityTaskQueueResponse.Builder task = optionalTask.get();
       ExecutionId executionId =
           new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);
@@ -471,7 +471,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           if (log.isDebugEnabled()) {
             log.debug("Skipping outdated activity task for " + executionId, e);
           }
-          responseObserver.onNext(PollForActivityTaskResponse.getDefaultInstance());
+          responseObserver.onNext(PollActivityTaskQueueResponse.getDefaultInstance());
           responseObserver.onCompleted();
         } else {
           if (e.getStatus().getCode() == Status.Code.INTERNAL) {
@@ -804,7 +804,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   public void signalExternalWorkflowExecution(
       String signalId,
-      SignalExternalWorkflowExecutionDecisionAttributes a,
+      SignalExternalWorkflowExecutionCommandAttributes a,
       TestWorkflowMutableState source) {
     String namespace;
     if (a.getNamespace().isEmpty()) {

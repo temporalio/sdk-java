@@ -24,7 +24,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.metrics.MetricsType;
 import java.util.HashSet;
 import java.util.Objects;
@@ -33,13 +33,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public final class DeciderCache {
+public final class WorkflowExecutorCache {
   private final Scope metricsScope;
-  private LoadingCache<String, Decider> cache;
+  private LoadingCache<String, WorkflowExecutor> cache;
   private Lock cacheLock = new ReentrantLock();
   private Set<String> inProcessing = new HashSet<>();
 
-  public DeciderCache(int workflowCacheSize, Scope scope) {
+  public WorkflowExecutorCache(int workflowCacheSize, Scope scope) {
     Preconditions.checkArgument(workflowCacheSize > 0, "Max cache size must be greater than 0");
     this.metricsScope = Objects.requireNonNull(scope);
     this.cache =
@@ -47,45 +47,45 @@ public final class DeciderCache {
             .maximumSize(workflowCacheSize)
             .removalListener(
                 e -> {
-                  Decider entry = (Decider) e.getValue();
+                  WorkflowExecutor entry = (WorkflowExecutor) e.getValue();
                   if (entry != null) {
                     entry.close();
                   }
                 })
             .build(
-                new CacheLoader<String, Decider>() {
+                new CacheLoader<String, WorkflowExecutor>() {
                   @Override
-                  public Decider load(String key) {
+                  public WorkflowExecutor load(String key) {
                     return null;
                   }
                 });
   }
 
-  public Decider getOrCreate(
-      PollForDecisionTaskResponseOrBuilder decisionTask,
+  public WorkflowExecutor getOrCreate(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       Scope metricsScope,
-      Callable<Decider> deciderFunc)
+      Callable<WorkflowExecutor> workflowExecutorFn)
       throws Exception {
-    String runId = decisionTask.getWorkflowExecution().getRunId();
-    if (isFullHistory(decisionTask)) {
+    String runId = workflowTask.getWorkflowExecution().getRunId();
+    if (isFullHistory(workflowTask)) {
       invalidate(runId, metricsScope);
-      return deciderFunc.call();
+      return workflowExecutorFn.call();
     }
 
-    Decider decider = getForProcessing(runId, metricsScope);
-    if (decider != null) {
-      return decider;
+    WorkflowExecutor workflowExecutor = getForProcessing(runId, metricsScope);
+    if (workflowExecutor != null) {
+      return workflowExecutor;
     }
-    return deciderFunc.call();
+    return workflowExecutorFn.call();
   }
 
-  private Decider getForProcessing(String runId, Scope metricsScope) throws Exception {
+  private WorkflowExecutor getForProcessing(String runId, Scope metricsScope) throws Exception {
     cacheLock.lock();
     try {
-      Decider decider = cache.get(runId);
+      WorkflowExecutor workflowExecutor = cache.get(runId);
       inProcessing.add(runId);
       metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
-      return decider;
+      return workflowExecutor;
     } catch (CacheLoader.InvalidCacheLoadException e) {
       // We don't have a default loader and don't want to have one. So it's ok to get null value.
       metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
@@ -95,8 +95,8 @@ public final class DeciderCache {
     }
   }
 
-  void markProcessingDone(PollForDecisionTaskResponseOrBuilder decisionTask) {
-    String runId = decisionTask.getWorkflowExecution().getRunId();
+  void markProcessingDone(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
+    String runId = workflowTask.getWorkflowExecution().getRunId();
 
     cacheLock.lock();
     try {
@@ -106,9 +106,10 @@ public final class DeciderCache {
     }
   }
 
-  public void addToCache(PollForDecisionTaskResponseOrBuilder decisionTask, Decider decider) {
-    String runId = decisionTask.getWorkflowExecution().getRunId();
-    cache.put(runId, decider);
+  public void addToCache(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowExecutor workflowExecutor) {
+    String runId = workflowTask.getWorkflowExecution().getRunId();
+    cache.put(runId, workflowExecutor);
   }
 
   public boolean evictAnyNotInProcessing(String runId, Scope metricsScope) {
@@ -145,10 +146,10 @@ public final class DeciderCache {
     return cache.size();
   }
 
-  private boolean isFullHistory(PollForDecisionTaskResponseOrBuilder decisionTask) {
-    return decisionTask.getHistory() != null
-        && decisionTask.getHistory().getEventsCount() > 0
-        && decisionTask.getHistory().getEvents(0).getEventId() == 1;
+  private boolean isFullHistory(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
+    return workflowTask.getHistory() != null
+        && workflowTask.getHistory().getEventsCount() > 0
+        && workflowTask.getHistory().getEvents(0).getEventId() == 1;
   }
 
   public void invalidateAll() {

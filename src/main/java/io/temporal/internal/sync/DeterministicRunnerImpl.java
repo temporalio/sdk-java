@@ -22,23 +22,23 @@ package io.temporal.internal.sync;
 import com.google.common.primitives.Ints;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.context.ContextThreadLocal;
-import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -70,7 +70,9 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Throws Error in case of any unexpected condition. It is to fail a decision, not a workflow. */
+/**
+ * Throws Error in case of any unexpected condition. It is to fail a workflow task, not a workflow.
+ */
 class DeterministicRunnerImpl implements DeterministicRunner {
 
   private static final int ROOT_THREAD_PRIORITY = 0;
@@ -94,7 +96,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private final Lock lock = new ReentrantLock();
   private final ExecutorService threadPool;
-  private final SyncDecisionContext decisionContext;
+  private final SyncWorkflowContext workflowContext;
 
   // Note that threads field is a set. So we need to make sure that getPriority never returns the
   // same value for different threads. We use addedThreads variable for this.
@@ -109,7 +111,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private int addedThreads;
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
   private final Supplier<Long> clock;
-  private DeciderCache cache;
+  private WorkflowExecutorCache cache;
   private boolean inRunUntilAllBlocked;
   private boolean closeRequested;
   private boolean closed;
@@ -168,7 +170,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
     this(
         getDefaultThreadPool(),
-        newDummySyncDecisionContext(),
+        newDummySyncWorkflowContext(),
         clock,
         WORKFLOW_ROOT_THREAD_NAME,
         root,
@@ -184,23 +186,23 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
-      SyncDecisionContext decisionContext,
+      SyncWorkflowContext workflowContext,
       Supplier<Long> clock,
       Runnable root) {
-    this(threadPool, decisionContext, clock, WORKFLOW_ROOT_THREAD_NAME, root, null);
+    this(threadPool, workflowContext, clock, WORKFLOW_ROOT_THREAD_NAME, root, null);
   }
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
-      SyncDecisionContext decisionContext,
+      SyncWorkflowContext workflowContext,
       Supplier<Long> clock,
       String rootName,
       Runnable root,
-      DeciderCache cache) {
+      WorkflowExecutorCache cache) {
     this.threadPool = threadPool;
-    this.decisionContext =
-        decisionContext != null ? decisionContext : newDummySyncDecisionContext();
-    this.decisionContext.setRunner(this);
+    this.workflowContext =
+        workflowContext != null ? workflowContext : newDummySyncWorkflowContext();
+    this.workflowContext.setRunner(this);
     this.clock = clock;
     this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
@@ -222,13 +224,13 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         getPropagatedContexts());
   }
 
-  private static SyncDecisionContext newDummySyncDecisionContext() {
-    return new SyncDecisionContext(
-        new DummyDecisionContext(), DataConverter.getDefaultInstance(), null, null);
+  private static SyncWorkflowContext newDummySyncWorkflowContext() {
+    return new SyncWorkflowContext(
+        new DummyReplayWorkflowContext(), DataConverter.getDefaultInstance(), null, null);
   }
 
-  SyncDecisionContext getDecisionContext() {
-    return decisionContext;
+  SyncWorkflowContext getWorkflowContext() {
+    return workflowContext;
   }
 
   @Override
@@ -455,8 +457,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     lock.lock();
     try {
       checkClosed();
-      if (decisionContext != null) {
-        long nextFireTime = decisionContext.getNextFireTime();
+      if (workflowContext != null) {
+        long nextFireTime = workflowContext.getNextFireTime();
         if (nextWakeUpTime == 0) {
           return nextFireTime;
         }
@@ -558,13 +560,13 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   /**
    * If we're executing as part of a workflow, get the current thread's context. Otherwise get the
-   * context info from the DecisionContext
+   * context info from the workflow context.
    */
   private Map<String, Object> getPropagatedContexts() {
     if (currentThreadThreadLocal.get() != null) {
       return ContextThreadLocal.getCurrentContextForPropagation();
     } else {
-      return decisionContext.getContext().getPropagatedContexts();
+      return workflowContext.getContext().getPropagatedContexts();
     }
   }
 
@@ -572,11 +574,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     if (currentThreadThreadLocal.get() != null) {
       return ContextThreadLocal.getContextPropagators();
     } else {
-      return decisionContext.getContext().getContextPropagators();
+      return workflowContext.getContext().getContextPropagators();
     }
   }
 
-  private static final class DummyDecisionContext implements DecisionContext {
+  private static final class DummyReplayWorkflowContext implements ReplayWorkflowContext {
 
     @Override
     public WorkflowExecution getWorkflowExecution() {
@@ -599,13 +601,13 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion() {
+    public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public void setContinueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -697,7 +699,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public Consumer<Exception> signalWorkflowExecution(
-        SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+        SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
         BiConsumer<Void, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -709,7 +711,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public void continueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 

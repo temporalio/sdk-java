@@ -99,15 +99,27 @@ class POJOWorkflowInterfaceMetadata {
   private final Map<Method, POJOWorkflowMethodMetadata> methods = new HashMap<>();
 
   public static POJOWorkflowInterfaceMetadata newInstance(Class<?> anInterface) {
+    return newInstance(anInterface, true);
+  }
+
+  public static POJOWorkflowInterfaceMetadata newInstanceSkipWorkflowAnnotationCheck(
+      Class<?> anInterface) {
+    return newInstance(anInterface, false);
+  }
+
+  private static POJOWorkflowInterfaceMetadata newInstance(
+      Class<?> anInterface, boolean checkWorkflowInterfaceAnnotation) {
     if (!anInterface.isInterface()) {
       throw new IllegalArgumentException("Not an interface: " + anInterface);
     }
-    WorkflowInterface annotation = anInterface.getAnnotation(WorkflowInterface.class);
-    if (annotation == null) {
-      throw new IllegalArgumentException(
-          "Missing requied @WorkflowInterface annotation: " + anInterface);
+    if (checkWorkflowInterfaceAnnotation) {
+      WorkflowInterface annotation = anInterface.getAnnotation(WorkflowInterface.class);
+      if (annotation == null) {
+        throw new IllegalArgumentException(
+            "Missing requied @WorkflowInterface annotation: " + anInterface);
+      }
     }
-    POJOWorkflowInterfaceMetadata result = new POJOWorkflowInterfaceMetadata(anInterface);
+    POJOWorkflowInterfaceMetadata result = new POJOWorkflowInterfaceMetadata(anInterface, false);
     if (result.methods.isEmpty()) {
       throw new IllegalArgumentException(
           "Interface doesn't contain any methods: " + anInterface.getName());
@@ -116,12 +128,13 @@ class POJOWorkflowInterfaceMetadata {
   }
 
   static POJOWorkflowInterfaceMetadata newImplementationInterface(Class<?> anInterface) {
-    return new POJOWorkflowInterfaceMetadata(anInterface);
+    return new POJOWorkflowInterfaceMetadata(anInterface, true);
   }
 
-  private POJOWorkflowInterfaceMetadata(Class<?> anInterface) {
+  /** @param implementation if the metadata is for a workflow implementation class vs stub. */
+  private POJOWorkflowInterfaceMetadata(Class<?> anInterface, boolean implementation) {
     Map<EqualsByMethodName, Method> dedupeMap = new HashMap<>();
-    getWorkflowInterfaceMethods(anInterface, dedupeMap);
+    getWorkflowInterfaceMethods(anInterface, !implementation, dedupeMap);
   }
 
   public Optional<POJOWorkflowMethodMetadata> getWorkflowMethod() {
@@ -159,7 +172,7 @@ class POJOWorkflowInterfaceMetadata {
 
   /** @return methods which are not part of an interface annotated with WorkflowInterface */
   private Set<POJOWorkflowMethod> getWorkflowInterfaceMethods(
-      Class<?> current, Map<EqualsByMethodName, Method> dedupeMap) {
+      Class<?> current, boolean rootClass, Map<EqualsByMethodName, Method> dedupeMap) {
     WorkflowInterface annotation = current.getAnnotation(WorkflowInterface.class);
 
     // Set to dedupe the same method due to diamond inheritance
@@ -167,7 +180,8 @@ class POJOWorkflowInterfaceMetadata {
     Class<?>[] interfaces = current.getInterfaces();
     for (int i = 0; i < interfaces.length; i++) {
       Class<?> anInterface = interfaces[i];
-      Set<POJOWorkflowMethod> parentMethods = getWorkflowInterfaceMethods(anInterface, dedupeMap);
+      Set<POJOWorkflowMethod> parentMethods =
+          getWorkflowInterfaceMethods(anInterface, false, dedupeMap);
       for (POJOWorkflowMethod parentMethod : parentMethods) {
         if (parentMethod.getType() == WorkflowMethodType.NONE) {
           Method method = parentMethod.getMethod();
@@ -192,7 +206,7 @@ class POJOWorkflowInterfaceMetadata {
       POJOWorkflowMethod methodMetadata = new POJOWorkflowMethod(declaredMethod);
       result.add(methodMetadata);
     }
-    if (annotation == null) {
+    if (annotation == null && !rootClass) {
       return result; // Not annotated just pass all the methods to the parent
     }
     for (POJOWorkflowMethod workflowMethod : result) {

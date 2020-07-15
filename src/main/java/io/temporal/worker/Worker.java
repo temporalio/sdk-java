@@ -31,7 +31,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.metrics.MetricsTag;
-import io.temporal.internal.replay.DeciderCache;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.sync.SyncActivityWorker;
 import io.temporal.internal.sync.SyncWorkflowWorker;
 import io.temporal.internal.worker.PollerOptions;
@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Hosts activity and workflow implementations. Uses long poll to receive activity and decision
+ * Hosts activity and workflow implementations. Uses long poll to receive activity and workflow
  * tasks and processes them in a correspondent thread pool.
  */
 public final class Worker implements Suspendable {
@@ -60,7 +60,7 @@ public final class Worker implements Suspendable {
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   private final AtomicBoolean started = new AtomicBoolean();
-  private final DeciderCache cache;
+  private final WorkflowExecutorCache cache;
   private final String stickyTaskQueueName;
   private final Scope metricsScope;
   private ThreadPoolExecutor threadPoolExecutor;
@@ -69,7 +69,7 @@ public final class Worker implements Suspendable {
    * Creates worker that connects to an instance of the Temporal Service.
    *
    * @param client client to the Temporal Service endpoint.
-   * @param taskQueue task queue name worker uses to poll. It uses this name for both decision and
+   * @param taskQueue task queue name worker uses to poll. It uses this name for both workflow and
    *     activity task queue polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
    * @param stickyTaskQueueName
@@ -80,7 +80,7 @@ public final class Worker implements Suspendable {
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       Scope metricsScope,
-      DeciderCache cache,
+      WorkflowExecutorCache cache,
       String stickyTaskQueueName,
       ThreadPoolExecutor threadPoolExecutor,
       List<ContextPropagator> contextPropagators) {

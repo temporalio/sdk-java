@@ -22,7 +22,6 @@ package io.temporal.worker;
 import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.*;
 
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -36,7 +35,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.DeciderCache;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -152,7 +151,7 @@ public class StickyWorkerTest {
     assertEquals("Hello World!", greeting);
 
     // Assert
-    DeciderCache cache = factory.getCache();
+    WorkflowExecutorCache cache = factory.getCache();
     assertNotNull(cache);
     assertEquals(0, cache.size()); // removed from cache on completion
     Thread.sleep(100);
@@ -387,7 +386,7 @@ public class StickyWorkerTest {
 
     Thread.sleep(1000); // Wait for workflow to start
 
-    DeciderCache cache = factory.getCache();
+    WorkflowExecutorCache cache = factory.getCache();
     assertNotNull(cache);
     assertEquals(1, cache.size());
     cache.invalidateAll();
@@ -426,8 +425,8 @@ public class StickyWorkerTest {
     // Act
     WorkflowClient.start(workflow::getGreeting);
 
-    // Wait for the first decision to go through
-    DeciderCache cache = factory.getCache();
+    // Wait for the first workflow task to go through
+    WorkflowExecutorCache cache = factory.getCache();
     assertNotNull(cache);
     long start = System.currentTimeMillis();
     while (cache.size() == 0 && System.currentTimeMillis() - start < 5000) {
@@ -473,7 +472,7 @@ public class StickyWorkerTest {
 
     Thread.sleep(200); // Wait for workflow to start
 
-    DeciderCache cache = factory.getCache();
+    WorkflowExecutorCache cache = factory.getCache();
     assertNotNull(cache);
     assertEquals(1, cache.size());
     cache.invalidateAll();

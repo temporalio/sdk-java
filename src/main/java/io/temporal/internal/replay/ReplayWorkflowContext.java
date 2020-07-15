@@ -20,13 +20,13 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.workflow.Functions.Func;
@@ -42,10 +42,10 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Represents the context for decider. Should only be used within the scope of workflow definition
+ * Represents the context for workflow. Should only be used within the scope of workflow definition
  * code, meaning any code which is not part of activity implementations.
  */
-public interface DecisionContext extends ReplayAware {
+public interface ReplayWorkflowContext extends ReplayAware {
 
   WorkflowExecution getWorkflowExecution();
 
@@ -55,9 +55,9 @@ public interface DecisionContext extends ReplayAware {
 
   boolean isCancelRequested();
 
-  ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion();
+  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
 
-  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes attributes);
+  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
 
   Optional<String> getContinuedExecutionRunId();
 
@@ -127,19 +127,19 @@ public interface DecisionContext extends ReplayAware {
       BiConsumer<Optional<Payloads>, Exception> callback);
 
   Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
       BiConsumer<Void, Exception> callback);
 
   Promise<Void> requestCancelWorkflowExecution(WorkflowExecution execution);
 
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes attributes);
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
 
   Optional<Payloads> mutableSideEffect(
       String id, DataConverter dataConverter, Func1<Optional<Payloads>, Optional<Payloads>> func);
 
   /**
-   * @return time of the {@link PollForDecisionTaskResponse} start event of the decision being
-   *     processed or replayed.
+   * @return time of the {@link PollWorkflowTaskQueueResponse} start event of the workflow task
+   *     being processed or replayed.
    */
   long currentTimeMillis();
 
@@ -159,7 +159,7 @@ public interface DecisionContext extends ReplayAware {
    * guarantees the deterministic requirement for workflow as the exact same result will be returned
    * in replay. Common use case is to run some short non-deterministic code in workflow, like
    * getting random number or new UUID. The only way to fail SideEffect is to throw {@link Error}
-   * which causes decision task failure. The decision task after timeout is rescheduled and
+   * which causes workflow task failure. The workflow task after timeout is rescheduled and
    * re-executed giving SideEffect another chance to succeed.
    *
    * @param func function that is called once to return a value.
@@ -189,7 +189,7 @@ public interface DecisionContext extends ReplayAware {
   /** @return scope to be used for metrics reporting. */
   Scope getMetricsScope();
 
-  /** @return whether we do logging during decision replay. */
+  /** @return whether we do logging during workflow code replay. */
   boolean getEnableLoggingInReplay();
 
   /** @return replay safe UUID */

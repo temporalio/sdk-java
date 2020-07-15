@@ -25,7 +25,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 class WorkflowExecuteRunnable implements Runnable {
-  private final SyncDecisionContext context;
+  private final SyncWorkflowContext context;
   private final SyncWorkflowDefinition workflow;
   private final WorkflowExecutionStartedEventAttributes attributes;
 
@@ -33,7 +33,7 @@ class WorkflowExecuteRunnable implements Runnable {
   private boolean done;
 
   public WorkflowExecuteRunnable(
-      SyncDecisionContext context,
+      SyncWorkflowContext context,
       SyncWorkflowDefinition workflow,
       WorkflowExecutionStartedEventAttributes attributes) {
     Objects.requireNonNull(context);

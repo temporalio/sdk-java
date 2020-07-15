@@ -19,56 +19,57 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.decision.v1.Decision;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public interface Decider {
+public interface WorkflowExecutor {
 
-  DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable;
-
-  Optional<Payloads> query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
+  WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask)
       throws Throwable;
+
+  Optional<Payloads> handleQueryWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) throws Throwable;
 
   void close();
 
-  class DecisionResult {
-    private final List<Decision> decisions;
-    private final boolean forceCreateNewDecisionTask;
-    private final boolean finalDecision;
+  class WorkflowTaskResult {
+    private final List<Command> commands;
+    private final boolean forceCreateNewWorkflowTask;
+    private final boolean finalCommand;
     private final Map<String, WorkflowQueryResult> queryResults;
 
-    public DecisionResult(
-        List<Decision> decisions,
+    public WorkflowTaskResult(
+        List<Command> commands,
         Map<String, WorkflowQueryResult> queryResults,
-        boolean forceCreateNewDecisionTask,
-        boolean finalDecision) {
-      this.decisions = decisions;
+        boolean forceCreateNewWorkflowTask,
+        boolean finalCommand) {
+      this.commands = commands;
       this.queryResults = queryResults;
-      this.forceCreateNewDecisionTask = forceCreateNewDecisionTask;
-      this.finalDecision = finalDecision;
+      this.forceCreateNewWorkflowTask = forceCreateNewWorkflowTask;
+      this.finalCommand = finalCommand;
     }
 
-    public List<Decision> getDecisions() {
-      return decisions;
+    public List<Command> getCommands() {
+      return commands;
     }
 
-    public boolean getForceCreateNewDecisionTask() {
-      return forceCreateNewDecisionTask;
+    public boolean getForceCreateNewWorkflowTask() {
+      return forceCreateNewWorkflowTask;
     }
 
     public Map<String, WorkflowQueryResult> getQueryResults() {
       return queryResults;
     }
 
-    /** Is this result contain a workflow completion decision */
-    public boolean isFinalDecision() {
-      return finalDecision;
+    /** Is this result contain a workflow completion command */
+    public boolean isFinalCommand() {
+      return finalCommand;
     }
   }
 }

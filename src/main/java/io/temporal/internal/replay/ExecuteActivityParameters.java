@@ -20,21 +20,21 @@
 package io.temporal.internal.replay;
 
 import io.temporal.activity.ActivityCancellationType;
-import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 
 public class ExecuteActivityParameters implements Cloneable {
 
-  private final ScheduleActivityTaskDecisionAttributes.Builder attributes;
+  private final ScheduleActivityTaskCommandAttributes.Builder attributes;
   private final ActivityCancellationType cancellationType;
 
   public ExecuteActivityParameters(
-      ScheduleActivityTaskDecisionAttributes.Builder attributes,
+      ScheduleActivityTaskCommandAttributes.Builder attributes,
       ActivityCancellationType cancellationType) {
     this.attributes = attributes;
     this.cancellationType = cancellationType;
   }
 
-  public ScheduleActivityTaskDecisionAttributes.Builder getAttributes() {
+  public ScheduleActivityTaskCommandAttributes.Builder getAttributes() {
     return attributes;
   }
 

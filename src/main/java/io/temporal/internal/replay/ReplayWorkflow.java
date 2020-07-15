@@ -28,7 +28,7 @@ import java.util.Optional;
 
 public interface ReplayWorkflow {
 
-  void start(HistoryEvent event, DecisionContext context);
+  void start(HistoryEvent event, ReplayWorkflowContext context);
 
   /** Handle an external signal event. */
   void handleSignal(String signalName, Optional<Payloads> input, long eventId);
@@ -49,7 +49,7 @@ public interface ReplayWorkflow {
   long getNextWakeUpTime();
 
   /**
-   * Called after all history is replayed and workflow cannot make any progress if decision task is
+   * Called after all history is replayed and workflow cannot make any progress if workflow task is
    * a query.
    *
    * @param query arguments

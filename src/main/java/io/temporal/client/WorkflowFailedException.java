@@ -29,35 +29,35 @@ import io.temporal.api.enums.v1.RetryState;
 public final class WorkflowFailedException extends WorkflowException {
 
   private final RetryState retryState;
-  private final long decisionTaskCompletedEventId;
+  private final long workflowTaskCompletedEventId;
 
   public WorkflowFailedException(
       WorkflowExecution workflowExecution,
       String workflowType,
-      long decisionTaskCompletedEventId,
+      long workflowTaskCompletedEventId,
       RetryState retryState,
       Throwable cause) {
     super(
-        getMessage(workflowExecution, workflowType, decisionTaskCompletedEventId, retryState),
+        getMessage(workflowExecution, workflowType, workflowTaskCompletedEventId, retryState),
         workflowExecution,
         workflowType,
         cause);
     this.retryState = retryState;
-    this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
+    this.workflowTaskCompletedEventId = workflowTaskCompletedEventId;
   }
 
   public RetryState getRetryState() {
     return retryState;
   }
 
-  public long getDecisionTaskCompletedEventId() {
-    return decisionTaskCompletedEventId;
+  public long getWorkflowTaskCompletedEventId() {
+    return workflowTaskCompletedEventId;
   }
 
   public static String getMessage(
       WorkflowExecution workflowExecution,
       String workflowType,
-      long decisionTaskCompletedEventId,
+      long workflowTaskCompletedEventId,
       RetryState retryState) {
     return "workflowId='"
         + workflowExecution.getWorkflowId()
@@ -66,7 +66,7 @@ public final class WorkflowFailedException extends WorkflowException {
         + (workflowType == null ? "'" : "', workflowType='" + workflowType + '\'')
         + ", retryState="
         + retryState
-        + ", decisionTaskCompletedEventId="
-        + decisionTaskCompletedEventId;
+        + ", workflowTaskCompletedEventId="
+        + workflowTaskCompletedEventId;
   }
 }

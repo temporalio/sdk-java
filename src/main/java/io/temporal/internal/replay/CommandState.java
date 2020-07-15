@@ -19,22 +19,24 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.decision.v1.Decision;
+enum CommandState {
+  CREATED,
 
-public class UpsertSearchAttributesDecisionStateMachine extends DecisionStateMachineBase {
+  COMMAND_SENT,
 
-  private final Decision decision;
+  CANCELED_BEFORE_INITIATED,
 
-  UpsertSearchAttributesDecisionStateMachine(DecisionId id, Decision decision) {
-    super(id);
-    this.decision = decision;
-  }
+  INITIATED,
 
-  @Override
-  public Decision getDecision() {
-    if (state == DecisionState.CREATED) {
-      return decision;
-    }
-    return null;
-  }
+  STARTED,
+
+  CANCELED_AFTER_INITIATED,
+
+  CANCELED_AFTER_STARTED,
+
+  CANCELLATION_COMMAND_SENT,
+
+  COMPLETED_AFTER_CANCELLATION_COMMAND_SENT,
+
+  COMPLETED
 }

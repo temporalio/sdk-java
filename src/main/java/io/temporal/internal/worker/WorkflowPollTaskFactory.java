@@ -20,13 +20,13 @@
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class WorkflowPollTaskFactory
-    implements Supplier<Poller.PollTask<PollForDecisionTaskResponse>> {
+    implements Supplier<Poller.PollTask<PollWorkflowTaskQueueResponse>> {
 
   private final WorkflowServiceStubs service;
   private final String namespace;
@@ -48,7 +48,7 @@ public class WorkflowPollTaskFactory
   }
 
   @Override
-  public Poller.PollTask<PollForDecisionTaskResponse> get() {
+  public Poller.PollTask<PollWorkflowTaskQueueResponse> get() {
     return new WorkflowPollTask(service, namespace, taskQueue, metricScope, identity);
   }
 }

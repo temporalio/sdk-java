@@ -17,37 +17,16 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.replay;
+package io.temporal.internal.worker;
 
-import io.temporal.api.decision.v1.Decision;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import java.util.Iterator;
 
-interface DecisionStateMachine {
+/** Contains WorkflowTask and history iterator that paginates history behind the scene. */
+public interface WorkflowTaskWithHistoryIterator {
 
-  Decision getDecision();
+  PollWorkflowTaskQueueResponseOrBuilder getWorkflowTask();
 
-  /** @return true if produced a decision */
-  boolean cancel(Runnable immediateCancellationCallback);
-
-  void handleStartedEvent(HistoryEvent event);
-
-  void handleCancellationInitiatedEvent();
-
-  void handleCancellationEvent();
-
-  void handleCancellationFailureEvent(HistoryEvent event);
-
-  void handleCompletionEvent();
-
-  void handleInitiationFailedEvent(HistoryEvent event);
-
-  void handleInitiatedEvent(HistoryEvent event);
-
-  void handleDecisionTaskStartedEvent();
-
-  DecisionState getState();
-
-  boolean isDone();
-
-  DecisionId getId();
+  Iterator<HistoryEvent> getHistory();
 }

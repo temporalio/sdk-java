@@ -25,8 +25,8 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.DeciderCache;
-import io.temporal.internal.replay.DecisionContext;
+import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.Promise;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -55,7 +55,9 @@ class WorkflowThreadImpl implements WorkflowThread {
   class RunnableWrapper implements Runnable {
 
     private final WorkflowThreadContext threadContext;
-    private final DecisionContext decisionContext;
+    // TODO: Move MDC injection logic into an interceptor as this context shouldn't be leaked
+    // to the WorkflowThreadImpl
+    private final ReplayWorkflowContext replayWorkflowContext;
     private String originalName;
     private String name;
     private CancellationScopeImpl cancellationScope;
@@ -64,7 +66,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
     RunnableWrapper(
         WorkflowThreadContext threadContext,
-        DecisionContext decisionContext,
+        ReplayWorkflowContext replayWorkflowContext,
         String name,
         boolean detached,
         CancellationScopeImpl parent,
@@ -72,7 +74,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         List<ContextPropagator> contextPropagators,
         Map<String, Object> propagatedContexts) {
       this.threadContext = threadContext;
-      this.decisionContext = decisionContext;
+      this.replayWorkflowContext = replayWorkflowContext;
       this.name = name;
       cancellationScope = new CancellationScopeImpl(detached, runnable, parent);
       if (context.getStatus() != Status.CREATED) {
@@ -88,11 +90,11 @@ class WorkflowThreadImpl implements WorkflowThread {
       originalName = thread.getName();
       thread.setName(name);
       DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadImpl.this);
-      MDC.put(LoggerTag.WORKFLOW_ID, decisionContext.getWorkflowId());
-      MDC.put(LoggerTag.WORKFLOW_TYPE, decisionContext.getWorkflowType().getName());
-      MDC.put(LoggerTag.RUN_ID, decisionContext.getRunId());
-      MDC.put(LoggerTag.TASK_QUEUE, decisionContext.getTaskQueue());
-      MDC.put(LoggerTag.NAMESPACE, decisionContext.getNamespace());
+      MDC.put(LoggerTag.WORKFLOW_ID, replayWorkflowContext.getWorkflowId());
+      MDC.put(LoggerTag.WORKFLOW_TYPE, replayWorkflowContext.getWorkflowType().getName());
+      MDC.put(LoggerTag.RUN_ID, replayWorkflowContext.getRunId());
+      MDC.put(LoggerTag.TASK_QUEUE, replayWorkflowContext.getTaskQueue());
+      MDC.put(LoggerTag.NAMESPACE, replayWorkflowContext.getNamespace());
 
       // Repopulate the context(s)
       ContextThreadLocal.setContextPropagators(this.contextPropagators);
@@ -150,7 +152,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   private final ExecutorService threadPool;
   private final WorkflowThreadContext context;
-  private final DeciderCache cache;
+  private final WorkflowExecutorCache cache;
   private final DeterministicRunnerImpl runner;
   private final RunnableWrapper task;
   private final int priority;
@@ -174,7 +176,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       boolean detached,
       CancellationScopeImpl parentCancellationScope,
       Runnable runnable,
-      DeciderCache cache,
+      WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators,
       Map<String, Object> propagatedContexts) {
     this.threadPool = threadPool;
@@ -189,7 +191,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     this.task =
         new RunnableWrapper(
             context,
-            runner.getDecisionContext().getContext(),
+            runner.getWorkflowContext().getContext(),
             name,
             detached,
             parentCancellationScope,
@@ -241,7 +243,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     context.setStatus(Status.RUNNING);
 
     if (metricsRateLimiter.tryAcquire(1)) {
-      getDecisionContext()
+      getWorkflowContext()
           .getMetricsScope()
           .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
           .update(((ThreadPoolExecutor) threadPool).getActiveCount());
@@ -252,19 +254,19 @@ class WorkflowThreadImpl implements WorkflowThread {
         taskFuture = threadPool.submit(task);
         return;
       } catch (RejectedExecutionException e) {
-        getDecisionContext()
+        getWorkflowContext()
             .getMetricsScope()
             .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
             .inc(1);
         if (cache != null) {
-          SyncDecisionContext decisionContext = this.runner.getDecisionContext();
+          SyncWorkflowContext workflowContext = this.runner.getWorkflowContext();
           boolean evicted =
               cache.evictAnyNotInProcessing(
-                  decisionContext.getContext().getRunId(), decisionContext.getMetricsScope());
+                  workflowContext.getContext().getRunId(), workflowContext.getMetricsScope());
           if (!evicted) {
             // Note here we need to throw error, not exception. Otherwise it will be
             // translated to workflow execution exception and instead of failing the
-            // decision we will be failing the workflow.
+            // workflow task we will be failing the workflow.
             throw new WorkflowRejectedExecutionError(e);
           }
         } else {
@@ -289,8 +291,8 @@ class WorkflowThreadImpl implements WorkflowThread {
   }
 
   @Override
-  public SyncDecisionContext getDecisionContext() {
-    return runner.getDecisionContext();
+  public SyncWorkflowContext getWorkflowContext() {
+    return runner.getWorkflowContext();
   }
 
   @Override

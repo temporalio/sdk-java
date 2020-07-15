@@ -58,7 +58,7 @@ public class FailureConverter {
   private static final ImmutableSet<String> CUTOFF_METHOD_NAMES =
       ImmutableSet.of(
           "io.temporal.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute",
-          "io.temporal.internal.sync.POJODecisionTaskHandler$POJOWorkflowImplementation.execute");
+          "io.temporal.internal.sync.POJOWorkflowTaskHandler$POJOWorkflowImplementation.execute");
 
   /** Used to parse a stack trace line. */
   private static final String TRACE_ELEMENT_REGEXP =

@@ -127,15 +127,15 @@ class MarkerHandler {
     }
   }
 
-  private final DecisionsHelper decisions;
+  private final CommandHelper commandHelper;
   private final String markerName;
   private final ReplayAware replayContext;
 
   // Key is marker id
   private final Map<String, MarkerResult> mutableMarkerResults = new HashMap<>();
 
-  MarkerHandler(DecisionsHelper decisions, String markerName, ReplayAware replayContext) {
-    this.decisions = decisions;
+  MarkerHandler(CommandHelper commandHelper, String markerName, ReplayAware replayContext) {
+    this.commandHelper = commandHelper;
     this.markerName = markerName;
     this.replayContext = replayContext;
   }
@@ -155,7 +155,7 @@ class MarkerHandler {
     } else {
       stored = result.getData();
     }
-    long eventId = decisions.getNextDecisionEventId();
+    long eventId = commandHelper.getNextCommandEventId();
     int accessCount = result == null ? 0 : result.getAccessCount();
 
     if (replayContext.isReplaying()) {
@@ -184,7 +184,7 @@ class MarkerHandler {
 
   private Optional<Payloads> getMarkerDataFromHistory(
       long eventId, String markerId, int expectedAcccessCount, DataConverter converter) {
-    Optional<HistoryEvent> event = decisions.getOptionalDecisionEvent(eventId);
+    Optional<HistoryEvent> event = commandHelper.getCommandEvent(eventId);
     if (!event.isPresent() || event.get().getEventType() != EventType.EVENT_TYPE_MARKER_RECORDED) {
       return Optional.empty();
     }
@@ -213,6 +213,6 @@ class MarkerHandler {
       details.put(MUTABLE_MARKER_DATA_KEY, data.get());
     }
     details.put(MUTABLE_MARKER_HEADER_KEY, converter.toPayloads(marker.getHeader()).get());
-    decisions.recordMarker(markerName, Optional.empty(), details, Optional.empty());
+    commandHelper.recordMarker(markerName, Optional.empty(), details, Optional.empty());
   }
 }

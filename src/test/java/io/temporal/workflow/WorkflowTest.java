@@ -1344,7 +1344,7 @@ public class WorkflowTest {
     }
   }
 
-  /** Used to ensure that workflow first decision is executed. */
+  /** Used to ensure that workflow first workflow task is executed. */
   private void waitForOKQuery(WorkflowStub stub) {
     while (true) {
       try {
@@ -2604,7 +2604,7 @@ public class WorkflowTest {
               "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
               e.getCause().getMessage());
         } catch (AssertionError ae) {
-          // Errors cause decision to fail. But we want workflow to fail in this case.
+          // Errors cause workflow task to fail. But we want workflow to fail in this case.
           throw new RuntimeException(ae);
         }
         Exception ee = new NumberFormatException();
@@ -2642,7 +2642,7 @@ public class WorkflowTest {
               "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
               e.getCause().getCause().getCause().getMessage());
         } catch (AssertionError ae) {
-          // Errors cause decision to fail. But we want workflow to fail in this case.
+          // Errors cause workflow task to fail. But we want workflow to fail in this case.
           throw new RuntimeException(ae);
         }
         Exception fnf = new FileNotFoundException();
@@ -2998,16 +2998,16 @@ public class WorkflowTest {
     }
   }
 
-  static final AtomicInteger decisionCount = new AtomicInteger();
+  static final AtomicInteger workflowTaskCount = new AtomicInteger();
   static CompletableFuture<Boolean> sendSignal;
 
-  public static class TestSignalDuringLastDecisionWorkflowImpl implements TestWorkflowSignaled {
+  public static class TestSignalDuringLastWorkflowTaskWorkflowImpl implements TestWorkflowSignaled {
 
     private String signal;
 
     @Override
     public String execute() {
-      if (decisionCount.incrementAndGet() == 1) {
+      if (workflowTaskCount.incrementAndGet() == 1) {
         sendSignal.complete(true);
         // Never sleep in a real workflow using Thread.sleep.
         // Here it is to simulate a race condition.
@@ -3027,12 +3027,12 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testSignalDuringLastDecision() {
-    decisionCount.set(0);
+  public void testSignalDuringLastWorkflowTask() {
+    workflowTaskCount.set(0);
     sendSignal = new CompletableFuture<>();
-    startWorkerFor(TestSignalDuringLastDecisionWorkflowImpl.class);
+    startWorkerFor(TestSignalDuringLastWorkflowTaskWorkflowImpl.class);
     WorkflowOptions.Builder options = newWorkflowOptionsBuilder(taskQueue);
-    options.setWorkflowId("testSignalDuringLastDecision-" + UUID.randomUUID().toString());
+    options.setWorkflowId("testSignalDuringLastWorkflowTask-" + UUID.randomUUID().toString());
     TestWorkflowSignaled client =
         workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options.build());
     WorkflowExecution execution = WorkflowClient.start(client::execute);
@@ -3720,23 +3720,23 @@ public class WorkflowTest {
     assertEquals(3, angryChildActivity.getInvocationCount());
   }
 
-  private static int testDecisionFailureBackoffReplayCount;
+  private static int testWorkflowTaskFailureBackoffReplayCount;
 
-  public static class TestDecisionFailureBackoff implements TestWorkflow1 {
+  public static class TestWorkflowTaskFailureBackoff implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      if (testDecisionFailureBackoffReplayCount++ < 2) {
-        throw new Error("simulated decision failure");
+      if (testWorkflowTaskFailureBackoffReplayCount++ < 2) {
+        throw new Error("simulated workflow task failure");
       }
       return "result1";
     }
   }
 
   @Test
-  public void testDecisionFailureBackoff() {
-    testDecisionFailureBackoffReplayCount = 0;
-    startWorkerFor(TestDecisionFailureBackoff.class);
+  public void testWorkflowTaskFailureBackoff() {
+    testWorkflowTaskFailureBackoffReplayCount = 0;
+    startWorkerFor(TestWorkflowTaskFailureBackoff.class);
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofSeconds(10))
@@ -3748,7 +3748,7 @@ public class WorkflowTest {
     long start = currentTimeMillis();
     String result = workflowStub.execute(taskQueue);
     long elapsed = currentTimeMillis() - start;
-    assertTrue("spinned on fail decision", elapsed > 1000);
+    assertTrue("spinned on fail workflow task", elapsed > 1000);
     assertEquals("result1", result);
   }
 
@@ -4831,7 +4831,7 @@ public class WorkflowTest {
           throw new IllegalStateException("Unexpected version: " + changeFoo);
         }
       }
-      Workflow.sleep(1000); // forces new decision
+      Workflow.sleep(1000); // forces new workflow task
       return "test";
     }
   }
@@ -4874,7 +4874,7 @@ public class WorkflowTest {
           throw new IllegalStateException("Unexpected version: " + changeFoo);
         }
       }
-      Workflow.sleep(1000); // forces new decision
+      Workflow.sleep(1000); // forces new workflow task
       return "test";
     }
   }
@@ -4912,7 +4912,7 @@ public class WorkflowTest {
           throw new IllegalStateException("Unexpected version: " + changeFoo);
         }
       }
-      Workflow.sleep(1000); // forces new decision
+      Workflow.sleep(1000); // forces new workflow task
       return "test";
     }
   }
@@ -4947,7 +4947,7 @@ public class WorkflowTest {
         // No getVersionCall
         result = activities.activity2("foo", 10);
       }
-      Workflow.sleep(1000); // forces new decision
+      Workflow.sleep(1000); // forces new workflow task
       return result;
     }
   }
@@ -4965,7 +4965,7 @@ public class WorkflowTest {
 
   static CompletableFuture<Boolean> executionStarted = new CompletableFuture<>();
 
-  public static class TestGetVersionWithoutDecisionEventWorkflowImpl
+  public static class TestGetVersionWithoutCommandEventWorkflowImpl
       implements TestWorkflowSignaled {
 
     CompletablePromise<Boolean> signalReceived = Workflow.newPromise();
@@ -4977,7 +4977,7 @@ public class WorkflowTest {
           executionStarted.complete(true);
           signalReceived.get();
         } else {
-          // Execute getVersion in replay mode. In this case we have no decision event, only a
+          // Execute getVersion in replay mode. In this case we have no command event, only a
           // signal.
           int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
           if (version == Workflow.DEFAULT_VERSION) {
@@ -5002,9 +5002,9 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testGetVersionWithoutDecisionEvent() throws Exception {
+  public void testGetVersionWithoutCommandEvent() throws Exception {
     executionStarted = new CompletableFuture<>();
-    startWorkerFor(TestGetVersionWithoutDecisionEventWorkflowImpl.class);
+    startWorkerFor(TestGetVersionWithoutCommandEventWorkflowImpl.class);
     TestWorkflowSignaled workflowStub =
         workflowClient.newWorkflowStub(
             TestWorkflowSignaled.class, newWorkflowOptionsBuilder(taskQueue).build());
@@ -5016,7 +5016,7 @@ public class WorkflowTest {
   }
 
   // The following test covers the scenario where getVersion call is removed before a
-  // non-version-marker decision.
+  // non-version-marker command.
   public static class TestGetVersionRemovedInReplay implements TestWorkflow1 {
 
     @Override
@@ -5056,7 +5056,7 @@ public class WorkflowTest {
   }
 
   // The following test covers the scenario where getVersion call is removed before another
-  // version-marker decision.
+  // version-marker command.
   public static class TestGetVersionRemovedBefore implements TestWorkflow1 {
 
     @Override
@@ -5668,7 +5668,7 @@ public class WorkflowTest {
               "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
               e.getCause().getMessage());
         } catch (AssertionError ae) {
-          // Errors cause decision to fail. But we want workflow to fail in this case.
+          // Errors cause workflow task to fail. But we want workflow to fail in this case.
           throw new RuntimeException(ae);
         }
       }
@@ -5819,7 +5819,7 @@ public class WorkflowTest {
     WorkflowClient.start(workflowStub::execute, taskQueue);
 
     // Ensure that query doesn't see intermediate results of the local activities execution
-    // as all these activities are executed in a single decision task.
+    // as all these activities are executed in a single workflow task.
     while (true) {
       String queryResult = workflowStub.query();
       assertTrue(queryResult, queryResult.equals("run4"));
@@ -5880,7 +5880,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(SignalOrderingWorkflow.class, options);
     WorkflowClient.start(workflowStub::run);
 
-    // Suspend polling so that all the signals will be received in the same decision task.
+    // Suspend polling so that all the signals will be received in the same workflow task.
     if (useExternalService) {
       workerFactory.suspendPolling();
     } else {
@@ -6088,7 +6088,7 @@ public class WorkflowTest {
       // exception expected here.
     }
 
-    // Suspend polling so that decision tasks are not retried. Otherwise it will affect our thread
+    // Suspend polling so that workflow tasks are not retried. Otherwise it will affect our thread
     // count.
     if (useExternalService) {
       workerFactory.suspendPolling();
@@ -6096,7 +6096,7 @@ public class WorkflowTest {
       testEnvironment.getWorkerFactory().suspendPolling();
     }
 
-    // Wait for decision task retry to finish.
+    // Wait for workflow task retry to finish.
     Thread.sleep(10000);
 
     int workflowThreads = 0;
@@ -6134,7 +6134,7 @@ public class WorkflowTest {
           SearchAttributesUtil.getValueFromSearchAttributes(
               searchAttributes, "CustomKeywordField", String.class));
 
-      // Running the activity below ensures that we have one more decision task to be executed after
+      // Running the activity below ensures that we have one more workflow task to be executed after
       // adding the search attributes. This helps with replaying the history one more time to check
       // against a possible NonDeterminisicWorkflowError which could be caused by missing
       // UpsertWorkflowSearchAttributes event in history.
@@ -6244,7 +6244,6 @@ public class WorkflowTest {
     assertEquals("WorkflowAImpl0, WorkflowBImpl1", results);
   }
 
-  @WorkflowInterface
   public interface SignalQueryBase {
     @SignalMethod
     void signal(String arg);

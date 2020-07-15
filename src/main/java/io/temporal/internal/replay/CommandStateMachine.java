@@ -19,24 +19,35 @@
 
 package io.temporal.internal.replay;
 
-enum DecisionState {
-  CREATED,
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.history.v1.HistoryEvent;
 
-  DECISION_SENT,
+interface CommandStateMachine {
 
-  CANCELED_BEFORE_INITIATED,
+  Command getCommand();
 
-  INITIATED,
+  /** @return true if produced a command */
+  boolean cancel(Runnable immediateCancellationCallback);
 
-  STARTED,
+  void handleStartedEvent(HistoryEvent event);
 
-  CANCELED_AFTER_INITIATED,
+  void handleCancellationInitiatedEvent();
 
-  CANCELED_AFTER_STARTED,
+  void handleCancellationEvent();
 
-  CANCELLATION_DECISION_SENT,
+  void handleCancellationFailureEvent(HistoryEvent event);
 
-  COMPLETED_AFTER_CANCELLATION_DECISION_SENT,
+  void handleCompletionEvent();
 
-  COMPLETED
+  void handleInitiationFailedEvent(HistoryEvent event);
+
+  void handleInitiatedEvent(HistoryEvent event);
+
+  void handleWorkflowTaskStartedEvent();
+
+  CommandState getState();
+
+  boolean isDone();
+
+  CommandId getId();
 }

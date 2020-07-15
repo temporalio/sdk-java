@@ -24,7 +24,7 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.LocalActivityMarkerData;
@@ -167,19 +167,19 @@ public final class LocalActivityWorker implements SuspendableWorker {
     private final LongSupplier currentTimeMillis;
     private final LongSupplier replayTimeUpdatedAtMillis;
     long taskStartTime;
-    private final int decisionTimeoutSeconds;
+    private final int workflowTaskTimeoutSeconds;
 
     public Task(
         ExecuteLocalActivityParameters params,
         Consumer<HistoryEvent> eventConsumer,
-        int decisionTimeoutSeconds,
+        int workflowTaskTimeoutSeconds,
         LongSupplier currentTimeMillis,
         LongSupplier replayTimeUpdatedAtMillis) {
       this.params = params;
       this.eventConsumer = eventConsumer;
       this.currentTimeMillis = currentTimeMillis;
       this.replayTimeUpdatedAtMillis = replayTimeUpdatedAtMillis;
-      this.decisionTimeoutSeconds = decisionTimeoutSeconds;
+      this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     }
   }
 
@@ -201,7 +201,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       ActivityTaskHandler.Result result = handleLocalActivity(task);
 
       LocalActivityMarkerData.Builder markerBuilder = new LocalActivityMarkerData.Builder();
-      PollForActivityTaskResponse.Builder activityTask = task.params.getActivityTask();
+      PollActivityTaskQueueResponse.Builder activityTask = task.params.getActivityTask();
       markerBuilder.setActivityId(activityTask.getActivityId());
       markerBuilder.setActivityType(activityTask.getActivityType());
       long replayTimeMillis =
@@ -233,7 +233,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
     private ActivityTaskHandler.Result handleLocalActivity(Task task) throws InterruptedException {
       ExecuteLocalActivityParameters params = task.params;
-      PollForActivityTaskResponse.Builder activityTask = params.getActivityTask();
+      PollActivityTaskQueueResponse.Builder activityTask = params.getActivityTask();
       Map<String, String> activityTypeTag =
           new ImmutableMap.Builder<String, String>(1)
               .put(MetricsTag.ACTIVITY_TYPE, activityTask.getActivityType().getName())
@@ -280,7 +280,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       }
 
       // For small backoff we do local retry. Otherwise we will schedule timer on server side.
-      if (elapsedTask + sleepMillis < task.decisionTimeoutSeconds * 1000) {
+      if (elapsedTask + sleepMillis < task.workflowTaskTimeoutSeconds * 1000) {
         Thread.sleep(sleepMillis);
         activityTask.setAttempt(attempt + 1);
         return handleLocalActivity(task);

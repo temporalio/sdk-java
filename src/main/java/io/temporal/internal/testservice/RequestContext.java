@@ -24,7 +24,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
-import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
+import io.temporal.internal.testservice.TestWorkflowStore.WorkflowTask;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -74,11 +74,11 @@ final class RequestContext {
 
   private final List<HistoryEvent> events = new ArrayList<>();
   private final List<CommitCallback> commitCallbacks = new ArrayList<>();
-  private DecisionTask decisionTask;
+  private WorkflowTask workflowTask;
   private final List<ActivityTask> activityTasks = new ArrayList<>();
   private final List<Timer> timers = new ArrayList<>();
   private long workflowCompletedAtEventId = -1;
-  private boolean needDecision;
+  private boolean needWorkflowTask;
   // How many times call SelfAdvancedTimer#lockTimeSkipping.
   // Negative means how many times to call SelfAdvancedTimer#unlockTimeSkipping.
   private int timerLocks;
@@ -168,19 +168,19 @@ final class RequestContext {
   }
 
   /**
-   * Decision needed, but there is one already running. So initiate another one as soon as it
+   * Command needed, but there is one already running. So initiate another one as soon as it
    * completes.
    */
-  void setNeedDecision(boolean needDecision) {
-    this.needDecision = needDecision;
+  void setNeedWorkflowTask(boolean needWorkflowTask) {
+    this.needWorkflowTask = needWorkflowTask;
   }
 
-  boolean isNeedDecision() {
-    return needDecision;
+  boolean isNeedWorkflowTask() {
+    return needWorkflowTask;
   }
 
-  void setDecisionTask(DecisionTask decisionTask) {
-    this.decisionTask = Objects.requireNonNull(decisionTask);
+  void setWorkflowTask(WorkflowTask workflowTask) {
+    this.workflowTask = Objects.requireNonNull(workflowTask);
   }
 
   void addActivityTask(ActivityTask activityTask) {
@@ -200,8 +200,8 @@ final class RequestContext {
     return activityTasks;
   }
 
-  DecisionTask getDecisionTask() {
-    return decisionTask;
+  WorkflowTask getWorkflowTask() {
+    return workflowTask;
   }
 
   List<HistoryEvent> getEvents() {
@@ -229,6 +229,6 @@ final class RequestContext {
   }
 
   public boolean isEmpty() {
-    return events.isEmpty() && activityTasks.isEmpty() && decisionTask == null && timers.isEmpty();
+    return events.isEmpty() && activityTasks.isEmpty() && workflowTask == null && timers.isEmpty();
   }
 }
