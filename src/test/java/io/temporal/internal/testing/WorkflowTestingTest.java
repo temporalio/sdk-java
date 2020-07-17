@@ -217,6 +217,66 @@ public class WorkflowTestingTest {
     assertEquals("Activity1-input1", result);
   }
 
+  @WorkflowInterface
+  public interface TestActivityThatExecutesWorkflow {
+    @WorkflowMethod
+    void workflow();
+  }
+
+  public static class TestActivityThatExecutesWorkflowImpl
+      implements TestActivityThatExecutesWorkflow {
+
+    private final TestActivity activity =
+        Workflow.newActivityStub(
+            TestActivity.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(2)).build());
+
+    @Override
+    public void workflow() {
+      try {
+        activity.activity1("foo");
+      } catch (ActivityFailure e) {
+        log.info("Failure", e);
+        throw e;
+      }
+    }
+  }
+
+  private static class ActivityThatExecutesWorkflow implements TestActivity {
+
+    private final WorkflowClient client;
+    private final String taskQueue;
+
+    private ActivityThatExecutesWorkflow(WorkflowClient client, String taskQueue) {
+      this.client = client;
+      this.taskQueue = taskQueue;
+    }
+
+    @Override
+    public String activity1(String input) {
+      TestWorkflow workflow =
+          client.newWorkflowStub(
+              TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+      workflow.workflow1(input);
+      return "done";
+    }
+  }
+
+  @Test
+  public void testActivityThatExecuteWorkflow() {
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(
+        TestActivityThatExecutesWorkflowImpl.class, EmptyWorkflowImpl.class);
+    worker.registerActivitiesImplementations(
+        new ActivityThatExecutesWorkflow(testEnvironment.getWorkflowClient(), TASK_QUEUE));
+    testEnvironment.start();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+    TestActivityThatExecutesWorkflow workflow =
+        client.newWorkflowStub(TestActivityThatExecutesWorkflow.class, options);
+    workflow.workflow();
+  }
+
   private static class FailingActivityImpl implements TestActivity {
 
     @Override
