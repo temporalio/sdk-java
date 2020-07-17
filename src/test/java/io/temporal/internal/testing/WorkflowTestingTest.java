@@ -262,11 +262,20 @@ public class WorkflowTestingTest {
     }
   }
 
+  public static class WorkflowExecutedFromActivity implements TestWorkflow {
+
+    @Override
+    public String workflow1(String input) {
+      return Workflow.getInfo().getWorkflowType() + "-" + input;
+    }
+  }
+
+  /** Tests situation when an activity executes a workflow using a workflow client. */
   @Test
-  public void testActivityThatExecuteWorkflow() {
+  public void testActivityThatExecutesWorkflow() {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(
-        TestActivityThatExecutesWorkflowImpl.class, EmptyWorkflowImpl.class);
+        TestActivityThatExecutesWorkflowImpl.class, WorkflowExecutedFromActivity.class);
     worker.registerActivitiesImplementations(
         new ActivityThatExecutesWorkflow(testEnvironment.getWorkflowClient(), TASK_QUEUE));
     testEnvironment.start();

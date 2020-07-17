@@ -64,6 +64,28 @@ final class RequestContext {
     }
   }
 
+  static final class TimerLockChange {
+    private final String caller;
+    /** +1 or -1 */
+    private final int change;
+
+    TimerLockChange(String caller, int change) {
+      this.caller = Objects.requireNonNull(caller);
+      if (change != -1 && change != 1) {
+        throw new IllegalArgumentException("Invalid change: " + change);
+      }
+      this.change = change;
+    }
+
+    public String getCaller() {
+      return caller;
+    }
+
+    public int getChange() {
+      return change;
+    }
+  }
+
   private final LongSupplier clock;
 
   private final ExecutionId executionId;
@@ -81,7 +103,7 @@ final class RequestContext {
   private boolean needWorkflowTask;
   // How many times call SelfAdvancedTimer#lockTimeSkipping.
   // Negative means how many times to call SelfAdvancedTimer#unlockTimeSkipping.
-  private int timerLocks;
+  private List<TimerLockChange> timerLocks = new ArrayList<>();
 
   /**
    * Creates an instance of the RequestContext
@@ -107,20 +129,20 @@ final class RequestContext {
     this.events.addAll(ctx.getEvents());
   }
 
-  void lockTimer() {
-    timerLocks++;
+  void lockTimer(String caller) {
+    timerLocks.add(new TimerLockChange(caller, +1));
   }
 
-  void unlockTimer() {
-    timerLocks--;
+  void unlockTimer(String caller) {
+    timerLocks.add(new TimerLockChange(caller, -1));
   }
 
-  int getTimerLocks() {
+  List<TimerLockChange> getTimerLocks() {
     return timerLocks;
   }
 
   void clearTimersAndLocks() {
-    timerLocks = 0;
+    timerLocks.clear();
     timers.clear();
   }
 

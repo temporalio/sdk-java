@@ -491,7 +491,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             data.queryBuffer.clear();
           } finally {
-            ctx.unlockTimer();
+            ctx.unlockTimer("completeWorkflowTask");
           }
         },
         request.hasStickyAttributes() ? request.getStickyAttributes() : null);
@@ -720,7 +720,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             timeoutActivity(
                 activityScheduleId, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START, attempt),
         "Activity ScheduleToStartTimeout");
-    ctx.lockTimer();
+    ctx.lockTimer("processScheduleActivityTask");
   }
 
   /**
@@ -815,7 +815,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     StateMachine<ChildWorkflowData> child = StateMachines.newChildWorkflowStateMachine(service);
     childWorkflows.put(ctx.getNextEventId(), child);
     child.action(StateMachines.Action.INITIATE, ctx, a, workflowTaskCompletedId);
-    ctx.lockTimer();
+    ctx.lockTimer("processStartChildWorkflow");
   }
 
   /** Clone of the validateStartChildExecutionAttributes from historyEngine.go */
@@ -886,7 +886,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 log.error("Failure signalling an external workflow execution", e);
               }
             });
-    ctx.lockTimer();
+    ctx.lockTimer("processSignalExternalWorkflowExecution");
   }
 
   @Override
@@ -896,7 +896,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<SignalExternalData> signal = getSignal(signalId);
           signal.action(Action.COMPLETE, ctx, runId, 0);
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("completeSignalExternalWorkflowExecution");
         });
   }
 
@@ -908,7 +908,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<SignalExternalData> signal = getSignal(signalId);
           signal.action(Action.FAIL, ctx, cause, 0);
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("failSignalExternalWorkflowExecution");
         });
   }
 
@@ -929,7 +929,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           workflowTaskStateMachine.action(Action.FAIL, ctx, request, 0);
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer(); // Unlock timer associated with the workflow task
+          ctx.unlockTimer("failWorkflowTask"); // Unlock timer associated with the workflow task
         },
         null); // reset sticky attributes to null
   }
@@ -956,7 +956,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             workflowTaskStateMachine.action(
                 StateMachines.Action.TIME_OUT, ctx, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, 0);
             scheduleWorkflowTask(ctx);
-            ctx.unlockTimer(); // Unlock timer associated with the workflow task
+            ctx.unlockTimer(
+                "timeoutWorkflowTask"); // Unlock timer associated with the workflow task
           },
           null); // reset sticky attributes to null
     } catch (StatusRuntimeException e) {
@@ -982,7 +983,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           scheduleWorkflowTask(ctx);
           // No need to lock until completion as child workflow might skip
           // time as well
-          ctx.unlockTimer();
+          ctx.unlockTimer("childWorkflowStarted");
         });
   }
 
@@ -995,7 +996,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.FAIL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("childWorkflowFailed");
         });
   }
 
@@ -1008,7 +1009,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(Action.TIME_OUT, ctx, a.getRetryState(), 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("childWorkflowTimedOut");
         });
   }
 
@@ -1021,7 +1022,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.FAIL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("failStartChildWorkflow");
         });
   }
 
@@ -1034,7 +1035,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.COMPLETE, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("childWorkflowCompleted");
         });
   }
 
@@ -1047,7 +1048,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.CANCEL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("childWorkflowCanceled");
         });
   }
 
@@ -1172,7 +1173,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     workflow.action(StateMachines.Action.FAIL, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     if (parent.isPresent()) {
-      ctx.lockTimer(); // unlocked by the parent
+      ctx.lockTimer("processFailWorkflowExecution notify parent"); // unlocked by the parent
       ChildWorkflowExecutionFailedEventAttributes a =
           ChildWorkflowExecutionFailedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
@@ -1214,7 +1215,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     workflow.action(StateMachines.Action.COMPLETE, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     if (parent.isPresent()) {
-      ctx.lockTimer(); // unlocked by the parent
+      ctx.lockTimer("processCompleteWorkflowExecution notify parent"); // unlocked by the parent
       ChildWorkflowExecutionCompletedEventAttributes a =
           ChildWorkflowExecutionCompletedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
@@ -1304,7 +1305,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     workflow.action(StateMachines.Action.CANCEL, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     if (parent.isPresent()) {
-      ctx.lockTimer(); // unlocked by the parent
+      ctx.lockTimer("processCancelWorkflowExecution notify parent"); // unlocked by the parent
       ChildWorkflowExecutionCanceledEventAttributes a =
           ChildWorkflowExecutionCanceledEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
@@ -1438,7 +1439,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void scheduleWorkflowTask(RequestContext ctx) {
     workflowTaskStateMachine.action(StateMachines.Action.INITIATE, ctx, startRequest, 0);
-    ctx.lockTimer();
+    ctx.lockTimer("scheduleWorkflowTask");
   }
 
   @Override
@@ -1516,7 +1517,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           removeActivity(scheduledEventId);
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("completeActivityTask");
         });
   }
 
@@ -1529,7 +1530,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           removeActivity(activity.getData().scheduledEventId);
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("completeActivityTaskById");
         });
   }
 
@@ -1546,7 +1547,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             addActivityRetryTimer(ctx, activity);
           }
           // Allow time skipping when waiting for retry
-          ctx.unlockTimer();
+          ctx.unlockTimer("failActivityTask");
         });
   }
 
@@ -1599,7 +1600,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           } else {
             addActivityRetryTimer(ctx, activity);
           }
-          ctx.unlockTimer();
+          ctx.unlockTimer("failActivityTaskById");
         });
   }
 
@@ -1612,7 +1613,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(scheduledEventId);
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("cancelActivityTask");
         });
   }
 
@@ -1625,7 +1626,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(activity.getData().scheduledEventId);
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer();
+          ctx.unlockTimer("cancelActivityTaskById");
         });
   }
 
@@ -1732,7 +1733,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             workflow.action(StateMachines.Action.TIME_OUT, ctx, RetryState.RETRY_STATE_TIMEOUT, 0);
             workflowTaskStateMachine.getData().workflowCompleted = true;
             if (parent != null) {
-              ctx.lockTimer(); // unlocked by the parent
+              ctx.lockTimer("timeoutWorkflow notify parent"); // unlocked by the parent
             }
             ForkJoinPool.commonPool().execute(() -> reportWorkflowTimeoutToParent(ctx));
           });
