@@ -41,6 +41,7 @@ import io.temporal.internal.worker.Suspendable;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -406,6 +407,12 @@ public final class Worker implements Suspendable {
     return workflowWorker.isSuspended() && activityWorker.isSuspended();
   }
 
+  /**
+   * Name of the workflow type the interface defines. It is either the interface short name or value
+   * of {@link WorkflowMethod#name()} parameter.
+   *
+   * @param workflowInterfaceClass interface annotated with @WorkflowInterface
+   */
   public static String getWorkflowType(Class<?> workflowInterfaceClass) {
     return WorkflowInternal.getWorkflowType(workflowInterfaceClass);
   }
