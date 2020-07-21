@@ -24,13 +24,20 @@ import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.Duration;
-import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class MicrometerClientStatsReporter implements StatsReporter {
+
+  private final MeterRegistry registry;
+
+  public MicrometerClientStatsReporter(MeterRegistry registry) {
+    this.registry = Objects.requireNonNull(registry);
+  }
 
   @Override
   public Capabilities capabilities() {
@@ -44,22 +51,22 @@ public class MicrometerClientStatsReporter implements StatsReporter {
 
   @Override
   public void close() {
-    // NOOP
+    registry.close();
   }
 
   @Override
   public void reportCounter(String name, Map<String, String> tags, long value) {
-    Metrics.counter(name, getTags(tags)).increment(value);
+    registry.counter(name, getTags(tags)).increment(value);
   }
 
   @Override
   public void reportGauge(String name, Map<String, String> tags, double value) {
-    // NOOP
+    registry.gauge(name, getTags(tags), value);
   }
 
   @Override
   public void reportTimer(String name, Map<String, String> tags, Duration interval) {
-    Metrics.timer(name, getTags(tags)).record(interval.getNanos(), TimeUnit.NANOSECONDS);
+    registry.timer(name, getTags(tags)).record(interval.getNanos(), TimeUnit.NANOSECONDS);
   }
 
   @Override
