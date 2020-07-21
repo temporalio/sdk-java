@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.temporal.worker.Worker;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowInterface;
@@ -221,5 +222,10 @@ public class POJOWorkflowMetadataTest {
     POJOWorkflowMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
     assertEquals(c, cMethod.getWorkflowMethod());
     assertEquals("c", cMethod.getName());
+  }
+
+  @Test
+  public void testGetWorkflowType() {
+    assertEquals("AM_C_bb", Worker.getWorkflowType(F.class));
   }
 }

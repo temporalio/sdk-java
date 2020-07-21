@@ -24,14 +24,11 @@ import static org.junit.Assert.assertEquals;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 public class MicrometerClientStatsReporterTest {
@@ -42,18 +39,10 @@ public class MicrometerClientStatsReporterTest {
   private static final long DEFAULT_COUNT = 10;
   private static final Duration DEFAULT_DURATION = Duration.ofSeconds(10);
 
+  private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+
   private MicrometerClientStatsReporter micrometerClientStatsReporter =
-      new MicrometerClientStatsReporter();
-
-  @Before
-  public void init() {
-    Metrics.addRegistry(new SimpleMeterRegistry());
-  }
-
-  @After
-  public void cleanup() {
-    Metrics.globalRegistry.getMeters().forEach(Metrics.globalRegistry::remove);
-  }
+      new MicrometerClientStatsReporter(registry);
 
   @Test
   public void testReporterCapabilitiesShouldReturnReporting() {
@@ -66,8 +55,8 @@ public class MicrometerClientStatsReporterTest {
 
     assertEquals(
         Arrays.asList(Tag.of("Namespace", "namespace_name"), Tag.of("TaskQueue", "task_queue")),
-        Metrics.globalRegistry.get(DEFAULT_REPORT_NAME).counter().getId().getTags());
-    assertEquals(10, Metrics.globalRegistry.get(DEFAULT_REPORT_NAME).counter().count(), 0);
+        registry.get(DEFAULT_REPORT_NAME).counter().getId().getTags());
+    assertEquals(10, registry.get(DEFAULT_REPORT_NAME).counter().count(), 0);
   }
 
   @Test
@@ -76,9 +65,8 @@ public class MicrometerClientStatsReporterTest {
 
     assertEquals(
         Arrays.asList(Tag.of("Namespace", "namespace_name"), Tag.of("TaskQueue", "task_queue")),
-        Metrics.globalRegistry.get(DEFAULT_REPORT_NAME).timer().getId().getTags());
-    assertEquals(
-        10, Metrics.globalRegistry.get(DEFAULT_REPORT_NAME).timer().totalTime(TimeUnit.SECONDS), 0);
+        registry.get(DEFAULT_REPORT_NAME).timer().getId().getTags());
+    assertEquals(10, registry.get(DEFAULT_REPORT_NAME).timer().totalTime(TimeUnit.SECONDS), 0);
   }
 
   private void callDefaultCounter() {

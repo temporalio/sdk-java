@@ -43,6 +43,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
+import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.WorkflowQueue;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -406,5 +407,17 @@ public final class WorkflowInternal {
 
   public static DataConverter getDataConverter() {
     return getRootWorkflowContext().getDataConverter();
+  }
+
+  /**
+   * Name of the workflow type the interface defines. It is either the interface short name * or
+   * value of {@link WorkflowMethod#name()} parameter.
+   *
+   * @param workflowInterfaceClass interface annotated with @WorkflowInterface
+   */
+  public static String getWorkflowType(Class<?> workflowInterfaceClass) {
+    POJOWorkflowInterfaceMetadata metadata =
+        POJOWorkflowInterfaceMetadata.newInstance(workflowInterfaceClass);
+    return metadata.getWorkflowType().get();
   }
 }
