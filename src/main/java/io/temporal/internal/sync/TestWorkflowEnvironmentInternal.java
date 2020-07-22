@@ -43,6 +43,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
@@ -52,6 +55,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final WorkflowServiceStubs workflowServiceStubs;
   private final TestWorkflowService service;
   private final WorkerFactory workerFactory;
+  private TimeLockingInterceptor timeLockingInterceptor;
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -66,6 +70,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         WorkerFactoryOptions.newBuilder(testEnvironmentOptions.getWorkerFactoryOptions())
             .validateAndBuildWithDefaults();
     service = new TestWorkflowService();
+    timeLockingInterceptor = new TimeLockingInterceptor(service);
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
     workflowServiceStubs =
         WorkflowServiceStubs.newInstance(
@@ -96,7 +101,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         WorkflowClientOptions.newBuilder(workflowClientOptions)
             .setInterceptors(
                 ObjectArrays.concat(
-                    workflowClientOptions.getInterceptors(), new TimeLockingInterceptor(service)))
+                    workflowClientOptions.getInterceptors(), timeLockingInterceptor))
             .build();
     return WorkflowClientInternal.newInstance(workflowServiceStubs, options);
   }
@@ -187,22 +192,22 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   private static class TimeLockingInterceptor implements WorkflowClientInterceptor {
 
-    private final TestWorkflowService service;
+    private final IdempotentLocker locker;
 
     TimeLockingInterceptor(TestWorkflowService service) {
-      this.service = service;
+      this.locker = new IdempotentLocker(service);
     }
 
     @Override
     public WorkflowStub newUntypedWorkflowStub(
         String workflowType, WorkflowOptions options, WorkflowStub next) {
-      return new TimeLockingWorkflowStub(service, next);
+      return new TimeLockingWorkflowStub(locker, next);
     }
 
     @Override
     public WorkflowStub newUntypedWorkflowStub(
         WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next) {
-      return new TimeLockingWorkflowStub(service, next);
+      return new TimeLockingWorkflowStub(locker, next);
     }
 
     @Override
@@ -210,13 +215,44 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       return next;
     }
 
-    private class TimeLockingWorkflowStub implements WorkflowStub {
+    private static final Logger log = LoggerFactory.getLogger(IdempotentLocker.class);
 
-      private final TestWorkflowService service;
+    /**
+     * Used to ensure that multiple TimeLockingWorkflowStubs that are blocked at the same time from
+     * multiple threads execute unlock only once and the lock only once.
+     */
+    private static class IdempotentLocker {
+      private final TestWorkflowService store;
+      private final AtomicInteger count = new AtomicInteger(1);
+
+      private IdempotentLocker(TestWorkflowService store) {
+        this.store = store;
+      }
+
+      public void lockTimeSkipping(String caller) {
+        log.info(this.hashCode() + " lockTimeSkipping " + caller);
+        if (count.incrementAndGet() == 1) {
+          log.info(this.hashCode() + " lockTimeSkipping STORE" + caller);
+          store.lockTimeSkipping(caller);
+        }
+      }
+
+      public void unlockTimeSkipping(String caller) {
+        log.info(this.hashCode() + " unlockTimeSkipping " + caller);
+        if (count.decrementAndGet() == 0) {
+          log.info(this.hashCode() + " unlockTimeSkipping STORE" + caller);
+          store.unlockTimeSkipping(caller);
+        }
+      }
+    }
+
+    private static class TimeLockingWorkflowStub implements WorkflowStub {
+
+      private final IdempotentLocker locker;
       private final WorkflowStub next;
 
-      TimeLockingWorkflowStub(TestWorkflowService service, WorkflowStub next) {
-        this.service = service;
+      TimeLockingWorkflowStub(IdempotentLocker locker, WorkflowStub next) {
+        this.locker = locker;
         this.next = next;
       }
 
@@ -248,21 +284,21 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
       @Override
       public <R> R getResult(Class<R> resultClass, Type resultType) {
-        service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+        locker.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
         try {
           return next.getResult(resultClass, resultType);
         } finally {
-          service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+          locker.lockTimeSkipping("TimeLockingWorkflowStub getResult");
         }
       }
 
       @Override
       public <R> R getResult(Class<R> resultClass) {
-        service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+        locker.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
         try {
           return next.getResult(resultClass);
         } finally {
-          service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+          locker.lockTimeSkipping("TimeLockingWorkflowStub getResult");
         }
       }
 
@@ -279,22 +315,22 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       @Override
       public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass, Type resultType)
           throws TimeoutException {
-        service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+        locker.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
         try {
           return next.getResult(timeout, unit, resultClass, resultType);
         } finally {
-          service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+          locker.lockTimeSkipping("TimeLockingWorkflowStub getResult");
         }
       }
 
       @Override
       public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass)
           throws TimeoutException {
-        service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+        locker.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
         try {
           return next.getResult(timeout, unit, resultClass);
         } finally {
-          service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+          locker.lockTimeSkipping("TimeLockingWorkflowStub getResult");
         }
       }
 
@@ -343,7 +379,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
           CompletableFuture<R> ignored =
               resultAsync.whenComplete(
                   (r, e) -> {
-                    service.lockTimeSkipping(
+                    locker.lockTimeSkipping(
                         "TimeLockingWorkflowStub TimeLockingFuture constructor");
                     if (e == null) {
                       this.complete(r);
@@ -355,28 +391,28 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
         @Override
         public R get() throws InterruptedException, ExecutionException {
-          service.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+          locker.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
           try {
             return super.get();
           } finally {
-            service.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+            locker.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
           }
         }
 
         @Override
         public R get(long timeout, TimeUnit unit)
             throws InterruptedException, ExecutionException, TimeoutException {
-          service.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+          locker.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
           try {
             return super.get(timeout, unit);
           } finally {
-            service.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+            locker.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
           }
         }
 
         @Override
         public R join() {
-          service.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture join");
+          locker.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture join");
           return super.join();
         }
       }

@@ -210,7 +210,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       history.checkNextEventId(ctx.getInitialEventId());
       history.addAllLocked(events, ctx.currentTimeInNanoseconds());
       result = history.getNextEventIdLocked();
-      timerService.updateLocks(ctx.getTimerLocks(), "TestWorkflowStoreImpl save");
+      timerService.updateLocks(ctx.getTimerLocks());
       ctx.fireCallbacks(history.getEventsLocked().size());
     } finally {
       if (historiesEmpty && !histories.isEmpty()) {
@@ -267,7 +267,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   public void applyTimersAndLocks(RequestContext ctx) {
     lock.lock();
     try {
-      timerService.updateLocks(ctx.getTimerLocks(), "TestWorkflowStoreImpl applyTimersAndLocks");
+      timerService.updateLocks(ctx.getTimerLocks());
     } finally {
       lock.unlock();
     }
@@ -460,7 +460,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       lock.unlock();
     }
     // Uncomment to troubleshoot time skipping issues.
-    //    timerService.getDiagnostics(result);
+    timerService.getDiagnostics(result);
   }
 
   @Override

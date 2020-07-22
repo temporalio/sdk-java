@@ -24,6 +24,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -307,16 +308,14 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   }
 
   @Override
-  public void updateLocks(int count, String caller) {
+  public void updateLocks(List<RequestContext.TimerLockChange> updates) {
     lock.lock();
     try {
-      if (count >= 0) {
-        for (int i = 0; i < count; i++) {
-          lockTimeSkippingLocked("updateLocks " + caller);
-        }
-      } else {
-        for (int i = 0; i < -count; i++) {
-          unlockTimeSkippingLocked("updateLocks " + caller);
+      for (RequestContext.TimerLockChange update : updates) {
+        if (update.getChange() == 1) {
+          lockTimeSkippingLocked(update.getCaller());
+        } else {
+          unlockTimeSkippingLocked(update.getCaller());
         }
       }
     } finally {
@@ -336,11 +335,13 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
         } else {
           lockCount--;
         }
+        String indent = new String(new char[lockCount * 2]).replace("\0", " ");
         result
             .append(new Timestamp(event.timestamp))
             .append("\t")
             .append(event.lockType)
             .append("\t")
+            .append(indent)
             .append(lockCount)
             .append("\t")
             .append(event.caller)

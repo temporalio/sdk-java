@@ -1112,7 +1112,7 @@ class StateMachines {
       WorkflowTaskData data,
       TestWorkflowMutableStateImpl.ConsistentQuery query,
       long notUsed) {
-    ctx.lockTimer();
+    ctx.lockTimer("scheduleQueryWorkflowTask");
     StartWorkflowExecutionRequest request = data.startRequest;
     PollWorkflowTaskQueueResponse.Builder workflowTaskResponse =
         PollWorkflowTaskQueueResponse.newBuilder();
@@ -1360,7 +1360,7 @@ class StateMachines {
     ctx.onCommit(
         (historySize) -> {
           data.clear();
-          ctx.unlockTimer();
+          ctx.unlockTimer("completeQuery");
         });
   }
 
@@ -1378,7 +1378,7 @@ class StateMachines {
     if (!data.consistentQueryRequests.isEmpty()) {
       ctx.setNeedWorkflowTask(true);
     }
-    ctx.unlockTimer();
+    ctx.unlockTimer("failQueryWorkflowTask");
   }
 
   private static void failWorkflowTask(

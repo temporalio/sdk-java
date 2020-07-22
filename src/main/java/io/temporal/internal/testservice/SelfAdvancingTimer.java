@@ -20,6 +20,7 @@
 package io.temporal.internal.testservice;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.function.LongSupplier;
 
 /**
@@ -51,9 +52,9 @@ interface SelfAdvancingTimer {
    * Update lock count. The same as calling lockTimeSkipping count number of times for positive
    * count and unlockTimeSkipping for negative count.
    *
-   * @param count
+   * @param updates to the locks
    */
-  void updateLocks(int count, String caller);
+  void updateLocks(List<RequestContext.TimerLockChange> updates);
 
   void getDiagnostics(StringBuilder result);
 
