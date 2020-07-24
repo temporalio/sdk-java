@@ -652,6 +652,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx, CancelTimerCommandAttributes d, long workflowTaskCompletedId) {
     String timerId = d.getTimerId();
     StateMachine<TimerData> timer = timers.get(timerId);
+    if (timer == null) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("invalid history builder state for action")
+          .asRuntimeException();
+    }
     timer.action(StateMachines.Action.CANCEL, ctx, d, workflowTaskCompletedId);
     timers.remove(timerId);
   }
