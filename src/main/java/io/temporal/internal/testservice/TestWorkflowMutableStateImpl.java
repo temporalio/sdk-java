@@ -58,7 +58,6 @@ import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
-import io.temporal.api.history.v1.CancelTimerFailedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
@@ -654,18 +653,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     String timerId = d.getTimerId();
     StateMachine<TimerData> timer = timers.get(timerId);
     if (timer == null) {
-      CancelTimerFailedEventAttributes.Builder failedAttr =
-          CancelTimerFailedEventAttributes.newBuilder()
-              .setTimerId(timerId)
-              .setCause("TIMER_ID_UNKNOWN")
-              .setWorkflowTaskCompletedEventId(workflowTaskCompletedId);
-      HistoryEvent cancellationFailed =
-          HistoryEvent.newBuilder()
-              .setEventType(EventType.EVENT_TYPE_CANCEL_TIMER_FAILED)
-              .setCancelTimerFailedEventAttributes(failedAttr)
-              .build();
-      ctx.addEvent(cancellationFailed);
-      return;
+      throw Status.INVALID_ARGUMENT
+          .withDescription("invalid history builder state for action")
+          .asRuntimeException();
     }
     timer.action(StateMachines.Action.CANCEL, ctx, d, workflowTaskCompletedId);
     timers.remove(timerId);

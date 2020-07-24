@@ -15,3 +15,4 @@ src/main/idls/*
 .classpath
 .project
 .settings
+.vscode/

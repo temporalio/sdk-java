@@ -41,7 +41,6 @@ import io.temporal.internal.worker.Suspendable;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

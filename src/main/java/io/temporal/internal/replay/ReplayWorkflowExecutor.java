@@ -228,8 +228,6 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       case EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED:
         commandHelper.handleActivityTaskCancelRequested(event);
         break;
-      case EVENT_TYPE_REQUEST_CANCEL_ACTIVITY_TASK_FAILED:
-        throw new Error("unexpected event");
       case EVENT_TYPE_MARKER_RECORDED:
         context.handleMarkerRecorded(event);
         break;
@@ -265,9 +263,6 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
         break;
       case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
         commandHelper.handleStartChildWorkflowExecutionInitiated(event);
-        break;
-      case EVENT_TYPE_CANCEL_TIMER_FAILED:
-        commandHelper.handleCancelTimerFailed(event);
         break;
       case EVENT_TYPE_WORKFLOW_TASK_FAILED:
         context.handleWorkflowTaskFailed(event);
