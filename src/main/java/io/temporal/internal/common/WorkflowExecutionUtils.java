@@ -804,9 +804,7 @@ public class WorkflowExecutionUtils {
                 || eventType == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED
                 || eventType == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW
                 || eventType == EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
-                || eventType == EventType.EVENT_TYPE_REQUEST_CANCEL_ACTIVITY_TASK_FAILED
                 || eventType == EventType.EVENT_TYPE_TIMER_CANCELED
-                || eventType == EventType.EVENT_TYPE_CANCEL_TIMER_FAILED
                 || eventType
                     == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED
                 || eventType == EventType.EVENT_TYPE_MARKER_RECORDED
