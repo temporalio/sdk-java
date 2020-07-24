@@ -373,13 +373,6 @@ final class CommandHelper {
     return command.isDone();
   }
 
-  boolean handleCancelTimerFailed(HistoryEvent event) {
-    long startedEventId = event.getEventId();
-    CommandStateMachine command = getCommand(new CommandId(CommandTarget.TIMER, startedEventId));
-    command.handleCancellationFailureEvent(event);
-    return command.isDone();
-  }
-
   void handleTimerStarted(HistoryEvent event) {
     CommandStateMachine command =
         getCommand(new CommandId(CommandTarget.TIMER, event.getEventId()));
