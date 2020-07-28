@@ -42,10 +42,13 @@ public final class EncodedValue implements Value {
 
   public Optional<Payloads> toPayloads() {
     if (payloads == null) {
-      if (converter == null) {
+      if (!value.isPresent()) {
+        payloads = Optional.empty();
+      } else if (converter == null) {
         throw new IllegalStateException("converter not set");
+      } else {
+        payloads = converter.toPayloads(value.get());
       }
-      payloads = value.isPresent() ? converter.toPayloads(value.get()) : Optional.empty();
     }
     return payloads;
   }
