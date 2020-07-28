@@ -19,7 +19,7 @@
 
 package io.temporal.common.converter;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import com.google.common.base.Objects;
 import com.google.common.reflect.TypeToken;
@@ -78,5 +78,12 @@ public class EncodedValueTest {
     TypeToken<List<Pair>> typeToken = new TypeToken<List<Pair>>() {};
     List<Pair> result = v2.get(List.class, typeToken.getType());
     assertEquals(list, result);
+  }
+
+  @Test
+  public void testEmptyParameter() {
+    EncodedValue v = new EncodedValue(null);
+    Optional<Payloads> payloads = v.toPayloads();
+    assertFalse(payloads.isPresent());
   }
 }
