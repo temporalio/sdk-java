@@ -129,7 +129,11 @@ public final class ActivityOptions {
       return this;
     }
 
-    /** RetryOptions that define how activity is retried in case of failure. */
+    /**
+     * RetryOptions that define how activity is retried in case of failure. If this is not set, then
+     * the server-defined default activity retry policy will be used. To ensure zero retries, set
+     * maximum attempts to 1.
+     */
     public Builder setRetryOptions(RetryOptions retryOptions) {
       this.retryOptions = retryOptions;
       return this;
@@ -179,7 +183,7 @@ public final class ActivityOptions {
           scheduleToStartTimeout,
           startToCloseTimeout,
           taskQueue,
-          RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
+          retryOptions,
           contextPropagators,
           cancellationType);
     }

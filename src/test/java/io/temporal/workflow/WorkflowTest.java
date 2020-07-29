@@ -883,6 +883,82 @@ public class WorkflowTest {
     assertEquals(3, activitiesImpl.applicationFailureCounter.get());
   }
 
+  public static class TestActivityApplicationNoSpecifiedRetry implements TestWorkflow1 {
+
+    private TestActivities activities;
+
+    @Override
+    public String execute(String taskQueue) {
+      ActivityOptions options =
+          ActivityOptions.newBuilder()
+              .setTaskQueue(taskQueue)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
+              .build();
+      activities = Workflow.newActivityStub(TestActivities.class, options);
+      activities.throwApplicationFailureThreeTimes();
+      return "ignored";
+    }
+  }
+
+  @Test
+  public void testActivityApplicationNoSpecifiedRetry() {
+    startWorkerFor(TestActivityApplicationNoSpecifiedRetry.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+    try {
+      workflowStub.execute(taskQueue);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("simulatedType", ((ApplicationFailure) e.getCause().getCause()).getType());
+    }
+
+    // Since no retry policy is passed by the client, we fall back to the default retry policy of
+    // the mock server, which mimics the default on a default Temporal deployment.
+    assertEquals(3, activitiesImpl.applicationFailureCounter.get());
+  }
+
+  public static class TestActivityApplicationOptOutOfRetry implements TestWorkflow1 {
+
+    private TestActivities activities;
+
+    @Override
+    public String execute(String taskQueue) {
+      ActivityOptions options =
+          ActivityOptions.newBuilder()
+              .setTaskQueue(taskQueue)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
+              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+              .build();
+      activities = Workflow.newActivityStub(TestActivities.class, options);
+      activities.throwApplicationFailureThreeTimes();
+      return "ignored";
+    }
+  }
+
+  @Test
+  public void testActivityApplicationOptOutOfRetry() {
+    startWorkerFor(TestActivityApplicationOptOutOfRetry.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+    try {
+      workflowStub.execute(taskQueue);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("simulatedType", ((ApplicationFailure) e.getCause().getCause()).getType());
+    }
+
+    // Since maximum attempts is set to 1, there should be no retries at all
+    assertEquals(1, activitiesImpl.applicationFailureCounter.get());
+  }
+
   public static class TestAsyncActivityRetry implements TestWorkflow1 {
 
     private TestActivities activities;

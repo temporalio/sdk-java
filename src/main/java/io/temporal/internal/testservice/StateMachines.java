@@ -129,6 +129,10 @@ class StateMachines {
   private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
 
   static final int NO_EVENT_ID = -1;
+  static final int DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS = 1;
+  static final double DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT = 2.0;
+  static final int DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS = 0;
+  static final int DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT = 100;
   public static final int DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS = 10 * 365 * 24 * 3600;
   public static final int DEFAULT_WORKFLOW_TASK_TIMEOUT_SECONDS = 10;
   public static final int MAX_WORKFLOW_TASK_TIMEOUT_SECONDS = 60;
@@ -979,15 +983,10 @@ class StateMachines {
       ActivityTaskData data,
       ScheduleActivityTaskCommandAttributes d,
       long workflowTaskCompletedEventId) {
-    TestServiceRetryState retryState;
-    if (d.hasRetryPolicy()) {
-      RetryPolicy retryPolicy = d.getRetryPolicy();
-      long expirationInterval = TimeUnit.SECONDS.toMillis(d.getScheduleToCloseTimeoutSeconds());
-      long expirationTime = data.store.currentTimeMillis() + expirationInterval;
-      retryState = new TestServiceRetryState(retryPolicy, expirationTime);
-    } else {
-      retryState = null;
-    }
+    RetryPolicy retryPolicy = ensureDefaultFieldsForActivityRetryPolicy(d.getRetryPolicy());
+    long expirationInterval = TimeUnit.SECONDS.toMillis(d.getScheduleToCloseTimeoutSeconds());
+    long expirationTime = data.store.currentTimeMillis() + expirationInterval;
+    TestServiceRetryState retryState = new TestServiceRetryState(retryPolicy, expirationTime);
 
     ActivityTaskScheduledEventAttributes.Builder a =
         ActivityTaskScheduledEventAttributes.newBuilder()
@@ -996,15 +995,14 @@ class StateMachines {
             .setActivityType(d.getActivityType())
             .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
             .setHeartbeatTimeoutSeconds(d.getHeartbeatTimeoutSeconds())
+            .setRetryPolicy(retryPolicy)
             .setScheduleToCloseTimeoutSeconds(d.getScheduleToCloseTimeoutSeconds())
             .setScheduleToStartTimeoutSeconds(d.getScheduleToStartTimeoutSeconds())
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setTaskQueue(d.getTaskQueue())
             .setHeader(d.getHeader())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
-    if (d.hasRetryPolicy()) {
-      a.setRetryPolicy(d.getRetryPolicy());
-    }
+
     // Cannot set it in onCommit as it is used in the processScheduleActivityTask
     data.scheduledEvent = a.build();
     HistoryEvent event =
@@ -1857,5 +1855,29 @@ class StateMachines {
             .setRequestCancelExternalWorkflowExecutionFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
+  }
+
+  // Mimics the default activity retry policy of a standard Temporal server.
+  static RetryPolicy ensureDefaultFieldsForActivityRetryPolicy(RetryPolicy originalPolicy) {
+    int initialIntervalInSeconds =
+        originalPolicy.getInitialIntervalInSeconds() == 0
+            ? DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS
+            : originalPolicy.getInitialIntervalInSeconds();
+
+    return RetryPolicy.newBuilder()
+        .setInitialIntervalInSeconds(initialIntervalInSeconds)
+        .setMaximumIntervalInSeconds(
+            originalPolicy.getMaximumIntervalInSeconds() == 0
+                ? DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT * initialIntervalInSeconds
+                : originalPolicy.getMaximumIntervalInSeconds())
+        .setBackoffCoefficient(
+            originalPolicy.getBackoffCoefficient() == 0
+                ? DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT
+                : originalPolicy.getBackoffCoefficient())
+        .setMaximumAttempts(
+            originalPolicy.getMaximumAttempts() == 0
+                ? DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS
+                : originalPolicy.getMaximumAttempts())
+        .build();
   }
 }

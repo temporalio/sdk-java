@@ -74,7 +74,7 @@ public final class LocalActivityOptions {
 
     /**
      * RetryOptions that define how activity is retried in case of failure. Default is null which is
-     * no reties.
+     * no retries.
      */
     public Builder setRetryOptions(RetryOptions retryOptions) {
       this.retryOptions = retryOptions;
