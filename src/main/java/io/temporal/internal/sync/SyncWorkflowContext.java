@@ -351,15 +351,18 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
-    String[] doNotRetry = retryOptions.getDoNotRetry();
+    RetryPolicy.Builder builder =
+        RetryPolicy.newBuilder()
+            .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
+            .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
+            .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
+            .setMaximumAttempts(retryOptions.getMaximumAttempts());
 
-    return RetryPolicy.newBuilder()
-        .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
-        .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
-        .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
-        .setMaximumAttempts(retryOptions.getMaximumAttempts())
-        .addAllNonRetryableErrorTypes(
-            Arrays.asList(doNotRetry != null ? doNotRetry : new String[0]));
+    if (retryOptions.getDoNotRetry() != null) {
+      builder = builder.addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
+    }
+
+    return builder;
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
