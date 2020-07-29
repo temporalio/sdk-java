@@ -19,8 +19,6 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
 import com.google.common.base.Throwables;
 import io.grpc.Context;
 import io.grpc.Deadline;
@@ -85,7 +83,6 @@ import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -1031,14 +1028,5 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (ExecutionException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
-    return RetryPolicy.newBuilder()
-        .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
-        .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
-        .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
-        .setMaximumAttempts(retryOptions.getMaximumAttempts())
-        .addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
   }
 }
