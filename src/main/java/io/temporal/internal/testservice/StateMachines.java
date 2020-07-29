@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import static io.temporal.internal.testservice.StateMachines.Action.*;
 import static io.temporal.internal.testservice.StateMachines.State.*;
 
@@ -106,18 +107,12 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskQueueId;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowTask;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -980,14 +975,17 @@ class StateMachines {
       ScheduleActivityTaskCommandAttributes d,
       long workflowTaskCompletedEventId) {
     TestServiceRetryState retryState;
-    if (d.hasRetryPolicy()) {
-      RetryPolicy retryPolicy = d.getRetryPolicy();
-      long expirationInterval = TimeUnit.SECONDS.toMillis(d.getScheduleToCloseTimeoutSeconds());
-      long expirationTime = data.store.currentTimeMillis() + expirationInterval;
-      retryState = new TestServiceRetryState(retryPolicy, expirationTime);
+    RetryPolicy retryPolicy;
+    if (!d.hasRetryPolicy()) {
+      // If no activity retry policy is supplied, assume a default to mimic a standard Temporal server
+      retryPolicy = toRetryPolicy(RetryOptions.newBuilder().validateBuildWithDefaults()).build();
     } else {
-      retryState = null;
+      retryPolicy = d.getRetryPolicy();
     }
+
+    long expirationInterval = TimeUnit.SECONDS.toMillis(d.getScheduleToCloseTimeoutSeconds());
+    long expirationTime = data.store.currentTimeMillis() + expirationInterval;
+    retryState = new TestServiceRetryState(retryPolicy, expirationTime);
 
     ActivityTaskScheduledEventAttributes.Builder a =
         ActivityTaskScheduledEventAttributes.newBuilder()
@@ -1004,6 +1002,8 @@ class StateMachines {
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
     if (d.hasRetryPolicy()) {
       a.setRetryPolicy(d.getRetryPolicy());
+    } else {
+      a.setRetryPolicy(toRetryPolicy(RetryOptions.newBuilder().validateBuildWithDefaults()));
     }
     // Cannot set it in onCommit as it is used in the processScheduleActivityTask
     data.scheduledEvent = a.build();
@@ -1857,5 +1857,14 @@ class StateMachines {
             .setRequestCancelExternalWorkflowExecutionFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
+  }
+
+  private static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
+    return RetryPolicy.newBuilder()
+        .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
+        .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
+        .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
+        .setMaximumAttempts(retryOptions.getMaximumAttempts())
+        .addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
   }
 }

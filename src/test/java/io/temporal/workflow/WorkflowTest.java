@@ -917,8 +917,8 @@ public class WorkflowTest {
     }
 
     // Since no retry policy is passed by the client, we fall back to the default retry policy of
-    // the server, which is not set in this case. We expect no retries.
-    assertEquals(1, activitiesImpl.applicationFailureCounter.get());
+    // the mock server, which mimics the default on a default Temporal deployment.
+    assertEquals(3, activitiesImpl.applicationFailureCounter.get());
   }
 
   public static class TestActivityApplicationOptOutOfRetry implements TestWorkflow1 {
