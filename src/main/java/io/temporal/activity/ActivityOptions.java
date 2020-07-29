@@ -177,12 +177,6 @@ public final class ActivityOptions {
     }
 
     public ActivityOptions validateAndBuildWithDefaults() {
-      if (retryOptions != null) {
-        // retryOptions being null means we will explicitly fallback to the default
-        // activity retry behavior as specified on the server
-        retryOptions = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
-      }
-
       return new ActivityOptions(
           heartbeatTimeout,
           scheduleToCloseTimeout,
