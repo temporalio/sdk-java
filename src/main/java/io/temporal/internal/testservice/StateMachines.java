@@ -977,7 +977,8 @@ class StateMachines {
     TestServiceRetryState retryState;
     RetryPolicy retryPolicy;
     if (!d.hasRetryPolicy()) {
-      // If no activity retry policy is supplied, assume a default to mimic a standard Temporal server
+      // If no activity retry policy is supplied, assume a default to mimic a standard Temporal
+      // server
       retryPolicy = toRetryPolicy(RetryOptions.newBuilder().validateBuildWithDefaults()).build();
     } else {
       retryPolicy = d.getRetryPolicy();
