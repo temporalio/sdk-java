@@ -1849,11 +1849,21 @@ class StateMachines {
 
   // Mimics the default activity retry policy of a standard Temporal server. Used
   // when caller does not explicitly specify a retry policy,
-  static RetryPolicy getServerDefaultActivityRetryPolicy() {
+  static RetryPolicy getServerDefaultActivityRetryPolicy(RetryPolicy originalPolicy) {
     return RetryPolicy.newBuilder()
-        .setInitialIntervalInSeconds(1)
-        .setMaximumIntervalInSeconds(100)
-        .setBackoffCoefficient(2.0)
+        .setInitialIntervalInSeconds(
+            originalPolicy.getInitialIntervalInSeconds() == 0
+                ? 1
+                : originalPolicy.getInitialIntervalInSeconds())
+        .setMaximumIntervalInSeconds(
+            originalPolicy.getMaximumIntervalInSeconds() == 0
+                ? 100
+                : originalPolicy.getMaximumIntervalInSeconds())
+        .setBackoffCoefficient(
+            originalPolicy.getBackoffCoefficient() == 0
+                ? 2.0
+                : originalPolicy.getBackoffCoefficient())
+        .setMaximumAttempts(originalPolicy.getMaximumAttempts())
         .build();
   }
 }
