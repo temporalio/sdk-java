@@ -972,8 +972,7 @@ class StateMachines {
       ActivityTaskData data,
       ScheduleActivityTaskCommandAttributes d,
       long workflowTaskCompletedEventId) {
-    RetryPolicy retryPolicy =
-        d.hasRetryPolicy() ? d.getRetryPolicy() : getServerDefaultActivityRetryPolicy();
+    RetryPolicy retryPolicy = ensureDefaultFieldsForActivityRetryPolicy(d.getRetryPolicy());
     long expirationInterval = TimeUnit.SECONDS.toMillis(d.getScheduleToCloseTimeoutSeconds());
     long expirationTime = data.store.currentTimeMillis() + expirationInterval;
     TestServiceRetryState retryState = new TestServiceRetryState(retryPolicy, expirationTime);
@@ -1847,9 +1846,8 @@ class StateMachines {
     ctx.addEvent(event);
   }
 
-  // Mimics the default activity retry policy of a standard Temporal server. Used
-  // when caller does not explicitly specify a retry policy,
-  static RetryPolicy getServerDefaultActivityRetryPolicy(RetryPolicy originalPolicy) {
+  // Mimics the default activity retry policy of a standard Temporal server.
+  static RetryPolicy ensureDefaultFieldsForActivityRetryPolicy(RetryPolicy originalPolicy) {
     return RetryPolicy.newBuilder()
         .setInitialIntervalInSeconds(
             originalPolicy.getInitialIntervalInSeconds() == 0
