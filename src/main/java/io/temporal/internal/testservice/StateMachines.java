@@ -129,6 +129,10 @@ class StateMachines {
   private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
 
   static final int NO_EVENT_ID = -1;
+  static final int DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS = 1;
+  static final double DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT = 2.0;
+  static final int DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS = 0;
+  static final int DEFAULT_ACTIVITY_MAXIMUM_RETRY_COEFFICIENT = 100;
   public static final int DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS = 10 * 365 * 24 * 3600;
   public static final int DEFAULT_WORKFLOW_TASK_TIMEOUT_SECONDS = 10;
   public static final int MAX_WORKFLOW_TASK_TIMEOUT_SECONDS = 60;
@@ -1857,20 +1861,23 @@ class StateMachines {
   static RetryPolicy ensureDefaultFieldsForActivityRetryPolicy(RetryPolicy originalPolicy) {
     int initialIntervalInSeconds =
         originalPolicy.getInitialIntervalInSeconds() == 0
-            ? 1
+            ? DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS
             : originalPolicy.getInitialIntervalInSeconds();
 
     return RetryPolicy.newBuilder()
         .setInitialIntervalInSeconds(initialIntervalInSeconds)
         .setMaximumIntervalInSeconds(
             originalPolicy.getMaximumIntervalInSeconds() == 0
-                ? 100 * initialIntervalInSeconds
+                ? DEFAULT_ACTIVITY_MAXIMUM_RETRY_COEFFICIENT * initialIntervalInSeconds
                 : originalPolicy.getMaximumIntervalInSeconds())
         .setBackoffCoefficient(
             originalPolicy.getBackoffCoefficient() == 0
-                ? 2.0
+                ? DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT
                 : originalPolicy.getBackoffCoefficient())
-        .setMaximumAttempts(originalPolicy.getMaximumAttempts())
+        .setMaximumAttempts(
+            originalPolicy.getMaximumAttempts() == 0
+                ? DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS
+                : originalPolicy.getMaximumAttempts())
         .build();
   }
 }
