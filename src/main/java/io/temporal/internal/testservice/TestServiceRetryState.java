@@ -98,7 +98,7 @@ final class TestServiceRetryState {
       }
     }
     Timestamp expirationTime = getExpirationTime();
-    if (retryPolicy.getMaximumAttempts() == 0 && Timestamps.toNanos(expirationTime) == 0) {
+    if (retryPolicy.getMaximumAttempts() == 0 && Timestamps.toMillis(expirationTime) == 0) {
       return new BackoffInterval(RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET);
     }
 

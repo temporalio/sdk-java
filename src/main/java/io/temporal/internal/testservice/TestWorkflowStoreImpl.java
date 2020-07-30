@@ -97,7 +97,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         }
         eBuilder.setEventId(history.size() + 1L);
         // It can be set in StateMachines.startActivityTask
-        if (Timestamps.toNanos(eBuilder.getEventTime()) == 0) {
+        if (Timestamps.toMillis(eBuilder.getEventTime()) == 0) {
           eBuilder.setEventTime(eventTime);
         }
         history.add(eBuilder.build());
