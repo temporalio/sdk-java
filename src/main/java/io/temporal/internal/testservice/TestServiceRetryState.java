@@ -23,28 +23,28 @@ import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.enums.v1.RetryState;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 final class TestServiceRetryState {
 
   static class BackoffInterval {
-    private final int intervalSeconds;
+    private final Duration interval;
     private final RetryState retryState;
 
-    BackoffInterval(int intervalSeconds) {
-      this.intervalSeconds = intervalSeconds;
+    BackoffInterval(Duration interval) {
+      this.interval = interval;
       this.retryState = RetryState.RETRY_STATE_IN_PROGRESS;
     }
 
     BackoffInterval(RetryState retryState) {
-      this.intervalSeconds = -1;
+      this.interval = Duration.ofMillis(-1000);
       this.retryState = retryState;
     }
 
-    public int getIntervalSeconds() {
-      return intervalSeconds;
+    public Duration getInterval() {
+      return interval;
     }
 
     public RetryState getRetryState() {
@@ -127,8 +127,8 @@ final class TestServiceRetryState {
     if (expirationTime != 0 && nextScheduleTime > expirationTime) {
       return new BackoffInterval(RetryState.RETRY_STATE_TIMEOUT);
     }
-    int result = (int) TimeUnit.MILLISECONDS.toSeconds((long) Math.ceil((double) backoffInterval));
-    return new BackoffInterval(result);
+
+    return new BackoffInterval(Duration.ofMillis(backoffInterval));
   }
 
   static RetryPolicy validateAndOverrideRetryPolicy(RetryPolicy p) {

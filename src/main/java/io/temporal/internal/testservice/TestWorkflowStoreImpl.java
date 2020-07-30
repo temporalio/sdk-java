@@ -253,11 +253,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       for (Timer t : timers) {
         log.trace(
             "scheduling timer with "
-                + t.getDelaySeconds()
+                + t.getDelay()
                 + "seconds delay. Current time="
                 + this.currentTimeMillis());
-        timerService.schedule(
-            Duration.ofSeconds(t.getDelaySeconds()), t.getCallback(), t.getTaskInfo());
+        timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
       }
     }
     return result;
@@ -275,8 +274,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
-        timerService.schedule(
-            Duration.ofSeconds(t.getDelaySeconds()), t.getCallback(), t.getTaskInfo());
+        timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
       }
     }
 

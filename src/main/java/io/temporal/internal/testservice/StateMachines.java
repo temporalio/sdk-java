@@ -110,6 +110,7 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskQueueId;
@@ -171,7 +172,7 @@ class StateMachines {
 
   static final class WorkflowData {
     Optional<TestServiceRetryState> retryState;
-    long backoffStartIntervalInSeconds;
+    Duration backoffStartInterval;
     String cronSchedule;
     Payloads lastCompletionResult;
     String originalExecutionRunId;
@@ -179,13 +180,13 @@ class StateMachines {
 
     WorkflowData(
         Optional<TestServiceRetryState> retryState,
-        long backoffStartIntervalInSeconds,
+        Duration backoffStartInterval,
         String cronSchedule,
         Payloads lastCompletionResult,
         String originalExecutionRunId,
         Optional<String> continuedExecutionRunId) {
       this.retryState = retryState;
-      this.backoffStartIntervalInSeconds = backoffStartIntervalInSeconds;
+      this.backoffStartInterval = backoffStartInterval;
       this.cronSchedule = cronSchedule;
       this.lastCompletionResult = lastCompletionResult;
       this.originalExecutionRunId = originalExecutionRunId;
@@ -197,8 +198,8 @@ class StateMachines {
       return "WorkflowData{"
           + "retryState="
           + retryState
-          + ", backoffStartIntervalInSeconds="
-          + backoffStartIntervalInSeconds
+          + ", backoffStartInterval="
+          + backoffStartInterval
           + ", cronSchedule='"
           + cronSchedule
           + '\''
@@ -300,7 +301,7 @@ class StateMachines {
     Payloads heartbeatDetails;
     long lastHeartbeatTime;
     TestServiceRetryState retryState;
-    long nextBackoffIntervalSeconds;
+    Duration nextBackoffInterval;
 
     ActivityTaskData(
         TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
@@ -331,8 +332,8 @@ class StateMachines {
           + lastHeartbeatTime
           + ", retryState="
           + retryState
-          + ", nextBackoffIntervalSeconds="
-          + nextBackoffIntervalSeconds
+          + ", nextBackoffInterval="
+          + nextBackoffInterval
           + '}';
     }
 
@@ -741,7 +742,7 @@ class StateMachines {
               try {
                 data.service.startWorkflowExecutionImpl(
                     startChild,
-                    0,
+                    java.time.Duration.ZERO,
                     Optional.of(ctx.getWorkflowMutableState()),
                     OptionalLong.of(data.initiatedEventId),
                     Optional.empty());
@@ -1607,7 +1608,7 @@ class StateMachines {
         data.retryState.getBackoffIntervalInSeconds(
             info.map(i -> i.getType()), data.store.currentTimeMillis());
     if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
-      data.nextBackoffIntervalSeconds = backoffInterval.getIntervalSeconds();
+      data.nextBackoffInterval = ProtobufTimeUtils.ToProtoDuration(backoffInterval.getInterval());
       PollActivityTaskQueueResponse.Builder task = data.activityTask.getTask();
       if (data.heartbeatDetails != null) {
         task.setHeartbeatDetails(data.heartbeatDetails);
@@ -1621,7 +1622,7 @@ class StateMachines {
           });
     } else {
       data.startedEventId = ctx.addEvent(data.startedEvent);
-      data.nextBackoffIntervalSeconds = 0;
+      data.nextBackoffInterval = Durations.ZERO;
     }
     return backoffInterval.getRetryState();
   }

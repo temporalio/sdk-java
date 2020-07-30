@@ -146,12 +146,12 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /**
    * Create a Value that becomes ready after the specified delay.
    *
-   * @param delaySeconds time-interval after which the Value becomes ready in seconds.
+   * @param delay time-interval after which the Value becomes ready.
    * @param callback Callback that is called with null parameter after the specified delay.
    *     CanceledException is passed as a parameter in case of a cancellation.
    * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel timer.
    */
-  Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback);
+  Consumer<Exception> createTimer(Duration delay, Consumer<Exception> callback);
 
   /**
    * Executes the provided function once, records its result into the workflow history. The recorded

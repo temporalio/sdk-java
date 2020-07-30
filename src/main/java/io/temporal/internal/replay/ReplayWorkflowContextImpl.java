@@ -151,7 +151,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
 
   @Override
   public Duration getWorkflowTaskTimeout() {
-    return Duration.ofSeconds(workflowContext.getWorkflowTaskTimeoutSeconds());
+    return workflowContext.getWorkflowTaskTimeout();
   }
 
   @Override
@@ -180,12 +180,12 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
 
   @Override
   public Duration getWorkflowRunTimeout() {
-    return Duration.ofSeconds(workflowContext.getWorkflowRunTimeoutSeconds());
+    return workflowContext.getWorkflowRunTimeout();
   }
 
   @Override
   public Duration getWorkflowExecutionTimeout() {
-    return Duration.ofSeconds(workflowContext.getWorkflowExecutionTimeoutSeconds());
+    return workflowContext.getWorkflowExecutionTimeout();
   }
 
   @Override
@@ -279,8 +279,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext, HistoryE
   }
 
   @Override
-  public Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback) {
-    return workflowClock.createTimer(delaySeconds, callback);
+  public Consumer<Exception> createTimer(Duration delay, Consumer<Exception> callback) {
+    return workflowClock.createTimer(delay, callback);
   }
 
   @Override

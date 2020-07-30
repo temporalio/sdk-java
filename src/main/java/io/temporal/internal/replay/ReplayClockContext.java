@@ -21,7 +21,6 @@ package io.temporal.internal.replay;
 
 import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
 
-import com.google.protobuf.util.Durations;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Header;
@@ -35,6 +34,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.LocalActivityMarkerData;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.workflow.Functions.Func;
@@ -43,7 +43,6 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -129,19 +128,19 @@ public final class ReplayClockContext {
     return replaying;
   }
 
-  Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback) {
-    if (delaySeconds < 0) {
-      throw new IllegalArgumentException("Negative delaySeconds: " + delaySeconds);
+  Consumer<Exception> createTimer(Duration delay, Consumer<Exception> callback) {
+    if (delay.isNegative()) {
+      throw new IllegalArgumentException("Negative delay: " + delay);
     }
-    if (delaySeconds == 0) {
+    if (delay.isZero()) {
       callback.accept(null);
       return null;
     }
-    long firingTime = currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
+    long firingTime = currentTimeMillis() + delay.toMillis();
     final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
     final StartTimerCommandAttributes timer =
         StartTimerCommandAttributes.newBuilder()
-            .setStartToFireTimeout(Durations.fromSeconds(delaySeconds))
+            .setStartToFireTimeout(ProtobufTimeUtils.ToProtoDuration(delay))
             .setTimerId(String.valueOf(commandHelper.getAndIncrementNextId()))
             .build();
     long startEventId = commandHelper.startTimer(timer);
@@ -374,7 +373,7 @@ public final class ReplayClockContext {
               new LocalActivityWorker.Task(
                   params,
                   workflowExecutor.getLocalActivityCompletionSink(),
-                  workflowExecutor.getWorkflowTaskTimeoutSeconds(),
+                  workflowExecutor.getWorkflowTaskTimeout(),
                   this::currentTimeMillis,
                   this::replayTimeUpdatedAtMillis),
               maxWaitAllowed);

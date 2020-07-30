@@ -19,7 +19,6 @@
 
 package io.temporal.internal.replay;
 
-import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Header;
@@ -30,6 +29,8 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.internal.common.ProtobufTimeUtils;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,14 +102,14 @@ final class WorkflowContext {
     return attributes.hasParentWorkflowExecution() ? attributes.getParentWorkflowExecution() : null;
   }
 
-  int getWorkflowRunTimeoutSeconds() {
+  Duration getWorkflowRunTimeout() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return (int) Durations.toSeconds(attributes.getWorkflowRunTimeout());
+    return ProtobufTimeUtils.ToJavaDuration(attributes.getWorkflowRunTimeout());
   }
 
-  int getWorkflowExecutionTimeoutSeconds() {
+  Duration getWorkflowExecutionTimeout() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return (int) Durations.toSeconds(attributes.getWorkflowExecutionTimeout());
+    return ProtobufTimeUtils.ToJavaDuration(attributes.getWorkflowExecutionTimeout());
   }
 
   long getWorkflowExecutionExpirationTimestampMillis() {
@@ -120,8 +121,8 @@ final class WorkflowContext {
     return runStartedTimestampMillis;
   }
 
-  int getWorkflowTaskTimeoutSeconds() {
-    return (int) Durations.toSeconds(startedAttributes.getWorkflowTaskTimeout());
+  Duration getWorkflowTaskTimeout() {
+    return ProtobufTimeUtils.ToJavaDuration(startedAttributes.getWorkflowTaskTimeout());
   }
 
   String getTaskQueue() {

@@ -25,6 +25,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowTask;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -41,18 +42,18 @@ final class RequestContext {
 
   static final class Timer {
 
-    private final long delaySeconds;
+    private final Duration delay;
     private final Runnable callback;
     private final String taskInfo;
 
-    Timer(long delaySeconds, Runnable callback, String taskInfo) {
-      this.delaySeconds = delaySeconds;
+    Timer(Duration delay, Runnable callback, String taskInfo) {
+      this.delay = delay;
       this.callback = callback;
       this.taskInfo = taskInfo;
     }
 
-    long getDelaySeconds() {
-      return delaySeconds;
+    Duration getDelay() {
+      return delay;
     }
 
     Runnable getCallback() {
@@ -209,8 +210,8 @@ final class RequestContext {
     this.activityTasks.add(activityTask);
   }
 
-  void addTimer(long delaySeconds, Runnable callback, String name) {
-    Timer timer = new Timer(delaySeconds, callback, name);
+  void addTimer(Duration delay, Runnable callback, String name) {
+    Timer timer = new Timer(delay, callback, name);
     this.timers.add(timer);
   }
 

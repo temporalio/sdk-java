@@ -84,6 +84,7 @@ import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -219,7 +220,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionImpl(
-              request, 0, Optional.empty(), OptionalLong.empty(), Optional.empty());
+              request, Duration.ZERO, Optional.empty(), OptionalLong.empty(), Optional.empty());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -232,7 +233,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
       StartWorkflowExecutionRequest startRequest,
-      int backoffStartIntervalInSeconds,
+      Duration backoffStartInterval,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal) {
@@ -268,7 +269,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           UUID.randomUUID().toString(),
           Optional.empty(),
           retryState,
-          backoffStartIntervalInSeconds,
+          backoffStartInterval,
           null,
           parent,
           parentChildInitiatedEventId,
@@ -306,7 +307,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String runId,
       Optional<String> continuedExecutionRunId,
       Optional<TestServiceRetryState> retryState,
-      long backoffStartIntervalInSeconds,
+      Duration backoffStartInterval,
       Payloads lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
@@ -318,7 +319,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             startRequest,
             runId,
             retryState,
-            backoffStartIntervalInSeconds,
+            backoffStartInterval,
             lastCompletionResult,
             parent,
             parentChildInitiatedEventId,
@@ -786,7 +787,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StartWorkflowExecutionResponse startResult =
           startWorkflowExecutionImpl(
               startRequest.build(),
-              0,
+              Duration.ZERO,
               Optional.empty(),
               OptionalLong.empty(),
               Optional.of(signalRequest));
@@ -872,7 +873,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               a.getNewExecutionRunId(),
               Optional.of(executionId.getExecution().getRunId()),
               retryState,
-              Durations.toSeconds(a.getBackoffStartInterval()),
+              ProtobufTimeUtils.ToJavaDuration(a.getBackoffStartInterval()),
               a.getLastCompletionResult(),
               parent,
               parentChildInitiatedEventId,
