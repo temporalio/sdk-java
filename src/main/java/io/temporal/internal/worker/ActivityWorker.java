@@ -35,6 +35,7 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.GrpcRetryer;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
@@ -161,6 +162,7 @@ public final class ActivityWorker implements SuspendableWorker {
 
     @Override
     public void handle(PollActivityTaskQueueResponse task) throws Exception {
+
       Scope metricsScope =
           options
               .getMetricsScope()
@@ -174,8 +176,8 @@ public final class ActivityWorker implements SuspendableWorker {
       metricsScope
           .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
           .record(
-              Duration.ofNanos(
-                  task.getStartedTimestamp() - task.getScheduledTimestampThisAttempt()));
+              ProtobufTimeUtils.ToM3Duration(
+                  task.getStartedTime(), task.getCurrentAttemptScheduledTime()));
 
       // The following tags are for logging.
       MDC.put(LoggerTag.ACTIVITY_ID, task.getActivityId());
@@ -195,9 +197,8 @@ public final class ActivityWorker implements SuspendableWorker {
         }
         sendReply(task, response, metricsScope);
 
-        long nanoTime =
-            TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-        Duration duration = Duration.ofNanos(nanoTime - task.getScheduledTimestampThisAttempt());
+        Duration duration =
+            ProtobufTimeUtils.ToM3DurationSinceNow(task.getCurrentAttemptScheduledTime());
         metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
 
       } catch (FailureWrapperException e) {

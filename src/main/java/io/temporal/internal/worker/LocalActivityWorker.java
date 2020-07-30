@@ -19,6 +19,7 @@
 
 package io.temporal.internal.worker;
 
+import com.google.protobuf.util.Durations;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
@@ -28,6 +29,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.LocalActivityMarkerData;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
@@ -260,8 +262,10 @@ public final class LocalActivityWorker implements SuspendableWorker {
       retryPolicy.getNonRetryableErrorTypesList().toArray(doNotRetry);
       RetryOptions retryOptions =
           RetryOptions.newBuilder()
-              .setMaximumInterval(Duration.ofSeconds(retryPolicy.getMaximumIntervalInSeconds()))
-              .setInitialInterval(Duration.ofSeconds(retryPolicy.getInitialIntervalInSeconds()))
+              .setMaximumInterval(
+                  ProtobufTimeUtils.ToJavaDuration(retryPolicy.getMaximumInterval()))
+              .setInitialInterval(
+                  ProtobufTimeUtils.ToJavaDuration(retryPolicy.getInitialInterval()))
               .setMaximumAttempts(retryPolicy.getMaximumAttempts())
               .setBackoffCoefficient(retryPolicy.getBackoffCoefficient())
               .setDoNotRetry(doNotRetry)
@@ -269,7 +273,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       long sleepMillis = retryOptions.calculateSleepTime(attempt);
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long elapsedTotal = elapsedTask + params.getElapsedTime();
-      int timeoutSeconds = activityTask.getScheduleToCloseTimeoutSeconds();
+      int timeoutSeconds = (int) Durations.toSeconds(activityTask.getScheduleToCloseTimeout());
       Optional<Duration> expiration =
           timeoutSeconds > 0 ? Optional.of(Duration.ofSeconds(timeoutSeconds)) : Optional.empty();
       if (retryOptions.shouldRethrow(

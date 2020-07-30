@@ -22,6 +22,10 @@ package io.temporal.internal.testservice;
 import static io.temporal.internal.testservice.StateMachines.Action.*;
 import static io.temporal.internal.testservice.StateMachines.State.*;
 
+import com.google.protobuf.Duration;
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Durations;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.command.v1.CancelTimerCommandAttributes;
@@ -120,7 +124,6 @@ import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -671,9 +674,9 @@ class StateMachines {
             .setInput(d.getInput())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
             .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
-            .setWorkflowExecutionTimeoutSeconds(d.getWorkflowExecutionTimeoutSeconds())
-            .setWorkflowRunTimeoutSeconds(d.getWorkflowRunTimeoutSeconds())
-            .setWorkflowTaskTimeoutSeconds(d.getWorkflowTaskTimeoutSeconds())
+            .setWorkflowExecutionTimeout(d.getWorkflowExecutionTimeout())
+            .setWorkflowRunTimeout(d.getWorkflowRunTimeout())
+            .setWorkflowTaskTimeout(d.getWorkflowTaskTimeout())
             .setTaskQueue(d.getTaskQueue())
             .setWorkflowId(d.getWorkflowId())
             .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
@@ -703,9 +706,9 @@ class StateMachines {
               StartWorkflowExecutionRequest.newBuilder()
                   .setRequestId(UUID.randomUUID().toString())
                   .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
-                  .setWorkflowExecutionTimeoutSeconds(d.getWorkflowExecutionTimeoutSeconds())
-                  .setWorkflowRunTimeoutSeconds(d.getWorkflowRunTimeoutSeconds())
-                  .setWorkflowTaskTimeoutSeconds(d.getWorkflowTaskTimeoutSeconds())
+                  .setWorkflowExecutionTimeout(d.getWorkflowExecutionTimeout())
+                  .setWorkflowRunTimeout(d.getWorkflowRunTimeout())
+                  .setWorkflowTaskTimeout(d.getWorkflowTaskTimeout())
                   .setTaskQueue(d.getTaskQueue())
                   .setWorkflowId(d.getWorkflowId())
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
@@ -768,17 +771,17 @@ class StateMachines {
 
   private static void startWorkflow(
       RequestContext ctx, WorkflowData data, StartWorkflowExecutionRequest request, long notUsed) {
-    if (request.getWorkflowExecutionTimeoutSeconds() < 0) {
+    if (Durations.toNanos(request.getWorkflowExecutionTimeout()) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("negative workflowExecution timeout")
           .asRuntimeException();
     }
-    if (request.getWorkflowRunTimeoutSeconds() < 0) {
+    if (Durations.toNanos(request.getWorkflowRunTimeout()) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("negative workflowRun timeout")
           .asRuntimeException();
     }
-    if (request.getWorkflowTaskTimeoutSeconds() < 0) {
+    if (Durations.toNanos(request.getWorkflowTaskTimeout()) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("negative workflowTaskTimeoutSeconds")
           .asRuntimeException();
@@ -787,9 +790,9 @@ class StateMachines {
     WorkflowExecutionStartedEventAttributes.Builder a =
         WorkflowExecutionStartedEventAttributes.newBuilder()
             .setWorkflowType(request.getWorkflowType())
-            .setWorkflowRunTimeoutSeconds(request.getWorkflowRunTimeoutSeconds())
-            .setWorkflowTaskTimeoutSeconds(request.getWorkflowTaskTimeoutSeconds())
-            .setWorkflowExecutionTimeoutSeconds(request.getWorkflowExecutionTimeoutSeconds())
+            .setWorkflowRunTimeout(request.getWorkflowRunTimeout())
+            .setWorkflowTaskTimeout(request.getWorkflowTaskTimeout())
+            .setWorkflowExecutionTimeout(request.getWorkflowExecutionTimeout())
             .setIdentity(request.getIdentity())
             .setInput(request.getInput())
             .setTaskQueue(request.getTaskQueue());
@@ -864,10 +867,10 @@ class StateMachines {
     WorkflowExecutionContinuedAsNewEventAttributes.Builder a =
         WorkflowExecutionContinuedAsNewEventAttributes.newBuilder();
     a.setInput(d.getInput());
-    if (d.getWorkflowRunTimeoutSeconds() > 0) {
-      a.setWorkflowRunTimeoutSeconds(d.getWorkflowRunTimeoutSeconds());
+    if (Durations.toNanos(d.getWorkflowRunTimeout()) > 0) {
+      a.setWorkflowRunTimeout(d.getWorkflowRunTimeout());
     } else {
-      a.setWorkflowRunTimeoutSeconds(sr.getWorkflowRunTimeoutSeconds());
+      a.setWorkflowRunTimeout(sr.getWorkflowRunTimeout());
     }
     if (d.hasTaskQueue()) {
       a.setTaskQueue(d.getTaskQueue());
@@ -879,13 +882,13 @@ class StateMachines {
     } else {
       a.setWorkflowType(sr.getWorkflowType());
     }
-    if (d.getWorkflowTaskTimeoutSeconds() > 0) {
-      a.setWorkflowTaskTimeoutSeconds(d.getWorkflowTaskTimeoutSeconds());
+    if (Durations.toNanos(d.getWorkflowTaskTimeout()) > 0) {
+      a.setWorkflowTaskTimeout(d.getWorkflowTaskTimeout());
     } else {
-      a.setWorkflowTaskTimeoutSeconds(sr.getWorkflowTaskTimeoutSeconds());
+      a.setWorkflowTaskTimeout(sr.getWorkflowTaskTimeout());
     }
     a.setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
-    a.setBackoffStartIntervalInSeconds(d.getBackoffStartIntervalInSeconds());
+    a.setBackoffStartInterval(d.getBackoffStartInterval());
     a.setLastCompletionResult(d.getLastCompletionResult());
     a.setNewExecutionRunId(UUID.randomUUID().toString());
     HistoryEvent event =
@@ -984,7 +987,7 @@ class StateMachines {
       ScheduleActivityTaskCommandAttributes d,
       long workflowTaskCompletedEventId) {
     RetryPolicy retryPolicy = ensureDefaultFieldsForActivityRetryPolicy(d.getRetryPolicy());
-    long expirationInterval = TimeUnit.SECONDS.toMillis(d.getScheduleToCloseTimeoutSeconds());
+    long expirationInterval = Durations.toMillis(d.getScheduleToCloseTimeout());
     long expirationTime = data.store.currentTimeMillis() + expirationInterval;
     TestServiceRetryState retryState = new TestServiceRetryState(retryPolicy, expirationTime);
 
@@ -994,11 +997,11 @@ class StateMachines {
             .setActivityId(d.getActivityId())
             .setActivityType(d.getActivityType())
             .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
-            .setHeartbeatTimeoutSeconds(d.getHeartbeatTimeoutSeconds())
+            .setHeartbeatTimeout(d.getHeartbeatTimeout())
             .setRetryPolicy(retryPolicy)
-            .setScheduleToCloseTimeoutSeconds(d.getScheduleToCloseTimeoutSeconds())
-            .setScheduleToStartTimeoutSeconds(d.getScheduleToStartTimeoutSeconds())
-            .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
+            .setScheduleToCloseTimeout(d.getScheduleToCloseTimeout())
+            .setScheduleToStartTimeout(d.getScheduleToStartTimeout())
+            .setStartToCloseTimeout(d.getStartToCloseTimeout())
             .setTaskQueue(d.getTaskQueue())
             .setHeader(d.getHeader())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
@@ -1020,11 +1023,11 @@ class StateMachines {
             .setWorkflowExecution(ctx.getExecution())
             .setActivityId(d.getActivityId())
             .setInput(d.getInput())
-            .setHeartbeatTimeoutSeconds(d.getHeartbeatTimeoutSeconds())
-            .setScheduleToCloseTimeoutSeconds(d.getScheduleToCloseTimeoutSeconds())
-            .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
-            .setScheduledTimestamp(ctx.currentTimeInNanoseconds())
-            .setScheduledTimestampThisAttempt(ctx.currentTimeInNanoseconds())
+            .setHeartbeatTimeout(d.getHeartbeatTimeout())
+            .setScheduleToCloseTimeout(d.getScheduleToCloseTimeout())
+            .setStartToCloseTimeout(d.getStartToCloseTimeout())
+            .setScheduledTime(Timestamps.fromNanos(ctx.currentTimeInNanoseconds()))
+            .setCurrentAttemptScheduledTime(Timestamps.fromNanos(ctx.currentTimeInNanoseconds()))
             .setHeader(d.getHeader())
             .setAttempt(0);
 
@@ -1062,7 +1065,7 @@ class StateMachines {
     long scheduledEventId;
     WorkflowTaskScheduledEventAttributes a =
         WorkflowTaskScheduledEventAttributes.newBuilder()
-            .setStartToCloseTimeoutSeconds(request.getWorkflowTaskTimeoutSeconds())
+            .setStartToCloseTimeout(request.getWorkflowTaskTimeout())
             .setTaskQueue(request.getTaskQueue())
             .setAttempt(data.attempt)
             .build();
@@ -1092,7 +1095,7 @@ class StateMachines {
     StartWorkflowExecutionRequest request = data.startRequest;
     WorkflowTaskScheduledEventAttributes a =
         WorkflowTaskScheduledEventAttributes.newBuilder()
-            .setStartToCloseTimeoutSeconds(request.getWorkflowTaskTimeoutSeconds())
+            .setStartToCloseTimeout(request.getWorkflowTaskTimeout())
             .setTaskQueue(request.getTaskQueue())
             .setAttempt(data.attempt)
             .build();
@@ -1214,8 +1217,7 @@ class StateMachines {
             // Add "fake" workflow task scheduled and started if workflow is not closed
             WorkflowTaskScheduledEventAttributes scheduledAttributes =
                 WorkflowTaskScheduledEventAttributes.newBuilder()
-                    .setStartToCloseTimeoutSeconds(
-                        data.startRequest.getWorkflowTaskTimeoutSeconds())
+                    .setStartToCloseTimeout(data.startRequest.getWorkflowTaskTimeout())
                     .setTaskQueue(request.getTaskQueue())
                     .setAttempt(data.attempt)
                     .build();
@@ -1272,11 +1274,11 @@ class StateMachines {
     a.setAttempt(data.getAttempt());
     // Setting timestamp here as the default logic will set it to the time when it is added to the
     // history. But in the case of retry it happens only after an activity completion.
-    long timestamp = TimeUnit.MILLISECONDS.toNanos(data.store.currentTimeMillis());
+    Timestamp timestamp = Timestamps.fromMillis(data.store.currentTimeMillis());
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED)
-            .setTimestamp(timestamp)
+            .setEventTime(timestamp)
             .setActivityTaskStartedEventAttributes(a)
             .build();
     long startedEventId;
@@ -1291,7 +1293,7 @@ class StateMachines {
           data.startedEvent = event;
           PollActivityTaskQueueResponse.Builder task = data.activityTask.getTask();
           task.setTaskToken(new ActivityId(ctx.getExecutionId(), data.scheduledEventId).toBytes());
-          task.setStartedTimestamp(timestamp);
+          task.setStartedTime(timestamp);
         });
   }
 
@@ -1614,7 +1616,8 @@ class StateMachines {
           (historySize) -> {
             data.retryState = nextAttempt;
             task.setAttempt(nextAttempt.getAttempt());
-            task.setScheduledTimestampThisAttempt(ctx.currentTimeInNanoseconds());
+            task.setCurrentAttemptScheduledTime(
+                Timestamps.fromNanos(ctx.currentTimeInNanoseconds()));
           });
     } else {
       data.startedEventId = ctx.addEvent(data.startedEvent);
@@ -1670,7 +1673,7 @@ class StateMachines {
     TimerStartedEventAttributes.Builder a =
         TimerStartedEventAttributes.newBuilder()
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
-            .setStartToFireTimeoutSeconds(d.getStartToFireTimeoutSeconds())
+            .setStartToFireTimeout(d.getStartToFireTimeout())
             .setTimerId(d.getTimerId());
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -1859,17 +1862,19 @@ class StateMachines {
 
   // Mimics the default activity retry policy of a standard Temporal server.
   static RetryPolicy ensureDefaultFieldsForActivityRetryPolicy(RetryPolicy originalPolicy) {
-    int initialIntervalInSeconds =
-        originalPolicy.getInitialIntervalInSeconds() == 0
-            ? DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS
-            : originalPolicy.getInitialIntervalInSeconds();
+    Duration initialInterval =
+        Durations.toNanos(originalPolicy.getInitialInterval()) == 0
+            ? Durations.fromSeconds(DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS)
+            : originalPolicy.getInitialInterval();
 
     return RetryPolicy.newBuilder()
-        .setInitialIntervalInSeconds(initialIntervalInSeconds)
-        .setMaximumIntervalInSeconds(
-            originalPolicy.getMaximumIntervalInSeconds() == 0
-                ? DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT * initialIntervalInSeconds
-                : originalPolicy.getMaximumIntervalInSeconds())
+        .setInitialInterval(initialInterval)
+        .setMaximumInterval(
+            Durations.toNanos(originalPolicy.getMaximumInterval()) == 0
+                ? Durations.fromNanos(
+                    DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT
+                        * Durations.toNanos(initialInterval))
+                : originalPolicy.getMaximumInterval())
         .setBackoffCoefficient(
             originalPolicy.getBackoffCoefficient() == 0
                 ? DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT
