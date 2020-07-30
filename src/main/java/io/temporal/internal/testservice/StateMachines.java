@@ -771,17 +771,17 @@ class StateMachines {
 
   private static void startWorkflow(
       RequestContext ctx, WorkflowData data, StartWorkflowExecutionRequest request, long notUsed) {
-    if (Durations.toNanos(request.getWorkflowExecutionTimeout()) < 0) {
+    if (Durations.compare(request.getWorkflowExecutionTimeout(), Durations.ZERO) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("negative workflowExecution timeout")
           .asRuntimeException();
     }
-    if (Durations.toNanos(request.getWorkflowRunTimeout()) < 0) {
+    if (Durations.compare(request.getWorkflowRunTimeout(), Durations.ZERO) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("negative workflowRun timeout")
           .asRuntimeException();
     }
-    if (Durations.toNanos(request.getWorkflowTaskTimeout()) < 0) {
+    if (Durations.compare(request.getWorkflowTaskTimeout(), Durations.ZERO) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("negative workflowTaskTimeoutSeconds")
           .asRuntimeException();
@@ -867,7 +867,7 @@ class StateMachines {
     WorkflowExecutionContinuedAsNewEventAttributes.Builder a =
         WorkflowExecutionContinuedAsNewEventAttributes.newBuilder();
     a.setInput(d.getInput());
-    if (Durations.toNanos(d.getWorkflowRunTimeout()) > 0) {
+    if (Durations.compare(d.getWorkflowRunTimeout(), Durations.ZERO) > 0) {
       a.setWorkflowRunTimeout(d.getWorkflowRunTimeout());
     } else {
       a.setWorkflowRunTimeout(sr.getWorkflowRunTimeout());
@@ -882,7 +882,7 @@ class StateMachines {
     } else {
       a.setWorkflowType(sr.getWorkflowType());
     }
-    if (Durations.toNanos(d.getWorkflowTaskTimeout()) > 0) {
+    if (Durations.compare(d.getWorkflowTaskTimeout(), Durations.ZERO) > 0) {
       a.setWorkflowTaskTimeout(d.getWorkflowTaskTimeout());
     } else {
       a.setWorkflowTaskTimeout(sr.getWorkflowTaskTimeout());
@@ -1863,14 +1863,14 @@ class StateMachines {
   // Mimics the default activity retry policy of a standard Temporal server.
   static RetryPolicy ensureDefaultFieldsForActivityRetryPolicy(RetryPolicy originalPolicy) {
     Duration initialInterval =
-        Durations.toNanos(originalPolicy.getInitialInterval()) == 0
+        Durations.compare(originalPolicy.getInitialInterval(), Durations.ZERO) == 0
             ? Durations.fromSeconds(DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS)
             : originalPolicy.getInitialInterval();
 
     return RetryPolicy.newBuilder()
         .setInitialInterval(initialInterval)
         .setMaximumInterval(
-            Durations.toNanos(originalPolicy.getMaximumInterval()) == 0
+            Durations.compare(originalPolicy.getMaximumInterval(), Durations.ZERO) == 0
                 ? Durations.fromNanos(
                     DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT
                         * Durations.toNanos(initialInterval))

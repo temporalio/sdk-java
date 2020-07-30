@@ -156,8 +156,7 @@ final class TestServiceRetryState {
           .asRuntimeException();
     }
     if (Durations.compare(policy.getMaximumInterval(), Durations.ZERO) > 0
-        && Durations.toNanos(policy.getMaximumInterval())
-            < Durations.toNanos(policy.getInitialInterval())) {
+        && Durations.compare(policy.getMaximumInterval(), policy.getInitialInterval()) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription(
               "MaximumIntervalInSeconds cannot be less than InitialIntervalInSeconds on retry policy.")

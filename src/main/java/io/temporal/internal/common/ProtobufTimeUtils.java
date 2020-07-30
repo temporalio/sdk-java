@@ -42,6 +42,10 @@ public class ProtobufTimeUtils {
     return Durations.fromNanos(d.toNanos());
   }
 
+  public static com.google.protobuf.Timestamp GetCurrentProtoTime() {
+    return Timestamps.fromMillis(System.currentTimeMillis());
+  }
+
   public static com.uber.m3.util.Duration ToM3Duration(Timestamp to, Timestamp from) {
     return com.uber.m3.util.Duration.ofNanos(Timestamps.toNanos(to) - Timestamps.toNanos(from));
   }

@@ -21,7 +21,6 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.util.Timestamps;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.StatusRuntimeException;
@@ -241,8 +240,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()))
               .setStartToCloseTimeout(
                   ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
-              .setScheduledTime(Timestamps.fromMillis(System.currentTimeMillis()))
-              .setStartedTime(Timestamps.fromMillis(System.currentTimeMillis()))
+              .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
+              .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(

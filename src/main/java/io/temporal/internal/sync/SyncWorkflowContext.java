@@ -23,7 +23,6 @@ import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToByte
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
-import com.google.protobuf.util.Timestamps;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -384,12 +383,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         PollActivityTaskQueueResponse.newBuilder()
             .setWorkflowNamespace(this.context.getNamespace())
             .setWorkflowExecution(this.context.getWorkflowExecution())
-            .setScheduledTime(Timestamps.fromMillis(System.currentTimeMillis()))
+            .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
             .setStartToCloseTimeout(
                 ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
             .setScheduleToCloseTimeout(
                 ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
-            .setStartedTime(Timestamps.fromMillis(System.currentTimeMillis()))
+            .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
     if (input.isPresent()) {

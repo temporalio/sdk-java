@@ -118,7 +118,7 @@ public class ReplayWorkflowExecutorTaskHandlerTests {
     assertNotNull(result.getTaskCompleted());
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
     assertEquals("sticky", attributes.getWorkerTaskQueue().getName());
-    assertEquals(5, Durations.toSeconds(attributes.getScheduleToStartTimeout()));
+    assertEquals(Durations.fromSeconds(5), attributes.getScheduleToStartTimeout());
   }
 
   private ReplayWorkflowFactory setUpMockWorkflowFactory() throws Throwable {
