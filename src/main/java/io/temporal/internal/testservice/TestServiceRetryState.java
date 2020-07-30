@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.enums.v1.RetryState;
@@ -104,10 +105,10 @@ final class TestServiceRetryState {
       // MaximumAttempts is the total attempts, including initial (non-retry) attempt.
       return new BackoffInterval(RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED);
     }
-    long initInterval = TimeUnit.SECONDS.toMillis(retryPolicy.getInitialIntervalInSeconds());
+    long initInterval = Durations.toMillis(retryPolicy.getInitialInterval());
     long nextInterval =
         (long) (initInterval * Math.pow(retryPolicy.getBackoffCoefficient(), getAttempt()));
-    long maxInterval = TimeUnit.SECONDS.toMillis(retryPolicy.getMaximumIntervalInSeconds());
+    long maxInterval = Durations.toMillis(retryPolicy.getMaximumInterval());
     if (nextInterval <= 0) {
       // math.Pow() could overflow
       if (maxInterval > 0) {
@@ -133,13 +134,13 @@ final class TestServiceRetryState {
 
   static RetryPolicy valiateAndOverrideRetryPolicy(RetryPolicy p) {
     RetryPolicy.Builder policy = p.toBuilder();
-    if (policy.getInitialIntervalInSeconds() < 0) {
+    if (Durations.compare(policy.getInitialInterval(), Durations.ZERO) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("InitialIntervalInSeconds must be greater than 0 on retry policy.")
           .asRuntimeException();
     }
-    if (policy.getInitialIntervalInSeconds() == 0) {
-      policy.setInitialIntervalInSeconds(1);
+    if (Durations.compare(policy.getInitialInterval(), Durations.ZERO) == 0) {
+      policy.setInitialInterval(Durations.fromSeconds(1));
     }
     if (policy.getBackoffCoefficient() != 0 && policy.getBackoffCoefficient() < 1) {
       throw Status.INVALID_ARGUMENT
@@ -149,13 +150,14 @@ final class TestServiceRetryState {
     if (policy.getBackoffCoefficient() == 0) {
       policy.setBackoffCoefficient(2d);
     }
-    if (policy.getMaximumIntervalInSeconds() < 0) {
+    if (Durations.compare(policy.getMaximumInterval(), Durations.ZERO) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("MaximumIntervalInSeconds cannot be less than 0 on retry policy.")
           .asRuntimeException();
     }
-    if (policy.getMaximumIntervalInSeconds() > 0
-        && policy.getMaximumIntervalInSeconds() < policy.getInitialIntervalInSeconds()) {
+    if (Durations.compare(policy.getMaximumInterval(), Durations.ZERO) > 0
+        && Durations.toNanos(policy.getMaximumInterval())
+            < Durations.toNanos(policy.getInitialInterval())) {
       throw Status.INVALID_ARGUMENT
           .withDescription(
               "MaximumIntervalInSeconds cannot be less than InitialIntervalInSeconds on retry policy.")
