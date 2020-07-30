@@ -19,7 +19,7 @@
 
 package io.temporal.internal.testservice;
 
-import com.google.protobuf.Int64Value;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -96,8 +96,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         }
         eBuilder.setEventId(history.size() + 1L);
         // It can be set in StateMachines.startActivityTask
-        if (eBuilder.getTimestamp() == 0) {
-          eBuilder.setTimestamp(timeInNanos);
+        if (Timestamps.toNanos(eBuilder.getEventTime()) == 0) {
+          eBuilder.setEventTime(Timestamps.fromNanos(timeInNanos));
         }
         history.add(eBuilder.build());
         completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(eBuilder);
@@ -482,8 +482,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             WorkflowExecutionInfo.newBuilder()
                 .setExecution(executionId.getExecution())
                 .setHistoryLength(history.size())
-                .setStartTime(
-                    Int64Value.newBuilder().setValue(history.get(0).getTimestamp()).build())
+                .setStartTime(history.get(0).getEventTime())
                 .setType(
                     history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
                 .build();
@@ -502,8 +501,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             WorkflowExecutionInfo.newBuilder()
                 .setExecution(executionId.getExecution())
                 .setHistoryLength(history.size())
-                .setStartTime(
-                    Int64Value.newBuilder().setValue(history.get(0).getTimestamp()).build())
+                .setStartTime(history.get(0).getEventTime())
                 .setType(
                     history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
                 .setStatus(WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1)))
