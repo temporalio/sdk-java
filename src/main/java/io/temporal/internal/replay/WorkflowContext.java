@@ -30,7 +30,6 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.context.ContextPropagator;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,12 +103,12 @@ final class WorkflowContext {
 
   int getWorkflowRunTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return (int)Durations.toSeconds(attributes.getWorkflowRunTimeout());
+    return (int) Durations.toSeconds(attributes.getWorkflowRunTimeout());
   }
 
   int getWorkflowExecutionTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return (int)Durations.toSeconds(attributes.getWorkflowExecutionTimeout());
+    return (int) Durations.toSeconds(attributes.getWorkflowExecutionTimeout());
   }
 
   long getWorkflowExecutionExpirationTimestampMillis() {
@@ -122,7 +121,7 @@ final class WorkflowContext {
   }
 
   int getWorkflowTaskTimeoutSeconds() {
-    return (int)Durations.toSeconds(startedAttributes.getWorkflowTaskTimeout());
+    return (int) Durations.toSeconds(startedAttributes.getWorkflowTaskTimeout());
   }
 
   String getTaskQueue() {

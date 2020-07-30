@@ -40,6 +40,7 @@ import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.failure.FailureConverter;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
@@ -290,8 +291,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       StickyExecutionAttributes.Builder attributes =
           StickyExecutionAttributes.newBuilder()
               .setWorkerTaskQueue(createStickyTaskQueue(stickyTaskQueueName))
-              .setScheduleToStartTimeoutSeconds(
-                  roundUpToSeconds(stickyTaskQueueScheduleToStartTimeout));
+              .setScheduleToStartTimeout(
+                  ProtobufTimeUtils.ToProtoDuration(stickyTaskQueueScheduleToStartTimeout));
       completedRequest.setStickyAttributes(attributes);
     }
     return new Result(
