@@ -24,6 +24,7 @@ import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
@@ -64,7 +65,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -89,7 +89,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
   private long wakeUpTime;
   private Consumer<Exception> timerCancellationHandler;
   private final Scope metricsScope;
-  private final long wfStartTimeNanos;
+  private final Timestamp wfStartTime;
   private final WorkflowExecutionStartedEventAttributes startedEvent;
   private final Lock lock = new ReentrantLock();
   private final Consumer<HistoryEvent> localActivityCompletionSink;
@@ -116,7 +116,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           "First event in the history is not WorkflowExecutionStarted");
     }
     startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
-    wfStartTimeNanos = Timestamps.toNanos(firstEvent.getEventTime());
+    wfStartTime = firstEvent.getEventTime();
 
     context =
         new ReplayWorkflowContextImpl(
@@ -325,8 +325,9 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       }
     }
 
-    long nanoTime = TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-    com.uber.m3.util.Duration d = com.uber.m3.util.Duration.ofNanos(nanoTime - wfStartTimeNanos);
+    com.uber.m3.util.Duration d =
+        ProtobufTimeUtils.ToM3Duration(
+            Timestamps.fromMillis(System.currentTimeMillis()), wfStartTime);
     metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(d);
   }
 

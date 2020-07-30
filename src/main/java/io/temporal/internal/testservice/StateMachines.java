@@ -133,7 +133,7 @@ class StateMachines {
   private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
 
   static final int NO_EVENT_ID = -1;
-  static final int DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS = 1;
+  static final Duration DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS = Durations.fromSeconds(1);
   static final double DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT = 2.0;
   static final int DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS = 0;
   static final int DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT = 100;
@@ -1864,13 +1864,13 @@ class StateMachines {
   static RetryPolicy ensureDefaultFieldsForActivityRetryPolicy(RetryPolicy originalPolicy) {
     Duration initialInterval =
         originalPolicy.getInitialInterval() == Durations.ZERO
-            ? Durations.fromSeconds(DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS)
+            ? DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL_SECONDS
             : originalPolicy.getInitialInterval();
 
     return RetryPolicy.newBuilder()
         .setInitialInterval(initialInterval)
         .setMaximumInterval(
-            Durations.compare(originalPolicy.getMaximumInterval(), Durations.ZERO) == 0
+            originalPolicy.getMaximumInterval() == Durations.ZERO
                 ? Durations.fromNanos(
                     DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT
                         * Durations.toNanos(initialInterval))
