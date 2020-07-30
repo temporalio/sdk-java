@@ -208,7 +208,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     executionTimeoutMillis =
         Math.min(executionTimeoutMillis, DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS);
     if (executionTimeoutMillis != Durations.toMillis(request.getWorkflowExecutionTimeout())) {
-      request.setWorkflowExecutionTimeout(Durations.fromSeconds(executionTimeoutMillis));
+      request.setWorkflowExecutionTimeout(Durations.fromMillis(executionTimeoutMillis));
     }
 
     long runTimeoutMillis = Durations.toMillis(request.getWorkflowRunTimeout());
@@ -229,7 +229,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     taskTimeoutMillis = Math.min(taskTimeoutMillis, runTimeoutMillis);
 
     if (taskTimeoutMillis != Durations.toMillis(request.getWorkflowTaskTimeout())) {
-      request.setWorkflowTaskTimeout(Durations.fromSeconds(taskTimeoutMillis));
+      request.setWorkflowTaskTimeout(Durations.fromMillis(taskTimeoutMillis));
     }
     return request.build();
   }
