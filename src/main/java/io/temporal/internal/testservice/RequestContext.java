@@ -19,6 +19,8 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -29,7 +31,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
 final class RequestContext {
@@ -147,8 +148,8 @@ final class RequestContext {
     timers.clear();
   }
 
-  long currentTimeInNanoseconds() {
-    return TimeUnit.MILLISECONDS.toNanos(clock.getAsLong());
+  Timestamp currentTime() {
+    return Timestamps.fromMillis(clock.getAsLong());
   }
 
   /** Returns eventId of the added event; */

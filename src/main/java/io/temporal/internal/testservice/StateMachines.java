@@ -1027,8 +1027,8 @@ class StateMachines {
             .setHeartbeatTimeout(d.getHeartbeatTimeout())
             .setScheduleToCloseTimeout(d.getScheduleToCloseTimeout())
             .setStartToCloseTimeout(d.getStartToCloseTimeout())
-            .setScheduledTime(Timestamps.fromNanos(ctx.currentTimeInNanoseconds()))
-            .setCurrentAttemptScheduledTime(Timestamps.fromNanos(ctx.currentTimeInNanoseconds()))
+            .setScheduledTime(ctx.currentTime())
+            .setCurrentAttemptScheduledTime(ctx.currentTime())
             .setHeader(d.getHeader())
             .setAttempt(1);
 
@@ -1617,8 +1617,7 @@ class StateMachines {
           (historySize) -> {
             data.retryState = nextAttempt;
             task.setAttempt(nextAttempt.getAttempt());
-            task.setCurrentAttemptScheduledTime(
-                Timestamps.fromNanos(ctx.currentTimeInNanoseconds()));
+            task.setCurrentAttemptScheduledTime(ctx.currentTime());
           });
     } else {
       data.startedEventId = ctx.addEvent(data.startedEvent);

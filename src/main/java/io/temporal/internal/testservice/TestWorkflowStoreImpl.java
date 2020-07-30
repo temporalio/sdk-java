@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -84,7 +85,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       }
     }
 
-    void addAllLocked(List<HistoryEvent> events, long timeInNanos) {
+    void addAllLocked(List<HistoryEvent> events, Timestamp eventTime) {
       for (HistoryEvent event : events) {
         HistoryEvent.Builder eBuilder = event.toBuilder();
         if (completed) {
@@ -97,7 +98,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         eBuilder.setEventId(history.size() + 1L);
         // It can be set in StateMachines.startActivityTask
         if (Timestamps.toNanos(eBuilder.getEventTime()) == 0) {
-          eBuilder.setEventTime(Timestamps.fromNanos(timeInNanos));
+          eBuilder.setEventTime(eventTime);
         }
         history.add(eBuilder.build());
         completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(eBuilder);
@@ -208,7 +209,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         histories.put(executionId, history);
       }
       history.checkNextEventId(ctx.getInitialEventId());
-      history.addAllLocked(events, ctx.currentTimeInNanoseconds());
+      history.addAllLocked(events, ctx.currentTime());
       result = history.getNextEventIdLocked();
       timerService.updateLocks(ctx.getTimerLocks());
       ctx.fireCallbacks(history.getEventsLocked().size());
