@@ -20,6 +20,7 @@
 package io.temporal.internal.testservice;
 
 import com.google.common.base.Throwables;
+import com.google.protobuf.util.Durations;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
@@ -257,7 +258,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       Optional<TestServiceRetryState> retryState;
       if (startRequest.hasRetryPolicy()) {
-        long expirationInterval = startRequest.getWorkflowExecutionTimeoutSeconds();
+        long expirationInterval = Durations.toSeconds(startRequest.getWorkflowExecutionTimeout());
         retryState = newRetryStateLocked(startRequest.getRetryPolicy(), expirationInterval);
       } else {
         retryState = Optional.empty();
@@ -305,7 +306,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String runId,
       Optional<String> continuedExecutionRunId,
       Optional<TestServiceRetryState> retryState,
-      int backoffStartIntervalInSeconds,
+      long backoffStartIntervalInSeconds,
       Payloads lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
@@ -759,9 +760,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           StartWorkflowExecutionRequest.newBuilder()
               .setRequestId(r.getRequestId())
               .setInput(r.getInput())
-              .setWorkflowExecutionTimeoutSeconds(r.getWorkflowExecutionTimeoutSeconds())
-              .setWorkflowRunTimeoutSeconds(r.getWorkflowRunTimeoutSeconds())
-              .setWorkflowTaskTimeoutSeconds(r.getWorkflowTaskTimeoutSeconds())
+              .setWorkflowExecutionTimeout(r.getWorkflowExecutionTimeout())
+              .setWorkflowRunTimeout(r.getWorkflowRunTimeout())
+              .setWorkflowTaskTimeout(r.getWorkflowTaskTimeout())
               .setNamespace(r.getNamespace())
               .setTaskQueue(r.getTaskQueue())
               .setWorkflowId(r.getWorkflowId())
@@ -848,8 +849,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         StartWorkflowExecutionRequest.newBuilder()
             .setRequestId(UUID.randomUUID().toString())
             .setWorkflowType(a.getWorkflowType())
-            .setWorkflowRunTimeoutSeconds(a.getWorkflowRunTimeoutSeconds())
-            .setWorkflowTaskTimeoutSeconds(a.getWorkflowTaskTimeoutSeconds())
+            .setWorkflowRunTimeout(a.getWorkflowRunTimeout())
+            .setWorkflowTaskTimeout(a.getWorkflowTaskTimeout())
             .setNamespace(executionId.getNamespace())
             .setTaskQueue(a.getTaskQueue())
             .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
@@ -871,7 +872,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               a.getNewExecutionRunId(),
               Optional.of(executionId.getExecution().getRunId()),
               retryState,
-              a.getBackoffStartIntervalInSeconds(),
+              Durations.toSeconds(a.getBackoffStartInterval()),
               a.getLastCompletionResult(),
               parent,
               parentChildInitiatedEventId,

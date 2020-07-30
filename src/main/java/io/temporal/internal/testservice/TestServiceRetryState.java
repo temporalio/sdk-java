@@ -57,7 +57,7 @@ final class TestServiceRetryState {
   private final int attempt;
 
   TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime) {
-    this(valiateAndOverrideRetryPolicy(retryPolicy), expirationTime, 0);
+    this(validateAndOverrideRetryPolicy(retryPolicy), expirationTime, 0);
   }
 
   private TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime, int attempt) {
@@ -132,7 +132,7 @@ final class TestServiceRetryState {
     return new BackoffInterval(result);
   }
 
-  static RetryPolicy valiateAndOverrideRetryPolicy(RetryPolicy p) {
+  static RetryPolicy validateAndOverrideRetryPolicy(RetryPolicy p) {
     RetryPolicy.Builder policy = p.toBuilder();
     if (Durations.compare(policy.getInitialInterval(), Durations.ZERO) < 0) {
       throw Status.INVALID_ARGUMENT

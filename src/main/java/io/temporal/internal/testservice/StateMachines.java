@@ -171,7 +171,7 @@ class StateMachines {
 
   static final class WorkflowData {
     Optional<TestServiceRetryState> retryState;
-    int backoffStartIntervalInSeconds;
+    long backoffStartIntervalInSeconds;
     String cronSchedule;
     Payloads lastCompletionResult;
     String originalExecutionRunId;
@@ -179,7 +179,7 @@ class StateMachines {
 
     WorkflowData(
         Optional<TestServiceRetryState> retryState,
-        int backoffStartIntervalInSeconds,
+        long backoffStartIntervalInSeconds,
         String cronSchedule,
         Payloads lastCompletionResult,
         String originalExecutionRunId,

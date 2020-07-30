@@ -21,7 +21,7 @@ package io.temporal.internal.testservice;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import static io.temporal.internal.testservice.StateMachines.*;
-import static io.temporal.internal.testservice.TestServiceRetryState.valiateAndOverrideRetryPolicy;
+import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -164,7 +164,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       StartWorkflowExecutionRequest startRequest,
       String runId,
       Optional<TestServiceRetryState> retryState,
-      int backoffStartIntervalInSeconds,
+      long backoffStartIntervalInSeconds,
       Payloads lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
@@ -261,7 +261,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throw Status.INVALID_ARGUMENT.withDescription("Missing WorkflowType.").asRuntimeException();
     }
     if (request.hasRetryPolicy()) {
-      valiateAndOverrideRetryPolicy(request.getRetryPolicy());
+      validateAndOverrideRetryPolicy(request.getRetryPolicy());
     }
     return request;
   }
@@ -841,7 +841,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     StartChildWorkflowExecutionCommandAttributes.Builder ab = a.toBuilder();
     if (a.hasRetryPolicy()) {
-      ab.setRetryPolicy(valiateAndOverrideRetryPolicy(a.getRetryPolicy()));
+      ab.setRetryPolicy(validateAndOverrideRetryPolicy(a.getRetryPolicy()));
     }
 
     // Inherit taskqueue from parent workflow execution if not provided on workflow task
@@ -1380,7 +1380,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             if (signalWithStartSignal.isPresent()) {
               addExecutionSignaledEvent(ctx, signalWithStartSignal.get());
             }
-            int backoffStartIntervalInSeconds = workflow.getData().backoffStartIntervalInSeconds;
+            long backoffStartIntervalInSeconds = workflow.getData().backoffStartIntervalInSeconds;
             if (backoffStartIntervalInSeconds > 0) {
               ctx.addTimer(
                   backoffStartIntervalInSeconds,
