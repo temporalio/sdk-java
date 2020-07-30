@@ -137,9 +137,9 @@ class StateMachines {
   static final double DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT = 2.0;
   static final int DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS = 0;
   static final int DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT = 100;
-  public static final int DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS = 10 * 365 * 24 * 3600;
-  public static final int DEFAULT_WORKFLOW_TASK_TIMEOUT_SECONDS = 10;
-  public static final int MAX_WORKFLOW_TASK_TIMEOUT_SECONDS = 60;
+  public static final long DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS = 10 * 365 * 24 * 3600 * 1000;
+  public static final long DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS = 10 * 1000;
+  public static final long MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS = 60 * 1000;
 
   enum State {
     NONE,

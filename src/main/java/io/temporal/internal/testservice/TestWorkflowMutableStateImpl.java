@@ -201,35 +201,35 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       StartWorkflowExecutionRequest r) {
     StartWorkflowExecutionRequest.Builder request =
         validateStartWorkflowExecutionRequest(r).toBuilder();
-    long executionTimeoutSeconds = Durations.toSeconds(request.getWorkflowExecutionTimeout());
-    if (executionTimeoutSeconds == 0) {
-      executionTimeoutSeconds = DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS;
+    long executionTimeoutMillis = Durations.toMillis(request.getWorkflowExecutionTimeout());
+    if (executionTimeoutMillis == 0) {
+      executionTimeoutMillis = DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
     }
-    executionTimeoutSeconds =
-        Math.min(executionTimeoutSeconds, DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS);
-    if (executionTimeoutSeconds != Durations.toSeconds(request.getWorkflowExecutionTimeout())) {
-      request.setWorkflowExecutionTimeout(Durations.fromSeconds(executionTimeoutSeconds));
-    }
-
-    long runTimeoutSeconds = Durations.toSeconds(request.getWorkflowRunTimeout());
-    if (runTimeoutSeconds == 0) {
-      runTimeoutSeconds = DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS;
-    }
-    runTimeoutSeconds = Math.min(runTimeoutSeconds, DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS);
-    runTimeoutSeconds = Math.min(runTimeoutSeconds, executionTimeoutSeconds);
-    if (runTimeoutSeconds != Durations.toSeconds(request.getWorkflowRunTimeout())) {
-      request.setWorkflowRunTimeout(Durations.fromSeconds(runTimeoutSeconds));
+    executionTimeoutMillis =
+        Math.min(executionTimeoutMillis, DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS);
+    if (executionTimeoutMillis != Durations.toMillis(request.getWorkflowExecutionTimeout())) {
+      request.setWorkflowExecutionTimeout(Durations.fromSeconds(executionTimeoutMillis));
     }
 
-    long taskTimeoutSeconds = Durations.toSeconds(request.getWorkflowTaskTimeout());
-    if (taskTimeoutSeconds == 0) {
-      taskTimeoutSeconds = DEFAULT_WORKFLOW_TASK_TIMEOUT_SECONDS;
+    long runTimeoutMillis = Durations.toMillis(request.getWorkflowRunTimeout());
+    if (runTimeoutMillis == 0) {
+      runTimeoutMillis = DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
     }
-    taskTimeoutSeconds = Math.min(taskTimeoutSeconds, MAX_WORKFLOW_TASK_TIMEOUT_SECONDS);
-    taskTimeoutSeconds = Math.min(taskTimeoutSeconds, runTimeoutSeconds);
+    runTimeoutMillis = Math.min(runTimeoutMillis, DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS);
+    runTimeoutMillis = Math.min(runTimeoutMillis, executionTimeoutMillis);
+    if (runTimeoutMillis != Durations.toMillis(request.getWorkflowRunTimeout())) {
+      request.setWorkflowRunTimeout(Durations.fromMillis(runTimeoutMillis));
+    }
 
-    if (taskTimeoutSeconds != Durations.toSeconds(request.getWorkflowTaskTimeout())) {
-      request.setWorkflowTaskTimeout(Durations.fromSeconds(taskTimeoutSeconds));
+    long taskTimeoutMillis = Durations.toMillis(request.getWorkflowTaskTimeout());
+    if (taskTimeoutMillis == 0) {
+      taskTimeoutMillis = DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
+    }
+    taskTimeoutMillis = Math.min(taskTimeoutMillis, MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS);
+    taskTimeoutMillis = Math.min(taskTimeoutMillis, runTimeoutMillis);
+
+    if (taskTimeoutMillis != Durations.toMillis(request.getWorkflowTaskTimeout())) {
+      request.setWorkflowTaskTimeout(Durations.fromSeconds(taskTimeoutMillis));
     }
     return request.build();
   }
@@ -241,17 +241,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (request.getRequestId().isEmpty()) {
       throw Status.INVALID_ARGUMENT.withDescription("Missing request ID.").asRuntimeException();
     }
-    if (Durations.toSeconds(request.getWorkflowExecutionTimeout()) < 0) {
+    if (Durations.toMillis(request.getWorkflowExecutionTimeout()) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Invalid WorkflowExecutionTimeoutSeconds.")
           .asRuntimeException();
     }
-    if (Durations.toSeconds(request.getWorkflowRunTimeout()) < 0) {
+    if (Durations.toMillis(request.getWorkflowRunTimeout()) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Invalid WorkflowRunTimeoutSeconds.")
           .asRuntimeException();
     }
-    if (Durations.toSeconds(request.getWorkflowTaskTimeout()) < 0) {
+    if (Durations.toMillis(request.getWorkflowTaskTimeout()) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Invalid WorkflowTaskTimeoutSeconds.")
           .asRuntimeException();
