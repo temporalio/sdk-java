@@ -23,7 +23,6 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 public class ProtobufTimeUtils {
   public static Duration ToJavaDuration(com.google.protobuf.Duration d) {
@@ -31,7 +30,7 @@ public class ProtobufTimeUtils {
       return Duration.ZERO;
     }
 
-    return Duration.ofNanos(Durations.toNanos(d));
+    return Duration.ofMillis(Durations.toMillis(d));
   }
 
   public static com.google.protobuf.Duration ToProtoDuration(Duration d) {
@@ -39,7 +38,7 @@ public class ProtobufTimeUtils {
       return Durations.ZERO;
     }
 
-    return Durations.fromNanos(d.toNanos());
+    return Durations.fromMillis(d.toMillis());
   }
 
   public static com.google.protobuf.Timestamp GetCurrentProtoTime() {
@@ -47,12 +46,10 @@ public class ProtobufTimeUtils {
   }
 
   public static com.uber.m3.util.Duration ToM3Duration(Timestamp to, Timestamp from) {
-    return com.uber.m3.util.Duration.ofNanos(Timestamps.toNanos(to) - Timestamps.toNanos(from));
+    return com.uber.m3.util.Duration.ofMillis(Timestamps.toMillis(to) - Timestamps.toMillis(from));
   }
 
   public static com.uber.m3.util.Duration ToM3DurationSinceNow(Timestamp t) {
-    long currentNanoTime =
-        TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-    return com.uber.m3.util.Duration.ofNanos(currentNanoTime - Timestamps.toNanos(t));
+    return com.uber.m3.util.Duration.ofMillis(System.currentTimeMillis() - Timestamps.toMillis(t));
   }
 }
