@@ -988,8 +988,8 @@ class StateMachines {
       ScheduleActivityTaskCommandAttributes d,
       long workflowTaskCompletedEventId) {
     RetryPolicy retryPolicy = ensureDefaultFieldsForActivityRetryPolicy(d.getRetryPolicy());
-    long expirationInterval = Durations.toMillis(d.getScheduleToCloseTimeout());
-    long expirationTime = data.store.currentTimeMillis() + expirationInterval;
+    Duration expirationInterval = d.getScheduleToCloseTimeout();
+    Timestamp expirationTime = Timestamps.add(data.store.currentTime(), expirationInterval);
     TestServiceRetryState retryState = new TestServiceRetryState(retryPolicy, expirationTime);
 
     ActivityTaskScheduledEventAttributes.Builder a =
@@ -1275,7 +1275,7 @@ class StateMachines {
     a.setAttempt(data.getAttempt());
     // Setting timestamp here as the default logic will set it to the time when it is added to the
     // history. But in the case of retry it happens only after an activity completion.
-    Timestamp timestamp = Timestamps.fromMillis(data.store.currentTimeMillis());
+    Timestamp timestamp = data.store.currentTime();
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED)
@@ -1606,7 +1606,7 @@ class StateMachines {
     TestServiceRetryState nextAttempt = data.retryState.getNextAttempt();
     TestServiceRetryState.BackoffInterval backoffInterval =
         data.retryState.getBackoffIntervalInSeconds(
-            info.map(i -> i.getType()), data.store.currentTimeMillis());
+            info.map(i -> i.getType()), data.store.currentTime());
     if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
       data.nextBackoffInterval = ProtobufTimeUtils.ToProtoDuration(backoffInterval.getInterval());
       PollActivityTaskQueueResponse.Builder task = data.activityTask.getTask();

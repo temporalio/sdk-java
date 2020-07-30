@@ -19,7 +19,9 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.enums.v1.RetryState;
@@ -53,16 +55,17 @@ final class TestServiceRetryState {
   }
 
   private final RetryPolicy retryPolicy;
-  private final long expirationTime;
+  private final Timestamp expirationTime;
   private final int attempt;
 
-  TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime) {
+  TestServiceRetryState(RetryPolicy retryPolicy, Timestamp expirationTime) {
     this(validateAndOverrideRetryPolicy(retryPolicy), expirationTime, 1);
   }
 
-  private TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime, int attempt) {
+  private TestServiceRetryState(RetryPolicy retryPolicy, Timestamp expirationTime, int attempt) {
     this.retryPolicy = retryPolicy;
-    this.expirationTime = expirationTime == 0 ? Long.MAX_VALUE : expirationTime;
+    this.expirationTime =
+        Timestamps.toMillis(expirationTime) == 0 ? Timestamps.MAX_VALUE : expirationTime;
     this.attempt = attempt;
   }
 
@@ -70,7 +73,7 @@ final class TestServiceRetryState {
     return retryPolicy;
   }
 
-  long getExpirationTime() {
+  Timestamp getExpirationTime() {
     return expirationTime;
   }
 
@@ -82,9 +85,9 @@ final class TestServiceRetryState {
     return new TestServiceRetryState(retryPolicy, expirationTime, attempt + 1);
   }
 
-  BackoffInterval getBackoffIntervalInSeconds(Optional<String> errorType, long currentTimeMillis) {
+  BackoffInterval getBackoffIntervalInSeconds(Optional<String> errorType, Timestamp currentTime) {
     RetryPolicy retryPolicy = getRetryPolicy();
-    // check if error is non-retriable
+    // check if error is non-retryable
     List<String> nonRetryableErrorTypes = retryPolicy.getNonRetryableErrorTypesList();
     if (nonRetryableErrorTypes != null && errorType.isPresent()) {
       String type = errorType.get();
@@ -94,8 +97,8 @@ final class TestServiceRetryState {
         }
       }
     }
-    long expirationTime = getExpirationTime();
-    if (retryPolicy.getMaximumAttempts() == 0 && expirationTime == 0) {
+    Timestamp expirationTime = getExpirationTime();
+    if (retryPolicy.getMaximumAttempts() == 0 && Timestamps.toNanos(expirationTime) == 0) {
       return new BackoffInterval(RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET);
     }
 
@@ -123,8 +126,9 @@ final class TestServiceRetryState {
     }
 
     long backoffInterval = nextInterval;
-    long nextScheduleTime = currentTimeMillis + backoffInterval;
-    if (expirationTime != 0 && nextScheduleTime > expirationTime) {
+    Timestamp nextScheduleTime = Timestamps.add(currentTime, Durations.fromMillis(backoffInterval));
+    if (expirationTime.getNanos() != 0
+        && Timestamps.compare(nextScheduleTime, expirationTime) > 0) {
       return new BackoffInterval(RetryState.RETRY_STATE_TIMEOUT);
     }
 

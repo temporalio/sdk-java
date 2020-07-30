@@ -20,6 +20,8 @@
 package io.temporal.internal.testservice;
 
 import com.google.common.base.Throwables;
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
@@ -282,8 +284,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private Optional<TestServiceRetryState> newRetryStateLocked(
       RetryPolicy retryPolicy, Duration expirationInterval) {
-    long expirationTime =
-        expirationInterval.isZero() ? 0 : store.currentTimeMillis() + expirationInterval.toMillis();
+    Timestamp expirationTime =
+        expirationInterval.isZero()
+            ? Timestamps.fromNanos(0)
+            : Timestamps.add(
+                store.currentTime(), ProtobufTimeUtils.ToProtoDuration(expirationInterval));
     return Optional.of(new TestServiceRetryState(retryPolicy, expirationTime));
   }
 

@@ -187,8 +187,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public long currentTimeMillis() {
-    return timerService.getClock().getAsLong();
+  public Timestamp currentTime() {
+    return Timestamps.fromMillis(timerService.getClock().getAsLong());
   }
 
   @Override
@@ -253,10 +253,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     if (timers != null) {
       for (Timer t : timers) {
         log.trace(
-            "scheduling timer with "
-                + t.getDelay()
-                + "seconds delay. Current time="
-                + this.currentTimeMillis());
+            "scheduling timer with " + t.getDelay() + "delay. Current time=" + this.currentTime());
         timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
       }
     }

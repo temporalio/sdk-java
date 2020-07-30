@@ -31,6 +31,7 @@ import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
 import com.google.protobuf.util.Durations;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.command.v1.CancelTimerCommandAttributes;
@@ -1121,7 +1122,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
         } else {
           failureType = Optional.of(failureInfo.getType());
-          backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTimeMillis());
+          backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTime());
         }
       } else {
         backoffInterval =
@@ -1256,7 +1257,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       Payloads lastCompletionResult) {
     Cron cron = parseCron(data.cronSchedule);
 
-    Instant i = Instant.ofEpochMilli(store.currentTimeMillis());
+    Instant i = Instant.ofEpochMilli(Timestamps.toMillis(store.currentTime()));
     ZonedDateTime now = ZonedDateTime.ofInstant(i, ZoneOffset.UTC);
 
     ExecutionTime executionTime = ExecutionTime.forCron(cron);
