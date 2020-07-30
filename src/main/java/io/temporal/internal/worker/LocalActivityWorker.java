@@ -19,7 +19,6 @@
 
 package io.temporal.internal.worker;
 
-import com.google.protobuf.util.Durations;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
@@ -273,9 +272,9 @@ public final class LocalActivityWorker implements SuspendableWorker {
       long sleepMillis = retryOptions.calculateSleepTime(attempt);
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long elapsedTotal = elapsedTask + params.getElapsedTime();
-      int timeoutSeconds = (int) Durations.toSeconds(activityTask.getScheduleToCloseTimeout());
+      Duration timeout = ProtobufTimeUtils.ToJavaDuration(activityTask.getScheduleToCloseTimeout());
       Optional<Duration> expiration =
-          timeoutSeconds > 0 ? Optional.of(Duration.ofSeconds(timeoutSeconds)) : Optional.empty();
+          timeout.compareTo(Duration.ZERO) > 0 ? Optional.of(timeout) : Optional.empty();
       if (retryOptions.shouldRethrow(
           result.getTaskFailed().getFailure(), expiration, attempt, elapsedTotal, sleepMillis)) {
         return result;
