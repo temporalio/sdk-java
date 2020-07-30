@@ -31,7 +31,6 @@ import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
 import com.google.protobuf.util.Durations;
-import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.command.v1.CancelTimerCommandAttributes;
@@ -748,23 +747,28 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
     com.google.protobuf.Duration workflowRunTimeout = this.startRequest.getWorkflowRunTimeout();
-    boolean validScheduleToClose = Durations.compare(a.getScheduleToCloseTimeout(), Durations.ZERO) > 0;
-    boolean validScheduleToStart = Durations.compare(a.getScheduleToStartTimeout(), Durations.ZERO) > 0;
+    boolean validScheduleToClose =
+        Durations.compare(a.getScheduleToCloseTimeout(), Durations.ZERO) > 0;
+    boolean validScheduleToStart =
+        Durations.compare(a.getScheduleToStartTimeout(), Durations.ZERO) > 0;
     boolean validStartToClose = Durations.compare(a.getStartToCloseTimeout(), Durations.ZERO) > 0;
 
     if (validScheduleToClose) {
       if (validScheduleToStart) {
         result.setScheduleToStartTimeout(
-                Durations.fromNanos(
-              Math.min(Durations.toNanos(a.getScheduleToStartTimeout()),
-                      Durations.toNanos(a.getScheduleToCloseTimeout()))));
+            Durations.fromNanos(
+                Math.min(
+                    Durations.toNanos(a.getScheduleToStartTimeout()),
+                    Durations.toNanos(a.getScheduleToCloseTimeout()))));
       } else {
         result.setScheduleToStartTimeout(a.getScheduleToCloseTimeout());
       }
       if (validStartToClose) {
         result.setStartToCloseTimeout(
-                Durations.fromNanos(
-                        Math.min(Durations.toNanos(a.getStartToCloseTimeout()), Durations.toNanos(a.getScheduleToCloseTimeout()))));
+            Durations.fromNanos(
+                Math.min(
+                    Durations.toNanos(a.getStartToCloseTimeout()),
+                    Durations.toNanos(a.getScheduleToCloseTimeout()))));
       } else {
         result.setStartToCloseTimeout(a.getScheduleToCloseTimeout());
       }
@@ -1064,7 +1068,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     timer = StateMachines.newTimerStateMachine();
     timers.put(timerId, timer);
     timer.action(StateMachines.Action.START, ctx, a, workflowTaskCompletedId);
-    ctx.addTimer(Durations.toSeconds(a.getStartToFireTimeout()), () -> fireTimer(timerId), "fire timer");
+    ctx.addTimer(
+        Durations.toSeconds(a.getStartToFireTimeout()), () -> fireTimer(timerId), "fire timer");
   }
 
   private void fireTimer(String timerId) {
@@ -1126,7 +1131,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .setWorkflowType(startRequest.getWorkflowType())
                 .setWorkflowRunTimeout(startRequest.getWorkflowRunTimeout())
                 .setWorkflowTaskTimeout(startRequest.getWorkflowTaskTimeout())
-                .setBackoffStartInterval(Durations.fromSeconds(backoffInterval.getIntervalSeconds()));
+                .setBackoffStartInterval(
+                    Durations.fromSeconds(backoffInterval.getIntervalSeconds()));
         if (startRequest.hasTaskQueue()) {
           continueAsNewAttr.setTaskQueue(startRequest.getTaskQueue());
         }
@@ -1446,7 +1452,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<ActivityTaskData> activity = getActivityById(activityId);
           activity.action(StateMachines.Action.START, ctx, pollRequest, 0);
           ActivityTaskData data = activity.getData();
-          long startToCloseTimeout = Durations.toSeconds(data.scheduledEvent.getStartToCloseTimeout());
+          long startToCloseTimeout =
+              Durations.toSeconds(data.scheduledEvent.getStartToCloseTimeout());
           long heartbeatTimeout = Durations.toSeconds(data.scheduledEvent.getHeartbeatTimeout());
           long scheduledEventId = activity.getData().scheduledEventId;
           if (startToCloseTimeout > 0) {
@@ -1642,7 +1649,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
           ActivityTaskData data = activity.getData();
           data.lastHeartbeatTime = clock.getAsLong();
-          long startToCloseTimeout = Durations.toSeconds(data.scheduledEvent.getStartToCloseTimeout());
+          long startToCloseTimeout =
+              Durations.toSeconds(data.scheduledEvent.getStartToCloseTimeout());
           long heartbeatTimeout = Durations.toSeconds(data.scheduledEvent.getHeartbeatTimeout());
           updateHeartbeatTimer(
               ctx, scheduledEventId, activity, startToCloseTimeout, heartbeatTimeout);
