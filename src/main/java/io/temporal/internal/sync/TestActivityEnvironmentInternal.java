@@ -19,10 +19,9 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.StatusRuntimeException;
@@ -48,6 +47,7 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -236,12 +236,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toPayloads(args);
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
-              .setScheduleToCloseTimeoutSeconds(
-                  roundUpToSeconds(options.getScheduleToCloseTimeout()))
-              .setHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()))
-              .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
-              .setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
-              .setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
+              .setScheduleToCloseTimeout(
+                  ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
+              .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()))
+              .setStartToCloseTimeout(
+                  ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+              .setScheduledTime(Timestamps.fromMillis(System.currentTimeMillis()))
+              .setStartedTime(Timestamps.fromMillis(System.currentTimeMillis()))
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(

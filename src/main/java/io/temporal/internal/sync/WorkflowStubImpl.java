@@ -20,7 +20,6 @@
 package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import static io.temporal.internal.sync.SyncWorkflowContext.toRetryPolicy;
 
 import com.google.common.base.Strings;
@@ -59,6 +58,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
@@ -186,9 +186,10 @@ class WorkflowStubImpl implements WorkflowStub {
         StartWorkflowExecutionRequest.newBuilder()
             .setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()))
             .setRequestId(UUID.randomUUID().toString())
-            .setWorkflowRunTimeoutSeconds(roundUpToSeconds(o.getWorkflowRunTimeout()))
-            .setWorkflowExecutionTimeoutSeconds(roundUpToSeconds(o.getWorkflowExecutionTimeout()))
-            .setWorkflowTaskTimeoutSeconds(roundUpToSeconds(o.getWorkflowTaskTimeout()));
+            .setWorkflowRunTimeout(ProtobufTimeUtils.ToProtoDuration(o.getWorkflowRunTimeout()))
+            .setWorkflowExecutionTimeout(
+                ProtobufTimeUtils.ToProtoDuration(o.getWorkflowExecutionTimeout()))
+            .setWorkflowTaskTimeout(ProtobufTimeUtils.ToProtoDuration(o.getWorkflowTaskTimeout()));
 
     if (clientOptions.getIdentity() != null) {
       request.setIdentity(clientOptions.getIdentity());

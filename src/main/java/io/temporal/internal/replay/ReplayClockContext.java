@@ -21,6 +21,7 @@ package io.temporal.internal.replay;
 
 import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
 
+import com.google.protobuf.util.Durations;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Header;
@@ -140,7 +141,7 @@ public final class ReplayClockContext {
     final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
     final StartTimerCommandAttributes timer =
         StartTimerCommandAttributes.newBuilder()
-            .setStartToFireTimeoutSeconds(delaySeconds)
+            .setStartToFireTimeout(Durations.fromSeconds(delaySeconds))
             .setTimerId(String.valueOf(commandHelper.getAndIncrementNextId()))
             .build();
     long startEventId = commandHelper.startTimer(timer);

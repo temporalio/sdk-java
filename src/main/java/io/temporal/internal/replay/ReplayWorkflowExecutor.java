@@ -24,6 +24,8 @@ import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.util.Durations;
+import com.google.protobuf.util.Timestamps;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
@@ -46,6 +48,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.HistoryHelper.WorkflowTaskEvents;
@@ -115,14 +118,14 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           "First event in the history is not WorkflowExecutionStarted");
     }
     startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
-    wfStartTimeNanos = firstEvent.getTimestamp();
+    wfStartTimeNanos = Timestamps.toNanos(firstEvent.getEventTime());
 
     context =
         new ReplayWorkflowContextImpl(
             commandHelper,
             namespace,
             startedEvent,
-            Duration.ofNanos(firstEvent.getTimestamp()).toMillis(),
+            Timestamps.toMillis(firstEvent.getEventTime()),
             options,
             metricsScope,
             laTaskPoller,
@@ -420,7 +423,8 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       long startTime = System.currentTimeMillis();
       WorkflowTaskWithHistoryIterator workflowTaskWithHistoryIterator =
           new WorkflowTaskWithHistoryIteratorImpl(
-              workflowTask, Duration.ofSeconds(startedEvent.getWorkflowTaskTimeoutSeconds()));
+              workflowTask,
+              ProtobufTimeUtils.ToJavaDuration(startedEvent.getWorkflowTaskTimeout()));
       HistoryHelper historyHelper =
           new HistoryHelper(
               workflowTaskWithHistoryIterator, context.getReplayCurrentTimeMilliseconds());
@@ -460,7 +464,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
         forceCreateNewWorkflowTask =
             processEventLoop(
                 startTime,
-                startedEvent.getWorkflowTaskTimeoutSeconds(),
+                (int) Durations.toSeconds(startedEvent.getWorkflowTaskTimeout()),
                 taskEvents,
                 workflowTask.hasQuery());
 
@@ -606,7 +610,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
   }
 
   int getWorkflowTaskTimeoutSeconds() {
-    return startedEvent.getWorkflowTaskTimeoutSeconds();
+    return (int) Durations.toSeconds(startedEvent.getWorkflowTaskTimeout());
   }
 
   @Override

@@ -19,6 +19,8 @@
 
 package io.temporal.internal.replay;
 
+import com.google.protobuf.util.Durations;
+import com.google.protobuf.util.Timestamps;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payload;
@@ -102,17 +104,17 @@ final class WorkflowContext {
 
   int getWorkflowRunTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return attributes.getWorkflowRunTimeoutSeconds();
+    return (int)Durations.toSeconds(attributes.getWorkflowRunTimeout());
   }
 
   int getWorkflowExecutionTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return attributes.getWorkflowExecutionTimeoutSeconds();
+    return (int)Durations.toSeconds(attributes.getWorkflowExecutionTimeout());
   }
 
   long getWorkflowExecutionExpirationTimestampMillis() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return Duration.ofNanos(attributes.getWorkflowExecutionExpirationTimestamp()).toMillis();
+    return Timestamps.toMillis(attributes.getWorkflowExecutionExpirationTime());
   }
 
   long getRunStartedTimestampMillis() {
@@ -120,7 +122,7 @@ final class WorkflowContext {
   }
 
   int getWorkflowTaskTimeoutSeconds() {
-    return startedAttributes.getWorkflowTaskTimeoutSeconds();
+    return (int)Durations.toSeconds(startedAttributes.getWorkflowTaskTimeout());
   }
 
   String getTaskQueue() {
