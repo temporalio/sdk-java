@@ -758,19 +758,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (validScheduleToClose) {
       if (validScheduleToStart) {
         result.setScheduleToStartTimeout(
-            Durations.fromNanos(
+            Durations.fromMillis(
                 Math.min(
-                    Durations.toNanos(a.getScheduleToStartTimeout()),
-                    Durations.toNanos(a.getScheduleToCloseTimeout()))));
+                    Durations.toMillis(a.getScheduleToStartTimeout()),
+                    Durations.toMillis(a.getScheduleToCloseTimeout()))));
       } else {
         result.setScheduleToStartTimeout(a.getScheduleToCloseTimeout());
       }
       if (validStartToClose) {
         result.setStartToCloseTimeout(
-            Durations.fromNanos(
+            Durations.fromMillis(
                 Math.min(
-                    Durations.toNanos(a.getStartToCloseTimeout()),
-                    Durations.toNanos(a.getScheduleToCloseTimeout()))));
+                    Durations.toMillis(a.getStartToCloseTimeout()),
+                    Durations.toMillis(a.getScheduleToCloseTimeout()))));
       } else {
         result.setStartToCloseTimeout(a.getScheduleToCloseTimeout());
       }

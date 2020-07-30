@@ -1871,9 +1871,9 @@ class StateMachines {
         .setInitialInterval(initialInterval)
         .setMaximumInterval(
             originalPolicy.getMaximumInterval() == Durations.ZERO
-                ? Durations.fromNanos(
+                ? Durations.fromMillis(
                     DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT
-                        * Durations.toNanos(initialInterval))
+                        * Durations.toMillis(initialInterval))
                 : originalPolicy.getMaximumInterval())
         .setBackoffCoefficient(
             originalPolicy.getBackoffCoefficient() == 0
