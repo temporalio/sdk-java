@@ -57,7 +57,7 @@ final class TestServiceRetryState {
   private final int attempt;
 
   TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime) {
-    this(validateAndOverrideRetryPolicy(retryPolicy), expirationTime, 0);
+    this(validateAndOverrideRetryPolicy(retryPolicy), expirationTime, 1);
   }
 
   private TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime, int attempt) {
@@ -99,15 +99,14 @@ final class TestServiceRetryState {
       return new BackoffInterval(RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET);
     }
 
-    if (retryPolicy.getMaximumAttempts() > 0
-        && getAttempt() >= retryPolicy.getMaximumAttempts() - 1) {
-      // currAttempt starts from 0.
+    if (retryPolicy.getMaximumAttempts() > 0 && getAttempt() >= retryPolicy.getMaximumAttempts()) {
+      // currAttempt starts from 1.
       // MaximumAttempts is the total attempts, including initial (non-retry) attempt.
       return new BackoffInterval(RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED);
     }
     long initInterval = Durations.toMillis(retryPolicy.getInitialInterval());
     long nextInterval =
-        (long) (initInterval * Math.pow(retryPolicy.getBackoffCoefficient(), getAttempt()));
+        (long) (initInterval * Math.pow(retryPolicy.getBackoffCoefficient(), getAttempt() - 1));
     long maxInterval = Durations.toMillis(retryPolicy.getMaximumInterval());
     if (nextInterval <= 0) {
       // math.Pow() could overflow

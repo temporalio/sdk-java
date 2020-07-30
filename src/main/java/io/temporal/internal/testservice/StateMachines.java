@@ -337,7 +337,7 @@ class StateMachines {
     }
 
     public int getAttempt() {
-      return retryState != null ? retryState.getAttempt() : 0;
+      return retryState != null ? retryState.getAttempt() : 1;
     }
   }
 
@@ -1029,7 +1029,7 @@ class StateMachines {
             .setScheduledTime(Timestamps.fromNanos(ctx.currentTimeInNanoseconds()))
             .setCurrentAttemptScheduledTime(Timestamps.fromNanos(ctx.currentTimeInNanoseconds()))
             .setHeader(d.getHeader())
-            .setAttempt(0);
+            .setAttempt(1);
 
     TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), d.getTaskQueue().getName());
     ActivityTask activityTask = new ActivityTask(taskQueueId, taskResponse);
