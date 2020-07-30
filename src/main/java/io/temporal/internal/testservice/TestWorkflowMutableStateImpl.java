@@ -19,7 +19,6 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import static io.temporal.internal.testservice.StateMachines.*;
 import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
 
@@ -1262,11 +1261,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     ExecutionTime executionTime = ExecutionTime.forCron(cron);
     Optional<Duration> backoff = executionTime.timeToNextExecution(now);
-    int backoffIntervalSeconds = roundUpToSeconds(backoff.get());
+    Duration backoffInterval = Duration.ZERO;
 
-    if (backoffIntervalSeconds == 0) {
+    if (backoff.isPresent()) {
+      backoffInterval = backoff.get();
+    }
+
+    if (backoffInterval == Duration.ZERO) {
       backoff = executionTime.timeToNextExecution(now.plusSeconds(1));
-      backoffIntervalSeconds = roundUpToSeconds(backoff.get()) + 1;
+      backoffInterval = backoff.get();
     }
 
     ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewAttr =
@@ -1276,7 +1279,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setWorkflowRunTimeout(startRequest.getWorkflowRunTimeout())
             .setWorkflowTaskTimeout(startRequest.getWorkflowTaskTimeout())
             .setTaskQueue(startRequest.getTaskQueue())
-            .setBackoffStartInterval(Durations.fromSeconds(backoffIntervalSeconds))
+            .setBackoffStartInterval(ProtobufTimeUtils.ToProtoDuration(backoffInterval))
             .setRetryPolicy(startRequest.getRetryPolicy())
             .setLastCompletionResult(lastCompletionResult)
             .build();
