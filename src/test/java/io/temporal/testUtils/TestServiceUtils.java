@@ -23,6 +23,7 @@ import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.util.Durations;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
@@ -59,8 +60,8 @@ public class TestServiceUtils {
     request.setNamespace(namespace);
     request.setWorkflowId(UUID.randomUUID().toString());
     request.setTaskQueue(createNormalTaskQueue(taskqueueName));
-    request.setWorkflowRunTimeoutSeconds(workflowRunTimeoutSeconds);
-    request.setWorkflowTaskTimeoutSeconds(workflowTaskTimeoutSeconds);
+    request.setWorkflowRunTimeout(Durations.fromSeconds(workflowRunTimeoutSeconds));
+    request.setWorkflowTaskTimeout(Durations.fromSeconds(workflowTaskTimeoutSeconds));
     request.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
     service.blockingStub().startWorkflowExecution(request.build());
   }
@@ -81,7 +82,7 @@ public class TestServiceUtils {
         RespondWorkflowTaskCompletedRequest.newBuilder();
     StickyExecutionAttributes.Builder attributes = StickyExecutionAttributes.newBuilder();
     attributes.setWorkerTaskQueue(createStickyTaskQueue(stickyTaskqueueName));
-    attributes.setScheduleToStartTimeoutSeconds(startToCloseTimeout);
+    attributes.setScheduleToStartTimeout(Durations.fromSeconds(startToCloseTimeout));
     request.setStickyAttributes(attributes);
     request.setTaskToken(taskToken);
     request.addAllCommands(new ArrayList<>());

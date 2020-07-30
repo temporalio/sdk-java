@@ -20,7 +20,6 @@
 package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;

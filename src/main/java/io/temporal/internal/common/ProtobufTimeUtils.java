@@ -27,10 +27,18 @@ import java.util.concurrent.TimeUnit;
 
 public class ProtobufTimeUtils {
   public static Duration ToJavaDuration(com.google.protobuf.Duration d) {
+    if (d == null) {
+      return Duration.ZERO;
+    }
+
     return Duration.ofNanos(Durations.toNanos(d));
   }
 
   public static com.google.protobuf.Duration ToProtoDuration(Duration d) {
+    if (d == null) {
+      return Durations.ZERO;
+    }
+
     return Durations.fromNanos(d.toNanos());
   }
 
