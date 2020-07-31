@@ -200,7 +200,7 @@ public final class LocalActivityMarkerData {
       MarkerRecordedEventAttributes attributes, DataConverter converter) {
     Payloads data = attributes.getDetailsOrThrow(MARKER_DATA_KEY);
     DataValue laHeader =
-        converter.fromPayloads(Optional.of(data), DataValue.class, DataValue.class);
+        converter.fromPayloads(0, Optional.of(data), DataValue.class, DataValue.class);
     Optional<Payloads> result =
         attributes.containsDetails(MARKER_RESULT_KEY)
             ? Optional.of(attributes.getDetailsOrThrow(MARKER_RESULT_KEY))

@@ -43,7 +43,7 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.common.converter.EncodedValue;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
@@ -141,6 +141,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                   .getWorkflowClientOptions()
                   .getDataConverter()
                   .fromPayloads(
+                      0,
                       requestDetails,
                       activityHeartbetListener.valueClass,
                       activityHeartbetListener.valueType);
@@ -382,7 +383,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         return testEnvironmentOptions
             .getWorkflowClientOptions()
             .getDataConverter()
-            .fromPayloads(result, resultClass, resultType);
+            .fromPayloads(0, result, resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();
@@ -404,7 +405,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           if (taskCancelled != null) {
             throw new CanceledFailure(
                 "canceled",
-                new EncodedValue(
+                new EncodedValues(
                     taskCancelled.hasDetails()
                         ? Optional.of(taskCancelled.getDetails())
                         : Optional.empty(),

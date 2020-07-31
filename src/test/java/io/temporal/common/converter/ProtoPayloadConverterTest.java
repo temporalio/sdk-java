@@ -39,7 +39,7 @@ public class ProtoPayloadConverterTest {
             .build();
     Optional<Payloads> data = converter.toPayloads(execution);
     WorkflowExecution converted =
-        converter.fromPayloads(data, WorkflowExecution.class, WorkflowExecution.class);
+        converter.fromPayloads(0, data, WorkflowExecution.class, WorkflowExecution.class);
     assertEquals(execution, converted);
   }
 
@@ -53,7 +53,7 @@ public class ProtoPayloadConverterTest {
             .build();
     Optional<Payloads> data = converter.toPayloads(execution);
     WorkflowExecution converted =
-        converter.fromPayloads(data, WorkflowExecution.class, WorkflowExecution.class);
+        converter.fromPayloads(0, data, WorkflowExecution.class, WorkflowExecution.class);
     assertEquals(execution, converted);
   }
 }

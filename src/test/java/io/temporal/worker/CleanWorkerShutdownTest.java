@@ -202,7 +202,7 @@ public class CleanWorkerShutdownTest {
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
             DataConverter.getDefaultInstance()
-                .fromPayloads(Optional.of(ar), String.class, String.class);
+                .fromPayloads(0, Optional.of(ar), String.class, String.class);
         assertEquals("completed", r);
       }
     }
@@ -263,7 +263,7 @@ public class CleanWorkerShutdownTest {
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
             DataConverter.getDefaultInstance()
-                .fromPayloads(Optional.of(ar), String.class, String.class);
+                .fromPayloads(0, Optional.of(ar), String.class, String.class);
         assertEquals(r, "interrupted", r);
       }
     }
@@ -354,7 +354,7 @@ public class CleanWorkerShutdownTest {
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
             DataConverter.getDefaultInstance()
-                .fromPayloads(Optional.of(ar), String.class, String.class);
+                .fromPayloads(0, Optional.of(ar), String.class, String.class);
         assertEquals("workershutdown", r);
       }
     }

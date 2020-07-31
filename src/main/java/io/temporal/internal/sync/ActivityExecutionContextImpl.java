@@ -130,7 +130,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         return result;
       }
       Optional<Payloads> details = info.getHeartbeatDetails();
-      return Optional.ofNullable(dataConverter.fromPayloads(details, detailsClass, detailsType));
+      return Optional.ofNullable(dataConverter.fromPayloads(0, details, detailsClass, detailsType));
     } finally {
       lock.unlock();
     }
