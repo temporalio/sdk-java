@@ -3927,7 +3927,7 @@ public class WorkflowTest {
       if (c < 3) {
         throw new IllegalArgumentException("simulated " + c);
       } else {
-        throw new ApplicationFailure("simulated " + c, "NonRetryable");
+        throw ApplicationFailure.newFailure("simulated " + c, "NonRetryable");
       }
     }
   }
@@ -3968,7 +3968,8 @@ public class WorkflowTest {
         retryCount.put(testName, count);
       }
       int c = count.incrementAndGet();
-      ApplicationFailure f = new ApplicationFailure("simulated " + c, "foo", "details");
+      ApplicationFailure f =
+          ApplicationFailure.newFailure("simulated " + c, "foo", "details1", 123);
       if (c == 3) {
         f.setNonRetryable(true);
       }
@@ -3995,7 +3996,10 @@ public class WorkflowTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
       assertEquals("foo", ((ApplicationFailure) e.getCause()).getType());
-      assertEquals("details", ((ApplicationFailure) e.getCause()).getDetails().get(String.class));
+      assertEquals(
+          "details1", ((ApplicationFailure) e.getCause()).getDetails().get(0, String.class));
+      assertEquals(
+          new Integer(123), ((ApplicationFailure) e.getCause()).getDetails().get(1, Integer.class));
       assertEquals(
           "message='simulated 3', type='foo', nonRetryable=true", e.getCause().getMessage());
     }
@@ -4404,7 +4408,8 @@ public class WorkflowTest {
 
     @Override
     public void throwApplicationFailureThreeTimes() {
-      ApplicationFailure failure = new ApplicationFailure("simulated", "simulatedType");
+      ApplicationFailure failure =
+          ApplicationFailure.newNonRetryableFailure("simulated", "simulatedType");
       failure.setNonRetryable(applicationFailureCounter.incrementAndGet() > 2);
       throw failure;
     }

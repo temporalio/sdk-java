@@ -58,7 +58,7 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValue;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
@@ -168,7 +168,7 @@ public class WorkflowExecutionUtils {
             closeEvent.getWorkflowExecutionCanceledEventAttributes();
         Optional<Payloads> details =
             attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-        throw new CanceledFailure("Workflow canceled", new EncodedValue(details, converter), null);
+        throw new CanceledFailure("Workflow canceled", new EncodedValues(details, converter), null);
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();

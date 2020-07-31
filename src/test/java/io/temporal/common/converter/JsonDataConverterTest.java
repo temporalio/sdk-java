@@ -51,7 +51,7 @@ public class JsonDataConverterTest {
     Optional<Payloads> data = converter.toPayloads(list);
     @SuppressWarnings("unchecked")
     List<UUID> result =
-        (List<UUID>) converter.fromPayloads(data, parameterType, genericParameterType);
+        (List<UUID>) converter.fromPayloads(0, data, parameterType, genericParameterType);
     assertEquals(result.toString(), list, result);
   }
 
@@ -106,7 +106,8 @@ public class JsonDataConverterTest {
     Optional<Payloads> data =
         converter.toPayloads(1234, struct1, "a string", list, "an extra string :o!!!");
     Object[] deserializedArguments =
-        converter.arrayFromPayloads(data, m.getParameterTypes(), m.getGenericParameterTypes());
+        DataConverter.arrayFromPayloads(
+            converter, data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(4, deserializedArguments.length);
     assertEquals(1234, (int) deserializedArguments[0]);
     assertEquals(struct1, deserializedArguments[1]);
@@ -124,7 +125,8 @@ public class JsonDataConverterTest {
     Optional<Payloads> data = converter.toPayloads(1);
     @SuppressWarnings("unchecked")
     Object[] deserializedArguments =
-        converter.arrayFromPayloads(data, m.getParameterTypes(), m.getGenericParameterTypes());
+        DataConverter.arrayFromPayloads(
+            converter, data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(5, deserializedArguments.length);
     assertEquals(1, (int) deserializedArguments[0]);
     assertEquals(null, deserializedArguments[1]);

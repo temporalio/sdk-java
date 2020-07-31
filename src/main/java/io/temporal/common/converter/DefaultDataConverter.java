@@ -26,7 +26,6 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -142,60 +141,17 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   @Override
-  public <T> T fromPayloads(Optional<Payloads> content, Class<T> valueClass, Type valueType)
+  public <T> T fromPayloads(
+      int index, Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
       throws DataConverterException {
     if (!content.isPresent()) {
-      return null;
+      return (T) Defaults.defaultValue((Class<?>) parameterType);
     }
-    Payloads c = content.get();
-    if (c.getPayloadsCount() == 0) {
-      return null;
+    int count = content.get().getPayloadsCount();
+    // To make adding arguments a backwards compatible change
+    if (index >= count) {
+      return (T) Defaults.defaultValue((Class<?>) parameterType);
     }
-    if (c.getPayloadsCount() != 1) {
-      throw new DataConverterException(
-          "Found multiple payloads while a single one expected", content, valueType);
-    }
-    return fromPayload(c.getPayloads(0), valueClass, valueType);
-  }
-
-  @Override
-  public Object[] arrayFromPayloads(
-      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] valueTypes)
-      throws DataConverterException {
-    try {
-      if (parameterTypes != null
-          && (valueTypes == null || parameterTypes.length != valueTypes.length)) {
-        throw new IllegalArgumentException(
-            "parameterTypes don't match length of valueTypes: "
-                + Arrays.toString(parameterTypes)
-                + "<>"
-                + Arrays.toString(valueTypes));
-      }
-      if (!content.isPresent()) {
-        if (valueTypes.length == 0) {
-          return EMPTY_OBJECT_ARRAY;
-        } else {
-          throw new DataConverterException("Empty content", content, valueTypes);
-        }
-      }
-      Payloads c = content.get();
-      int count = c.getPayloadsCount();
-      int length = valueTypes.length;
-      Object[] result = new Object[length];
-      for (int i = 0; i < length; i++) {
-        Type vt = valueTypes[i];
-        Class<?> pt = parameterTypes[i];
-        if (i >= count) {
-          result[i] = Defaults.defaultValue((Class<?>) vt);
-        } else {
-          result[i] = fromPayload(c.getPayloads(i), pt, vt);
-        }
-      }
-      return result;
-    } catch (DataConverterException e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new DataConverterException(e);
-    }
+    return fromPayload(content.get().getPayloads(index), parameterType, genericParameterType);
   }
 }

@@ -21,8 +21,8 @@ package io.temporal.failure;
 
 import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValue;
-import io.temporal.common.converter.Value;
+import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.converter.Values;
 
 /**
  * Application failure is used to communicate application specific failures between workflows and
@@ -51,49 +51,47 @@ import io.temporal.common.converter.Value;
  */
 public final class ApplicationFailure extends TemporalFailure {
   private final String type;
-  private final Value details;
+  private final Values details;
   private boolean nonRetryable;
 
   /**
-   * @param message optional error message
-   * @param type optional error type that is used by {@link
-   *     io.temporal.common.RetryOptions#addDoNotRetry(String...)}.
-   * @param details optional details about the failure. They are serialized using the same approach
-   *     as arguments and results and can be accessed through {@link #getDetails()}
-   * @param cause failure cause. Each element of the cause chain is converted to ApplicationFailure
-   *     if it doesn't extend {@link TemporalFailure}.
-   */
-  public ApplicationFailure(String message, String type, Object details, Exception cause) {
-    this(message, type, new EncodedValue(details), false, cause);
-  }
-
-  /**
+   * New ApplicationFailure with {@link #isNonRetryable()} flag set to false. Note that this
+   * exception still can be not retried by the service if its type is included into doNotRetry
+   * property of the correspondent retry policy.
+   *
    * @param message optional error message
    * @param type optional error type that is used by {@link
    *     io.temporal.common.RetryOptions#addDoNotRetry(String...)}.
    * @param details optional details about the failure. They are serialized using the same approach
    *     as arguments and results.
    */
-  public ApplicationFailure(String message, String type, Object details) {
-    this(message, type, new EncodedValue(details), false, null);
+  public static ApplicationFailure newFailure(String message, String type, Object... details) {
+    return new ApplicationFailure(message, type, false, new EncodedValues(details), null);
   }
 
   /**
+   * New ApplicationFailure with {@link #isNonRetryable()} flag set to true.
+   *
+   * <p>It means that this exception is not going to be retried even if it is not included into
+   * retry policy doNotRetry list.
+   *
    * @param message optional error message
-   * @param type optional error type that is used by {@link
-   *     io.temporal.common.RetryOptions#addDoNotRetry(String...)}.
+   * @param type optional error type
+   * @param details optional details about the failure. They are serialized using the same approach
+   *     as arguments and results.
    */
-  public ApplicationFailure(String message, String type) {
-    this(message, type, new EncodedValue(null), false, null);
+  public static ApplicationFailure newNonRetryableFailure(
+      String message, String type, Object... details) {
+    return new ApplicationFailure(message, type, true, new EncodedValues(details), null);
   }
 
-  /** * @param message optional error message */
-  public ApplicationFailure(String message) {
-    this(message, null);
+  static ApplicationFailure newFromValues(
+      String message, String type, boolean nonRetryable, Values details, Throwable cause) {
+    return new ApplicationFailure(message, type, nonRetryable, details, cause);
   }
 
   ApplicationFailure(
-      String message, String type, Value details, boolean nonRetryable, Exception cause) {
+      String message, String type, boolean nonRetryable, Values details, Throwable cause) {
     super(getMessage(message, type, nonRetryable), message, cause);
     this.type = type;
     this.details = details;
@@ -104,7 +102,7 @@ public final class ApplicationFailure extends TemporalFailure {
     return type;
   }
 
-  public Value getDetails() {
+  public Values getDetails() {
     return details;
   }
 
@@ -118,7 +116,7 @@ public final class ApplicationFailure extends TemporalFailure {
 
   @Override
   public void setDataConverter(DataConverter converter) {
-    ((EncodedValue) details).setDataConverter(converter);
+    ((EncodedValues) details).setDataConverter(converter);
   }
 
   private static String getMessage(String message, String type, boolean nonRetryable) {

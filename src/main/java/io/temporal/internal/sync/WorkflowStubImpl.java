@@ -352,7 +352,7 @@ class WorkflowStubImpl implements WorkflowStub {
               clientOptions.getDataConverter(),
               timeout,
               unit);
-      return clientOptions.getDataConverter().fromPayloads(resultValue, resultClass, resultType);
+      return clientOptions.getDataConverter().fromPayloads(0, resultValue, resultClass, resultType);
     } catch (TimeoutException e) {
       throw e;
     } catch (Exception e) {
@@ -403,7 +403,7 @@ class WorkflowStubImpl implements WorkflowStub {
               if (r == null) {
                 return null;
               }
-              return clientOptions.getDataConverter().fromPayloads(r, resultClass, resultType);
+              return clientOptions.getDataConverter().fromPayloads(0, r, resultClass, resultType);
             });
   }
 
@@ -478,7 +478,7 @@ class WorkflowStubImpl implements WorkflowStub {
     if (!result.hasQueryRejected()) {
       Optional<Payloads> queryResult =
           result.hasQueryResult() ? Optional.of(result.getQueryResult()) : Optional.empty();
-      return clientOptions.getDataConverter().fromPayloads(queryResult, resultClass, resultType);
+      return clientOptions.getDataConverter().fromPayloads(0, queryResult, resultClass, resultType);
     } else {
       throw new WorkflowQueryRejectedException(
           execution.get(),

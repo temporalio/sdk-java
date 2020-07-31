@@ -332,7 +332,7 @@ public final class ReplayClockContext {
     if (!result.isPresent()) {
       return WorkflowInternal.DEFAULT_VERSION;
     }
-    int version = converter.fromPayloads(result, Integer.class, Integer.class);
+    int version = converter.fromPayloads(0, result, Integer.class, Integer.class);
     validateVersion(changeId, version, minSupported, maxSupported);
     return version;
   }

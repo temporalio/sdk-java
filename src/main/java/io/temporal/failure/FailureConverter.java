@@ -35,7 +35,7 @@ import io.temporal.api.failure.v1.TerminatedFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValue;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.testing.SimulatedTimeoutFailure;
 import java.io.PrintWriter;
@@ -96,11 +96,11 @@ public class FailureConverter {
           }
           Optional<Payloads> details =
               info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
-          return new ApplicationFailure(
+          return ApplicationFailure.newFromValues(
               failure.getMessage(),
               info.getType(),
-              new EncodedValue(details, dataConverter),
               info.getNonRetryable(),
+              new EncodedValues(details, dataConverter),
               cause);
         }
       case TIMEOUT_FAILURE_INFO:
@@ -113,7 +113,7 @@ public class FailureConverter {
           TimeoutFailure tf =
               new TimeoutFailure(
                   failure.getMessage(),
-                  new EncodedValue(lastHeartbeatDetails, dataConverter),
+                  new EncodedValues(lastHeartbeatDetails, dataConverter),
                   info.getTimeoutType(),
                   cause);
           tf.setStackTrace(new StackTraceElement[0]);
@@ -125,7 +125,7 @@ public class FailureConverter {
           Optional<Payloads> details =
               info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
           return new CanceledFailure(
-              failure.getMessage(), new EncodedValue(details, dataConverter), cause);
+              failure.getMessage(), new EncodedValues(details, dataConverter), cause);
         }
       case TERMINATED_FAILURE_INFO:
         return new TerminatedFailure(failure.getMessage(), cause);
@@ -144,8 +144,8 @@ public class FailureConverter {
           return new ApplicationFailure(
               failure.getMessage(),
               "ResetWorkflow",
-              new EncodedValue(details, dataConverter),
               false,
+              new EncodedValues(details, dataConverter),
               cause);
         }
       case ACTIVITY_FAILURE_INFO:
@@ -206,7 +206,7 @@ public class FailureConverter {
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
               .setNonRetryable(ae.isNonRetryable());
-      Optional<Payloads> details = ((EncodedValue) ae.getDetails()).toPayloads();
+      Optional<Payloads> details = ((EncodedValues) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
       }
@@ -215,7 +215,7 @@ public class FailureConverter {
       TimeoutFailure te = (TimeoutFailure) e;
       TimeoutFailureInfo.Builder info =
           TimeoutFailureInfo.newBuilder().setTimeoutType(te.getTimeoutType());
-      Optional<Payloads> details = ((EncodedValue) te.getLastHeartbeatDetails()).toPayloads();
+      Optional<Payloads> details = ((EncodedValues) te.getLastHeartbeatDetails()).toPayloads();
       if (details.isPresent()) {
         info.setLastHeartbeatDetails(details.get());
       }
@@ -223,7 +223,7 @@ public class FailureConverter {
     } else if (e instanceof CanceledFailure) {
       CanceledFailure ce = (CanceledFailure) e;
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
-      Optional<Payloads> details = ((EncodedValue) ce.getDetails()).toPayloads();
+      Optional<Payloads> details = ((EncodedValues) ce.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
       }
