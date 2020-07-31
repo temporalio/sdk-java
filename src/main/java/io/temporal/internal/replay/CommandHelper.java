@@ -19,6 +19,7 @@
 
 package io.temporal.internal.replay;
 
+import com.google.protobuf.util.Durations;
 import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
@@ -515,7 +516,7 @@ final class CommandHelper {
           Command.newBuilder()
               .setStartTimerCommandAttributes(
                   StartTimerCommandAttributes.newBuilder()
-                      .setStartToFireTimeoutSeconds(0)
+                      .setStartToFireTimeout(Durations.ZERO)
                       .setTimerId(FORCE_IMMEDIATE_WORKFLOW_TASK_TIMER))
               .setCommandType(CommandType.COMMAND_TYPE_START_TIMER)
               .build();

@@ -21,6 +21,7 @@ package io.temporal;
 
 import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 
+import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.workflowservice.v1.RegisterNamespaceRequest;
@@ -44,7 +45,7 @@ public class RegisterTestNamespace {
     RegisterNamespaceRequest request =
         RegisterNamespaceRequest.newBuilder()
             .setName(NAMESPACE)
-            .setWorkflowExecutionRetentionPeriodDays(1)
+            .setWorkflowExecutionRetentionPeriod(Durations.fromDays(1))
             .build();
     while (true) {
       try {

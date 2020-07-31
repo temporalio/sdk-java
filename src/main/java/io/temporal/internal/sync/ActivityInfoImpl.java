@@ -19,13 +19,14 @@
 
 package io.temporal.internal.sync;
 
+import com.google.protobuf.util.Timestamps;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 final class ActivityInfoImpl implements ActivityInfo {
   private final PollActivityTaskQueueResponse response;
@@ -65,23 +66,22 @@ final class ActivityInfoImpl implements ActivityInfo {
 
   @Override
   public long getScheduledTimestamp() {
-    // Temporal timestamp is in nanoseconds.
-    return TimeUnit.NANOSECONDS.toMillis(response.getScheduledTimestamp());
+    return Timestamps.toMillis(response.getCurrentAttemptScheduledTime());
   }
 
   @Override
   public Duration getScheduleToCloseTimeout() {
-    return Duration.ofSeconds(response.getScheduleToCloseTimeoutSeconds());
+    return ProtobufTimeUtils.ToJavaDuration(response.getScheduleToCloseTimeout());
   }
 
   @Override
   public Duration getStartToCloseTimeout() {
-    return Duration.ofSeconds(response.getStartToCloseTimeoutSeconds());
+    return ProtobufTimeUtils.ToJavaDuration(response.getStartToCloseTimeout());
   }
 
   @Override
   public Duration getHeartbeatTimeout() {
-    return Duration.ofSeconds(response.getHeartbeatTimeoutSeconds());
+    return ProtobufTimeUtils.ToJavaDuration(response.getHeartbeatTimeout());
   }
 
   @Override

@@ -28,6 +28,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.LocalActivityMarkerData;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
@@ -167,19 +168,19 @@ public final class LocalActivityWorker implements SuspendableWorker {
     private final LongSupplier currentTimeMillis;
     private final LongSupplier replayTimeUpdatedAtMillis;
     long taskStartTime;
-    private final int workflowTaskTimeoutSeconds;
+    private final Duration workflowTaskTimeout;
 
     public Task(
         ExecuteLocalActivityParameters params,
         Consumer<HistoryEvent> eventConsumer,
-        int workflowTaskTimeoutSeconds,
+        Duration workflowTaskTimeout,
         LongSupplier currentTimeMillis,
         LongSupplier replayTimeUpdatedAtMillis) {
       this.params = params;
       this.eventConsumer = eventConsumer;
       this.currentTimeMillis = currentTimeMillis;
       this.replayTimeUpdatedAtMillis = replayTimeUpdatedAtMillis;
-      this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
+      this.workflowTaskTimeout = workflowTaskTimeout;
     }
   }
 
@@ -260,8 +261,10 @@ public final class LocalActivityWorker implements SuspendableWorker {
       retryPolicy.getNonRetryableErrorTypesList().toArray(doNotRetry);
       RetryOptions retryOptions =
           RetryOptions.newBuilder()
-              .setMaximumInterval(Duration.ofSeconds(retryPolicy.getMaximumIntervalInSeconds()))
-              .setInitialInterval(Duration.ofSeconds(retryPolicy.getInitialIntervalInSeconds()))
+              .setMaximumInterval(
+                  ProtobufTimeUtils.ToJavaDuration(retryPolicy.getMaximumInterval()))
+              .setInitialInterval(
+                  ProtobufTimeUtils.ToJavaDuration(retryPolicy.getInitialInterval()))
               .setMaximumAttempts(retryPolicy.getMaximumAttempts())
               .setBackoffCoefficient(retryPolicy.getBackoffCoefficient())
               .setDoNotRetry(doNotRetry)
@@ -269,9 +272,9 @@ public final class LocalActivityWorker implements SuspendableWorker {
       long sleepMillis = retryOptions.calculateSleepTime(attempt);
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long elapsedTotal = elapsedTask + params.getElapsedTime();
-      int timeoutSeconds = activityTask.getScheduleToCloseTimeoutSeconds();
+      Duration timeout = ProtobufTimeUtils.ToJavaDuration(activityTask.getScheduleToCloseTimeout());
       Optional<Duration> expiration =
-          timeoutSeconds > 0 ? Optional.of(Duration.ofSeconds(timeoutSeconds)) : Optional.empty();
+          timeout.compareTo(Duration.ZERO) > 0 ? Optional.of(timeout) : Optional.empty();
       if (retryOptions.shouldRethrow(
           result.getTaskFailed().getFailure(), expiration, attempt, elapsedTotal, sleepMillis)) {
         return result;
@@ -280,7 +283,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       }
 
       // For small backoff we do local retry. Otherwise we will schedule timer on server side.
-      if (elapsedTask + sleepMillis < task.workflowTaskTimeoutSeconds * 1000) {
+      if (elapsedTask + sleepMillis < task.workflowTaskTimeout.toMillis()) {
         Thread.sleep(sleepMillis);
         activityTask.setAttempt(attempt + 1);
         return handleLocalActivity(task);

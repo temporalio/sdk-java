@@ -1,7 +1,7 @@
 {
   "events": [{
     "eventId": "1",
-    "timestamp": "1594739042188076900",
+    "eventTime": "2020-07-14T15:04:02Z",
     "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
     "version": "-24",
     "taskId": "1051005",
@@ -21,9 +21,9 @@
           "data": "IldvcmtmbG93VGVzdC10ZXN0QXN5bmNBY3Rpdml0eVJldHJ5LTYxNzI0YTU2LTgyOTktNDJlYy1hOThkLWYxODAwMDBlODc4NCI="
         }]
       },
-      "workflowExecutionTimeoutSeconds": 315360000,
-      "workflowRunTimeoutSeconds": 108000,
-      "workflowTaskTimeoutSeconds": 5,
+      "workflowExecutionTimeout": "315360000s",
+      "workflowRunTimeout": "108000s",
+      "workflowTaskTimeout": "5s",
       "initiator": "CONTINUE_AS_NEW_INITIATOR_WORKFLOW",
       "originalExecutionRunId": "825ddcc7-0511-46a2-83ab-462c7731a927",
       "identity": "unknown-mac",
@@ -31,7 +31,7 @@
     }
   }, {
     "eventId": "2",
-    "timestamp": "1594739042188159200",
+    "eventTime": "2020-07-14T15:04:02Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
     "version": "-24",
     "taskId": "1051006",
@@ -39,11 +39,11 @@
       "taskQueue": {
         "name": "WorkflowTest-testAsyncActivityRetry-61724a56-8299-42ec-a98d-f180000e8784"
       },
-      "startToCloseTimeoutSeconds": 5
+      "startToCloseTimeout": "5s"
     }
   }, {
     "eventId": "3",
-    "timestamp": "1594739042202285400",
+    "eventTime": "2020-07-14T15:04:02Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
     "version": "-24",
     "taskId": "1051011",
@@ -54,7 +54,7 @@
     }
   }, {
     "eventId": "4",
-    "timestamp": "1594739042214276600",
+    "eventTime": "2020-07-14T15:04:02Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
     "version": "-24",
     "taskId": "1051014",
@@ -65,7 +65,7 @@
     }
   }, {
     "eventId": "5",
-    "timestamp": "1594739042214318300",
+    "eventTime": "2020-07-14T15:04:02Z",
     "eventType": "EVENT_TYPE_ACTIVITY_TASK_SCHEDULED",
     "version": "-24",
     "taskId": "1051015",
@@ -77,21 +77,21 @@
       "taskQueue": {
         "name": "WorkflowTest-testAsyncActivityRetry-61724a56-8299-42ec-a98d-f180000e8784"
       },
-      "scheduleToCloseTimeoutSeconds": 5,
-      "scheduleToStartTimeoutSeconds": 5,
-      "startToCloseTimeoutSeconds": 5,
-      "heartbeatTimeoutSeconds": 5,
+      "scheduleToCloseTimeout": "5s",
+      "scheduleToStartTimeout": "5s",
+      "startToCloseTimeout": "5s",
+      "heartbeatTimeout": "5s",
       "workflowTaskCompletedEventId": "4",
       "retryPolicy": {
-        "initialIntervalInSeconds": 1,
+        "initialInterval": "1s",
         "backoffCoefficient": 2.0,
-        "maximumIntervalInSeconds": 1,
+        "maximumInterval": "1s",
         "maximumAttempts": 3
       }
     }
   }, {
     "eventId": "6",
-    "timestamp": "1594739044374278500",
+    "eventTime": "2020-07-14T15:04:04Z",
     "eventType": "EVENT_TYPE_ACTIVITY_TASK_STARTED",
     "version": "-24",
     "taskId": "1051026",
@@ -111,7 +111,7 @@
     }
   }, {
     "eventId": "7",
-    "timestamp": "1594739044388424000",
+    "eventTime": "2020-07-14T15:04:04Z",
     "eventType": "EVENT_TYPE_ACTIVITY_TASK_FAILED",
     "version": "-24",
     "taskId": "1051027",
@@ -131,7 +131,7 @@
     }
   }, {
     "eventId": "8",
-    "timestamp": "1594739044388460900",
+    "eventTime": "2020-07-14T15:04:04Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
     "version": "-24",
     "taskId": "1051030",
@@ -139,11 +139,11 @@
       "taskQueue": {
         "name": "unknown-mac:05311064-938c-4795-85e1-edcc7b272c65"
       },
-      "startToCloseTimeoutSeconds": 5
+      "startToCloseTimeout": "5s"
     }
   }, {
     "eventId": "9",
-    "timestamp": "1594739044397522700",
+    "eventTime": "2020-07-14T15:04:04Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
     "version": "-24",
     "taskId": "1051034",
@@ -154,7 +154,7 @@
     }
   }, {
     "eventId": "10",
-    "timestamp": "1594739044409076400",
+    "eventTime": "2020-07-14T15:04:04Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
     "version": "-24",
     "taskId": "1051037",
@@ -165,7 +165,7 @@
     }
   }, {
     "eventId": "11",
-    "timestamp": "1594739044409108400",
+    "eventTime": "2020-07-14T15:04:04Z",
     "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_FAILED",
     "version": "-24",
     "taskId": "1051038",

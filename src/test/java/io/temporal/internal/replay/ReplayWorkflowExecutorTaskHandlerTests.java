@@ -27,6 +27,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.protobuf.util.Durations;
 import com.uber.m3.tally.NoopScope;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -117,7 +118,7 @@ public class ReplayWorkflowExecutorTaskHandlerTests {
     assertNotNull(result.getTaskCompleted());
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
     assertEquals("sticky", attributes.getWorkerTaskQueue().getName());
-    assertEquals(5, attributes.getScheduleToStartTimeoutSeconds());
+    assertEquals(Durations.fromSeconds(5), attributes.getScheduleToStartTimeout());
   }
 
   private ReplayWorkflowFactory setUpMockWorkflowFactory() throws Throwable {

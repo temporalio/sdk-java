@@ -117,10 +117,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
             .setRequestId(generateUniqueId())
             .setIdentity(identity)
             .setSignalName(parameters.getSignalName())
-            .setWorkflowRunTimeoutSeconds(startParameters.getWorkflowRunTimeoutSeconds())
-            .setWorkflowExecutionTimeoutSeconds(
-                startParameters.getWorkflowExecutionTimeoutSeconds())
-            .setWorkflowTaskTimeoutSeconds(startParameters.getWorkflowTaskTimeoutSeconds())
+            .setWorkflowRunTimeout(startParameters.getWorkflowRunTimeout())
+            .setWorkflowExecutionTimeout(startParameters.getWorkflowExecutionTimeout())
+            .setWorkflowTaskTimeout(startParameters.getWorkflowTaskTimeout())
             .setWorkflowType(startParameters.getWorkflowType())
             .setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy())
             .setCronSchedule(startParameters.getCronSchedule());

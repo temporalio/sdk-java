@@ -33,7 +33,9 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -43,15 +45,21 @@ public class TestServiceUtils {
   public static void startWorkflowExecution(
       String namespace, String taskqueueName, String workflowType, WorkflowServiceStubs service)
       throws Exception {
-    startWorkflowExecution(namespace, taskqueueName, workflowType, 100, 100, service);
+    startWorkflowExecution(
+        namespace,
+        taskqueueName,
+        workflowType,
+        Duration.ofSeconds(100),
+        Duration.ofSeconds(100),
+        service);
   }
 
   public static void startWorkflowExecution(
       String namespace,
       String taskqueueName,
       String workflowType,
-      int workflowRunTimeoutSeconds,
-      int workflowTaskTimeoutSeconds,
+      Duration workflowRunTimeout,
+      Duration workflowTaskTimeout,
       WorkflowServiceStubs service)
       throws Exception {
     StartWorkflowExecutionRequest.Builder request = StartWorkflowExecutionRequest.newBuilder();
@@ -59,8 +67,8 @@ public class TestServiceUtils {
     request.setNamespace(namespace);
     request.setWorkflowId(UUID.randomUUID().toString());
     request.setTaskQueue(createNormalTaskQueue(taskqueueName));
-    request.setWorkflowRunTimeoutSeconds(workflowRunTimeoutSeconds);
-    request.setWorkflowTaskTimeoutSeconds(workflowTaskTimeoutSeconds);
+    request.setWorkflowRunTimeout(ProtobufTimeUtils.ToProtoDuration(workflowRunTimeout));
+    request.setWorkflowTaskTimeout(ProtobufTimeUtils.ToProtoDuration(workflowTaskTimeout));
     request.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
     service.blockingStub().startWorkflowExecution(request.build());
   }
@@ -68,20 +76,21 @@ public class TestServiceUtils {
   public static void respondWorkflowTaskCompletedWithSticky(
       ByteString taskToken, String stickyTaskqueueName, WorkflowServiceStubs service)
       throws Exception {
-    respondWorkflowTaskCompletedWithSticky(taskToken, stickyTaskqueueName, 100, service);
+    respondWorkflowTaskCompletedWithSticky(
+        taskToken, stickyTaskqueueName, Duration.ofSeconds(100), service);
   }
 
   public static void respondWorkflowTaskCompletedWithSticky(
       ByteString taskToken,
       String stickyTaskqueueName,
-      int startToCloseTimeout,
+      Duration startToCloseTimeout,
       WorkflowServiceStubs service)
       throws Exception {
     RespondWorkflowTaskCompletedRequest.Builder request =
         RespondWorkflowTaskCompletedRequest.newBuilder();
     StickyExecutionAttributes.Builder attributes = StickyExecutionAttributes.newBuilder();
     attributes.setWorkerTaskQueue(createStickyTaskQueue(stickyTaskqueueName));
-    attributes.setScheduleToStartTimeoutSeconds(startToCloseTimeout);
+    attributes.setScheduleToStartTimeout(ProtobufTimeUtils.ToProtoDuration(startToCloseTimeout));
     request.setStickyAttributes(attributes);
     request.setTaskToken(taskToken);
     request.addAllCommands(new ArrayList<>());

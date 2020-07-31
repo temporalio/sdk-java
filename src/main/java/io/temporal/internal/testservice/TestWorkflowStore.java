@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.Timestamp;
 import io.grpc.Deadline;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
@@ -135,7 +136,7 @@ interface TestWorkflowStore {
 
   SelfAdvancingTimer getTimer();
 
-  long currentTimeMillis();
+  Timestamp currentTime();
 
   long save(RequestContext requestContext);
 

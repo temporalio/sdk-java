@@ -596,7 +596,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testActivityRetryWithExiration() {
+  public void testActivityRetryWithExpiration() {
     startWorkerFor(TestActivityRetryWithExpiration.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
@@ -4376,7 +4376,7 @@ public class WorkflowTest {
     public void heartbeatAndThrowIO() {
       ActivityExecutionContext ctx = Activity.getExecutionContext();
       ActivityInfo info = ctx.getInfo();
-      assertEquals(info.getAttempt(), heartbeatCounter.get());
+      assertEquals(info.getAttempt(), heartbeatCounter.get() + 1);
       invocations.add("throwIO");
       Optional<Integer> heartbeatDetails = ctx.getHeartbeatDetails(int.class);
       assertEquals(heartbeatCounter.get(), (int) heartbeatDetails.orElse(0));
@@ -5317,6 +5317,7 @@ public class WorkflowTest {
     }
 
     public void setExpected(String... expected) {
+
       this.expected = Arrays.asList(expected);
     }
 
