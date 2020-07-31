@@ -75,7 +75,8 @@ public interface DataConverter {
       Type[] genericParameterTypes)
       throws DataConverterException {
     if (parameterTypes != null
-        && (genericParameterTypes == null || parameterTypes.length != genericParameterTypes.length)) {
+        && (genericParameterTypes == null
+            || parameterTypes.length != genericParameterTypes.length)) {
       throw new IllegalArgumentException(
           "parameterTypes don't match length of valueTypes: "
               + Arrays.toString(parameterTypes)
