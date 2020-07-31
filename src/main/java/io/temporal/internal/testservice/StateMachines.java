@@ -1864,14 +1864,14 @@ class StateMachines {
   // Mimics the default activity retry policy of a standard Temporal server.
   static RetryPolicy ensureDefaultFieldsForActivityRetryPolicy(RetryPolicy originalPolicy) {
     Duration initialInterval =
-        originalPolicy.getInitialInterval() == Durations.ZERO
+        Durations.compare(originalPolicy.getInitialInterval(), Durations.ZERO) == 0
             ? DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL
             : originalPolicy.getInitialInterval();
 
     return RetryPolicy.newBuilder()
         .setInitialInterval(initialInterval)
         .setMaximumInterval(
-            originalPolicy.getMaximumInterval() == Durations.ZERO
+            Durations.compare(originalPolicy.getMaximumInterval(), Durations.ZERO) == 0
                 ? Durations.fromMillis(
                     DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT
                         * Durations.toMillis(initialInterval))

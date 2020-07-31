@@ -142,7 +142,7 @@ final class TestServiceRetryState {
           .withDescription("InitialIntervalInSeconds must be greater than 0 on retry policy.")
           .asRuntimeException();
     }
-    if (policy.getInitialInterval() == Durations.ZERO) {
+    if (Durations.compare(policy.getInitialInterval(), Durations.ZERO) == 0) {
       policy.setInitialInterval(Durations.fromSeconds(1));
     }
     if (policy.getBackoffCoefficient() != 0 && policy.getBackoffCoefficient() < 1) {
