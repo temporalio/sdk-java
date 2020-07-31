@@ -56,6 +56,7 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ActivityTaskFailedException;
 import io.temporal.internal.replay.ActivityTaskTimeoutException;
@@ -323,10 +324,13 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         ScheduleActivityTaskCommandAttributes.newBuilder()
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue))
-            .setScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
-            .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
-            .setScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
-            .setHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()));
+            .setScheduleToStartTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToStartTimeout()))
+            .setStartToCloseTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+            .setScheduleToCloseTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
+            .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()));
 
     if (input.isPresent()) {
       attributes.setInput(input.get());
@@ -353,8 +357,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
     RetryPolicy.Builder builder =
         RetryPolicy.newBuilder()
-            .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
-            .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
+            .setInitialInterval(
+                ProtobufTimeUtils.ToProtoDuration(retryOptions.getInitialInterval()))
+            .setMaximumInterval(
+                ProtobufTimeUtils.ToProtoDuration(retryOptions.getMaximumInterval()))
             .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
             .setMaximumAttempts(retryOptions.getMaximumAttempts());
 
@@ -377,10 +383,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         PollActivityTaskQueueResponse.newBuilder()
             .setWorkflowNamespace(this.context.getNamespace())
             .setWorkflowExecution(this.context.getWorkflowExecution())
-            .setScheduledTimestamp(System.currentTimeMillis())
-            .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
-            .setScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
-            .setStartedTimestamp(System.currentTimeMillis())
+            .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
+            .setStartToCloseTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+            .setScheduleToCloseTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
+            .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
     if (input.isPresent()) {
@@ -438,10 +446,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (input.isPresent()) {
       attributes.setInput(input.get());
     }
-    attributes.setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()));
-    attributes.setWorkflowExecutionTimeoutSeconds(
-        roundUpToSeconds(options.getWorkflowExecutionTimeout()));
-    attributes.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()));
+    attributes.setWorkflowRunTimeout(
+        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowRunTimeout()));
+    attributes.setWorkflowExecutionTimeout(
+        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowExecutionTimeout()));
+    attributes.setWorkflowTaskTimeout(
+        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowTaskTimeout()));
     String taskQueue = options.getTaskQueue();
     TaskQueue.Builder tl = TaskQueue.newBuilder();
     if (taskQueue != null) {
@@ -818,8 +828,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     }
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
-      attributes.setWorkflowRunTimeoutSeconds(roundUpToSeconds(ops.getWorkflowRunTimeout()));
-      attributes.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
+      attributes.setWorkflowRunTimeout(
+          ProtobufTimeUtils.ToProtoDuration(ops.getWorkflowRunTimeout()));
+      attributes.setWorkflowTaskTimeout(
+          ProtobufTimeUtils.ToProtoDuration(ops.getWorkflowTaskTimeout()));
       if (!ops.getTaskQueue().isEmpty()) {
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(ops.getTaskQueue()));
       }

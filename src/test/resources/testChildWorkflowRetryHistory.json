@@ -1,7 +1,7 @@
 {
   "events": [{
     "eventId": "1",
-    "timestamp": "1594739135111415100",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
     "version": "-24",
     "taskId": "1051760",
@@ -21,9 +21,9 @@
           "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LWM1YzU5OGNkLTA1ZDYtNDc5MC1iNDNlLWViZjE0OWFlZTY1YiI="
         }]
       },
-      "workflowExecutionTimeoutSeconds": 315360000,
-      "workflowRunTimeoutSeconds": 20,
-      "workflowTaskTimeoutSeconds": 2,
+      "workflowExecutionTimeout": "315360000s",
+      "workflowRunTimeout": "20s",
+      "workflowTaskTimeout": "2s",
       "initiator": "CONTINUE_AS_NEW_INITIATOR_WORKFLOW",
       "originalExecutionRunId": "9a44eb45-aedc-4183-9ed2-63b4e2a799f2",
       "identity": "unknown-mac",
@@ -31,7 +31,7 @@
     }
   }, {
     "eventId": "2",
-    "timestamp": "1594739135111502000",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
     "version": "-24",
     "taskId": "1051761",
@@ -39,11 +39,11 @@
       "taskQueue": {
         "name": "WorkflowTest-testChildWorkflowRetry-c5c598cd-05d6-4790-b43e-ebf149aee65b"
       },
-      "startToCloseTimeoutSeconds": 2
+      "startToCloseTimeout": "2s"
     }
   }, {
     "eventId": "3",
-    "timestamp": "1594739135124182200",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
     "version": "-24",
     "taskId": "1051766",
@@ -54,7 +54,7 @@
     }
   }, {
     "eventId": "4",
-    "timestamp": "1594739135135211500",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
     "version": "-24",
     "taskId": "1051769",
@@ -65,7 +65,7 @@
     }
   }, {
     "eventId": "5",
-    "timestamp": "1594739135135244900",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED",
     "version": "-24",
     "taskId": "1051770",
@@ -90,22 +90,22 @@
           "data": "MA=="
         }]
       },
-      "workflowExecutionTimeoutSeconds": 315360000,
-      "workflowRunTimeoutSeconds": 500,
-      "workflowTaskTimeoutSeconds": 2,
+      "workflowExecutionTimeout": "315360000s",
+      "workflowRunTimeout": "500s",
+      "workflowTaskTimeout": "2s",
       "parentClosePolicy": "PARENT_CLOSE_POLICY_TERMINATE",
       "workflowTaskCompletedEventId": "4",
       "workflowIdReusePolicy": "WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE",
       "retryPolicy": {
-        "initialIntervalInSeconds": 1,
+        "initialInterval": "1s",
         "backoffCoefficient": 2.0,
-        "maximumIntervalInSeconds": 1,
+        "maximumInterval": "1s",
         "maximumAttempts": 3
       }
     }
   }, {
     "eventId": "6",
-    "timestamp": "1594739135149882400",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED",
     "version": "-24",
     "taskId": "1051773",
@@ -121,7 +121,7 @@
     }
   }, {
     "eventId": "7",
-    "timestamp": "1594739135149925300",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
     "version": "-24",
     "taskId": "1051775",
@@ -129,11 +129,11 @@
       "taskQueue": {
         "name": "unknown-mac:065bf5af-6b61-4767-be7d-2e4f12da4da4"
       },
-      "startToCloseTimeoutSeconds": 2
+      "startToCloseTimeout": "2s"
     }
   }, {
     "eventId": "8",
-    "timestamp": "1594739135163322800",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
     "version": "-24",
     "taskId": "1051779",
@@ -144,7 +144,7 @@
     }
   }, {
     "eventId": "9",
-    "timestamp": "1594739135173518700",
+    "eventTime": "2020-07-14T15:05:35Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
     "version": "-24",
     "taskId": "1051782",
@@ -155,7 +155,7 @@
     }
   }, {
     "eventId": "10",
-    "timestamp": "1594739137335479600",
+    "eventTime": "2020-07-14T15:05:37Z",
     "eventType": "EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED",
     "version": "-24",
     "taskId": "1051784",
@@ -181,7 +181,7 @@
     }
   }, {
     "eventId": "11",
-    "timestamp": "1594739137335518000",
+    "eventTime": "2020-07-14T15:05:37Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
     "version": "-24",
     "taskId": "1051786",
@@ -189,11 +189,11 @@
       "taskQueue": {
         "name": "unknown-mac:065bf5af-6b61-4767-be7d-2e4f12da4da4"
       },
-      "startToCloseTimeoutSeconds": 2
+      "startToCloseTimeout": "2s"
     }
   }, {
     "eventId": "12",
-    "timestamp": "1594739137343051500",
+    "eventTime": "2020-07-14T15:05:37Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
     "version": "-24",
     "taskId": "1051790",
@@ -204,7 +204,7 @@
     }
   }, {
     "eventId": "13",
-    "timestamp": "1594739137353723800",
+    "eventTime": "2020-07-14T15:05:37Z",
     "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
     "version": "-24",
     "taskId": "1051793",
@@ -215,7 +215,7 @@
     }
   }, {
     "eventId": "14",
-    "timestamp": "1594739137353751900",
+    "eventTime": "2020-07-14T15:05:37Z",
     "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_FAILED",
     "version": "-24",
     "taskId": "1051794",

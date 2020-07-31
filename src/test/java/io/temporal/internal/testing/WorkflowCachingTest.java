@@ -118,13 +118,19 @@ public class WorkflowCachingTest {
 
   @Test
   public void taskTimeoutWillRescheduleTheTaskOnTheGlobalList() throws Exception {
-    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, 10, 2, service);
+    TestServiceUtils.startWorkflowExecution(
+        NAMESPACE,
+        TASK_QUEUE,
+        WORKFLOW_TYPE,
+        Duration.ofSeconds(10),
+        Duration.ofSeconds(2),
+        service);
     PollWorkflowTaskQueueResponse response =
         TestServiceUtils.pollWorkflowTaskQueue(
             NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
     TestServiceUtils.respondWorkflowTaskCompletedWithSticky(
-        response.getTaskToken(), HOST_TASKQUEUE, 1, service);
+        response.getTaskToken(), HOST_TASKQUEUE, Duration.ofSeconds(1), service);
     TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
     TestServiceUtils.pollWorkflowTaskQueue(
         NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);

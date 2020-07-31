@@ -20,6 +20,7 @@
 package io.temporal.internal.replay;
 
 import com.google.common.collect.PeekingIterator;
+import com.google.protobuf.util.Timestamps;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
@@ -30,7 +31,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 class HistoryHelper {
 
@@ -209,7 +209,7 @@ class HistoryHelper {
         }
 
         if (eventType == EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED || !events.hasNext()) {
-          replayCurrentTimeMilliseconds = TimeUnit.NANOSECONDS.toMillis(event.getTimestamp());
+          replayCurrentTimeMilliseconds = Timestamps.toMillis(event.getEventTime());
           if (!events.hasNext()) {
             replay = false;
             nextCommandEventId =

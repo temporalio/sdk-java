@@ -19,31 +19,34 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Durations;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.enums.v1.RetryState;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 final class TestServiceRetryState {
 
   static class BackoffInterval {
-    private final int intervalSeconds;
+    private final Duration interval;
     private final RetryState retryState;
 
-    BackoffInterval(int intervalSeconds) {
-      this.intervalSeconds = intervalSeconds;
+    BackoffInterval(Duration interval) {
+      this.interval = interval;
       this.retryState = RetryState.RETRY_STATE_IN_PROGRESS;
     }
 
     BackoffInterval(RetryState retryState) {
-      this.intervalSeconds = -1;
+      this.interval = Duration.ofMillis(-1000);
       this.retryState = retryState;
     }
 
-    public int getIntervalSeconds() {
-      return intervalSeconds;
+    public Duration getInterval() {
+      return interval;
     }
 
     public RetryState getRetryState() {
@@ -52,16 +55,17 @@ final class TestServiceRetryState {
   }
 
   private final RetryPolicy retryPolicy;
-  private final long expirationTime;
+  private final Timestamp expirationTime;
   private final int attempt;
 
-  TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime) {
-    this(valiateAndOverrideRetryPolicy(retryPolicy), expirationTime, 0);
+  TestServiceRetryState(RetryPolicy retryPolicy, Timestamp expirationTime) {
+    this(validateAndOverrideRetryPolicy(retryPolicy), expirationTime, 1);
   }
 
-  private TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime, int attempt) {
+  private TestServiceRetryState(RetryPolicy retryPolicy, Timestamp expirationTime, int attempt) {
     this.retryPolicy = retryPolicy;
-    this.expirationTime = expirationTime == 0 ? Long.MAX_VALUE : expirationTime;
+    this.expirationTime =
+        Timestamps.toMillis(expirationTime) == 0 ? Timestamps.MAX_VALUE : expirationTime;
     this.attempt = attempt;
   }
 
@@ -69,7 +73,7 @@ final class TestServiceRetryState {
     return retryPolicy;
   }
 
-  long getExpirationTime() {
+  Timestamp getExpirationTime() {
     return expirationTime;
   }
 
@@ -81,9 +85,9 @@ final class TestServiceRetryState {
     return new TestServiceRetryState(retryPolicy, expirationTime, attempt + 1);
   }
 
-  BackoffInterval getBackoffIntervalInSeconds(Optional<String> errorType, long currentTimeMillis) {
+  BackoffInterval getBackoffIntervalInSeconds(Optional<String> errorType, Timestamp currentTime) {
     RetryPolicy retryPolicy = getRetryPolicy();
-    // check if error is non-retriable
+    // check if error is non-retryable
     List<String> nonRetryableErrorTypes = retryPolicy.getNonRetryableErrorTypesList();
     if (nonRetryableErrorTypes != null && errorType.isPresent()) {
       String type = errorType.get();
@@ -93,21 +97,20 @@ final class TestServiceRetryState {
         }
       }
     }
-    long expirationTime = getExpirationTime();
-    if (retryPolicy.getMaximumAttempts() == 0 && expirationTime == 0) {
+    Timestamp expirationTime = getExpirationTime();
+    if (retryPolicy.getMaximumAttempts() == 0 && Timestamps.toMillis(expirationTime) == 0) {
       return new BackoffInterval(RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET);
     }
 
-    if (retryPolicy.getMaximumAttempts() > 0
-        && getAttempt() >= retryPolicy.getMaximumAttempts() - 1) {
-      // currAttempt starts from 0.
+    if (retryPolicy.getMaximumAttempts() > 0 && getAttempt() >= retryPolicy.getMaximumAttempts()) {
+      // currAttempt starts from 1.
       // MaximumAttempts is the total attempts, including initial (non-retry) attempt.
       return new BackoffInterval(RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED);
     }
-    long initInterval = TimeUnit.SECONDS.toMillis(retryPolicy.getInitialIntervalInSeconds());
+    long initInterval = Durations.toMillis(retryPolicy.getInitialInterval());
     long nextInterval =
-        (long) (initInterval * Math.pow(retryPolicy.getBackoffCoefficient(), getAttempt()));
-    long maxInterval = TimeUnit.SECONDS.toMillis(retryPolicy.getMaximumIntervalInSeconds());
+        (long) (initInterval * Math.pow(retryPolicy.getBackoffCoefficient(), getAttempt() - 1));
+    long maxInterval = Durations.toMillis(retryPolicy.getMaximumInterval());
     if (nextInterval <= 0) {
       // math.Pow() could overflow
       if (maxInterval > 0) {
@@ -123,23 +126,24 @@ final class TestServiceRetryState {
     }
 
     long backoffInterval = nextInterval;
-    long nextScheduleTime = currentTimeMillis + backoffInterval;
-    if (expirationTime != 0 && nextScheduleTime > expirationTime) {
+    Timestamp nextScheduleTime = Timestamps.add(currentTime, Durations.fromMillis(backoffInterval));
+    if (expirationTime.getNanos() != 0
+        && Timestamps.compare(nextScheduleTime, expirationTime) > 0) {
       return new BackoffInterval(RetryState.RETRY_STATE_TIMEOUT);
     }
-    int result = (int) TimeUnit.MILLISECONDS.toSeconds((long) Math.ceil((double) backoffInterval));
-    return new BackoffInterval(result);
+
+    return new BackoffInterval(Duration.ofMillis(backoffInterval));
   }
 
-  static RetryPolicy valiateAndOverrideRetryPolicy(RetryPolicy p) {
+  static RetryPolicy validateAndOverrideRetryPolicy(RetryPolicy p) {
     RetryPolicy.Builder policy = p.toBuilder();
-    if (policy.getInitialIntervalInSeconds() < 0) {
+    if (Durations.compare(policy.getInitialInterval(), Durations.ZERO) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("InitialIntervalInSeconds must be greater than 0 on retry policy.")
           .asRuntimeException();
     }
-    if (policy.getInitialIntervalInSeconds() == 0) {
-      policy.setInitialIntervalInSeconds(1);
+    if (Durations.compare(policy.getInitialInterval(), Durations.ZERO) == 0) {
+      policy.setInitialInterval(Durations.fromSeconds(1));
     }
     if (policy.getBackoffCoefficient() != 0 && policy.getBackoffCoefficient() < 1) {
       throw Status.INVALID_ARGUMENT
@@ -149,13 +153,13 @@ final class TestServiceRetryState {
     if (policy.getBackoffCoefficient() == 0) {
       policy.setBackoffCoefficient(2d);
     }
-    if (policy.getMaximumIntervalInSeconds() < 0) {
+    if (Durations.compare(policy.getMaximumInterval(), Durations.ZERO) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("MaximumIntervalInSeconds cannot be less than 0 on retry policy.")
           .asRuntimeException();
     }
-    if (policy.getMaximumIntervalInSeconds() > 0
-        && policy.getMaximumIntervalInSeconds() < policy.getInitialIntervalInSeconds()) {
+    if (Durations.compare(policy.getMaximumInterval(), Durations.ZERO) > 0
+        && Durations.compare(policy.getMaximumInterval(), policy.getInitialInterval()) < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription(
               "MaximumIntervalInSeconds cannot be less than InitialIntervalInSeconds on retry policy.")
