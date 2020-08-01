@@ -39,7 +39,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.SignalExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.common.converter.EncodedValue;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TerminatedFailure;
@@ -218,7 +218,7 @@ final class ReplayChildWorkflowContext {
       if (scheduled != null) {
         // TODO(maxim): Add support for passing details without using converter here
         CanceledFailure e =
-            new CanceledFailure("Child canceled", new EncodedValue(attributes.getDetails()), null);
+            new CanceledFailure("Child canceled", new EncodedValues(attributes.getDetails()), null);
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
         completionCallback.accept(Optional.empty(), e);

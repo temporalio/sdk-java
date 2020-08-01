@@ -56,6 +56,7 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ActivityTaskFailedException;
 import io.temporal.internal.replay.ActivityTaskTimeoutException;
@@ -178,7 +179,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromPayloads(r, returnClass, resultType));
+    return binaryResult.thenApply((r) -> converter.fromPayloads(0, r, returnClass, resultType));
   }
 
   private Promise<Optional<Payloads>> executeActivityOnce(
@@ -289,7 +290,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromPayloads(r, returnClass, returnType));
+    return binaryResult.thenApply((r) -> converter.fromPayloads(0, r, returnClass, returnType));
   }
 
   private Promise<Optional<Payloads>> executeLocalActivityOnce(
@@ -323,10 +324,13 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         ScheduleActivityTaskCommandAttributes.newBuilder()
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue))
-            .setScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
-            .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
-            .setScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
-            .setHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()));
+            .setScheduleToStartTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToStartTimeout()))
+            .setStartToCloseTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+            .setScheduleToCloseTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
+            .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()));
 
     if (input.isPresent()) {
       attributes.setInput(input.get());
@@ -351,12 +355,20 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
-    return RetryPolicy.newBuilder()
-        .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
-        .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
-        .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
-        .setMaximumAttempts(retryOptions.getMaximumAttempts())
-        .addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
+    RetryPolicy.Builder builder =
+        RetryPolicy.newBuilder()
+            .setInitialInterval(
+                ProtobufTimeUtils.ToProtoDuration(retryOptions.getInitialInterval()))
+            .setMaximumInterval(
+                ProtobufTimeUtils.ToProtoDuration(retryOptions.getMaximumInterval()))
+            .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
+            .setMaximumAttempts(retryOptions.getMaximumAttempts());
+
+    if (retryOptions.getDoNotRetry() != null) {
+      builder = builder.addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
+    }
+
+    return builder;
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
@@ -371,10 +383,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         PollActivityTaskQueueResponse.newBuilder()
             .setWorkflowNamespace(this.context.getNamespace())
             .setWorkflowExecution(this.context.getWorkflowExecution())
-            .setScheduledTimestamp(System.currentTimeMillis())
-            .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
-            .setScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
-            .setStartedTimestamp(System.currentTimeMillis())
+            .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
+            .setStartToCloseTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+            .setScheduleToCloseTimeout(
+                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
+            .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
     if (input.isPresent()) {
@@ -398,7 +412,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
     Promise<Optional<Payloads>> output =
         executeChildWorkflow(workflowType, options, input, execution);
-    Promise<R> result = output.thenApply((b) -> converter.fromPayloads(b, returnClass, returnType));
+    Promise<R> result =
+        output.thenApply((b) -> converter.fromPayloads(0, b, returnClass, returnType));
     return new WorkflowResult<>(result, execution);
   }
 
@@ -432,10 +447,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (input.isPresent()) {
       attributes.setInput(input.get());
     }
-    attributes.setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()));
-    attributes.setWorkflowExecutionTimeoutSeconds(
-        roundUpToSeconds(options.getWorkflowExecutionTimeout()));
-    attributes.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()));
+    attributes.setWorkflowRunTimeout(
+        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowRunTimeout()));
+    attributes.setWorkflowExecutionTimeout(
+        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowExecutionTimeout()));
+    attributes.setWorkflowTaskTimeout(
+        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowTaskTimeout()));
     String taskQueue = options.getTaskQueue();
     TaskQueue.Builder tl = TaskQueue.newBuilder();
     if (taskQueue != null) {
@@ -568,7 +585,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
                 R r = func.apply();
                 return dataConverter.toPayloads(r);
               });
-      return dataConverter.fromPayloads(result, resultClass, resultType);
+      return dataConverter.fromPayloads(0, result, resultClass, resultType);
     } catch (Error e) {
       throw e;
     } catch (Exception e) {
@@ -603,7 +620,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             (storedBinary) -> {
               Optional<R> stored =
                   storedBinary.map(
-                      (b) -> converter.fromPayloads(Optional.of(b), resultClass, resultType));
+                      (b) -> converter.fromPayloads(0, Optional.of(b), resultClass, resultType));
               R funcResult =
                   Objects.requireNonNull(
                       func.apply(), "mutableSideEffect function " + "returned null");
@@ -624,7 +641,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (unserialized != null) {
       return unserialized;
     }
-    return converter.fromPayloads(payloads, resultClass, resultType);
+    return converter.fromPayloads(0, payloads, resultClass, resultType);
   }
 
   @Override
@@ -679,7 +696,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     queryCallbacks.put(
         queryType,
         (input) -> {
-          Object[] args = converter.arrayFromPayloads(input, argTypes, genericArgTypes);
+          Object[] args =
+              DataConverter.arrayFromPayloads(converter, input, argTypes, genericArgTypes);
           Object result = callback.apply(args);
           return converter.toPayloads(result);
         });
@@ -697,7 +715,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     Functions.Proc2<Optional<Payloads>, Long> signalCallback =
         (input, eventId) -> {
           try {
-            Object[] args = converter.arrayFromPayloads(input, argTypes, genericArgTypes);
+            Object[] args =
+                DataConverter.arrayFromPayloads(converter, input, argTypes, genericArgTypes);
             callback.apply(args);
           } catch (DataConverterException e) {
             logSerializationException(signalType, eventId, e);
@@ -812,8 +831,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     }
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
-      attributes.setWorkflowRunTimeoutSeconds(roundUpToSeconds(ops.getWorkflowRunTimeout()));
-      attributes.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
+      attributes.setWorkflowRunTimeout(
+          ProtobufTimeUtils.ToProtoDuration(ops.getWorkflowRunTimeout()));
+      attributes.setWorkflowTaskTimeout(
+          ProtobufTimeUtils.ToProtoDuration(ops.getWorkflowTaskTimeout()));
       if (!ops.getTaskQueue().isEmpty()) {
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(ops.getTaskQueue()));
       }
@@ -868,7 +889,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   public <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
     DataConverter dataConverter = getDataConverter();
-    return dataConverter.fromPayloads(lastCompletionResult, resultClass, resultType);
+    return dataConverter.fromPayloads(0, lastCompletionResult, resultClass, resultType);
   }
 
   @Override

@@ -19,8 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
@@ -43,11 +41,12 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.common.converter.EncodedValue;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -141,6 +140,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                   .getWorkflowClientOptions()
                   .getDataConverter()
                   .fromPayloads(
+                      0,
                       requestDetails,
                       activityHeartbetListener.valueClass,
                       activityHeartbetListener.valueType);
@@ -236,12 +236,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toPayloads(args);
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
-              .setScheduleToCloseTimeoutSeconds(
-                  roundUpToSeconds(options.getScheduleToCloseTimeout()))
-              .setHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()))
-              .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
-              .setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
-              .setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
+              .setScheduleToCloseTimeout(
+                  ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
+              .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()))
+              .setStartToCloseTimeout(
+                  ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+              .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
+              .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(
@@ -382,7 +383,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         return testEnvironmentOptions
             .getWorkflowClientOptions()
             .getDataConverter()
-            .fromPayloads(result, resultClass, resultType);
+            .fromPayloads(0, result, resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();
@@ -404,7 +405,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           if (taskCancelled != null) {
             throw new CanceledFailure(
                 "canceled",
-                new EncodedValue(
+                new EncodedValues(
                     taskCancelled.hasDetails()
                         ? Optional.of(taskCancelled.getDetails())
                         : Optional.empty(),

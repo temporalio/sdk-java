@@ -20,31 +20,31 @@
 package io.temporal.failure;
 
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValue;
-import io.temporal.common.converter.Value;
+import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.converter.Values;
 
 public final class CanceledFailure extends TemporalFailure {
-  private final Value details;
+  private final Values details;
 
-  public CanceledFailure(String message, Value details, Throwable cause) {
+  public CanceledFailure(String message, Values details, Throwable cause) {
     super(message, message, cause);
     this.details = details;
   }
 
   public CanceledFailure(String message, Object details) {
-    this(message, new EncodedValue(details), null);
+    this(message, new EncodedValues(details), null);
   }
 
   public CanceledFailure(String message) {
     this(message, null);
   }
 
-  public Value getDetails() {
+  public Values getDetails() {
     return details;
   }
 
   @Override
   public void setDataConverter(DataConverter converter) {
-    ((EncodedValue) details).setDataConverter(converter);
+    ((EncodedValues) details).setDataConverter(converter);
   }
 }

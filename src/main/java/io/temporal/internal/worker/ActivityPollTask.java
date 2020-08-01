@@ -23,13 +23,13 @@ import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_
 
 import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Scope;
-import com.uber.m3.util.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import org.slf4j.Logger;
@@ -108,8 +108,9 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
     metricsScope
         .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
         .record(
-            Duration.ofNanos(
-                result.getStartedTimestamp() - result.getScheduledTimestampThisAttempt()));
+            ProtobufTimeUtils.ToM3Duration(
+                result.getStartedTime(), result.getCurrentAttemptScheduledTime()));
+
     return result;
   }
 }

@@ -194,7 +194,7 @@ public class SyncWorkflowWorker
     Optional<Payloads> serializedArgs = dataConverter.toPayloads(args);
     Optional<Payloads> result =
         workflowWorker.queryWorkflowExecution(execution, queryType, serializedArgs);
-    return dataConverter.fromPayloads(result, resultClass, resultType);
+    return dataConverter.fromPayloads(0, result, resultClass, resultType);
   }
 
   public <R> R queryWorkflowExecution(
@@ -207,7 +207,7 @@ public class SyncWorkflowWorker
     Optional<Payloads> serializedArgs = dataConverter.toPayloads(args);
     Optional<Payloads> result =
         workflowWorker.queryWorkflowExecution(history, queryType, serializedArgs);
-    return dataConverter.fromPayloads(result, resultClass, resultType);
+    return dataConverter.fromPayloads(0, result, resultClass, resultType);
   }
 
   @Override

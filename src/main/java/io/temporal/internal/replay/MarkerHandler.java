@@ -89,6 +89,7 @@ class MarkerHandler {
               : Optional.empty();
       MarkerData.MarkerHeader header =
           converter.fromPayloads(
+              0,
               Optional.of(attributes.getDetailsOrThrow(MUTABLE_MARKER_HEADER_KEY)),
               MarkerData.MarkerHeader.class,
               MarkerData.MarkerHeader.class);

@@ -19,9 +19,11 @@
 
 package io.temporal.common.converter;
 
+import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -51,30 +53,57 @@ public interface DataConverter {
   Optional<Payloads> toPayloads(Object... values) throws DataConverterException;
 
   /**
-   * Implements conversion of a single value.
+   * Implements conversion of an array of values of different types. Useful for deserializing
+   * arguments of function invocations.
    *
-   * @param content Serialized value to convert to a Java object.
+   * @param index index of the value in the payloads
+   * @param content serialized value to convert to Java objects.
    * @param parameterType type of the parameter stored in the content
    * @param genericParameterType generic type of the parameter stored in the content
    * @return converted Java object
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  <T> T fromPayloads(Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
+  <T> T fromPayloads(
+      int index, Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
       throws DataConverterException;
 
-  /**
-   * Implements conversion of an array of values of different types. Useful for deserializing
-   * arguments of function invocations.
-   *
-   * @param content serialized value to convert to Java objects.
-   * @param parameterTypes types of the parameters stored in the content
-   * @param genericParameterTypes generic types of the parameters stored in the content
-   * @return array of converted Java objects
-   * @throws DataConverterException if conversion of the data passed as parameter failed for any
-   *     reason.
-   */
-  Object[] arrayFromPayloads(
-      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
-      throws DataConverterException;
+  static Object[] arrayFromPayloads(
+      DataConverter converter,
+      Optional<Payloads> content,
+      Class<?>[] parameterTypes,
+      Type[] genericParameterTypes)
+      throws DataConverterException {
+    if (parameterTypes != null
+        && (genericParameterTypes == null
+            || parameterTypes.length != genericParameterTypes.length)) {
+      throw new IllegalArgumentException(
+          "parameterTypes don't match length of valueTypes: "
+              + Arrays.toString(parameterTypes)
+              + "<>"
+              + Arrays.toString(genericParameterTypes));
+    }
+
+    int length = parameterTypes.length;
+    Object[] result = new Object[length];
+    if (!content.isPresent()) {
+      // Return defaults for all the parameters
+      for (int i = 0; i < parameterTypes.length; i++) {
+        result[i] = Defaults.defaultValue((Class<?>) genericParameterTypes[i]);
+      }
+      return result;
+    }
+    Payloads payloads = content.get();
+    int count = payloads.getPayloadsCount();
+    for (int i = 0; i < parameterTypes.length; i++) {
+      Class<?> pt = parameterTypes[i];
+      Type gt = genericParameterTypes[i];
+      if (i >= count) {
+        result[i] = Defaults.defaultValue((Class<?>) gt);
+      } else {
+        result[i] = converter.fromPayload(payloads.getPayloads(i), pt, gt);
+      }
+    }
+    return result;
+  }
 }

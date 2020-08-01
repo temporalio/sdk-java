@@ -19,7 +19,8 @@
 
 package io.temporal.internal.testservice;
 
-import com.google.protobuf.Int64Value;
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -84,7 +85,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       }
     }
 
-    void addAllLocked(List<HistoryEvent> events, long timeInNanos) {
+    void addAllLocked(List<HistoryEvent> events, Timestamp eventTime) {
       for (HistoryEvent event : events) {
         HistoryEvent.Builder eBuilder = event.toBuilder();
         if (completed) {
@@ -96,8 +97,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         }
         eBuilder.setEventId(history.size() + 1L);
         // It can be set in StateMachines.startActivityTask
-        if (eBuilder.getTimestamp() == 0) {
-          eBuilder.setTimestamp(timeInNanos);
+        if (Timestamps.toMillis(eBuilder.getEventTime()) == 0) {
+          eBuilder.setEventTime(eventTime);
         }
         history.add(eBuilder.build());
         completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(eBuilder);
@@ -186,8 +187,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public long currentTimeMillis() {
-    return timerService.getClock().getAsLong();
+  public Timestamp currentTime() {
+    return Timestamps.fromMillis(timerService.getClock().getAsLong());
   }
 
   @Override
@@ -208,7 +209,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         histories.put(executionId, history);
       }
       history.checkNextEventId(ctx.getInitialEventId());
-      history.addAllLocked(events, ctx.currentTimeInNanoseconds());
+      history.addAllLocked(events, ctx.currentTime());
       result = history.getNextEventIdLocked();
       timerService.updateLocks(ctx.getTimerLocks());
       ctx.fireCallbacks(history.getEventsLocked().size());
@@ -252,12 +253,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     if (timers != null) {
       for (Timer t : timers) {
         log.trace(
-            "scheduling timer with "
-                + t.getDelaySeconds()
-                + "seconds delay. Current time="
-                + this.currentTimeMillis());
-        timerService.schedule(
-            Duration.ofSeconds(t.getDelaySeconds()), t.getCallback(), t.getTaskInfo());
+            "scheduling timer with " + t.getDelay() + "delay. Current time=" + this.currentTime());
+        timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
       }
     }
     return result;
@@ -275,8 +272,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
-        timerService.schedule(
-            Duration.ofSeconds(t.getDelaySeconds()), t.getCallback(), t.getTaskInfo());
+        timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
       }
     }
 
@@ -482,8 +478,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             WorkflowExecutionInfo.newBuilder()
                 .setExecution(executionId.getExecution())
                 .setHistoryLength(history.size())
-                .setStartTime(
-                    Int64Value.newBuilder().setValue(history.get(0).getTimestamp()).build())
+                .setStartTime(history.get(0).getEventTime())
                 .setType(
                     history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
                 .build();
@@ -502,8 +497,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             WorkflowExecutionInfo.newBuilder()
                 .setExecution(executionId.getExecution())
                 .setHistoryLength(history.size())
-                .setStartTime(
-                    Int64Value.newBuilder().setValue(history.get(0).getTimestamp()).build())
+                .setStartTime(history.get(0).getEventTime())
                 .setType(
                     history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
                 .setStatus(WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1)))

@@ -24,28 +24,31 @@ import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.Optional;
 
-public final class EncodedValue implements Value {
+public final class EncodedValues implements Values {
   private Optional<Payloads> payloads;
   private DataConverter converter;
-  private final Optional<Object> value;
+  private Object[] values;
 
-  public EncodedValue(Optional<Payloads> payloads, DataConverter converter) {
+  public EncodedValues(Optional<Payloads> payloads, DataConverter converter) {
     this.payloads = Objects.requireNonNull(payloads);
     this.converter = converter;
-    this.value = null;
+    this.values = null;
   }
 
-  public <T> EncodedValue(T value) {
-    this.value = Optional.ofNullable(value);
+  public EncodedValues(Object... values) {
+    this.values = values;
     this.payloads = null;
   }
 
   public Optional<Payloads> toPayloads() {
     if (payloads == null) {
-      if (converter == null) {
+      if (values == null || values.length == 0) {
+        payloads = Optional.empty();
+      } else if (converter == null) {
         throw new IllegalStateException("converter not set");
+      } else {
+        payloads = converter.toPayloads(values);
       }
-      payloads = value.isPresent() ? converter.toPayloads(value.get()) : Optional.empty();
     }
     return payloads;
   }
@@ -55,22 +58,35 @@ public final class EncodedValue implements Value {
   }
 
   @Override
-  public <T> T get(Class<T> parameterType) throws DataConverterException {
-    if (value != null) {
+  public int getSize() {
+    if (values != null) {
+      return values.length;
+    } else {
+      if (payloads.isPresent()) {
+        return payloads.get().getPayloadsCount();
+      } else {
+        return 0;
+      }
+    }
+  }
+
+  @Override
+  public <T> T get(int index, Class<T> parameterType) throws DataConverterException {
+    return get(index, parameterType, parameterType);
+  }
+
+  @Override
+  public <T> T get(int index, Class<T> parameterType, Type genericParameterType)
+      throws DataConverterException {
+    if (values != null) {
       @SuppressWarnings("unchecked")
-      T result = (T) value.orElse(null);
+      T result = (T) values[index];
       return result;
     } else {
       if (converter == null) {
         throw new IllegalStateException("converter not set");
       }
-      return converter.fromPayloads(payloads, parameterType, parameterType);
+      return converter.fromPayloads(index, payloads, parameterType, genericParameterType);
     }
-  }
-
-  @Override
-  public <T> T get(Class<T> parameterType, Type genericParameterType)
-      throws DataConverterException {
-    return converter.fromPayloads(payloads, parameterType, genericParameterType);
   }
 }

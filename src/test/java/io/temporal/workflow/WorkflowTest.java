@@ -596,7 +596,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testActivityRetryWithExiration() {
+  public void testActivityRetryWithExpiration() {
     startWorkerFor(TestActivityRetryWithExpiration.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
@@ -881,6 +881,82 @@ public class WorkflowTest {
           e.getCause().getCause().toString());
     }
     assertEquals(3, activitiesImpl.applicationFailureCounter.get());
+  }
+
+  public static class TestActivityApplicationNoSpecifiedRetry implements TestWorkflow1 {
+
+    private TestActivities activities;
+
+    @Override
+    public String execute(String taskQueue) {
+      ActivityOptions options =
+          ActivityOptions.newBuilder()
+              .setTaskQueue(taskQueue)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
+              .build();
+      activities = Workflow.newActivityStub(TestActivities.class, options);
+      activities.throwApplicationFailureThreeTimes();
+      return "ignored";
+    }
+  }
+
+  @Test
+  public void testActivityApplicationNoSpecifiedRetry() {
+    startWorkerFor(TestActivityApplicationNoSpecifiedRetry.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+    try {
+      workflowStub.execute(taskQueue);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("simulatedType", ((ApplicationFailure) e.getCause().getCause()).getType());
+    }
+
+    // Since no retry policy is passed by the client, we fall back to the default retry policy of
+    // the mock server, which mimics the default on a default Temporal deployment.
+    assertEquals(3, activitiesImpl.applicationFailureCounter.get());
+  }
+
+  public static class TestActivityApplicationOptOutOfRetry implements TestWorkflow1 {
+
+    private TestActivities activities;
+
+    @Override
+    public String execute(String taskQueue) {
+      ActivityOptions options =
+          ActivityOptions.newBuilder()
+              .setTaskQueue(taskQueue)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
+              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+              .build();
+      activities = Workflow.newActivityStub(TestActivities.class, options);
+      activities.throwApplicationFailureThreeTimes();
+      return "ignored";
+    }
+  }
+
+  @Test
+  public void testActivityApplicationOptOutOfRetry() {
+    startWorkerFor(TestActivityApplicationOptOutOfRetry.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+    try {
+      workflowStub.execute(taskQueue);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("simulatedType", ((ApplicationFailure) e.getCause().getCause()).getType());
+    }
+
+    // Since maximum attempts is set to 1, there should be no retries at all
+    assertEquals(1, activitiesImpl.applicationFailureCounter.get());
   }
 
   public static class TestAsyncActivityRetry implements TestWorkflow1 {
@@ -3851,7 +3927,7 @@ public class WorkflowTest {
       if (c < 3) {
         throw new IllegalArgumentException("simulated " + c);
       } else {
-        throw new ApplicationFailure("simulated " + c, "NonRetryable");
+        throw ApplicationFailure.newFailure("simulated " + c, "NonRetryable");
       }
     }
   }
@@ -3892,7 +3968,8 @@ public class WorkflowTest {
         retryCount.put(testName, count);
       }
       int c = count.incrementAndGet();
-      ApplicationFailure f = new ApplicationFailure("simulated " + c, "foo", "details");
+      ApplicationFailure f =
+          ApplicationFailure.newFailure("simulated " + c, "foo", "details1", 123);
       if (c == 3) {
         f.setNonRetryable(true);
       }
@@ -3919,7 +3996,10 @@ public class WorkflowTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
       assertEquals("foo", ((ApplicationFailure) e.getCause()).getType());
-      assertEquals("details", ((ApplicationFailure) e.getCause()).getDetails().get(String.class));
+      assertEquals(
+          "details1", ((ApplicationFailure) e.getCause()).getDetails().get(0, String.class));
+      assertEquals(
+          new Integer(123), ((ApplicationFailure) e.getCause()).getDetails().get(1, Integer.class));
       assertEquals(
           "message='simulated 3', type='foo', nonRetryable=true", e.getCause().getMessage());
     }
@@ -4296,7 +4376,7 @@ public class WorkflowTest {
     public void heartbeatAndThrowIO() {
       ActivityExecutionContext ctx = Activity.getExecutionContext();
       ActivityInfo info = ctx.getInfo();
-      assertEquals(info.getAttempt(), heartbeatCounter.get());
+      assertEquals(info.getAttempt(), heartbeatCounter.get() + 1);
       invocations.add("throwIO");
       Optional<Integer> heartbeatDetails = ctx.getHeartbeatDetails(int.class);
       assertEquals(heartbeatCounter.get(), (int) heartbeatDetails.orElse(0));
@@ -4328,7 +4408,8 @@ public class WorkflowTest {
 
     @Override
     public void throwApplicationFailureThreeTimes() {
-      ApplicationFailure failure = new ApplicationFailure("simulated", "simulatedType");
+      ApplicationFailure failure =
+          ApplicationFailure.newNonRetryableFailure("simulated", "simulatedType");
       failure.setNonRetryable(applicationFailureCounter.incrementAndGet() > 2);
       throw failure;
     }
@@ -5236,6 +5317,7 @@ public class WorkflowTest {
     }
 
     public void setExpected(String... expected) {
+
       this.expected = Arrays.asList(expected);
     }
 

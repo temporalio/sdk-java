@@ -34,6 +34,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.LocalActivityMarkerData;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.workflow.Functions.Func;
@@ -42,7 +43,6 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -128,19 +128,19 @@ public final class ReplayClockContext {
     return replaying;
   }
 
-  Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback) {
-    if (delaySeconds < 0) {
-      throw new IllegalArgumentException("Negative delaySeconds: " + delaySeconds);
+  Consumer<Exception> createTimer(Duration delay, Consumer<Exception> callback) {
+    if (delay.isNegative()) {
+      throw new IllegalArgumentException("Negative delay: " + delay);
     }
-    if (delaySeconds == 0) {
+    if (delay.isZero()) {
       callback.accept(null);
       return null;
     }
-    long firingTime = currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
+    long firingTime = currentTimeMillis() + delay.toMillis();
     final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
     final StartTimerCommandAttributes timer =
         StartTimerCommandAttributes.newBuilder()
-            .setStartToFireTimeoutSeconds(delaySeconds)
+            .setStartToFireTimeout(ProtobufTimeUtils.ToProtoDuration(delay))
             .setTimerId(String.valueOf(commandHelper.getAndIncrementNextId()))
             .build();
     long startEventId = commandHelper.startTimer(timer);
@@ -332,7 +332,7 @@ public final class ReplayClockContext {
     if (!result.isPresent()) {
       return WorkflowInternal.DEFAULT_VERSION;
     }
-    int version = converter.fromPayloads(result, Integer.class, Integer.class);
+    int version = converter.fromPayloads(0, result, Integer.class, Integer.class);
     validateVersion(changeId, version, minSupported, maxSupported);
     return version;
   }
@@ -373,7 +373,7 @@ public final class ReplayClockContext {
               new LocalActivityWorker.Task(
                   params,
                   workflowExecutor.getLocalActivityCompletionSink(),
-                  workflowExecutor.getWorkflowTaskTimeoutSeconds(),
+                  workflowExecutor.getWorkflowTaskTimeout(),
                   this::currentTimeMillis,
                   this::replayTimeUpdatedAtMillis),
               maxWaitAllowed);

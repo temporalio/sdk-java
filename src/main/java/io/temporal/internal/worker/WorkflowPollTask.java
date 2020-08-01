@@ -22,12 +22,12 @@ package io.temporal.internal.worker;
 import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;
-import com.uber.m3.util.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Objects;
@@ -104,7 +104,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
     metricsScope.counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER).inc(1);
     metricsScope
         .timer(MetricsType.WORKFLOW_TASK_SCHEDULE_TO_START_LATENCY)
-        .record(Duration.ofNanos(result.getStartedTimestamp() - result.getScheduledTimestamp()));
+        .record(ProtobufTimeUtils.ToM3Duration(result.getStartedTime(), result.getScheduledTime()));
     return result;
   }
 }

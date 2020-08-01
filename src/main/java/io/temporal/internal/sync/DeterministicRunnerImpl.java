@@ -732,7 +732,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback) {
+    public Consumer<Exception> createTimer(Duration delay, Consumer<Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
