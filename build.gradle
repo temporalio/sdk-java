@@ -106,7 +106,7 @@ dependencies {
     implementation 'io.grpc:grpc-netty-shaded:1.30.2'
     implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.12.2'
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.1'
-    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.1'
+    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.2'
 
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     testImplementation group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
