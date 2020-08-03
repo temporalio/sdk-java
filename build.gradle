@@ -16,7 +16,7 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
-    id 'name.remal.check-updates' version '1.0.203'
+    id 'name.remal.check-updates' version '1.0.209'
 }
 
 repositories {
