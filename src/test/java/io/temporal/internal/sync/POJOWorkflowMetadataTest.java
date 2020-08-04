@@ -34,12 +34,12 @@ import org.junit.Test;
 
 public class POJOWorkflowMetadataTest {
 
-  interface A {
+  public interface A {
     @SignalMethod
     void a();
   }
 
-  interface B extends A {
+  public interface B extends A {
     @QueryMethod
     String b();
 
@@ -47,7 +47,7 @@ public class POJOWorkflowMetadataTest {
   }
 
   @WorkflowInterface
-  interface C extends B, A {
+  public interface C extends B, A {
     @SignalMethod
     void c();
 
@@ -56,24 +56,24 @@ public class POJOWorkflowMetadataTest {
   }
 
   @WorkflowInterface
-  interface E extends B {
+  public interface E extends B {
     @WorkflowMethod(name = "AM_E_bb")
     void bb();
   }
 
   @WorkflowInterface
-  interface D extends C {
+  public interface D extends C {
     @SignalMethod
     void d();
   }
 
   @WorkflowInterface
-  interface F {
+  public interface F {
     @WorkflowMethod(name = "AM_C_bb")
     void f();
   }
 
-  interface DE extends D, E {}
+  public interface DE extends D, E {}
 
   static class DImpl implements D, E {
 
