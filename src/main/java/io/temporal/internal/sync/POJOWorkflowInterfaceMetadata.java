@@ -116,13 +116,15 @@ class POJOWorkflowInterfaceMetadata {
       WorkflowInterface annotation = anInterface.getAnnotation(WorkflowInterface.class);
       if (annotation == null) {
         throw new IllegalArgumentException(
-            "Missing requied @WorkflowInterface annotation: " + anInterface);
+            "Missing required @WorkflowInterface annotation: " + anInterface);
       }
     }
     POJOWorkflowInterfaceMetadata result = new POJOWorkflowInterfaceMetadata(anInterface, false);
     if (result.methods.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Interface doesn't contain any methods: " + anInterface.getName());
+      if (checkWorkflowInterfaceAnnotation) {
+        throw new IllegalArgumentException(
+            "Interface doesn't contain any methods: " + anInterface.getName());
+      }
     }
     return result;
   }
@@ -212,8 +214,10 @@ class POJOWorkflowInterfaceMetadata {
     for (POJOWorkflowMethod workflowMethod : result) {
       Method method = workflowMethod.getMethod();
       if (workflowMethod.getType() == WorkflowMethodType.NONE) {
-        throw new IllegalArgumentException(
-            "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on " + method);
+        if (annotation != null) {
+          throw new IllegalArgumentException(
+              "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on " + method);
+        }
       }
       EqualsByMethodName wrapped = new EqualsByMethodName(method);
       Method registered = dedupeMap.put(wrapped, method);
@@ -225,6 +229,11 @@ class POJOWorkflowInterfaceMetadata {
                 + method
                 + "\"");
       }
+
+      if (workflowMethod.getType() == WorkflowMethodType.NONE && annotation == null) {
+        continue;
+      }
+
       POJOWorkflowMethodMetadata methodMetadata =
           new POJOWorkflowMethodMetadata(workflowMethod, current);
       if (workflowMethod.getType() == WorkflowMethodType.WORKFLOW) {
