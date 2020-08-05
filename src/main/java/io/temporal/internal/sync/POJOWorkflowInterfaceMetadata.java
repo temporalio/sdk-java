@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.workflow.WorkflowInterface;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -116,15 +117,25 @@ class POJOWorkflowInterfaceMetadata {
       WorkflowInterface annotation = anInterface.getAnnotation(WorkflowInterface.class);
       if (annotation == null) {
         throw new IllegalArgumentException(
-            "Missing requied @WorkflowInterface annotation: " + anInterface);
+            "Missing required @WorkflowInterface annotation: " + anInterface);
       }
+      validatePublicModifier(anInterface);
     }
     POJOWorkflowInterfaceMetadata result = new POJOWorkflowInterfaceMetadata(anInterface, false);
     if (result.methods.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Interface doesn't contain any methods: " + anInterface.getName());
+      if (checkWorkflowInterfaceAnnotation) {
+        throw new IllegalArgumentException(
+            "Interface doesn't contain any methods: " + anInterface.getName());
+      }
     }
     return result;
+  }
+
+  private static void validatePublicModifier(Class<?> anInterface) {
+    if (!Modifier.isPublic(anInterface.getModifiers())) {
+      throw new IllegalArgumentException(
+          "Interface with @WorkflowInterface annotation must be public: " + anInterface);
+    }
   }
 
   static POJOWorkflowInterfaceMetadata newImplementationInterface(Class<?> anInterface) {
@@ -175,7 +186,11 @@ class POJOWorkflowInterfaceMetadata {
       Class<?> current, boolean rootClass, Map<EqualsByMethodName, Method> dedupeMap) {
     WorkflowInterface annotation = current.getAnnotation(WorkflowInterface.class);
 
-    // Set to dedupe the same method due to diamond inheritance
+    if (annotation != null) {
+      validatePublicModifier(current);
+    }
+
+    // Set to de-dupe the same method due to diamond inheritance
     Set<POJOWorkflowMethod> result = new HashSet<>();
     Class<?>[] interfaces = current.getInterfaces();
     for (int i = 0; i < interfaces.length; i++) {
@@ -212,8 +227,10 @@ class POJOWorkflowInterfaceMetadata {
     for (POJOWorkflowMethod workflowMethod : result) {
       Method method = workflowMethod.getMethod();
       if (workflowMethod.getType() == WorkflowMethodType.NONE) {
-        throw new IllegalArgumentException(
-            "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on " + method);
+        if (annotation != null) {
+          throw new IllegalArgumentException(
+              "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on " + method);
+        }
       }
       EqualsByMethodName wrapped = new EqualsByMethodName(method);
       Method registered = dedupeMap.put(wrapped, method);
@@ -225,6 +242,11 @@ class POJOWorkflowInterfaceMetadata {
                 + method
                 + "\"");
       }
+
+      if (workflowMethod.getType() == WorkflowMethodType.NONE && annotation == null) {
+        continue;
+      }
+
       POJOWorkflowMethodMetadata methodMetadata =
           new POJOWorkflowMethodMetadata(workflowMethod, current);
       if (workflowMethod.getType() == WorkflowMethodType.WORKFLOW) {
