@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,10 +87,6 @@ class POJOWorkflowImplMetadata {
     Class<?>[] interfaces = implClass.getInterfaces();
     for (int i = 0; i < interfaces.length; i++) {
       Class<?> anInterface = interfaces[i];
-
-      if (!Modifier.isPublic(anInterface.getModifiers())) {
-        continue;
-      }
 
       POJOWorkflowInterfaceMetadata interfaceMetadata;
       if (listener) {

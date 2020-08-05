@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.workflow.WorkflowInterface;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -118,6 +119,7 @@ class POJOWorkflowInterfaceMetadata {
         throw new IllegalArgumentException(
             "Missing required @WorkflowInterface annotation: " + anInterface);
       }
+      validatePublicModifier(anInterface);
     }
     POJOWorkflowInterfaceMetadata result = new POJOWorkflowInterfaceMetadata(anInterface, false);
     if (result.methods.isEmpty()) {
@@ -127,6 +129,13 @@ class POJOWorkflowInterfaceMetadata {
       }
     }
     return result;
+  }
+
+  private static void validatePublicModifier(Class<?> anInterface) {
+    if (!Modifier.isPublic(anInterface.getModifiers())) {
+      throw new IllegalArgumentException(
+          "Interface with @WorkflowInterface annotation must be public: " + anInterface);
+    }
   }
 
   static POJOWorkflowInterfaceMetadata newImplementationInterface(Class<?> anInterface) {
@@ -177,7 +186,11 @@ class POJOWorkflowInterfaceMetadata {
       Class<?> current, boolean rootClass, Map<EqualsByMethodName, Method> dedupeMap) {
     WorkflowInterface annotation = current.getAnnotation(WorkflowInterface.class);
 
-    // Set to dedupe the same method due to diamond inheritance
+    if (annotation != null) {
+      validatePublicModifier(current);
+    }
+
+    // Set to de-dupe the same method due to diamond inheritance
     Set<POJOWorkflowMethod> result = new HashSet<>();
     Class<?>[] interfaces = current.getInterfaces();
     for (int i = 0; i < interfaces.length; i++) {

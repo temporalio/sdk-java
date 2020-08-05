@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.temporal.worker.Worker;
 import io.temporal.workflow.QueryMethod;
@@ -71,6 +72,12 @@ public class POJOWorkflowMetadataTest {
   public interface F {
     @WorkflowMethod(name = "AM_C_bb")
     void f();
+  }
+
+  @WorkflowInterface
+  interface G {
+    @WorkflowMethod
+    void g();
   }
 
   public interface DE extends D, E {}
@@ -135,8 +142,13 @@ public class POJOWorkflowMetadataTest {
     public void f() {}
   }
 
+  static class GImpl implements G {
+    @Override
+    public void g() {}
+  }
+
   @WorkflowInterface
-  interface Empty {}
+  public interface Empty {}
 
   class EmptyImpl implements Empty {
     public void foo() {}
@@ -190,8 +202,21 @@ public class POJOWorkflowMetadataTest {
   public void testDuplicatedWorkflowImplementationRegistration() {
     try {
       POJOWorkflowImplMetadata.newInstance(DEImpl.class);
+      fail("expected an illegal argument exception");
     } catch (IllegalArgumentException e) {
       assertTrue(e.getMessage(), e.getMessage().contains("bb()"));
+    }
+  }
+
+  @Test
+  public void testNonPublicInterface() {
+    try {
+      POJOWorkflowImplMetadata.newInstance(GImpl.class);
+      fail("expected an illegal argument exception");
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage(),
+          e.getMessage().contains("Interface with @WorkflowInterface annotation must be public"));
     }
   }
 
