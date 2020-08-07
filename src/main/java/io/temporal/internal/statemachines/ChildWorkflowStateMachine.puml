@@ -1,0 +1,43 @@
+` Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+`
+` Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+`
+` Modifications copyright (C) 2017 Uber Technologies, Inc.
+`
+` Licensed under the Apache License, Version 2.0 (the "License"). You may not
+` use this file except in compliance with the License. A copy of the License is
+` located at
+`
+` http://aws.amazon.com/apache2.0
+`
+` or in the "license" file accompanying this file. This file is distributed on
+` an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+` express or implied. See the License for the specific language governing
+` permissions and limitations under the License.
+
+` PlantUML <plantuml.com> State Diagram.
+` Generated from src/main/java/io/temporal/internal/statemachines/ChildWorkflowStateMachine.java
+` by io.temporal.internal.statemachines.CommandsGeneratePlantUMLStateDiagrams.
+
+
+@startuml
+scale 350 width
+[*] --> CREATED
+CREATED --> START_COMMAND_CREATED: SCHEDULE
+START_COMMAND_CREATED --> START_COMMAND_CREATED: START_CHILD_WORKFLOW_EXECUTION
+START_COMMAND_CREATED --> START_EVENT_RECORDED: START_CHILD_WORKFLOW_EXECUTION_INITIATED
+START_COMMAND_CREATED --> CANCELED: CANCEL
+START_EVENT_RECORDED --> STARTED: CHILD_WORKFLOW_EXECUTION_STARTED
+START_EVENT_RECORDED --> START_FAILED: START_CHILD_WORKFLOW_EXECUTION_FAILED
+STARTED --> COMPLETED: CHILD_WORKFLOW_EXECUTION_COMPLETED
+STARTED --> FAILED: CHILD_WORKFLOW_EXECUTION_FAILED
+STARTED --> TIMED_OUT: CHILD_WORKFLOW_EXECUTION_TIMED_OUT
+STARTED --> CANCELED: CHILD_WORKFLOW_EXECUTION_CANCELED
+STARTED --> TERMINATED: CHILD_WORKFLOW_EXECUTION_TERMINATED
+START_FAILED --> [*]
+COMPLETED --> [*]
+FAILED --> [*]
+CANCELED --> [*]
+TIMED_OUT --> [*]
+TERMINATED --> [*]
+@enduml

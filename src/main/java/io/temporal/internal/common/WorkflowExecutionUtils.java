@@ -96,7 +96,7 @@ public class WorkflowExecutionUtils {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowExecutionUtils.class);
 
-  private static RpcRetryOptions retryParameters =
+  private static final RpcRetryOptions retryParameters =
       RpcRetryOptions.newBuilder()
           .setBackoffCoefficient(2)
           .setInitialInterval(Duration.ofMillis(500))
@@ -813,6 +813,7 @@ public class WorkflowExecutionUtils {
     return result;
   }
 
+  /** Returns event that corresponds to a command. */
   public static EventType getEventTypeForCommand(CommandType commandType) {
     switch (commandType) {
       case COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK:
@@ -830,7 +831,7 @@ public class WorkflowExecutionUtils {
       case COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED;
       case COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION:
-        return EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED;
+        return EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED;
       case COMMAND_TYPE_RECORD_MARKER:
         return EventType.EVENT_TYPE_MARKER_RECORDED;
       case COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:

@@ -210,7 +210,10 @@ public final class ActivityWorker implements SuspendableWorker {
           if (info.hasDetails()) {
             cancelledRequest.setDetails(info.getDetails());
           }
-          sendReply(task, new Result(null, null, cancelledRequest.build(), null), metricsScope);
+          sendReply(
+              task,
+              new Result(task.getActivityId(), null, null, cancelledRequest.build(), null),
+              metricsScope);
         }
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);

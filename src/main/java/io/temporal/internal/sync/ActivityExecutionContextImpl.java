@@ -69,7 +69,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private boolean hasOutstandingHeartbeat;
   private final ScheduledExecutorService heartbeatExecutor;
   private final Scope metricsScope;
-  private Lock lock = new ReentrantLock();
+  private final Lock lock = new ReentrantLock();
   private ScheduledFuture future;
   private ActivityCompletionException lastException;
 

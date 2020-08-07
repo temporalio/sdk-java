@@ -21,6 +21,7 @@ package io.temporal.internal.replay;
 
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import java.util.Objects;
 
 public class ExecuteActivityParameters implements Cloneable {
 
@@ -30,8 +31,8 @@ public class ExecuteActivityParameters implements Cloneable {
   public ExecuteActivityParameters(
       ScheduleActivityTaskCommandAttributes.Builder attributes,
       ActivityCancellationType cancellationType) {
-    this.attributes = attributes;
-    this.cancellationType = cancellationType;
+    this.attributes = Objects.requireNonNull(attributes);
+    this.cancellationType = Objects.requireNonNull(cancellationType);
   }
 
   public ScheduleActivityTaskCommandAttributes.Builder getAttributes() {

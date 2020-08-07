@@ -25,6 +25,7 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -109,8 +110,8 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
   public V cancellableGetImpl(boolean cancellable, long timeout, TimeUnit unit)
       throws TimeoutException {
     if (!completed) {
-      WorkflowThread.await(
-          unit.toMillis(timeout),
+      WorkflowInternal.await(
+          Duration.ofMillis(timeout),
           "Feature.get",
           () -> {
             if (cancellable) {

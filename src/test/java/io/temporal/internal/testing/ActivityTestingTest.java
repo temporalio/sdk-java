@@ -209,7 +209,7 @@ public class ActivityTestingTest {
         ctx.heartbeat(null);
         fail("unreachable");
       } catch (ActivityCancelledException e) {
-        System.out.println("activity cancelled");
+        // expected
       }
     }
   }
@@ -287,7 +287,7 @@ public class ActivityTestingTest {
   }
 
   public class CImpl implements C {
-    private List<String> invocations = new ArrayList<>();
+    private final List<String> invocations = new ArrayList<>();
 
     @Override
     public void a() {
@@ -306,7 +306,7 @@ public class ActivityTestingTest {
   }
 
   public class BImpl implements B {
-    private List<String> invocations = new ArrayList<>();
+    private final List<String> invocations = new ArrayList<>();
 
     @Override
     public void a() {
@@ -320,7 +320,7 @@ public class ActivityTestingTest {
   }
 
   public class DImpl implements D {
-    private List<String> invocations = new ArrayList<>();
+    private final List<String> invocations = new ArrayList<>();
 
     @Override
     public void a() {
@@ -334,7 +334,7 @@ public class ActivityTestingTest {
   }
 
   public class EImpl implements E {
-    private List<String> invocations = new ArrayList<>();
+    private final List<String> invocations = new ArrayList<>();
 
     @Override
     public void a() {

@@ -737,7 +737,10 @@ public final class Workflow {
    * Block current thread until unblockCondition is evaluated to true.
    *
    * @param unblockCondition condition that should return true to indicate that thread should
-   *     unblock.
+   *     unblock. The condition is called on every state transition, so it should never call any
+   *     blocking operations or contain code that mutates any workflow state. It should also not
+   *     contain any time based conditions. Use {@link #await(Duration, Supplier)} for those
+   *     instead.
    * @throws CanceledFailure if thread (or current {@link CancellationScope} was cancelled).
    */
   public static void await(Supplier<Boolean> unblockCondition) {
@@ -753,6 +756,11 @@ public final class Workflow {
    * Block current workflow thread until unblockCondition is evaluated to true or timeoutMillis
    * passes.
    *
+   * @param timeout time to unblock even if unblockCondition is not satisfied.
+   * @param unblockCondition condition that should return true to indicate that thread should
+   *     unblock. The condition is called on every state transition, so it should not contain any
+   *     code that mutates any workflow state. It should also not contain any time based conditions.
+   *     Use timeout parameter for those.
    * @return false if timed out.
    * @throws CanceledFailure if thread (or current {@link CancellationScope} was cancelled).
    */

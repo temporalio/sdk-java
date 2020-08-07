@@ -120,7 +120,7 @@ configurations.all {
 
 license {
     header rootProject.file('license-header.txt')
-    exclude 'io/temporal/proto/**.java' // generated code
+    exclude '**/*.puml'
 }
 
 task initSubmodules(type: Exec) {
@@ -170,8 +170,8 @@ protobuf {
 
 idea {
     module {
-        sourceDirs += file("$buildDir/generated/main/java");
-        sourceDirs += file("$buildDir/generated/main/grpc");
+        sourceDirs += file("$buildDir/generated/main/java")
+        sourceDirs += file("$buildDir/generated/main/grpc")
     }
 }
 
@@ -327,7 +327,7 @@ allprojects {
     // add a testlistener to all tasks of type Test
     tasks.withType(Test) {
         afterTest { TestDescriptor descriptor, TestResult result ->
-            if(result.resultType == org.gradle.api.tasks.testing.TestResult.ResultType.FAILURE){
+            if (result.resultType == org.gradle.api.tasks.testing.TestResult.ResultType.FAILURE) {
                 failedTests << ["${descriptor.className}::${descriptor.name}"]
             }
         }
@@ -335,7 +335,7 @@ allprojects {
 
     // print out tracked failed tests when the build has finished
     gradle.buildFinished {
-        if(!failedTests.empty){
+        if (!failedTests.empty) {
             println "Failed tests for ${project.name}:"
             failedTests.each { failedTest ->
                 println failedTest

@@ -23,9 +23,9 @@ import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueueConsumer;
 import io.temporal.workflow.WorkflowQueue;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.concurrent.TimeUnit;
 
 final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
@@ -73,8 +73,8 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
-  public E poll(long timeout, TimeUnit unit) {
-    WorkflowThread.await(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
+  public E poll(Duration timeout) {
+    WorkflowInternal.await(timeout, "WorkflowQueue.poll", () -> !queue.isEmpty());
 
     if (queue.isEmpty()) {
       return null;
@@ -83,9 +83,9 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
-  public E cancellablePoll(long timeout, TimeUnit unit) {
-    WorkflowThread.await(
-        unit.toMillis(timeout),
+  public E cancellablePoll(Duration timeout) {
+    WorkflowInternal.await(
+        timeout,
         "WorkflowQueue.cancellablePoll",
         () -> {
           CancellationScope.throwCancelled();
@@ -125,9 +125,8 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
-  public boolean offer(E e, long timeout, TimeUnit unit) {
-    WorkflowThread.await(
-        unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
+  public boolean offer(E e, Duration timeout) {
+    WorkflowInternal.await(timeout, "WorkflowQueue.offer", () -> queue.size() < capacity);
     if (queue.size() >= capacity) {
       return false;
     }
@@ -136,9 +135,9 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
-  public boolean cancellableOffer(E e, long timeout, TimeUnit unit) {
-    WorkflowThread.await(
-        unit.toMillis(timeout), "WorkflowQueue.cancellableOffer", () -> queue.size() < capacity);
+  public boolean cancellableOffer(E e, Duration timeout) {
+    WorkflowInternal.await(
+        timeout, "WorkflowQueue.cancellableOffer", () -> queue.size() < capacity);
     if (queue.size() >= capacity) {
       return false;
     }
@@ -153,7 +152,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
   private static class MappedQueueConsumer<R, E> implements QueueConsumer<R> {
 
-    private QueueConsumer<E> source;
+    private final QueueConsumer<E> source;
     private final Functions.Func1<? super E, ? extends R> mapper;
 
     public MappedQueueConsumer(
@@ -193,8 +192,8 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     }
 
     @Override
-    public R poll(long timeout, TimeUnit unit) {
-      E element = source.poll(timeout, unit);
+    public R poll(Duration timeout) {
+      E element = source.poll(timeout);
       if (element == null) {
         return null;
       }
@@ -202,8 +201,8 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     }
 
     @Override
-    public R cancellablePoll(long timeout, TimeUnit unit) {
-      E element = source.cancellablePoll(timeout, unit);
+    public R cancellablePoll(Duration timeout) {
+      E element = source.cancellablePoll(timeout);
       if (element == null) {
         return null;
       }

@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 public final class WorkflowThreadLocal<T> {
 
   private final WorkflowThreadLocalInternal<T> impl = new WorkflowThreadLocalInternal<>();
-  private Supplier<? extends T> supplier;
+  private final Supplier<? extends T> supplier;
 
   private WorkflowThreadLocal(Supplier<? extends T> supplier) {
     this.supplier = Objects.requireNonNull(supplier);

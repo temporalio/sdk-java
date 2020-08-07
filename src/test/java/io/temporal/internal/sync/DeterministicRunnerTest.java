@@ -60,10 +60,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -121,45 +121,6 @@ public class DeterministicRunnerTest {
     assertTrue(d.isDone());
   }
 
-  @Test
-  public void testSleep() throws Throwable {
-    DeterministicRunnerImpl d =
-        new DeterministicRunnerImpl(
-            threadPool,
-            null,
-            () -> currentTime, // clock override
-            () -> {
-              status = "started";
-              Workflow.sleep(60000);
-              status = "afterSleep1";
-              Workflow.sleep(60000);
-              status = "done";
-            });
-    currentTime = 1000;
-    assertEquals("initial", status);
-    assertEquals(1000, d.currentTimeMillis());
-    d.runUntilAllBlocked();
-    currentTime = 20000;
-    assertEquals("started", status);
-    assertEquals(20000, d.currentTimeMillis());
-    d.runUntilAllBlocked();
-    assertEquals("started", status);
-    assertFalse(d.isDone());
-
-    currentTime = 70000; // unblocks first sleep
-    d.runUntilAllBlocked();
-    assertEquals("afterSleep1", status);
-    // Just check that running again doesn't make any progress.
-    d.runUntilAllBlocked();
-    assertEquals("afterSleep1", status);
-    assertEquals(70000, d.currentTimeMillis());
-
-    currentTime = 200000; // unblock second sleep
-    d.runUntilAllBlocked();
-    assertEquals("done", status);
-    assertTrue(d.isDone());
-  }
-
   /**
    * Async retry cannot be tested here as it relies on timer that is implemented outside of
    * Dispatcher.
@@ -167,6 +128,7 @@ public class DeterministicRunnerTest {
    * @see WorkflowTest#testAsyncRetry()
    */
   @Test
+  @Ignore // timer removed from dispatcher
   public void testRetry() throws Throwable {
     RetryOptions retryOptions =
         RetryOptions.newBuilder()
@@ -179,7 +141,6 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             null,
-            () -> currentTime, // clock override
             () -> {
               trace.add("started");
               Workflow.retry(
@@ -195,7 +156,6 @@ public class DeterministicRunnerTest {
             });
     try {
       for (int i = 0; i < Duration.ofSeconds(400).toMillis(); i += 10) {
-        currentTime = i;
         d.runUntilAllBlocked();
       }
       fail("failure expected");
@@ -616,51 +576,6 @@ public class DeterministicRunnerTest {
     assertTrue(d.isDone());
   }
 
-  @Test
-  public void testJoinTimeout() throws Throwable {
-    DeterministicRunnerImpl d =
-        new DeterministicRunnerImpl(
-            threadPool,
-            null,
-            () -> currentTime, // clock override
-            () -> {
-              trace.add("root started");
-
-              Promise<Void> thread =
-                  Async.procedure(
-                      () -> {
-                        trace.add("child started");
-                        WorkflowThread.await("blockForever", () -> false);
-                        trace.add("child done");
-                      });
-              try {
-                thread.get(60000, TimeUnit.MILLISECONDS);
-              } catch (TimeoutException e) {
-                trace.add("timeout exception");
-              }
-              trace.add("root done");
-            });
-    currentTime = 1000;
-    d.runUntilAllBlocked();
-    assertEquals(61000, d.getNextWakeUpTime());
-    assertFalse(d.isDone());
-    String[] expected =
-        new String[] {
-          "root started", "child started",
-        };
-    trace.setExpected(expected);
-    trace.assertExpected();
-    // Just check that running again doesn't make any progress.
-    d.runUntilAllBlocked();
-    assertEquals(61000, d.getNextWakeUpTime());
-    currentTime = 70000;
-    d.runUntilAllBlocked();
-    assertFalse(d.isDone());
-    expected = new String[] {"root started", "child started", "timeout exception", "root done"};
-    trace.setExpected(expected);
-    d.close();
-  }
-
   private static final int CHILDREN = 10;
 
   private class TestChildTreeRunnable implements Functions.Proc {
@@ -732,8 +647,6 @@ public class DeterministicRunnerTest {
             threadPool,
             new SyncWorkflowContext(
                 replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
-            () -> 0L, // clock override
-            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -749,7 +662,7 @@ public class DeterministicRunnerTest {
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
-    cache.addToCache(response, workflowExecutor);
+    cache.addToCache(response.getWorkflowExecution().getRunId(), workflowExecutor);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -759,8 +672,6 @@ public class DeterministicRunnerTest {
             threadPool,
             new SyncWorkflowContext(
                 replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
-            () -> 0L, // clock override
-            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -797,8 +708,6 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             null,
-            () -> 0L, // clock override
-            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -814,7 +723,7 @@ public class DeterministicRunnerTest {
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
-    cache.addToCache(response, workflowExecutor);
+    cache.addToCache(response.getWorkflowExecution().getRunId(), workflowExecutor);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -823,8 +732,6 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             null,
-            () -> 0L, // clock override
-            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -860,13 +767,18 @@ public class DeterministicRunnerTest {
 
     @Override
     public Optional<Payloads> handleQueryWorkflowTask(
-        PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) throws Throwable {
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) {
       return Optional.empty();
     }
 
     @Override
     public void close() {
       runner.close();
+    }
+
+    @Override
+    public Duration getWorkflowTaskTimeout() {
+      return Duration.ofSeconds(10);
     }
   }
 
@@ -879,7 +791,6 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             null,
-            System::currentTimeMillis,
             () -> {
               Promise<Void> async = Async.procedure(() -> status = "started");
               async.get();

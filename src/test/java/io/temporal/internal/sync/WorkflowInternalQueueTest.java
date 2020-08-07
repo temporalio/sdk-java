@@ -19,27 +19,27 @@
 
 package io.temporal.internal.sync;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
+import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.worker.Worker;
 import io.temporal.workflow.QueueConsumer;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.WorkflowQueue;
-import java.util.concurrent.TimeUnit;
-import org.junit.Before;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class WorkflowInternalQueueTest {
 
-  private long currentTime;
   @Rule public final Tracer trace = new Tracer();
-
-  @Before
-  public void setUp() {
-    currentTime = 10;
-  }
 
   @Test
   public void testTakeBlocking() throws Throwable {
@@ -145,99 +145,127 @@ public class WorkflowInternalQueueTest {
     trace.setExpected(expected);
   }
 
+  @WorkflowInterface
+  public interface WorkflowQueueTestWorkflow {
+    @WorkflowMethod
+    List<String> test();
+  }
+
+  public static class TestPutBlocking implements WorkflowQueueTestWorkflow {
+
+    @Override
+    public List<String> test() {
+      List<String> trace = new ArrayList<>();
+
+      WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
+      trace.add("root begin");
+      WorkflowThread thread1 =
+          WorkflowInternal.newThread(
+              false,
+              () -> {
+                trace.add("thread1 begin");
+                Workflow.sleep(2000);
+                assertTrue(f.take());
+                trace.add("thread1 take1 success");
+                assertFalse(f.take());
+                trace.add("thread1 take2 success");
+              });
+
+      thread1.start();
+      WorkflowThread thread2 =
+          WorkflowInternal.newThread(
+              false,
+              () -> {
+                trace.add("thread2 begin");
+                f.put(true);
+                trace.add("thread2 put1 success");
+                f.put(false);
+                trace.add("thread2 put2 success");
+              });
+      thread2.start();
+      trace.add("root done");
+      Workflow.await(() -> thread1.isDone() && thread2.isDone());
+      return trace;
+    }
+  }
+
   @Test
   public void testPutBlocking() throws Throwable {
-    DeterministicRunner r =
-        DeterministicRunner.newRunner(
-            () -> currentTime,
-            () -> {
-              WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
-              trace.add("root begin");
-              WorkflowInternal.newThread(
-                      false,
-                      () -> {
-                        trace.add("thread1 begin");
-                        Workflow.sleep(2000);
-                        assertTrue(f.take());
-                        trace.add("thread1 take1 success");
-                        assertFalse(f.take());
-                        trace.add("thread1 take2 success");
-                      })
-                  .start();
-              WorkflowInternal.newThread(
-                      false,
-                      () -> {
-                        trace.add("thread2 begin");
-                        f.put(true);
-                        trace.add("thread2 put1 success");
-                        f.put(false);
-                        trace.add("thread2 put2 success");
-                      })
-                  .start();
-              trace.add("root done");
-            });
-    r.runUntilAllBlocked();
-    currentTime += 3000;
-    r.runUntilAllBlocked();
-    String[] expected =
-        new String[] {
-          "root begin",
-          "root done",
-          "thread1 begin",
-          "thread2 begin",
-          "thread2 put1 success",
-          "thread1 take1 success",
-          "thread2 put2 success",
-          "thread1 take2 success",
-        };
-    trace.setExpected(expected);
-    r.close();
+    TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
+    String testTaskQueue = "testTaskQueue";
+    Worker worker = testEnv.newWorker(testTaskQueue);
+    worker.registerWorkflowImplementationTypes(TestPutBlocking.class);
+    testEnv.start();
+    WorkflowQueueTestWorkflow workflow =
+        testEnv
+            .getWorkflowClient()
+            .newWorkflowStub(
+                WorkflowQueueTestWorkflow.class,
+                WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
+    List<String> trace = workflow.test();
+    List<String> expected =
+        Arrays.asList(
+            "root begin",
+            "root done",
+            "thread1 begin",
+            "thread2 begin",
+            "thread2 put1 success",
+            "thread1 take1 success",
+            "thread2 put2 success",
+            "thread1 take2 success");
+    assertEquals(expected, trace);
+    testEnv.close();
+  }
+
+  public static class TestOfferPollPeek implements WorkflowQueueTestWorkflow {
+
+    @Override
+    public List<String> test() {
+      List<String> trace = new ArrayList<>();
+      WorkflowQueue<Integer> f = WorkflowInternal.newQueue(1);
+      trace.add("root begin");
+      trace.add("peek " + f.peek());
+      trace.add("offer " + f.offer(12));
+      trace.add("offer " + f.offer(21));
+      trace.add("peek " + f.peek());
+      trace.add("poll " + f.poll());
+      trace.add("offer " + f.offer(23));
+      trace.add("offer " + f.offer(34, Duration.ofSeconds(100)));
+      trace.add("take " + f.take());
+      trace.add("root done");
+
+      return trace;
+    }
   }
 
   @Test
   public void testOfferPollPeek() throws Throwable {
-    DeterministicRunner r =
-        DeterministicRunner.newRunner(
-            () -> currentTime,
-            () -> {
-              WorkflowQueue<Integer> f = WorkflowInternal.newQueue(1);
-              trace.add("root begin");
-              trace.add("peek " + f.peek());
-              trace.add("offer " + f.offer(12));
-              trace.add("offer " + f.offer(21));
-              trace.add("peek " + f.peek());
-              trace.add("poll " + f.poll());
-              trace.add("offer " + f.offer(23));
-              trace.add("offer " + f.offer(34, 100, TimeUnit.SECONDS));
-              trace.add("take " + f.take());
-              trace.add("root done");
-            });
-    r.runUntilAllBlocked();
-    {
-      String[] expected =
-          new String[] {
-            "root begin", "peek null", "offer true", "offer false", "peek 12", "poll 12, offer true"
-          };
-      trace.setExpected(expected);
-      trace.assertExpected();
-    }
-    currentTime += 101 * 1000;
-    r.runUntilAllBlocked();
-    String[] expected =
-        new String[] {
-          "root begin",
-          "peek null",
-          "offer true",
-          "offer false",
-          "peek 12",
-          "poll 12",
-          "offer true",
-          "offer false",
-          "take 23",
-          "root done",
-        };
-    trace.setExpected(expected);
-    r.close();
+    TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
+    String testTaskQueue = "testTaskQueue";
+    Worker worker = testEnv.newWorker(testTaskQueue);
+    worker.registerWorkflowImplementationTypes(TestOfferPollPeek.class);
+    testEnv.start();
+    WorkflowQueueTestWorkflow workflow =
+        testEnv
+            .getWorkflowClient()
+            .newWorkflowStub(
+                WorkflowQueueTestWorkflow.class,
+                WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
+    List<String> trace = workflow.test();
+    List<String> expected =
+        Arrays.asList(
+            "root begin",
+            "peek null",
+            "offer true",
+            "offer false",
+            "peek 12",
+            "poll 12",
+            "offer true",
+            "offer false",
+            "take 23",
+            "root done");
+    assertEquals(expected, trace);
+    testEnv.close();
   }
 
   @Test

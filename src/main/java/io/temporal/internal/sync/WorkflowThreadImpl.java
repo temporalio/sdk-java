@@ -27,6 +27,7 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -39,7 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,9 +60,9 @@ class WorkflowThreadImpl implements WorkflowThread {
     private final ReplayWorkflowContext replayWorkflowContext;
     private String originalName;
     private String name;
-    private CancellationScopeImpl cancellationScope;
-    private List<ContextPropagator> contextPropagators;
-    private Map<String, Object> propagatedContexts;
+    private final CancellationScopeImpl cancellationScope;
+    private final List<ContextPropagator> contextPropagators;
+    private final Map<String, Object> propagatedContexts;
 
     RunnableWrapper(
         WorkflowThreadContext threadContext,
@@ -159,14 +159,6 @@ class WorkflowThreadImpl implements WorkflowThread {
   private Thread thread;
   private Future<?> taskFuture;
   private final Map<WorkflowThreadLocalInternal<?>, Object> threadLocalMap = new HashMap<>();
-
-  /**
-   * If not 0 then thread is blocked on a sleep (or on an operation with a timeout). The value is
-   * the time in milliseconds (as in currentTimeMillis()) when thread will continue. Note that
-   * thread still has to be called for evaluation as other threads might interrupt the blocking
-   * call.
-   */
-  private long blockedUntil;
 
   WorkflowThreadImpl(
       ExecutorService threadPool,
@@ -315,15 +307,6 @@ class WorkflowThreadImpl implements WorkflowThread {
     return priority;
   }
 
-  @Override
-  public long getBlockedUntil() {
-    return blockedUntil;
-  }
-
-  private void setBlockedUntil(long blockedUntil) {
-    this.blockedUntil = blockedUntil;
-  }
-
   /** @return true if coroutine made some progress. */
   @Override
   public boolean runUntilBlocked() {
@@ -359,7 +342,7 @@ class WorkflowThreadImpl implements WorkflowThread {
    *
    * @param function Parameter is reason for current goroutine blockage.
    */
-  public void evaluateInCoroutineContext(Consumer<String> function) {
+  public void evaluateInCoroutineContext(Functions.Proc1<String> function) {
     context.evaluateInCoroutineContext(function);
   }
 
@@ -416,20 +399,6 @@ class WorkflowThreadImpl implements WorkflowThread {
   @Override
   public void yield(String reason, Supplier<Boolean> unblockCondition) {
     context.yield(reason, unblockCondition);
-  }
-
-  @Override
-  public boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition)
-      throws DestroyWorkflowThreadError {
-    if (timeoutMillis == 0) {
-      return unblockCondition.get();
-    }
-    long blockedUntil = WorkflowInternal.currentTimeMillis() + timeoutMillis;
-    setBlockedUntil(blockedUntil);
-    YieldWithTimeoutCondition condition =
-        new YieldWithTimeoutCondition(unblockCondition, blockedUntil);
-    WorkflowThread.await(reason, condition);
-    return !condition.isTimedOut();
   }
 
   @Override

@@ -27,7 +27,7 @@ import java.util.Optional;
 public final class EncodedValues implements Values {
   private Optional<Payloads> payloads;
   private DataConverter converter;
-  private Object[] values;
+  private final Object[] values;
 
   public EncodedValues(Optional<Payloads> payloads, DataConverter converter) {
     this.payloads = Objects.requireNonNull(payloads);

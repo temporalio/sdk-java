@@ -105,7 +105,7 @@ final class RequestContext {
   private boolean needWorkflowTask;
   // How many times call SelfAdvancedTimer#lockTimeSkipping.
   // Negative means how many times to call SelfAdvancedTimer#unlockTimeSkipping.
-  private List<TimerLockChange> timerLocks = new ArrayList<>();
+  private final List<TimerLockChange> timerLocks = new ArrayList<>();
 
   /**
    * Creates an instance of the RequestContext

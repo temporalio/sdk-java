@@ -21,33 +21,28 @@ package io.temporal.internal.sync;
 
 import static org.junit.Assert.*;
 
+import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.worker.Worker;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.IllegalFormatCodePointException;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class PromiseTest {
 
   @Rule public final Tracer trace = new Tracer();
-
-  private long currentTime;
-
-  @Before
-  public void setUp() {
-    currentTime = 10;
-  }
 
   @Test
   public void testFailure() throws Throwable {
@@ -144,58 +139,53 @@ public class PromiseTest {
     trace.setExpected(expected);
   }
 
+  @WorkflowInterface
+  public interface PromiseTestWorkflow {
+    @WorkflowMethod
+    List<String> test();
+  }
+
+  public static class TestGetTimeout implements PromiseTestWorkflow {
+
+    @Override
+    public List<String> test() {
+      List<String> trace = new ArrayList<>();
+      CompletablePromise<String> f = Workflow.newPromise();
+      trace.add("thread1 begin");
+      try {
+        assertEquals("bar", f.get(10, TimeUnit.SECONDS));
+        trace.add("thread1 get success");
+        fail("failure expected");
+      } catch (CanceledFailure e) {
+        trace.add("thread1 get cancellation");
+      } catch (TimeoutException e) {
+        trace.add("thread1 get timeout");
+        // Test default value
+      } catch (Exception e) {
+        assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+        trace.add("thread1 get failure");
+      }
+      return trace;
+    }
+  }
+
   @Test
   public void testGetTimeout() throws Throwable {
-    ExecutorService threadPool =
-        new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-
-    DeterministicRunner r =
-        DeterministicRunner.newRunner(
-            threadPool,
-            null,
-            () -> currentTime,
-            "test-thread",
-            () -> {
-              CompletablePromise<String> f = Workflow.newPromise();
-              trace.add("root begin");
-              WorkflowInternal.newThread(
-                      false,
-                      () -> {
-                        trace.add("thread1 begin");
-                        try {
-                          assertEquals("bar", f.get(10, TimeUnit.SECONDS));
-                          trace.add("thread1 get success");
-                          fail("failure expected");
-                        } catch (CanceledFailure e) {
-                          trace.add("thread1 get cancellation");
-                        } catch (TimeoutException e) {
-                          trace.add("thread1 get timeout");
-                          // Test default value
-                        } catch (Exception e) {
-                          assertEquals(IllegalArgumentException.class, e.getCause().getClass());
-                          trace.add("thread1 get failure");
-                        }
-                      })
-                  .start();
-              trace.add("root done");
-            });
-    r.runUntilAllBlocked();
-    String[] expected =
-        new String[] {
-          "root begin", "root done", "thread1 begin",
-        };
-    trace.setExpected(expected);
-    trace.assertExpected();
-
-    currentTime += 11000;
-    r.runUntilAllBlocked();
-    expected =
-        new String[] {
-          "root begin", "root done", "thread1 begin", "thread1 get timeout",
-        };
-    trace.setExpected(expected);
-    threadPool.shutdown();
-    threadPool.awaitTermination(1, TimeUnit.MINUTES);
+    TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
+    String testTaskQueue = "testTaskQueue";
+    Worker worker = testEnv.newWorker(testTaskQueue);
+    worker.registerWorkflowImplementationTypes(TestGetTimeout.class);
+    testEnv.start();
+    PromiseTestWorkflow workflow =
+        testEnv
+            .getWorkflowClient()
+            .newWorkflowStub(
+                PromiseTestWorkflow.class,
+                WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
+    List<String> result = workflow.test();
+    List<String> expected = Arrays.asList("thread1 begin", "thread1 get timeout");
+    assertEquals(expected, result);
+    testEnv.close();
   }
 
   @Test
@@ -614,9 +604,7 @@ public class PromiseTest {
             () -> {
               trace.add("root begin");
               {
-                Promise all =
-                    Promise.anyOf(
-                        new Promise[] {Workflow.newPromise(), Workflow.newPromise("bar")});
+                Promise all = Promise.anyOf(Workflow.newPromise(), Workflow.newPromise("bar"));
                 trace.add("root array isCompleted=" + all.isCompleted());
               }
               {

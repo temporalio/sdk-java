@@ -36,12 +36,32 @@ public interface ActivityTaskHandler {
 
   final class Result {
 
+    private final String activityId;
     private final RespondActivityTaskCompletedRequest taskCompleted;
     private final TaskFailedResult taskFailed;
     private final RespondActivityTaskCanceledRequest taskCancelled;
     private final RpcRetryOptions requestRetryOptions;
     private int attempt;
     private Duration backoff;
+
+    @Override
+    public String toString() {
+      return "Result{"
+          + "activityId='"
+          + activityId
+          + '\''
+          + ", taskCompleted="
+          + taskCompleted
+          + ", taskFailed="
+          + taskFailed
+          + ", taskCancelled="
+          + taskCancelled
+          + ", attempt="
+          + attempt
+          + ", backoff="
+          + backoff
+          + '}';
+    }
 
     public static class TaskFailedResult {
       private final RespondActivityTaskFailedRequest taskFailedRequest;
@@ -68,14 +88,20 @@ public interface ActivityTaskHandler {
      * default ones set on the activity worker.
      */
     public Result(
+        String activityId,
         RespondActivityTaskCompletedRequest taskCompleted,
         TaskFailedResult taskFailed,
         RespondActivityTaskCanceledRequest taskCancelled,
         RpcRetryOptions requestRetryOptions) {
+      this.activityId = activityId;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.taskCancelled = taskCancelled;
       this.requestRetryOptions = requestRetryOptions;
+    }
+
+    public String getActivityId() {
+      return activityId;
     }
 
     public RespondActivityTaskCompletedRequest getTaskCompleted() {

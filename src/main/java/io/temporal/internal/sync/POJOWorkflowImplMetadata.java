@@ -63,9 +63,9 @@ class POJOWorkflowImplMetadata {
     }
   }
 
-  private Map<String, POJOWorkflowMethodMetadata> workflowMethods = new HashMap<>();
-  private Map<String, POJOWorkflowMethodMetadata> signalMethods = new HashMap<>();
-  private Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
+  private final Map<String, POJOWorkflowMethodMetadata> workflowMethods = new HashMap<>();
+  private final Map<String, POJOWorkflowMethodMetadata> signalMethods = new HashMap<>();
+  private final Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
 
   public static POJOWorkflowImplMetadata newInstance(Class<?> implClass) {
     return new POJOWorkflowImplMetadata(implClass, false);

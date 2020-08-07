@@ -66,11 +66,11 @@ public class FailureConverter {
 
   private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
 
-  public static Exception failureToException(Failure failure, DataConverter dataConverter) {
+  public static RuntimeException failureToException(Failure failure, DataConverter dataConverter) {
     if (failure == null) {
       return null;
     }
-    Exception result = failureToExceptionImpl(failure, dataConverter);
+    RuntimeException result = failureToExceptionImpl(failure, dataConverter);
     if (result instanceof TemporalFailure) {
       ((TemporalFailure) result).setFailure(failure);
     }
@@ -81,8 +81,9 @@ public class FailureConverter {
     return result;
   }
 
-  private static Exception failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
-    Exception cause =
+  private static RuntimeException failureToExceptionImpl(
+      Failure failure, DataConverter dataConverter) {
+    RuntimeException cause =
         failure.hasCause() ? failureToException(failure.getCause(), dataConverter) : null;
     switch (failure.getFailureInfoCase()) {
       case APPLICATION_FAILURE_INFO:

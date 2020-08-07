@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.workflow.Workflow;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -53,7 +54,9 @@ public final class Tracer implements TestRule {
 
   /** Record string value. */
   public void add(String value) {
-    trace.add(value);
+    if (!Workflow.isReplaying()) {
+      trace.add(value);
+    }
   }
 
   public void addExpected(String value) {

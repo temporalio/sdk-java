@@ -43,7 +43,7 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
   private final double taskQueueActivitiesPerSecond;
-  private Scope metricsScope;
+  private final Scope metricsScope;
 
   public ActivityPollTask(
       WorkflowServiceStubs service,

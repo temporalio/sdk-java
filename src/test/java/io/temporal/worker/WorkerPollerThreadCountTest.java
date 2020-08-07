@@ -47,7 +47,7 @@ public class WorkerPollerThreadCountTest {
   @WorkflowInterface
   public interface Workflow {
     @WorkflowMethod
-    public void bar();
+    void bar();
   }
 
   public static class WorkflowImpl implements Workflow {

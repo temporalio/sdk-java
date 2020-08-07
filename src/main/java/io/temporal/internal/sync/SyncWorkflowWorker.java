@@ -36,6 +36,7 @@ import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.internal.worker.WorkflowWorker;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -45,11 +46,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 /** Workflow worker that supports POJO workflow implementations. */
 public class SyncWorkflowWorker
-    implements SuspendableWorker, Consumer<PollWorkflowTaskQueueResponse> {
+    implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
 
   private final WorkflowWorker workflowWorker;
   private final LocalActivityWorker laWorker;
@@ -211,7 +211,7 @@ public class SyncWorkflowWorker
   }
 
   @Override
-  public void accept(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
-    workflowWorker.accept(pollWorkflowTaskQueueResponse);
+  public void apply(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
+    workflowWorker.apply(pollWorkflowTaskQueueResponse);
   }
 }

@@ -1,0 +1,39 @@
+` Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+`
+` Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+`
+` Modifications copyright (C) 2017 Uber Technologies, Inc.
+`
+` Licensed under the Apache License, Version 2.0 (the "License"). You may not
+` use this file except in compliance with the License. A copy of the License is
+` located at
+`
+` http://aws.amazon.com/apache2.0
+`
+` or in the "license" file accompanying this file. This file is distributed on
+` an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+` express or implied. See the License for the specific language governing
+` permissions and limitations under the License.
+
+` PlantUML <plantuml.com> State Diagram.
+` Generated from src/main/java/io/temporal/internal/statemachines/LocalActivityStateMachine.java
+` by io.temporal.internal.statemachines.CommandsGeneratePlantUMLStateDiagrams.
+
+
+@startuml
+scale 350 width
+[*] --> CREATED
+CREATED --> REPLAYING: CHECK_EXECUTION_STATE
+CREATED --> EXECUTING: CHECK_EXECUTION_STATE
+EXECUTING --> REQUEST_PREPARED: SCHEDULE
+REQUEST_PREPARED --> REQUEST_SENT: GET_REQUEST
+REQUEST_SENT --> MARKER_COMMAND_CREATED: HANDLE_RESPONSE
+REQUEST_SENT --> REQUEST_SENT: NON_REPLAY_WORKFLOW_TASK_STARTED
+MARKER_COMMAND_CREATED --> RESULT_NOTIFIED: RECORD_MARKER
+MARKER_COMMAND_CREATED --> MARKER_COMMAND_CREATED: NON_REPLAY_WORKFLOW_TASK_STARTED
+RESULT_NOTIFIED --> MARKER_COMMAND_RECORDED: MARKER_RECORDED
+REPLAYING --> WAITING_MARKER_EVENT: SCHEDULE
+WAITING_MARKER_EVENT --> MARKER_COMMAND_RECORDED: MARKER_RECORDED
+WAITING_MARKER_EVENT --> REQUEST_PREPARED: NON_REPLAY_WORKFLOW_TASK_STARTED
+MARKER_COMMAND_RECORDED --> [*]
+@enduml

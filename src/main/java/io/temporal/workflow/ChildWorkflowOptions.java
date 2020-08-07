@@ -313,7 +313,7 @@ public final class ChildWorkflowOptions {
 
   private final Map<String, Object> searchAttributes;
 
-  private List<ContextPropagator> contextPropagators;
+  private final List<ContextPropagator> contextPropagators;
 
   private final ChildWorkflowCancellationType cancellationType;
 

@@ -147,7 +147,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
   private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
       new HashMap<>();
-  private StateMachine<WorkflowData> workflow;
+  private final StateMachine<WorkflowData> workflow;
   /** A single workflow task state machine is used for the whole workflow lifecycle. */
   private final StateMachine<WorkflowTaskData> workflowTaskStateMachine;
 
@@ -466,31 +466,34 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 }
               }
             }
-            if (workflowTaskStateMachine.getState() == State.INITIATED) {
-              for (ConsistentQuery query : data.queryBuffer.values()) {
-                workflowTaskStateMachine.action(Action.QUERY, ctx, query, NO_EVENT_ID);
-              }
-            } else {
-              for (ConsistentQuery consistent : data.queryBuffer.values()) {
-                QueryId queryId = new QueryId(executionId, consistent.getKey());
-                PollWorkflowTaskQueueResponse.Builder task =
-                    PollWorkflowTaskQueueResponse.newBuilder()
-                        .setTaskToken(queryId.toBytes())
-                        .setWorkflowExecution(executionId.getExecution())
-                        .setWorkflowType(startRequest.getWorkflowType())
-                        .setQuery(consistent.getRequest().getQuery())
-                        .setWorkflowExecutionTaskQueue(startRequest.getTaskQueue());
-                TestWorkflowStore.TaskQueueId taskQueueId =
-                    new TestWorkflowStore.TaskQueueId(
-                        consistent.getRequest().getNamespace(),
-                        stickyExecutionAttributes == null
-                            ? startRequest.getTaskQueue().getName()
-                            : stickyExecutionAttributes.getWorkerTaskQueue().getName());
-                store.sendQueryTask(executionId, taskQueueId, task);
-                this.queries.put(queryId.getQueryId(), consistent.getResult());
-              }
-            }
-            data.queryBuffer.clear();
+            ctx.onCommit(
+                (historySize -> {
+                  if (workflowTaskStateMachine.getState() == State.INITIATED) {
+                    for (ConsistentQuery query : data.queryBuffer.values()) {
+                      workflowTaskStateMachine.action(Action.QUERY, ctx, query, NO_EVENT_ID);
+                    }
+                  } else {
+                    for (ConsistentQuery consistent : data.queryBuffer.values()) {
+                      QueryId queryId = new QueryId(executionId, consistent.getKey());
+                      PollWorkflowTaskQueueResponse.Builder task =
+                          PollWorkflowTaskQueueResponse.newBuilder()
+                              .setTaskToken(queryId.toBytes())
+                              .setWorkflowExecution(executionId.getExecution())
+                              .setWorkflowType(startRequest.getWorkflowType())
+                              .setQuery(consistent.getRequest().getQuery())
+                              .setWorkflowExecutionTaskQueue(startRequest.getTaskQueue());
+                      TestWorkflowStore.TaskQueueId taskQueueId =
+                          new TestWorkflowStore.TaskQueueId(
+                              consistent.getRequest().getNamespace(),
+                              stickyExecutionAttributes == null
+                                  ? startRequest.getTaskQueue().getName()
+                                  : stickyExecutionAttributes.getWorkerTaskQueue().getName());
+                      store.sendQueryTask(executionId, taskQueueId, task);
+                      this.queries.put(queryId.getQueryId(), consistent.getResult());
+                    }
+                  }
+                  data.queryBuffer.clear();
+                }));
           } finally {
             ctx.unlockTimer("completeWorkflowTask");
           }
@@ -567,6 +570,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         processUpsertWorkflowSearchAttributes(
             ctx, d.getUpsertWorkflowSearchAttributesCommandAttributes(), workflowTaskCompletedId);
         break;
+      default:
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Unknown command type: " + d.getCommandType() + " for " + d)
+            .asRuntimeException();
     }
   }
 
@@ -1155,7 +1162,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
             event.getWorkflowExecutionContinuedAsNewEventAttributes();
 
-        Optional<TestServiceRetryState> continuedRetryState = Optional.of(rs.getNextAttempt());
+        Optional<TestServiceRetryState> continuedRetryState =
+            Optional.of(rs.getNextAttempt(Optional.of(d.getFailure())));
         String runId =
             service.continueAsNew(
                 startRequest,
@@ -1649,7 +1657,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getActivity(scheduledEventId);
-          if (activity.getState() != State.STARTED) {
+          if (activity.getState() != State.STARTED
+              && activity.getState() != State.CANCELLATION_REQUESTED) {
             throw Status.NOT_FOUND
                 .withDescription("Activity is in " + activity.getState() + "  state")
                 .asRuntimeException();

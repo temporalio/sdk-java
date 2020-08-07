@@ -30,14 +30,15 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class WorkflowExecutorCache {
   private final Scope metricsScope;
-  private LoadingCache<String, WorkflowExecutor> cache;
-  private Lock cacheLock = new ReentrantLock();
-  private Set<String> inProcessing = new HashSet<>();
+  private final LoadingCache<String, WorkflowExecutor> cache;
+  private final Lock cacheLock = new ReentrantLock();
+  private final Set<String> inProcessing = new HashSet<>();
 
   public WorkflowExecutorCache(int workflowCacheSize, Scope scope) {
     Preconditions.checkArgument(workflowCacheSize > 0, "Max cache size must be greater than 0");
@@ -79,7 +80,8 @@ public final class WorkflowExecutorCache {
     return workflowExecutorFn.call();
   }
 
-  private WorkflowExecutor getForProcessing(String runId, Scope metricsScope) throws Exception {
+  private WorkflowExecutor getForProcessing(String runId, Scope metricsScope)
+      throws ExecutionException {
     cacheLock.lock();
     try {
       WorkflowExecutor workflowExecutor = cache.get(runId);
@@ -95,9 +97,7 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  void markProcessingDone(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-    String runId = workflowTask.getWorkflowExecution().getRunId();
-
+  void markProcessingDone(String runId) {
     cacheLock.lock();
     try {
       inProcessing.remove(runId);
@@ -106,9 +106,7 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  public void addToCache(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowExecutor workflowExecutor) {
-    String runId = workflowTask.getWorkflowExecution().getRunId();
+  public void addToCache(String runId, WorkflowExecutor workflowExecutor) {
     cache.put(runId, workflowExecutor);
   }
 

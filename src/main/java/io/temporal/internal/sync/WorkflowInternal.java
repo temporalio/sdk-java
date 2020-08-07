@@ -147,7 +147,7 @@ public final class WorkflowInternal {
 
   /** Should be used to get current time instead of {@link System#currentTimeMillis()} */
   public static long currentTimeMillis() {
-    return DeterministicRunnerImpl.currentThreadInternal().getRunner().currentTimeMillis();
+    return getWorkflowInterceptor().currentTimeMillis();
   }
 
   /**

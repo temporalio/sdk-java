@@ -95,7 +95,7 @@ public class ReplayWorkflowExecutorCacheTests {
 
     WorkflowExecutor workflowExecutor =
         cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1, workflowExecutor);
+    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowExecutor);
 
     PollWorkflowTaskQueueResponse workflowTask2 =
         HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
@@ -143,7 +143,7 @@ public class ReplayWorkflowExecutorCacheTests {
 
       WorkflowExecutor workflowExecutor =
           cache.getOrCreate(workflowTask, scope, () -> createFakeExecutor(workflowTask));
-      cache.addToCache(workflowTask, workflowExecutor);
+      cache.addToCache(workflowTask.getWorkflowExecution().getRunId(), workflowExecutor);
 
       // Act
       PollWorkflowTaskQueueResponse workflowTask2 =
@@ -214,13 +214,13 @@ public class ReplayWorkflowExecutorCacheTests {
     // Act
     WorkflowExecutor workflowExecutor =
         cache.getOrCreate(workflowTask1, scope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1, workflowExecutor);
+    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowExecutor);
     workflowExecutor =
         cache.getOrCreate(workflowTask2, scope, () -> createFakeExecutor(workflowTask2));
-    cache.addToCache(workflowTask2, workflowExecutor);
+    cache.addToCache(workflowTask2.getWorkflowExecution().getRunId(), workflowExecutor);
     workflowExecutor =
         cache.getOrCreate(workflowTask3, scope, () -> createFakeExecutor(workflowTask3));
-    cache.addToCache(workflowTask3, workflowExecutor);
+    cache.addToCache(workflowTask3.getWorkflowExecution().getRunId(), workflowExecutor);
 
     assertEquals(3, cache.size());
 
@@ -244,7 +244,7 @@ public class ReplayWorkflowExecutorCacheTests {
     // Act
     WorkflowExecutor workflowExecutor =
         cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1, workflowExecutor);
+    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowExecutor);
 
     assertEquals(1, cache.size());
 
@@ -302,11 +302,6 @@ public class ReplayWorkflowExecutorCacheTests {
           public void close() {}
 
           @Override
-          public long getNextWakeUpTime() {
-            return 0;
-          }
-
-          @Override
           public Optional<Payloads> query(WorkflowQuery query) {
             return Optional.empty();
           }
@@ -317,7 +312,7 @@ public class ReplayWorkflowExecutorCacheTests {
           }
 
           @Override
-          public WorkflowExecutionException mapError(Error failure) {
+          public WorkflowExecutionException mapError(Throwable failure) {
             return null;
           }
 
@@ -329,6 +324,6 @@ public class ReplayWorkflowExecutorCacheTests {
         response.toBuilder(),
         SingleWorkerOptions.newBuilder().build(),
         metricsScope,
-        (a, d) -> true);
+        (a, b) -> true);
   }
 }

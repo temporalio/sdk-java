@@ -46,16 +46,6 @@ interface WorkflowThread extends CancellationScope {
   }
 
   /**
-   * Block current thread until unblockCondition is evaluated to true or timeoutMillis passes.
-   *
-   * @return false if timed out.
-   */
-  static boolean await(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition)
-      throws DestroyWorkflowThreadError {
-    return currentThreadInternal().yield(timeoutMillis, reason, unblockCondition);
-  }
-
-  /**
    * Creates a new thread instance.
    *
    * @param runnable thread function to run
@@ -92,8 +82,6 @@ interface WorkflowThread extends CancellationScope {
 
   SyncWorkflowContext getWorkflowContext();
 
-  long getBlockedUntil();
-
   boolean runUntilBlocked();
 
   Throwable getUnhandledException();
@@ -105,9 +93,6 @@ interface WorkflowThread extends CancellationScope {
   void addStackTrace(StringBuilder result);
 
   void yield(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
-
-  boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition)
-      throws DestroyWorkflowThreadError;
 
   /**
    * Stop executing all workflow threads and puts {@link DeterministicRunner} into closed state. To

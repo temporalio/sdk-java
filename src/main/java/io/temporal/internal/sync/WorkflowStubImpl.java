@@ -81,7 +81,7 @@ class WorkflowStubImpl implements WorkflowStub {
   private final GenericWorkflowClientExternal genericClient;
   private final Optional<String> workflowType;
   private final Scope metricsScope;
-  private AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
+  private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
   private final Optional<WorkflowOptions> options;
   private final WorkflowClientOptions clientOptions;
 

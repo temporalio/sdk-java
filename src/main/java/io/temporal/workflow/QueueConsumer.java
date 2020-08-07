@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 public interface QueueConsumer<E> {
 
@@ -61,27 +61,25 @@ public interface QueueConsumer<E> {
   /**
    * Retrieves and removes the head of this queue, waiting up to the specified wait time if
    * necessary for an element to become available. It is not unblocked in case of the enclosing
-   * CancellationScope cancellation. Use {@link #cancellablePoll(long, TimeUnit)} instead.
+   * CancellationScope cancellation. Use {@link #cancellablePoll(Duration)} instead.
    *
-   * @param timeout how long to wait before giving up, in units of {@code unit}
-   * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
+   * @param timeout how long to wait before giving up.
    * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
    *     element is available
    */
-  E poll(long timeout, TimeUnit unit);
+  E poll(Duration timeout);
 
   /**
    * Retrieves and removes the head of this queue, waiting up to the specified wait time if
    * necessary for an element to become available.
    *
-   * @param timeout how long to wait before giving up, in units of {@code unit}
-   * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
+   * @param timeout how long to wait before giving up
    * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
    *     element is available
    * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
    *     cancelled while waiting
    */
-  E cancellablePoll(long timeout, TimeUnit unit);
+  E cancellablePoll(Duration timeout);
 
   /**
    * Returns a queue consisting of the results of applying the given function to the elements of

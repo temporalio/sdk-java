@@ -128,8 +128,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
 
   private final String serverName;
-  private ManagedChannel channel;
-  private WorkflowServiceStubs stubs;
+  private final ManagedChannel channel;
+  private final WorkflowServiceStubs stubs;
 
   public WorkflowServiceStubs newClientStub() {
     return stubs;

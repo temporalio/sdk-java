@@ -64,7 +64,7 @@ public final class Worker implements Suspendable {
   private final WorkflowExecutorCache cache;
   private final String stickyTaskQueueName;
   private final Scope metricsScope;
-  private ThreadPoolExecutor threadPoolExecutor;
+  private final ThreadPoolExecutor threadPoolExecutor;
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
@@ -115,7 +115,7 @@ public final class Worker implements Suspendable {
             service,
             namespace,
             taskQueue,
-            this.options.getTaskQueueActivitiesPerSecond(),
+            this.options.getMaxTaskQueueActivitiesPerSecond(),
             factoryOptions.getActivityInterceptors(),
             activityOptions);
 
@@ -161,7 +161,7 @@ public final class Worker implements Suspendable {
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setMaximumPollRatePerSecond(options.getMaxActivitiesPerSecond())
+                .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
                 .setPollThreadCount(options.getActivityPollThreadCount())
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())

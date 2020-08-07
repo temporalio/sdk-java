@@ -27,7 +27,6 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
@@ -38,26 +37,26 @@ import java.util.Optional;
 
 final class WorkflowContext {
 
-  private final PollWorkflowTaskQueueResponseOrBuilder workflowTask;
   private final long runStartedTimestampMillis;
   private boolean cancelRequested;
   private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
-  private WorkflowExecutionStartedEventAttributes startedAttributes;
+  private final WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String namespace;
   // RunId can change when reset happens. This remembers the actual runId that is used
   // as in this particular part of the history.
   private String currentRunId;
   private SearchAttributes.Builder searchAttributes;
-  private List<ContextPropagator> contextPropagators;
+  private final List<ContextPropagator> contextPropagators;
+  private final WorkflowExecution workflowExecution;
 
   WorkflowContext(
       String namespace,
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask,
+      WorkflowExecution workflowExecution,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       long runStartedTimestampMillis,
       List<ContextPropagator> contextPropagators) {
     this.namespace = namespace;
-    this.workflowTask = workflowTask;
+    this.workflowExecution = workflowExecution;
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
     if (startedAttributes.hasSearchAttributes()) {
@@ -68,11 +67,11 @@ final class WorkflowContext {
   }
 
   WorkflowExecution getWorkflowExecution() {
-    return workflowTask.getWorkflowExecution();
+    return workflowExecution;
   }
 
   WorkflowType getWorkflowType() {
-    return workflowTask.getWorkflowType();
+    return startedAttributes.getWorkflowType();
   }
 
   boolean isCancelRequested() {

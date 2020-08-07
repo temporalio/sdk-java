@@ -120,7 +120,7 @@ public final class ApplicationFailure extends TemporalFailure {
   }
 
   private static String getMessage(String message, String type, boolean nonRetryable) {
-    return (Strings.isNullOrEmpty(message) ? "" : "message='" + message + "\', ")
+    return (Strings.isNullOrEmpty(message) ? "" : "message='" + message + "', ")
         + "type='"
         + type
         + '\''

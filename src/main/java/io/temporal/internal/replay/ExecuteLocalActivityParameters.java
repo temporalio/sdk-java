@@ -24,19 +24,17 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 public class ExecuteLocalActivityParameters {
 
   private final PollActivityTaskQueueResponse.Builder activityTask;
-  private final long elapsedTime;
 
-  public ExecuteLocalActivityParameters(
-      PollActivityTaskQueueResponse.Builder activityTask, long elapsedTime) {
+  public ExecuteLocalActivityParameters(PollActivityTaskQueueResponse.Builder activityTask) {
     this.activityTask = activityTask;
-    this.elapsedTime = elapsedTime;
   }
 
   public PollActivityTaskQueueResponse.Builder getActivityTask() {
     return activityTask;
   }
 
-  public long getElapsedTime() {
-    return elapsedTime;
+  @Override
+  public String toString() {
+    return "ExecuteLocalActivityParameters{" + "activityTask=" + activityTask + '}';
   }
 }

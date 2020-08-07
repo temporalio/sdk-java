@@ -42,12 +42,18 @@ public class MetricsType {
       TEMPORAL_METRICS_PREFIX + "workflow_task_schedule_to_start_latency";
   public static final String WORKFLOW_TASK_EXECUTION_LATENCY =
       TEMPORAL_METRICS_PREFIX + "workflow_task_execution_latency";
+  // Total latency of a workflow task which can include multiple synchronous decision tasks
+  public static final String WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY =
+      TEMPORAL_METRICS_PREFIX + "workflow_task_execution_total_latency";
   /** Workflow task failed, possibly failing workflow or reporting failure to the service. */
   public static final String WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_task_execution_failed";
   /** Workflow task failed with unhandled exception without replying to the service. */
   public static final String WORKFLOW_TASK_NO_COMPLETION_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_task_no_completion";
+
+  public static final String WORKFLOW_TASK_HEARTBEAT_COUNTER =
+      TEMPORAL_METRICS_PREFIX + "workflow_task_heartbeat";
 
   public static final String ACTIVITY_POLL_NO_TASK_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_poll_no_task";
