@@ -200,16 +200,14 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void sideEffect(Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback);
 
   /**
-   * {@code mutableSideEffect} is similar to {@link #sideEffect(Func,
-   * io.temporal.workflow.Functions.Proc1)} in allowing calls of non-deterministic functions from
-   * workflow code.
+   * {@code mutableSideEffect} is similar to {@code sideEffect} in allowing calls of
+   * non-deterministic functions from workflow code.
    *
-   * <p>The difference between {@code mutableSideEffect} and {@link #sideEffect(Func,
-   * io.temporal.workflow.Functions.Proc1)} is that every new {@code sideEffect} call in non-replay
-   * mode results in a new marker event recorded into the history. However, {@code
-   * mutableSideEffect} only records a new marker if a value has changed. During the replay, {@code
-   * mutableSideEffect} will not execute the function again, but it will return the exact same value
-   * as it was returning during the non-replay run.
+   * <p>The difference between {@code mutableSideEffect} and {@code sideEffect} is that every new
+   * {@code sideEffect} call in non-replay mode results in a new marker event recorded into the
+   * history. However, {@code mutableSideEffect} only records a new marker if a value has changed.
+   * During the replay, {@code mutableSideEffect} will not execute the function again, but it will
+   * return the exact same value as it was returning during the non-replay run.
    *
    * <p>One good use case of {@code mutableSideEffect} is to access a dynamically changing config
    * without breaking determinism. Even if called very frequently the config value is recorded only

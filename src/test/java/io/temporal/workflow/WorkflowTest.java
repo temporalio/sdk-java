@@ -3832,6 +3832,21 @@ public class WorkflowTest {
     long elapsed = currentTimeMillis() - start;
     assertTrue("spinned on fail workflow task", elapsed > 1000);
     assertEquals("result1", result);
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(WorkflowStub.fromTyped(workflowStub).getExecution())
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    int failedTaskCount = 0;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED) {
+        failedTaskCount++;
+      }
+    }
+    assertEquals(1, failedTaskCount);
   }
 
   public static class TestAwait implements TestWorkflow1 {
