@@ -97,6 +97,7 @@ public class TimerStateMachineTest {
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
+      // Full replay
       TestEntityManagerListenerBase listener = new TestTimerFireListener();
       manager = new WorkflowStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);

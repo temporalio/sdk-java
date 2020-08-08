@@ -21,6 +21,7 @@ package io.temporal.internal.statemachines;
 
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
@@ -139,10 +140,16 @@ final class SignalExternalStateMachine
     SignalExternalWorkflowExecutionFailedEventAttributes attributes =
         currentEvent.getSignalExternalWorkflowExecutionFailedEventAttributes();
     // TODO(maxim): Special failure type
+    WorkflowExecution execution = signalAttributes.getExecution();
     Failure failure =
         Failure.newBuilder()
-            .setApplicationFailureInfo(ApplicationFailureInfo.newBuilder().build())
-            .setMessage("SignalExternalWorkflowExecution failed: " + attributes.getCause())
+            .setApplicationFailureInfo(
+                ApplicationFailureInfo.newBuilder().setType(attributes.getCause().name()).build())
+            .setMessage(
+                "SignalExternalWorkflowExecution failed with NOT_FOUND. WorkflowId="
+                    + execution.getWorkflowId()
+                    + ", runId="
+                    + execution.getRunId())
             .build();
     completionCallback.apply(null, failure);
   }

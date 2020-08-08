@@ -19,8 +19,6 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
@@ -279,7 +277,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       callback.apply(null);
       return (e) -> {};
     }
-    int delaySeconds = roundUpToSeconds(delay);
     StartTimerCommandAttributes attributes =
         StartTimerCommandAttributes.newBuilder()
             .setStartToFireTimeout(ProtobufTimeUtils.ToProtoDuration(delay))

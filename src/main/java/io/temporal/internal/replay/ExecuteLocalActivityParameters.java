@@ -35,6 +35,6 @@ public class ExecuteLocalActivityParameters {
 
   @Override
   public String toString() {
-    return "ExecuteLocalActivityParameters{" + "activityTask=" + activityTask + '}';
+    return "ExecuteLocalActivityParameters{activityTask=" + activityTask + "}";
   }
 }

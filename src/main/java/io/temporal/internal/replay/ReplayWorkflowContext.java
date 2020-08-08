@@ -53,16 +53,28 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   WorkflowType getWorkflowType();
 
+  /** Is cancel of the workflow requested. */
   boolean isCancelRequested();
 
+  /**
+   * When these attributes are present upon completion of the workflow code the ContinueAsNew
+   * command is emitted instead of the workflow completion.
+   */
   ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
 
+  /** Set the attributes to request continue as new upon workflow code completion. */
   void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
 
+  /**
+   * RunId of the first run in the continue as new chain. Empty if this workflow never called
+   * continue as new.
+   */
   Optional<String> getContinuedExecutionRunId();
 
+  /** Workflow task queue name. */
   String getTaskQueue();
 
+  /** Workflow namespace. */
   String getNamespace();
 
   String getWorkflowId();
@@ -75,6 +87,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   long getRunStartedTimestampMillis();
 
+  /**
+   * The time that is calculated as the start time of the first run plus workflow execution timeout.
+   */
   long getWorkflowExecutionExpirationTimestampMillis();
 
   Duration getWorkflowTaskTimeout();
@@ -99,13 +114,13 @@ public interface ReplayWorkflowContext extends ReplayAware {
   List<ContextPropagator> getContextPropagators();
 
   /**
-   * Used to dynamically schedule an activity for execution
+   * Requests an activity execution.
    *
    * @param parameters An object which encapsulates all the information required to schedule an
    *     activity for execution
    * @param callback Callback that is called upon activity completion or failure.
-   * @return cancellation handle. Invoke {@link Functions.Proc1#apply(Object)} to cancel activity
-   *     task.
+   * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
+   *     to cancel activity task.
    */
   Functions.Proc1<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, Functions.Proc2<Optional<Payloads>, Failure> callback);
@@ -120,18 +135,31 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param parameters An object which encapsulates all the information required to schedule a child
    *     workflow for execution
    * @param callback Callback that is called upon child workflow completion or failure.
-   * @return cancellation handle. Invoke {@link Functions.Proc1#apply(Object)} to cancel activity
-   *     task.
+   * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
+   *     to cancel activity task.
    */
   Functions.Proc1<Exception> startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
       Functions.Proc1<WorkflowExecution> executionCallback,
       Functions.Proc2<Optional<Payloads>, Exception> callback);
 
+  /**
+   * Signal a workflow execution by WorkflowId and optionally RunId.
+   *
+   * @param attributes signal information
+   * @param callback callback notified about the operation result
+   * @return cancellation handler that should be calle to cancel the operation.
+   */
   Functions.Proc1<Exception> signalExternalWorkflowExecution(
       SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
       Functions.Proc2<Void, Failure> callback);
 
+  /**
+   * Request cancellation of a workflow execution by WorkflowId and optionally RunId.
+   *
+   * @param execution contains WorkflowId and optional RunId of the workflow to send request to.
+   * @param callback callback notified about the operation result
+   */
   void requestCancelExternalWorkflowExecution(
       WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback);
 
@@ -149,7 +177,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param delay time-interval after which the Value becomes ready.
    * @param callback Callback that is called with null parameter after the specified delay.
    *     CanceledException is passed as a parameter in case of a cancellation.
-   * @return cancellation handle. Invoke {@link Functions.Proc1#apply(Object)} to cancel timer.
+   * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
+   *     to cancel timer.
    */
   Functions.Proc1<RuntimeException> newTimer(
       Duration delay, Functions.Proc1<RuntimeException> callback);
@@ -161,13 +190,43 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * in replay. Common use case is to run some short non-deterministic code in workflow, like
    * getting random number or new UUID. The only way to fail SideEffect is to throw {@link Error}
    * which causes workflow task failure. The workflow task after timeout is rescheduled and
-   * re-executed giving SideEffect another chance to succeed.
+   * re-executed giving SideEffect another chance to succeed. Use {@link
+   * #scheduleLocalActivityTask(ExecuteLocalActivityParameters, Functions.Proc2)} for executing
+   * operations that rely on non global dependencies and can fail.
    *
    * @param func function that is called once to return a value.
    * @param callback function that accepts the result of the side effect.
    */
   void sideEffect(Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback);
 
+  /**
+   * {@code mutableSideEffect} is similar to {@link #sideEffect(Func,
+   * io.temporal.workflow.Functions.Proc1)} in allowing calls of non-deterministic functions from
+   * workflow code.
+   *
+   * <p>The difference between {@code mutableSideEffect} and {@link #sideEffect(Func,
+   * io.temporal.workflow.Functions.Proc1)} is that every new {@code sideEffect} call in non-replay
+   * mode results in a new marker event recorded into the history. However, {@code
+   * mutableSideEffect} only records a new marker if a value has changed. During the replay, {@code
+   * mutableSideEffect} will not execute the function again, but it will return the exact same value
+   * as it was returning during the non-replay run.
+   *
+   * <p>One good use case of {@code mutableSideEffect} is to access a dynamically changing config
+   * without breaking determinism. Even if called very frequently the config value is recorded only
+   * when it changes not causing any performance degradation due to a large history size.
+   *
+   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow sate. Only use
+   * the mutableSideEffect's return value.
+   *
+   * @param id id of the side effect call. It links multiple calls together. Calls with different
+   *     ids are completely independent.
+   * @param func function that gets as input a result of a previous {@code mutableSideEffect} call.
+   *     The function executes its business logic (like checking config value) and if value didn't
+   *     change returns {@link Optional#empty()}. If value has changed and needs to be recorded in
+   *     the history then it is returned instead.
+   * @param callback function that accepts the result of the mutable side effect which is current or
+   *     cached result of the func.
+   */
   void mutableSideEffect(
       String id,
       Func1<Optional<Payloads>, Optional<Payloads>> func,
@@ -191,6 +250,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void getVersion(
       String changeId, int minSupported, int maxSupported, Functions.Proc1<Integer> callback);
 
+  /** Replay safe random. */
   Random newRandom();
 
   /** @return scope to be used for metrics reporting. */
@@ -202,5 +262,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /** @return replay safe UUID */
   UUID randomUUID();
 
+  /** Updates or inserts search attributes used to index workflows. */
   void upsertSearchAttributes(SearchAttributes searchAttributes);
 }

@@ -259,8 +259,6 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     }
   }
 
-  // Returns boolean to indicate whether we need to force create new workflow task for local
-  // activity heartbeating.
   private void handleWorkflowTaskImpl(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
     Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_REPLAY_LATENCY).start();
     boolean timerStopped = false;

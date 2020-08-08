@@ -3701,7 +3701,7 @@ public class WorkflowTest {
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
       assertEquals(
-          SignalExternalWorkflowException.class.getName(),
+          "SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_EXTERNAL_WORKFLOW_EXECUTION_NOT_FOUND",
           ((ApplicationFailure) e.getCause()).getType());
       assertTrue(e.getCause().getMessage().contains("invalid id"));
     }
