@@ -19,34 +19,18 @@
 
 package io.temporal.internal.statemachines;
 
-import io.temporal.workflow.Functions;
-import java.util.Collections;
 import java.util.List;
 
-class FixedTransitionTarget<State, Data> implements TransitionTarget<State, Data> {
+/** When an event happens it causes a transition. This class represents the transition action. */
+interface TransitionAction<State, Data> {
 
-  final State state;
+  /**
+   * Executes action returning the new state the state machine should transition to.
+   *
+   * @param data data that action applies to
+   */
+  State apply(Data data);
 
-  final Functions.Proc1<Data> callback;
-
-  FixedTransitionTarget(State state, Functions.Proc1<Data> callback) {
-    this.state = state;
-    this.callback = callback;
-  }
-
-  @Override
-  public String toString() {
-    return "TransitionDestination{" + "state=" + state + ", callback=" + callback + '}';
-  }
-
-  @Override
-  public State apply(Data data) {
-    callback.apply(data);
-    return state;
-  }
-
-  @Override
-  public List<State> getAllowedStates() {
-    return Collections.singletonList(state);
-  }
+  /** List of states the apply operation can return. */
+  List<State> getAllowedStates();
 }

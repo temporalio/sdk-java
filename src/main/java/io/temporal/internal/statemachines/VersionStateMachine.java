@@ -50,7 +50,7 @@ final class VersionStateMachine {
 
   private Optional<Integer> version = Optional.empty();
 
-  enum Action {
+  enum ExplicitEvent {
     CHECK_EXECUTION_STATE,
     SCHEDULE,
     NON_MATCHING_EVENT
@@ -70,17 +70,18 @@ final class VersionStateMachine {
     MARKER_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, Action, InvocationStateMachine> newInvocationStateMachine() {
-    return StateMachine.<State, Action, InvocationStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, InvocationStateMachine>
+      newInvocationStateMachine() {
+    return StateMachine.<State, ExplicitEvent, InvocationStateMachine>newInstance(
             "Version", State.CREATED, State.MARKER_COMMAND_RECORDED, State.SKIPPED_NOTIFIED)
         .add(
             State.CREATED,
-            Action.CHECK_EXECUTION_STATE,
+            ExplicitEvent.CHECK_EXECUTION_STATE,
             new State[] {State.REPLAYING, State.EXECUTING},
             InvocationStateMachine::getExecutionState)
         .add(
             State.EXECUTING,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             new State[] {State.MARKER_COMMAND_CREATED, State.SKIPPED},
             InvocationStateMachine::createMarker)
         .add(
@@ -99,7 +100,7 @@ final class VersionStateMachine {
             InvocationStateMachine::cancelCommandNotifyCachedResult)
         .add(
             State.REPLAYING,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.MARKER_COMMAND_CREATED_REPLAYING,
             InvocationStateMachine::createFakeCommand)
         .add(
@@ -108,7 +109,7 @@ final class VersionStateMachine {
             State.RESULT_NOTIFIED_REPLAYING)
         .add(
             State.RESULT_NOTIFIED_REPLAYING,
-            Action.NON_MATCHING_EVENT,
+            ExplicitEvent.NON_MATCHING_EVENT,
             State.SKIPPED_NOTIFIED,
             InvocationStateMachine::missingMarkerNotifyCachedOrDefault)
         .add(
@@ -120,7 +121,7 @@ final class VersionStateMachine {
 
   /** Represents a single invocation of version. */
   private class InvocationStateMachine
-      extends EntityStateMachineInitialCommand<State, Action, InvocationStateMachine> {
+      extends EntityStateMachineInitialCommand<State, ExplicitEvent, InvocationStateMachine> {
 
     private final int minSupported;
     private final int maxSupported;
@@ -159,7 +160,7 @@ final class VersionStateMachine {
               .getMarkerRecordedEventAttributes()
               .getMarkerName()
               .equals(VERSION_MARKER_NAME)) {
-        action(Action.NON_MATCHING_EVENT);
+        explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
         return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
       }
       Map<String, Payloads> detailsMap = event.getMarkerRecordedEventAttributes().getDetailsMap();
@@ -170,7 +171,8 @@ final class VersionStateMachine {
             "Marker details map missing required key: " + MARKER_CHANGE_ID_KEY);
       }
       if (!changeId.equals(expectedId)) {
-        // Do not call action(Action.NON_MATCHING_EVENT) here as the event with different changeId
+        // Do not call explicitEvent(ExplicitEvent.NON_MATCHING_EVENT) here as the event with
+        // different changeId
         // still can be followed by an event with our changeId.
         return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
       }
@@ -183,7 +185,7 @@ final class VersionStateMachine {
       // Needed to support getVersion calls added after this part of the workflow code has executed.
       // Accounts for the case when there are no events following the expected version marker.
       if (getState() == State.RESULT_NOTIFIED_REPLAYING) {
-        action(Action.NON_MATCHING_EVENT);
+        explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
       }
     }
 
@@ -307,8 +309,8 @@ final class VersionStateMachine {
 
   public void getVersion(int minSupported, int maxSupported, Functions.Proc1<Integer> callback) {
     InvocationStateMachine ism = new InvocationStateMachine(minSupported, maxSupported, callback);
-    ism.action(Action.CHECK_EXECUTION_STATE);
-    ism.action(Action.SCHEDULE);
+    ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
+    ism.explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
   public void handleNonMatchingEvent(HistoryEvent event) {

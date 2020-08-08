@@ -28,7 +28,7 @@ import io.temporal.workflow.Functions;
 final class UpsertSearchAttributesStateMachine
     extends EntityStateMachineInitialCommand<
         UpsertSearchAttributesStateMachine.State,
-        UpsertSearchAttributesStateMachine.Action,
+        UpsertSearchAttributesStateMachine.ExplicitEvent,
         UpsertSearchAttributesStateMachine> {
 
   private final UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes;
@@ -44,10 +44,10 @@ final class UpsertSearchAttributesStateMachine
       Functions.Proc1<NewCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.upsertAttributes = upsertAttributes;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE
   }
 
@@ -57,12 +57,13 @@ final class UpsertSearchAttributesStateMachine
     UPSERT_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, Action, UpsertSearchAttributesStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, UpsertSearchAttributesStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, UpsertSearchAttributesStateMachine>
+      newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, UpsertSearchAttributesStateMachine>newInstance(
             "UpsertSearchAttributes", State.CREATED, State.UPSERT_COMMAND_RECORDED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.UPSERT_COMMAND_CREATED,
             UpsertSearchAttributesStateMachine::createUpsertCommand)
         .add(

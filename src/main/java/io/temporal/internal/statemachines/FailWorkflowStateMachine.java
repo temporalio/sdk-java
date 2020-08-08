@@ -28,7 +28,9 @@ import io.temporal.workflow.Functions;
 
 final class FailWorkflowStateMachine
     extends EntityStateMachineInitialCommand<
-        FailWorkflowStateMachine.State, FailWorkflowStateMachine.Action, FailWorkflowStateMachine> {
+        FailWorkflowStateMachine.State,
+        FailWorkflowStateMachine.ExplicitEvent,
+        FailWorkflowStateMachine> {
 
   private final FailWorkflowExecutionCommandAttributes failWorkflowAttributes;
 
@@ -43,10 +45,10 @@ final class FailWorkflowStateMachine
       Functions.Proc1<NewCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.failWorkflowAttributes = failWorkflowAttributes;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE
   }
 
@@ -56,12 +58,12 @@ final class FailWorkflowStateMachine
     FAIL_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, Action, FailWorkflowStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, FailWorkflowStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, FailWorkflowStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, FailWorkflowStateMachine>newInstance(
             "FailWorkflow", State.CREATED, State.FAIL_WORKFLOW_COMMAND_RECORDED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.FAIL_WORKFLOW_COMMAND_CREATED,
             FailWorkflowStateMachine::createFailWorkflowCommand)
         .add(

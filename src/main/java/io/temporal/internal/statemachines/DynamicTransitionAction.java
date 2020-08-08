@@ -22,13 +22,14 @@ package io.temporal.internal.statemachines;
 import java.util.Arrays;
 import java.util.List;
 
-class DynamicTransitionTarget<State, Data> implements TransitionTarget<State, Data> {
+/** Action that can dynamically decide to which state to transition. */
+class DynamicTransitionAction<State, Data> implements TransitionAction<State, Data> {
 
   final DynamicCallback<State, Data> callback;
   State[] expectedStates;
   State state;
 
-  DynamicTransitionTarget(State[] expectedStates, DynamicCallback<State, Data> callback) {
+  DynamicTransitionAction(State[] expectedStates, DynamicCallback<State, Data> callback) {
     this.expectedStates = expectedStates;
     this.callback = callback;
   }

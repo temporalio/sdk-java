@@ -28,7 +28,7 @@ import io.temporal.workflow.Functions;
 final class ContinueAsNewWorkflowStateMachine
     extends EntityStateMachineInitialCommand<
         ContinueAsNewWorkflowStateMachine.State,
-        ContinueAsNewWorkflowStateMachine.Action,
+        ContinueAsNewWorkflowStateMachine.ExplicitEvent,
         ContinueAsNewWorkflowStateMachine> {
 
   private final ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes;
@@ -44,10 +44,10 @@ final class ContinueAsNewWorkflowStateMachine
       Functions.Proc1<NewCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.continueAsNewWorkflowAttributes = continueAsNewWorkflowAttributes;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE
   }
 
@@ -57,12 +57,13 @@ final class ContinueAsNewWorkflowStateMachine
     CONTINUE_AS_NEW_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, Action, ContinueAsNewWorkflowStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, ContinueAsNewWorkflowStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, ContinueAsNewWorkflowStateMachine>
+      newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, ContinueAsNewWorkflowStateMachine>newInstance(
             "ContinueAsNewWorkflow", State.CREATED, State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_RECORDED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED,
             ContinueAsNewWorkflowStateMachine::createContinueAsNewWorkflowCommand)
         .add(

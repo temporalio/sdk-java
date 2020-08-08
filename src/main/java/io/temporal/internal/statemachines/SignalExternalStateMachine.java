@@ -33,7 +33,7 @@ import io.temporal.workflow.Functions;
 final class SignalExternalStateMachine
     extends EntityStateMachineInitialCommand<
         SignalExternalStateMachine.State,
-        SignalExternalStateMachine.Action,
+        SignalExternalStateMachine.ExplicitEvent,
         SignalExternalStateMachine> {
 
   private final SignalExternalWorkflowExecutionCommandAttributes signalAttributes;
@@ -66,10 +66,10 @@ final class SignalExternalStateMachine
     super(newStateMachine(), commandSink);
     this.signalAttributes = signalAttributes;
     this.completionCallback = completionCallback;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE,
     CANCEL
   }
@@ -83,17 +83,17 @@ final class SignalExternalStateMachine
     CANCELED,
   }
 
-  private static StateMachine<State, Action, SignalExternalStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, SignalExternalStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, SignalExternalStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, SignalExternalStateMachine>newInstance(
             "SignalExternal", State.CREATED, State.SIGNALED, State.FAILED, State.CANCELED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.SIGNAL_EXTERNAL_COMMAND_CREATED,
             SignalExternalStateMachine::createSignalExternalCommand)
         .add(
             State.SIGNAL_EXTERNAL_COMMAND_CREATED,
-            Action.CANCEL,
+            ExplicitEvent.CANCEL,
             State.CANCELED,
             SignalExternalStateMachine::cancelSignalExternalCommand)
         .add(
@@ -111,7 +111,7 @@ final class SignalExternalStateMachine
             SignalExternalStateMachine::notifyCompleted)
         .add(
             State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
-            Action.CANCEL,
+            ExplicitEvent.CANCEL,
             State.SIGNAL_EXTERNAL_COMMAND_RECORDED)
         .add(
             State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
@@ -129,7 +129,7 @@ final class SignalExternalStateMachine
   }
 
   public void cancel() {
-    action(Action.CANCEL);
+    explicitEvent(ExplicitEvent.CANCEL);
   }
 
   private void notifyCompleted() {

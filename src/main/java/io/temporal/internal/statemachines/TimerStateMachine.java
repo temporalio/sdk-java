@@ -30,7 +30,7 @@ import io.temporal.workflow.Functions;
 
 final class TimerStateMachine
     extends EntityStateMachineInitialCommand<
-        TimerStateMachine.State, TimerStateMachine.Action, TimerStateMachine> {
+        TimerStateMachine.State, TimerStateMachine.ExplicitEvent, TimerStateMachine> {
 
   private final StartTimerCommandAttributes startAttributes;
 
@@ -58,10 +58,10 @@ final class TimerStateMachine
     super(newStateMachine(), commandSink);
     this.startAttributes = attributes;
     this.completionCallback = completionCallback;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE,
     CANCEL
   }
@@ -75,12 +75,12 @@ final class TimerStateMachine
     CANCELED,
   }
 
-  private static StateMachine<State, Action, TimerStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, TimerStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, TimerStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, TimerStateMachine>newInstance(
             "Timer", State.CREATED, State.FIRED, State.CANCELED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.START_COMMAND_CREATED,
             TimerStateMachine::createStartTimerCommand)
         .add(
@@ -93,7 +93,7 @@ final class TimerStateMachine
             State.START_COMMAND_RECORDED)
         .add(
             State.START_COMMAND_CREATED,
-            Action.CANCEL,
+            ExplicitEvent.CANCEL,
             State.CANCELED,
             TimerStateMachine::cancelStartTimerCommand)
         .add(
@@ -103,10 +103,13 @@ final class TimerStateMachine
             TimerStateMachine::notifyCompletion)
         .add(
             State.START_COMMAND_RECORDED,
-            Action.CANCEL,
+            ExplicitEvent.CANCEL,
             State.CANCEL_TIMER_COMMAND_CREATED,
             TimerStateMachine::createCancelTimerCommand)
-        .add(State.CANCEL_TIMER_COMMAND_CREATED, Action.CANCEL, State.CANCEL_TIMER_COMMAND_CREATED)
+        .add(
+            State.CANCEL_TIMER_COMMAND_CREATED,
+            ExplicitEvent.CANCEL,
+            State.CANCEL_TIMER_COMMAND_CREATED)
         .add(
             State.CANCEL_TIMER_COMMAND_CREATED, EventType.EVENT_TYPE_TIMER_CANCELED, State.CANCELED)
         .add(
@@ -118,8 +121,7 @@ final class TimerStateMachine
             State.CANCEL_TIMER_COMMAND_CREATED,
             EventType.EVENT_TYPE_TIMER_FIRED,
             State.FIRED,
-            TimerStateMachine::cancelTimerCommandFireTimer)
-        .add(State.FIRED, Action.CANCEL, State.FIRED);
+            TimerStateMachine::cancelTimerCommandFireTimer);
   }
 
   private void createStartTimerCommand() {
@@ -131,7 +133,7 @@ final class TimerStateMachine
   }
 
   public void cancel() {
-    action(Action.CANCEL);
+    explicitEvent(ExplicitEvent.CANCEL);
   }
 
   private void cancelStartTimerCommand() {

@@ -41,9 +41,9 @@ import java.util.Optional;
 
 final class ActivityStateMachine
     extends EntityStateMachineInitialCommand<
-        ActivityStateMachine.State, ActivityStateMachine.Action, ActivityStateMachine> {
+        ActivityStateMachine.State, ActivityStateMachine.ExplicitEvent, ActivityStateMachine> {
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE,
     CANCEL
   }
@@ -66,8 +66,8 @@ final class ActivityStateMachine
     CANCELED_CANCEL_REQUESTED,
   }
 
-  private static StateMachine<State, Action, ActivityStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, ActivityStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, ActivityStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, ActivityStateMachine>newInstance(
             "Activity",
             State.CREATED,
             State.COMPLETED,
@@ -76,7 +76,7 @@ final class ActivityStateMachine
             State.CANCELED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.SCHEDULE_COMMAND_CREATED,
             ActivityStateMachine::createScheduleActivityTaskCommand)
         .add(
@@ -89,7 +89,7 @@ final class ActivityStateMachine
             State.SCHEDULED_EVENT_RECORDED)
         .add(
             State.SCHEDULE_COMMAND_CREATED,
-            Action.CANCEL,
+            ExplicitEvent.CANCEL,
             State.CANCELED,
             ActivityStateMachine::cancelScheduleCommand)
         .add(
@@ -118,7 +118,7 @@ final class ActivityStateMachine
             ActivityStateMachine::notifyTimedOut)
         .add(
             State.SCHEDULED_EVENT_RECORDED,
-            Action.CANCEL,
+            ExplicitEvent.CANCEL,
             State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
             ActivityStateMachine::createRequestCancelActivityTaskCommand)
         .add(
@@ -150,7 +150,7 @@ final class ActivityStateMachine
             ActivityStateMachine::notifyCanceledIfTryCancel)
         .add(
             State.STARTED,
-            Action.CANCEL,
+            ExplicitEvent.CANCEL,
             State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
             ActivityStateMachine::createRequestCancelActivityTaskCommand)
         .add(
@@ -205,7 +205,7 @@ final class ActivityStateMachine
     super(newStateMachine(), commandSink);
     this.parameters = parameters;
     this.completionCallback = completionCallback;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
   public void createScheduleActivityTaskCommand() {
@@ -220,7 +220,7 @@ final class ActivityStateMachine
     if (parameters.getCancellationType() == ActivityCancellationType.ABANDON) {
       notifyCanceled();
     } else {
-      action(Action.CANCEL);
+      explicitEvent(ExplicitEvent.CANCEL);
     }
   }
 

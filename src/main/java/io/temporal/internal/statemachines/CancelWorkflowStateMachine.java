@@ -28,7 +28,7 @@ import io.temporal.workflow.Functions;
 final class CancelWorkflowStateMachine
     extends EntityStateMachineInitialCommand<
         CancelWorkflowStateMachine.State,
-        CancelWorkflowStateMachine.Action,
+        CancelWorkflowStateMachine.ExplicitEvent,
         CancelWorkflowStateMachine> {
 
   private final CancelWorkflowExecutionCommandAttributes cancelWorkflowAttributes;
@@ -44,10 +44,10 @@ final class CancelWorkflowStateMachine
       Functions.Proc1<NewCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.cancelWorkflowAttributes = cancelWorkflowAttributes;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE
   }
 
@@ -57,12 +57,12 @@ final class CancelWorkflowStateMachine
     CANCEL_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, Action, CancelWorkflowStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, CancelWorkflowStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, CancelWorkflowStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, CancelWorkflowStateMachine>newInstance(
             "CancelWorkflow", State.CREATED, State.CANCEL_WORKFLOW_COMMAND_RECORDED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.CANCEL_WORKFLOW_COMMAND_CREATED,
             CancelWorkflowStateMachine::createCancelWorkflowCommand)
         .add(

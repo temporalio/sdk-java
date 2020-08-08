@@ -27,7 +27,9 @@ import java.util.Objects;
 
 final class WorkflowTaskStateMachine
     extends EntityStateMachineInitialCommand<
-        WorkflowTaskStateMachine.State, WorkflowTaskStateMachine.Action, WorkflowTaskStateMachine> {
+        WorkflowTaskStateMachine.State,
+        WorkflowTaskStateMachine.ExplicitEvent,
+        WorkflowTaskStateMachine> {
 
   public interface Listener {
     /**
@@ -68,7 +70,7 @@ final class WorkflowTaskStateMachine
     this.listener = Objects.requireNonNull(listener);
   }
 
-  enum Action {}
+  enum ExplicitEvent {}
 
   enum State {
     SCHEDULED,
@@ -78,8 +80,8 @@ final class WorkflowTaskStateMachine
     FAILED,
   }
 
-  private static StateMachine<State, Action, WorkflowTaskStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, WorkflowTaskStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, WorkflowTaskStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, WorkflowTaskStateMachine>newInstance(
             "WorkflowTask", State.SCHEDULED, State.COMPLETED, State.TIMED_OUT, State.FAILED)
         .add(
             State.SCHEDULED,

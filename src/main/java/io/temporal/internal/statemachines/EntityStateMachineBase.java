@@ -23,9 +23,9 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.workflow.Functions;
 
-class EntityStateMachineBase<State, Action, Data> implements EntityStateMachine {
+class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateMachine {
 
-  private final StateMachine<State, Action, Data> stateMachine;
+  private final StateMachine<State, ExplicitEvent, Data> stateMachine;
 
   protected final Functions.Proc1<NewCommand> commandSink;
 
@@ -33,7 +33,8 @@ class EntityStateMachineBase<State, Action, Data> implements EntityStateMachine 
   protected boolean hasNextEvent;
 
   public EntityStateMachineBase(
-      StateMachine<State, Action, Data> stateMachine, Functions.Proc1<NewCommand> commandSink) {
+      StateMachine<State, ExplicitEvent, Data> stateMachine,
+      Functions.Proc1<NewCommand> commandSink) {
     this.stateMachine = stateMachine;
     this.commandSink = commandSink;
   }
@@ -57,7 +58,7 @@ class EntityStateMachineBase<State, Action, Data> implements EntityStateMachine 
     this.currentEvent = event;
     this.hasNextEvent = hasNextEvent;
     try {
-      stateMachine.handleEvent(event.getEventType(), (Data) this);
+      stateMachine.handleHistoryEvent(event.getEventType(), (Data) this);
     } finally {
       this.currentEvent = null;
     }
@@ -67,8 +68,8 @@ class EntityStateMachineBase<State, Action, Data> implements EntityStateMachine 
   @Override
   public void handleWorkflowTaskStarted() {}
 
-  protected final void action(Action action) {
-    stateMachine.action(action, (Data) this);
+  protected final void explicitEvent(ExplicitEvent explicitEvent) {
+    stateMachine.handleExplicitEvent(explicitEvent, (Data) this);
   }
 
   @Override

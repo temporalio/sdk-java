@@ -32,9 +32,11 @@ import java.util.Optional;
 
 final class SideEffectStateMachine
     extends EntityStateMachineInitialCommand<
-        SideEffectStateMachine.State, SideEffectStateMachine.Action, SideEffectStateMachine> {
+        SideEffectStateMachine.State,
+        SideEffectStateMachine.ExplicitEvent,
+        SideEffectStateMachine> {
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE
   }
 
@@ -57,12 +59,12 @@ final class SideEffectStateMachine
 
   private Optional<Payloads> result;
 
-  private static StateMachine<State, Action, SideEffectStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, SideEffectStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, SideEffectStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, SideEffectStateMachine>newInstance(
             "SideEffect", State.CREATED, State.MARKER_COMMAND_RECORDED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             new State[] {State.MARKER_COMMAND_CREATED, State.MARKER_COMMAND_CREATED_REPLAYING},
             SideEffectStateMachine::createMarkerCommand)
         .add(
@@ -109,7 +111,7 @@ final class SideEffectStateMachine
     this.replaying = replaying;
     this.func = func;
     this.callback = callback;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
   private State createMarkerCommand() {

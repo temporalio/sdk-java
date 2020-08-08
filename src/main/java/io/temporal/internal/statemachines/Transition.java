@@ -21,22 +21,22 @@ package io.temporal.internal.statemachines;
 
 import java.util.Objects;
 
-class Transition<State, ActionOrEventType> {
+class Transition<State, ExplicitEvent> {
 
   final State from;
-  final ActionOrEventType action;
+  final ExplicitEvent explicitEvent;
 
-  public Transition(State from, ActionOrEventType action) {
+  public Transition(State from, ExplicitEvent explicitEvent) {
     this.from = Objects.requireNonNull(from);
-    this.action = Objects.requireNonNull(action);
+    this.explicitEvent = Objects.requireNonNull(explicitEvent);
   }
 
   public State getFrom() {
     return from;
   }
 
-  public ActionOrEventType getAction() {
-    return action;
+  public ExplicitEvent getExplicitEvent() {
+    return explicitEvent;
   }
 
   @Override
@@ -45,16 +45,16 @@ class Transition<State, ActionOrEventType> {
     if (o == null || getClass() != o.getClass()) return false;
     Transition<?, ?> that = (Transition<?, ?>) o;
     return com.google.common.base.Objects.equal(from, that.from)
-        && com.google.common.base.Objects.equal(action, that.action);
+        && com.google.common.base.Objects.equal(explicitEvent, that.explicitEvent);
   }
 
   @Override
   public int hashCode() {
-    return com.google.common.base.Objects.hashCode(from, action);
+    return com.google.common.base.Objects.hashCode(from, explicitEvent);
   }
 
   @Override
   public String toString() {
-    return "Transition{" + "from='" + from + '\'' + ", action=" + action + '}';
+    return "Transition{" + "from='" + from + '\'' + ", explicitEvent=" + explicitEvent + '}';
   }
 }

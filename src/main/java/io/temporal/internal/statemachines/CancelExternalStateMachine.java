@@ -30,7 +30,7 @@ import io.temporal.workflow.Functions;
 final class CancelExternalStateMachine
     extends EntityStateMachineInitialCommand<
         CancelExternalStateMachine.State,
-        CancelExternalStateMachine.Action,
+        CancelExternalStateMachine.ExplicitEvent,
         CancelExternalStateMachine> {
 
   private final RequestCancelExternalWorkflowExecutionCommandAttributes requestCancelAttributes;
@@ -57,10 +57,10 @@ final class CancelExternalStateMachine
     super(newStateMachine(), commandSink);
     this.requestCancelAttributes = requestCancelAttributes;
     this.completionCallback = completionCallback;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE
   }
 
@@ -72,12 +72,12 @@ final class CancelExternalStateMachine
     REQUEST_CANCEL_FAILED,
   }
 
-  private static StateMachine<State, Action, CancelExternalStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, CancelExternalStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, CancelExternalStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, CancelExternalStateMachine>newInstance(
             "CancelExternal", State.CREATED, State.CANCEL_REQUESTED, State.REQUEST_CANCEL_FAILED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED,
             CancelExternalStateMachine::createCancelExternalCommand)
         .add(

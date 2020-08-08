@@ -24,13 +24,14 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
 
-class EntityStateMachineInitialCommand<State, Action, Data>
-    extends EntityStateMachineBase<State, Action, Data> {
+class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
+    extends EntityStateMachineBase<State, ExplicitEvent, Data> {
 
   private NewCommand initialCommand;
 
   public EntityStateMachineInitialCommand(
-      StateMachine<State, Action, Data> stateMachine, Functions.Proc1<NewCommand> commandSink) {
+      StateMachine<State, ExplicitEvent, Data> stateMachine,
+      Functions.Proc1<NewCommand> commandSink) {
     super(stateMachine, commandSink);
   }
 

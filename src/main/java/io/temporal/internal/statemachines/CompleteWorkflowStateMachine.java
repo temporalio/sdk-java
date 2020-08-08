@@ -30,7 +30,7 @@ import java.util.Optional;
 final class CompleteWorkflowStateMachine
     extends EntityStateMachineInitialCommand<
         CompleteWorkflowStateMachine.State,
-        CompleteWorkflowStateMachine.Action,
+        CompleteWorkflowStateMachine.ExplicitEvent,
         CompleteWorkflowStateMachine> {
 
   private final CompleteWorkflowExecutionCommandAttributes completeWorkflowAttributes;
@@ -50,10 +50,10 @@ final class CompleteWorkflowStateMachine
       Functions.Proc1<NewCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.completeWorkflowAttributes = completeWorkflowAttributes;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE
   }
 
@@ -63,12 +63,13 @@ final class CompleteWorkflowStateMachine
     COMPLETE_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, Action, CompleteWorkflowStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, CompleteWorkflowStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, CompleteWorkflowStateMachine>
+      newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, CompleteWorkflowStateMachine>newInstance(
             "CompleteWorkflow", State.CREATED, State.COMPLETE_WORKFLOW_COMMAND_RECORDED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.COMPLETE_WORKFLOW_COMMAND_CREATED,
             CompleteWorkflowStateMachine::createCompleteWorkflowCommand)
         .add(

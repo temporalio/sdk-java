@@ -53,7 +53,7 @@ final class MutableSideEffectStateMachine {
 
   private int skipCountFromMarker = Integer.MAX_VALUE;
 
-  enum Action {
+  enum ExplicitEvent {
     CHECK_EXECUTION_STATE,
     SCHEDULE,
     NON_MATCHING_EVENT
@@ -73,20 +73,21 @@ final class MutableSideEffectStateMachine {
     MARKER_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, Action, InvocationStateMachine> newInvocationStateMachine() {
-    return StateMachine.<State, Action, InvocationStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, InvocationStateMachine>
+      newInvocationStateMachine() {
+    return StateMachine.<State, ExplicitEvent, InvocationStateMachine>newInstance(
             "MutableSideEffect",
             State.CREATED,
             State.MARKER_COMMAND_RECORDED,
             State.SKIPPED_NOTIFIED)
         .add(
             State.CREATED,
-            Action.CHECK_EXECUTION_STATE,
+            ExplicitEvent.CHECK_EXECUTION_STATE,
             new State[] {State.REPLAYING, State.EXECUTING},
             InvocationStateMachine::getExecutionState)
         .add(
             State.EXECUTING,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             new State[] {State.MARKER_COMMAND_CREATED, State.SKIPPED},
             InvocationStateMachine::createMarker)
         .add(
@@ -105,7 +106,7 @@ final class MutableSideEffectStateMachine {
             InvocationStateMachine::cancelCommandNotifyCachedResult)
         .add(
             State.REPLAYING,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.MARKER_COMMAND_CREATED_REPLAYING,
             InvocationStateMachine::createFakeCommand)
         .add(
@@ -114,7 +115,7 @@ final class MutableSideEffectStateMachine {
             State.RESULT_NOTIFIED_REPLAYING)
         .add(
             State.RESULT_NOTIFIED_REPLAYING,
-            Action.NON_MATCHING_EVENT,
+            ExplicitEvent.NON_MATCHING_EVENT,
             State.SKIPPED_NOTIFIED,
             InvocationStateMachine::cancelCommandNotifyCachedResult)
         .add(
@@ -126,7 +127,7 @@ final class MutableSideEffectStateMachine {
 
   /** Represents a single invocation of mutableSideEffect. */
   private class InvocationStateMachine
-      extends EntityStateMachineInitialCommand<State, Action, InvocationStateMachine> {
+      extends EntityStateMachineInitialCommand<State, ExplicitEvent, InvocationStateMachine> {
 
     private final Functions.Proc1<Optional<Payloads>> resultCallback;
     private final Functions.Func1<Optional<Payloads>, Optional<Payloads>> func;
@@ -151,7 +152,7 @@ final class MutableSideEffectStateMachine {
               .getMarkerRecordedEventAttributes()
               .getMarkerName()
               .equals(MUTABLE_SIDE_EFFECT_MARKER_NAME)) {
-        action(Action.NON_MATCHING_EVENT);
+        explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
         return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
       }
       Map<String, Payloads> detailsMap = event.getMarkerRecordedEventAttributes().getDetailsMap();
@@ -162,7 +163,7 @@ final class MutableSideEffectStateMachine {
             "Marker details map missing required key: " + MARKER_ID_KEY);
       }
       if (!id.equals(expectedId)) {
-        //        action(Action.NON_MATCHING_EVENT);
+        //        explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
         return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
       }
       super.handleEvent(event, hasNextEvent);
@@ -281,8 +282,8 @@ final class MutableSideEffectStateMachine {
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback) {
     InvocationStateMachine ism = new InvocationStateMachine(func, callback);
-    ism.action(Action.CHECK_EXECUTION_STATE);
-    ism.action(Action.SCHEDULE);
+    ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
+    ism.explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
   public static String asPlantUMLStateDiagram() {

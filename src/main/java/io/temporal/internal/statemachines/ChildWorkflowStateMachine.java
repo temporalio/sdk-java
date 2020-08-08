@@ -46,10 +46,10 @@ import java.util.Optional;
 final class ChildWorkflowStateMachine
     extends EntityStateMachineInitialCommand<
         ChildWorkflowStateMachine.State,
-        ChildWorkflowStateMachine.Action,
+        ChildWorkflowStateMachine.ExplicitEvent,
         ChildWorkflowStateMachine> {
 
-  enum Action {
+  enum ExplicitEvent {
     SCHEDULE,
     CANCEL
   }
@@ -67,8 +67,8 @@ final class ChildWorkflowStateMachine
     TERMINATED,
   }
 
-  private static StateMachine<State, Action, ChildWorkflowStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, ChildWorkflowStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, ChildWorkflowStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, ChildWorkflowStateMachine>newInstance(
             "ChildWorkflow",
             State.CREATED,
             State.START_FAILED,
@@ -79,7 +79,7 @@ final class ChildWorkflowStateMachine
             State.TERMINATED)
         .add(
             State.CREATED,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.START_COMMAND_CREATED,
             ChildWorkflowStateMachine::createStartChildCommand)
         .add(
@@ -92,7 +92,7 @@ final class ChildWorkflowStateMachine
             State.START_EVENT_RECORDED)
         .add(
             State.START_COMMAND_CREATED,
-            Action.CANCEL,
+            ExplicitEvent.CANCEL,
             State.CANCELED,
             ChildWorkflowStateMachine::cancelStartChildCommand)
         .add(
@@ -168,7 +168,7 @@ final class ChildWorkflowStateMachine
     this.startAttributes = startAttributes;
     this.startedCallback = startedCallback;
     this.completionCallback = completionCallback;
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
   public void createStartChildCommand() {
@@ -189,7 +189,7 @@ final class ChildWorkflowStateMachine
    * of the types besides ABANDON are treated differently.
    */
   public void cancel() {
-    action(Action.CANCEL);
+    explicitEvent(ExplicitEvent.CANCEL);
   }
 
   private void cancelStartChildCommand() {

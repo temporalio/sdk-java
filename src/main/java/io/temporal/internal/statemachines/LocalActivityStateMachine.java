@@ -44,7 +44,7 @@ import java.util.Optional;
 final class LocalActivityStateMachine
     extends EntityStateMachineInitialCommand<
         LocalActivityStateMachine.State,
-        LocalActivityStateMachine.Action,
+        LocalActivityStateMachine.ExplicitEvent,
         LocalActivityStateMachine> {
 
   static final String LOCAL_ACTIVITY_MARKER_NAME = "LocalActivity";
@@ -102,11 +102,11 @@ final class LocalActivityStateMachine
     this.localActivityParameters = localActivityParameters;
     this.localActivityRequestSink = localActivityRequestSink;
     this.callback = callback;
-    action(Action.CHECK_EXECUTION_STATE);
-    action(Action.SCHEDULE);
+    explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
-  enum Action {
+  enum ExplicitEvent {
     CHECK_EXECUTION_STATE,
     SCHEDULE,
     GET_REQUEST,
@@ -127,26 +127,26 @@ final class LocalActivityStateMachine
     RESULT_NOTIFIED_REPLAYING
   }
 
-  private static StateMachine<State, Action, LocalActivityStateMachine> newStateMachine() {
-    return StateMachine.<State, Action, LocalActivityStateMachine>newInstance(
+  private static StateMachine<State, ExplicitEvent, LocalActivityStateMachine> newStateMachine() {
+    return StateMachine.<State, ExplicitEvent, LocalActivityStateMachine>newInstance(
             "LocalActivity", State.CREATED, State.MARKER_COMMAND_RECORDED)
         .add(
             State.CREATED,
-            Action.CHECK_EXECUTION_STATE,
+            ExplicitEvent.CHECK_EXECUTION_STATE,
             new State[] {State.REPLAYING, State.EXECUTING},
             LocalActivityStateMachine::getExecutionState)
         .add(
             State.EXECUTING,
-            Action.SCHEDULE,
+            ExplicitEvent.SCHEDULE,
             State.REQUEST_PREPARED,
             LocalActivityStateMachine::sendRequest)
-        .add(State.REQUEST_PREPARED, Action.GET_REQUEST, State.REQUEST_SENT)
+        .add(State.REQUEST_PREPARED, ExplicitEvent.GET_REQUEST, State.REQUEST_SENT)
         .add(
             State.REQUEST_SENT,
-            Action.HANDLE_RESPONSE,
+            ExplicitEvent.HANDLE_RESPONSE,
             State.MARKER_COMMAND_CREATED,
             LocalActivityStateMachine::createMarker)
-        .add(State.REQUEST_SENT, Action.NON_REPLAY_WORKFLOW_TASK_STARTED, State.REQUEST_SENT)
+        .add(State.REQUEST_SENT, ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED, State.REQUEST_SENT)
         .add(
             State.MARKER_COMMAND_CREATED,
             CommandType.COMMAND_TYPE_RECORD_MARKER,
@@ -154,13 +154,13 @@ final class LocalActivityStateMachine
             LocalActivityStateMachine::notifyResultFromResponse)
         .add(
             State.MARKER_COMMAND_CREATED,
-            Action.NON_REPLAY_WORKFLOW_TASK_STARTED,
+            ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
             State.MARKER_COMMAND_CREATED)
         .add(
             State.RESULT_NOTIFIED,
             EventType.EVENT_TYPE_MARKER_RECORDED,
             State.MARKER_COMMAND_RECORDED)
-        .add(State.REPLAYING, Action.SCHEDULE, State.WAITING_MARKER_EVENT)
+        .add(State.REPLAYING, ExplicitEvent.SCHEDULE, State.WAITING_MARKER_EVENT)
         .add(
             State.WAITING_MARKER_EVENT,
             EventType.EVENT_TYPE_MARKER_RECORDED,
@@ -176,7 +176,7 @@ final class LocalActivityStateMachine
             // When replaying the above sequence without this state transition the local activity
             // scheduled at step 2 is going to be lost.
             State.WAITING_MARKER_EVENT,
-            Action.NON_REPLAY_WORKFLOW_TASK_STARTED,
+            ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
             State.REQUEST_PREPARED,
             LocalActivityStateMachine::sendRequest);
   }
@@ -187,7 +187,7 @@ final class LocalActivityStateMachine
 
   public void cancel() {
     // TODO(maxim): Cancellation of local activity.
-    //    action(Action.CANCEL);
+    //    explicitEvent(ExplicitEvent.CANCEL);
   }
 
   public void sendRequest() {
@@ -195,17 +195,17 @@ final class LocalActivityStateMachine
   }
 
   public void requestSent() {
-    action(Action.GET_REQUEST);
+    explicitEvent(ExplicitEvent.GET_REQUEST);
   }
 
   public void handleCompletion(ActivityTaskHandler.Result result) {
     this.result = result;
-    action(Action.HANDLE_RESPONSE);
+    explicitEvent(ExplicitEvent.HANDLE_RESPONSE);
   }
 
   /** Called once per workflow task for the last WorkflowTaskStarted event in the history. */
   public void nonReplayWorkflowTaskStarted() {
-    action(Action.NON_REPLAY_WORKFLOW_TASK_STARTED);
+    explicitEvent(ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED);
   }
 
   private void createMarker() {
