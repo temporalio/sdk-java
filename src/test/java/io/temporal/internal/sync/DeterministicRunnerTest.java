@@ -23,7 +23,6 @@ import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
-import com.google.common.collect.Maps;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -42,6 +41,7 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutor;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.replay.WorkflowTaskResult;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -658,7 +658,7 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    WorkflowExecutor workflowExecutor = new DetermisiticRunnerContainerWorkflowExecutor(d);
+    WorkflowExecutor workflowExecutor = new DeterministicRunnerTestWorkflowExecutor(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
@@ -719,7 +719,7 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    WorkflowExecutor workflowExecutor = new DetermisiticRunnerContainerWorkflowExecutor(d);
+    WorkflowExecutor workflowExecutor = new DeterministicRunnerTestWorkflowExecutor(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
@@ -752,17 +752,17 @@ public class DeterministicRunnerTest {
     assertEquals(1, cache.size());
   }
 
-  private static class DetermisiticRunnerContainerWorkflowExecutor implements WorkflowExecutor {
+  private static class DeterministicRunnerTestWorkflowExecutor implements WorkflowExecutor {
     DeterministicRunner runner;
 
-    DetermisiticRunnerContainerWorkflowExecutor(DeterministicRunner runner) {
+    DeterministicRunnerTestWorkflowExecutor(DeterministicRunner runner) {
       this.runner = Objects.requireNonNull(runner);
     }
 
     @Override
     public WorkflowTaskResult handleWorkflowTask(
         PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-      return new WorkflowTaskResult(new ArrayList<>(), Maps.newHashMap(), false, false);
+      return WorkflowTaskResult.newBuilder().build();
     }
 
     @Override

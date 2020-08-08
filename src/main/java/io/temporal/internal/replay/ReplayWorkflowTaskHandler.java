@@ -192,8 +192,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 });
       }
 
-      WorkflowExecutor.WorkflowTaskResult result =
-          workflowExecutor.handleWorkflowTask(workflowTask);
+      WorkflowTaskResult result = workflowExecutor.handleWorkflowTask(workflowTask);
       if (result.isFinalCommand()) {
         cache.invalidate(runId, metricsScope);
       } else if (stickyTaskQueueName != null && createdNew.get()) {
@@ -301,7 +300,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private Result createCompletedRequest(
       String workflowType,
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      WorkflowExecutor.WorkflowTaskResult result) {
+      WorkflowTaskResult result) {
     RespondWorkflowTaskCompletedRequest.Builder completedRequest =
         RespondWorkflowTaskCompletedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())

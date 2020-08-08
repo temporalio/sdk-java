@@ -19,14 +19,10 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 public interface WorkflowExecutor {
@@ -35,7 +31,8 @@ public interface WorkflowExecutor {
    * Handles a single workflow task.
    *
    * @param workflowTask task to handle
-   * @return true if new task should be created synchronously as local activities are still running.
+   * @return true if new workflow task should be force created synchronously as local activities are
+   *     still running.
    */
   WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask);
 
@@ -45,43 +42,4 @@ public interface WorkflowExecutor {
   void close();
 
   Duration getWorkflowTaskTimeout();
-
-  class WorkflowTaskResult {
-
-    private final List<Command> commands;
-    private final boolean finalCommand;
-    private final Map<String, WorkflowQueryResult> queryResults;
-    private final boolean forceWorkflowTask;
-
-    public WorkflowTaskResult(
-        List<Command> commands,
-        Map<String, WorkflowQueryResult> queryResults,
-        boolean finalCommand,
-        boolean forceWorkflowTask) {
-      this.commands = commands;
-      if (forceWorkflowTask && finalCommand) {
-        throw new IllegalArgumentException("both forceWorkflowTask and finalCommand are true");
-      }
-      this.queryResults = queryResults;
-      this.finalCommand = finalCommand;
-      this.forceWorkflowTask = forceWorkflowTask;
-    }
-
-    public List<Command> getCommands() {
-      return commands;
-    }
-
-    public Map<String, WorkflowQueryResult> getQueryResults() {
-      return queryResults;
-    }
-
-    /** Is this result contain a workflow completion command */
-    public boolean isFinalCommand() {
-      return finalCommand;
-    }
-
-    public boolean isForceWorkflowTask() {
-      return forceWorkflowTask;
-    }
-  }
 }

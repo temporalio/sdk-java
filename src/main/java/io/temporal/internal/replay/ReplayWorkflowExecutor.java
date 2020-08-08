@@ -253,7 +253,12 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       processLocalActivityRequests(startTime);
       List<Command> commands = workflowStateMachines.takeCommands();
       executeQueries(workflowTask.getQueriesMap());
-      return new WorkflowTaskResult(commands, queryResults, completed, laTaskCount > 0);
+      return WorkflowTaskResult.newBuilder()
+          .setCommands(commands)
+          .setQueryResults(queryResults)
+          .setFinalCommand(completed)
+          .setForceWorkflowTask(laTaskCount > 0)
+          .build();
     } finally {
       lock.unlock();
     }
