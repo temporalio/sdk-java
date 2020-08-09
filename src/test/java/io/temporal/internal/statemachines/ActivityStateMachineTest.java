@@ -67,7 +67,7 @@ public class ActivityStateMachineTest {
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> manager.scheduleActivityTask(parameters, c))
-            .add((firedEvent) -> manager.newCompleteWorkflow(Optional.empty()));
+            .add((pair) -> manager.newCompleteWorkflow(pair.getT1()));
       }
     }
 
@@ -123,6 +123,14 @@ public class ActivityStateMachineTest {
       manager = new WorkflowStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+      assertEquals(
+          "result1",
+          converter.fromPayloads(
+              0,
+              Optional.of(
+                  commands.get(0).getCompleteWorkflowExecutionCommandAttributes().getResult()),
+              String.class,
+              String.class));
     }
   }
 
@@ -379,20 +387,20 @@ public class ActivityStateMachineTest {
     /*
         1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
         2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
-        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED: 1
         4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
         5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
         6: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
         7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
-        8: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        8: EVENT_TYPE_WORKFLOW_TASK_STARTED: 2
         9: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
         10: EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
         11: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
-        12: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        12: EVENT_TYPE_WORKFLOW_TASK_STARTED: 3
         13: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
         14: EVENT_TYPE_ACTIVITY_TASK_CANCELED
         15: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
-        16: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        16: EVENT_TYPE_WORKFLOW_TASK_STARTED: 4
     */
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -434,6 +442,559 @@ public class ActivityStateMachineTest {
     }
     {
       List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  @Test
+  public void testScheduledActivityCancellationWhileTimeout() {
+    class TestActivityListener extends TestEntityManagerListenerBase {
+
+      private Functions.Proc cancellationHandler;
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        ScheduleActivityTaskCommandAttributes.Builder attributes =
+            ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
+        ExecuteActivityParameters parameters =
+            new ExecuteActivityParameters(
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+        builder
+            .<Optional<Payloads>, Failure>add2(
+                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+            .add(
+                (pair) -> {
+                  assertNotNull(pair.getT2());
+                  assertEquals(
+                      Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
+                      pair.getT2().getCause().getFailureInfoCase());
+                  manager.newCompleteWorkflow(Optional.empty());
+                });
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.add((v) -> cancellationHandler.apply());
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        7: EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT
+        8: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        9: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    long scheduledEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            ActivityTaskScheduledEventAttributes.newBuilder().setActivityId("id1").build());
+    h.add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+            ActivityTaskTimedOutEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .setFailure(
+                    Failure.newBuilder()
+                        .setTimeoutFailureInfo(TimeoutFailureInfo.getDefaultInstance())))
+        .addWorkflowTaskScheduledAndStarted();
+
+    System.out.println(h);
+    {
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  @Test
+  public void testScheduledActivityCancellationLaterTimeout() {
+    class TestActivityListener extends TestEntityManagerListenerBase {
+
+      private Functions.Proc cancellationHandler;
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        ScheduleActivityTaskCommandAttributes.Builder attributes =
+            ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
+        ExecuteActivityParameters parameters =
+            new ExecuteActivityParameters(
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+        builder
+            .<Optional<Payloads>, Failure>add2(
+                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+            .add(
+                (pair) -> {
+                  assertNotNull(pair.getT2());
+                  assertEquals(
+                      Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
+                      pair.getT2().getCause().getFailureInfoCase());
+                  manager.newCompleteWorkflow(Optional.empty());
+                });
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.add((v) -> cancellationHandler.apply());
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        8: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        9: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        10: EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
+        11: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        12: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        13: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        14: EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT
+        15: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        16: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    long scheduledEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            ActivityTaskScheduledEventAttributes.newBuilder().setActivityId("id1").build());
+    h.add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+            ActivityTaskCancelRequestedEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .build())
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+            ActivityTaskTimedOutEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .setFailure(
+                    Failure.newBuilder()
+                        .setTimeoutFailureInfo(TimeoutFailureInfo.getDefaultInstance())))
+        .addWorkflowTaskScheduledAndStarted();
+
+    System.out.println(h);
+    {
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  @Test
+  public void testStartedActivityCancellation() {
+    class TestActivityListener extends TestEntityManagerListenerBase {
+
+      private Functions.Proc cancellationHandler;
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        ScheduleActivityTaskCommandAttributes.Builder attributes =
+            ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
+        ExecuteActivityParameters parameters =
+            new ExecuteActivityParameters(
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+        builder
+            .<Optional<Payloads>, Failure>add2(
+                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+            .add(
+                (pair) -> {
+                  assertNotNull(pair.getT2());
+                  assertEquals(
+                      Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
+                      pair.getT2().getCause().getFailureInfoCase());
+                  manager.newCompleteWorkflow(Optional.empty());
+                });
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.add((v) -> cancellationHandler.apply());
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED: 1
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED: 2
+        8: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        9: EVENT_TYPE_ACTIVITY_TASK_STARTED
+        10: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        11: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        12: EVENT_TYPE_WORKFLOW_TASK_STARTED: 3
+        13: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        14: EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
+        15: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        16: EVENT_TYPE_WORKFLOW_TASK_STARTED: 4
+        17: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        18: EVENT_TYPE_ACTIVITY_TASK_CANCELED
+        19: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        20: EVENT_TYPE_WORKFLOW_TASK_STARTED: 5
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    long scheduledEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            ActivityTaskScheduledEventAttributes.newBuilder().setActivityId("id1").build());
+    h.addWorkflowTask();
+    long startedEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+            ActivityTaskStartedEventAttributes.newBuilder().setScheduledEventId(scheduledEventId));
+    h.add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+            ActivityTaskCancelRequestedEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .build())
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
+            ActivityTaskCanceledEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .setStartedEventId(startedEventId)
+                .build())
+        .addWorkflowTaskScheduledAndStarted();
+
+    System.out.println(h);
+    {
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 5);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  @Test
+  public void testStartedActivityCancellationTimeout() {
+    class TestActivityListener extends TestEntityManagerListenerBase {
+
+      private Functions.Proc cancellationHandler;
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        ScheduleActivityTaskCommandAttributes.Builder attributes =
+            ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
+        ExecuteActivityParameters parameters =
+            new ExecuteActivityParameters(
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+        builder
+            .<Optional<Payloads>, Failure>add2(
+                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+            .add(
+                (pair) -> {
+                  assertNotNull(pair.getT2());
+                  assertEquals(
+                      Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
+                      pair.getT2().getCause().getFailureInfoCase());
+                  manager.newCompleteWorkflow(Optional.empty());
+                });
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.add((v) -> cancellationHandler.apply());
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        8: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        9: EVENT_TYPE_ACTIVITY_TASK_STARTED
+        10: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        11: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        12: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        13: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        14: EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
+        15: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        16: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        17: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        18: EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT
+        19: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        20: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    long scheduledEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            ActivityTaskScheduledEventAttributes.newBuilder().setActivityId("id1").build());
+    h.addWorkflowTask();
+    long startedEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+            ActivityTaskStartedEventAttributes.newBuilder().setScheduledEventId(scheduledEventId));
+    h.add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+            ActivityTaskCancelRequestedEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .build())
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+            ActivityTaskTimedOutEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .setStartedEventId(startedEventId)
+                .setFailure(
+                    Failure.newBuilder()
+                        .setTimeoutFailureInfo(TimeoutFailureInfo.getDefaultInstance())))
+        .addWorkflowTaskScheduledAndStarted();
+
+    System.out.println(h);
+    {
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 5);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  @Test
+  public void testStartedActivityCancellationFailed() {
+    class TestActivityListener extends TestEntityManagerListenerBase {
+
+      private Functions.Proc cancellationHandler;
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        ScheduleActivityTaskCommandAttributes.Builder attributes =
+            ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
+        ExecuteActivityParameters parameters =
+            new ExecuteActivityParameters(
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+        builder
+            .<Optional<Payloads>, Failure>add2(
+                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+            .add(
+                (pair) -> {
+                  assertNotNull(pair.getT2());
+                  assertEquals(
+                      "type1", pair.getT2().getCause().getApplicationFailureInfo().getType());
+                  manager.newCompleteWorkflow(Optional.empty());
+                });
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.add((v) -> cancellationHandler.apply());
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        8: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        9: EVENT_TYPE_ACTIVITY_TASK_STARTED
+        10: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        11: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        12: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        13: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        14: EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
+        15: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        16: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        17: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        18: EVENT_TYPE_ACTIVITY_TASK_FAILED
+        19: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        20: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    long scheduledEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            ActivityTaskScheduledEventAttributes.newBuilder().setActivityId("id1").build());
+    h.addWorkflowTask();
+    long startedEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+            ActivityTaskStartedEventAttributes.newBuilder().setScheduledEventId(scheduledEventId));
+    h.add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+            ActivityTaskCancelRequestedEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .build())
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED,
+            ActivityTaskFailedEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .setStartedEventId(startedEventId)
+                .setFailure(
+                    Failure.newBuilder()
+                        .setApplicationFailureInfo(
+                            ApplicationFailureInfo.newBuilder().setType("type1").build())))
+        .addWorkflowTaskScheduledAndStarted();
+
+    System.out.println(h);
+    {
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 5);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
@@ -552,6 +1113,234 @@ public class ActivityStateMachineTest {
       manager = new WorkflowStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  @Test
+  public void testScheduledActivityCancellationBufferedStarted() {
+    class TestActivityListener extends TestEntityManagerListenerBase {
+
+      private Functions.Proc cancellationHandler;
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        ScheduleActivityTaskCommandAttributes.Builder attributes =
+            ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
+        ExecuteActivityParameters parameters =
+            new ExecuteActivityParameters(
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+        builder
+            .<Optional<Payloads>, Failure>add2(
+                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+            .add(
+                (pair) -> {
+                  assertNotNull(pair.getT2());
+                  assertEquals(
+                      Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
+                      pair.getT2().getCause().getFailureInfoCase());
+                  manager.newCompleteWorkflow(Optional.empty());
+                });
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.add((v) -> cancellationHandler.apply());
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED: 1
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        8: EVENT_TYPE_WORKFLOW_TASK_STARTED: 2
+        9: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        10: EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
+        11: EVENT_TYPE_ACTIVITY_TASK_STARTED
+        12: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        13: EVENT_TYPE_WORKFLOW_TASK_STARTED: 3
+        14: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        15: EVENT_TYPE_ACTIVITY_TASK_CANCELED
+        16: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        17: EVENT_TYPE_WORKFLOW_TASK_STARTED: 4
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    long scheduledEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            ActivityTaskScheduledEventAttributes.newBuilder().setActivityId("id1").build());
+    h.add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+            ActivityTaskCancelRequestedEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .build());
+    long startedEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+            ActivityTaskStartedEventAttributes.newBuilder().setScheduledEventId(scheduledEventId));
+    h.addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
+            ActivityTaskCanceledEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .setStartedEventId(startedEventId))
+        .addWorkflowTaskScheduledAndStarted();
+    System.out.println(h);
+    {
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  @Test
+  public void testScheduledActivityCancellationBufferedStartedCompleted() {
+    class TestActivityListener extends TestEntityManagerListenerBase {
+
+      private Functions.Proc cancellationHandler;
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        ScheduleActivityTaskCommandAttributes.Builder attributes =
+            ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
+        ExecuteActivityParameters parameters =
+            new ExecuteActivityParameters(
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+        builder
+            .<Optional<Payloads>, Failure>add2(
+                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+            .add((pair) -> manager.newCompleteWorkflow(pair.getT1()));
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.add((v) -> cancellationHandler.apply());
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED: 1
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        8: EVENT_TYPE_WORKFLOW_TASK_STARTED: 2
+        9: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        10: EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
+        11: EVENT_TYPE_ACTIVITY_TASK_STARTED
+        12: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        13: EVENT_TYPE_WORKFLOW_TASK_STARTED: 3
+        14: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        15: EVENT_TYPE_ACTIVITY_TASK_CANCELED
+        16: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        17: EVENT_TYPE_WORKFLOW_TASK_STARTED: 4
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    long scheduledEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            ActivityTaskScheduledEventAttributes.newBuilder().setActivityId("id1").build());
+    h.add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+            ActivityTaskCancelRequestedEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .build());
+    long startedEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+            ActivityTaskStartedEventAttributes.newBuilder().setScheduledEventId(scheduledEventId));
+    h.addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+            ActivityTaskCompletedEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .setStartedEventId(startedEventId)
+                .setResult(converter.toPayloads("result1").get()))
+        .addWorkflowTaskScheduledAndStarted();
+    System.out.println(h);
+    {
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+      assertEquals(
+          "result1",
+          converter.fromPayloads(
+              0,
+              Optional.of(
+                  commands.get(0).getCompleteWorkflowExecutionCommandAttributes().getResult()),
+              String.class,
+              String.class));
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      manager = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+      assertEquals(
+          "result1",
+          converter.fromPayloads(
+              0,
+              Optional.of(
+                  commands.get(0).getCompleteWorkflowExecutionCommandAttributes().getResult()),
+              String.class,
+              String.class));
     }
   }
 }

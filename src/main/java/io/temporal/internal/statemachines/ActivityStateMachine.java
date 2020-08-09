@@ -159,6 +159,11 @@ final class ActivityStateMachine
             EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
             State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED)
         .add(
+            State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
+            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+            State.TIMED_OUT,
+            ActivityStateMachine::notifyTimedOut)
+        .add(
             State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
             EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
             State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
@@ -197,6 +202,11 @@ final class ActivityStateMachine
             EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
             State.COMPLETED,
             ActivityStateMachine::notifyCompleted)
+        .add(
+            State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
+            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+            State.TIMED_OUT,
+            ActivityStateMachine::notifyTimedOut)
         .add(
             State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
             EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
@@ -245,7 +255,7 @@ final class ActivityStateMachine
   public void cancel() {
     if (parameters.getCancellationType() == ActivityCancellationType.ABANDON) {
       notifyCanceled();
-    } else {
+    } else if (!isFinalState()) {
       explicitEvent(ExplicitEvent.CANCEL);
     }
   }

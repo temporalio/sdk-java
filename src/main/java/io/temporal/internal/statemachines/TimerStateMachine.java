@@ -134,7 +134,9 @@ final class TimerStateMachine
   }
 
   public void cancel() {
-    explicitEvent(ExplicitEvent.CANCEL);
+    if (!isFinalState()) {
+      explicitEvent(ExplicitEvent.CANCEL);
+    }
   }
 
   private void cancelStartTimerCommand() {

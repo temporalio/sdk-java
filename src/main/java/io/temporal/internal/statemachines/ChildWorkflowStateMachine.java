@@ -190,7 +190,9 @@ final class ChildWorkflowStateMachine
    * of the types besides ABANDON are treated differently.
    */
   public void cancel() {
-    explicitEvent(ExplicitEvent.CANCEL);
+    if (!isFinalState()) {
+      explicitEvent(ExplicitEvent.CANCEL);
+    }
   }
 
   private void cancelStartChildCommand() {

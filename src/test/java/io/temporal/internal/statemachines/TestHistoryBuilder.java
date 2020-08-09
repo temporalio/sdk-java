@@ -570,16 +570,16 @@ class TestHistoryBuilder {
         + workflowTaskScheduledEventId
         + ", previousStartedEventId="
         + previousStartedEventId
-        + ", events=\n    "
+        + ", events=\n"
         + eventsToString(events)
-        + '}';
+        + "\n}";
   }
 
   static String eventsToString(List<HistoryEvent> events) {
-    return "    "
+    return "        "
         + events.stream()
             .map((event) -> event.getEventId() + ": " + event.getEventType())
-            .collect(Collectors.joining("\n    "));
+            .collect(Collectors.joining("\n        "));
   }
 
   static void assertCommand(CommandType type, List<Command> commands) {

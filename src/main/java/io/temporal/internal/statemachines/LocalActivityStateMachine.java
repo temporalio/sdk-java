@@ -187,7 +187,9 @@ final class LocalActivityStateMachine
 
   public void cancel() {
     // TODO(maxim): Cancellation of local activity.
-    //    explicitEvent(ExplicitEvent.CANCEL);
+    //    if (!isFinalState()) {
+    //      explicitEvent(ExplicitEvent.CANCEL);
+    //    }
   }
 
   public void sendRequest() {

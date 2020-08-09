@@ -266,7 +266,7 @@ final class StateMachine<State, ExplicitEvent, Data> {
    * @param data data which is passed as an argument to resulting action.
    */
   public void handleExplicitEvent(ExplicitEvent explicitEvent, Data data) {
-    explicitEvent(new TransitionEvent<>(explicitEvent), data);
+    executeTransition(new TransitionEvent<>(explicitEvent), data);
   }
 
   /**
@@ -276,7 +276,7 @@ final class StateMachine<State, ExplicitEvent, Data> {
    * @param data data which is passed as an argument to resulting action.
    */
   public void handleHistoryEvent(EventType eventType, Data data) {
-    explicitEvent(new TransitionEvent<>(eventType), data);
+    executeTransition(new TransitionEvent<>(eventType), data);
   }
 
   /**
@@ -286,7 +286,7 @@ final class StateMachine<State, ExplicitEvent, Data> {
    * @param data data which is passed as an argument to resulting action.
    */
   public void handleCommand(CommandType commandType, Data data) {
-    explicitEvent(new TransitionEvent<>(commandType), data);
+    executeTransition(new TransitionEvent<>(commandType), data);
   }
 
   public String getHistory() {
@@ -321,7 +321,7 @@ final class StateMachine<State, ExplicitEvent, Data> {
     transitions.put(transition, target);
   }
 
-  private void explicitEvent(TransitionEvent<ExplicitEvent> transitionEvent, Data data) {
+  private void executeTransition(TransitionEvent<ExplicitEvent> transitionEvent, Data data) {
     Transition<State, TransitionEvent<ExplicitEvent>> transition =
         new Transition<>(state, transitionEvent);
     TransitionAction<State, Data> destination = transitions.get(transition);
@@ -340,6 +340,7 @@ final class StateMachine<State, ExplicitEvent, Data> {
               + transitionHistory,
           e);
     }
+    System.out.println(transition);
     transitionHistory.add(transition);
   }
 
