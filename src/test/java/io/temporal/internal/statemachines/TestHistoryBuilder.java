@@ -28,8 +28,23 @@ import com.google.protobuf.util.Timestamps;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.ActivityTaskCancelRequestedEventAttributes;
+import io.temporal.api.history.v1.ActivityTaskCanceledEventAttributes;
+import io.temporal.api.history.v1.ActivityTaskCompletedEventAttributes;
+import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
+import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
+import io.temporal.api.history.v1.ActivityTaskStartedEventAttributes;
+import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionStartedEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionTerminatedEventAttributes;
+import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.api.history.v1.StartChildWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.api.history.v1.TimerCanceledEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.api.history.v1.TimerStartedEventAttributes;
@@ -62,7 +77,11 @@ class TestHistoryBuilder {
   }
 
   long addGetEventId(EventType type) {
-    add(type, null);
+    return addGetEventId(type, null);
+  }
+
+  long addGetEventId(EventType type, Object attributes) {
+    add(type, attributes);
     return eventId;
   }
 
@@ -299,42 +318,79 @@ class TestHistoryBuilder {
     }
   }
 
-  private Object newAttributes(EventType type, long initialEventId) {
+  private Object newAttributes(EventType type, long initiatedEventId) {
     switch (type) {
       case EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
         return WorkflowExecutionStartedEventAttributes.getDefaultInstance();
       case EVENT_TYPE_WORKFLOW_TASK_SCHEDULED:
         return WorkflowTaskScheduledEventAttributes.getDefaultInstance();
       case EVENT_TYPE_WORKFLOW_TASK_STARTED:
-        return WorkflowTaskStartedEventAttributes.newBuilder().setScheduledEventId(initialEventId);
+        return WorkflowTaskStartedEventAttributes.newBuilder()
+            .setScheduledEventId(initiatedEventId);
       case EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
         return WorkflowTaskCompletedEventAttributes.newBuilder()
-            .setScheduledEventId(initialEventId);
+            .setScheduledEventId(initiatedEventId);
       case EVENT_TYPE_TIMER_FIRED:
-        return TimerFiredEventAttributes.newBuilder().setStartedEventId(initialEventId);
+        return TimerFiredEventAttributes.newBuilder().setStartedEventId(initiatedEventId);
       case EVENT_TYPE_TIMER_STARTED:
         return TimerStartedEventAttributes.getDefaultInstance();
       case EVENT_TYPE_TIMER_CANCELED:
-        return TimerCanceledEventAttributes.newBuilder().setStartedEventId(initialEventId);
+        return TimerCanceledEventAttributes.newBuilder().setStartedEventId(initiatedEventId);
       case EVENT_TYPE_MARKER_RECORDED:
         return MarkerRecordedEventAttributes.getDefaultInstance();
       case EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
         return WorkflowExecutionCompletedEventAttributes.getDefaultInstance();
       case EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT:
-        return WorkflowTaskTimedOutEventAttributes.newBuilder().setScheduledEventId(initialEventId);
+        return WorkflowTaskTimedOutEventAttributes.newBuilder()
+            .setScheduledEventId(initiatedEventId);
       case EVENT_TYPE_WORKFLOW_TASK_FAILED:
-        return WorkflowTaskFailedEventAttributes.newBuilder().setScheduledEventId(initialEventId);
+        return WorkflowTaskFailedEventAttributes.newBuilder().setScheduledEventId(initiatedEventId);
+      case EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+        return ActivityTaskScheduledEventAttributes.getDefaultInstance();
+      case EVENT_TYPE_ACTIVITY_TASK_STARTED:
+        return ActivityTaskStartedEventAttributes.newBuilder()
+            .setScheduledEventId(initiatedEventId);
+      case EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
+        return ActivityTaskCompletedEventAttributes.newBuilder()
+            .setScheduledEventId(initiatedEventId);
+      case EVENT_TYPE_ACTIVITY_TASK_FAILED:
+        return ActivityTaskFailedEventAttributes.newBuilder().setScheduledEventId(initiatedEventId);
+      case EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
+        return ActivityTaskTimedOutEventAttributes.newBuilder()
+            .setScheduledEventId(initiatedEventId);
+      case EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED:
+        return ActivityTaskCancelRequestedEventAttributes.newBuilder()
+            .setScheduledEventId(initiatedEventId);
+      case EVENT_TYPE_ACTIVITY_TASK_CANCELED:
+        return ActivityTaskCanceledEventAttributes.newBuilder()
+            .setScheduledEventId(initiatedEventId);
+      case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
+        return StartChildWorkflowExecutionInitiatedEventAttributes.getDefaultInstance();
+      case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED:
+        return StartChildWorkflowExecutionFailedEventAttributes.newBuilder()
+            .setInitiatedEventId(initiatedEventId);
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED:
+        return ChildWorkflowExecutionStartedEventAttributes.newBuilder()
+            .setInitiatedEventId(initiatedEventId);
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED:
+        return ChildWorkflowExecutionCompletedEventAttributes.newBuilder()
+            .setInitiatedEventId(initiatedEventId);
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
+        return ChildWorkflowExecutionFailedEventAttributes.newBuilder()
+            .setInitiatedEventId(initiatedEventId);
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED:
+        return ChildWorkflowExecutionCanceledEventAttributes.newBuilder()
+            .setInitiatedEventId(initiatedEventId);
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
+        return ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
+            .setInitiatedEventId(initiatedEventId);
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
+        return ChildWorkflowExecutionTerminatedEventAttributes.newBuilder()
+            .setInitiatedEventId(initiatedEventId);
 
       case EVENT_TYPE_UNSPECIFIED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
-      case EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
-      case EVENT_TYPE_ACTIVITY_TASK_STARTED:
-      case EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
-      case EVENT_TYPE_ACTIVITY_TASK_FAILED:
-      case EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
-      case EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED:
-      case EVENT_TYPE_ACTIVITY_TASK_CANCELED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
       case EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
@@ -343,14 +399,6 @@ class TestHistoryBuilder {
       case EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
       case EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW:
-      case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
-      case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED:
-      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED:
-      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED:
-      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
-      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED:
-      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
-      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
       case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
       case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED:
       case EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED:
@@ -420,17 +468,62 @@ class TestHistoryBuilder {
           result.setWorkflowTaskFailedEventAttributes(
               (WorkflowTaskFailedEventAttributes) attributes);
           break;
+        case EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+          result.setActivityTaskScheduledEventAttributes(
+              (ActivityTaskScheduledEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_ACTIVITY_TASK_STARTED:
+          result.setActivityTaskStartedEventAttributes(
+              (ActivityTaskStartedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
+          result.setActivityTaskCompletedEventAttributes(
+              (ActivityTaskCompletedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_ACTIVITY_TASK_FAILED:
+          result.setActivityTaskFailedEventAttributes(
+              (ActivityTaskFailedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
+          result.setActivityTaskTimedOutEventAttributes(
+              (ActivityTaskTimedOutEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED:
+          result.setActivityTaskCancelRequestedEventAttributes(
+              (ActivityTaskCancelRequestedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_ACTIVITY_TASK_CANCELED:
+          result.setActivityTaskCanceledEventAttributes(
+              (ActivityTaskCanceledEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED:
+          result.setChildWorkflowExecutionStartedEventAttributes(
+              (ChildWorkflowExecutionStartedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED:
+          result.setChildWorkflowExecutionCompletedEventAttributes(
+              (ChildWorkflowExecutionCompletedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
+          result.setChildWorkflowExecutionFailedEventAttributes(
+              (ChildWorkflowExecutionFailedEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED:
+          result.setChildWorkflowExecutionCanceledEventAttributes(
+              (ChildWorkflowExecutionCanceledEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
+          result.setChildWorkflowExecutionTimedOutEventAttributes(
+              (ChildWorkflowExecutionTimedOutEventAttributes) attributes);
+          break;
+        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
+          result.setChildWorkflowExecutionTerminatedEventAttributes(
+              (ChildWorkflowExecutionTerminatedEventAttributes) attributes);
+          break;
 
         case EVENT_TYPE_UNSPECIFIED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
-        case EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
-        case EVENT_TYPE_ACTIVITY_TASK_STARTED:
-        case EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
-        case EVENT_TYPE_ACTIVITY_TASK_FAILED:
-        case EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
-        case EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED:
-        case EVENT_TYPE_ACTIVITY_TASK_CANCELED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
         case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
         case EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
@@ -440,12 +533,6 @@ class TestHistoryBuilder {
         case EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW:
         case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
         case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED:
-        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED:
-        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED:
-        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
-        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED:
-        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
-        case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
         case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
         case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED:
         case EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED:

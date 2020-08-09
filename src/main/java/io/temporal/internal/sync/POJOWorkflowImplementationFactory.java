@@ -355,8 +355,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   static WorkflowExecutionException mapToWorkflowExecutionException(
       Throwable exception, DataConverter dataConverter) {
-    if (exception instanceof TemporalFailure) {
-      ((TemporalFailure) exception).setDataConverter(dataConverter);
+    Throwable e = exception;
+    while (e != null) {
+      if (e instanceof TemporalFailure) {
+        ((TemporalFailure) e).setDataConverter(dataConverter);
+      }
+      e = e.getCause();
     }
     Failure failure = FailureConverter.exceptionToFailure(exception);
     return new WorkflowExecutionException(failure);

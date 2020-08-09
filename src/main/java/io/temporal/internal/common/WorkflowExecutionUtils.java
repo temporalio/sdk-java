@@ -168,7 +168,12 @@ public class WorkflowExecutionUtils {
             closeEvent.getWorkflowExecutionCanceledEventAttributes();
         Optional<Payloads> details =
             attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-        throw new CanceledFailure("Workflow canceled", new EncodedValues(details, converter), null);
+        throw new WorkflowFailedException(
+            workflowExecution,
+            workflowType.orElse(null),
+            0,
+            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
+            new CanceledFailure("Workflow canceled", new EncodedValues(details, converter), null));
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();

@@ -195,7 +195,15 @@ final class ChildWorkflowStateMachine
 
   private void cancelStartChildCommand() {
     cancelCommand();
-    CanceledFailure failure = new CanceledFailure("Child canceled", null, null);
+    RuntimeException failure =
+        new ChildWorkflowFailure(
+            0,
+            0,
+            startAttributes.getWorkflowType().getName(),
+            WorkflowExecution.newBuilder().setWorkflowId(startAttributes.getWorkflowId()).build(),
+            startAttributes.getNamespace(),
+            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
+            new CanceledFailure("Child immediately canceled", null, null));
     completionCallback.apply(Optional.empty(), failure);
   }
 
@@ -259,8 +267,16 @@ final class ChildWorkflowStateMachine
   private void notifyCanceled() {
     ChildWorkflowExecutionCanceledEventAttributes attributes =
         currentEvent.getChildWorkflowExecutionCanceledEventAttributes();
-    CanceledFailure failure =
-        new CanceledFailure("Child canceled", new EncodedValues(attributes.getDetails()), null);
+    RuntimeException failure =
+        new ChildWorkflowFailure(
+            attributes.getInitiatedEventId(),
+            attributes.getStartedEventId(),
+            attributes.getWorkflowType().getName(),
+            attributes.getWorkflowExecution(),
+            attributes.getNamespace(),
+            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
+            new CanceledFailure(
+                "Child canceled", new EncodedValues(attributes.getDetails()), null));
     completionCallback.apply(Optional.empty(), failure);
   }
 

@@ -1194,7 +1194,8 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
   }
 
@@ -1209,7 +1210,8 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
   }
 
@@ -1252,7 +1254,8 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
   }
 
@@ -1265,7 +1268,8 @@ public class WorkflowTest {
       try {
         testActivities.activityWithDelay(100000, true);
         fail("unreachable");
-      } catch (CanceledFailure e) {
+      } catch (ActivityFailure e) {
+        assertTrue(e.getCause() instanceof CanceledFailure);
         Workflow.newDetachedCancellationScope(() -> assertEquals(1, testActivities.activity1(1)))
             .run();
       }
@@ -1301,7 +1305,8 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
     activitiesImpl.assertInvocations("activityWithDelay", "activity1", "activity2", "activity3");
   }
@@ -1388,7 +1393,9 @@ public class WorkflowTest {
     try {
       stub.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
     }
     activitiesImpl.assertInvocations("activityWithDelay");
   }
@@ -1408,7 +1415,9 @@ public class WorkflowTest {
     try {
       stub.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
     }
     long elapsed = currentTimeMillis() - start;
     assertTrue(String.valueOf(elapsed), elapsed < 500);
@@ -1452,7 +1461,8 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -1490,7 +1500,9 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof ChildWorkflowFailure);
+      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -1521,7 +1533,8 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -1553,7 +1566,8 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -4147,7 +4161,8 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
@@ -4186,7 +4201,9 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CanceledFailure ignored) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof ChildWorkflowFailure);
+      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.

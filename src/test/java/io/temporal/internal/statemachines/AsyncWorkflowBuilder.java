@@ -44,7 +44,7 @@ interface AsyncWorkflowBuilder<T> {
 
   <R> AsyncWorkflowBuilder<R> add1(Functions.Proc2<T, Functions.Proc1<R>> proc);
 
-  <R1, R2> AsyncWorkflowBuilder<Pair<R1, R1>> add2(
+  <R1, R2> AsyncWorkflowBuilder<Pair<R1, R2>> add2(
       Functions.Proc2<T, Functions.Proc2<R1, R2>> proc);
 
   void add(Functions.Proc1<T> proc);

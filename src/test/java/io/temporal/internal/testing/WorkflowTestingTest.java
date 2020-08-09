@@ -38,6 +38,7 @@ import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
@@ -651,7 +652,9 @@ public class WorkflowTestingTest {
       untyped.cancel();
       untyped.getResult(String.class);
       fail("unreacheable");
-    } catch (CanceledFailure e) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
     }
   }
 
