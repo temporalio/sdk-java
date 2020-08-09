@@ -46,7 +46,7 @@ final class VersionStateMachine {
   private final DataConverter dataConverter = DataConverter.getDefaultInstance();
   private final String changeId;
   private final Functions.Func<Boolean> replaying;
-  private final Functions.Proc1<NewCommand> commandSink;
+  private final Functions.Proc1<CancellableCommand> commandSink;
 
   private Optional<Integer> version = Optional.empty();
 
@@ -252,12 +252,12 @@ final class VersionStateMachine {
     }
 
     void cancelCommandNotifyCachedResult() {
-      cancelInitialCommand();
+      cancelCommand();
       notifyResult();
     }
 
     void missingMarkerNotifyCachedOrDefault() {
-      cancelInitialCommand();
+      cancelCommand();
       if (!version.isPresent()) {
         version = Optional.of(DEFAULT_VERSION);
       }
@@ -296,12 +296,16 @@ final class VersionStateMachine {
 
   /** Creates new VersionStateMachine */
   public static VersionStateMachine newInstance(
-      String id, Functions.Func<Boolean> replaying, Functions.Proc1<NewCommand> commandSink) {
+      String id,
+      Functions.Func<Boolean> replaying,
+      Functions.Proc1<CancellableCommand> commandSink) {
     return new VersionStateMachine(id, replaying, commandSink);
   }
 
   private VersionStateMachine(
-      String changeId, Functions.Func<Boolean> replaying, Functions.Proc1<NewCommand> commandSink) {
+      String changeId,
+      Functions.Func<Boolean> replaying,
+      Functions.Proc1<CancellableCommand> commandSink) {
     this.changeId = Objects.requireNonNull(changeId);
     this.replaying = Objects.requireNonNull(replaying);
     this.commandSink = Objects.requireNonNull(commandSink);

@@ -46,14 +46,14 @@ final class CancelExternalStateMachine
   public static void newInstance(
       RequestCancelExternalWorkflowExecutionCommandAttributes attributes,
       Functions.Proc2<Void, RuntimeException> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     new CancelExternalStateMachine(attributes, completionCallback, commandSink);
   }
 
   private CancelExternalStateMachine(
       RequestCancelExternalWorkflowExecutionCommandAttributes requestCancelAttributes,
       Functions.Proc2<Void, RuntimeException> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.requestCancelAttributes = requestCancelAttributes;
     this.completionCallback = completionCallback;
@@ -87,7 +87,8 @@ final class CancelExternalStateMachine
         .add(
             State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED,
             EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
-            State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED)
+            State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED,
+            EntityStateMachineInitialCommand::setInitialCommandEventId)
         .add(
             State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED,
             EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED,

@@ -79,7 +79,7 @@ final class LocalActivityStateMachine
       ExecuteLocalActivityParameters localActivityParameters,
       Functions.Proc2<Optional<Payloads>, Failure> callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     return new LocalActivityStateMachine(
         replaying,
         setCurrentTimeCallback,
@@ -95,7 +95,7 @@ final class LocalActivityStateMachine
       ExecuteLocalActivityParameters localActivityParameters,
       Functions.Proc2<Optional<Payloads>, Failure> callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.replaying = replaying;
     this.setCurrentTimeCallback = setCurrentTimeCallback;

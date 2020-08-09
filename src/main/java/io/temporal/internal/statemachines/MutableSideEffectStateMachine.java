@@ -45,7 +45,7 @@ final class MutableSideEffectStateMachine {
   private final DataConverter dataConverter = DataConverter.getDefaultInstance();
   private final String id;
   private final Functions.Func<Boolean> replaying;
-  private final Functions.Proc1<NewCommand> commandSink;
+  private final Functions.Proc1<CancellableCommand> commandSink;
 
   private Optional<Payloads> result = Optional.empty();
 
@@ -260,19 +260,23 @@ final class MutableSideEffectStateMachine {
     }
 
     void cancelCommandNotifyCachedResult() {
-      cancelInitialCommand();
+      cancelCommand();
       notifyCachedResult();
     }
   }
 
   /** Creates new MutableSideEffectStateMachine */
   public static MutableSideEffectStateMachine newInstance(
-      String id, Functions.Func<Boolean> replaying, Functions.Proc1<NewCommand> commandSink) {
+      String id,
+      Functions.Func<Boolean> replaying,
+      Functions.Proc1<CancellableCommand> commandSink) {
     return new MutableSideEffectStateMachine(id, replaying, commandSink);
   }
 
   private MutableSideEffectStateMachine(
-      String id, Functions.Func<Boolean> replaying, Functions.Proc1<NewCommand> commandSink) {
+      String id,
+      Functions.Func<Boolean> replaying,
+      Functions.Proc1<CancellableCommand> commandSink) {
     this.id = Objects.requireNonNull(id);
     this.replaying = Objects.requireNonNull(replaying);
     this.commandSink = Objects.requireNonNull(commandSink);

@@ -89,7 +89,8 @@ final class ChildWorkflowStateMachine
         .add(
             State.START_COMMAND_CREATED,
             EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED,
-            State.START_EVENT_RECORDED)
+            State.START_EVENT_RECORDED,
+            EntityStateMachineInitialCommand::setInitialCommandEventId)
         .add(
             State.START_COMMAND_CREATED,
             ExplicitEvent.CANCEL,
@@ -154,7 +155,7 @@ final class ChildWorkflowStateMachine
       StartChildWorkflowExecutionCommandAttributes attributes,
       Functions.Proc1<WorkflowExecution> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     return new ChildWorkflowStateMachine(
         attributes, startedCallback, completionCallback, commandSink);
   }
@@ -163,7 +164,7 @@ final class ChildWorkflowStateMachine
       StartChildWorkflowExecutionCommandAttributes startAttributes,
       Functions.Proc1<WorkflowExecution> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.startAttributes = startAttributes;
     this.startedCallback = startedCallback;
@@ -193,7 +194,7 @@ final class ChildWorkflowStateMachine
   }
 
   private void cancelStartChildCommand() {
-    cancelInitialCommand();
+    cancelCommand();
     CanceledFailure failure = new CanceledFailure("Child canceled", null, null);
     completionCallback.apply(Optional.empty(), failure);
   }

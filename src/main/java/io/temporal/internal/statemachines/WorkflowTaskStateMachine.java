@@ -73,6 +73,7 @@ final class WorkflowTaskStateMachine
   enum ExplicitEvent {}
 
   enum State {
+    CREATED,
     SCHEDULED,
     STARTED,
     COMPLETED,
@@ -82,7 +83,8 @@ final class WorkflowTaskStateMachine
 
   private static StateMachine<State, ExplicitEvent, WorkflowTaskStateMachine> newStateMachine() {
     return StateMachine.<State, ExplicitEvent, WorkflowTaskStateMachine>newInstance(
-            "WorkflowTask", State.SCHEDULED, State.COMPLETED, State.TIMED_OUT, State.FAILED)
+            "WorkflowTask", State.CREATED, State.COMPLETED, State.TIMED_OUT, State.FAILED)
+        .add(State.CREATED, EventType.EVENT_TYPE_WORKFLOW_TASK_SCHEDULED, State.SCHEDULED)
         .add(
             State.SCHEDULED,
             EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED,

@@ -36,7 +36,7 @@ final class CompleteWorkflowStateMachine
   private final CompleteWorkflowExecutionCommandAttributes completeWorkflowAttributes;
 
   public static void newInstance(
-      Optional<Payloads> workflowOutput, Functions.Proc1<NewCommand> commandSink) {
+      Optional<Payloads> workflowOutput, Functions.Proc1<CancellableCommand> commandSink) {
     CompleteWorkflowExecutionCommandAttributes.Builder attributes =
         CompleteWorkflowExecutionCommandAttributes.newBuilder();
     if (workflowOutput.isPresent()) {
@@ -47,7 +47,7 @@ final class CompleteWorkflowStateMachine
 
   private CompleteWorkflowStateMachine(
       CompleteWorkflowExecutionCommandAttributes completeWorkflowAttributes,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.completeWorkflowAttributes = completeWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);

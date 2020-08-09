@@ -86,7 +86,8 @@ final class ActivityStateMachine
         .add(
             State.SCHEDULE_COMMAND_CREATED,
             EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
-            State.SCHEDULED_EVENT_RECORDED)
+            State.SCHEDULED_EVENT_RECORDED,
+            ActivityStateMachine::setInitialCommandEventId)
         .add(
             State.SCHEDULE_COMMAND_CREATED,
             ExplicitEvent.CANCEL,
@@ -194,14 +195,14 @@ final class ActivityStateMachine
   public static ActivityStateMachine newInstance(
       ExecuteActivityParameters parameters,
       Functions.Proc2<Optional<Payloads>, Failure> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     return new ActivityStateMachine(parameters, completionCallback, commandSink);
   }
 
   private ActivityStateMachine(
       ExecuteActivityParameters parameters,
       Functions.Proc2<Optional<Payloads>, Failure> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.parameters = parameters;
     this.completionCallback = completionCallback;
@@ -225,7 +226,7 @@ final class ActivityStateMachine
   }
 
   private void cancelScheduleCommand() {
-    cancelInitialCommand();
+    cancelCommand();
     if (parameters.getCancellationType() != ActivityCancellationType.ABANDON) {
       notifyCanceled();
     }

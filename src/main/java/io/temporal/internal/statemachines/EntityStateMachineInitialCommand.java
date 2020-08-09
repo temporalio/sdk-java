@@ -22,16 +22,17 @@ package io.temporal.internal.statemachines;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.workflow.Functions;
-import java.util.Optional;
 
 class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
     extends EntityStateMachineBase<State, ExplicitEvent, Data> {
 
-  private NewCommand initialCommand;
+  private CancellableCommand command;
+
+  private long initialCommandEventId;
 
   public EntityStateMachineInitialCommand(
       StateMachine<State, ExplicitEvent, Data> stateMachine,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(stateMachine, commandSink);
   }
 
@@ -39,19 +40,20 @@ class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
     if (command.getCommandType() == CommandType.COMMAND_TYPE_UNSPECIFIED) {
       throw new IllegalArgumentException("unspecified command type");
     }
-    initialCommand = new NewCommand(command, this);
-    commandSink.apply(initialCommand);
+    this.command = new CancellableCommand(command, this);
+    commandSink.apply(this.command);
   }
 
-  protected final void cancelInitialCommand() {
-    initialCommand.cancel();
+  protected final void cancelCommand() {
+    command.cancel();
   }
 
-  protected final long getInitialCommandEventId() {
-    Optional<Long> eventId = initialCommand.getInitialCommandEventId();
-    if (!eventId.isPresent()) {
-      throw new IllegalArgumentException("Initial eventId is not set yet");
-    }
-    return eventId.get();
+  protected long getInitialCommandEventId() {
+    return initialCommandEventId;
+  }
+
+  /** Sets initialCommandEventId ot the currentEvent eventId. */
+  protected void setInitialCommandEventId() {
+    this.initialCommandEventId = currentEvent.getEventId();
   }
 }

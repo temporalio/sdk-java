@@ -98,7 +98,7 @@ final class SideEffectStateMachine
       Functions.Func<Boolean> replaying,
       Functions.Func<Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     new SideEffectStateMachine(replaying, func, callback, commandSink);
   }
 
@@ -106,7 +106,7 @@ final class SideEffectStateMachine
       Functions.Func<Boolean> replaying,
       Functions.Func<Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.replaying = replaying;
     this.func = func;

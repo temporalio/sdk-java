@@ -35,13 +35,13 @@ final class CancelWorkflowStateMachine
 
   public static void newInstance(
       CancelWorkflowExecutionCommandAttributes cancelWorkflowAttributes,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     new CancelWorkflowStateMachine(cancelWorkflowAttributes, commandSink);
   }
 
   private CancelWorkflowStateMachine(
       CancelWorkflowExecutionCommandAttributes cancelWorkflowAttributes,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.cancelWorkflowAttributes = cancelWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);

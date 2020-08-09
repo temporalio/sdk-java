@@ -23,19 +23,16 @@ import io.temporal.api.command.v1.Command;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 import java.util.Objects;
-import java.util.Optional;
 
-class NewCommand {
+class CancellableCommand {
 
   private final Command command;
   private final EntityStateMachine commands;
   private boolean canceled;
-  private Optional<Long> initialCommandEventId;
 
-  public NewCommand(Command command, EntityStateMachine commands) {
+  public CancellableCommand(Command command, EntityStateMachine commands) {
     this.command = Objects.requireNonNull(command);
     this.commands = Objects.requireNonNull(commands);
-    this.initialCommandEventId = Optional.empty();
   }
 
   public Command getCommand() {
@@ -53,16 +50,7 @@ class NewCommand {
     canceled = true;
   }
 
-  public Optional<Long> getInitialCommandEventId() {
-    return initialCommandEventId;
-  }
-
-  /** Notifies about eventId that command event will have. */
-  public void setInitialCommandEventId(long initialCommandEventId) {
-    this.initialCommandEventId = Optional.of(initialCommandEventId);
-  }
-
-  public EntityStateMachine getCommands() {
+  public EntityStateMachine getStateMachine() {
     return commands;
   }
 
@@ -81,23 +69,12 @@ class NewCommand {
     if (canceled) {
       return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
     }
-    WorkflowStateMachines.HandleEventStatus result = commands.handleEvent(event, hasNextEvent);
-    if (result == WorkflowStateMachines.HandleEventStatus.OK) {
-      initialCommandEventId = Optional.of(event.getEventId());
-    }
-    return result;
+    return commands.handleEvent(event, hasNextEvent);
   }
 
   @Override
   public String toString() {
-    return "NewCommand{"
-        + "command="
-        + command
-        + ", canceled="
-        + canceled
-        + ", initialCommandEventId="
-        + initialCommandEventId
-        + '}';
+    return "NewCommand{" + "command=" + command + ", canceled=" + canceled + '}';
   }
 
   public void handleWorkflowTaskStarted() {

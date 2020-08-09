@@ -35,13 +35,13 @@ final class UpsertSearchAttributesStateMachine
 
   public static void newInstance(
       UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     new UpsertSearchAttributesStateMachine(upsertAttributes, commandSink);
   }
 
   private UpsertSearchAttributesStateMachine(
       UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.upsertAttributes = upsertAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);

@@ -53,7 +53,7 @@ final class SignalExternalStateMachine
   public static Functions.Proc newInstance(
       SignalExternalWorkflowExecutionCommandAttributes signalAttributes,
       Functions.Proc2<Void, Failure> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     SignalExternalStateMachine commands =
         new SignalExternalStateMachine(signalAttributes, completionCallback, commandSink);
     return commands::cancel;
@@ -62,7 +62,7 @@ final class SignalExternalStateMachine
   private SignalExternalStateMachine(
       SignalExternalWorkflowExecutionCommandAttributes signalAttributes,
       Functions.Proc2<Void, Failure> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.signalAttributes = signalAttributes;
     this.completionCallback = completionCallback;
@@ -103,7 +103,8 @@ final class SignalExternalStateMachine
         .add(
             State.SIGNAL_EXTERNAL_COMMAND_CREATED,
             EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
-            State.SIGNAL_EXTERNAL_COMMAND_RECORDED)
+            State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
+            EntityStateMachineInitialCommand::setInitialCommandEventId)
         .add(
             State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
             EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED,
@@ -155,7 +156,7 @@ final class SignalExternalStateMachine
   }
 
   private void cancelSignalExternalCommand() {
-    cancelInitialCommand();
+    cancelCommand();
     Failure failure =
         Failure.newBuilder()
             .setMessage("Signal external workflow execution canceled")

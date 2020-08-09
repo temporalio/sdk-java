@@ -35,13 +35,13 @@ final class ContinueAsNewWorkflowStateMachine
 
   public static void newInstance(
       ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     new ContinueAsNewWorkflowStateMachine(continueAsNewWorkflowAttributes, commandSink);
   }
 
   private ContinueAsNewWorkflowStateMachine(
       ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.continueAsNewWorkflowAttributes = continueAsNewWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);

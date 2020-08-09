@@ -27,14 +27,14 @@ class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateM
 
   private final StateMachine<State, ExplicitEvent, Data> stateMachine;
 
-  protected final Functions.Proc1<NewCommand> commandSink;
+  protected final Functions.Proc1<CancellableCommand> commandSink;
 
   protected HistoryEvent currentEvent;
   protected boolean hasNextEvent;
 
   public EntityStateMachineBase(
       StateMachine<State, ExplicitEvent, Data> stateMachine,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     this.stateMachine = stateMachine;
     this.commandSink = commandSink;
   }

@@ -34,7 +34,7 @@ final class FailWorkflowStateMachine
 
   private final FailWorkflowExecutionCommandAttributes failWorkflowAttributes;
 
-  public static void newInstance(Failure failure, Functions.Proc1<NewCommand> commandSink) {
+  public static void newInstance(Failure failure, Functions.Proc1<CancellableCommand> commandSink) {
     FailWorkflowExecutionCommandAttributes attributes =
         FailWorkflowExecutionCommandAttributes.newBuilder().setFailure(failure).build();
     new FailWorkflowStateMachine(attributes, commandSink);
@@ -42,7 +42,7 @@ final class FailWorkflowStateMachine
 
   private FailWorkflowStateMachine(
       FailWorkflowExecutionCommandAttributes failWorkflowAttributes,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.failWorkflowAttributes = failWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);

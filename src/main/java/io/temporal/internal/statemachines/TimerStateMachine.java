@@ -47,14 +47,14 @@ final class TimerStateMachine
   public static TimerStateMachine newInstance(
       StartTimerCommandAttributes attributes,
       Functions.Proc1<HistoryEvent> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     return new TimerStateMachine(attributes, completionCallback, commandSink);
   }
 
   private TimerStateMachine(
       StartTimerCommandAttributes attributes,
       Functions.Proc1<HistoryEvent> completionCallback,
-      Functions.Proc1<NewCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink) {
     super(newStateMachine(), commandSink);
     this.startAttributes = attributes;
     this.completionCallback = completionCallback;
@@ -90,7 +90,8 @@ final class TimerStateMachine
         .add(
             State.START_COMMAND_CREATED,
             EventType.EVENT_TYPE_TIMER_STARTED,
-            State.START_COMMAND_RECORDED)
+            State.START_COMMAND_RECORDED,
+            EntityStateMachineInitialCommand::setInitialCommandEventId)
         .add(
             State.START_COMMAND_CREATED,
             ExplicitEvent.CANCEL,
@@ -137,7 +138,7 @@ final class TimerStateMachine
   }
 
   private void cancelStartTimerCommand() {
-    cancelInitialCommand();
+    cancelCommand();
     notifyCancellation();
   }
 
@@ -166,7 +167,7 @@ final class TimerStateMachine
   }
 
   private void cancelTimerCommandFireTimer() {
-    cancelInitialCommand();
+    cancelCommand();
     notifyCompletion();
   }
 
