@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -83,12 +84,21 @@ class POJOActivityInterfaceMetadata {
       throw new IllegalArgumentException(
           "Missing required @ActivityInterface annotation: " + anInterface);
     }
+    validateModifierAccess(anInterface);
+
     POJOActivityInterfaceMetadata result = new POJOActivityInterfaceMetadata(anInterface);
     if (result.methods.isEmpty()) {
       throw new IllegalArgumentException(
           "Interface doesn't contain any methods: " + anInterface.getName());
     }
     return result;
+  }
+
+  private static void validateModifierAccess(Class<?> current) {
+    if (!Modifier.isPublic(current.getModifiers())) {
+      throw new IllegalArgumentException(
+          "Interface with @ActivityInterface annotation must be public: " + current);
+    }
   }
 
   static POJOActivityInterfaceMetadata newImplementationInterface(Class<?> anInterface) {
@@ -119,6 +129,9 @@ class POJOActivityInterfaceMetadata {
   private Set<Method> getActivityInterfaceMethods(
       Class<?> current, Map<EqualsByMethodName, POJOActivityMethodMetadata> dedupeMap) {
     ActivityInterface annotation = current.getAnnotation(ActivityInterface.class);
+    if (annotation != null) {
+      validateModifierAccess(current);
+    }
 
     // Set to dedupe the same method due to diamond inheritance
     Set<Method> result = new HashSet<>();

@@ -569,7 +569,14 @@ public class WorkflowTest {
         "currentTimeMillis");
   }
 
-  public static class TestActivityRetryWithExpiration implements TestWorkflow1 {
+  interface EmptyInterface {}
+
+  interface UnrelatedInterface {
+    void unrelatedMethod();
+  }
+
+  public static class TestActivityRetryWithExpiration
+      implements TestWorkflow1, EmptyInterface, UnrelatedInterface {
 
     @Override
     @SuppressWarnings("Finally")
@@ -597,6 +604,9 @@ public class WorkflowTest {
       }
       return "ignored";
     }
+
+    @Override
+    public void unrelatedMethod() {}
   }
 
   @Test

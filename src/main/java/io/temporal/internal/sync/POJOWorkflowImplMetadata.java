@@ -87,6 +87,7 @@ class POJOWorkflowImplMetadata {
     Class<?>[] interfaces = implClass.getInterfaces();
     for (int i = 0; i < interfaces.length; i++) {
       Class<?> anInterface = interfaces[i];
+
       POJOWorkflowInterfaceMetadata interfaceMetadata;
       if (listener) {
         interfaceMetadata =
@@ -127,7 +128,7 @@ class POJOWorkflowImplMetadata {
     }
     if (byNameType.isEmpty() && !listener) {
       throw new IllegalArgumentException(
-          "Class doesn't implement any non empty interface annotated with @WorkflowInterface: "
+          "Class doesn't implement any non empty public interface annotated with @WorkflowInterface: "
               + implClass.getName());
     }
   }
