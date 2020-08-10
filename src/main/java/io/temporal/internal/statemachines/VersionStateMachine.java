@@ -140,7 +140,7 @@ final class VersionStateMachine {
       }
       int v = version.get();
       if ((v < minSupported || v > maxSupported) && v != DEFAULT_VERSION) {
-        throw new Error(
+        throw new UnsupportedVersion(
             String.format(
                 "Version %d of changeId %s is not supported. Supported v is between %d and %d.",
                 v, changeId, minSupported, maxSupported));

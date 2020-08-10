@@ -125,6 +125,8 @@ final class CancelExternalStateMachine
             .setRunId(requestCancelAttributes.getRunId())
             .build();
     completionCallback.apply(
-        null, new CancelExternalWorkflowException("Workflow not found: " + execution, execution, "", null));
+        null,
+        new CancelExternalWorkflowException(
+            "Workflow not found: " + execution, execution, "", null));
   }
 }

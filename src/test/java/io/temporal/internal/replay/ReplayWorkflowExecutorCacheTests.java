@@ -321,7 +321,7 @@ public class ReplayWorkflowExecutorCacheTests {
             return WorkflowImplementationOptions.newBuilder().build();
           }
         },
-        response.toBuilder(),
+        response,
         SingleWorkerOptions.newBuilder().build(),
         metricsScope,
         (a, b) -> true);

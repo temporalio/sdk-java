@@ -42,7 +42,6 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
@@ -133,7 +132,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       WorkflowServiceStubs service,
       String namespace,
       ReplayWorkflow workflow,
-      PollWorkflowTaskQueueResponse.Builder workflowTask,
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       SingleWorkerOptions options,
       Scope metricsScope,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller) {
