@@ -63,7 +63,7 @@ final class CompleteWorkflowStateMachine
     COMPLETE_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static StateMachineDefinition<State, ExplicitEvent, CompleteWorkflowStateMachine>
+  private static final StateMachineDefinition<State, ExplicitEvent, CompleteWorkflowStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, CompleteWorkflowStateMachine>newInstance(
                   "CompleteWorkflow", State.CREATED, State.COMPLETE_WORKFLOW_COMMAND_RECORDED)
