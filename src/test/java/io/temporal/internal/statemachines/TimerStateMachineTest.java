@@ -41,7 +41,7 @@ import org.junit.Test;
 public class TimerStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
-  private WorkflowStateMachines manager;
+  private WorkflowStateMachines stateMachines;
 
   @Test
   public void testTimerFire() {
@@ -52,14 +52,14 @@ public class TimerStateMachineTest {
         builder
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setTimerId("timer1")
                             .setStartToFireTimeout(
                                 ProtobufTimeUtils.ToProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
-            .add((firedEvent) -> manager.newCompleteWorkflow(Optional.empty()));
+            .add((firedEvent) -> stateMachines.newCompleteWorkflow(Optional.empty()));
       }
     }
 
@@ -76,7 +76,7 @@ public class TimerStateMachineTest {
     TestHistoryBuilder h = new TestHistoryBuilder();
     {
       TestEntityManagerListenerBase listener = new TestTimerFireListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = new WorkflowStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTask();
       long timerStartedEventId = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
@@ -89,18 +89,18 @@ public class TimerStateMachineTest {
       assertEquals(2, h.getWorkflowTaskCount());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_START_TIMER, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestTimerFireListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -120,7 +120,7 @@ public class TimerStateMachineTest {
             .<HistoryEvent>add1(
                 (v, c) ->
                     cancellationHandler =
-                        manager.newTimer(
+                        stateMachines.newTimer(
                             StartTimerCommandAttributes.newBuilder()
                                 .setTimerId("timer1")
                                 .setStartToFireTimeout(
@@ -133,14 +133,15 @@ public class TimerStateMachineTest {
         builder
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setTimerId("timer2")
                             .setStartToFireTimeout(
                                 ProtobufTimeUtils.ToProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
-            .add((firedEvent) -> manager.newCompleteWorkflow(converter.toPayloads("result1")));
+            .add(
+                (firedEvent) -> stateMachines.newCompleteWorkflow(converter.toPayloads("result1")));
 
         // Immediate cancellation
         builder.add((v) -> cancellationHandler.apply());
@@ -155,21 +156,21 @@ public class TimerStateMachineTest {
     h.addWorkflowTaskScheduledAndStarted();
     {
       TestEntityManagerListenerBase listener = new TestTimerImmediateCancellationListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = new WorkflowStateMachines(listener);
       {
-        List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+        List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
         assertCommand(CommandType.COMMAND_TYPE_START_TIMER, commands);
         assertEquals("timer2", commands.get(0).getStartTimerCommandAttributes().getTimerId());
       }
       {
-        List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+        List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
         assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
       }
     }
     {
       TestEntityManagerListenerBase listener = new TestTimerImmediateCancellationListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -191,7 +192,7 @@ public class TimerStateMachineTest {
             .<HistoryEvent>add1(
                 (v, c) ->
                     cancellationHandler =
-                        manager.newTimer(
+                        stateMachines.newTimer(
                             StartTimerCommandAttributes.newBuilder()
                                 .setTimerId("timer1")
                                 .setStartToFireTimeout(
@@ -201,12 +202,12 @@ public class TimerStateMachineTest {
             .add(
                 (firedEvent) -> {
                   assertEquals(EventType.EVENT_TYPE_TIMER_CANCELED, firedEvent.getEventType());
-                  manager.newCompleteWorkflow(converter.toPayloads("result1"));
+                  stateMachines.newCompleteWorkflow(converter.toPayloads("result1"));
                 });
         builder
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setTimerId("timer2")
                             .setStartToFireTimeout(
@@ -259,9 +260,9 @@ public class TimerStateMachineTest {
         .addWorkflowTaskScheduledAndStarted();
     {
       TestTimerCancellationListener listener = new TestTimerCancellationListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = new WorkflowStateMachines(listener);
       {
-        List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+        List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
         assertEquals(2, commands.size());
         assertEquals(CommandType.COMMAND_TYPE_START_TIMER, commands.get(0).getCommandType());
         assertEquals(CommandType.COMMAND_TYPE_START_TIMER, commands.get(1).getCommandType());
@@ -269,7 +270,7 @@ public class TimerStateMachineTest {
         assertEquals("timer2", commands.get(1).getStartTimerCommandAttributes().getTimerId());
       }
       {
-        List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+        List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
         assertEquals(2, commands.size());
         assertEquals(CommandType.COMMAND_TYPE_CANCEL_TIMER, commands.get(0).getCommandType());
         assertEquals(
@@ -278,8 +279,8 @@ public class TimerStateMachineTest {
     }
     {
       TestTimerCancellationListener listener = new TestTimerCancellationListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
       assertEquals("timer2", listener.getFiredTimerId());
     }

@@ -65,7 +65,8 @@ final class WorkflowTaskStateMachine
         STATE_MACHINE_DEFINITION,
         (c) -> {
           throw new UnsupportedOperationException("doesn't generate commands");
-        });
+        },
+        (sm) -> {});
     this.workflowTaskStartedEventId = workflowTaskStartedEventId;
     this.listener = Objects.requireNonNull(listener);
   }
@@ -81,7 +82,7 @@ final class WorkflowTaskStateMachine
     FAILED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, WorkflowTaskStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, WorkflowTaskStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, WorkflowTaskStateMachine>newInstance(
                   "WorkflowTask", State.CREATED, State.COMPLETED, State.TIMED_OUT, State.FAILED)
@@ -128,9 +129,5 @@ final class WorkflowTaskStateMachine
     if (attr.getCause() == WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_WORKFLOW) {
       this.listener.updateRunId(attr.getNewRunId());
     }
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

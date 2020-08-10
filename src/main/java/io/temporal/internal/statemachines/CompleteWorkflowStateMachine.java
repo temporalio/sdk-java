@@ -36,19 +36,22 @@ final class CompleteWorkflowStateMachine
   private final CompleteWorkflowExecutionCommandAttributes completeWorkflowAttributes;
 
   public static void newInstance(
-      Optional<Payloads> workflowOutput, Functions.Proc1<CancellableCommand> commandSink) {
+      Optional<Payloads> workflowOutput,
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
     CompleteWorkflowExecutionCommandAttributes.Builder attributes =
         CompleteWorkflowExecutionCommandAttributes.newBuilder();
     if (workflowOutput.isPresent()) {
       attributes.setResult(workflowOutput.get());
     }
-    new CompleteWorkflowStateMachine(attributes.build(), commandSink);
+    new CompleteWorkflowStateMachine(attributes.build(), commandSink, stateMachineSink);
   }
 
   private CompleteWorkflowStateMachine(
       CompleteWorkflowExecutionCommandAttributes completeWorkflowAttributes,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.completeWorkflowAttributes = completeWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -63,7 +66,7 @@ final class CompleteWorkflowStateMachine
     COMPLETE_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, CompleteWorkflowStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, CompleteWorkflowStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, CompleteWorkflowStateMachine>newInstance(
                   "CompleteWorkflow", State.CREATED, State.COMPLETE_WORKFLOW_COMMAND_RECORDED)
@@ -87,9 +90,5 @@ final class CompleteWorkflowStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION)
             .setCompleteWorkflowExecutionCommandAttributes(completeWorkflowAttributes)
             .build());
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

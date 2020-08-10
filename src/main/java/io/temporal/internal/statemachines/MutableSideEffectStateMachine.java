@@ -73,7 +73,7 @@ final class MutableSideEffectStateMachine {
     MARKER_COMMAND_RECORDED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, InvocationStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, InvocationStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, InvocationStateMachine>newInstance(
                   "MutableSideEffect",
@@ -133,8 +133,12 @@ final class MutableSideEffectStateMachine {
 
     InvocationStateMachine(
         Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
-        Functions.Proc1<Optional<Payloads>> callback) {
-      super(STATE_MACHINE_DEFINITION, MutableSideEffectStateMachine.this.commandSink);
+        Functions.Proc1<Optional<Payloads>> callback,
+        Functions.Proc1<StateMachine> stateMachineSink) {
+      super(
+          STATE_MACHINE_DEFINITION,
+          MutableSideEffectStateMachine.this.commandSink,
+          stateMachineSink);
       this.func = Objects.requireNonNull(func);
       this.resultCallback = Objects.requireNonNull(callback);
     }
@@ -268,14 +272,16 @@ final class MutableSideEffectStateMachine {
   public static MutableSideEffectStateMachine newInstance(
       String id,
       Functions.Func<Boolean> replaying,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    return new MutableSideEffectStateMachine(id, replaying, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    return new MutableSideEffectStateMachine(id, replaying, commandSink, stateMachineSink);
   }
 
   private MutableSideEffectStateMachine(
       String id,
       Functions.Func<Boolean> replaying,
-      Functions.Proc1<CancellableCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
     this.id = Objects.requireNonNull(id);
     this.replaying = Objects.requireNonNull(replaying);
     this.commandSink = Objects.requireNonNull(commandSink);
@@ -283,13 +289,10 @@ final class MutableSideEffectStateMachine {
 
   public void mutableSideEffect(
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
-      Functions.Proc1<Optional<Payloads>> callback) {
-    InvocationStateMachine ism = new InvocationStateMachine(func, callback);
+      Functions.Proc1<Optional<Payloads>> callback,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    InvocationStateMachine ism = new InvocationStateMachine(func, callback, stateMachineSink);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

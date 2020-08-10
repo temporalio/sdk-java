@@ -32,8 +32,9 @@ class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
 
   public EntityStateMachineInitialCommand(
       StateMachineDefinition<State, ExplicitEvent, Data> stateMachineDefinition,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(stateMachineDefinition, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(stateMachineDefinition, commandSink, stateMachineSink);
   }
 
   protected final void addCommand(Command command) {

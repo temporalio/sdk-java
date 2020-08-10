@@ -309,6 +309,67 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
     return result.toString();
   }
 
+  /**
+   * Given a list of state machines generate state diagram that shows which state transitions have
+   * not been covered.
+   */
+  public String asPlantUMLStateDiagramCoverage(
+      List<StateMachine<State, ExplicitEvent, Data>> stateMachines) {
+    Set<State> visited = new HashSet<>();
+    Set<Transition> taken = new HashSet<>();
+    for (StateMachine<State, ExplicitEvent, Data> stateMachine : stateMachines) {
+      List<Transition<State, TransitionEvent<ExplicitEvent>>> history =
+          stateMachine.getTransitionHistory();
+      for (Transition<State, TransitionEvent<ExplicitEvent>> transition : history) {
+        visited.add(transition.getFrom());
+        taken.add(transition);
+      }
+    }
+    StringBuilder result = new StringBuilder();
+    result.append("@startuml\n" + "scale 350 width\n");
+    result.append(
+        "skinparam {\n"
+            + "  ArrowColor green\n"
+            + "  ArrowThickness 2\n"
+            + "}\n"
+            + "\n"
+            + "skinparam state {\n"
+            + " BackgroundColor green\n"
+            + " BorderColor black\n"
+            + " BackgroundColor<<NotCovered>> red\n"
+            + "}\n");
+    result.append("[*] --> ");
+    result.append(initialState);
+    result.append('\n');
+    for (Map.Entry<Transition<State, TransitionEvent<ExplicitEvent>>, TransitionAction<State, Data>>
+        entry : transitions.entrySet()) {
+      List<State> targets = entry.getValue().getAllowedStates();
+      for (State target : targets) {
+        Transition<State, TransitionEvent<ExplicitEvent>> transition = entry.getKey();
+        State from = transition.getFrom();
+        result.append(from);
+        if (!visited.contains(from)) {
+          result.append("<< NotCovered >>");
+        }
+        if (taken.contains(transition)) {
+          result.append(" --> ");
+        } else {
+          result.append(" -[#red]-> ");
+        }
+        result.append(target);
+        result.append(": ");
+        result.append(transition.getExplicitEvent());
+        result.append('\n');
+      }
+    }
+    for (State finalState : finalStates) {
+      result.append(finalState);
+      result.append(" --> [*]\n");
+    }
+    result.append("@enduml\n");
+    return result.toString();
+  }
+
   public TransitionAction<State, Data> getTransitionAction(
       Transition<State, TransitionEvent<ExplicitEvent>> transition) {
     return transitions.get(transition);

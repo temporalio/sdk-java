@@ -53,17 +53,20 @@ final class SignalExternalStateMachine
   public static Functions.Proc newInstance(
       SignalExternalWorkflowExecutionCommandAttributes signalAttributes,
       Functions.Proc2<Void, Failure> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
     SignalExternalStateMachine commands =
-        new SignalExternalStateMachine(signalAttributes, completionCallback, commandSink);
+        new SignalExternalStateMachine(
+            signalAttributes, completionCallback, commandSink, stateMachineSink);
     return commands::cancel;
   }
 
   private SignalExternalStateMachine(
       SignalExternalWorkflowExecutionCommandAttributes signalAttributes,
       Functions.Proc2<Void, Failure> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.signalAttributes = signalAttributes;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -83,7 +86,7 @@ final class SignalExternalStateMachine
     CANCELED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, SignalExternalStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, SignalExternalStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, SignalExternalStateMachine>newInstance(
                   "SignalExternal", State.CREATED, State.SIGNALED, State.FAILED, State.CANCELED)
@@ -165,9 +168,5 @@ final class SignalExternalStateMachine
             .setCanceledFailureInfo(CanceledFailureInfo.newBuilder().build())
             .build();
     completionCallback.apply(null, failure);
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

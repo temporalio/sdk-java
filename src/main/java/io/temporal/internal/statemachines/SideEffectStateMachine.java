@@ -59,7 +59,7 @@ final class SideEffectStateMachine
 
   private Optional<Payloads> result;
 
-  private static final StateMachineDefinition<State, ExplicitEvent, SideEffectStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, SideEffectStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, SideEffectStateMachine>newInstance(
                   "SideEffect", State.CREATED, State.MARKER_COMMAND_RECORDED)
@@ -100,16 +100,18 @@ final class SideEffectStateMachine
       Functions.Func<Boolean> replaying,
       Functions.Func<Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    new SideEffectStateMachine(replaying, func, callback, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    new SideEffectStateMachine(replaying, func, callback, commandSink, stateMachineSink);
   }
 
   private SideEffectStateMachine(
       Functions.Func<Boolean> replaying,
       Functions.Func<Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.replaying = replaying;
     this.func = func;
     this.callback = callback;
@@ -158,9 +160,5 @@ final class SideEffectStateMachine
 
   private void markerResultFromFunc() {
     callback.apply(result);
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

@@ -46,15 +46,17 @@ final class CancelExternalStateMachine
   public static void newInstance(
       RequestCancelExternalWorkflowExecutionCommandAttributes attributes,
       Functions.Proc2<Void, RuntimeException> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    new CancelExternalStateMachine(attributes, completionCallback, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    new CancelExternalStateMachine(attributes, completionCallback, commandSink, stateMachineSink);
   }
 
   private CancelExternalStateMachine(
       RequestCancelExternalWorkflowExecutionCommandAttributes requestCancelAttributes,
       Functions.Proc2<Void, RuntimeException> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.requestCancelAttributes = requestCancelAttributes;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -72,7 +74,7 @@ final class CancelExternalStateMachine
     REQUEST_CANCEL_FAILED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, CancelExternalStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, CancelExternalStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, CancelExternalStateMachine>newInstance(
                   "CancelExternal",
@@ -123,9 +125,5 @@ final class CancelExternalStateMachine
             .setRunId(requestCancelAttributes.getRunId())
             .build();
     completionCallback.apply(null, new CancelExternalWorkflowException(execution, "", null));
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

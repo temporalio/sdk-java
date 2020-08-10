@@ -35,14 +35,17 @@ final class ContinueAsNewWorkflowStateMachine
 
   public static void newInstance(
       ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    new ContinueAsNewWorkflowStateMachine(continueAsNewWorkflowAttributes, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    new ContinueAsNewWorkflowStateMachine(
+        continueAsNewWorkflowAttributes, commandSink, stateMachineSink);
   }
 
   private ContinueAsNewWorkflowStateMachine(
       ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.continueAsNewWorkflowAttributes = continueAsNewWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -57,7 +60,7 @@ final class ContinueAsNewWorkflowStateMachine
     CONTINUE_AS_NEW_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static final StateMachineDefinition<
+  public static final StateMachineDefinition<
           State, ExplicitEvent, ContinueAsNewWorkflowStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition
@@ -85,9 +88,5 @@ final class ContinueAsNewWorkflowStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION)
             .setContinueAsNewWorkflowExecutionCommandAttributes(continueAsNewWorkflowAttributes)
             .build());
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

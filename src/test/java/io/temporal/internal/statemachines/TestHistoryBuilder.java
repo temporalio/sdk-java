@@ -259,30 +259,31 @@ class TestHistoryBuilder {
     }
   }
 
-  List<Command> handleWorkflowTaskTakeCommands(WorkflowStateMachines manager) {
-    return handleWorkflowTaskTakeCommands(manager, Integer.MAX_VALUE);
+  List<Command> handleWorkflowTaskTakeCommands(WorkflowStateMachines stateMachines) {
+    return handleWorkflowTaskTakeCommands(stateMachines, Integer.MAX_VALUE);
   }
 
   public List<Command> handleWorkflowTaskTakeCommands(
-      WorkflowStateMachines manager, int toTaskIndex) {
-    handleWorkflowTask(manager, toTaskIndex);
-    return manager.takeCommands();
+      WorkflowStateMachines stateMachines, int toTaskIndex) {
+    handleWorkflowTask(stateMachines, toTaskIndex);
+    return stateMachines.takeCommands();
   }
 
-  public void handleWorkflowTask(WorkflowStateMachines manager) {
-    handleWorkflowTask(manager, Integer.MAX_VALUE);
+  public void handleWorkflowTask(WorkflowStateMachines stateMachines) {
+    handleWorkflowTask(stateMachines, Integer.MAX_VALUE);
   }
 
-  public void handleWorkflowTask(WorkflowStateMachines manager, int toTaskIndex) {
+  public void handleWorkflowTask(WorkflowStateMachines stateMachines, int toTaskIndex) {
     List<HistoryEvent> events =
-        this.events.subList((int) manager.getLastStartedEventId(), this.events.size());
+        this.events.subList((int) stateMachines.getLastStartedEventId(), this.events.size());
     PeekingIterator<HistoryEvent> history = Iterators.peekingIterator(events.iterator());
     HistoryInfo info = getHistoryInfo(toTaskIndex);
-    manager.setStartedIds(info.getPreviousStartedEventId(), info.getWorkflowTaskStartedEventId());
+    stateMachines.setStartedIds(
+        info.getPreviousStartedEventId(), info.getWorkflowTaskStartedEventId());
     long started = info.getPreviousStartedEventId();
     HistoryEvent event = null;
     int count =
-        manager.getLastStartedEventId() > 0
+        stateMachines.getLastStartedEventId() > 0
             ? getWorkflowTaskCount(history.peek().getEventId() - 1)
             : 0;
     while (true) {
@@ -303,7 +304,7 @@ class TestHistoryBuilder {
           started = event.getEventId();
           count++;
           if (count == toTaskIndex || !history.hasNext()) {
-            manager.handleEvent(event, false);
+            stateMachines.handleEvent(event, false);
             return;
           }
         } else if (history.hasNext()
@@ -314,7 +315,7 @@ class TestHistoryBuilder {
                   + history.peek().getEventId());
         }
       }
-      manager.handleEvent(event, history.hasNext());
+      stateMachines.handleEvent(event, history.hasNext());
     }
   }
 

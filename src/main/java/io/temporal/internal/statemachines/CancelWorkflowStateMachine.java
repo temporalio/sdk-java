@@ -35,14 +35,16 @@ final class CancelWorkflowStateMachine
 
   public static void newInstance(
       CancelWorkflowExecutionCommandAttributes cancelWorkflowAttributes,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    new CancelWorkflowStateMachine(cancelWorkflowAttributes, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    new CancelWorkflowStateMachine(cancelWorkflowAttributes, commandSink, stateMachineSink);
   }
 
   private CancelWorkflowStateMachine(
       CancelWorkflowExecutionCommandAttributes cancelWorkflowAttributes,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.cancelWorkflowAttributes = cancelWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -57,7 +59,7 @@ final class CancelWorkflowStateMachine
     CANCEL_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, CancelWorkflowStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, CancelWorkflowStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, CancelWorkflowStateMachine>newInstance(
                   "CancelWorkflow", State.CREATED, State.CANCEL_WORKFLOW_COMMAND_RECORDED)
@@ -81,9 +83,5 @@ final class CancelWorkflowStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION)
             .setCancelWorkflowExecutionCommandAttributes(cancelWorkflowAttributes)
             .build());
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

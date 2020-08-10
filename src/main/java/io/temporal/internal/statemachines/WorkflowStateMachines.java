@@ -26,6 +26,7 @@ import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKE
 import static io.temporal.internal.statemachines.VersionStateMachine.MARKER_CHANGE_ID_KEY;
 import static io.temporal.internal.statemachines.VersionStateMachine.VERSION_MARKER_NAME;
 
+import com.cronutils.utils.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.Command;
@@ -141,10 +142,21 @@ public final class WorkflowStateMachines {
   private List<ExecuteLocalActivityParameters> localActivityRequests = new ArrayList<>();
 
   private final Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink;
+  private final Functions.Proc1<StateMachine> stateMachineSink;
 
   public WorkflowStateMachines(EntityManagerListener callbacks) {
     this.callbacks = Objects.requireNonNull(callbacks);
     commandSink = (command) -> cancellableCommands.add(command);
+    stateMachineSink = (stateMachine) -> {};
+    localActivityRequestSink = (request) -> localActivityRequests.add(request);
+  }
+
+  @VisibleForTesting
+  public WorkflowStateMachines(
+      EntityManagerListener callbacks, Functions.Proc1<StateMachine> stateMachineSink) {
+    this.callbacks = Objects.requireNonNull(callbacks);
+    commandSink = (command) -> cancellableCommands.add(command);
+    this.stateMachineSink = stateMachineSink;
     localActivityRequestSink = (request) -> localActivityRequests.add(request);
   }
 
@@ -283,7 +295,9 @@ public final class WorkflowStateMachines {
     VersionStateMachine versionStateMachine =
         vesions.computeIfAbsent(
             changeId,
-            (idKey) -> VersionStateMachine.newInstance(changeId, this::isReplaying, commandSink));
+            (idKey) ->
+                VersionStateMachine.newInstance(
+                    changeId, this::isReplaying, commandSink, stateMachineSink));
     versionStateMachine.handleNonMatchingEvent(event);
     return true;
   }
@@ -426,7 +440,7 @@ public final class WorkflowStateMachines {
       ExecuteActivityParameters attributes, Functions.Proc2<Optional<Payloads>, Failure> callback) {
     checkEventLoopExecuting();
     ActivityStateMachine activityStateMachine =
-        ActivityStateMachine.newInstance(attributes, callback, commandSink);
+        ActivityStateMachine.newInstance(attributes, callback, commandSink, stateMachineSink);
     return () -> activityStateMachine.cancel();
   }
 
@@ -451,7 +465,8 @@ public final class WorkflowStateMachines {
                 eventLoop();
               }
             },
-            commandSink);
+            commandSink,
+            stateMachineSink);
     return () -> timer.cancel();
   }
 
@@ -472,7 +487,7 @@ public final class WorkflowStateMachines {
     ChildWorkflowCancellationType cancellationType = parameters.getCancellationType();
     ChildWorkflowStateMachine child =
         ChildWorkflowStateMachine.newInstance(
-            attributes, startedCallback, completionCallback, commandSink);
+            attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
     return () -> {
       if (cancellationType == ChildWorkflowCancellationType.ABANDON) {
         notifyChildCancelled(attributes, completionCallback);
@@ -518,7 +533,8 @@ public final class WorkflowStateMachines {
       SignalExternalWorkflowExecutionCommandAttributes attributes,
       Functions.Proc2<Void, Failure> completionCallback) {
     checkEventLoopExecuting();
-    return SignalExternalStateMachine.newInstance(attributes, completionCallback, commandSink);
+    return SignalExternalStateMachine.newInstance(
+        attributes, completionCallback, commandSink, stateMachineSink);
   }
 
   /**
@@ -529,34 +545,37 @@ public final class WorkflowStateMachines {
       RequestCancelExternalWorkflowExecutionCommandAttributes attributes,
       Functions.Proc2<Void, RuntimeException> completionCallback) {
     checkEventLoopExecuting();
-    CancelExternalStateMachine.newInstance(attributes, completionCallback, commandSink);
+    CancelExternalStateMachine.newInstance(
+        attributes, completionCallback, commandSink, stateMachineSink);
   }
 
   public void newUpsertSearchAttributes(
       UpsertWorkflowSearchAttributesCommandAttributes attributes) {
     checkEventLoopExecuting();
-    UpsertSearchAttributesStateMachine.newInstance(attributes, commandSink);
+    UpsertSearchAttributesStateMachine.newInstance(attributes, commandSink, stateMachineSink);
   }
 
   public void newCompleteWorkflow(Optional<Payloads> workflowOutput) {
     checkEventLoopExecuting();
-    CompleteWorkflowStateMachine.newInstance(workflowOutput, commandSink);
+    CompleteWorkflowStateMachine.newInstance(workflowOutput, commandSink, stateMachineSink);
   }
 
   public void newFailWorkflow(Failure failure) {
     checkEventLoopExecuting();
-    FailWorkflowStateMachine.newInstance(failure, commandSink);
+    FailWorkflowStateMachine.newInstance(failure, commandSink, stateMachineSink);
   }
 
   public void newCancelWorkflow() {
     checkEventLoopExecuting();
     CancelWorkflowStateMachine.newInstance(
-        CancelWorkflowExecutionCommandAttributes.getDefaultInstance(), commandSink);
+        CancelWorkflowExecutionCommandAttributes.getDefaultInstance(),
+        commandSink,
+        stateMachineSink);
   }
 
   public void newContinueAsNewWorkflow(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     checkEventLoopExecuting();
-    ContinueAsNewWorkflowStateMachine.newInstance(attributes, commandSink);
+    ContinueAsNewWorkflowStateMachine.newInstance(attributes, commandSink, stateMachineSink);
   }
 
   public boolean isReplaying() {
@@ -594,7 +613,8 @@ public final class WorkflowStateMachines {
           // callback unblocked sideEffect call. Give workflow code chance to make progress.
           eventLoop();
         },
-        commandSink);
+        commandSink,
+        stateMachineSink);
   }
 
   /**
@@ -612,14 +632,16 @@ public final class WorkflowStateMachines {
         mutableSideEffects.computeIfAbsent(
             id,
             (idKey) ->
-                MutableSideEffectStateMachine.newInstance(idKey, this::isReplaying, commandSink));
+                MutableSideEffectStateMachine.newInstance(
+                    idKey, this::isReplaying, commandSink, stateMachineSink));
     stateMachine.mutableSideEffect(
         func,
         (r) -> {
           callback.apply(r);
           // callback unblocked mutableSideEffect call. Give workflow code chance to make progress.
           eventLoop();
-        });
+        },
+        stateMachineSink);
   }
 
   public void getVersion(
@@ -627,7 +649,9 @@ public final class WorkflowStateMachines {
     VersionStateMachine stateMachine =
         vesions.computeIfAbsent(
             changeId,
-            (idKey) -> VersionStateMachine.newInstance(changeId, this::isReplaying, commandSink));
+            (idKey) ->
+                VersionStateMachine.newInstance(
+                    changeId, this::isReplaying, commandSink, stateMachineSink));
     stateMachine.getVersion(
         minSupported,
         maxSupported,
@@ -679,7 +703,8 @@ public final class WorkflowStateMachines {
               eventLoop();
             },
             localActivityRequestSink,
-            commandSink);
+            commandSink,
+            stateMachineSink);
     localActivityMap.put(activityId, commands);
     return () -> commands.cancel();
   }

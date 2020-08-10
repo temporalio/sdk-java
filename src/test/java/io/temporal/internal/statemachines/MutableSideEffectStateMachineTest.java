@@ -41,7 +41,7 @@ import org.junit.Test;
 public class MutableSideEffectStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
-  private WorkflowStateMachines manager;
+  private WorkflowStateMachines stateMachines;
 
   @Test
   public void testOne() {
@@ -51,8 +51,9 @@ public class MutableSideEffectStateMachineTest {
         builder
             .<Optional<Payloads>>add1(
                 (v, c) ->
-                    manager.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c))
-            .add((r) -> manager.newCompleteWorkflow(r));
+                    stateMachines.mutableSideEffect(
+                        "id1", (p) -> converter.toPayloads("result1"), c))
+            .add((r) -> stateMachines.newCompleteWorkflow(r));
       }
     }
     /*
@@ -81,8 +82,8 @@ public class MutableSideEffectStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
@@ -95,8 +96,8 @@ public class MutableSideEffectStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.toString(), commands.isEmpty());
     }
   }
@@ -108,13 +109,14 @@ public class MutableSideEffectStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Optional<Payloads>>add1(
-                (v, c) -> manager.mutableSideEffect("id1", (p) -> Optional.empty(), c))
+                (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))
             .<Optional<Payloads>>add1(
-                (v, c) -> manager.mutableSideEffect("id1", (p) -> Optional.empty(), c))
+                (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))
             .<Optional<Payloads>>add1(
                 (v, c) ->
-                    manager.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c))
-            .add((r) -> manager.newCompleteWorkflow(r));
+                    stateMachines.mutableSideEffect(
+                        "id1", (p) -> converter.toPayloads("result1"), c))
+            .add((r) -> stateMachines.newCompleteWorkflow(r));
       }
     }
     /*
@@ -143,8 +145,8 @@ public class MutableSideEffectStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
@@ -168,8 +170,8 @@ public class MutableSideEffectStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
     }
   }
@@ -182,29 +184,31 @@ public class MutableSideEffectStateMachineTest {
         builder
             .<Optional<Payloads>>add1(
                 (v, c) ->
-                    manager.mutableSideEffect("id1", (p) -> converter.toPayloads("result1"), c))
+                    stateMachines.mutableSideEffect(
+                        "id1", (p) -> converter.toPayloads("result1"), c))
             .<Optional<Payloads>>add1(
-                (v, c) -> manager.mutableSideEffect("id1", (p) -> Optional.empty(), c))
+                (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
             .<Optional<Payloads>>add1(
-                (v, c) -> manager.mutableSideEffect("id1", (p) -> Optional.empty(), c))
+                (v, c) -> stateMachines.mutableSideEffect("id1", (p) -> Optional.empty(), c))
             .<Optional<Payloads>>add1(
                 (v, c) ->
-                    manager.mutableSideEffect("id1", (p) -> converter.toPayloads("result2"), c))
-            .add((r) -> manager.newCompleteWorkflow(r));
+                    stateMachines.mutableSideEffect(
+                        "id1", (p) -> converter.toPayloads("result2"), c))
+            .add((r) -> stateMachines.newCompleteWorkflow(r));
       }
     }
 
@@ -264,8 +268,8 @@ public class MutableSideEffectStateMachineTest {
         .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
@@ -283,11 +287,11 @@ public class MutableSideEffectStateMachineTest {
       assertEquals(CommandType.COMMAND_TYPE_START_TIMER, commands.get(1).getCommandType());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_START_TIMER, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
 
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
@@ -311,8 +315,8 @@ public class MutableSideEffectStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
     }
   }

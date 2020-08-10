@@ -79,14 +79,16 @@ final class LocalActivityStateMachine
       ExecuteLocalActivityParameters localActivityParameters,
       Functions.Proc2<Optional<Payloads>, Failure> callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
-      Functions.Proc1<CancellableCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
     return new LocalActivityStateMachine(
         replaying,
         setCurrentTimeCallback,
         localActivityParameters,
         callback,
         localActivityRequestSink,
-        commandSink);
+        commandSink,
+        stateMachineSink);
   }
 
   private LocalActivityStateMachine(
@@ -95,8 +97,9 @@ final class LocalActivityStateMachine
       ExecuteLocalActivityParameters localActivityParameters,
       Functions.Proc2<Optional<Payloads>, Failure> callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.replaying = replaying;
     this.setCurrentTimeCallback = setCurrentTimeCallback;
     this.localActivityParameters = localActivityParameters;
@@ -127,7 +130,7 @@ final class LocalActivityStateMachine
     RESULT_NOTIFIED_REPLAYING
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, LocalActivityStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, LocalActivityStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, LocalActivityStateMachine>newInstance(
                   "LocalActivity", State.CREATED, State.MARKER_COMMAND_RECORDED)
@@ -301,9 +304,5 @@ final class LocalActivityStateMachine
 
   private void notifyResultFromResponse() {
     callback.apply(laResult, failure);
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

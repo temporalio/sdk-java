@@ -22,8 +22,11 @@ package io.temporal.internal.statemachines;
 import com.google.common.base.Charsets;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.WorkflowTest;
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import org.junit.Test;
@@ -54,15 +57,31 @@ public class CommandsGeneratePlantUMLStateDiagrams {
   }
 
   private void generate(Class<?> commandClass) {
-    Method generator;
+    Functions.Func<String> generator;
     try {
-      generator = commandClass.getDeclaredMethod("asPlantUMLStateDiagram");
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException(e);
+      Field definition = commandClass.getField("STATE_MACHINE_DEFINITION");
+      definition.setAccessible(true);
+      Method method = definition.getType().getDeclaredMethod("asPlantUMLStateDiagram");
+      Object instance = definition.get(null);
+      generator =
+          () -> {
+            try {
+              return (String) method.invoke(instance);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+              throw new RuntimeException("Cannot generate from " + commandClass.getName(), e);
+            }
+          };
+    } catch (NoSuchMethodException | NoSuchFieldException | IllegalAccessException e) {
+      throw new RuntimeException("Cannot generate from " + commandClass.getName(), e);
     }
+    writeToFile("main", commandClass, generator.apply());
+  }
+
+  static void writeToFile(String prefix, Class<?> type, String diagram) {
     String projectPath = System.getProperty("user.dir");
-    String relativePath = commandClass.getName().replace(".", File.separator);
-    String fullRelativePath = ("src/main/java/" + relativePath).replace("/", File.separator);
+    String relativePath = type.getName().replace(".", File.separator);
+    String fullRelativePath =
+        ("src/" + prefix + "/java/" + relativePath).replace("/", File.separator);
     String diagramFile = (projectPath + "/" + fullRelativePath).replace("/", File.separator);
     File file = new File(diagramFile + ".puml");
     CharSink sink = Files.asCharSink(file, Charsets.UTF_8);
@@ -79,10 +98,10 @@ public class CommandsGeneratePlantUMLStateDiagrams {
           "` Generated from "
               + fullRelativePath
               + ".java\n` by "
-              + this.getClass().getName()
+              + CommandsGeneratePlantUMLStateDiagrams.class.getName()
               + ".\n");
       content.append("\n\n");
-      content.append(generator.invoke(null));
+      content.append(diagram);
       sink.write(content);
     } catch (Exception e) {
       throw new RuntimeException(e);

@@ -42,7 +42,7 @@ import org.junit.Test;
 public class VersionStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
-  private WorkflowStateMachines manager;
+  private WorkflowStateMachines stateMachines;
 
   @Test
   public void testOne() {
@@ -51,8 +51,9 @@ public class VersionStateMachineTest {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .add((v) -> manager.newCompleteWorkflow(converter.toPayloads(v)));
+            .<Integer>add1(
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -80,8 +81,8 @@ public class VersionStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
@@ -95,8 +96,8 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.toString(), commands.isEmpty());
     }
   }
@@ -108,12 +109,13 @@ public class VersionStateMachineTest {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
             .<Integer>add1(
-                (v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c))
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
             .<Integer>add1(
-                (v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
-            .add((v) -> manager.newCompleteWorkflow(converter.toPayloads(v)));
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c))
+            .<Integer>add1(
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
+            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -141,8 +143,8 @@ public class VersionStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
@@ -167,8 +169,8 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
     }
   }
@@ -180,10 +182,11 @@ public class VersionStateMachineTest {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
             .<Integer>add1(
-                (v, c) -> manager.getVersion("id1", maxSupported + 10, maxSupported + 10, c))
-            .add((v) -> manager.newCompleteWorkflow(converter.toPayloads(v)));
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .<Integer>add1(
+                (v, c) -> stateMachines.getVersion("id1", maxSupported + 10, maxSupported + 10, c))
+            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -210,9 +213,9 @@ public class VersionStateMachineTest {
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
 
     TestEntityManagerListenerBase listener = new TestListener();
-    manager = new WorkflowStateMachines(listener);
+    stateMachines = new WorkflowStateMachines(listener);
     try {
-      h.handleWorkflowTaskTakeCommands(manager);
+      h.handleWorkflowTaskTakeCommands(stateMachines);
       fail("failure expected");
     } catch (Throwable e) {
       assertTrue(
@@ -234,27 +237,28 @@ public class VersionStateMachineTest {
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .<Integer>add1(
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
             .<Integer>add1(
                 (v, c) -> {
                   trace.append(v + ", ");
-                  manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
+                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
                 })
             .<Integer>add1(
                 (v, c) -> {
                   trace.append(v + ", ");
-                  manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
+                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
                 })
             .<HistoryEvent>add1(
                 (v, c) -> {
                   trace.append(v);
-                  manager.newTimer(
+                  stateMachines.newTimer(
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
                       c);
                 })
-            .add((v) -> manager.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -284,8 +288,8 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(
           DEFAULT_VERSION + ", " + DEFAULT_VERSION + ", " + DEFAULT_VERSION,
@@ -307,8 +311,9 @@ public class VersionStateMachineTest {
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .add((v) -> manager.newCompleteWorkflow(converter.toPayloads(v)));
+            .<Integer>add1(
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -330,8 +335,8 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -345,16 +350,17 @@ public class VersionStateMachineTest {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .<Integer>add1(
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
             .<Integer>add1(
                 (v, c) -> {
                   trace.append(v + ", ");
-                  manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
+                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
                 })
             .<HistoryEvent>add1(
                 (v, c) -> {
                   trace.append(v + ", ");
-                  manager.newTimer(
+                  stateMachines.newTimer(
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
@@ -362,22 +368,22 @@ public class VersionStateMachineTest {
                 })
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
             .<Integer>add1(
-                (v, c) -> manager.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
+                (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
             .<Integer>add1(
                 (v, c) -> {
                   trace.append(v + ", ");
-                  manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
+                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
                 })
             .add(
                 (v) -> {
                   trace.append(v);
-                  manager.newCompleteWorkflow(converter.toPayloads(v));
+                  stateMachines.newCompleteWorkflow(converter.toPayloads(v));
                 });
       }
     }
@@ -430,8 +436,8 @@ public class VersionStateMachineTest {
         .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
@@ -449,11 +455,11 @@ public class VersionStateMachineTest {
       assertEquals(CommandType.COMMAND_TYPE_START_TIMER, commands.get(1).getCommandType());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_START_TIMER, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
       Optional<Payloads> resultData =
           Optional.of(commands.get(0).getCompleteWorkflowExecutionCommandAttributes().getResult());
@@ -463,8 +469,8 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(
           maxSupported + ", " + maxSupported + ", " + maxSupported + ", " + maxSupported,
@@ -485,13 +491,13 @@ public class VersionStateMachineTest {
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            /*.<Integer>add((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))*/
+            /*.<Integer>add((v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))*/
             .<Integer>add1(
-                (v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c))
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c))
             .<HistoryEvent>add1(
                 (v, c) -> {
                   trace.append(v + ", ");
-                  manager.newTimer(
+                  stateMachines.newTimer(
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
@@ -499,18 +505,18 @@ public class VersionStateMachineTest {
                 })
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
             .<Integer>add1(
-                (v, c) -> manager.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
-            /*.<Integer>add((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c));*/
+                (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
+            /*.<Integer>add((v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c));*/
             .add(
                 (v) -> {
                   trace.append(v);
-                  manager.newCompleteWorkflow(converter.toPayloads(v));
+                  stateMachines.newCompleteWorkflow(converter.toPayloads(v));
                 });
       }
     }
@@ -564,8 +570,8 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(maxSupported + ", " + maxSupported, listener.trace.toString());
     }
@@ -586,7 +592,7 @@ public class VersionStateMachineTest {
         builder
             .<Integer>add1(
                 (v, c) ->
-                    manager.getVersion(
+                    stateMachines.getVersion(
                         "id2",
                         DEFAULT_VERSION,
                         maxSupported,
@@ -596,12 +602,12 @@ public class VersionStateMachineTest {
                         }))
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
-            .add((v) -> manager.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -655,8 +661,8 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(maxSupported, listener.versionId2);
     }
@@ -676,35 +682,35 @@ public class VersionStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             /*
-            .<Integer>add((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .<Integer>add((v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
                 .<Integer>add(
                         (v, c) -> {
                           trace.append(v + ", ");
-                          manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
+                          stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
                         })
                  */
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
             /*.<Integer>add(
-            (v, c) -> manager.getVersion("id1", maxSupported - 3, maxSupported + 10, c))*/
+            (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))*/
             .<Integer>add1(
-                (v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
             .add(
                 (v) -> {
                   trace.append(v);
-                  manager.newCompleteWorkflow(converter.toPayloads(v));
+                  stateMachines.newCompleteWorkflow(converter.toPayloads(v));
                 });
       }
     }
@@ -757,12 +763,12 @@ public class VersionStateMachineTest {
         .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_START_TIMER, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
       Optional<Payloads> resultData =
           Optional.of(commands.get(0).getCompleteWorkflowExecutionCommandAttributes().getResult());
@@ -772,8 +778,8 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(String.valueOf(maxSupported), listener.trace.toString());
     }
@@ -788,17 +794,18 @@ public class VersionStateMachineTest {
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1((v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .<Integer>add1(
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
             .<HistoryEvent>add1(
                 (v, c) ->
-                    manager.newTimer(
+                    stateMachines.newTimer(
                         StartTimerCommandAttributes.newBuilder()
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
             .<Integer>add1(
-                (v, c) -> manager.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
-            .add((v) -> manager.newCompleteWorkflow(converter.toPayloads(v)));
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
+            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -844,9 +851,9 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = new WorkflowStateMachines(listener);
       try {
-        h.handleWorkflowTaskTakeCommands(manager);
+        h.handleWorkflowTaskTakeCommands(stateMachines);
         fail("failure expected");
       } catch (NonDeterministicWorkflowError e) {
         assertTrue(e.getCause().getMessage().startsWith("Version is already set"));

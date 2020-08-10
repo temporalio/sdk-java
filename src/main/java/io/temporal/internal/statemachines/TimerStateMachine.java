@@ -47,15 +47,17 @@ final class TimerStateMachine
   public static TimerStateMachine newInstance(
       StartTimerCommandAttributes attributes,
       Functions.Proc1<HistoryEvent> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    return new TimerStateMachine(attributes, completionCallback, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    return new TimerStateMachine(attributes, completionCallback, commandSink, stateMachineSink);
   }
 
   private TimerStateMachine(
       StartTimerCommandAttributes attributes,
       Functions.Proc1<HistoryEvent> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.startAttributes = attributes;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -75,7 +77,7 @@ final class TimerStateMachine
     CANCELED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, TimerStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, TimerStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, TimerStateMachine>newInstance(
                   "Timer", State.CREATED, State.FIRED, State.CANCELED)
@@ -173,9 +175,5 @@ final class TimerStateMachine
   private void cancelTimerCommandFireTimer() {
     cancelCommand();
     notifyCompletion();
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

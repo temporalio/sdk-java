@@ -46,6 +46,7 @@ final class VersionStateMachine {
   private final String changeId;
   private final Functions.Func<Boolean> replaying;
   private final Functions.Proc1<CancellableCommand> commandSink;
+  private final Functions.Proc1<StateMachine> stateMachineSink;
 
   private Optional<Integer> version = Optional.empty();
 
@@ -69,7 +70,7 @@ final class VersionStateMachine {
     MARKER_COMMAND_RECORDED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, InvocationStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, InvocationStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, InvocationStateMachine>newInstance(
                   "Version", State.CREATED, State.MARKER_COMMAND_RECORDED, State.SKIPPED_NOTIFIED)
@@ -127,7 +128,7 @@ final class VersionStateMachine {
     private final Functions.Proc1<Integer> resultCallback;
 
     InvocationStateMachine(int minSupported, int maxSupported, Functions.Proc1<Integer> callback) {
-      super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink);
+      super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
       this.maxSupported = maxSupported;
       this.resultCallback = Objects.requireNonNull(callback);
@@ -296,17 +297,20 @@ final class VersionStateMachine {
   public static VersionStateMachine newInstance(
       String id,
       Functions.Func<Boolean> replaying,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    return new VersionStateMachine(id, replaying, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    return new VersionStateMachine(id, replaying, commandSink, stateMachineSink);
   }
 
   private VersionStateMachine(
       String changeId,
       Functions.Func<Boolean> replaying,
-      Functions.Proc1<CancellableCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
     this.changeId = Objects.requireNonNull(changeId);
     this.replaying = Objects.requireNonNull(replaying);
     this.commandSink = Objects.requireNonNull(commandSink);
+    this.stateMachineSink = stateMachineSink;
   }
 
   public void getVersion(int minSupported, int maxSupported, Functions.Proc1<Integer> callback) {
@@ -317,9 +321,5 @@ final class VersionStateMachine {
 
   public void handleNonMatchingEvent(HistoryEvent event) {
     updateVersionFromEvent(event);
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

@@ -44,14 +44,34 @@ import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.workflow.Functions;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 public class ActivityStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
-  private WorkflowStateMachines manager;
+  private static final List<
+          StateMachine<
+              ActivityStateMachine.State, ActivityStateMachine.ExplicitEvent, ActivityStateMachine>>
+      stateMachineList = new ArrayList<>();
+  private WorkflowStateMachines stateMachines;
+
+  private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
+    return new WorkflowStateMachines(
+        listener, (stateMachine -> stateMachineList.add(stateMachine)));
+  }
+
+  @AfterClass
+  public static void generateCoverage() {
+    CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+        "test",
+        ActivityStateMachine.class,
+        ActivityStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
+            stateMachineList));
+  }
 
   @Test
   public void testActivityCompletion() {
@@ -66,8 +86,8 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> manager.scheduleActivityTask(parameters, c))
-            .add((pair) -> manager.newCompleteWorkflow(pair.getT1()));
+                (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
+            .add((pair) -> stateMachines.newCompleteWorkflow(pair.getT1()));
       }
     }
 
@@ -85,7 +105,7 @@ public class ActivityStateMachineTest {
     TestHistoryBuilder h = new TestHistoryBuilder();
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTask();
       long scheduledEventId =
@@ -107,20 +127,20 @@ public class ActivityStateMachineTest {
       assertEquals(2, h.getWorkflowTaskCount());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
       assertEquals(
           "id1", commands.get(0).getScheduleActivityTaskCommandAttributes().getActivityId());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
       assertEquals(
           "result1",
@@ -146,13 +166,13 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> manager.scheduleActivityTask(parameters, c))
+                (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       "type1", pair.getT2().getCause().getApplicationFailureInfo().getType());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
     }
@@ -171,7 +191,7 @@ public class ActivityStateMachineTest {
     TestHistoryBuilder h = new TestHistoryBuilder();
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTask();
       long scheduledEventId =
@@ -196,20 +216,20 @@ public class ActivityStateMachineTest {
       assertEquals(2, h.getWorkflowTaskCount());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
       assertEquals(
           "id1", commands.get(0).getScheduleActivityTaskCommandAttributes().getActivityId());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -227,14 +247,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> manager.scheduleActivityTask(parameters, c))
+                (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       TimeoutType.TIMEOUT_TYPE_HEARTBEAT,
                       pair.getT2().getCause().getTimeoutFailureInfo().getTimeoutType());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
     }
@@ -253,7 +273,7 @@ public class ActivityStateMachineTest {
     TestHistoryBuilder h = new TestHistoryBuilder();
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTask();
       long scheduledEventId =
@@ -280,20 +300,20 @@ public class ActivityStateMachineTest {
       assertEquals(2, h.getWorkflowTaskCount());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
       assertEquals(
           "id1", commands.get(0).getScheduleActivityTaskCommandAttributes().getActivityId());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -313,14 +333,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
 
         // Immediate cancellation
@@ -336,12 +356,12 @@ public class ActivityStateMachineTest {
     TestHistoryBuilder h = new TestHistoryBuilder();
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTaskScheduledAndStarted();
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -361,14 +381,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
 
@@ -423,27 +443,27 @@ public class ActivityStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 4);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -463,14 +483,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
 
@@ -515,19 +535,19 @@ public class ActivityStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -547,14 +567,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
 
@@ -613,27 +633,27 @@ public class ActivityStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 4);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -653,14 +673,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
 
@@ -727,31 +747,31 @@ public class ActivityStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 4);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 5);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 5);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -771,14 +791,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
 
@@ -847,31 +867,31 @@ public class ActivityStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 4);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 5);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 5);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -891,13 +911,13 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       "type1", pair.getT2().getCause().getApplicationFailureInfo().getType());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
 
@@ -967,31 +987,31 @@ public class ActivityStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 4);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 5);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 5);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -1011,14 +1031,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
 
@@ -1080,27 +1100,27 @@ public class ActivityStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 4);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -1120,14 +1140,14 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  manager.newCompleteWorkflow(Optional.empty());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
                 });
       }
 
@@ -1188,27 +1208,27 @@ public class ActivityStateMachineTest {
         .addWorkflowTaskScheduledAndStarted();
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 4);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
@@ -1228,8 +1248,8 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = manager.scheduleActivityTask(parameters, c))
-            .add((pair) -> manager.newCompleteWorkflow(pair.getT1()));
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+            .add((pair) -> stateMachines.newCompleteWorkflow(pair.getT1()));
       }
 
       @Override
@@ -1290,20 +1310,20 @@ public class ActivityStateMachineTest {
         .addWorkflowTaskScheduledAndStarted();
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 2);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK, commands);
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 3);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertTrue(commands.isEmpty());
     }
     {
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 4);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 4);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
       assertEquals(
           "result1",
@@ -1317,8 +1337,8 @@ public class ActivityStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestActivityListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
       assertEquals(
           "result1",

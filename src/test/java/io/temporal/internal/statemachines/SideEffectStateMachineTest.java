@@ -37,7 +37,7 @@ import org.junit.Test;
 public class SideEffectStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
-  private WorkflowStateMachines manager;
+  private WorkflowStateMachines stateMachines;
 
   @Test
   public void testSideEffectStateMachine() {
@@ -48,13 +48,14 @@ public class SideEffectStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Optional<Payloads>>add1(
-                (v, c) -> manager.sideEffect(() -> converter.toPayloads("m1Arg1", "m1Arg2"), c))
+                (v, c) ->
+                    stateMachines.sideEffect(() -> converter.toPayloads("m1Arg1", "m1Arg2"), c))
             .<Optional<Payloads>>add1(
                 (r, c) -> {
                   result = r;
-                  manager.sideEffect(() -> converter.toPayloads("m2Arg1"), c);
+                  stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), c);
                 })
-            .add((r) -> manager.newCompleteWorkflow(Optional.empty()));
+            .add((r) -> stateMachines.newCompleteWorkflow(Optional.empty()));
       }
     }
 
@@ -78,8 +79,8 @@ public class SideEffectStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
       assertEquals(3, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(1).getCommandType());
@@ -107,8 +108,8 @@ public class SideEffectStateMachineTest {
     }
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
-      List<Command> commands = h.handleWorkflowTaskTakeCommands(manager);
+      stateMachines = new WorkflowStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
     }
   }

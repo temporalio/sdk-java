@@ -67,7 +67,7 @@ final class ChildWorkflowStateMachine
     TERMINATED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, ChildWorkflowStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, ChildWorkflowStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, ChildWorkflowStateMachine>newInstance(
                   "ChildWorkflow",
@@ -155,17 +155,19 @@ final class ChildWorkflowStateMachine
       StartChildWorkflowExecutionCommandAttributes attributes,
       Functions.Proc1<WorkflowExecution> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
     return new ChildWorkflowStateMachine(
-        attributes, startedCallback, completionCallback, commandSink);
+        attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
   }
 
   private ChildWorkflowStateMachine(
       StartChildWorkflowExecutionCommandAttributes startAttributes,
       Functions.Proc1<WorkflowExecution> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.startAttributes = startAttributes;
     this.startedCallback = startedCallback;
     this.completionCallback = completionCallback;
@@ -300,9 +302,5 @@ final class ChildWorkflowStateMachine
   private void notifyStarted() {
     startedCallback.apply(
         currentEvent.getChildWorkflowExecutionStartedEventAttributes().getWorkflowExecution());
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

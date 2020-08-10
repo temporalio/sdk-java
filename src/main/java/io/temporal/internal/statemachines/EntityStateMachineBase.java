@@ -34,9 +34,11 @@ class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateM
 
   public EntityStateMachineBase(
       StateMachineDefinition<State, ExplicitEvent, Data> stateMachineDefinition,
-      Functions.Proc1<CancellableCommand> commandSink) {
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
     this.stateMachine = StateMachine.newInstance(stateMachineDefinition);
     this.commandSink = commandSink;
+    stateMachineSink.apply(this.stateMachine);
   }
 
   /**

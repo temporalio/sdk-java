@@ -105,6 +105,10 @@ final class StateMachine<State, ExplicitEvent, Data> {
     return transitionHistory.toString();
   }
 
+  List<Transition<State, TransitionEvent<ExplicitEvent>>> getTransitionHistory() {
+    return transitionHistory;
+  }
+
   @Override
   public String toString() {
     return "StateMachine{"

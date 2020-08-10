@@ -35,14 +35,16 @@ final class UpsertSearchAttributesStateMachine
 
   public static void newInstance(
       UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    new UpsertSearchAttributesStateMachine(upsertAttributes, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    new UpsertSearchAttributesStateMachine(upsertAttributes, commandSink, stateMachineSink);
   }
 
   private UpsertSearchAttributesStateMachine(
       UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.upsertAttributes = upsertAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -57,7 +59,7 @@ final class UpsertSearchAttributesStateMachine
     UPSERT_COMMAND_RECORDED,
   }
 
-  private static final StateMachineDefinition<
+  public static final StateMachineDefinition<
           State, ExplicitEvent, UpsertSearchAttributesStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition
@@ -83,9 +85,5 @@ final class UpsertSearchAttributesStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES)
             .setUpsertWorkflowSearchAttributesCommandAttributes(upsertAttributes)
             .build());
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

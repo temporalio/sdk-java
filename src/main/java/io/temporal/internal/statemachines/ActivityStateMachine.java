@@ -66,7 +66,7 @@ final class ActivityStateMachine
     CANCELED_CANCEL_REQUESTED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, ActivityStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, ActivityStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, ActivityStateMachine>newInstance(
                   "Activity",
@@ -230,15 +230,17 @@ final class ActivityStateMachine
   public static ActivityStateMachine newInstance(
       ExecuteActivityParameters parameters,
       Functions.Proc2<Optional<Payloads>, Failure> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    return new ActivityStateMachine(parameters, completionCallback, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    return new ActivityStateMachine(parameters, completionCallback, commandSink, stateMachineSink);
   }
 
   private ActivityStateMachine(
       ExecuteActivityParameters parameters,
       Functions.Proc2<Optional<Payloads>, Failure> completionCallback,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.parameters = parameters;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -406,9 +408,5 @@ final class ActivityStateMachine
                 RequestCancelActivityTaskCommandAttributes.newBuilder()
                     .setScheduledEventId(getInitialCommandEventId()))
             .build());
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

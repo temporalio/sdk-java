@@ -42,7 +42,7 @@ import org.junit.Test;
 public class LocalActivityStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
-  private WorkflowStateMachines manager;
+  private WorkflowStateMachines stateMachines;
 
   @Test
   public void testLocalActivityStateMachine() {
@@ -69,14 +69,14 @@ public class LocalActivityStateMachineTest {
 
         builder
             .<Optional<Payloads>, Failure>add2(
-                (r, c) -> manager.scheduleLocalActivityTask(parameters1, c))
-            .add((r) -> manager.newCompleteWorkflow(Optional.empty()));
+                (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
+            .add((r) -> stateMachines.newCompleteWorkflow(Optional.empty()));
 
         builder
             .<Optional<Payloads>, Failure>add2(
-                (r, c) -> manager.scheduleLocalActivityTask(parameters2, c))
+                (r, c) -> stateMachines.scheduleLocalActivityTask(parameters2, c))
             .<Optional<Payloads>, Failure>add2(
-                (r, c) -> manager.scheduleLocalActivityTask(parameters3, c))
+                (r, c) -> stateMachines.scheduleLocalActivityTask(parameters3, c))
             .add((r) -> result = r.getT1());
       }
     }
@@ -123,11 +123,11 @@ public class LocalActivityStateMachineTest {
     assertEquals(new TestHistoryBuilder.HistoryInfo(3, 8), h.getHistoryInfo());
 
     TestListener listener = new TestListener();
-    manager = new WorkflowStateMachines(listener);
+    stateMachines = new WorkflowStateMachines(listener);
 
     {
-      h.handleWorkflowTask(manager, 1);
-      List<ExecuteLocalActivityParameters> requests = manager.takeLocalActivityRequests();
+      h.handleWorkflowTask(stateMachines, 1);
+      List<ExecuteLocalActivityParameters> requests = stateMachines.takeLocalActivityRequests();
       assertEquals(2, requests.size());
       assertEquals("id1", requests.get(0).getActivityTask().getActivityId());
       assertEquals("id2", requests.get(1).getActivityTask().getActivityId());
@@ -140,8 +140,8 @@ public class LocalActivityStateMachineTest {
               null,
               null,
               null);
-      manager.handleLocalActivityCompletion(completionActivity2);
-      requests = manager.takeLocalActivityRequests();
+      stateMachines.handleLocalActivityCompletion(completionActivity2);
+      requests = stateMachines.takeLocalActivityRequests();
       assertEquals(1, requests.size());
       assertEquals("id3", requests.get(0).getActivityTask().getActivityId());
 
@@ -153,11 +153,11 @@ public class LocalActivityStateMachineTest {
               null,
               null,
               null);
-      manager.handleLocalActivityCompletion(completionActivity3);
-      requests = manager.takeLocalActivityRequests();
+      stateMachines.handleLocalActivityCompletion(completionActivity3);
+      requests = stateMachines.takeLocalActivityRequests();
       assertTrue(requests.isEmpty());
 
-      List<Command> commands = manager.takeCommands();
+      List<Command> commands = stateMachines.takeCommands();
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(1).getCommandType());
@@ -179,8 +179,8 @@ public class LocalActivityStateMachineTest {
       assertEquals("result3", converter.fromPayloads(0, dataActivity3, String.class, String.class));
     }
     {
-      h.handleWorkflowTask(manager, 2);
-      List<ExecuteLocalActivityParameters> requests = manager.takeLocalActivityRequests();
+      h.handleWorkflowTask(stateMachines, 2);
+      List<ExecuteLocalActivityParameters> requests = stateMachines.takeLocalActivityRequests();
       assertTrue(requests.isEmpty());
 
       Payloads result = converter.toPayloads("result1").get();
@@ -191,10 +191,10 @@ public class LocalActivityStateMachineTest {
               null,
               null,
               null);
-      manager.handleLocalActivityCompletion(completionActivity1);
-      requests = manager.takeLocalActivityRequests();
+      stateMachines.handleLocalActivityCompletion(completionActivity1);
+      requests = stateMachines.takeLocalActivityRequests();
       assertTrue(requests.isEmpty());
-      List<Command> commands = manager.takeCommands();
+      List<Command> commands = stateMachines.takeCommands();
       assertEquals(2, commands.size());
       assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
       Optional<Payloads> data =
@@ -214,11 +214,11 @@ public class LocalActivityStateMachineTest {
     // Test full replay
     {
       listener = new TestListener();
-      manager = new WorkflowStateMachines(listener);
+      stateMachines = new WorkflowStateMachines(listener);
 
-      h.handleWorkflowTask(manager);
+      h.handleWorkflowTask(stateMachines);
 
-      List<Command> commands = manager.takeCommands();
+      List<Command> commands = stateMachines.takeCommands();
       assertTrue(commands.isEmpty());
     }
   }
@@ -237,8 +237,8 @@ public class LocalActivityStateMachineTest {
                     .setActivityType(ActivityType.newBuilder().setName("activity1")));
         builder
             .<Optional<Payloads>, Failure>add2(
-                (r, c) -> manager.scheduleLocalActivityTask(parameters1, c))
-            .add((r) -> manager.newCompleteWorkflow(Optional.empty()));
+                (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
+            .add((r) -> stateMachines.newCompleteWorkflow(Optional.empty()));
       }
     }
     /*
@@ -274,13 +274,13 @@ public class LocalActivityStateMachineTest {
     assertEquals(new TestHistoryBuilder.HistoryInfo(6, 12), h.getHistoryInfo());
 
     TestListener listener = new TestListener();
-    manager = new WorkflowStateMachines(listener);
+    stateMachines = new WorkflowStateMachines(listener);
 
-    h.handleWorkflowTask(manager);
-    List<ExecuteLocalActivityParameters> requests = manager.takeLocalActivityRequests();
+    h.handleWorkflowTask(stateMachines);
+    List<ExecuteLocalActivityParameters> requests = stateMachines.takeLocalActivityRequests();
     assertEquals(1, requests.size());
     assertEquals("id1", requests.get(0).getActivityTask().getActivityId());
-    List<Command> commands = manager.takeCommands();
+    List<Command> commands = stateMachines.takeCommands();
     assertTrue(commands.isEmpty());
   }
 }

@@ -34,16 +34,20 @@ final class FailWorkflowStateMachine
 
   private final FailWorkflowExecutionCommandAttributes failWorkflowAttributes;
 
-  public static void newInstance(Failure failure, Functions.Proc1<CancellableCommand> commandSink) {
+  public static void newInstance(
+      Failure failure,
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
     FailWorkflowExecutionCommandAttributes attributes =
         FailWorkflowExecutionCommandAttributes.newBuilder().setFailure(failure).build();
-    new FailWorkflowStateMachine(attributes, commandSink);
+    new FailWorkflowStateMachine(attributes, commandSink, stateMachineSink);
   }
 
   private FailWorkflowStateMachine(
       FailWorkflowExecutionCommandAttributes failWorkflowAttributes,
-      Functions.Proc1<CancellableCommand> commandSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink);
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.failWorkflowAttributes = failWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -58,7 +62,7 @@ final class FailWorkflowStateMachine
     FAIL_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static final StateMachineDefinition<State, ExplicitEvent, FailWorkflowStateMachine>
+  public static final StateMachineDefinition<State, ExplicitEvent, FailWorkflowStateMachine>
       STATE_MACHINE_DEFINITION =
           StateMachineDefinition.<State, ExplicitEvent, FailWorkflowStateMachine>newInstance(
                   "FailWorkflow", State.CREATED, State.FAIL_WORKFLOW_COMMAND_RECORDED)
@@ -82,9 +86,5 @@ final class FailWorkflowStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION)
             .setFailWorkflowExecutionCommandAttributes(failWorkflowAttributes)
             .build());
-  }
-
-  public static String asPlantUMLStateDiagram() {
-    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }
