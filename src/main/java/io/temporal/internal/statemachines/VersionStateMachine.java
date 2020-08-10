@@ -38,7 +38,6 @@ import java.util.Optional;
 
 final class VersionStateMachine {
 
-  private static final String MARKER_HEADER_KEY = "header";
   static final String MARKER_VERSION_KEY = "version";
   static final String MARKER_CHANGE_ID_KEY = "changeId";
   static final String VERSION_MARKER_NAME = "Version";
@@ -70,54 +69,53 @@ final class VersionStateMachine {
     MARKER_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, ExplicitEvent, InvocationStateMachine>
-      newInvocationStateMachine() {
-    return StateMachine.<State, ExplicitEvent, InvocationStateMachine>newInstance(
-            "Version", State.CREATED, State.MARKER_COMMAND_RECORDED, State.SKIPPED_NOTIFIED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.CHECK_EXECUTION_STATE,
-            new State[] {State.REPLAYING, State.EXECUTING},
-            InvocationStateMachine::getExecutionState)
-        .add(
-            State.EXECUTING,
-            ExplicitEvent.SCHEDULE,
-            new State[] {State.MARKER_COMMAND_CREATED, State.SKIPPED},
-            InvocationStateMachine::createMarker)
-        .add(
-            State.MARKER_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.RESULT_NOTIFIED,
-            InvocationStateMachine::notifyResult)
-        .add(
-            State.RESULT_NOTIFIED,
-            EventType.EVENT_TYPE_MARKER_RECORDED,
-            State.MARKER_COMMAND_RECORDED)
-        .add(
-            State.SKIPPED,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.SKIPPED_NOTIFIED,
-            InvocationStateMachine::cancelCommandNotifyCachedResult)
-        .add(
-            State.REPLAYING,
-            ExplicitEvent.SCHEDULE,
-            State.MARKER_COMMAND_CREATED_REPLAYING,
-            InvocationStateMachine::createFakeCommand)
-        .add(
-            State.MARKER_COMMAND_CREATED_REPLAYING,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.RESULT_NOTIFIED_REPLAYING)
-        .add(
-            State.RESULT_NOTIFIED_REPLAYING,
-            ExplicitEvent.NON_MATCHING_EVENT,
-            State.SKIPPED_NOTIFIED,
-            InvocationStateMachine::missingMarkerNotifyCachedOrDefault)
-        .add(
-            State.RESULT_NOTIFIED_REPLAYING,
-            EventType.EVENT_TYPE_MARKER_RECORDED,
-            new State[] {State.MARKER_COMMAND_RECORDED, State.SKIPPED_NOTIFIED},
-            InvocationStateMachine::notifyFromEvent);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, InvocationStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, InvocationStateMachine>newInstance(
+                  "Version", State.CREATED, State.MARKER_COMMAND_RECORDED, State.SKIPPED_NOTIFIED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.CHECK_EXECUTION_STATE,
+                  new State[] {State.REPLAYING, State.EXECUTING},
+                  InvocationStateMachine::getExecutionState)
+              .add(
+                  State.EXECUTING,
+                  ExplicitEvent.SCHEDULE,
+                  new State[] {State.MARKER_COMMAND_CREATED, State.SKIPPED},
+                  InvocationStateMachine::createMarker)
+              .add(
+                  State.MARKER_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.RESULT_NOTIFIED,
+                  InvocationStateMachine::notifyResult)
+              .add(
+                  State.RESULT_NOTIFIED,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  State.MARKER_COMMAND_RECORDED)
+              .add(
+                  State.SKIPPED,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.SKIPPED_NOTIFIED,
+                  InvocationStateMachine::cancelCommandNotifyCachedResult)
+              .add(
+                  State.REPLAYING,
+                  ExplicitEvent.SCHEDULE,
+                  State.MARKER_COMMAND_CREATED_REPLAYING,
+                  InvocationStateMachine::createFakeCommand)
+              .add(
+                  State.MARKER_COMMAND_CREATED_REPLAYING,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.RESULT_NOTIFIED_REPLAYING)
+              .add(
+                  State.RESULT_NOTIFIED_REPLAYING,
+                  ExplicitEvent.NON_MATCHING_EVENT,
+                  State.SKIPPED_NOTIFIED,
+                  InvocationStateMachine::missingMarkerNotifyCachedOrDefault)
+              .add(
+                  State.RESULT_NOTIFIED_REPLAYING,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  new State[] {State.MARKER_COMMAND_RECORDED, State.SKIPPED_NOTIFIED},
+                  InvocationStateMachine::notifyFromEvent);
 
   /** Represents a single invocation of version. */
   private class InvocationStateMachine
@@ -129,7 +127,7 @@ final class VersionStateMachine {
     private final Functions.Proc1<Integer> resultCallback;
 
     InvocationStateMachine(int minSupported, int maxSupported, Functions.Proc1<Integer> callback) {
-      super(newInvocationStateMachine(), VersionStateMachine.this.commandSink);
+      super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink);
       this.minSupported = minSupported;
       this.maxSupported = maxSupported;
       this.resultCallback = Objects.requireNonNull(callback);
@@ -322,6 +320,6 @@ final class VersionStateMachine {
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newInvocationStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

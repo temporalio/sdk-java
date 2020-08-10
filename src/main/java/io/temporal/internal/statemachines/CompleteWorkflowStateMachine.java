@@ -48,7 +48,7 @@ final class CompleteWorkflowStateMachine
   private CompleteWorkflowStateMachine(
       CompleteWorkflowExecutionCommandAttributes completeWorkflowAttributes,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.completeWorkflowAttributes = completeWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -63,24 +63,23 @@ final class CompleteWorkflowStateMachine
     COMPLETE_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, ExplicitEvent, CompleteWorkflowStateMachine>
-      newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, CompleteWorkflowStateMachine>newInstance(
-            "CompleteWorkflow", State.CREATED, State.COMPLETE_WORKFLOW_COMMAND_RECORDED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.COMPLETE_WORKFLOW_COMMAND_CREATED,
-            CompleteWorkflowStateMachine::createCompleteWorkflowCommand)
-        .add(
-            State.COMPLETE_WORKFLOW_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION,
-            State.COMPLETE_WORKFLOW_COMMAND_CREATED)
-        .add(
-            State.COMPLETE_WORKFLOW_COMMAND_CREATED,
-            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
-            State.COMPLETE_WORKFLOW_COMMAND_RECORDED);
-  }
+  private static StateMachineDefinition<State, ExplicitEvent, CompleteWorkflowStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, CompleteWorkflowStateMachine>newInstance(
+                  "CompleteWorkflow", State.CREATED, State.COMPLETE_WORKFLOW_COMMAND_RECORDED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.COMPLETE_WORKFLOW_COMMAND_CREATED,
+                  CompleteWorkflowStateMachine::createCompleteWorkflowCommand)
+              .add(
+                  State.COMPLETE_WORKFLOW_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION,
+                  State.COMPLETE_WORKFLOW_COMMAND_CREATED)
+              .add(
+                  State.COMPLETE_WORKFLOW_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
+                  State.COMPLETE_WORKFLOW_COMMAND_RECORDED);
 
   private void createCompleteWorkflowCommand() {
     addCommand(
@@ -91,6 +90,6 @@ final class CompleteWorkflowStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

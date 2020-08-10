@@ -63,7 +63,7 @@ final class SignalExternalStateMachine
       SignalExternalWorkflowExecutionCommandAttributes signalAttributes,
       Functions.Proc2<Void, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.signalAttributes = signalAttributes;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -83,43 +83,43 @@ final class SignalExternalStateMachine
     CANCELED,
   }
 
-  private static StateMachine<State, ExplicitEvent, SignalExternalStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, SignalExternalStateMachine>newInstance(
-            "SignalExternal", State.CREATED, State.SIGNALED, State.FAILED, State.CANCELED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.SIGNAL_EXTERNAL_COMMAND_CREATED,
-            SignalExternalStateMachine::createSignalExternalCommand)
-        .add(
-            State.SIGNAL_EXTERNAL_COMMAND_CREATED,
-            ExplicitEvent.CANCEL,
-            State.CANCELED,
-            SignalExternalStateMachine::cancelSignalExternalCommand)
-        .add(
-            State.SIGNAL_EXTERNAL_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION,
-            State.SIGNAL_EXTERNAL_COMMAND_CREATED)
-        .add(
-            State.SIGNAL_EXTERNAL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
-            State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
-            EntityStateMachineInitialCommand::setInitialCommandEventId)
-        .add(
-            State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
-            EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED,
-            State.SIGNALED,
-            SignalExternalStateMachine::notifyCompleted)
-        .add(
-            State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
-            ExplicitEvent.CANCEL,
-            State.SIGNAL_EXTERNAL_COMMAND_RECORDED)
-        .add(
-            State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
-            EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
-            State.FAILED,
-            SignalExternalStateMachine::notifyFailed);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, SignalExternalStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, SignalExternalStateMachine>newInstance(
+                  "SignalExternal", State.CREATED, State.SIGNALED, State.FAILED, State.CANCELED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.SIGNAL_EXTERNAL_COMMAND_CREATED,
+                  SignalExternalStateMachine::createSignalExternalCommand)
+              .add(
+                  State.SIGNAL_EXTERNAL_COMMAND_CREATED,
+                  ExplicitEvent.CANCEL,
+                  State.CANCELED,
+                  SignalExternalStateMachine::cancelSignalExternalCommand)
+              .add(
+                  State.SIGNAL_EXTERNAL_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION,
+                  State.SIGNAL_EXTERNAL_COMMAND_CREATED)
+              .add(
+                  State.SIGNAL_EXTERNAL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
+                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
+                  EntityStateMachineInitialCommand::setInitialCommandEventId)
+              .add(
+                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
+                  EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED,
+                  State.SIGNALED,
+                  SignalExternalStateMachine::notifyCompleted)
+              .add(
+                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
+                  ExplicitEvent.CANCEL,
+                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED)
+              .add(
+                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
+                  EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
+                  State.FAILED,
+                  SignalExternalStateMachine::notifyFailed);
 
   private void createSignalExternalCommand() {
     addCommand(
@@ -168,6 +168,6 @@ final class SignalExternalStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

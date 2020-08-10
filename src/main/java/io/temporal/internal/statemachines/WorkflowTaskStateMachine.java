@@ -62,7 +62,7 @@ final class WorkflowTaskStateMachine
 
   private WorkflowTaskStateMachine(long workflowTaskStartedEventId, Listener listener) {
     super(
-        newStateMachine(),
+        STATE_MACHINE_DEFINITION,
         (c) -> {
           throw new UnsupportedOperationException("doesn't generate commands");
         });
@@ -81,27 +81,27 @@ final class WorkflowTaskStateMachine
     FAILED,
   }
 
-  private static StateMachine<State, ExplicitEvent, WorkflowTaskStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, WorkflowTaskStateMachine>newInstance(
-            "WorkflowTask", State.CREATED, State.COMPLETED, State.TIMED_OUT, State.FAILED)
-        .add(State.CREATED, EventType.EVENT_TYPE_WORKFLOW_TASK_SCHEDULED, State.SCHEDULED)
-        .add(
-            State.SCHEDULED,
-            EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED,
-            State.STARTED,
-            WorkflowTaskStateMachine::handleStarted)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED,
-            State.COMPLETED,
-            WorkflowTaskStateMachine::handleCompleted)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED,
-            State.FAILED,
-            WorkflowTaskStateMachine::handleFailed)
-        .add(State.STARTED, EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT, State.TIMED_OUT);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, WorkflowTaskStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, WorkflowTaskStateMachine>newInstance(
+                  "WorkflowTask", State.CREATED, State.COMPLETED, State.TIMED_OUT, State.FAILED)
+              .add(State.CREATED, EventType.EVENT_TYPE_WORKFLOW_TASK_SCHEDULED, State.SCHEDULED)
+              .add(
+                  State.SCHEDULED,
+                  EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED,
+                  State.STARTED,
+                  WorkflowTaskStateMachine::handleStarted)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED,
+                  State.COMPLETED,
+                  WorkflowTaskStateMachine::handleCompleted)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED,
+                  State.FAILED,
+                  WorkflowTaskStateMachine::handleFailed)
+              .add(State.STARTED, EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT, State.TIMED_OUT);
 
   private void handleStarted() {
     currentTimeMillis = Timestamps.toMillis(currentEvent.getEventTime());
@@ -131,6 +131,6 @@ final class WorkflowTaskStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

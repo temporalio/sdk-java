@@ -59,33 +59,35 @@ final class SideEffectStateMachine
 
   private Optional<Payloads> result;
 
-  private static StateMachine<State, ExplicitEvent, SideEffectStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, SideEffectStateMachine>newInstance(
-            "SideEffect", State.CREATED, State.MARKER_COMMAND_RECORDED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            new State[] {State.MARKER_COMMAND_CREATED, State.MARKER_COMMAND_CREATED_REPLAYING},
-            SideEffectStateMachine::createMarkerCommand)
-        .add(
-            State.MARKER_COMMAND_CREATED_REPLAYING,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.RESULT_NOTIFIED_REPLAYING)
-        .add(
-            State.MARKER_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.RESULT_NOTIFIED,
-            SideEffectStateMachine::markerResultFromFunc)
-        .add(
-            State.RESULT_NOTIFIED,
-            EventType.EVENT_TYPE_MARKER_RECORDED,
-            State.MARKER_COMMAND_RECORDED)
-        .add(
-            State.RESULT_NOTIFIED_REPLAYING,
-            EventType.EVENT_TYPE_MARKER_RECORDED,
-            State.MARKER_COMMAND_RECORDED,
-            SideEffectStateMachine::markerResultFromEvent);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, SideEffectStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, SideEffectStateMachine>newInstance(
+                  "SideEffect", State.CREATED, State.MARKER_COMMAND_RECORDED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  new State[] {
+                    State.MARKER_COMMAND_CREATED, State.MARKER_COMMAND_CREATED_REPLAYING
+                  },
+                  SideEffectStateMachine::createMarkerCommand)
+              .add(
+                  State.MARKER_COMMAND_CREATED_REPLAYING,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.RESULT_NOTIFIED_REPLAYING)
+              .add(
+                  State.MARKER_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.RESULT_NOTIFIED,
+                  SideEffectStateMachine::markerResultFromFunc)
+              .add(
+                  State.RESULT_NOTIFIED,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  State.MARKER_COMMAND_RECORDED)
+              .add(
+                  State.RESULT_NOTIFIED_REPLAYING,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  State.MARKER_COMMAND_RECORDED,
+                  SideEffectStateMachine::markerResultFromEvent);
 
   /**
    * Creates new SideEffect Marker
@@ -107,7 +109,7 @@ final class SideEffectStateMachine
       Functions.Func<Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.replaying = replaying;
     this.func = func;
     this.callback = callback;
@@ -159,6 +161,6 @@ final class SideEffectStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

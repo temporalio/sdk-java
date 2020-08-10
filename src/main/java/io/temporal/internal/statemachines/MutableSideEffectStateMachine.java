@@ -73,57 +73,56 @@ final class MutableSideEffectStateMachine {
     MARKER_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, ExplicitEvent, InvocationStateMachine>
-      newInvocationStateMachine() {
-    return StateMachine.<State, ExplicitEvent, InvocationStateMachine>newInstance(
-            "MutableSideEffect",
-            State.CREATED,
-            State.MARKER_COMMAND_RECORDED,
-            State.SKIPPED_NOTIFIED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.CHECK_EXECUTION_STATE,
-            new State[] {State.REPLAYING, State.EXECUTING},
-            InvocationStateMachine::getExecutionState)
-        .add(
-            State.EXECUTING,
-            ExplicitEvent.SCHEDULE,
-            new State[] {State.MARKER_COMMAND_CREATED, State.SKIPPED},
-            InvocationStateMachine::createMarker)
-        .add(
-            State.MARKER_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.RESULT_NOTIFIED,
-            InvocationStateMachine::notifyCachedResult)
-        .add(
-            State.RESULT_NOTIFIED,
-            EventType.EVENT_TYPE_MARKER_RECORDED,
-            State.MARKER_COMMAND_RECORDED)
-        .add(
-            State.SKIPPED,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.SKIPPED_NOTIFIED,
-            InvocationStateMachine::cancelCommandNotifyCachedResult)
-        .add(
-            State.REPLAYING,
-            ExplicitEvent.SCHEDULE,
-            State.MARKER_COMMAND_CREATED_REPLAYING,
-            InvocationStateMachine::createFakeCommand)
-        .add(
-            State.MARKER_COMMAND_CREATED_REPLAYING,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.RESULT_NOTIFIED_REPLAYING)
-        .add(
-            State.RESULT_NOTIFIED_REPLAYING,
-            ExplicitEvent.NON_MATCHING_EVENT,
-            State.SKIPPED_NOTIFIED,
-            InvocationStateMachine::cancelCommandNotifyCachedResult)
-        .add(
-            State.RESULT_NOTIFIED_REPLAYING,
-            EventType.EVENT_TYPE_MARKER_RECORDED,
-            new State[] {State.MARKER_COMMAND_RECORDED, State.SKIPPED_NOTIFIED},
-            InvocationStateMachine::notifyFromEvent);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, InvocationStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, InvocationStateMachine>newInstance(
+                  "MutableSideEffect",
+                  State.CREATED,
+                  State.MARKER_COMMAND_RECORDED,
+                  State.SKIPPED_NOTIFIED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.CHECK_EXECUTION_STATE,
+                  new State[] {State.REPLAYING, State.EXECUTING},
+                  InvocationStateMachine::getExecutionState)
+              .add(
+                  State.EXECUTING,
+                  ExplicitEvent.SCHEDULE,
+                  new State[] {State.MARKER_COMMAND_CREATED, State.SKIPPED},
+                  InvocationStateMachine::createMarker)
+              .add(
+                  State.MARKER_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.RESULT_NOTIFIED,
+                  InvocationStateMachine::notifyCachedResult)
+              .add(
+                  State.RESULT_NOTIFIED,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  State.MARKER_COMMAND_RECORDED)
+              .add(
+                  State.SKIPPED,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.SKIPPED_NOTIFIED,
+                  InvocationStateMachine::cancelCommandNotifyCachedResult)
+              .add(
+                  State.REPLAYING,
+                  ExplicitEvent.SCHEDULE,
+                  State.MARKER_COMMAND_CREATED_REPLAYING,
+                  InvocationStateMachine::createFakeCommand)
+              .add(
+                  State.MARKER_COMMAND_CREATED_REPLAYING,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.RESULT_NOTIFIED_REPLAYING)
+              .add(
+                  State.RESULT_NOTIFIED_REPLAYING,
+                  ExplicitEvent.NON_MATCHING_EVENT,
+                  State.SKIPPED_NOTIFIED,
+                  InvocationStateMachine::cancelCommandNotifyCachedResult)
+              .add(
+                  State.RESULT_NOTIFIED_REPLAYING,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  new State[] {State.MARKER_COMMAND_RECORDED, State.SKIPPED_NOTIFIED},
+                  InvocationStateMachine::notifyFromEvent);
 
   /** Represents a single invocation of mutableSideEffect. */
   private class InvocationStateMachine
@@ -135,7 +134,7 @@ final class MutableSideEffectStateMachine {
     InvocationStateMachine(
         Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
         Functions.Proc1<Optional<Payloads>> callback) {
-      super(newInvocationStateMachine(), MutableSideEffectStateMachine.this.commandSink);
+      super(STATE_MACHINE_DEFINITION, MutableSideEffectStateMachine.this.commandSink);
       this.func = Objects.requireNonNull(func);
       this.resultCallback = Objects.requireNonNull(callback);
     }
@@ -291,6 +290,6 @@ final class MutableSideEffectStateMachine {
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newInvocationStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

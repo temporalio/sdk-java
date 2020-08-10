@@ -66,153 +66,153 @@ final class ActivityStateMachine
     CANCELED_CANCEL_REQUESTED,
   }
 
-  private static StateMachine<State, ExplicitEvent, ActivityStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, ActivityStateMachine>newInstance(
-            "Activity",
-            State.CREATED,
-            State.COMPLETED,
-            State.FAILED,
-            State.TIMED_OUT,
-            State.CANCELED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.SCHEDULE_COMMAND_CREATED,
-            ActivityStateMachine::createScheduleActivityTaskCommand)
-        .add(
-            State.SCHEDULE_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK,
-            State.SCHEDULE_COMMAND_CREATED)
-        .add(
-            State.SCHEDULE_COMMAND_CREATED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
-            State.SCHEDULED_EVENT_RECORDED,
-            ActivityStateMachine::setInitialCommandEventId)
-        .add(
-            State.SCHEDULE_COMMAND_CREATED,
-            ExplicitEvent.CANCEL,
-            State.CANCELED,
-            ActivityStateMachine::cancelCommandNotifyCancelled)
-        .add(
-            State.SCHEDULED_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
-            State.STARTED,
-            ActivityStateMachine::setStartedCommandEventId)
-        .add(
-            State.SCHEDULED_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
-            State.TIMED_OUT,
-            ActivityStateMachine::notifyTimedOut)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
-            State.COMPLETED,
-            ActivityStateMachine::notifyCompleted)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED,
-            State.FAILED,
-            ActivityStateMachine::notifyFailed)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
-            State.TIMED_OUT,
-            ActivityStateMachine::notifyTimedOut)
-        .add(
-            State.SCHEDULED_EVENT_RECORDED,
-            ExplicitEvent.CANCEL,
-            State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            ActivityStateMachine::createRequestCancelActivityTaskCommand)
-        .add(
-            State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
-            State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            ActivityStateMachine::notifyCanceledIfTryCancel)
-        .add(
-            State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK,
-            State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED)
-        /*
-        This state transition is not possible.
-        It looks like it is valid when an event, handling of which requests activity
-        cancellation, precedes EVENT_TYPE_ACTIVITY_TASK_STARTED event.
-        But as all code execution happens in the event loop the STARTED event is
-        applied to the sate machine (as it is done for all command events before
-        the event loop invocation) before the cancellation request.
-        .add(
-            State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
-            State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED)
-             */
-        .add(
-            State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
-            State.TIMED_OUT,
-            ActivityStateMachine::cancelCommandNotifyTimedOut)
-        .add(
-            State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
-            State.CANCELED,
-            ActivityStateMachine::notifyCanceled)
-        .add(
-            State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
-            State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED)
-        .add(
-            State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
-            State.TIMED_OUT,
-            ActivityStateMachine::notifyTimedOut)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
-            State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            ActivityStateMachine::notifyCanceledIfTryCancel)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK,
-            State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED)
-        .add(
-            State.STARTED,
-            ExplicitEvent.CANCEL,
-            State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            ActivityStateMachine::createRequestCancelActivityTaskCommand)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
-            State.COMPLETED,
-            ActivityStateMachine::cancelCommandNotifyCompleted)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED,
-            State.FAILED,
-            ActivityStateMachine::cancelCommandNotifyFailed)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
-            State.TIMED_OUT,
-            ActivityStateMachine::cancelCommandNotifyTimedOut)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED,
-            State.FAILED,
-            ActivityStateMachine::notifyFailed)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
-            State.COMPLETED,
-            ActivityStateMachine::notifyCompleted)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
-            State.TIMED_OUT,
-            ActivityStateMachine::notifyTimedOut)
-        .add(
-            State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
-            EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
-            State.CANCELED,
-            ActivityStateMachine::notifyCancellationFromEvent);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, ActivityStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, ActivityStateMachine>newInstance(
+                  "Activity",
+                  State.CREATED,
+                  State.COMPLETED,
+                  State.FAILED,
+                  State.TIMED_OUT,
+                  State.CANCELED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.SCHEDULE_COMMAND_CREATED,
+                  ActivityStateMachine::createScheduleActivityTaskCommand)
+              .add(
+                  State.SCHEDULE_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK,
+                  State.SCHEDULE_COMMAND_CREATED)
+              .add(
+                  State.SCHEDULE_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+                  State.SCHEDULED_EVENT_RECORDED,
+                  ActivityStateMachine::setInitialCommandEventId)
+              .add(
+                  State.SCHEDULE_COMMAND_CREATED,
+                  ExplicitEvent.CANCEL,
+                  State.CANCELED,
+                  ActivityStateMachine::cancelCommandNotifyCancelled)
+              .add(
+                  State.SCHEDULED_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+                  State.STARTED,
+                  ActivityStateMachine::setStartedCommandEventId)
+              .add(
+                  State.SCHEDULED_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+                  State.TIMED_OUT,
+                  ActivityStateMachine::notifyTimedOut)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+                  State.COMPLETED,
+                  ActivityStateMachine::notifyCompleted)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED,
+                  State.FAILED,
+                  ActivityStateMachine::notifyFailed)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+                  State.TIMED_OUT,
+                  ActivityStateMachine::notifyTimedOut)
+              .add(
+                  State.SCHEDULED_EVENT_RECORDED,
+                  ExplicitEvent.CANCEL,
+                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  ActivityStateMachine::createRequestCancelActivityTaskCommand)
+              .add(
+                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+                  State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  ActivityStateMachine::notifyCanceledIfTryCancel)
+              .add(
+                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK,
+                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED)
+              /*
+              This state transition is not possible.
+              It looks like it is valid when an event, handling of which requests activity
+              cancellation, precedes EVENT_TYPE_ACTIVITY_TASK_STARTED event.
+              But as all code execution happens in the event loop the STARTED event is
+              applied to the sate machine (as it is done for all command events before
+              the event loop invocation) before the cancellation request.
+              .add(
+                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED)
+                   */
+              .add(
+                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+                  State.TIMED_OUT,
+                  ActivityStateMachine::cancelCommandNotifyTimedOut)
+              .add(
+                  State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
+                  State.CANCELED,
+                  ActivityStateMachine::notifyCanceled)
+              .add(
+                  State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+                  State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED)
+              .add(
+                  State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+                  State.TIMED_OUT,
+                  ActivityStateMachine::notifyTimedOut)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+                  State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  ActivityStateMachine::notifyCanceledIfTryCancel)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK,
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED)
+              .add(
+                  State.STARTED,
+                  ExplicitEvent.CANCEL,
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  ActivityStateMachine::createRequestCancelActivityTaskCommand)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+                  State.COMPLETED,
+                  ActivityStateMachine::cancelCommandNotifyCompleted)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED,
+                  State.FAILED,
+                  ActivityStateMachine::cancelCommandNotifyFailed)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+                  State.TIMED_OUT,
+                  ActivityStateMachine::cancelCommandNotifyTimedOut)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED,
+                  State.FAILED,
+                  ActivityStateMachine::notifyFailed)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
+                  State.COMPLETED,
+                  ActivityStateMachine::notifyCompleted)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+                  State.TIMED_OUT,
+                  ActivityStateMachine::notifyTimedOut)
+              .add(
+                  State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
+                  State.CANCELED,
+                  ActivityStateMachine::notifyCancellationFromEvent);
 
   private final ExecuteActivityParameters parameters;
 
@@ -238,7 +238,7 @@ final class ActivityStateMachine
       ExecuteActivityParameters parameters,
       Functions.Proc2<Optional<Payloads>, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.parameters = parameters;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -409,6 +409,6 @@ final class ActivityStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

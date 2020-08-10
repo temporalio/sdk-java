@@ -105,7 +105,6 @@ public class ActivityStateMachineTest {
               .setResult(converter.toPayloads("result1").get()));
       h.addWorkflowTaskScheduledAndStarted();
       assertEquals(2, h.getWorkflowTaskCount());
-      System.out.println(h);
     }
     {
       List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
@@ -195,7 +194,6 @@ public class ActivityStateMachineTest {
                           ApplicationFailureInfo.newBuilder().setType("type1").build())));
       h.addWorkflowTaskScheduledAndStarted();
       assertEquals(2, h.getWorkflowTaskCount());
-      System.out.println(h);
     }
     {
       List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
@@ -280,7 +278,6 @@ public class ActivityStateMachineTest {
                               .build())));
       h.addWorkflowTaskScheduledAndStarted();
       assertEquals(2, h.getWorkflowTaskCount());
-      System.out.println(h);
     }
     {
       List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
@@ -342,7 +339,6 @@ public class ActivityStateMachineTest {
       manager = new WorkflowStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTaskScheduledAndStarted();
-      System.out.println(h);
     }
     {
       List<Command> commands = h.handleWorkflowTaskTakeCommands(manager, 1);
@@ -425,7 +421,6 @@ public class ActivityStateMachineTest {
             ActivityTaskCanceledEventAttributes.newBuilder().setScheduledEventId(scheduledEventId))
         .addWorkflowTaskScheduledAndStarted();
 
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);
@@ -518,7 +513,6 @@ public class ActivityStateMachineTest {
                         .setTimeoutFailureInfo(TimeoutFailureInfo.getDefaultInstance())))
         .addWorkflowTaskScheduledAndStarted();
 
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);
@@ -617,7 +611,6 @@ public class ActivityStateMachineTest {
                         .setTimeoutFailureInfo(TimeoutFailureInfo.getDefaultInstance())))
         .addWorkflowTaskScheduledAndStarted();
 
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);
@@ -732,7 +725,6 @@ public class ActivityStateMachineTest {
                 .build())
         .addWorkflowTaskScheduledAndStarted();
 
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);
@@ -853,7 +845,6 @@ public class ActivityStateMachineTest {
                         .setTimeoutFailureInfo(TimeoutFailureInfo.getDefaultInstance())))
         .addWorkflowTaskScheduledAndStarted();
 
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);
@@ -974,7 +965,6 @@ public class ActivityStateMachineTest {
                             ApplicationFailureInfo.newBuilder().setType("type1").build())))
         .addWorkflowTaskScheduledAndStarted();
 
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);
@@ -1088,7 +1078,6 @@ public class ActivityStateMachineTest {
                 .setStartedEventId(startedEventId))
         .addWorkflowTaskScheduledAndStarted();
 
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);
@@ -1197,7 +1186,6 @@ public class ActivityStateMachineTest {
                 .setScheduledEventId(scheduledEventId)
                 .setStartedEventId(startedEventId))
         .addWorkflowTaskScheduledAndStarted();
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);
@@ -1300,7 +1288,6 @@ public class ActivityStateMachineTest {
                 .setStartedEventId(startedEventId)
                 .setResult(converter.toPayloads("result1").get()))
         .addWorkflowTaskScheduledAndStarted();
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestActivityListener();
       manager = new WorkflowStateMachines(listener);

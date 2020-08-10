@@ -33,9 +33,9 @@ class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateM
   protected boolean hasNextEvent;
 
   public EntityStateMachineBase(
-      StateMachine<State, ExplicitEvent, Data> stateMachine,
+      StateMachineDefinition<State, ExplicitEvent, Data> stateMachineDefinition,
       Functions.Proc1<CancellableCommand> commandSink) {
-    this.stateMachine = stateMachine;
+    this.stateMachine = StateMachine.newInstance(stateMachineDefinition);
     this.commandSink = commandSink;
   }
 

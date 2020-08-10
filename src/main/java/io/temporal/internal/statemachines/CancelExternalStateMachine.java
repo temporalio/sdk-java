@@ -38,7 +38,7 @@ final class CancelExternalStateMachine
   private final Functions.Proc2<Void, RuntimeException> completionCallback;
 
   /**
-   * @param attributes attributes to use to cancel external worklfow
+   * @param attributes attributes to use to cancel external workflow
    * @param completionCallback one of ExternalWorkflowExecutionCancelRequestedEvent,
    *     RequestCancelExternalWorkflowExecutionFailedEvent
    * @param commandSink sink to send commands
@@ -54,7 +54,7 @@ final class CancelExternalStateMachine
       RequestCancelExternalWorkflowExecutionCommandAttributes requestCancelAttributes,
       Functions.Proc2<Void, RuntimeException> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.requestCancelAttributes = requestCancelAttributes;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -72,34 +72,37 @@ final class CancelExternalStateMachine
     REQUEST_CANCEL_FAILED,
   }
 
-  private static StateMachine<State, ExplicitEvent, CancelExternalStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, CancelExternalStateMachine>newInstance(
-            "CancelExternal", State.CREATED, State.CANCEL_REQUESTED, State.REQUEST_CANCEL_FAILED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED,
-            CancelExternalStateMachine::createCancelExternalCommand)
-        .add(
-            State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION,
-            State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED)
-        .add(
-            State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED,
-            EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
-            State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED,
-            EntityStateMachineInitialCommand::setInitialCommandEventId)
-        .add(
-            State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED,
-            EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED,
-            State.CANCEL_REQUESTED,
-            CancelExternalStateMachine::notifyCompleted)
-        .add(
-            State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED,
-            EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
-            State.REQUEST_CANCEL_FAILED,
-            CancelExternalStateMachine::notifyFailed);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, CancelExternalStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, CancelExternalStateMachine>newInstance(
+                  "CancelExternal",
+                  State.CREATED,
+                  State.CANCEL_REQUESTED,
+                  State.REQUEST_CANCEL_FAILED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED,
+                  CancelExternalStateMachine::createCancelExternalCommand)
+              .add(
+                  State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION,
+                  State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED)
+              .add(
+                  State.REQUEST_CANCEL_EXTERNAL_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
+                  State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED,
+                  EntityStateMachineInitialCommand::setInitialCommandEventId)
+              .add(
+                  State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED,
+                  EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED,
+                  State.CANCEL_REQUESTED,
+                  CancelExternalStateMachine::notifyCompleted)
+              .add(
+                  State.REQUEST_CANCEL_EXTERNAL_COMMAND_RECORDED,
+                  EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
+                  State.REQUEST_CANCEL_FAILED,
+                  CancelExternalStateMachine::notifyFailed);
 
   private void createCancelExternalCommand() {
     addCommand(
@@ -123,6 +126,6 @@ final class CancelExternalStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

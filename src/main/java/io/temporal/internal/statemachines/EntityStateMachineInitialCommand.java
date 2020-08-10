@@ -31,9 +31,9 @@ class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
   private long initialCommandEventId;
 
   public EntityStateMachineInitialCommand(
-      StateMachine<State, ExplicitEvent, Data> stateMachine,
+      StateMachineDefinition<State, ExplicitEvent, Data> stateMachineDefinition,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(stateMachine, commandSink);
+    super(stateMachineDefinition, commandSink);
   }
 
   protected final void addCommand(Command command) {

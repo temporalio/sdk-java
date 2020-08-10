@@ -67,71 +67,71 @@ final class ChildWorkflowStateMachine
     TERMINATED,
   }
 
-  private static StateMachine<State, ExplicitEvent, ChildWorkflowStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, ChildWorkflowStateMachine>newInstance(
-            "ChildWorkflow",
-            State.CREATED,
-            State.START_FAILED,
-            State.COMPLETED,
-            State.FAILED,
-            State.CANCELED,
-            State.TIMED_OUT,
-            State.TERMINATED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.START_COMMAND_CREATED,
-            ChildWorkflowStateMachine::createStartChildCommand)
-        .add(
-            State.START_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION,
-            State.START_COMMAND_CREATED)
-        .add(
-            State.START_COMMAND_CREATED,
-            EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED,
-            State.START_EVENT_RECORDED,
-            EntityStateMachineInitialCommand::setInitialCommandEventId)
-        .add(
-            State.START_COMMAND_CREATED,
-            ExplicitEvent.CANCEL,
-            State.CANCELED,
-            ChildWorkflowStateMachine::cancelStartChildCommand)
-        .add(
-            State.START_EVENT_RECORDED,
-            EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED,
-            State.STARTED,
-            ChildWorkflowStateMachine::notifyStarted)
-        .add(
-            State.START_EVENT_RECORDED,
-            EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED,
-            State.START_FAILED,
-            ChildWorkflowStateMachine::notifyStartFailed)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED,
-            State.COMPLETED,
-            ChildWorkflowStateMachine::notifyCompleted)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED,
-            State.FAILED,
-            ChildWorkflowStateMachine::notifyFailed)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT,
-            State.TIMED_OUT,
-            ChildWorkflowStateMachine::notifyTimedOut)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED,
-            State.CANCELED,
-            ChildWorkflowStateMachine::notifyCanceled)
-        .add(
-            State.STARTED,
-            EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED,
-            State.TERMINATED,
-            ChildWorkflowStateMachine::notifyTerminated);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, ChildWorkflowStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, ChildWorkflowStateMachine>newInstance(
+                  "ChildWorkflow",
+                  State.CREATED,
+                  State.START_FAILED,
+                  State.COMPLETED,
+                  State.FAILED,
+                  State.CANCELED,
+                  State.TIMED_OUT,
+                  State.TERMINATED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.START_COMMAND_CREATED,
+                  ChildWorkflowStateMachine::createStartChildCommand)
+              .add(
+                  State.START_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION,
+                  State.START_COMMAND_CREATED)
+              .add(
+                  State.START_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED,
+                  State.START_EVENT_RECORDED,
+                  EntityStateMachineInitialCommand::setInitialCommandEventId)
+              .add(
+                  State.START_COMMAND_CREATED,
+                  ExplicitEvent.CANCEL,
+                  State.CANCELED,
+                  ChildWorkflowStateMachine::cancelStartChildCommand)
+              .add(
+                  State.START_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED,
+                  State.STARTED,
+                  ChildWorkflowStateMachine::notifyStarted)
+              .add(
+                  State.START_EVENT_RECORDED,
+                  EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED,
+                  State.START_FAILED,
+                  ChildWorkflowStateMachine::notifyStartFailed)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED,
+                  State.COMPLETED,
+                  ChildWorkflowStateMachine::notifyCompleted)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED,
+                  State.FAILED,
+                  ChildWorkflowStateMachine::notifyFailed)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT,
+                  State.TIMED_OUT,
+                  ChildWorkflowStateMachine::notifyTimedOut)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED,
+                  State.CANCELED,
+                  ChildWorkflowStateMachine::notifyCanceled)
+              .add(
+                  State.STARTED,
+                  EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED,
+                  State.TERMINATED,
+                  ChildWorkflowStateMachine::notifyTerminated);
 
   private final StartChildWorkflowExecutionCommandAttributes startAttributes;
 
@@ -165,7 +165,7 @@ final class ChildWorkflowStateMachine
       Functions.Proc1<WorkflowExecution> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.startAttributes = startAttributes;
     this.startedCallback = startedCallback;
     this.completionCallback = completionCallback;
@@ -303,6 +303,6 @@ final class ChildWorkflowStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

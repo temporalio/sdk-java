@@ -42,7 +42,7 @@ final class UpsertSearchAttributesStateMachine
   private UpsertSearchAttributesStateMachine(
       UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.upsertAttributes = upsertAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -57,24 +57,25 @@ final class UpsertSearchAttributesStateMachine
     UPSERT_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, ExplicitEvent, UpsertSearchAttributesStateMachine>
-      newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, UpsertSearchAttributesStateMachine>newInstance(
-            "UpsertSearchAttributes", State.CREATED, State.UPSERT_COMMAND_RECORDED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.UPSERT_COMMAND_CREATED,
-            UpsertSearchAttributesStateMachine::createUpsertCommand)
-        .add(
-            State.UPSERT_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES,
-            State.UPSERT_COMMAND_CREATED)
-        .add(
-            State.UPSERT_COMMAND_CREATED,
-            EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES,
-            State.UPSERT_COMMAND_RECORDED);
-  }
+  private static final StateMachineDefinition<
+          State, ExplicitEvent, UpsertSearchAttributesStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition
+              .<State, ExplicitEvent, UpsertSearchAttributesStateMachine>newInstance(
+                  "UpsertSearchAttributes", State.CREATED, State.UPSERT_COMMAND_RECORDED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.UPSERT_COMMAND_CREATED,
+                  UpsertSearchAttributesStateMachine::createUpsertCommand)
+              .add(
+                  State.UPSERT_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES,
+                  State.UPSERT_COMMAND_CREATED)
+              .add(
+                  State.UPSERT_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES,
+                  State.UPSERT_COMMAND_RECORDED);
 
   private void createUpsertCommand() {
     addCommand(
@@ -85,6 +86,6 @@ final class UpsertSearchAttributesStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

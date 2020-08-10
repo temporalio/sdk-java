@@ -43,7 +43,7 @@ final class FailWorkflowStateMachine
   private FailWorkflowStateMachine(
       FailWorkflowExecutionCommandAttributes failWorkflowAttributes,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.failWorkflowAttributes = failWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -58,23 +58,23 @@ final class FailWorkflowStateMachine
     FAIL_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, ExplicitEvent, FailWorkflowStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, FailWorkflowStateMachine>newInstance(
-            "FailWorkflow", State.CREATED, State.FAIL_WORKFLOW_COMMAND_RECORDED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.FAIL_WORKFLOW_COMMAND_CREATED,
-            FailWorkflowStateMachine::createFailWorkflowCommand)
-        .add(
-            State.FAIL_WORKFLOW_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION,
-            State.FAIL_WORKFLOW_COMMAND_CREATED)
-        .add(
-            State.FAIL_WORKFLOW_COMMAND_CREATED,
-            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
-            State.FAIL_WORKFLOW_COMMAND_RECORDED);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, FailWorkflowStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, FailWorkflowStateMachine>newInstance(
+                  "FailWorkflow", State.CREATED, State.FAIL_WORKFLOW_COMMAND_RECORDED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.FAIL_WORKFLOW_COMMAND_CREATED,
+                  FailWorkflowStateMachine::createFailWorkflowCommand)
+              .add(
+                  State.FAIL_WORKFLOW_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION,
+                  State.FAIL_WORKFLOW_COMMAND_CREATED)
+              .add(
+                  State.FAIL_WORKFLOW_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+                  State.FAIL_WORKFLOW_COMMAND_RECORDED);
 
   private void createFailWorkflowCommand() {
     addCommand(
@@ -85,6 +85,6 @@ final class FailWorkflowStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

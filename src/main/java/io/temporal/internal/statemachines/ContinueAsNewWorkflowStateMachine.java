@@ -42,7 +42,7 @@ final class ContinueAsNewWorkflowStateMachine
   private ContinueAsNewWorkflowStateMachine(
       ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.continueAsNewWorkflowAttributes = continueAsNewWorkflowAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -57,24 +57,27 @@ final class ContinueAsNewWorkflowStateMachine
     CONTINUE_AS_NEW_WORKFLOW_COMMAND_RECORDED,
   }
 
-  private static StateMachine<State, ExplicitEvent, ContinueAsNewWorkflowStateMachine>
-      newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, ContinueAsNewWorkflowStateMachine>newInstance(
-            "ContinueAsNewWorkflow", State.CREATED, State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_RECORDED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED,
-            ContinueAsNewWorkflowStateMachine::createContinueAsNewWorkflowCommand)
-        .add(
-            State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION,
-            State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED)
-        .add(
-            State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED,
-            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW,
-            State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_RECORDED);
-  }
+  private static final StateMachineDefinition<
+          State, ExplicitEvent, ContinueAsNewWorkflowStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition
+              .<State, ExplicitEvent, ContinueAsNewWorkflowStateMachine>newInstance(
+                  "ContinueAsNewWorkflow",
+                  State.CREATED,
+                  State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_RECORDED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED,
+                  ContinueAsNewWorkflowStateMachine::createContinueAsNewWorkflowCommand)
+              .add(
+                  State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION,
+                  State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED)
+              .add(
+                  State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW,
+                  State.CONTINUE_AS_NEW_WORKFLOW_COMMAND_RECORDED);
 
   private void createContinueAsNewWorkflowCommand() {
     addCommand(
@@ -85,6 +88,6 @@ final class ContinueAsNewWorkflowStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

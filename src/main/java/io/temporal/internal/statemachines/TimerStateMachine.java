@@ -55,7 +55,7 @@ final class TimerStateMachine
       StartTimerCommandAttributes attributes,
       Functions.Proc1<HistoryEvent> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.startAttributes = attributes;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -75,55 +75,57 @@ final class TimerStateMachine
     CANCELED,
   }
 
-  private static StateMachine<State, ExplicitEvent, TimerStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, TimerStateMachine>newInstance(
-            "Timer", State.CREATED, State.FIRED, State.CANCELED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.SCHEDULE,
-            State.START_COMMAND_CREATED,
-            TimerStateMachine::createStartTimerCommand)
-        .add(
-            State.START_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_START_TIMER,
-            State.START_COMMAND_CREATED)
-        .add(
-            State.START_COMMAND_CREATED,
-            EventType.EVENT_TYPE_TIMER_STARTED,
-            State.START_COMMAND_RECORDED,
-            EntityStateMachineInitialCommand::setInitialCommandEventId)
-        .add(
-            State.START_COMMAND_CREATED,
-            ExplicitEvent.CANCEL,
-            State.CANCELED,
-            TimerStateMachine::cancelStartTimerCommand)
-        .add(
-            State.START_COMMAND_RECORDED,
-            EventType.EVENT_TYPE_TIMER_FIRED,
-            State.FIRED,
-            TimerStateMachine::notifyCompletion)
-        .add(
-            State.START_COMMAND_RECORDED,
-            ExplicitEvent.CANCEL,
-            State.CANCEL_TIMER_COMMAND_CREATED,
-            TimerStateMachine::createCancelTimerCommand)
-        .add(
-            State.CANCEL_TIMER_COMMAND_CREATED,
-            ExplicitEvent.CANCEL,
-            State.CANCEL_TIMER_COMMAND_CREATED)
-        .add(
-            State.CANCEL_TIMER_COMMAND_CREATED, EventType.EVENT_TYPE_TIMER_CANCELED, State.CANCELED)
-        .add(
-            State.CANCEL_TIMER_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_CANCEL_TIMER,
-            State.CANCEL_TIMER_COMMAND_CREATED,
-            TimerStateMachine::notifyCancellation)
-        .add(
-            State.CANCEL_TIMER_COMMAND_CREATED,
-            EventType.EVENT_TYPE_TIMER_FIRED,
-            State.FIRED,
-            TimerStateMachine::cancelTimerCommandFireTimer);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, TimerStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, TimerStateMachine>newInstance(
+                  "Timer", State.CREATED, State.FIRED, State.CANCELED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.SCHEDULE,
+                  State.START_COMMAND_CREATED,
+                  TimerStateMachine::createStartTimerCommand)
+              .add(
+                  State.START_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_START_TIMER,
+                  State.START_COMMAND_CREATED)
+              .add(
+                  State.START_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_TIMER_STARTED,
+                  State.START_COMMAND_RECORDED,
+                  EntityStateMachineInitialCommand::setInitialCommandEventId)
+              .add(
+                  State.START_COMMAND_CREATED,
+                  ExplicitEvent.CANCEL,
+                  State.CANCELED,
+                  TimerStateMachine::cancelStartTimerCommand)
+              .add(
+                  State.START_COMMAND_RECORDED,
+                  EventType.EVENT_TYPE_TIMER_FIRED,
+                  State.FIRED,
+                  TimerStateMachine::notifyCompletion)
+              .add(
+                  State.START_COMMAND_RECORDED,
+                  ExplicitEvent.CANCEL,
+                  State.CANCEL_TIMER_COMMAND_CREATED,
+                  TimerStateMachine::createCancelTimerCommand)
+              .add(
+                  State.CANCEL_TIMER_COMMAND_CREATED,
+                  ExplicitEvent.CANCEL,
+                  State.CANCEL_TIMER_COMMAND_CREATED)
+              .add(
+                  State.CANCEL_TIMER_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_TIMER_CANCELED,
+                  State.CANCELED)
+              .add(
+                  State.CANCEL_TIMER_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_CANCEL_TIMER,
+                  State.CANCEL_TIMER_COMMAND_CREATED,
+                  TimerStateMachine::notifyCancellation)
+              .add(
+                  State.CANCEL_TIMER_COMMAND_CREATED,
+                  EventType.EVENT_TYPE_TIMER_FIRED,
+                  State.FIRED,
+                  TimerStateMachine::cancelTimerCommandFireTimer);
 
   private void createStartTimerCommand() {
     addCommand(
@@ -174,6 +176,6 @@ final class TimerStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }

@@ -96,7 +96,7 @@ final class LocalActivityStateMachine
       Functions.Proc2<Optional<Payloads>, Failure> callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
       Functions.Proc1<CancellableCommand> commandSink) {
-    super(newStateMachine(), commandSink);
+    super(STATE_MACHINE_DEFINITION, commandSink);
     this.replaying = replaying;
     this.setCurrentTimeCallback = setCurrentTimeCallback;
     this.localActivityParameters = localActivityParameters;
@@ -127,59 +127,63 @@ final class LocalActivityStateMachine
     RESULT_NOTIFIED_REPLAYING
   }
 
-  private static StateMachine<State, ExplicitEvent, LocalActivityStateMachine> newStateMachine() {
-    return StateMachine.<State, ExplicitEvent, LocalActivityStateMachine>newInstance(
-            "LocalActivity", State.CREATED, State.MARKER_COMMAND_RECORDED)
-        .add(
-            State.CREATED,
-            ExplicitEvent.CHECK_EXECUTION_STATE,
-            new State[] {State.REPLAYING, State.EXECUTING},
-            LocalActivityStateMachine::getExecutionState)
-        .add(
-            State.EXECUTING,
-            ExplicitEvent.SCHEDULE,
-            State.REQUEST_PREPARED,
-            LocalActivityStateMachine::sendRequest)
-        .add(State.REQUEST_PREPARED, ExplicitEvent.GET_REQUEST, State.REQUEST_SENT)
-        .add(
-            State.REQUEST_SENT,
-            ExplicitEvent.HANDLE_RESPONSE,
-            State.MARKER_COMMAND_CREATED,
-            LocalActivityStateMachine::createMarker)
-        .add(State.REQUEST_SENT, ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED, State.REQUEST_SENT)
-        .add(
-            State.MARKER_COMMAND_CREATED,
-            CommandType.COMMAND_TYPE_RECORD_MARKER,
-            State.RESULT_NOTIFIED,
-            LocalActivityStateMachine::notifyResultFromResponse)
-        .add(
-            State.MARKER_COMMAND_CREATED,
-            ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
-            State.MARKER_COMMAND_CREATED)
-        .add(
-            State.RESULT_NOTIFIED,
-            EventType.EVENT_TYPE_MARKER_RECORDED,
-            State.MARKER_COMMAND_RECORDED)
-        .add(State.REPLAYING, ExplicitEvent.SCHEDULE, State.WAITING_MARKER_EVENT)
-        .add(
-            State.WAITING_MARKER_EVENT,
-            EventType.EVENT_TYPE_MARKER_RECORDED,
-            State.MARKER_COMMAND_RECORDED,
-            LocalActivityStateMachine::notifyResultFromEvent)
-        .add(
-            // This is to cover the following edge case:
-            // 1. WorkflowTaskStarted
-            // 2. Local activity scheduled
-            // 3. Local activity taken and started execution
-            // 4. Forced workflow task is started
-            // 5. Workflow task fails or worker crashes
-            // When replaying the above sequence without this state transition the local activity
-            // scheduled at step 2 is going to be lost.
-            State.WAITING_MARKER_EVENT,
-            ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
-            State.REQUEST_PREPARED,
-            LocalActivityStateMachine::sendRequest);
-  }
+  private static final StateMachineDefinition<State, ExplicitEvent, LocalActivityStateMachine>
+      STATE_MACHINE_DEFINITION =
+          StateMachineDefinition.<State, ExplicitEvent, LocalActivityStateMachine>newInstance(
+                  "LocalActivity", State.CREATED, State.MARKER_COMMAND_RECORDED)
+              .add(
+                  State.CREATED,
+                  ExplicitEvent.CHECK_EXECUTION_STATE,
+                  new State[] {State.REPLAYING, State.EXECUTING},
+                  LocalActivityStateMachine::getExecutionState)
+              .add(
+                  State.EXECUTING,
+                  ExplicitEvent.SCHEDULE,
+                  State.REQUEST_PREPARED,
+                  LocalActivityStateMachine::sendRequest)
+              .add(State.REQUEST_PREPARED, ExplicitEvent.GET_REQUEST, State.REQUEST_SENT)
+              .add(
+                  State.REQUEST_SENT,
+                  ExplicitEvent.HANDLE_RESPONSE,
+                  State.MARKER_COMMAND_CREATED,
+                  LocalActivityStateMachine::createMarker)
+              .add(
+                  State.REQUEST_SENT,
+                  ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
+                  State.REQUEST_SENT)
+              .add(
+                  State.MARKER_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_RECORD_MARKER,
+                  State.RESULT_NOTIFIED,
+                  LocalActivityStateMachine::notifyResultFromResponse)
+              .add(
+                  State.MARKER_COMMAND_CREATED,
+                  ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
+                  State.MARKER_COMMAND_CREATED)
+              .add(
+                  State.RESULT_NOTIFIED,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  State.MARKER_COMMAND_RECORDED)
+              .add(State.REPLAYING, ExplicitEvent.SCHEDULE, State.WAITING_MARKER_EVENT)
+              .add(
+                  State.WAITING_MARKER_EVENT,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  State.MARKER_COMMAND_RECORDED,
+                  LocalActivityStateMachine::notifyResultFromEvent)
+              .add(
+                  // This is to cover the following edge case:
+                  // 1. WorkflowTaskStarted
+                  // 2. Local activity scheduled
+                  // 3. Local activity taken and started execution
+                  // 4. Forced workflow task is started
+                  // 5. Workflow task fails or worker crashes
+                  // When replaying the above sequence without this state transition the local
+                  // activity
+                  // scheduled at step 2 is going to be lost.
+                  State.WAITING_MARKER_EVENT,
+                  ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
+                  State.REQUEST_PREPARED,
+                  LocalActivityStateMachine::sendRequest);
 
   State getExecutionState() {
     return replaying.apply() ? State.REPLAYING : State.EXECUTING;
@@ -300,6 +304,6 @@ final class LocalActivityStateMachine
   }
 
   public static String asPlantUMLStateDiagram() {
-    return newStateMachine().asPlantUMLStateDiagram();
+    return STATE_MACHINE_DEFINITION.asPlantUMLStateDiagram();
   }
 }
