@@ -22,6 +22,7 @@ package io.temporal.internal.statemachines;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.workflow.Functions;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -307,6 +308,29 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
     }
     result.append("@enduml\n");
     return result.toString();
+  }
+
+  /**
+   * Given a list of state machines returns transitions these state machines haven't performed. Used
+   * to ensure unit test coverage.
+   */
+  public List<Transition> getUnvisitedTransitions(
+      List<StateMachine<State, ExplicitEvent, Data>> stateMachines) {
+    Set<Transition> taken = new HashSet<>();
+    for (StateMachine<State, ExplicitEvent, Data> stateMachine : stateMachines) {
+      List<Transition<State, TransitionEvent<ExplicitEvent>>> history =
+          stateMachine.getTransitionHistory();
+      for (Transition<State, TransitionEvent<ExplicitEvent>> transition : history) {
+        taken.add(transition);
+      }
+    }
+    List<Transition> result = new ArrayList<>();
+    for (Transition<State, TransitionEvent<ExplicitEvent>> transition : transitions.keySet()) {
+      if (!taken.contains(transition)) {
+        result.add(transition);
+      }
+    }
+    return result;
   }
 
   /**

@@ -134,7 +134,7 @@ final class ActivityStateMachine
                   CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK,
                   State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED)
               /*
-              This state transition is not possible.
+              These state transitions are not possible.
               It looks like it is valid when an event, handling of which requests activity
               cancellation, precedes EVENT_TYPE_ACTIVITY_TASK_STARTED event.
               But as all code execution happens in the event loop the STARTED event is
@@ -144,12 +144,14 @@ final class ActivityStateMachine
                   State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
                   EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
                   State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED)
-                   */
+               This one is not possible for similar reason. The timeout is delivered
+               before the event loop execution.
               .add(
                   State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
                   EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
                   State.TIMED_OUT,
                   ActivityStateMachine::cancelCommandNotifyTimedOut)
+                   */
               .add(
                   State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
                   EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED,
@@ -178,6 +180,13 @@ final class ActivityStateMachine
                   ExplicitEvent.CANCEL,
                   State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
                   ActivityStateMachine::createRequestCancelActivityTaskCommand)
+              /*
+              These state transitions are not possible.
+              It looks like it is valid when an event, handling of which requests activity
+              cancellation, precedes EVENT_TYPE_ACTIVITY_TASK_[COMPLETED|FAILED|TIMED_OUT] event.
+              But as all code execution happens in the event loop the completion event is
+              applied to the sate machine (as it is done for all command events before
+              the event loop invocation) before the cancellation request.
               .add(
                   State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
                   EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
@@ -193,6 +202,7 @@ final class ActivityStateMachine
                   EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
                   State.TIMED_OUT,
                   ActivityStateMachine::cancelCommandNotifyTimedOut)
+                   */
               .add(
                   State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
                   EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED,

@@ -66,11 +66,18 @@ public class ActivityStateMachineTest {
 
   @AfterClass
   public static void generateCoverage() {
-    CommandsGeneratePlantUMLStateDiagrams.writeToFile(
-        "test",
-        ActivityStateMachine.class,
-        ActivityStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
-            stateMachineList));
+    List<Transition> missed =
+        ActivityStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(stateMachineList);
+    if (!missed.isEmpty()) {
+      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+          "test",
+          ActivityStateMachine.class,
+          ActivityStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
+              stateMachineList));
+      fail(
+          "ActivityStateMachine is missing test coverage for the following transitions:\n"
+              + missed);
+    }
   }
 
   @Test
@@ -885,6 +892,103 @@ public class ActivityStateMachineTest {
     }
     {
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 5);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+    {
+      // Full replay
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  @Test
+  public void testStartedActivityCancellationWhileTimeout() {
+    class TestActivityListener extends TestEntityManagerListenerBase {
+
+      private Functions.Proc cancellationHandler;
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        ScheduleActivityTaskCommandAttributes.Builder attributes =
+            ScheduleActivityTaskCommandAttributes.newBuilder().setActivityId("id1");
+        ExecuteActivityParameters parameters =
+            new ExecuteActivityParameters(
+                attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
+        builder
+            .<Optional<Payloads>, Failure>add2(
+                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+            .add(
+                (pair) -> {
+                  assertNotNull(pair.getT2());
+                  assertEquals(
+                      Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
+                      pair.getT2().getCause().getFailureInfoCase());
+                  stateMachines.newCompleteWorkflow(Optional.empty());
+                });
+      }
+
+      @Override
+      protected void signal(HistoryEvent signalEvent, AsyncWorkflowBuilder<Void> builder) {
+        assertEquals(
+            "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
+        builder.add((v) -> cancellationHandler.apply());
+      }
+    }
+
+    /*
+        1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+        2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        5: EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+        6: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        7: EVENT_TYPE_WORKFLOW_TASK_STARTED
+        8: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+        9: EVENT_TYPE_ACTIVITY_TASK_STARTED
+        10: EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+        11: EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT
+        12: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+        13: EVENT_TYPE_WORKFLOW_TASK_STARTED
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    long scheduledEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+            ActivityTaskScheduledEventAttributes.newBuilder().setActivityId("id1").build());
+    h.addWorkflowTask();
+    long startedEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
+            ActivityTaskStartedEventAttributes.newBuilder().setScheduledEventId(scheduledEventId));
+    h.add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))
+        .add(
+            EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT,
+            ActivityTaskTimedOutEventAttributes.newBuilder()
+                .setScheduledEventId(scheduledEventId)
+                .setStartedEventId(startedEventId)
+                .setFailure(
+                    Failure.newBuilder()
+                        .setTimeoutFailureInfo(TimeoutFailureInfo.getDefaultInstance())))
+        .addWorkflowTaskScheduledAndStarted();
+    {
+      TestEntityManagerListenerBase listener = new TestActivityListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+      assertCommand(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK, commands);
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
+      assertTrue(commands.isEmpty());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 3);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
     {
