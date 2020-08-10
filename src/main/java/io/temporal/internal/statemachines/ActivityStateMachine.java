@@ -19,8 +19,6 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.failure.FailureConverter.JAVA_SDK;
-
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
@@ -37,7 +35,10 @@ import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.workflow.Functions;
+
 import java.util.Optional;
+
+import static io.temporal.failure.FailureConverter.JAVA_SDK;
 
 final class ActivityStateMachine
     extends EntityStateMachineInitialCommand<
@@ -61,9 +62,6 @@ final class ActivityStateMachine
     SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
     STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
     STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
-    COMPLETED_CANCEL_REQUESTED,
-    FAILED_CANCEL_REQUESTED,
-    CANCELED_CANCEL_REQUESTED,
   }
 
   public static final StateMachineDefinition<State, ExplicitEvent, ActivityStateMachine>
