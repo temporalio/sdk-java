@@ -255,7 +255,6 @@ final class ChildWorkflowStateMachine
         currentEvent.getChildWorkflowExecutionTimedOutEventAttributes();
     TimeoutFailure timeoutFailure =
         new TimeoutFailure(null, null, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE);
-    timeoutFailure.setStackTrace(new StackTraceElement[0]);
     RuntimeException failure =
         new ChildWorkflowFailure(
             attributes.getInitiatedEventId(),

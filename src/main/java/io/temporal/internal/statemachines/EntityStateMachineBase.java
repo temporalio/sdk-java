@@ -42,7 +42,7 @@ class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateM
   }
 
   /**
-   * Notifies that command is included into zthe workflow task completion result.
+   * Notifies that command is included into the workflow task completion result.
    *
    * <p>Is not called for commands generated during replay.
    */
@@ -85,6 +85,14 @@ class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateM
 
   @Override
   public String toString() {
-    return this.getClass().getSimpleName() + "{" + "state=" + stateMachine + '}';
+    return this.getClass().getSimpleName()
+        + "{"
+        + "stateMachine="
+        + stateMachine
+        + ", hasNextEvent="
+        + hasNextEvent
+        + ", currentEvent="
+        + currentEvent
+        + '}';
   }
 }

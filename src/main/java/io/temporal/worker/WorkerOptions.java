@@ -303,7 +303,7 @@ public final class WorkerOptions {
   @Override
   public String toString() {
     return "WorkerOptions{"
-        + "maxActivitiesPerSecond="
+        + "maxWorkerActivitiesPerSecond="
         + maxWorkerActivitiesPerSecond
         + ", maxConcurrentActivityExecutionSize="
         + maxConcurrentActivityExecutionSize
@@ -311,7 +311,7 @@ public final class WorkerOptions {
         + maxConcurrentWorkflowTaskExecutionSize
         + ", maxConcurrentLocalActivityExecutionSize="
         + maxConcurrentLocalActivityExecutionSize
-        + ", taskQueueActivitiesPerSecond="
+        + ", maxTaskQueueActivitiesPerSecond="
         + maxTaskQueueActivitiesPerSecond
         + ", workflowPollThreadCount="
         + workflowPollThreadCount

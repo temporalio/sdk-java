@@ -27,12 +27,12 @@ import java.util.Objects;
 class CancellableCommand {
 
   private final Command command;
-  private final EntityStateMachine commands;
+  private final EntityStateMachine entityStateMachine;
   private boolean canceled;
 
-  public CancellableCommand(Command command, EntityStateMachine commands) {
+  public CancellableCommand(Command command, EntityStateMachine entityStateMachine) {
     this.command = Objects.requireNonNull(command);
-    this.commands = Objects.requireNonNull(commands);
+    this.entityStateMachine = Objects.requireNonNull(entityStateMachine);
   }
 
   public Command getCommand() {
@@ -51,7 +51,7 @@ class CancellableCommand {
   }
 
   public EntityStateMachine getStateMachine() {
-    return commands;
+    return entityStateMachine;
   }
 
   public CommandType getCommandType() {
@@ -60,7 +60,7 @@ class CancellableCommand {
 
   public void handleCommand(CommandType commandType) {
     if (!canceled) {
-      commands.handleCommand(commandType);
+      entityStateMachine.handleCommand(commandType);
     }
   }
 
@@ -69,15 +69,15 @@ class CancellableCommand {
     if (canceled) {
       return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
     }
-    return commands.handleEvent(event, hasNextEvent);
+    return entityStateMachine.handleEvent(event, hasNextEvent);
   }
 
   @Override
   public String toString() {
-    return "NewCommand{" + "command=" + command + ", canceled=" + canceled + '}';
+    return "CancellableCommand{" + "command=" + command + ", canceled=" + canceled + '}';
   }
 
   public void handleWorkflowTaskStarted() {
-    commands.handleWorkflowTaskStarted();
+    entityStateMachine.handleWorkflowTaskStarted();
   }
 }

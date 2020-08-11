@@ -35,11 +35,6 @@ class DynamicTransitionAction<State, Data> implements TransitionAction<State, Da
   }
 
   @Override
-  public String toString() {
-    return "DynamicTransitionDestination{" + "state=" + state + ", callback=" + callback + '}';
-  }
-
-  @Override
   public State apply(Data data) {
     state = callback.apply(data);
     for (State s : expectedStates) {
@@ -54,5 +49,15 @@ class DynamicTransitionAction<State, Data> implements TransitionAction<State, Da
   @Override
   public List<State> getAllowedStates() {
     return Arrays.asList(expectedStates);
+  }
+
+  @Override
+  public String toString() {
+    return "DynamicTransitionAction{"
+        + ", state="
+        + state
+        + "expectedStates="
+        + Arrays.toString(expectedStates)
+        + '}';
   }
 }
