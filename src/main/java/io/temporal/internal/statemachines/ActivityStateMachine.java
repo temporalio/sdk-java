@@ -19,8 +19,6 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.failure.FailureConverter.JAVA_SDK;
-
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
@@ -37,7 +35,10 @@ import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.workflow.Functions;
+
 import java.util.Optional;
+
+import static io.temporal.failure.FailureConverter.JAVA_SDK;
 
 final class ActivityStateMachine
     extends EntityStateMachineInitialCommand<
@@ -102,6 +103,11 @@ final class ActivityStateMachine
                   State.TIMED_OUT,
                   ActivityStateMachine::notifyTimedOut)
               .add(
+                  State.SCHEDULED_EVENT_RECORDED,
+                  ExplicitEvent.CANCEL,
+                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  ActivityStateMachine::createRequestCancelActivityTaskCommand)
+              .add(
                   State.STARTED,
                   EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED,
                   State.COMPLETED,
@@ -117,9 +123,9 @@ final class ActivityStateMachine
                   State.TIMED_OUT,
                   ActivityStateMachine::notifyTimedOut)
               .add(
-                  State.SCHEDULED_EVENT_RECORDED,
+                  State.STARTED,
                   ExplicitEvent.CANCEL,
-                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
+                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
                   ActivityStateMachine::createRequestCancelActivityTaskCommand)
               .add(
                   State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
@@ -165,18 +171,13 @@ final class ActivityStateMachine
                   ActivityStateMachine::notifyTimedOut)
               .add(
                   State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
-                  EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
-                  State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
-                  ActivityStateMachine::notifyCanceledIfTryCancel)
-              .add(
-                  State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
                   CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK,
                   State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED)
               .add(
-                  State.STARTED,
-                  ExplicitEvent.CANCEL,
                   State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
-                  ActivityStateMachine::createRequestCancelActivityTaskCommand)
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+                  State.STARTED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  ActivityStateMachine::notifyCanceledIfTryCancel)
               /*
               These state transitions are not possible.
               It looks like it is valid when an event, handling of which requests activity
