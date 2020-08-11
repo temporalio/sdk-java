@@ -19,6 +19,8 @@
 
 package io.temporal.internal.statemachines;
 
+import static io.temporal.failure.FailureConverter.JAVA_SDK;
+
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
@@ -35,10 +37,7 @@ import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.workflow.Functions;
-
 import java.util.Optional;
-
-import static io.temporal.failure.FailureConverter.JAVA_SDK;
 
 final class ActivityStateMachine
     extends EntityStateMachineInitialCommand<
@@ -141,7 +140,7 @@ final class ActivityStateMachine
               It looks like it is valid when an event, handling of which requests activity
               cancellation, precedes EVENT_TYPE_ACTIVITY_TASK_STARTED event.
               But as all code execution happens in the event loop the STARTED event is
-              applied to the sate machine (as it is done for all command events before
+              applied to the state machine (as it is done for all command events before
               the event loop invocation) before the cancellation request.
               .add(
                   State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
@@ -183,7 +182,7 @@ final class ActivityStateMachine
               It looks like it is valid when an event, handling of which requests activity
               cancellation, precedes EVENT_TYPE_ACTIVITY_TASK_[COMPLETED|FAILED|TIMED_OUT] event.
               But as all code execution happens in the event loop the completion event is
-              applied to the sate machine (as it is done for all command events before
+              applied to the state machine (as it is done for all command events before
               the event loop invocation) before the cancellation request.
               .add(
                   State.STARTED_ACTIVITY_CANCEL_COMMAND_CREATED,
@@ -386,7 +385,7 @@ final class ActivityStateMachine
           Failure.newBuilder()
               .setActivityFailureInfo(failureInfo)
               .setCause(canceledFailure)
-              .setMessage("Activity task timedOut")
+              .setMessage("Activity cancelled")
               .build();
 
       completionCallback.apply(Optional.empty(), failure);

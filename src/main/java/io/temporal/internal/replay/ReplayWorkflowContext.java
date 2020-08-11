@@ -213,8 +213,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * without breaking determinism. Even if called very frequently the config value is recorded only
    * when it changes not causing any performance degradation due to a large history size.
    *
-   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow sate. Only use
-   * the mutableSideEffect's return value.
+   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow state. Only
+   * use the mutableSideEffect's return value.
    *
    * @param id id of the side effect call. It links multiple calls together. Calls with different
    *     ids are completely independent.

@@ -91,24 +91,24 @@ final class MutableSideEffectStateMachine {
                   new State[] {State.MARKER_COMMAND_CREATED, State.SKIPPED},
                   InvocationStateMachine::createMarker)
               .add(
+                  State.REPLAYING,
+                  ExplicitEvent.SCHEDULE,
+                  State.MARKER_COMMAND_CREATED_REPLAYING,
+                  InvocationStateMachine::createFakeCommand)
+              .add(
                   State.MARKER_COMMAND_CREATED,
                   CommandType.COMMAND_TYPE_RECORD_MARKER,
                   State.RESULT_NOTIFIED,
                   InvocationStateMachine::notifyCachedResult)
-              .add(
-                  State.RESULT_NOTIFIED,
-                  EventType.EVENT_TYPE_MARKER_RECORDED,
-                  State.MARKER_COMMAND_RECORDED)
               .add(
                   State.SKIPPED,
                   CommandType.COMMAND_TYPE_RECORD_MARKER,
                   State.SKIPPED_NOTIFIED,
                   InvocationStateMachine::cancelCommandNotifyCachedResult)
               .add(
-                  State.REPLAYING,
-                  ExplicitEvent.SCHEDULE,
-                  State.MARKER_COMMAND_CREATED_REPLAYING,
-                  InvocationStateMachine::createFakeCommand)
+                  State.RESULT_NOTIFIED,
+                  EventType.EVENT_TYPE_MARKER_RECORDED,
+                  State.MARKER_COMMAND_RECORDED)
               .add(
                   State.MARKER_COMMAND_CREATED_REPLAYING,
                   CommandType.COMMAND_TYPE_RECORD_MARKER,

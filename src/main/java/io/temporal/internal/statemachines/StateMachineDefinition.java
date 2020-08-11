@@ -24,6 +24,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -290,15 +291,18 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
     result.append("[*] --> ");
     result.append(initialState);
     result.append('\n');
-    for (Map.Entry<Transition<State, TransitionEvent<ExplicitEvent>>, TransitionAction<State, Data>>
-        entry : transitions.entrySet()) {
-      List<State> targets = entry.getValue().getAllowedStates();
+    List<Transition<State, TransitionEvent<ExplicitEvent>>> transitionList = new ArrayList<>();
+    transitionList.addAll(transitions.keySet());
+    transitionList.sort(Comparator.comparing((tt) -> tt.getFrom().toString()));
+    for (Transition<State, TransitionEvent<ExplicitEvent>> transition : transitionList) {
+      TransitionAction<State, Data> action = transitions.get(transition);
+      List<State> targets = action.getAllowedStates();
       for (State target : targets) {
-        result.append(entry.getKey().getFrom());
+        result.append(transition.getFrom());
         result.append(" --> ");
         result.append(target);
         result.append(": ");
-        result.append(entry.getKey().getExplicitEvent());
+        result.append(transition.getExplicitEvent());
         result.append('\n');
       }
     }
@@ -365,11 +369,13 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
     result.append("[*] --> ");
     result.append(initialState);
     result.append('\n');
-    for (Map.Entry<Transition<State, TransitionEvent<ExplicitEvent>>, TransitionAction<State, Data>>
-        entry : transitions.entrySet()) {
-      List<State> targets = entry.getValue().getAllowedStates();
+    List<Transition<State, TransitionEvent<ExplicitEvent>>> transitionList = new ArrayList<>();
+    transitionList.addAll(transitions.keySet());
+    transitionList.sort(Comparator.comparing((tt) -> tt.getFrom().toString()));
+    for (Transition<State, TransitionEvent<ExplicitEvent>> transition : transitionList) {
+      TransitionAction<State, Data> action = transitions.get(transition);
+      List<State> targets = action.getAllowedStates();
       for (State target : targets) {
-        Transition<State, TransitionEvent<ExplicitEvent>> transition = entry.getKey();
         State from = transition.getFrom();
         result.append(from);
         if (!visited.contains(from)) {

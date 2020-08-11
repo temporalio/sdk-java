@@ -147,22 +147,22 @@ final class LocalActivityStateMachine
               .add(State.REQUEST_PREPARED, ExplicitEvent.GET_REQUEST, State.REQUEST_SENT)
               .add(
                   State.REQUEST_SENT,
+                  ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
+                  State.REQUEST_SENT)
+              .add(
+                  State.REQUEST_SENT,
                   ExplicitEvent.HANDLE_RESPONSE,
                   State.MARKER_COMMAND_CREATED,
                   LocalActivityStateMachine::createMarker)
               .add(
-                  State.REQUEST_SENT,
+                  State.MARKER_COMMAND_CREATED,
                   ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
-                  State.REQUEST_SENT)
+                  State.MARKER_COMMAND_CREATED)
               .add(
                   State.MARKER_COMMAND_CREATED,
                   CommandType.COMMAND_TYPE_RECORD_MARKER,
                   State.RESULT_NOTIFIED,
                   LocalActivityStateMachine::notifyResultFromResponse)
-              .add(
-                  State.MARKER_COMMAND_CREATED,
-                  ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
-                  State.MARKER_COMMAND_CREATED)
               .add(
                   State.RESULT_NOTIFIED,
                   EventType.EVENT_TYPE_MARKER_RECORDED,

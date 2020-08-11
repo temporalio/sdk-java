@@ -1003,8 +1003,8 @@ public final class Workflow {
    * without breaking determinism. Even if called very frequently the config value is recorded only
    * when it changes not causing any performance degradation due to a large history size.
    *
-   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow sate. Only use
-   * the mutableSideEffect's return value.
+   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow state. Only
+   * use the mutableSideEffect's return value.
    *
    * <p>If function throws any exception it is not delivered to the workflow code. It is wrapped in
    * {@link Error} causing failure of the current workflow task.
@@ -1037,8 +1037,8 @@ public final class Workflow {
    * without breaking determinism. Even if called very frequently the config value is recorded only
    * when it changes not causing any performance degradation due to a large history size.
    *
-   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow sate. Only use
-   * the mutableSideEffect's return value.
+   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow state. Only
+   * use the mutableSideEffect's return value.
    *
    * <p>If function throws any exception it is not delivered to the workflow code. It is wrapped in
    * {@link Error} causing failure of the current workflow task.

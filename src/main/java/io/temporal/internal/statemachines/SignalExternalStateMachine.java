@@ -97,13 +97,13 @@ final class SignalExternalStateMachine
                   SignalExternalStateMachine::createSignalExternalCommand)
               .add(
                   State.SIGNAL_EXTERNAL_COMMAND_CREATED,
+                  CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION,
+                  State.SIGNAL_EXTERNAL_COMMAND_CREATED)
+              .add(
+                  State.SIGNAL_EXTERNAL_COMMAND_CREATED,
                   ExplicitEvent.CANCEL,
                   State.CANCELED,
                   SignalExternalStateMachine::cancelSignalExternalCommand)
-              .add(
-                  State.SIGNAL_EXTERNAL_COMMAND_CREATED,
-                  CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION,
-                  State.SIGNAL_EXTERNAL_COMMAND_CREATED)
               .add(
                   State.SIGNAL_EXTERNAL_COMMAND_CREATED,
                   EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
@@ -111,13 +111,13 @@ final class SignalExternalStateMachine
                   EntityStateMachineInitialCommand::setInitialCommandEventId)
               .add(
                   State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
+                  ExplicitEvent.CANCEL,
+                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED)
+              .add(
+                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
                   EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED,
                   State.SIGNALED,
                   SignalExternalStateMachine::notifyCompleted)
-              .add(
-                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
-                  ExplicitEvent.CANCEL,
-                  State.SIGNAL_EXTERNAL_COMMAND_RECORDED)
               .add(
                   State.SIGNAL_EXTERNAL_COMMAND_RECORDED,
                   EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED,
