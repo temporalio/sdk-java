@@ -35,14 +35,44 @@ import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.NonDeterministicWorkflowError;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 public class VersionStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
   private WorkflowStateMachines stateMachines;
+
+  private static final List<
+          StateMachine<
+              VersionStateMachine.State,
+              VersionStateMachine.ExplicitEvent,
+              VersionStateMachine.InvocationStateMachine>>
+      stateMachineList = new ArrayList<>();
+
+  private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
+    return new WorkflowStateMachines(
+        listener, (stateMachine -> stateMachineList.add(stateMachine)));
+  }
+
+  @AfterClass
+  public static void generateCoverage() {
+    List<Transition> missed =
+        VersionStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(stateMachineList);
+    if (!missed.isEmpty()) {
+      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+          "test",
+          VersionStateMachine.class,
+          VersionStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
+              stateMachineList));
+      fail(
+          "LocalActivityStateMachine is missing test coverage for the following transitions:\n"
+              + missed);
+    }
+  }
 
   @Test
   public void testOne() {
@@ -81,7 +111,7 @@ public class VersionStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
@@ -96,7 +126,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.toString(), commands.isEmpty());
     }
@@ -143,7 +173,7 @@ public class VersionStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
@@ -169,7 +199,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
     }
@@ -213,7 +243,7 @@ public class VersionStateMachineTest {
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
 
     TestEntityManagerListenerBase listener = new TestListener();
-    stateMachines = new WorkflowStateMachines(listener);
+    stateMachines = newStateMachines(listener);
     try {
       h.handleWorkflowTaskTakeCommands(stateMachines);
       fail("failure expected");
@@ -288,7 +318,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(
@@ -335,7 +365,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
@@ -436,7 +466,7 @@ public class VersionStateMachineTest {
         .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
@@ -469,7 +499,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(
@@ -570,7 +600,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(maxSupported + ", " + maxSupported, listener.trace.toString());
@@ -661,7 +691,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(maxSupported, listener.versionId2);
@@ -763,7 +793,7 @@ public class VersionStateMachineTest {
         .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_START_TIMER, commands);
     }
@@ -778,7 +808,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
       assertEquals(String.valueOf(maxSupported), listener.trace.toString());
@@ -851,7 +881,7 @@ public class VersionStateMachineTest {
     {
       // Full replay
       TestListener listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       try {
         h.handleWorkflowTaskTakeCommands(stateMachines);
         fail("failure expected");

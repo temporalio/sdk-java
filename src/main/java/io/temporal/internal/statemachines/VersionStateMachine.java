@@ -21,6 +21,7 @@ package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
@@ -119,7 +120,8 @@ final class VersionStateMachine {
                   InvocationStateMachine::notifyFromEvent);
 
   /** Represents a single invocation of version. */
-  private class InvocationStateMachine
+  @VisibleForTesting
+  class InvocationStateMachine
       extends EntityStateMachineInitialCommand<State, ExplicitEvent, InvocationStateMachine> {
 
     private final int minSupported;
