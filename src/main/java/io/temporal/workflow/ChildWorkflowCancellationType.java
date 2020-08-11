@@ -24,7 +24,7 @@ import io.temporal.failure.CanceledFailure;
 
 /**
  * Defines behaviour of the parent workflow when {@link CancellationScope} that wraps child workflow
- * execution request is cancelled. The result of the cancellation independently of the type is a
+ * execution request is canceled. The result of the cancellation independently of the type is a
  * {@link CanceledFailure} thrown from the child workflow method.
  */
 public enum ChildWorkflowCancellationType {

@@ -113,7 +113,7 @@ public class WorkflowExecutionUtils {
    * @param workflowType is optional.
    * @param metricsScope metrics with NAMESPACE tag populated
    * @throws TimeoutException if workflow didn't complete within specified timeout
-   * @throws CanceledFailure if workflow was cancelled
+   * @throws CanceledFailure if workflow was canceled
    * @throws WorkflowExecutionFailedException if workflow execution failed
    */
   public static Optional<Payloads> getWorkflowExecutionResult(

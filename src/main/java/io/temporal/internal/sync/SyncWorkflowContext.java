@@ -372,8 +372,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       CompletablePromise<WorkflowExecution> executionResult) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     if (CancellationScope.current().isCancelRequested()) {
-      CanceledFailure CanceledFailure =
-          new CanceledFailure("execute called from a cancelled scope");
+      CanceledFailure CanceledFailure = new CanceledFailure("execute called from a canceled scope");
       executionResult.completeExceptionally(CanceledFailure);
       result.completeExceptionally(CanceledFailure);
       return result;

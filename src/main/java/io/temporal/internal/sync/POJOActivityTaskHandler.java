@@ -30,7 +30,7 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.client.ActivityCancelledException;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInterceptor;
@@ -102,7 +102,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   private ActivityTaskHandler.Result mapToActivityFailure(
       Throwable exception, String activityId, Scope metricsScope, boolean isLocalActivity) {
     exception = CheckedExceptionWrapper.unwrap(exception);
-    if (exception instanceof ActivityCancelledException) {
+    if (exception instanceof ActivityCanceledException) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
       }

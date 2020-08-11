@@ -39,7 +39,7 @@ public interface ActivityTaskHandler {
     private final String activityId;
     private final RespondActivityTaskCompletedRequest taskCompleted;
     private final TaskFailedResult taskFailed;
-    private final RespondActivityTaskCanceledRequest taskCancelled;
+    private final RespondActivityTaskCanceledRequest taskCanceled;
     private final RpcRetryOptions requestRetryOptions;
     private int attempt;
     private Duration backoff;
@@ -54,8 +54,8 @@ public interface ActivityTaskHandler {
           + taskCompleted
           + ", taskFailed="
           + taskFailed
-          + ", taskCancelled="
-          + taskCancelled
+          + ", taskCanceled="
+          + taskCanceled
           + ", attempt="
           + attempt
           + ", backoff="
@@ -91,12 +91,12 @@ public interface ActivityTaskHandler {
         String activityId,
         RespondActivityTaskCompletedRequest taskCompleted,
         TaskFailedResult taskFailed,
-        RespondActivityTaskCanceledRequest taskCancelled,
+        RespondActivityTaskCanceledRequest taskCanceled,
         RpcRetryOptions requestRetryOptions) {
       this.activityId = activityId;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
-      this.taskCancelled = taskCancelled;
+      this.taskCanceled = taskCanceled;
       this.requestRetryOptions = requestRetryOptions;
     }
 
@@ -112,8 +112,8 @@ public interface ActivityTaskHandler {
       return taskFailed;
     }
 
-    public RespondActivityTaskCanceledRequest getTaskCancelled() {
-      return taskCancelled;
+    public RespondActivityTaskCanceledRequest getTaskCanceled() {
+      return taskCanceled;
     }
 
     public RpcRetryOptions getRequestRetryOptions() {

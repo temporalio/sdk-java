@@ -58,7 +58,7 @@ public interface QueueProducer<E> {
    *
    * @param e the element to add
    * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
-   *     cancelled while waiting
+   *     canceled while waiting
    * @throws ClassCastException if the class of the specified element prevents it from being added
    *     to this queue
    * @throws NullPointerException if the specified element is null
@@ -93,7 +93,7 @@ public interface QueueProducer<E> {
    * @return {@code true} if successful, or {@code false} if the specified waiting time elapses
    *     before space is available
    * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
-   *     cancelled while waiting
+   *     canceled while waiting
    * @throws ClassCastException if the class of the specified element prevents it from being added
    *     to this queue
    * @throws NullPointerException if the specified element is null

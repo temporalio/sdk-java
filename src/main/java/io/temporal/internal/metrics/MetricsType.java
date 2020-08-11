@@ -23,7 +23,7 @@ public class MetricsType {
   public static final String TEMPORAL_METRICS_PREFIX = "temporal_";
   public static final String WORKFLOW_COMPLETED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_completed";
-  public static final String WORKFLOW_CANCELLED_COUNTER =
+  public static final String WORKFLOW_CANCELED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_canceled";
   public static final String WORKFLOW_FAILED_COUNTER = TEMPORAL_METRICS_PREFIX + "workflow_failed";
   public static final String WORKFLOW_CONTINUE_AS_NEW_COUNTER =

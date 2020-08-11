@@ -50,7 +50,7 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.client.ActivityCancelledException;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.ActivityNotExistsException;
@@ -1183,7 +1183,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void workflowsWithFailedPromisesCanBeCancelled() {
+  public void workflowsWithFailedPromisesCanBeCanceled() {
     startWorkerFor(TestCancellationForWorkflowsWithFailedPromises.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
@@ -1472,11 +1472,11 @@ public class WorkflowTest {
     GetWorkflowExecutionHistoryResponse response =
         service.blockingStub().getWorkflowExecutionHistory(request);
 
-    boolean hasChildCancelled = false;
+    boolean hasChildCanceled = false;
     boolean hasChildCancelRequested = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
       if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
-        hasChildCancelled = true;
+        hasChildCanceled = true;
       }
       if (event.getEventType()
           == EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED) {
@@ -1484,7 +1484,7 @@ public class WorkflowTest {
       }
     }
     assertTrue(hasChildCancelRequested);
-    assertFalse(hasChildCancelled);
+    assertFalse(hasChildCanceled);
   }
 
   @Test
@@ -1512,13 +1512,13 @@ public class WorkflowTest {
     GetWorkflowExecutionHistoryResponse response =
         service.blockingStub().getWorkflowExecutionHistory(request);
 
-    boolean hasChildCancelled = false;
+    boolean hasChildCanceled = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
       if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
-        hasChildCancelled = true;
+        hasChildCanceled = true;
       }
     }
-    assertTrue(hasChildCancelled);
+    assertTrue(hasChildCanceled);
   }
 
   @Test
@@ -4116,7 +4116,7 @@ public class WorkflowTest {
       Logger log = Workflow.getLogger(TestWorkflowWithCronScheduleImpl.class);
 
       if (CancellationScope.current().isCancelRequested()) {
-        log.debug("TestWorkflowWithCronScheduleImpl run cancelled.");
+        log.debug("TestWorkflowWithCronScheduleImpl run canceled.");
         return null;
       }
 
@@ -4303,7 +4303,7 @@ public class WorkflowTest {
               }
               completionClient.complete(taskToken, "activity");
             } catch (InterruptedException e) {
-            } catch (ActivityNotExistsException | ActivityCancelledException e) {
+            } catch (ActivityNotExistsException | ActivityCanceledException e) {
               completionClient.reportCancellation(taskToken, null);
             }
           });

@@ -90,7 +90,7 @@ final class ActivityStateMachine
                   State.SCHEDULE_COMMAND_CREATED,
                   ExplicitEvent.CANCEL,
                   State.CANCELED,
-                  ActivityStateMachine::cancelCommandNotifyCancelled)
+                  ActivityStateMachine::cancelCommandNotifyCanceled)
               .add(
                   State.SCHEDULED_EVENT_RECORDED,
                   EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED,
@@ -273,7 +273,7 @@ final class ActivityStateMachine
     startedCommandEventId = currentEvent.getEventId();
   }
 
-  private void cancelCommandNotifyCancelled() {
+  private void cancelCommandNotifyCanceled() {
     cancelCommand();
     if (parameters.getCancellationType() != ActivityCancellationType.ABANDON) {
       notifyCanceled();
@@ -385,7 +385,7 @@ final class ActivityStateMachine
           Failure.newBuilder()
               .setActivityFailureInfo(failureInfo)
               .setCause(canceledFailure)
-              .setMessage("Activity cancelled")
+              .setMessage("Activity canceled")
               .build();
 
       completionCallback.apply(Optional.empty(), failure);

@@ -201,7 +201,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
     } else if (cancelRequested) {
       workflowStateMachines.newCancelWorkflow();
-      metricsScope.counter(MetricsType.WORKFLOW_CANCELLED_COUNTER).inc(1);
+      metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
     } else {
       ContinueAsNewWorkflowExecutionCommandAttributes attributes =
           context.getContinueAsNewOnCompletion();

@@ -296,7 +296,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
         }
       case EVENT_TYPE_TIMER_CANCELED:
         {
-          CanceledFailure exception = new CanceledFailure("Cancelled by request");
+          CanceledFailure exception = new CanceledFailure("Canceled by request");
           callback.apply(exception);
           return;
         }

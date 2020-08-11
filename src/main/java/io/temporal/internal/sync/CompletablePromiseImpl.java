@@ -85,7 +85,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
           "Feature.get",
           () -> {
             if (cancellable) {
-              CancellationScope.throwCancelled();
+              CancellationScope.throwCanceled();
             }
             return completed;
           });
@@ -115,7 +115,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
           "Feature.get",
           () -> {
             if (cancellable) {
-              CancellationScope.throwCancelled();
+              CancellationScope.throwCanceled();
             }
             return completed;
           });

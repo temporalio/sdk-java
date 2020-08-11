@@ -25,7 +25,7 @@ import io.grpc.Status;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
-import io.temporal.client.ActivityCancelledException;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestActivityEnvironment;
@@ -181,7 +181,7 @@ public class ActivityTestingTest {
       try {
         Activity.getExecutionContext().heartbeat(null);
         fail("unreachable");
-      } catch (ActivityCancelledException e) {
+      } catch (ActivityCanceledException e) {
       }
     }
   }
@@ -208,7 +208,7 @@ public class ActivityTestingTest {
       try {
         ctx.heartbeat(null);
         fail("unreachable");
-      } catch (ActivityCancelledException e) {
+      } catch (ActivityCanceledException e) {
         // expected
       }
     }

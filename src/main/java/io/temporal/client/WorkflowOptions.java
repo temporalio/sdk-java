@@ -132,7 +132,7 @@ public final class WorkflowOptions {
      *
      *     <ul>
      *       AllowDuplicateFailedOnly is a default value. It means that workflow can start if
-     *       previous run failed or was cancelled or terminated.
+     *       previous run failed or was canceled or terminated.
      * </ul>
      *
      * <ul>

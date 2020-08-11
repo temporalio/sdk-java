@@ -213,7 +213,7 @@ import org.slf4j.Logger;
  *         Promise<?> allUploaded = Promise.allOf(uploadedList);
  *         allUploaded.get(); // blocks until all promises are ready.
  *     } finally {
- *         // Execute deletes even if workflow is cancelled.
+ *         // Execute deletes even if workflow is canceled.
  *         Workflow.newDetachedCancellationScope(
  *             () -> {
  *                 for (Promise<Sting> localNamePromise : localNamePromises) {
@@ -581,18 +581,18 @@ public final class Workflow {
    * Wraps the Runnable method argument in a {@link CancellationScope}. The {@link
    * CancellationScope#run()} calls {@link Runnable#run()} on the wrapped Runnable. The returned
    * CancellationScope can be used to cancel the wrapped code. The cancellation semantic depends on
-   * the operation the code is blocked on. For example activity or child workflow is first cancelled
+   * the operation the code is blocked on. For example activity or child workflow is first canceled
    * then throws a {@link CanceledFailure}. The same applies for {@link Workflow#sleep(long)}
    * operation. When an activity or a child workflow is invoked asynchronously then they get
-   * cancelled and a {@link Promise} that contains their result will throw {@link CanceledFailure}
+   * canceled and a {@link Promise} that contains their result will throw {@link CanceledFailure}
    * when {@link Promise#get()} is called.
    *
    * <p>The new cancellation scope is linked to the parent one (available as {@link
-   * CancellationScope#current()}. If the parent one is cancelled then all the children scopes are
-   * cancelled automatically. The main workflow function (annotated with @{@link WorkflowMethod} is
-   * wrapped within a root cancellation scope which gets cancelled when a workflow is cancelled
+   * CancellationScope#current()}. If the parent one is canceled then all the children scopes are
+   * canceled automatically. The main workflow function (annotated with @{@link WorkflowMethod} is
+   * wrapped within a root cancellation scope which gets canceled when a workflow is canceled
    * through the Temporal CancelWorkflowExecution API. To perform cleanup operations that require
-   * blocking after the current scope is cancelled use a scope created through {@link
+   * blocking after the current scope is canceled use a scope created through {@link
    * #newDetachedCancellationScope(Runnable)}.
    *
    * <p>Example of running activities in parallel and cancelling them after a specified timeout.
@@ -651,7 +651,7 @@ public final class Workflow {
   /**
    * Creates a CancellationScope that is not linked to a parent scope. {@link
    * CancellationScope#run()} must be called to execute the code the scope wraps. The detached scope
-   * is needed to execute cleanup code after a workflow is cancelled which cancels the root scope
+   * is needed to execute cleanup code after a workflow is canceled which cancels the root scope
    * that wraps the @WorkflowMethod invocation. Here is an example usage:
    *
    * <pre><code>
@@ -678,7 +678,7 @@ public final class Workflow {
    * are rounded <b>up</b> to the nearest second.
    *
    * @return feature that becomes ready when at least specified number of seconds passes. promise is
-   *     failed with {@link CanceledFailure} if enclosing scope is cancelled.
+   *     failed with {@link CanceledFailure} if enclosing scope is canceled.
    */
   public static Promise<Void> newTimer(Duration delay) {
     return WorkflowInternal.newTimer(delay);
@@ -741,13 +741,13 @@ public final class Workflow {
    *     blocking operations or contain code that mutates any workflow state. It should also not
    *     contain any time based conditions. Use {@link #await(Duration, Supplier)} for those
    *     instead.
-   * @throws CanceledFailure if thread (or current {@link CancellationScope} was cancelled).
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was canceled).
    */
   public static void await(Supplier<Boolean> unblockCondition) {
     WorkflowInternal.await(
         "await",
         () -> {
-          CancellationScope.throwCancelled();
+          CancellationScope.throwCanceled();
           return unblockCondition.get();
         });
   }
@@ -762,14 +762,14 @@ public final class Workflow {
    *     code that mutates any workflow state. It should also not contain any time based conditions.
    *     Use timeout parameter for those.
    * @return false if timed out.
-   * @throws CanceledFailure if thread (or current {@link CancellationScope} was cancelled).
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was canceled).
    */
   public static boolean await(Duration timeout, Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.await(
         timeout,
         "await",
         () -> {
-          CancellationScope.throwCancelled();
+          CancellationScope.throwCanceled();
           return unblockCondition.get();
         });
   }

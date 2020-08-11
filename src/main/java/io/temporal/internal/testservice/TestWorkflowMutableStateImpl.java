@@ -1091,7 +1091,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         if (timer == null
             || (workflow.getState() != State.STARTED
                 && workflow.getState() != State.CANCELLATION_REQUESTED)) {
-          return; // cancelled already
+          return; // canceled already
         }
       }
     } finally {
@@ -1703,7 +1703,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               throw Status.INTERNAL.withDescription("Not in INITIATED").asRuntimeException();
             }
             if (timeoutType == TimeoutType.TIMEOUT_TYPE_HEARTBEAT) {
-              // Deal with timers which are never cancelled
+              // Deal with timers which are never canceled
               long heartbeatTimeout =
                   Durations.toMillis(activity.getData().scheduledEvent.getHeartbeatTimeout());
               if (clock.getAsLong() - activity.getData().lastHeartbeatTime < heartbeatTimeout) {

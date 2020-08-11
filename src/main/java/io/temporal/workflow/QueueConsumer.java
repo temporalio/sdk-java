@@ -38,7 +38,7 @@ public interface QueueConsumer<E> {
    *
    * @return the head of this queue
    * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
-   *     cancelled while waiting
+   *     canceled while waiting
    */
   E cancellableTake();
 
@@ -77,7 +77,7 @@ public interface QueueConsumer<E> {
    * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
    *     element is available
    * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
-   *     cancelled while waiting
+   *     canceled while waiting
    */
   E cancellablePoll(Duration timeout);
 

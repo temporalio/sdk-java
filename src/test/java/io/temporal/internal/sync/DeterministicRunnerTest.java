@@ -314,7 +314,7 @@ public class DeterministicRunnerTest {
                 var.get();
                 trace.add("after get");
               } catch (CanceledFailure e) {
-                trace.add("scope cancelled");
+                trace.add("scope canceled");
               }
               trace.add("root done");
             });
@@ -327,8 +327,8 @@ public class DeterministicRunnerTest {
           "scope started",
           "scope done",
           "root before cancel",
-          "timer cancelled",
-          "scope cancelled",
+          "timer canceled",
+          "scope canceled",
           "root done",
         };
     trace.setExpected(expected);
@@ -356,7 +356,7 @@ public class DeterministicRunnerTest {
                 var.get();
                 trace.add("after get");
               } catch (CanceledFailure e) {
-                trace.add("scope cancelled");
+                trace.add("scope canceled");
               }
               trace.add("root done");
             });
@@ -369,8 +369,8 @@ public class DeterministicRunnerTest {
           "scope started",
           "scope done",
           "root before cancel",
-          "timer cancelled",
-          "scope cancelled",
+          "timer canceled",
+          "scope canceled",
           "root done",
         };
     trace.setExpected(expected);
@@ -383,7 +383,7 @@ public class DeterministicRunnerTest {
             Workflow.sleep(milliseconds);
             trace.add("timer fired");
           } catch (CanceledFailure e) {
-            trace.add("timer cancelled");
+            trace.add("timer canceled");
             throw e;
           }
         });
@@ -519,7 +519,7 @@ public class DeterministicRunnerTest {
               try {
                 done.get();
               } catch (CanceledFailure e) {
-                trace.add("done cancelled");
+                trace.add("done canceled");
               }
               trace.add("root done");
             });

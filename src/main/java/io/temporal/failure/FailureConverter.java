@@ -33,7 +33,7 @@ import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
 import io.temporal.api.failure.v1.ServerFailureInfo;
 import io.temporal.api.failure.v1.TerminatedFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
-import io.temporal.client.ActivityCancelledException;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -258,7 +258,7 @@ public class FailureConverter {
               .setWorkflowType(WorkflowType.newBuilder().setName(ce.getWorkflowType()))
               .setWorkflowExecution(ce.getExecution());
       failure.setChildWorkflowExecutionFailureInfo(info);
-    } else if (e instanceof ActivityCancelledException) {
+    } else if (e instanceof ActivityCanceledException) {
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
       failure.setCanceledFailureInfo(info);
     } else {

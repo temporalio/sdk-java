@@ -50,7 +50,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     WorkflowThread.await(
         "WorkflowQueue.cancellableTake",
         () -> {
-          CancellationScope.throwCancelled();
+          CancellationScope.throwCanceled();
           return !queue.isEmpty();
         });
     return queue.pollLast();
@@ -88,7 +88,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
         timeout,
         "WorkflowQueue.cancellablePoll",
         () -> {
-          CancellationScope.throwCancelled();
+          CancellationScope.throwCanceled();
           return !queue.isEmpty();
         });
 
@@ -118,7 +118,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     WorkflowThread.await(
         "WorkflowQueue.cancellablePut",
         () -> {
-          CancellationScope.throwCancelled();
+          CancellationScope.throwCanceled();
           return queue.size() < capacity;
         });
     queue.addLast(e);

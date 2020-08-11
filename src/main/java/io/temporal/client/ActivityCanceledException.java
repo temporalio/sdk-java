@@ -25,13 +25,13 @@ import io.temporal.activity.ActivityInfo;
  * Usually indicates that activity was already completed (duplicated request to complete) or timed
  * out or workflow is closed.
  */
-public final class ActivityCancelledException extends ActivityCompletionException {
+public final class ActivityCanceledException extends ActivityCompletionException {
 
-  public ActivityCancelledException(ActivityInfo info) {
+  public ActivityCanceledException(ActivityInfo info) {
     super(info);
   }
 
-  public ActivityCancelledException() {
+  public ActivityCanceledException() {
     super();
   }
 }

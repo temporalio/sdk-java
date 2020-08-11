@@ -256,8 +256,8 @@ final class LocalActivityStateMachine
                 .setCause(FailureConverter.exceptionToFailure(failed.getFailure()))
                 .build();
         markerAttributes.setFailure(failure);
-      } else if (result.getTaskCancelled() != null) {
-        RespondActivityTaskCanceledRequest failed = result.getTaskCancelled();
+      } else if (result.getTaskCanceled() != null) {
+        RespondActivityTaskCanceledRequest failed = result.getTaskCanceled();
         markerAttributes.setFailure(
             Failure.newBuilder()
                 .setCanceledFailureInfo(

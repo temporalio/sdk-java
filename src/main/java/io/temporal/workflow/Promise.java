@@ -38,8 +38,8 @@ import java.util.concurrent.TimeoutException;
  *       CompletablePromise#completeExceptionally(RuntimeException)} accepts only runtime
  *       exceptions. So wrapping must be done by the caller of that method.
  *   <li>Promise doesn't directly supports cancellation. Use {@link CancellationScope} to cancel and
- *       handle cancellations. The pattern is that a cancelled operation completes its Promise with
- *       {@link CanceledFailure} when cancelled.
+ *       handle cancellations. The pattern is that a canceled operation completes its Promise with
+ *       {@link CanceledFailure} when canceled.
  *   <li>{@link #handle(Functions.Func2)} and similar callback operations do not allow blocking
  *       calls inside functions
  * </ul>
@@ -73,7 +73,7 @@ public interface Promise<V> {
    *
    * @return the computed result
    * @throws RuntimeException if the computation failed.
-   * @throws CanceledFailure if surrounding @{@link CancellationScope} is cancelled.
+   * @throws CanceledFailure if surrounding @{@link CancellationScope} is canceled.
    */
   V cancellableGet();
 
@@ -102,7 +102,7 @@ public interface Promise<V> {
    * @return the computed result
    * @throws RuntimeException if the computation failed.
    * @throws TimeoutException if the wait timed out
-   * @throws CanceledFailure if surrounding @{@link CancellationScope} is cancelled.
+   * @throws CanceledFailure if surrounding @{@link CancellationScope} is canceled.
    */
   V cancellableGet(long timeout, TimeUnit unit) throws TimeoutException;
 
@@ -158,7 +158,7 @@ public interface Promise<V> {
    * @param promises promises to wait for.
    * @return Promise that is completed with null when all the argument promises become completed.
    */
-  static Promise<Void> allOf(Iterable<Promise<?>> promises) {
+  static <V> Promise<Void> allOf(Iterable<Promise<?>> promises) {
     return WorkflowInternal.promiseAllOf(promises);
   }
 

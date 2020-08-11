@@ -37,7 +37,7 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdReques
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.client.ActivityCancelledException;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.converter.DataConverter;
@@ -228,7 +228,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                 .recordActivityTaskHeartbeat(request.build());
         if (status.getCancelRequested()) {
-          throw new ActivityCancelledException();
+          throw new ActivityCanceledException();
         }
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
@@ -256,7 +256,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                 .recordActivityTaskHeartbeatById(request.build());
         if (status.getCancelRequested()) {
-          throw new ActivityCancelledException();
+          throw new ActivityCanceledException();
         }
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {

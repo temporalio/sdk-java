@@ -81,7 +81,7 @@ public class WorkflowInternalQueueTest {
   }
 
   @Test
-  public void testTakeCancelled() throws Throwable {
+  public void testTakeCanceled() throws Throwable {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
             () -> {
@@ -114,7 +114,7 @@ public class WorkflowInternalQueueTest {
   }
 
   @Test
-  public void testCancellableTakeCancelled() throws Throwable {
+  public void testCancellableTakeCanceled() throws Throwable {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
             () -> {
@@ -269,7 +269,7 @@ public class WorkflowInternalQueueTest {
   }
 
   @Test
-  public void testPutCancelled() throws Throwable {
+  public void testPutCanceled() throws Throwable {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
             () -> {
@@ -303,7 +303,7 @@ public class WorkflowInternalQueueTest {
   }
 
   @Test
-  public void testCancellablePutCancelled() throws Throwable {
+  public void testCancellablePutCanceled() throws Throwable {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
             () -> {

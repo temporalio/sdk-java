@@ -334,7 +334,7 @@ public final class WorkflowStateMachines {
       if (command == null) {
         break;
       }
-      // handleCommand should be called even on cancelled ones to support mutableSideEffect
+      // handleCommand should be called even on canceled ones to support mutableSideEffect
       command.handleCommand(command.getCommandType());
       commands.add(command);
     }
@@ -490,10 +490,10 @@ public final class WorkflowStateMachines {
             attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
     return () -> {
       if (cancellationType == ChildWorkflowCancellationType.ABANDON) {
-        notifyChildCancelled(attributes, completionCallback);
+        notifyChildCanceled(attributes, completionCallback);
         return;
       }
-      // The only time child can be cancelled directly is before its start command
+      // The only time child can be canceled directly is before its start command
       // was sent out to the service. After that RequestCancelExternal should be used.
       if (child.isCancellable()) {
         child.cancel();
@@ -507,17 +507,17 @@ public final class WorkflowStateMachines {
                 .build(),
             (r, e) -> { // TODO(maxim): Decide what to do if an error is passed to the callback.
               if (cancellationType == ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
-                notifyChildCancelled(attributes, completionCallback);
+                notifyChildCanceled(attributes, completionCallback);
               }
             });
         if (cancellationType == ChildWorkflowCancellationType.TRY_CANCEL) {
-          notifyChildCancelled(attributes, completionCallback);
+          notifyChildCanceled(attributes, completionCallback);
         }
       }
     };
   }
 
-  private static void notifyChildCancelled(
+  private static void notifyChildCanceled(
       StartChildWorkflowExecutionCommandAttributes attributes,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback) {
     CanceledFailure failure =

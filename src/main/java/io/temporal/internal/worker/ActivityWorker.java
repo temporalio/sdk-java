@@ -205,14 +205,14 @@ public final class ActivityWorker implements SuspendableWorker {
         Failure failure = e.getFailure();
         if (failure.hasCanceledFailureInfo()) {
           CanceledFailureInfo info = failure.getCanceledFailureInfo();
-          RespondActivityTaskCanceledRequest.Builder cancelledRequest =
+          RespondActivityTaskCanceledRequest.Builder canceledRequest =
               RespondActivityTaskCanceledRequest.newBuilder().setIdentity(options.getIdentity());
           if (info.hasDetails()) {
-            cancelledRequest.setDetails(info.getDetails());
+            canceledRequest.setDetails(info.getDetails());
           }
           sendReply(
               task,
-              new Result(task.getActivityId(), null, null, cancelledRequest.build(), null),
+              new Result(task.getActivityId(), null, null, canceledRequest.build(), null),
               metricsScope);
         }
       } finally {
@@ -297,10 +297,10 @@ public final class ActivityWorker implements SuspendableWorker {
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                       .respondActivityTaskFailed(request));
         } else {
-          RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
-          if (taskCancelled != null) {
+          RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
+          if (taskCanceled != null) {
             RespondActivityTaskCanceledRequest request =
-                taskCancelled
+                taskCanceled
                     .toBuilder()
                     .setTaskToken(task.getTaskToken())
                     .setIdentity(options.getIdentity())

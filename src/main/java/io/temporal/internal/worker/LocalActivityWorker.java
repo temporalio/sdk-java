@@ -225,7 +225,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       result.setAttempt(attempt);
 
       if (result.getTaskCompleted() != null
-          || result.getTaskCancelled() != null
+          || result.getTaskCanceled() != null
           || !activityTask.hasRetryPolicy()) {
         return result;
       }

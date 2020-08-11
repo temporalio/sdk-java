@@ -116,7 +116,7 @@ class WorkflowThreadImpl implements WorkflowThread {
           threadContext.setUnhandledException(e);
         }
         if (log.isDebugEnabled()) {
-          log.debug(String.format("Workflow thread \"%s\" run cancelled", name));
+          log.debug(String.format("Workflow thread \"%s\" run canceled", name));
         }
       } catch (Throwable e) {
         threadContext.setUnhandledException(e);

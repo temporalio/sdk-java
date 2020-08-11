@@ -406,13 +406,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               "TestActivityEnvironment",
               cause);
         } else {
-          RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
-          if (taskCancelled != null) {
+          RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
+          if (taskCanceled != null) {
             throw new CanceledFailure(
                 "canceled",
                 new EncodedValues(
-                    taskCancelled.hasDetails()
-                        ? Optional.of(taskCancelled.getDetails())
+                    taskCanceled.hasDetails()
+                        ? Optional.of(taskCanceled.getDetails())
                         : Optional.empty(),
                     testEnvironmentOptions.getWorkflowClientOptions().getDataConverter()),
                 null);
