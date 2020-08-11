@@ -24,6 +24,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -287,8 +288,11 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
    */
   public String asPlantUMLStateDiagram() {
     StringBuilder result = new StringBuilder();
-    result.append("@startuml\n" + "scale 350 width\n");
-    result.append("[*] --> ");
+    result.append("@startuml\n");
+    result.append("title ");
+    result.append(this.getName());
+    result.append(" State Transitions\n");
+    result.append("\n[*] --> ");
     result.append(initialState);
     result.append('\n');
     List<Transition<State, TransitionEvent<ExplicitEvent>>> transitionList = new ArrayList<>();
@@ -310,6 +314,10 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
       result.append(finalState);
       result.append(" --> [*]\n");
     }
+    int year = Calendar.getInstance().get(Calendar.YEAR);
+    result.append("center footer Copyright (C) ");
+    result.append(year);
+    result.append(" Temporal Technologies, Inc. All Rights Reserved.\n");
     result.append("@enduml\n");
     return result.toString();
   }
@@ -354,7 +362,10 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
       }
     }
     StringBuilder result = new StringBuilder();
-    result.append("@startuml\n" + "scale 350 width\n");
+    result.append("@startuml\n");
+    result.append("title Test Coverage of ");
+    result.append(this.getName());
+    result.append(" State Transitions\n");
     result.append(
         "skinparam {\n"
             + "  ArrowColor green\n"
@@ -396,6 +407,10 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
       result.append(finalState);
       result.append(" --> [*]\n");
     }
+    int year = Calendar.getInstance().get(Calendar.YEAR);
+    result.append("center footer Copyright (C) ");
+    result.append(year);
+    result.append(" Temporal Technologies, Inc. All Rights Reserved.\n");
     result.append("@enduml\n");
     return result.toString();
   }

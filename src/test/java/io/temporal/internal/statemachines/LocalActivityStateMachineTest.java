@@ -20,8 +20,7 @@
 package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.statemachines.LocalActivityStateMachine.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.ActivityType;
@@ -35,14 +34,45 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.worker.ActivityTaskHandler;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 public class LocalActivityStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
   private WorkflowStateMachines stateMachines;
+
+  private static final List<
+          StateMachine<
+              LocalActivityStateMachine.State,
+              LocalActivityStateMachine.ExplicitEvent,
+              LocalActivityStateMachine>>
+      stateMachineList = new ArrayList<>();
+
+  private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
+    return new WorkflowStateMachines(
+        listener, (stateMachine -> stateMachineList.add(stateMachine)));
+  }
+
+  @AfterClass
+  public static void generateCoverage() {
+    List<Transition> missed =
+        LocalActivityStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
+            stateMachineList);
+    if (!missed.isEmpty()) {
+      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+          "test",
+          LocalActivityStateMachine.class,
+          LocalActivityStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
+              stateMachineList));
+      fail(
+          "LocalActivityStateMachine is missing test coverage for the following transitions:\n"
+              + missed);
+    }
+  }
 
   @Test
   public void testLocalActivityStateMachine() {
@@ -123,7 +153,7 @@ public class LocalActivityStateMachineTest {
     assertEquals(new TestHistoryBuilder.HistoryInfo(3, 8), h.getHistoryInfo());
 
     TestListener listener = new TestListener();
-    stateMachines = new WorkflowStateMachines(listener);
+    stateMachines = newStateMachines(listener);
 
     {
       h.handleWorkflowTask(stateMachines, 1);
@@ -214,7 +244,7 @@ public class LocalActivityStateMachineTest {
     // Test full replay
     {
       listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
 
       h.handleWorkflowTask(stateMachines);
 
@@ -274,7 +304,7 @@ public class LocalActivityStateMachineTest {
     assertEquals(new TestHistoryBuilder.HistoryInfo(6, 12), h.getHistoryInfo());
 
     TestListener listener = new TestListener();
-    stateMachines = new WorkflowStateMachines(listener);
+    stateMachines = newStateMachines(listener);
 
     h.handleWorkflowTask(stateMachines);
     List<ExecuteLocalActivityParameters> requests = stateMachines.takeLocalActivityRequests();

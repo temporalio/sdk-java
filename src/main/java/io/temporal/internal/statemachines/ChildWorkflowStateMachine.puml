@@ -21,7 +21,8 @@
 
 
 @startuml
-scale 350 width
+title ChildWorkflow State Transitions
+
 [*] --> CREATED
 CREATED --> START_COMMAND_CREATED: SCHEDULE
 STARTED --> COMPLETED: CHILD_WORKFLOW_EXECUTION_COMPLETED
@@ -40,4 +41,5 @@ FAILED --> [*]
 CANCELED --> [*]
 TIMED_OUT --> [*]
 TERMINATED --> [*]
+center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
 @enduml

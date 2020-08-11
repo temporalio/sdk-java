@@ -21,7 +21,8 @@
 
 
 @startuml
-scale 350 width
+title Activity State Transitions
+
 [*] --> CREATED
 CREATED --> SCHEDULE_COMMAND_CREATED: SCHEDULE
 SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED --> SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED: ACTIVITY_TASK_CANCEL_REQUESTED
@@ -49,4 +50,5 @@ COMPLETED --> [*]
 FAILED --> [*]
 TIMED_OUT --> [*]
 CANCELED --> [*]
+center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
 @enduml

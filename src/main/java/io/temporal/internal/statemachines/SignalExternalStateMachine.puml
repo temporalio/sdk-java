@@ -21,7 +21,8 @@
 
 
 @startuml
-scale 350 width
+title SignalExternal State Transitions
+
 [*] --> CREATED
 CREATED --> SIGNAL_EXTERNAL_COMMAND_CREATED: SCHEDULE
 SIGNAL_EXTERNAL_COMMAND_CREATED --> SIGNAL_EXTERNAL_COMMAND_CREATED: SIGNAL_EXTERNAL_WORKFLOW_EXECUTION
@@ -33,4 +34,5 @@ SIGNAL_EXTERNAL_COMMAND_RECORDED --> FAILED: SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_
 SIGNALED --> [*]
 FAILED --> [*]
 CANCELED --> [*]
+center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
 @enduml

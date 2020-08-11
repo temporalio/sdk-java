@@ -156,10 +156,6 @@ final class LocalActivityStateMachine
                   LocalActivityStateMachine::createMarker)
               .add(
                   State.MARKER_COMMAND_CREATED,
-                  ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
-                  State.MARKER_COMMAND_CREATED)
-              .add(
-                  State.MARKER_COMMAND_CREATED,
                   CommandType.COMMAND_TYPE_RECORD_MARKER,
                   State.RESULT_NOTIFIED,
                   LocalActivityStateMachine::notifyResultFromResponse)
