@@ -276,12 +276,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue))
             .setScheduleToStartTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToStartTimeout()))
+                ProtobufTimeUtils.toProtoDuration(options.getScheduleToStartTimeout()))
             .setStartToCloseTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+                ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
             .setScheduleToCloseTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
-            .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()));
+                ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
+            .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()));
 
     if (input.isPresent()) {
       attributes.setInput(input.get());
@@ -309,9 +309,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     RetryPolicy.Builder builder =
         RetryPolicy.newBuilder()
             .setInitialInterval(
-                ProtobufTimeUtils.ToProtoDuration(retryOptions.getInitialInterval()))
+                ProtobufTimeUtils.toProtoDuration(retryOptions.getInitialInterval()))
             .setMaximumInterval(
-                ProtobufTimeUtils.ToProtoDuration(retryOptions.getMaximumInterval()))
+                ProtobufTimeUtils.toProtoDuration(retryOptions.getMaximumInterval()))
             .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
             .setMaximumAttempts(retryOptions.getMaximumAttempts());
 
@@ -331,12 +331,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             .setActivityId(this.context.randomUUID().toString())
             .setWorkflowNamespace(this.context.getNamespace())
             .setWorkflowExecution(this.context.getWorkflowExecution())
-            .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
+            .setScheduledTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setStartToCloseTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+                ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
             .setScheduleToCloseTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
-            .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
+                ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
+            .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
     if (input.isPresent()) {
@@ -395,11 +395,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setInput(input.get());
     }
     attributes.setWorkflowRunTimeout(
-        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowRunTimeout()));
+        ProtobufTimeUtils.toProtoDuration(options.getWorkflowRunTimeout()));
     attributes.setWorkflowExecutionTimeout(
-        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowExecutionTimeout()));
+        ProtobufTimeUtils.toProtoDuration(options.getWorkflowExecutionTimeout()));
     attributes.setWorkflowTaskTimeout(
-        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowTaskTimeout()));
+        ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
     String taskQueue = options.getTaskQueue();
     TaskQueue.Builder tl = TaskQueue.newBuilder();
     if (taskQueue != null) {
@@ -783,9 +783,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
       attributes.setWorkflowRunTimeout(
-          ProtobufTimeUtils.ToProtoDuration(ops.getWorkflowRunTimeout()));
+          ProtobufTimeUtils.toProtoDuration(ops.getWorkflowRunTimeout()));
       attributes.setWorkflowTaskTimeout(
-          ProtobufTimeUtils.ToProtoDuration(ops.getWorkflowTaskTimeout()));
+          ProtobufTimeUtils.toProtoDuration(ops.getWorkflowTaskTimeout()));
       if (!ops.getTaskQueue().isEmpty()) {
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(ops.getTaskQueue()));
       }

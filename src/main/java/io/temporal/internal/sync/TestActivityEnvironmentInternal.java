@@ -237,12 +237,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
               .setScheduleToCloseTimeout(
-                  ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
-              .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()))
+                  ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
+              .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()))
               .setStartToCloseTimeout(
-                  ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
-              .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
-              .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
+                  ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
+              .setScheduledTime(ProtobufTimeUtils.getCurrentProtoTime())
+              .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(

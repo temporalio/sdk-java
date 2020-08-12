@@ -176,7 +176,7 @@ public final class ActivityWorker implements SuspendableWorker {
       metricsScope
           .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
           .record(
-              ProtobufTimeUtils.ToM3Duration(
+              ProtobufTimeUtils.toM3Duration(
                   task.getStartedTime(), task.getCurrentAttemptScheduledTime()));
 
       // The following tags are for logging.
@@ -198,7 +198,7 @@ public final class ActivityWorker implements SuspendableWorker {
         sendReply(task, response, metricsScope);
 
         Duration duration =
-            ProtobufTimeUtils.ToM3DurationSinceNow(task.getCurrentAttemptScheduledTime());
+            ProtobufTimeUtils.toM3DurationSinceNow(task.getCurrentAttemptScheduledTime());
         metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
 
       } catch (FailureWrapperException e) {

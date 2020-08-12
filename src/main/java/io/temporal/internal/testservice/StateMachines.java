@@ -1601,7 +1601,7 @@ class StateMachines {
         data.retryState.getBackoffIntervalInSeconds(
             info.map(i -> i.getType()), data.store.currentTime());
     if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
-      data.nextBackoffInterval = ProtobufTimeUtils.ToProtoDuration(backoffInterval.getInterval());
+      data.nextBackoffInterval = ProtobufTimeUtils.toProtoDuration(backoffInterval.getInterval());
       PollActivityTaskQueueResponse.Builder task = data.activityTask.getTask();
       if (data.heartbeatDetails != null) {
         task.setHeartbeatDetails(data.heartbeatDetails);

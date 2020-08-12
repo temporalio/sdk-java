@@ -279,7 +279,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     }
     StartTimerCommandAttributes attributes =
         StartTimerCommandAttributes.newBuilder()
-            .setStartToFireTimeout(ProtobufTimeUtils.ToProtoDuration(delay))
+            .setStartToFireTimeout(ProtobufTimeUtils.toProtoDuration(delay))
             .setTimerId(workflowStateMachines.randomUUID().toString())
             .build();
     Functions.Proc cancellationHandler =

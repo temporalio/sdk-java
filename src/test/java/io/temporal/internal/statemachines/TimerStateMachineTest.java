@@ -56,7 +56,7 @@ public class TimerStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setTimerId("timer1")
                             .setStartToFireTimeout(
-                                ProtobufTimeUtils.ToProtoDuration(Duration.ofHours(1)))
+                                ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
             .add((firedEvent) -> stateMachines.newCompleteWorkflow(Optional.empty()));
@@ -124,7 +124,7 @@ public class TimerStateMachineTest {
                             StartTimerCommandAttributes.newBuilder()
                                 .setTimerId("timer1")
                                 .setStartToFireTimeout(
-                                    ProtobufTimeUtils.ToProtoDuration(Duration.ofHours(1)))
+                                    ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                                 .build(),
                             c))
             .add(
@@ -137,7 +137,7 @@ public class TimerStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setTimerId("timer2")
                             .setStartToFireTimeout(
-                                ProtobufTimeUtils.ToProtoDuration(Duration.ofHours(1)))
+                                ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
             .add(
@@ -154,6 +154,7 @@ public class TimerStateMachineTest {
     long timerStartedEventId = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
     h.add(EventType.EVENT_TYPE_TIMER_FIRED, timerStartedEventId);
     h.addWorkflowTaskScheduledAndStarted();
+    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestTimerImmediateCancellationListener();
       stateMachines = new WorkflowStateMachines(listener);
@@ -196,7 +197,7 @@ public class TimerStateMachineTest {
                             StartTimerCommandAttributes.newBuilder()
                                 .setTimerId("timer1")
                                 .setStartToFireTimeout(
-                                    ProtobufTimeUtils.ToProtoDuration(Duration.ofHours(1)))
+                                    ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                                 .build(),
                             c))
             .add(
@@ -211,7 +212,7 @@ public class TimerStateMachineTest {
                         StartTimerCommandAttributes.newBuilder()
                             .setTimerId("timer2")
                             .setStartToFireTimeout(
-                                ProtobufTimeUtils.ToProtoDuration(Duration.ofHours(1)))
+                                ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
             .add(
@@ -258,6 +259,7 @@ public class TimerStateMachineTest {
                 .setStartedEventId(timerStartedEventId2)
                 .setTimerId("timer2"))
         .addWorkflowTaskScheduledAndStarted();
+    System.out.println(h);
     {
       TestTimerCancellationListener listener = new TestTimerCancellationListener();
       stateMachines = new WorkflowStateMachines(listener);

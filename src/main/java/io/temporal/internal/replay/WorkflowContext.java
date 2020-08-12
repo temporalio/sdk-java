@@ -103,12 +103,12 @@ final class WorkflowContext {
 
   Duration getWorkflowRunTimeout() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return ProtobufTimeUtils.ToJavaDuration(attributes.getWorkflowRunTimeout());
+    return ProtobufTimeUtils.toJavaDuration(attributes.getWorkflowRunTimeout());
   }
 
   Duration getWorkflowExecutionTimeout() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return ProtobufTimeUtils.ToJavaDuration(attributes.getWorkflowExecutionTimeout());
+    return ProtobufTimeUtils.toJavaDuration(attributes.getWorkflowExecutionTimeout());
   }
 
   long getWorkflowExecutionExpirationTimestampMillis() {
@@ -121,7 +121,7 @@ final class WorkflowContext {
   }
 
   Duration getWorkflowTaskTimeout() {
-    return ProtobufTimeUtils.ToJavaDuration(startedAttributes.getWorkflowTaskTimeout());
+    return ProtobufTimeUtils.toJavaDuration(startedAttributes.getWorkflowTaskTimeout());
   }
 
   String getTaskQueue() {

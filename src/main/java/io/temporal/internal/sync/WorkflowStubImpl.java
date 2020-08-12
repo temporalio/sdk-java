@@ -186,10 +186,10 @@ class WorkflowStubImpl implements WorkflowStub {
         StartWorkflowExecutionRequest.newBuilder()
             .setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()))
             .setRequestId(UUID.randomUUID().toString())
-            .setWorkflowRunTimeout(ProtobufTimeUtils.ToProtoDuration(o.getWorkflowRunTimeout()))
+            .setWorkflowRunTimeout(ProtobufTimeUtils.toProtoDuration(o.getWorkflowRunTimeout()))
             .setWorkflowExecutionTimeout(
-                ProtobufTimeUtils.ToProtoDuration(o.getWorkflowExecutionTimeout()))
-            .setWorkflowTaskTimeout(ProtobufTimeUtils.ToProtoDuration(o.getWorkflowTaskTimeout()));
+                ProtobufTimeUtils.toProtoDuration(o.getWorkflowExecutionTimeout()))
+            .setWorkflowTaskTimeout(ProtobufTimeUtils.toProtoDuration(o.getWorkflowTaskTimeout()));
 
     if (clientOptions.getIdentity() != null) {
       request.setIdentity(clientOptions.getIdentity());

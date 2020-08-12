@@ -67,8 +67,8 @@ public class TestServiceUtils {
     request.setNamespace(namespace);
     request.setWorkflowId(UUID.randomUUID().toString());
     request.setTaskQueue(createNormalTaskQueue(taskqueueName));
-    request.setWorkflowRunTimeout(ProtobufTimeUtils.ToProtoDuration(workflowRunTimeout));
-    request.setWorkflowTaskTimeout(ProtobufTimeUtils.ToProtoDuration(workflowTaskTimeout));
+    request.setWorkflowRunTimeout(ProtobufTimeUtils.toProtoDuration(workflowRunTimeout));
+    request.setWorkflowTaskTimeout(ProtobufTimeUtils.toProtoDuration(workflowTaskTimeout));
     request.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
     service.blockingStub().startWorkflowExecution(request.build());
   }
@@ -90,7 +90,7 @@ public class TestServiceUtils {
         RespondWorkflowTaskCompletedRequest.newBuilder();
     StickyExecutionAttributes.Builder attributes = StickyExecutionAttributes.newBuilder();
     attributes.setWorkerTaskQueue(createStickyTaskQueue(stickyTaskqueueName));
-    attributes.setScheduleToStartTimeout(ProtobufTimeUtils.ToProtoDuration(startToCloseTimeout));
+    attributes.setScheduleToStartTimeout(ProtobufTimeUtils.toProtoDuration(startToCloseTimeout));
     request.setStickyAttributes(attributes);
     request.setTaskToken(taskToken);
     request.addAllCommands(new ArrayList<>());

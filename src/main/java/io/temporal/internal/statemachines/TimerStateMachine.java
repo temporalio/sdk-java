@@ -73,6 +73,7 @@ final class TimerStateMachine
     START_COMMAND_CREATED,
     START_COMMAND_RECORDED,
     CANCEL_TIMER_COMMAND_CREATED,
+    CANCEL_TIMER_COMMAND_SENT,
     FIRED,
     CANCELED,
   }
@@ -115,13 +116,13 @@ final class TimerStateMachine
                   ExplicitEvent.CANCEL,
                   State.CANCEL_TIMER_COMMAND_CREATED)
               .add(
-                  State.CANCEL_TIMER_COMMAND_CREATED,
+                  State.CANCEL_TIMER_COMMAND_SENT,
                   EventType.EVENT_TYPE_TIMER_CANCELED,
                   State.CANCELED)
               .add(
                   State.CANCEL_TIMER_COMMAND_CREATED,
                   CommandType.COMMAND_TYPE_CANCEL_TIMER,
-                  State.CANCEL_TIMER_COMMAND_CREATED,
+                  State.CANCEL_TIMER_COMMAND_SENT,
                   TimerStateMachine::notifyCancellation)
               .add(
                   State.CANCEL_TIMER_COMMAND_CREATED,

@@ -19,12 +19,14 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
 import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
@@ -86,6 +88,9 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
 
   private static final int MAXIMUM_PAGE_SIZE = 10000;
 
+  /** Force new decision task after workflow task timeout multiplied by this coefficient. */
+  public static final double FORCED_DECISION_TIME_COEFFICIENT = 4d / 5d;
+
   private final ReplayWorkflowContextImpl context;
 
   private final WorkflowServiceStubs service;
@@ -126,7 +131,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
   private final HistoryEvent firstEvent;
 
   /** Number of non completed local activity tasks */
-  private int laTaskCount;
+  private int localActivityTaskCount;
 
   ReplayWorkflowExecutor(
       WorkflowServiceStubs service,
@@ -216,7 +221,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     }
 
     com.uber.m3.util.Duration d =
-        ProtobufTimeUtils.ToM3Duration(
+        ProtobufTimeUtils.toM3Duration(
             Timestamps.fromMillis(System.currentTimeMillis()), wfStartTime);
     metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(d);
   }
@@ -246,8 +251,8 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
       PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
     lock.lock();
     try {
-      long startTime = System.currentTimeMillis();
       queryResults.clear();
+      long startTime = System.currentTimeMillis();
       handleWorkflowTaskImpl(workflowTask);
       processLocalActivityRequests(startTime);
       List<Command> commands = workflowStateMachines.takeCommands();
@@ -256,7 +261,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           .setCommands(commands)
           .setQueryResults(queryResults)
           .setFinalCommand(completed)
-          .setForceWorkflowTask(laTaskCount > 0)
+          .setForceWorkflowTask(localActivityTaskCount > 0)
           .build();
     } finally {
       lock.unlock();
@@ -271,8 +276,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           workflowTask.getPreviousStartedEventId(), workflowTask.getStartedEventId());
       WorkflowTaskWithHistoryIterator workflowTaskWithHistoryIterator =
           new WorkflowTaskWithHistoryIteratorImpl(
-              workflowTask,
-              ProtobufTimeUtils.ToJavaDuration(startedEvent.getWorkflowTaskTimeout()));
+              workflowTask, toJavaDuration(startedEvent.getWorkflowTaskTimeout()));
       Iterator<HistoryEvent> iterator = workflowTaskWithHistoryIterator.getHistory();
       while (iterator.hasNext()) {
         HistoryEvent event = iterator.next();
@@ -301,7 +305,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
 
   @Override
   public Duration getWorkflowTaskTimeout() {
-    return ProtobufTimeUtils.ToJavaDuration(startedEvent.getWorkflowTaskTimeout());
+    return toJavaDuration(startedEvent.getWorkflowTaskTimeout());
   }
 
   private void executeQueries(Map<String, WorkflowQuery> queries) {
@@ -354,55 +358,62 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
   }
 
   private void processLocalActivityRequests(long startTime) {
-    Duration maxProcessingTime = getWorkflowTaskTimeout().multipliedBy(4).dividedBy(5);
+    long forcedDecisionTimeout =
+        (long)
+            (Durations.toMillis(startedEvent.getWorkflowTaskTimeout())
+                * FORCED_DECISION_TIME_COEFFICIENT);
+    long nextForcedDecisionTime = startTime + forcedDecisionTimeout;
     while (true) {
       List<ExecuteLocalActivityParameters> laRequests =
           workflowStateMachines.takeLocalActivityRequests();
-      long timeoutInterval = (long) ((System.currentTimeMillis() - startTime) * 0.5);
       for (ExecuteLocalActivityParameters laRequest : laRequests) {
         // TODO(maxim): In the presence of workflow task heartbeat this timeout doesn't make
         // much sense. I believe we should add ScheduleToStart timeout for the local activities
         // as well.
-        long processingTime = Math.min(System.currentTimeMillis() - startTime, timeoutInterval);
+        Duration maxWaitTime =
+            Duration.ofMillis(nextForcedDecisionTime - System.currentTimeMillis());
+        if (maxWaitTime.isNegative()) {
+          maxWaitTime = Duration.ZERO;
+        }
         boolean accepted =
             localActivityTaskPoller.apply(
                 new LocalActivityWorker.Task(
                     laRequest, localActivityCompletionSink, 10000 /* TODO: Configurable */),
-                Duration.ofMillis(processingTime));
-        laTaskCount++;
+                maxWaitTime);
+        localActivityTaskCount++;
         if (!accepted) {
           throw new Error("Unable to schedule local activity for execution");
         }
       }
-      if (laTaskCount == 0) {
+      if (localActivityTaskCount == 0) {
+        // No outstanding local activity requests
         break;
       }
-      while (true) {
-        Duration processingTime = Duration.ofMillis(System.currentTimeMillis() - startTime);
-        Duration maxWaitAllowed = maxProcessingTime.minus(processingTime);
-        if (maxWaitAllowed.isZero() || maxWaitAllowed.isNegative()) {
-          return;
-        }
-        ActivityTaskHandler.Result laCompletion;
-        // Do not wait under lock.
-        try {
-          laCompletion =
-              localActivityCompletionQueue.poll(maxWaitAllowed.toMillis(), TimeUnit.MILLISECONDS);
-          if (laCompletion == null) {
-            // Need to force a new task
-            break;
-          }
-        } catch (InterruptedException e) {
-          // TODO(maxim): interrupt when worker shutdown is called
-          throw new IllegalStateException("interrupted", e);
-        }
-        workflowStateMachines.handleLocalActivityCompletion(laCompletion);
-        laTaskCount--;
-        if (laTaskCount == 0) {
-          break;
-        }
+      waitAndProcessLocalActivityCompletion(nextForcedDecisionTime);
+      if (nextForcedDecisionTime <= System.currentTimeMillis()) {
+        break;
       }
     }
+  }
+
+  private void waitAndProcessLocalActivityCompletion(long nextForcedDecisionTime) {
+    long maxWaitTime = nextForcedDecisionTime - System.currentTimeMillis();
+    if (maxWaitTime <= 0) {
+      return;
+    }
+    ActivityTaskHandler.Result laCompletion;
+    try {
+      laCompletion = localActivityCompletionQueue.poll(maxWaitTime, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      // TODO(maxim): interrupt when worker shutdown is called
+      throw new IllegalStateException("interrupted", e);
+    }
+    if (laCompletion == null) {
+      // Need to force a new task as nextForcedDecisionTime has passed.
+      return;
+    }
+    localActivityTaskCount--;
+    workflowStateMachines.handleLocalActivityCompletion(laCompletion);
   }
 
   private class WorkflowTaskWithHistoryIteratorImpl implements WorkflowTaskWithHistoryIterator {

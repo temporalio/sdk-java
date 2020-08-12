@@ -236,9 +236,9 @@ public final class LocalActivityWorker implements SuspendableWorker {
       RetryOptions retryOptions =
           RetryOptions.newBuilder()
               .setMaximumInterval(
-                  ProtobufTimeUtils.ToJavaDuration(retryPolicy.getMaximumInterval()))
+                  ProtobufTimeUtils.toJavaDuration(retryPolicy.getMaximumInterval()))
               .setInitialInterval(
-                  ProtobufTimeUtils.ToJavaDuration(retryPolicy.getInitialInterval()))
+                  ProtobufTimeUtils.toJavaDuration(retryPolicy.getInitialInterval()))
               .setMaximumAttempts(retryPolicy.getMaximumAttempts())
               .setBackoffCoefficient(retryPolicy.getBackoffCoefficient())
               .setDoNotRetry(doNotRetry)
@@ -248,7 +248,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       long sinceScheduled =
           System.currentTimeMillis() - Timestamps.toMillis(activityTask.getScheduledTime());
       long elapsedTotal = elapsedTask + sinceScheduled;
-      Duration timeout = ProtobufTimeUtils.ToJavaDuration(activityTask.getScheduleToCloseTimeout());
+      Duration timeout = ProtobufTimeUtils.toJavaDuration(activityTask.getScheduleToCloseTimeout());
       Optional<Duration> expiration =
           timeout.compareTo(Duration.ZERO) > 0 ? Optional.of(timeout) : Optional.empty();
       if (retryOptions.shouldRethrow(

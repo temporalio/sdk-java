@@ -310,7 +310,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           StickyExecutionAttributes.newBuilder()
               .setWorkerTaskQueue(createStickyTaskQueue(stickyTaskQueueName))
               .setScheduleToStartTimeout(
-                  ProtobufTimeUtils.ToProtoDuration(stickyTaskQueueScheduleToStartTimeout));
+                  ProtobufTimeUtils.toProtoDuration(stickyTaskQueueScheduleToStartTimeout));
       completedRequest.setStickyAttributes(attributes);
     }
     return new Result(

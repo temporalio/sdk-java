@@ -108,7 +108,7 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
     metricsScope
         .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
         .record(
-            ProtobufTimeUtils.ToM3Duration(
+            ProtobufTimeUtils.toM3Duration(
                 result.getStartedTime(), result.getCurrentAttemptScheduledTime()));
 
     return result;

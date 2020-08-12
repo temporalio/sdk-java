@@ -5750,7 +5750,6 @@ public class WorkflowTest {
       try {
         localActivities.throwIO();
       } catch (ActivityFailure e) {
-        e.printStackTrace();
         try {
           assertTrue(e.getMessage().contains("ThrowIO"));
           assertTrue(e.getCause() instanceof ApplicationFailure);

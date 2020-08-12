@@ -226,7 +226,7 @@ public final class WorkflowStateMachines {
    * event, command state machine is notified about the event and the command is removed from the
    * commands queue.
    */
-  public void handleCommandEvent(HistoryEvent event) {
+  private void handleCommandEvent(HistoryEvent event) {
     if (handleLocalActivityMarker(event)) {
       return;
     }
