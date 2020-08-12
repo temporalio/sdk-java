@@ -278,8 +278,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           new WorkflowHistoryIterable(
               workflowTask, toJavaDuration(startedEvent.getWorkflowTaskTimeout()));
       Iterator<HistoryEvent> iterator = historyEvents.iterator();
-      while (iterator.hasNext()) {
-        HistoryEvent event = iterator.next();
+      for (HistoryEvent event : historyEvents) {
         handleEvent(event, iterator.hasNext());
       }
     } catch (Throwable e) {
