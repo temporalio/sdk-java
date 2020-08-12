@@ -158,7 +158,7 @@ public interface Promise<V> {
    * @param promises promises to wait for.
    * @return Promise that is completed with null when all the argument promises become completed.
    */
-  static <V> Promise<Void> allOf(Iterable<Promise<?>> promises) {
+  static <V> Promise<Void> allOf(Iterable<Promise<V>> promises) {
     return WorkflowInternal.promiseAllOf(promises);
   }
 
@@ -174,7 +174,7 @@ public interface Promise<V> {
    * Returns Promise that becomes completed when any of the arguments is completed. If it completes
    * exceptionally then result is also completes exceptionally.
    */
-  static Promise<Object> anyOf(Iterable<Promise<?>> promises) {
+  static <V> Promise<V> anyOf(Iterable<Promise<V>> promises) {
     return WorkflowInternal.promiseAnyOf(promises);
   }
 

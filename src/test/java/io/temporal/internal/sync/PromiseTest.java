@@ -350,7 +350,7 @@ public class PromiseTest {
                         trace.add("thread2 done");
                       })
                   .start();
-              List<Promise<?>> promises = new ArrayList<>();
+              List<Promise<String>> promises = new ArrayList<>();
               promises.add(f1);
               promises.add(f2);
               promises.add(f3);
@@ -395,7 +395,7 @@ public class PromiseTest {
                 trace.add("root empty list isCompleted=" + all.get());
               }
               {
-                List<Promise<?>> list = new ArrayList<>();
+                List<Promise<String>> list = new ArrayList<>();
                 list.add(Workflow.newPromise("foo"));
                 list.add(Workflow.newPromise("bar"));
                 Promise<Void> all = Promise.allOf(list);
@@ -450,12 +450,12 @@ public class PromiseTest {
                         trace.add("thread2 done");
                       })
                   .start();
-              List<Promise<?>> promises = new ArrayList<>();
+              List<Promise<String>> promises = new ArrayList<>();
               promises.add(f1);
               promises.add(f2);
               promises.add(f3);
               trace.add("root before anyOf");
-              Promise<Object> any = Promise.anyOf(promises);
+              Promise<String> any = Promise.anyOf(promises);
               // Relying on ordered execution of threads.
               assertEquals("value1", any.get());
               trace.add("root done");
@@ -616,7 +616,7 @@ public class PromiseTest {
                 trace.add("root empty list isCompleted=" + all.isCompleted());
               }
               {
-                List<Promise<?>> list = new ArrayList<>();
+                List<Promise<String>> list = new ArrayList<>();
                 list.add(Workflow.newPromise());
                 list.add(Workflow.newPromise("bar"));
                 Promise all = Promise.anyOf(list);

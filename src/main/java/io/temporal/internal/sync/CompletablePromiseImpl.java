@@ -51,11 +51,11 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
   }
 
   @SuppressWarnings("unchecked")
-  static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
-    CompletablePromise<Object> result = Workflow.newPromise();
-    for (Promise<?> p : promises) {
+  static <V> Promise<V> promiseAnyOf(Iterable<Promise<V>> promises) {
+    CompletablePromise<V> result = Workflow.newPromise();
+    for (Promise<V> p : promises) {
       // Rely on the fact that promise ignores all duplicated completions.
-      result.completeFrom((Promise<Object>) p);
+      result.completeFrom(p);
     }
     return result;
   }

@@ -319,7 +319,8 @@ public class WorkflowTest {
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptors(tracer)
             .setActivityInterceptors(activityInterceptor)
-            .setWorkflowHostLocalTaskQueueScheduleToStartTimeoutSeconds(versionTest ? 0 : 10)
+            .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(
+                versionTest ? Duration.ZERO : Duration.ofSeconds(10))
             .build();
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, workflowClientOptions);
@@ -5675,7 +5676,7 @@ public class WorkflowTest {
     public String execute(int activityCount, String taskQueue) {
       TestLargeWorkflowActivity activities =
           Workflow.newActivityStub(TestLargeWorkflowActivity.class, newActivityOptions1(taskQueue));
-      List<Promise<?>> results = new ArrayList<>();
+      List<Promise<String>> results = new ArrayList<>();
       for (int i = 0; i < activityCount; i++) {
         Promise<String> result = Async.function(activities::activity);
         results.add(result);
@@ -5791,6 +5792,50 @@ public class WorkflowTest {
         "local activity Activity2",
         "executeActivity Activity2",
         "activity Activity2");
+  }
+
+  public static class TestParallelLocalActivitiesWorkflowImpl implements TestWorkflow1 {
+    static final int COUNT = 100;
+
+    @Override
+    public String execute(String taskQueue) {
+      TestActivities localActivities =
+          Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
+      List<Promise<String>> laResults = new ArrayList<>();
+      Random r = Workflow.newRandom();
+      for (int i = 0; i < COUNT; i++) {
+        laResults.add(Async.function(localActivities::sleepActivity, (long) r.nextInt(3000), i));
+      }
+      Promise.allOf(laResults).get();
+      return "done";
+    }
+  }
+
+  @Test
+  public void testParallelLocalActivities() {
+    startWorkerFor(TestParallelLocalActivitiesWorkflowImpl.class);
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofMinutes(5))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(3))
+            .setTaskQueue(taskQueue)
+            .build();
+
+    TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
+    String result = workflowStub.execute(taskQueue);
+    assertEquals("done", result);
+    assertEquals(activitiesImpl.toString(), 100, activitiesImpl.invocations.size());
+    List<String> expected = new ArrayList<>();
+    expected.add("interceptExecuteWorkflow " + UUID_REGEXP);
+    expected.add("newThread workflow-method");
+    for (int i = 0; i < TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
+      expected.add("executeLocalActivity SleepActivity");
+      expected.add("currentTimeMillis");
+    }
+    for (int i = 0; i < TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
+      expected.add("local activity SleepActivity");
+    }
+    tracer.setExpected(expected.toArray(new String[0]));
   }
 
   public static class TestLocalActivitiesWorkflowTaskHeartbeatWorkflowImpl

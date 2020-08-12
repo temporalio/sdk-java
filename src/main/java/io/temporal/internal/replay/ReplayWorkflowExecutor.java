@@ -34,6 +34,7 @@ import io.grpc.Status;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -57,7 +58,6 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.internal.worker.WorkflowTaskWithHistoryIterator;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -274,10 +274,10 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     try {
       workflowStateMachines.setStartedIds(
           workflowTask.getPreviousStartedEventId(), workflowTask.getStartedEventId());
-      WorkflowTaskWithHistoryIterator workflowTaskWithHistoryIterator =
-          new WorkflowTaskWithHistoryIteratorImpl(
+      Iterable<HistoryEvent> historyEvents =
+          new WorkflowHistoryIterable(
               workflowTask, toJavaDuration(startedEvent.getWorkflowTaskTimeout()));
-      Iterator<HistoryEvent> iterator = workflowTaskWithHistoryIterator.getHistory();
+      Iterator<HistoryEvent> iterator = historyEvents.iterator();
       while (iterator.hasNext()) {
         HistoryEvent event = iterator.next();
         handleEvent(event, iterator.hasNext());
@@ -416,20 +416,20 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     workflowStateMachines.handleLocalActivityCompletion(laCompletion);
   }
 
-  private class WorkflowTaskWithHistoryIteratorImpl implements WorkflowTaskWithHistoryIterator {
+  private class WorkflowHistoryIterable implements Iterable<HistoryEvent> {
 
     private final Duration retryServiceOperationInitialInterval = Duration.ofMillis(200);
     private final Duration retryServiceOperationMaxInterval = Duration.ofSeconds(4);
     private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
     private final Duration workflowTaskTimeout;
+    private final WorkflowExecution worklowExecution;
 
-    private final PollWorkflowTaskQueueResponseOrBuilder task;
     private Iterator<HistoryEvent> current;
     private ByteString nextPageToken;
 
-    WorkflowTaskWithHistoryIteratorImpl(
+    WorkflowHistoryIterable(
         PollWorkflowTaskQueueResponseOrBuilder task, Duration workflowTaskTimeout) {
-      this.task = Objects.requireNonNull(task);
+      this.worklowExecution = task.getWorkflowExecution();
       this.workflowTaskTimeout = Objects.requireNonNull(workflowTaskTimeout);
 
       History history = task.getHistory();
@@ -438,17 +438,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     }
 
     @Override
-    public PollWorkflowTaskQueueResponseOrBuilder getWorkflowTask() {
-      lock.lock();
-      try {
-        return task;
-      } finally {
-        lock.unlock();
-      }
-    }
-
-    @Override
-    public Iterator<HistoryEvent> getHistory() {
+    public Iterator<HistoryEvent> iterator() {
       return new Iterator<HistoryEvent>() {
         @Override
         public boolean hasNext() {
@@ -479,7 +469,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
           GetWorkflowExecutionHistoryRequest request =
               GetWorkflowExecutionHistoryRequest.newBuilder()
                   .setNamespace(context.getNamespace())
-                  .setExecution(task.getWorkflowExecution())
+                  .setExecution(worklowExecution)
                   .setMaximumPageSize(MAXIMUM_PAGE_SIZE)
                   .setNextPageToken(nextPageToken)
                   .build();

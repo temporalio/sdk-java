@@ -305,12 +305,16 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
             .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewWorkflowTask(result.isForceWorkflowTask());
 
-    if (stickyTaskQueueName != null && !stickyTaskQueueScheduleToStartTimeout.isZero()) {
+    if (stickyTaskQueueName != null
+        && (stickyTaskQueueScheduleToStartTimeout == null
+            || !stickyTaskQueueScheduleToStartTimeout.isZero())) {
       StickyExecutionAttributes.Builder attributes =
           StickyExecutionAttributes.newBuilder()
-              .setWorkerTaskQueue(createStickyTaskQueue(stickyTaskQueueName))
-              .setScheduleToStartTimeout(
-                  ProtobufTimeUtils.toProtoDuration(stickyTaskQueueScheduleToStartTimeout));
+              .setWorkerTaskQueue(createStickyTaskQueue(stickyTaskQueueName));
+      if (stickyTaskQueueScheduleToStartTimeout != null) {
+        attributes.setScheduleToStartTimeout(
+            ProtobufTimeUtils.toProtoDuration(stickyTaskQueueScheduleToStartTimeout));
+      }
       completedRequest.setStickyAttributes(attributes);
     }
     return new Result(
