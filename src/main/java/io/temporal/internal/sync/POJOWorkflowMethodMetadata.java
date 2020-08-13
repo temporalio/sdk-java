@@ -37,6 +37,7 @@ class POJOWorkflowMethodMetadata {
               + methodMetadata.getMethod().getName()
               + "\" is not annotated with @WorkflowMethod, @SignalMethod or @QueryMethod");
     }
+
     this.interfaceType = Objects.requireNonNull(interfaceType);
     Optional<String> nameFromAnnotation = workflowMethod.getNameFromAnnotation();
     if (workflowMethod.getType() == WorkflowMethodType.WORKFLOW) {

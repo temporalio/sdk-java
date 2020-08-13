@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -31,18 +32,18 @@ import org.junit.Test;
 
 public class POJOActivityMetadataTest {
 
-  interface A {
+  public interface A {
     void a();
   }
 
-  interface B extends A {
+  public interface B extends A {
     void b();
 
     void bb();
   }
 
   @ActivityInterface(namePrefix = "C_")
-  interface C extends B, A {
+  public interface C extends B, A {
     void c();
 
     @ActivityMethod(name = "AM_C_bb")
@@ -50,23 +51,29 @@ public class POJOActivityMetadataTest {
   }
 
   @ActivityInterface
-  interface E extends B {
+  public interface E extends B {
     @ActivityMethod(name = "AM_E_bb")
     void bb();
   }
 
   @ActivityInterface
-  interface D extends C {
+  public interface D extends C {
     void d();
   }
 
   @ActivityInterface
-  interface F {
+  public interface F {
     @ActivityMethod(name = "AM_C_bb")
     void f();
   }
 
-  interface DE extends D, E {}
+  public interface DE extends D, E {}
+
+  @ActivityInterface
+  interface G {
+    @ActivityMethod(name = "AM_G_bb")
+    void g();
+  }
 
   static class DImpl implements D, E {
 
@@ -122,8 +129,13 @@ public class POJOActivityMetadataTest {
     public void f() {}
   }
 
+  static class GImpl implements G {
+    @Override
+    public void g() {}
+  }
+
   @ActivityInterface
-  interface Empty {}
+  public interface Empty {}
 
   class EmptyImpl implements Empty {
     public void foo() {}
@@ -171,8 +183,21 @@ public class POJOActivityMetadataTest {
   public void testDuplicatedActivityImplementationRegistration() {
     try {
       POJOActivityImplMetadata.newInstance(DEImpl.class);
+      fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException e) {
-      assertTrue(e.getMessage().contains("bb()"));
+      assertTrue(e.getMessage(), e.getMessage().contains("bb()"));
+    }
+  }
+
+  @Test
+  public void testNonPublicInterface() {
+    try {
+      POJOActivityImplMetadata.newInstance(GImpl.class);
+      fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      assertTrue(
+          e.getMessage(),
+          e.getMessage().contains("Interface with @ActivityInterface annotation must be public"));
     }
   }
 
