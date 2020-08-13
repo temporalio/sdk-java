@@ -667,7 +667,7 @@ public final class WorkflowStateMachines {
     for (ExecuteLocalActivityParameters parameters : result) {
       LocalActivityStateMachine stateMachine =
           localActivityMap.get(parameters.getActivityTask().getActivityId());
-      stateMachine.requestSent();
+      stateMachine.markAsSent();
     }
     return result;
   }

@@ -112,8 +112,8 @@ final class LocalActivityStateMachine
   enum ExplicitEvent {
     CHECK_EXECUTION_STATE,
     SCHEDULE,
-    GET_REQUEST,
-    HANDLE_RESPONSE,
+    MARK_AS_SENT,
+    HANDLE_RESULT,
     NON_REPLAY_WORKFLOW_TASK_STARTED
   }
 
@@ -144,14 +144,14 @@ final class LocalActivityStateMachine
                   ExplicitEvent.SCHEDULE,
                   State.REQUEST_PREPARED,
                   LocalActivityStateMachine::sendRequest)
-              .add(State.REQUEST_PREPARED, ExplicitEvent.GET_REQUEST, State.REQUEST_SENT)
+              .add(State.REQUEST_PREPARED, ExplicitEvent.MARK_AS_SENT, State.REQUEST_SENT)
               .add(
                   State.REQUEST_SENT,
                   ExplicitEvent.NON_REPLAY_WORKFLOW_TASK_STARTED,
                   State.REQUEST_SENT)
               .add(
                   State.REQUEST_SENT,
-                  ExplicitEvent.HANDLE_RESPONSE,
+                  ExplicitEvent.HANDLE_RESULT,
                   State.MARKER_COMMAND_CREATED,
                   LocalActivityStateMachine::createMarker)
               .add(
@@ -199,13 +199,13 @@ final class LocalActivityStateMachine
     localActivityRequestSink.apply(localActivityParameters);
   }
 
-  public void requestSent() {
-    explicitEvent(ExplicitEvent.GET_REQUEST);
+  public void markAsSent() {
+    explicitEvent(ExplicitEvent.MARK_AS_SENT);
   }
 
   public void handleCompletion(ActivityTaskHandler.Result result) {
     this.result = result;
-    explicitEvent(ExplicitEvent.HANDLE_RESPONSE);
+    explicitEvent(ExplicitEvent.HANDLE_RESULT);
   }
 
   /** Called once per workflow task for the last WorkflowTaskStarted event in the history. */

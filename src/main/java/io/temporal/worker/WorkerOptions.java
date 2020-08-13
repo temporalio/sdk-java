@@ -138,11 +138,11 @@ public final class WorkerOptions {
 
     /**
      * Optional: Sets the rate limiting on number of activities that can be executed per second.
-     * This is managed by the server and controls activities per second for your entire taskqueue.
-     * Notice that the number is represented in double, so that you can set it to less than 1 if
-     * needed. For example, set the number to 0.1 means you want your activity to be executed once
-     * every 10 seconds. This can be used to protect down stream services from flooding. The zero
-     * value of this uses the default value. Default is unlimited.
+     * This is managed by the server and controls activities per second for the entire task queue
+     * across all the workers. Notice that the number is represented in double, so that you can set
+     * it to less than 1 if needed. For example, set the number to 0.1 means you want your activity
+     * to be executed once every 10 seconds. This can be used to protect down stream services from
+     * flooding. The zero value of this uses the default value. Default is unlimited.
      */
     public Builder setMaxTaskQueueActivitiesPerSecond(double maxTaskQueueActivitiesPerSecond) {
       this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
