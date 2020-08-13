@@ -19,162 +19,54 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
-import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
-import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
-
-import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import com.uber.m3.tally.Scope;
-import com.uber.m3.tally.Stopwatch;
-import io.grpc.Status;
-import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.QueryResultType;
-import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.api.query.v1.WorkflowQueryResult;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.statemachines.EntityManagerListener;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
-import io.temporal.internal.worker.ActivityTaskHandler;
-import io.temporal.internal.worker.LocalActivityWorker;
-import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.Functions;
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/**
- * Implements workflow executor that relies on replay of a workflow code. An instance of this class
- * is created per cached workflow run.
- */
-class ReplayWorkflowExecutor implements WorkflowExecutor {
-
-  private static final Logger log = LoggerFactory.getLogger(ReplayWorkflowExecutor.class);
-
-  private static final int MAXIMUM_PAGE_SIZE = 10000;
-
-  /** Force new decision task after workflow task timeout multiplied by this coefficient. */
-  public static final double FORCED_DECISION_TIME_COEFFICIENT = 4d / 5d;
-
-  private final ReplayWorkflowContextImpl context;
-
-  private final WorkflowServiceStubs service;
+final class ReplayWorkflowExecutor {
 
   private final ReplayWorkflow workflow;
 
-  private boolean cancelRequested;
+  private final Scope metricsScope;
+
+  private final WorkflowStateMachines workflowStateMachines;
+
+  private final ReplayWorkflowContextImpl context;
 
   private boolean completed;
 
   private WorkflowExecutionException failure;
 
-  private long wakeUpTime;
+  private boolean cancelRequested;
 
-  private Functions.Proc1<Exception> timerCancellationHandler;
-
-  private final Scope metricsScope;
-
-  private final Timestamp wfStartTime;
-
-  private final WorkflowExecutionStartedEventAttributes startedEvent;
-
-  private final Lock lock = new ReentrantLock();
-
-  private final Functions.Proc1<ActivityTaskHandler.Result> localActivityCompletionSink;
-
-  private final BlockingQueue<ActivityTaskHandler.Result> localActivityCompletionQueue =
-      new LinkedBlockingDeque<>();
-
-  private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller;
-
-  private final Map<String, WorkflowQueryResult> queryResults = new HashMap<>();
-
-  private final DataConverter converter;
-
-  private final WorkflowStateMachines workflowStateMachines;
-
-  private final HistoryEvent firstEvent;
-
-  /** Number of non completed local activity tasks */
-  private int localActivityTaskCount;
-
-  ReplayWorkflowExecutor(
-      WorkflowServiceStubs service,
-      String namespace,
+  public ReplayWorkflowExecutor(
       ReplayWorkflow workflow,
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      SingleWorkerOptions options,
       Scope metricsScope,
-      BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller) {
-    this.service = service;
+      WorkflowStateMachines workflowStateMachines,
+      ReplayWorkflowContextImpl context) {
     this.workflow = workflow;
-    firstEvent = workflowTask.getHistory().getEvents(0);
-
-    if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
-      throw new IllegalArgumentException(
-          "First event in the history is not WorkflowExecutionStarted");
-    }
-    startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
-    this.workflowStateMachines = new WorkflowStateMachines(new EntityManagerListenerImpl());
     this.metricsScope = metricsScope;
-    this.converter = options.getDataConverter();
-    this.localActivityTaskPoller = localActivityTaskPoller;
-
-    wfStartTime = firstEvent.getEventTime();
-
-    context =
-        new ReplayWorkflowContextImpl(
-            workflowStateMachines,
-            namespace,
-            startedEvent,
-            workflowTask.getWorkflowExecution(),
-            Timestamps.toMillis(firstEvent.getEventTime()),
-            options,
-            metricsScope);
-
-    localActivityCompletionSink = historyEvent -> localActivityCompletionQueue.add(historyEvent);
+    this.workflowStateMachines = workflowStateMachines;
+    this.context = context;
   }
 
-  private void handleEvent(HistoryEvent event, boolean hasNextEvent) {
-    workflowStateMachines.handleEvent(event, hasNextEvent);
+  public boolean isCompleted() {
+    return completed;
   }
 
-  private void eventLoop() {
+  public void eventLoop() {
     if (completed) {
       return;
     }
@@ -222,11 +114,12 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
 
     com.uber.m3.util.Duration d =
         ProtobufTimeUtils.toM3Duration(
-            Timestamps.fromMillis(System.currentTimeMillis()), wfStartTime);
+            Timestamps.fromMillis(System.currentTimeMillis()),
+            Timestamps.fromMillis(context.getRunStartedTimestampMillis()));
     metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(d);
   }
 
-  private void handleWorkflowExecutionCancelRequested(HistoryEvent event) {
+  public void handleWorkflowExecutionCancelRequested(HistoryEvent event) {
     WorkflowExecutionCancelRequestedEventAttributes attributes =
         event.getWorkflowExecutionCancelRequestedEventAttributes();
     context.setCancelRequested(true);
@@ -235,7 +128,7 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     cancelRequested = true;
   }
 
-  private void handleWorkflowExecutionSignaled(HistoryEvent event) {
+  public void handleWorkflowExecutionSignaled(HistoryEvent event) {
     WorkflowExecutionSignaledEventAttributes signalAttributes =
         event.getWorkflowExecutionSignaledEventAttributes();
     if (completed) {
@@ -246,272 +139,23 @@ class ReplayWorkflowExecutor implements WorkflowExecutor {
     this.workflow.handleSignal(signalAttributes.getSignalName(), input, event.getEventId());
   }
 
-  @Override
-  public WorkflowTaskResult handleWorkflowTask(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-    lock.lock();
-    try {
-      queryResults.clear();
-      long startTime = System.currentTimeMillis();
-      handleWorkflowTaskImpl(workflowTask);
-      processLocalActivityRequests(startTime);
-      List<Command> commands = workflowStateMachines.takeCommands();
-      executeQueries(workflowTask.getQueriesMap());
-      return WorkflowTaskResult.newBuilder()
-          .setCommands(commands)
-          .setQueryResults(queryResults)
-          .setFinalCommand(completed)
-          .setForceWorkflowTask(localActivityTaskCount > 0)
-          .build();
-    } finally {
-      lock.unlock();
-    }
+  public Optional<Payloads> query(WorkflowQuery query) {
+    return workflow.query(query);
   }
 
-  private void handleWorkflowTaskImpl(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-    Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_REPLAY_LATENCY).start();
-    boolean timerStopped = false;
-    try {
-      workflowStateMachines.setStartedIds(
-          workflowTask.getPreviousStartedEventId(), workflowTask.getStartedEventId());
-      Iterable<HistoryEvent> historyEvents =
-          new WorkflowHistoryIterable(
-              workflowTask, toJavaDuration(startedEvent.getWorkflowTaskTimeout()));
-      Iterator<HistoryEvent> iterator = historyEvents.iterator();
-      for (HistoryEvent event : historyEvents) {
-        handleEvent(event, iterator.hasNext());
-      }
-    } catch (Throwable e) {
-      WorkflowImplementationOptions implementationOptions =
-          this.workflow.getWorkflowImplementationOptions();
-      if (implementationOptions.getWorkflowErrorPolicy() == FailWorkflow) {
-        // fail workflow
-        throw workflow.mapError(e);
-      } else {
-        metricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
-        // fail workflow task, not a workflow
-        throw e;
-      }
-    } finally {
-      if (!timerStopped) {
-        sw.stop();
-      }
-      if (completed) {
-        close();
-      }
-    }
+  public WorkflowImplementationOptions getWorkflowImplementationOptions() {
+    return workflow.getWorkflowImplementationOptions();
   }
 
-  @Override
-  public Duration getWorkflowTaskTimeout() {
-    return toJavaDuration(startedEvent.getWorkflowTaskTimeout());
+  public WorkflowExecutionException mapError(Throwable e) {
+    return workflow.mapError(e);
   }
 
-  private void executeQueries(Map<String, WorkflowQuery> queries) {
-    for (Map.Entry<String, WorkflowQuery> entry : queries.entrySet()) {
-      WorkflowQuery query = entry.getValue();
-      try {
-        Optional<Payloads> queryResult = workflow.query(query);
-        WorkflowQueryResult.Builder result =
-            WorkflowQueryResult.newBuilder()
-                .setResultType(QueryResultType.QUERY_RESULT_TYPE_ANSWERED);
-        if (queryResult.isPresent()) {
-          result.setAnswer(queryResult.get());
-        }
-        queryResults.put(entry.getKey(), result.build());
-      } catch (Exception e) {
-        String stackTrace = Throwables.getStackTraceAsString(e);
-        queryResults.put(
-            entry.getKey(),
-            WorkflowQueryResult.newBuilder()
-                .setResultType(QueryResultType.QUERY_RESULT_TYPE_FAILED)
-                .setErrorMessage(e.getMessage())
-                .setAnswer(converter.toPayloads(stackTrace).get())
-                .build());
-      }
-    }
-  }
-
-  @Override
   public void close() {
-    lock.lock();
-    try {
-      workflow.close();
-    } finally {
-      lock.unlock();
-    }
+    workflow.close();
   }
 
-  @Override
-  public Optional<Payloads> handleQueryWorkflowTask(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) {
-    lock.lock();
-    try {
-      AtomicReference<Optional<Payloads>> result = new AtomicReference<>();
-      handleWorkflowTaskImpl(workflowTask);
-      result.set(workflow.query(query));
-      return result.get();
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  private void processLocalActivityRequests(long startTime) {
-    long forcedDecisionTimeout =
-        (long)
-            (Durations.toMillis(startedEvent.getWorkflowTaskTimeout())
-                * FORCED_DECISION_TIME_COEFFICIENT);
-    long nextForcedDecisionTime = startTime + forcedDecisionTimeout;
-    while (true) {
-      List<ExecuteLocalActivityParameters> laRequests =
-          workflowStateMachines.takeLocalActivityRequests();
-      for (ExecuteLocalActivityParameters laRequest : laRequests) {
-        // TODO(maxim): In the presence of workflow task heartbeat this timeout doesn't make
-        // much sense. I believe we should add ScheduleToStart timeout for the local activities
-        // as well.
-        Duration maxWaitTime =
-            Duration.ofMillis(nextForcedDecisionTime - System.currentTimeMillis());
-        if (maxWaitTime.isNegative()) {
-          maxWaitTime = Duration.ZERO;
-        }
-        boolean accepted =
-            localActivityTaskPoller.apply(
-                new LocalActivityWorker.Task(
-                    laRequest, localActivityCompletionSink, 10000 /* TODO: Configurable */),
-                maxWaitTime);
-        localActivityTaskCount++;
-        if (!accepted) {
-          throw new Error("Unable to schedule local activity for execution");
-        }
-      }
-      if (localActivityTaskCount == 0) {
-        // No outstanding local activity requests
-        break;
-      }
-      waitAndProcessLocalActivityCompletion(nextForcedDecisionTime);
-      if (nextForcedDecisionTime <= System.currentTimeMillis()) {
-        break;
-      }
-    }
-  }
-
-  private void waitAndProcessLocalActivityCompletion(long nextForcedDecisionTime) {
-    long maxWaitTime = nextForcedDecisionTime - System.currentTimeMillis();
-    if (maxWaitTime <= 0) {
-      return;
-    }
-    ActivityTaskHandler.Result laCompletion;
-    try {
-      laCompletion = localActivityCompletionQueue.poll(maxWaitTime, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      // TODO(maxim): interrupt when worker shutdown is called
-      throw new IllegalStateException("interrupted", e);
-    }
-    if (laCompletion == null) {
-      // Need to force a new task as nextForcedDecisionTime has passed.
-      return;
-    }
-    localActivityTaskCount--;
-    workflowStateMachines.handleLocalActivityCompletion(laCompletion);
-  }
-
-  private class WorkflowHistoryIterable implements Iterable<HistoryEvent> {
-
-    private final Duration retryServiceOperationInitialInterval = Duration.ofMillis(200);
-    private final Duration retryServiceOperationMaxInterval = Duration.ofSeconds(4);
-    private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
-    private final Duration workflowTaskTimeout;
-    private final WorkflowExecution worklowExecution;
-
-    private Iterator<HistoryEvent> current;
-    private ByteString nextPageToken;
-
-    WorkflowHistoryIterable(
-        PollWorkflowTaskQueueResponseOrBuilder task, Duration workflowTaskTimeout) {
-      this.worklowExecution = task.getWorkflowExecution();
-      this.workflowTaskTimeout = Objects.requireNonNull(workflowTaskTimeout);
-
-      History history = task.getHistory();
-      current = history.getEventsList().iterator();
-      nextPageToken = task.getNextPageToken();
-    }
-
-    @Override
-    public Iterator<HistoryEvent> iterator() {
-      return new Iterator<HistoryEvent>() {
-        @Override
-        public boolean hasNext() {
-          return current.hasNext() || !nextPageToken.isEmpty();
-        }
-
-        @Override
-        public HistoryEvent next() {
-          if (current.hasNext()) {
-            return current.next();
-          }
-
-          Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
-          Duration expiration = workflowTaskTimeout.minus(passed);
-          if (expiration.isZero() || expiration.isNegative()) {
-            throw Status.DEADLINE_EXCEEDED
-                .withDescription(
-                    "getWorkflowExecutionHistory pagination took longer than workflow task timeout")
-                .asRuntimeException();
-          }
-          RpcRetryOptions retryOptions =
-              RpcRetryOptions.newBuilder()
-                  .setExpiration(expiration)
-                  .setInitialInterval(retryServiceOperationInitialInterval)
-                  .setMaximumInterval(retryServiceOperationMaxInterval)
-                  .build();
-
-          GetWorkflowExecutionHistoryRequest request =
-              GetWorkflowExecutionHistoryRequest.newBuilder()
-                  .setNamespace(context.getNamespace())
-                  .setExecution(worklowExecution)
-                  .setMaximumPageSize(MAXIMUM_PAGE_SIZE)
-                  .setNextPageToken(nextPageToken)
-                  .build();
-
-          try {
-            GetWorkflowExecutionHistoryResponse r =
-                GrpcRetryer.retryWithResult(
-                    retryOptions,
-                    () ->
-                        service
-                            .blockingStub()
-                            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                            .getWorkflowExecutionHistory(request));
-            current = r.getHistory().getEventsList().iterator();
-            nextPageToken = r.getNextPageToken();
-          } catch (Exception e) {
-            throw new Error(e);
-          }
-          return current.next();
-        }
-      };
-    }
-  }
-
-  private class EntityManagerListenerImpl implements EntityManagerListener {
-    @Override
-    public void start(HistoryEvent startWorkflowEvent) {
-      workflow.start(startWorkflowEvent, context);
-    }
-
-    @Override
-    public void eventLoop() {
-      ReplayWorkflowExecutor.this.eventLoop();
-    }
-
-    @Override
-    public void signal(HistoryEvent signalEvent) {
-      handleWorkflowExecutionSignaled(signalEvent);
-    }
-
-    @Override
-    public void cancel(HistoryEvent cancelEvent) {
-      handleWorkflowExecutionCancelRequested(cancelEvent);
-    }
+  public void start(HistoryEvent startWorkflowEvent) {
+    workflow.start(startWorkflowEvent, context);
   }
 }

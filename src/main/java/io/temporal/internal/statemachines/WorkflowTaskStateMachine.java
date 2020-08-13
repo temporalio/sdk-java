@@ -92,6 +92,7 @@ final class WorkflowTaskStateMachine
                   EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED,
                   State.STARTED,
                   WorkflowTaskStateMachine::handleStarted)
+              .add(State.SCHEDULED, EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT, State.TIMED_OUT)
               .add(
                   State.STARTED,
                   EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED,

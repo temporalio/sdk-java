@@ -154,7 +154,6 @@ public class TimerStateMachineTest {
     long timerStartedEventId = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
     h.add(EventType.EVENT_TYPE_TIMER_FIRED, timerStartedEventId);
     h.addWorkflowTaskScheduledAndStarted();
-    System.out.println(h);
     {
       TestEntityManagerListenerBase listener = new TestTimerImmediateCancellationListener();
       stateMachines = new WorkflowStateMachines(listener);
@@ -259,7 +258,6 @@ public class TimerStateMachineTest {
                 .setStartedEventId(timerStartedEventId2)
                 .setTimerId("timer2"))
         .addWorkflowTaskScheduledAndStarted();
-    System.out.println(h);
     {
       TestTimerCancellationListener listener = new TestTimerCancellationListener();
       stateMachines = new WorkflowStateMachines(listener);

@@ -39,7 +39,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflowContext;
-import io.temporal.internal.replay.WorkflowExecutor;
+import io.temporal.internal.replay.StatefulTaskHandler;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.replay.WorkflowTaskResult;
 import io.temporal.testUtils.HistoryUtils;
@@ -658,11 +658,11 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    WorkflowExecutor workflowExecutor = new DeterministicRunnerTestWorkflowExecutor(d);
+    StatefulTaskHandler statefulTaskHandler = new DeterministicRunnerTestStatefulTaskHandler(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
-    cache.addToCache(response.getWorkflowExecution().getRunId(), workflowExecutor);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> statefulTaskHandler);
+    cache.addToCache(response.getWorkflowExecution().getRunId(), statefulTaskHandler);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -719,11 +719,11 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    WorkflowExecutor workflowExecutor = new DeterministicRunnerTestWorkflowExecutor(d);
+    StatefulTaskHandler statefulTaskHandler = new DeterministicRunnerTestStatefulTaskHandler(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
-    cache.addToCache(response.getWorkflowExecution().getRunId(), workflowExecutor);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> statefulTaskHandler);
+    cache.addToCache(response.getWorkflowExecution().getRunId(), statefulTaskHandler);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -752,10 +752,10 @@ public class DeterministicRunnerTest {
     assertEquals(1, cache.size());
   }
 
-  private static class DeterministicRunnerTestWorkflowExecutor implements WorkflowExecutor {
+  private static class DeterministicRunnerTestStatefulTaskHandler implements StatefulTaskHandler {
     DeterministicRunner runner;
 
-    DeterministicRunnerTestWorkflowExecutor(DeterministicRunner runner) {
+    DeterministicRunnerTestStatefulTaskHandler(DeterministicRunner runner) {
       this.runner = Objects.requireNonNull(runner);
     }
 
@@ -774,11 +774,6 @@ public class DeterministicRunnerTest {
     @Override
     public void close() {
       runner.close();
-    }
-
-    @Override
-    public Duration getWorkflowTaskTimeout() {
-      return Duration.ofSeconds(10);
     }
   }
 

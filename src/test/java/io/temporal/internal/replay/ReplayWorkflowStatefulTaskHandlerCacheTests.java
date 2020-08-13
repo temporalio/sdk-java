@@ -49,7 +49,7 @@ import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ReplayWorkflowExecutorCacheTests {
+public class ReplayWorkflowStatefulTaskHandlerCacheTests {
 
   private Scope metricsScope;
   private TestStatsReporter reporter;
@@ -73,12 +73,12 @@ public class ReplayWorkflowExecutorCacheTests {
     assertCacheIsEmpty(cache, runId);
 
     // Act
-    WorkflowExecutor workflowExecutor =
+    StatefulTaskHandler statefulTaskHandler =
         cache.getOrCreate(workflowTask, metricsScope, () -> createFakeExecutor(workflowTask));
 
     // Assert
     assertNotEquals(
-        workflowExecutor,
+        statefulTaskHandler,
         cache.getOrCreate(workflowTask, metricsScope, () -> createFakeExecutor(workflowTask)));
   }
 
@@ -93,28 +93,28 @@ public class ReplayWorkflowExecutorCacheTests {
         HistoryUtils.generateWorkflowTaskWithInitialHistory(
             "namespace", "taskQueue", "workflowType", service);
 
-    WorkflowExecutor workflowExecutor =
+    StatefulTaskHandler statefulTaskHandler =
         cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowExecutor);
+    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), statefulTaskHandler);
 
     PollWorkflowTaskQueueResponse workflowTask2 =
         HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
             workflowTask1, "namespace", "stickyTaskQueue", service);
 
     assertEquals(
-        workflowExecutor,
+        statefulTaskHandler,
         cache.getOrCreate(
             workflowTask2, metricsScope, () -> doNotCreateFakeExecutor(workflowTask2)));
 
     // Act
-    WorkflowExecutor workflowExecutor2 =
+    StatefulTaskHandler statefulTaskHandler2 =
         cache.getOrCreate(workflowTask2, metricsScope, () -> createFakeExecutor(workflowTask2));
 
     // Assert
     assertEquals(
-        workflowExecutor2,
+        statefulTaskHandler2,
         cache.getOrCreate(workflowTask2, metricsScope, () -> createFakeExecutor(workflowTask2)));
-    assertSame(workflowExecutor2, workflowExecutor);
+    assertSame(statefulTaskHandler2, statefulTaskHandler);
     service.shutdownNow();
     try {
       service.awaitTermination(1, TimeUnit.SECONDS);
@@ -141,15 +141,15 @@ public class ReplayWorkflowExecutorCacheTests {
           HistoryUtils.generateWorkflowTaskWithInitialHistory(
               "namespace", "taskQueue", "workflowType", service);
 
-      WorkflowExecutor workflowExecutor =
+      StatefulTaskHandler statefulTaskHandler =
           cache.getOrCreate(workflowTask, scope, () -> createFakeExecutor(workflowTask));
-      cache.addToCache(workflowTask.getWorkflowExecution().getRunId(), workflowExecutor);
+      cache.addToCache(workflowTask.getWorkflowExecution().getRunId(), statefulTaskHandler);
 
       // Act
       PollWorkflowTaskQueueResponse workflowTask2 =
           HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
               workflowTask, "namespace", "stickyTaskQueue", service);
-      WorkflowExecutor workflowExecutor2 =
+      StatefulTaskHandler statefulTaskHandler2 =
           cache.getOrCreate(workflowTask2, scope, () -> doNotCreateFakeExecutor(workflowTask2));
 
       // Assert
@@ -157,7 +157,7 @@ public class ReplayWorkflowExecutorCacheTests {
       Thread.sleep(100);
       reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
 
-      assertEquals(workflowExecutor, workflowExecutor2);
+      assertEquals(statefulTaskHandler, statefulTaskHandler2);
     } finally {
       service.shutdownNow();
       service.awaitTermination(1, TimeUnit.SECONDS);
@@ -212,15 +212,15 @@ public class ReplayWorkflowExecutorCacheTests {
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     // Act
-    WorkflowExecutor workflowExecutor =
+    StatefulTaskHandler statefulTaskHandler =
         cache.getOrCreate(workflowTask1, scope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowExecutor);
-    workflowExecutor =
+    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), statefulTaskHandler);
+    statefulTaskHandler =
         cache.getOrCreate(workflowTask2, scope, () -> createFakeExecutor(workflowTask2));
-    cache.addToCache(workflowTask2.getWorkflowExecution().getRunId(), workflowExecutor);
-    workflowExecutor =
+    cache.addToCache(workflowTask2.getWorkflowExecution().getRunId(), statefulTaskHandler);
+    statefulTaskHandler =
         cache.getOrCreate(workflowTask3, scope, () -> createFakeExecutor(workflowTask3));
-    cache.addToCache(workflowTask3.getWorkflowExecution().getRunId(), workflowExecutor);
+    cache.addToCache(workflowTask3.getWorkflowExecution().getRunId(), statefulTaskHandler);
 
     assertEquals(3, cache.size());
 
@@ -242,9 +242,9 @@ public class ReplayWorkflowExecutorCacheTests {
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     // Act
-    WorkflowExecutor workflowExecutor =
+    StatefulTaskHandler statefulTaskHandler =
         cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowExecutor);
+    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), statefulTaskHandler);
 
     assertEquals(1, cache.size());
 
@@ -268,14 +268,15 @@ public class ReplayWorkflowExecutorCacheTests {
     TestCase.assertNotNull(ex);
   }
 
-  private ReplayWorkflowExecutor doNotCreateFakeExecutor(
+  private ReplayWorkflowStatefulTaskHandler doNotCreateFakeExecutor(
       @SuppressWarnings("unused") PollWorkflowTaskQueueResponse response) {
     fail("should not be called");
     return null;
   }
 
-  private ReplayWorkflowExecutor createFakeExecutor(PollWorkflowTaskQueueResponse response) {
-    return new ReplayWorkflowExecutor(
+  private ReplayWorkflowStatefulTaskHandler createFakeExecutor(
+      PollWorkflowTaskQueueResponse response) {
+    return new ReplayWorkflowStatefulTaskHandler(
         null,
         "namespace",
         new ReplayWorkflow() {

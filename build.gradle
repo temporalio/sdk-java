@@ -16,7 +16,7 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
-    id 'name.remal.check-updates' version '1.0.203'
+    id 'name.remal.check-updates' version '1.0.209'
 }
 
 repositories {
@@ -98,15 +98,15 @@ dependencies {
     api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
     api group: 'io.micrometer', name: 'micrometer-core', version: '1.5.2'
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
-    api 'io.grpc:grpc-protobuf:1.30.2'
-    api 'io.grpc:grpc-stub:1.30.2'
+    api 'io.grpc:grpc-protobuf:1.31.1'
+    api 'io.grpc:grpc-stub:1.31.1'
 
     implementation group: 'com.google.guava', name: 'guava', version: '29.0-jre'
-    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.0'
-    implementation 'io.grpc:grpc-netty-shaded:1.30.2'
-    implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.12.2'
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.1'
-    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.1'
+    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.1'
+    implementation 'io.grpc:grpc-netty-shaded:1.31.1'
+    implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.12.4'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.2'
+    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.2'
 
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     testImplementation group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
@@ -143,11 +143,11 @@ jar {
 
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.12.3'
+        artifact = 'com.google.protobuf:protoc:3.12.4'
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.30.2'
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.31.1'
         }
     }
     generateProtoTasks {
