@@ -154,8 +154,8 @@ final class SideEffectStateMachine
           "Expected " + SIDE_EFFECT_MARKER_NAME + ", received: " + attributes);
     }
     Map<String, Payloads> map = attributes.getDetailsMap();
-    Optional<Payloads> fromMaker = Optional.ofNullable(map.get(MARKER_DATA_KEY));
-    callback.apply(fromMaker);
+    Optional<Payloads> fromMarker = Optional.ofNullable(map.get(MARKER_DATA_KEY));
+    callback.apply(fromMarker);
   }
 
   private void markerResultFromFunc() {

@@ -162,7 +162,7 @@ final class VersionStateMachine {
               .getMarkerName()
               .equals(VERSION_MARKER_NAME)) {
         explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
-        return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
+        return WorkflowStateMachines.HandleEventStatus.NON_MATCHING_EVENT;
       }
       Map<String, Payloads> detailsMap = event.getMarkerRecordedEventAttributes().getDetailsMap();
       Optional<Payloads> idPayloads = Optional.ofNullable(detailsMap.get(MARKER_CHANGE_ID_KEY));
@@ -175,7 +175,7 @@ final class VersionStateMachine {
         // Do not call explicitEvent(ExplicitEvent.NON_MATCHING_EVENT) here as the event with
         // different changeId
         // still can be followed by an event with our changeId.
-        return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
+        return WorkflowStateMachines.HandleEventStatus.NON_MATCHING_EVENT;
       }
       super.handleEvent(event, hasNextEvent);
       return WorkflowStateMachines.HandleEventStatus.OK;

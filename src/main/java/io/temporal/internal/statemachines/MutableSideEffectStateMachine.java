@@ -156,7 +156,7 @@ final class MutableSideEffectStateMachine {
               .getMarkerName()
               .equals(MUTABLE_SIDE_EFFECT_MARKER_NAME)) {
         explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
-        return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
+        return WorkflowStateMachines.HandleEventStatus.NON_MATCHING_EVENT;
       }
       Map<String, Payloads> detailsMap = event.getMarkerRecordedEventAttributes().getDetailsMap();
       Optional<Payloads> idPayloads = Optional.ofNullable(detailsMap.get(MARKER_ID_KEY));
@@ -166,8 +166,8 @@ final class MutableSideEffectStateMachine {
             "Marker details map missing required key: " + MARKER_ID_KEY);
       }
       if (!id.equals(expectedId)) {
-        //        explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
-        return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
+        explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
+        return WorkflowStateMachines.HandleEventStatus.NON_MATCHING_EVENT;
       }
       super.handleEvent(event, hasNextEvent);
       return WorkflowStateMachines.HandleEventStatus.OK;

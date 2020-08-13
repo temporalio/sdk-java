@@ -67,7 +67,7 @@ class CancellableCommand {
   public WorkflowStateMachines.HandleEventStatus handleEvent(
       HistoryEvent event, boolean hasNextEvent) {
     if (canceled) {
-      return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
+      return WorkflowStateMachines.HandleEventStatus.NON_MATCHING_EVENT;
     }
     return entityStateMachine.handleEvent(event, hasNextEvent);
   }

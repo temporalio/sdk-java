@@ -55,7 +55,7 @@ class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateM
   public WorkflowStateMachines.HandleEventStatus handleEvent(
       HistoryEvent event, boolean hasNextEvent) {
     if (!stateMachine.getValidEventTypes().contains(event.getEventType())) {
-      return WorkflowStateMachines.HandleEventStatus.NOT_MATCHING_EVENT;
+      return WorkflowStateMachines.HandleEventStatus.NON_MATCHING_EVENT;
     }
     this.currentEvent = event;
     this.hasNextEvent = hasNextEvent;

@@ -71,7 +71,7 @@ public final class WorkflowStateMachines {
 
   enum HandleEventStatus {
     OK,
-    NOT_MATCHING_EVENT,
+    NON_MATCHING_EVENT,
   }
 
   private final DataConverter dataConverter = DataConverter.getDefaultInstance();
@@ -245,7 +245,7 @@ public final class WorkflowStateMachines {
       // Note that handleEvent can cause a command cancellation in case
       // of MutableSideEffect
       HandleEventStatus status = command.handleEvent(event, true);
-      if (status == HandleEventStatus.NOT_MATCHING_EVENT) {
+      if (status == HandleEventStatus.NON_MATCHING_EVENT) {
         if (handleVersionMarker(event)) {
           // return without consuming the command as this event is a version marker for removed
           // getVersion call.

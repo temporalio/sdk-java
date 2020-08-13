@@ -53,7 +53,7 @@ class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
     return initialCommandEventId;
   }
 
-  /** Sets initialCommandEventId ot the currentEvent eventId. */
+  /** Sets initialCommandEventId to the currentEvent eventId. */
   protected void setInitialCommandEventId() {
     this.initialCommandEventId = currentEvent.getEventId();
   }
