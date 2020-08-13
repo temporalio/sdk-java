@@ -166,15 +166,12 @@ public final class LocalActivityWorker implements SuspendableWorker {
     private final ExecuteLocalActivityParameters params;
     private final Functions.Proc1<ActivityTaskHandler.Result> eventConsumer;
     long taskStartTime;
-    private final int localRetryThreshold;
 
     public Task(
         ExecuteLocalActivityParameters params,
-        Functions.Proc1<ActivityTaskHandler.Result> eventConsumer,
-        int localRetryThresholdMillis) {
+        Functions.Proc1<ActivityTaskHandler.Result> eventConsumer) {
       this.params = params;
       this.eventConsumer = eventConsumer;
-      this.localRetryThreshold = localRetryThresholdMillis;
     }
 
     public String getActivityId() {
@@ -260,7 +257,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       // For small backoff we do local retry. Otherwise we will schedule timer on server side.
       // TODO(maxim): Use timer queue for retries to avoid tying up a thread.
-      if (elapsedTask + sleepMillis < task.localRetryThreshold * 1000) {
+      if (elapsedTask + sleepMillis < task.params.getLocalRetryThreshold().toMillis()) {
         Thread.sleep(sleepMillis);
         activityTask.setAttempt(attempt + 1);
         return handleLocalActivity(task);

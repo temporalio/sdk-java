@@ -20,21 +20,34 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import java.time.Duration;
 
 public class ExecuteLocalActivityParameters {
 
   private final PollActivityTaskQueueResponse.Builder activityTask;
+  private final Duration localRetryThreshold;
 
-  public ExecuteLocalActivityParameters(PollActivityTaskQueueResponse.Builder activityTask) {
+  public ExecuteLocalActivityParameters(
+      PollActivityTaskQueueResponse.Builder activityTask, Duration localRetryThreshold) {
     this.activityTask = activityTask;
+    this.localRetryThreshold = localRetryThreshold;
   }
 
   public PollActivityTaskQueueResponse.Builder getActivityTask() {
     return activityTask;
   }
 
+  public Duration getLocalRetryThreshold() {
+    return localRetryThreshold;
+  }
+
   @Override
   public String toString() {
-    return "ExecuteLocalActivityParameters{activityTask=" + activityTask + "}";
+    return "ExecuteLocalActivityParameters{"
+        + "activityTask="
+        + activityTask
+        + ", localRetryThreshold="
+        + localRetryThreshold
+        + '}';
   }
 }

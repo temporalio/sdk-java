@@ -44,6 +44,8 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceStubsImpl.class);
 
+  private static final int MAX_INBOUND_MESSAGE_SIZE = 25_000_000;
+
   /** refers to the name of the gRPC header that contains the client library version */
   private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
       Metadata.Key.of("temporal-client-version", Metadata.ASCII_STRING_MARSHALLER);
@@ -106,7 +108,8 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     } else {
       NettyChannelBuilder builder =
           NettyChannelBuilder.forTarget(options.getTarget())
-              .defaultLoadBalancingPolicy("round_robin");
+              .defaultLoadBalancingPolicy("round_robin")
+              .maxInboundMessageSize(MAX_INBOUND_MESSAGE_SIZE);
 
       if (options.getSslContext() == null && !options.getEnableHttps()) {
         builder.usePlaintext();

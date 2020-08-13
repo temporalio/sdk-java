@@ -39,8 +39,8 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflowContext;
-import io.temporal.internal.replay.WorkflowRunTaskHandler;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.replay.WorkflowRunTaskHandler;
 import io.temporal.internal.replay.WorkflowTaskResult;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
@@ -658,7 +658,8 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    WorkflowRunTaskHandler workflowRunTaskHandler = new DeterministicRunnerTestWorkflowRunTaskHandler(d);
+    WorkflowRunTaskHandler workflowRunTaskHandler =
+        new DeterministicRunnerTestWorkflowRunTaskHandler(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowRunTaskHandler);
@@ -719,7 +720,8 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    WorkflowRunTaskHandler workflowRunTaskHandler = new DeterministicRunnerTestWorkflowRunTaskHandler(d);
+    WorkflowRunTaskHandler workflowRunTaskHandler =
+        new DeterministicRunnerTestWorkflowRunTaskHandler(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowRunTaskHandler);
@@ -752,7 +754,8 @@ public class DeterministicRunnerTest {
     assertEquals(1, cache.size());
   }
 
-  private static class DeterministicRunnerTestWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
+  private static class DeterministicRunnerTestWorkflowRunTaskHandler
+      implements WorkflowRunTaskHandler {
     DeterministicRunner runner;
 
     DeterministicRunnerTestWorkflowRunTaskHandler(DeterministicRunner runner) {

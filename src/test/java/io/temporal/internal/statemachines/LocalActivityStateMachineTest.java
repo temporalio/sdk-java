@@ -85,17 +85,20 @@ public class LocalActivityStateMachineTest {
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id1")
-                    .setActivityType(ActivityType.newBuilder().setName("activity1")));
+                    .setActivityType(ActivityType.newBuilder().setName("activity1")),
+                null);
         ExecuteLocalActivityParameters parameters2 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id2")
-                    .setActivityType(ActivityType.newBuilder().setName("activity2")));
+                    .setActivityType(ActivityType.newBuilder().setName("activity2")),
+                null);
         ExecuteLocalActivityParameters parameters3 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id3")
-                    .setActivityType(ActivityType.newBuilder().setName("activity3")));
+                    .setActivityType(ActivityType.newBuilder().setName("activity3")),
+                null);
 
         builder
             .<Optional<Payloads>, Failure>add2(
@@ -264,7 +267,8 @@ public class LocalActivityStateMachineTest {
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id1")
-                    .setActivityType(ActivityType.newBuilder().setName("activity1")));
+                    .setActivityType(ActivityType.newBuilder().setName("activity1")),
+                null);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))

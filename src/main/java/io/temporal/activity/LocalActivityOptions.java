@@ -48,6 +48,7 @@ public final class LocalActivityOptions {
 
   public static final class Builder {
     private Duration scheduleToCloseTimeout;
+    private Duration localRetryThreshold;
     private Duration startToCloseTimeout;
     private RetryOptions retryOptions;
 
@@ -57,6 +58,7 @@ public final class LocalActivityOptions {
         return;
       }
       this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
+      this.localRetryThreshold = options.getLocalRetryThreshold();
       this.startToCloseTimeout = options.getStartToCloseTimeout();
       this.retryOptions = options.retryOptions;
     }
@@ -64,6 +66,15 @@ public final class LocalActivityOptions {
     /** Overall timeout workflow is willing to wait for activity to complete. */
     public Builder setScheduleToCloseTimeout(Duration scheduleToCloseTimeout) {
       this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+      return this;
+    }
+
+    /**
+     * Maximum time to retry locally keeping workflow task open through heartbeat. Default is 6
+     * workflow task timeout.
+     */
+    public Builder setLocalRetryThreshold(Duration localRetryThreshold) {
+      this.localRetryThreshold = localRetryThreshold;
       return this;
     }
 
@@ -93,7 +104,8 @@ public final class LocalActivityOptions {
     }
 
     public LocalActivityOptions build() {
-      return new LocalActivityOptions(scheduleToCloseTimeout, startToCloseTimeout, retryOptions);
+      return new LocalActivityOptions(
+          startToCloseTimeout, localRetryThreshold, scheduleToCloseTimeout, retryOptions);
     }
 
     public LocalActivityOptions validateAndBuildWithDefaults() {
@@ -101,16 +113,22 @@ public final class LocalActivityOptions {
       if (retryOptions != null) {
         ro = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
       }
-      return new LocalActivityOptions(scheduleToCloseTimeout, startToCloseTimeout, ro);
+      return new LocalActivityOptions(
+          startToCloseTimeout, localRetryThreshold, scheduleToCloseTimeout, ro);
     }
   }
 
   private final Duration scheduleToCloseTimeout;
+  private final Duration localRetryThreshold;
   private final Duration startToCloseTimeout;
   private final RetryOptions retryOptions;
 
   private LocalActivityOptions(
-      Duration scheduleToCloseTimeout, Duration startToCloseTimeout, RetryOptions retryOptions) {
+      Duration startToCloseTimeout,
+      Duration localRetryThreshold,
+      Duration scheduleToCloseTimeout,
+      RetryOptions retryOptions) {
+    this.localRetryThreshold = localRetryThreshold;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     this.startToCloseTimeout = startToCloseTimeout;
     this.retryOptions = retryOptions;
@@ -118,6 +136,10 @@ public final class LocalActivityOptions {
 
   public Duration getScheduleToCloseTimeout() {
     return scheduleToCloseTimeout;
+  }
+
+  public Duration getLocalRetryThreshold() {
+    return localRetryThreshold;
   }
 
   public Duration getStartToCloseTimeout() {

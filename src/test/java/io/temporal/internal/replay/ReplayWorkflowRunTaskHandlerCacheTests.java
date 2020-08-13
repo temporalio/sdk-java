@@ -78,7 +78,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
     // Assert
     assertNotEquals(
-            workflowRunTaskHandler,
+        workflowRunTaskHandler,
         cache.getOrCreate(workflowTask, metricsScope, () -> createFakeExecutor(workflowTask)));
   }
 
@@ -102,7 +102,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
             workflowTask1, "namespace", "stickyTaskQueue", service);
 
     assertEquals(
-            workflowRunTaskHandler,
+        workflowRunTaskHandler,
         cache.getOrCreate(
             workflowTask2, metricsScope, () -> doNotCreateFakeExecutor(workflowTask2)));
 
@@ -112,7 +112,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
     // Assert
     assertEquals(
-            workflowRunTaskHandler2,
+        workflowRunTaskHandler2,
         cache.getOrCreate(workflowTask2, metricsScope, () -> createFakeExecutor(workflowTask2)));
     assertSame(workflowRunTaskHandler2, workflowRunTaskHandler);
     service.shutdownNow();
@@ -274,8 +274,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     return null;
   }
 
-  private ReplayWorkflowRunTaskHandler createFakeExecutor(
-      PollWorkflowTaskQueueResponse response) {
+  private ReplayWorkflowRunTaskHandler createFakeExecutor(PollWorkflowTaskQueueResponse response) {
     return new ReplayWorkflowRunTaskHandler(
         null,
         "namespace",
