@@ -36,7 +36,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public final class WorkflowExecutorCache {
   private final Scope metricsScope;
-  private final LoadingCache<String, StatefulTaskHandler> cache;
+  private final LoadingCache<String, WorkflowRunTaskHandler> cache;
   private final Lock cacheLock = new ReentrantLock();
   private final Set<String> inProcessing = new HashSet<>();
 
@@ -48,24 +48,24 @@ public final class WorkflowExecutorCache {
             .maximumSize(workflowCacheSize)
             .removalListener(
                 e -> {
-                  StatefulTaskHandler entry = (StatefulTaskHandler) e.getValue();
+                  WorkflowRunTaskHandler entry = (WorkflowRunTaskHandler) e.getValue();
                   if (entry != null) {
                     entry.close();
                   }
                 })
             .build(
-                new CacheLoader<String, StatefulTaskHandler>() {
+                new CacheLoader<String, WorkflowRunTaskHandler>() {
                   @Override
-                  public StatefulTaskHandler load(String key) {
+                  public WorkflowRunTaskHandler load(String key) {
                     return null;
                   }
                 });
   }
 
-  public StatefulTaskHandler getOrCreate(
+  public WorkflowRunTaskHandler getOrCreate(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       Scope metricsScope,
-      Callable<StatefulTaskHandler> workflowExecutorFn)
+      Callable<WorkflowRunTaskHandler> workflowExecutorFn)
       throws Exception {
     String runId = workflowTask.getWorkflowExecution().getRunId();
     if (isFullHistory(workflowTask)) {
@@ -73,21 +73,21 @@ public final class WorkflowExecutorCache {
       return workflowExecutorFn.call();
     }
 
-    StatefulTaskHandler statefulTaskHandler = getForProcessing(runId, metricsScope);
-    if (statefulTaskHandler != null) {
-      return statefulTaskHandler;
+    WorkflowRunTaskHandler workflowRunTaskHandler = getForProcessing(runId, metricsScope);
+    if (workflowRunTaskHandler != null) {
+      return workflowRunTaskHandler;
     }
     return workflowExecutorFn.call();
   }
 
-  private StatefulTaskHandler getForProcessing(String runId, Scope metricsScope)
+  private WorkflowRunTaskHandler getForProcessing(String runId, Scope metricsScope)
       throws ExecutionException {
     cacheLock.lock();
     try {
-      StatefulTaskHandler statefulTaskHandler = cache.get(runId);
+      WorkflowRunTaskHandler workflowRunTaskHandler = cache.get(runId);
       inProcessing.add(runId);
       metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
-      return statefulTaskHandler;
+      return workflowRunTaskHandler;
     } catch (CacheLoader.InvalidCacheLoadException e) {
       // We don't have a default loader and don't want to have one. So it's ok to get null value.
       metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
@@ -106,8 +106,8 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  public void addToCache(String runId, StatefulTaskHandler statefulTaskHandler) {
-    cache.put(runId, statefulTaskHandler);
+  public void addToCache(String runId, WorkflowRunTaskHandler workflowRunTaskHandler) {
+    cache.put(runId, workflowRunTaskHandler);
   }
 
   public boolean evictAnyNotInProcessing(String runId, Scope metricsScope) {

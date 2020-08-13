@@ -30,7 +30,7 @@ import java.util.Optional;
  *
  * <p>Instances of this object can be cached in between workflow tasks.
  */
-public interface StatefulTaskHandler {
+public interface WorkflowRunTaskHandler {
 
   /**
    * Handles a single workflow task.

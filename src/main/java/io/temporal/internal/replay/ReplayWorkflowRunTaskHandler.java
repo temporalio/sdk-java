@@ -19,9 +19,6 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
-import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
-
 import com.google.common.base.Throwables;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
@@ -45,6 +42,7 @@ import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -59,11 +57,14 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
+import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
+import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
+
 /**
  * Implements workflow executor that relies on replay of a workflow code. An instance of this class
  * is created per cached workflow run.
  */
-class ReplayWorkflowStatefulTaskHandler implements StatefulTaskHandler {
+class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
   /** Force new decision task after workflow task timeout multiplied by this coefficient. */
   public static final double FORCED_DECISION_TIME_COEFFICIENT = 4d / 5d;
@@ -98,7 +99,7 @@ class ReplayWorkflowStatefulTaskHandler implements StatefulTaskHandler {
 
   private final ReplayWorkflowExecutor replayWorkflowExecutor;
 
-  ReplayWorkflowStatefulTaskHandler(
+  ReplayWorkflowRunTaskHandler(
       WorkflowServiceStubs service,
       String namespace,
       ReplayWorkflow workflow,

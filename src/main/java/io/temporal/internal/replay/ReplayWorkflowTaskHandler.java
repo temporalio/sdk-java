@@ -172,16 +172,16 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     return new WorkflowTaskHandler.Result(workflowType, null, failedRequest, null, null, false);
   }
 
-  private StatefulTaskHandler getOrCreateWorkflowExecutor(
+  private WorkflowRunTaskHandler getOrCreateWorkflowExecutor(
       PollWorkflowTaskQueueResponse.Builder workflowTask,
       Scope metricsScope,
       AtomicBoolean createdNew)
       throws Exception {
-    StatefulTaskHandler statefulTaskHandler;
+    WorkflowRunTaskHandler workflowRunTaskHandler;
     if (stickyTaskQueueName == null) {
-      statefulTaskHandler = createStatefulHandler(workflowTask, metricsScope);
+      workflowRunTaskHandler = createStatefulHandler(workflowTask, metricsScope);
     } else {
-      statefulTaskHandler =
+      workflowRunTaskHandler =
           cache.getOrCreate(
               workflowTask,
               metricsScope,
@@ -190,7 +190,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 return createStatefulHandler(workflowTask, metricsScope);
               });
     }
-    return statefulTaskHandler;
+    return workflowRunTaskHandler;
   }
 
   private Result handleWorkflowTaskWithEmbeddedQuery(
@@ -198,22 +198,22 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     AtomicBoolean createdNew = new AtomicBoolean();
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
     String runId = execution.getRunId();
-    StatefulTaskHandler statefulTaskHandler = null;
+    WorkflowRunTaskHandler workflowRunTaskHandler = null;
     try {
-      statefulTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
-      WorkflowTaskResult result = statefulTaskHandler.handleWorkflowTask(workflowTask);
+      workflowRunTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
+      WorkflowTaskResult result = workflowRunTaskHandler.handleWorkflowTask(workflowTask);
       if (result.isFinalCommand()) {
         cache.invalidate(runId, metricsScope);
       } else if (stickyTaskQueueName != null && createdNew.get()) {
-        cache.addToCache(runId, statefulTaskHandler);
+        cache.addToCache(runId, workflowRunTaskHandler);
       }
       return createCompletedRequest(workflowTask.getWorkflowType().getName(), workflowTask, result);
     } catch (Throwable e) {
       // Note here that the executor might not be in the cache, even when the caching is on. In that
       // case we need to close the executor explicitly. For items in the cache, invalidation
       // callback will try to close again, which should be ok.
-      if (statefulTaskHandler != null) {
-        statefulTaskHandler.close();
+      if (workflowRunTaskHandler != null) {
+        workflowRunTaskHandler.close();
       }
 
       if (stickyTaskQueueName != null) {
@@ -221,8 +221,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
       throw e;
     } finally {
-      if (stickyTaskQueueName == null && statefulTaskHandler != null) {
-        statefulTaskHandler.close();
+      if (stickyTaskQueueName == null && workflowRunTaskHandler != null) {
+        workflowRunTaskHandler.close();
       } else {
         cache.markProcessingDone(runId);
       }
@@ -235,14 +235,14 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         RespondQueryTaskCompletedRequest.newBuilder().setTaskToken(workflowTask.getTaskToken());
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
     String runId = execution.getRunId();
-    StatefulTaskHandler statefulTaskHandler = null;
+    WorkflowRunTaskHandler workflowRunTaskHandler = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
-      statefulTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
+      workflowRunTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
       Optional<Payloads> queryResult =
-          statefulTaskHandler.handleQueryWorkflowTask(workflowTask, workflowTask.getQuery());
+          workflowRunTaskHandler.handleQueryWorkflowTask(workflowTask, workflowTask.getQuery());
       if (stickyTaskQueueName != null && createdNew.get()) {
-        cache.addToCache(runId, statefulTaskHandler);
+        cache.addToCache(runId, workflowRunTaskHandler);
       }
       if (queryResult.isPresent()) {
         queryCompletedRequest.setQueryResult(queryResult.get());
@@ -256,8 +256,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       queryCompletedRequest.setErrorMessage(sw.toString());
       queryCompletedRequest.setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED);
     } finally {
-      if (stickyTaskQueueName == null && statefulTaskHandler != null) {
-        statefulTaskHandler.close();
+      if (stickyTaskQueueName == null && workflowRunTaskHandler != null) {
+        workflowRunTaskHandler.close();
       } else {
         cache.markProcessingDone(runId);
       }
@@ -327,7 +327,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   }
 
   // TODO(maxim): Consider refactoring that avoids mutating workflow task.
-  private StatefulTaskHandler createStatefulHandler(
+  private WorkflowRunTaskHandler createStatefulHandler(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();
@@ -348,7 +348,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           .setNextPageToken(getHistoryResponse.getNextPageToken());
     }
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
-    return new ReplayWorkflowStatefulTaskHandler(
+    return new ReplayWorkflowRunTaskHandler(
         service, namespace, workflow, workflowTask, options, metricsScope, localActivityTaskPoller);
   }
 }
