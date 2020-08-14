@@ -176,7 +176,7 @@ public final class ActivityWorker implements SuspendableWorker {
       metricsScope
           .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
           .record(
-              ProtobufTimeUtils.ToM3Duration(
+              ProtobufTimeUtils.toM3Duration(
                   task.getStartedTime(), task.getCurrentAttemptScheduledTime()));
 
       // The following tags are for logging.
@@ -198,19 +198,22 @@ public final class ActivityWorker implements SuspendableWorker {
         sendReply(task, response, metricsScope);
 
         Duration duration =
-            ProtobufTimeUtils.ToM3DurationSinceNow(task.getCurrentAttemptScheduledTime());
+            ProtobufTimeUtils.toM3DurationSinceNow(task.getCurrentAttemptScheduledTime());
         metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
 
       } catch (FailureWrapperException e) {
         Failure failure = e.getFailure();
         if (failure.hasCanceledFailureInfo()) {
           CanceledFailureInfo info = failure.getCanceledFailureInfo();
-          RespondActivityTaskCanceledRequest.Builder cancelledRequest =
+          RespondActivityTaskCanceledRequest.Builder canceledRequest =
               RespondActivityTaskCanceledRequest.newBuilder().setIdentity(options.getIdentity());
           if (info.hasDetails()) {
-            cancelledRequest.setDetails(info.getDetails());
+            canceledRequest.setDetails(info.getDetails());
           }
-          sendReply(task, new Result(null, null, cancelledRequest.build(), null), metricsScope);
+          sendReply(
+              task,
+              new Result(task.getActivityId(), null, null, canceledRequest.build(), null),
+              metricsScope);
         }
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
@@ -294,10 +297,10 @@ public final class ActivityWorker implements SuspendableWorker {
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                       .respondActivityTaskFailed(request));
         } else {
-          RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
-          if (taskCancelled != null) {
+          RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
+          if (taskCanceled != null) {
             RespondActivityTaskCanceledRequest request =
-                taskCancelled
+                taskCanceled
                     .toBuilder()
                     .setTaskToken(task.getTaskToken())
                     .setIdentity(options.getIdentity())

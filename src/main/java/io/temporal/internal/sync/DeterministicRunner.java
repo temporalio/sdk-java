@@ -22,7 +22,6 @@ package io.temporal.internal.sync;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
-import io.temporal.workflow.Workflow;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
@@ -45,7 +44,6 @@ interface DeterministicRunner {
    * Create new instance of DeterministicRunner
    *
    * @param workflowContext workflow context to use
-   * @param clock Supplier that returns current time that sync should use
    * @param root function that root thread of the runner executes.
    * @param cache WorkflowExecutorCache used cache inflight workflows. New workflow threads will
    *     evict this cache when the thread pool runs out
@@ -54,30 +52,21 @@ interface DeterministicRunner {
   static DeterministicRunner newRunner(
       ExecutorService threadPool,
       SyncWorkflowContext workflowContext,
-      Supplier<Long> clock,
-      String rootThreadName,
       Runnable root,
       WorkflowExecutorCache cache) {
-    return new DeterministicRunnerImpl(
-        threadPool, workflowContext, clock, rootThreadName, root, cache);
+    return new DeterministicRunnerImpl(threadPool, workflowContext, root, cache);
   }
 
   /**
    * Create new instance of DeterministicRunner
    *
    * @param workflowContext workflow context to use
-   * @param clock Supplier that returns current time that sync should use
    * @param root function that root thread of the runner executes.
    * @return instance of the DeterministicRunner.
    */
   static DeterministicRunner newRunner(
-      ExecutorService threadPool,
-      SyncWorkflowContext workflowContext,
-      Supplier<Long> clock,
-      String rootThreadName,
-      Runnable root) {
-    return new DeterministicRunnerImpl(
-        threadPool, workflowContext, clock, rootThreadName, root, null);
+      ExecutorService threadPool, SyncWorkflowContext workflowContext, Runnable root) {
+    return new DeterministicRunnerImpl(threadPool, workflowContext, root, null);
   }
 
   /**
@@ -108,15 +97,6 @@ interface DeterministicRunner {
 
   /** Stack trace of all threads owned by the DeterministicRunner instance */
   String stackTrace();
-
-  /** @return time according to a clock configured with the Runner. */
-  long currentTimeMillis();
-
-  /**
-   * @return time at which workflow can make progress. For example when {@link Workflow#sleep(long)}
-   *     expires. 0 means that no time related blockages.
-   */
-  long getNextWakeUpTime();
 
   /**
    * Executes a runnable in a specially created workflow thread. This newly created thread is given

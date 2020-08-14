@@ -53,7 +53,7 @@ class SyncWorkflow implements ReplayWorkflow {
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
   WorkflowImplementationOptions workflowImplementationOptions;
-  private WorkflowExecutorCache cache;
+  private final WorkflowExecutorCache cache;
   private WorkflowExecuteRunnable workflowProc;
   private DeterministicRunner runner;
 
@@ -111,8 +111,6 @@ class SyncWorkflow implements ReplayWorkflow {
         DeterministicRunner.newRunner(
             threadPool,
             syncContext,
-            context::currentTimeMillis,
-            "interceptor-init",
             () -> {
               workflow.initialize();
               WorkflowInternal.newThread(
@@ -136,7 +134,6 @@ class SyncWorkflow implements ReplayWorkflow {
     if (runner == null) {
       return false;
     }
-    workflowProc.fireTimers();
     runner.runUntilAllBlocked();
     return runner.isDone() || workflowProc.isDone(); // Do not wait for all other threads.
   }
@@ -159,14 +156,6 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public long getNextWakeUpTime() {
-    if (runner == null) {
-      throw new IllegalStateException("Start not called");
-    }
-    return runner.getNextWakeUpTime();
-  }
-
-  @Override
   public Optional<Payloads> query(WorkflowQuery query) {
     if (WorkflowClient.QUERY_TYPE_REPLAY_ONLY.equals(query.getQueryType())) {
       return Optional.empty();
@@ -186,7 +175,7 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public WorkflowExecutionException mapError(Error failure) {
+  public WorkflowExecutionException mapError(Throwable failure) {
     return POJOWorkflowImplementationFactory.mapError(failure);
   }
 }

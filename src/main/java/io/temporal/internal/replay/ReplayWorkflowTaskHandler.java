@@ -24,9 +24,12 @@ import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.FailWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -45,6 +48,7 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
@@ -69,9 +73,9 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private final SingleWorkerOptions options;
   private final Duration stickyTaskQueueScheduleToStartTimeout;
   private final Functions.Func<Boolean> shutdownFn;
-  private WorkflowServiceStubs service;
-  private String stickyTaskQueueName;
-  private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
+  private final WorkflowServiceStubs service;
+  private final String stickyTaskQueueName;
+  private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller;
 
   public ReplayWorkflowTaskHandler(
       String namespace,
@@ -82,7 +86,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
       Functions.Func<Boolean> shutdownFn,
-      BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
+      BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller) {
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
@@ -91,7 +95,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     this.stickyTaskQueueScheduleToStartTimeout = stickyTaskQueueScheduleToStartTimeout;
     this.shutdownFn = shutdownFn;
     this.service = Objects.requireNonNull(service);
-    this.laTaskPoller = laTaskPoller;
+    this.localActivityTaskPoller = localActivityTaskPoller;
   }
 
   @Override
@@ -101,124 +105,126 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     Scope metricsScope =
         options.getMetricsScope().tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
     try {
-      return handleWorkflowTaskImpl(workflowTask.toBuilder(), metricsScope);
+      if (workflowTask.hasQuery()) {
+        // Legacy query codepath
+        return handleQueryOnlyWorkflowTask(workflowTask.toBuilder(), metricsScope);
+      } else {
+        return handleWorkflowTaskWithEmbeddedQuery(workflowTask.toBuilder(), metricsScope);
+      }
     } catch (Throwable e) {
       metricsScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
-      // Only fail workflow task on the first attempt, subsequent failures of the same workflow task
-      // should timeout. This is to avoid spin on the failed workflow task as the service doesn't
-      // yet increase the retry interval.
-      if (workflowTask.getAttempt() > 0) {
-        if (e instanceof Error) {
-          throw (Error) e;
-        }
-        throw (Exception) e;
-      }
-      if (log.isErrorEnabled() && !shutdownFn.apply()) {
-        WorkflowExecution execution = workflowTask.getWorkflowExecution();
-        log.error(
-            "Workflow task failure. startedEventId="
-                + workflowTask.getStartedEventId()
-                + ", WorkflowId="
-                + execution.getWorkflowId()
-                + ", RunId="
-                + execution.getRunId()
-                + ". If see continuously the workflow might be stuck.",
-            e);
-      }
-      Failure failure = FailureConverter.exceptionToFailure(e);
-      RespondWorkflowTaskFailedRequest failedRequest =
-          RespondWorkflowTaskFailedRequest.newBuilder()
-              .setTaskToken(workflowTask.getTaskToken())
-              .setFailure(failure)
-              .build();
-      return new WorkflowTaskHandler.Result(workflowType, null, failedRequest, null, null, false);
+      return failureToResult(workflowTask, e);
     }
   }
 
-  private Result handleWorkflowTaskImpl(
-      PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Throwable {
-    if (workflowTask.hasQuery()) {
-      // Legacy query codepath
-      return handleQueryOnlyWorkflowTask(workflowTask, metricsScope);
-    } else {
-      // Note that if workflowTask.getQueriesCount() > 0 this branch is taken as well
-      return handleWorkflowTaskWithEmbeddedQuery(workflowTask, metricsScope);
+  private Result failureToResult(PollWorkflowTaskQueueResponse workflowTask, Throwable e)
+      throws Exception {
+    String workflowType = workflowTask.getWorkflowType().getName();
+    // Fail workflow and not a task as WorkflowExecutionException is thrown only if FailWorkflow
+    // policy was set.
+    if (e instanceof WorkflowExecutionException) {
+      RespondWorkflowTaskCompletedRequest response =
+          RespondWorkflowTaskCompletedRequest.newBuilder()
+              .setTaskToken(workflowTask.getTaskToken())
+              .setIdentity(options.getIdentity())
+              .addCommands(
+                  Command.newBuilder()
+                      .setCommandType(CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION)
+                      .setFailWorkflowExecutionCommandAttributes(
+                          FailWorkflowExecutionCommandAttributes.newBuilder()
+                              .setFailure(((WorkflowExecutionException) e).getFailure()))
+                      .build())
+              .build();
+      return new WorkflowTaskHandler.Result(workflowType, response, null, null, null, false);
     }
+    // Only fail workflow task on the first attempt, subsequent failures of the same workflow task
+    // should timeout. This is to avoid spin on the failed workflow task as the service doesn't
+    // yet increase the retry interval.
+    if (workflowTask.getAttempt() > 1) {
+      if (e instanceof Error) {
+        throw (Error) e;
+      }
+      throw (Exception) e;
+    }
+    if (log.isErrorEnabled() && !shutdownFn.apply()) {
+      WorkflowExecution execution = workflowTask.getWorkflowExecution();
+      log.error(
+          "Workflow task failure. startedEventId="
+              + workflowTask.getStartedEventId()
+              + ", WorkflowId="
+              + execution.getWorkflowId()
+              + ", RunId="
+              + execution.getRunId()
+              + ". If see continuously the workflow might be stuck.",
+          e);
+    }
+    Failure failure;
+    if (e instanceof Error) {
+      failure = FailureConverter.exceptionToFailureNoUnwrapping(e);
+    } else {
+      failure = FailureConverter.exceptionToFailure(e);
+    }
+    RespondWorkflowTaskFailedRequest failedRequest =
+        RespondWorkflowTaskFailedRequest.newBuilder()
+            .setTaskToken(workflowTask.getTaskToken())
+            .setFailure(failure)
+            .build();
+    return new WorkflowTaskHandler.Result(workflowType, null, failedRequest, null, null, false);
+  }
+
+  private WorkflowRunTaskHandler getOrCreateWorkflowExecutor(
+      PollWorkflowTaskQueueResponse.Builder workflowTask,
+      Scope metricsScope,
+      AtomicBoolean createdNew)
+      throws Exception {
+    WorkflowRunTaskHandler workflowRunTaskHandler;
+    if (stickyTaskQueueName == null) {
+      workflowRunTaskHandler = createStatefulHandler(workflowTask, metricsScope);
+    } else {
+      workflowRunTaskHandler =
+          cache.getOrCreate(
+              workflowTask,
+              metricsScope,
+              () -> {
+                createdNew.set(true);
+                return createStatefulHandler(workflowTask, metricsScope);
+              });
+    }
+    return workflowRunTaskHandler;
   }
 
   private Result handleWorkflowTaskWithEmbeddedQuery(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Throwable {
-    WorkflowExecutor workflowExecutor = null;
     AtomicBoolean createdNew = new AtomicBoolean();
+    WorkflowExecution execution = workflowTask.getWorkflowExecution();
+    String runId = execution.getRunId();
+    WorkflowRunTaskHandler workflowRunTaskHandler = null;
     try {
-      if (stickyTaskQueueName == null) {
-        workflowExecutor = createWorkflowExecutor(workflowTask, metricsScope);
-      } else {
-        workflowExecutor =
-            cache.getOrCreate(
-                workflowTask,
-                metricsScope,
-                () -> {
-                  createdNew.set(true);
-                  return createWorkflowExecutor(workflowTask, metricsScope);
-                });
-      }
-
-      WorkflowExecutor.WorkflowTaskResult result =
-          workflowExecutor.handleWorkflowTask(workflowTask);
-
+      workflowRunTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
+      WorkflowTaskResult result = workflowRunTaskHandler.handleWorkflowTask(workflowTask);
       if (result.isFinalCommand()) {
-        cache.invalidate(workflowTask.getWorkflowExecution().getRunId(), metricsScope);
+        cache.invalidate(execution, metricsScope);
       } else if (stickyTaskQueueName != null && createdNew.get()) {
-        cache.addToCache(workflowTask, workflowExecutor);
-      }
-
-      if (log.isTraceEnabled()) {
-        WorkflowExecution execution = workflowTask.getWorkflowExecution();
-        log.trace(
-            "WorkflowTask startedEventId="
-                + workflowTask.getStartedEventId()
-                + ", WorkflowId="
-                + execution.getWorkflowId()
-                + ", RunId="
-                + execution.getRunId()
-                + " completed with \n"
-                + WorkflowExecutionUtils.prettyPrintCommands(result.getCommands())
-                + "\nforceCreateNewWorkflowTask "
-                + result.getForceCreateNewWorkflowTask());
-      } else if (log.isDebugEnabled()) {
-        WorkflowExecution execution = workflowTask.getWorkflowExecution();
-        log.debug(
-            "WorkflowTask startedEventId="
-                + workflowTask.getStartedEventId()
-                + ", WorkflowId="
-                + execution.getWorkflowId()
-                + ", RunId="
-                + execution.getRunId()
-                + " completed with "
-                + result.getCommands().size()
-                + " new commands"
-                + " forceCreateNewWorkflowTask "
-                + result.getForceCreateNewWorkflowTask());
+        cache.addToCache(runId, workflowRunTaskHandler);
       }
       return createCompletedRequest(workflowTask.getWorkflowType().getName(), workflowTask, result);
     } catch (Throwable e) {
       // Note here that the executor might not be in the cache, even when the caching is on. In that
       // case we need to close the executor explicitly. For items in the cache, invalidation
       // callback will try to close again, which should be ok.
-      if (workflowExecutor != null) {
-        workflowExecutor.close();
+      if (workflowRunTaskHandler != null) {
+        workflowRunTaskHandler.close();
       }
 
       if (stickyTaskQueueName != null) {
-        cache.invalidate(workflowTask.getWorkflowExecution().getRunId(), metricsScope);
+        cache.invalidate(execution, metricsScope);
       }
       throw e;
     } finally {
-      if (stickyTaskQueueName == null && workflowExecutor != null) {
-        workflowExecutor.close();
+      if (stickyTaskQueueName == null && workflowRunTaskHandler != null) {
+        workflowRunTaskHandler.close();
       } else {
-        cache.markProcessingDone(workflowTask);
+        cache.markProcessingDone(runId);
       }
     }
   }
@@ -227,26 +233,16 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) {
     RespondQueryTaskCompletedRequest.Builder queryCompletedRequest =
         RespondQueryTaskCompletedRequest.newBuilder().setTaskToken(workflowTask.getTaskToken());
-    WorkflowExecutor workflowExecutor = null;
+    WorkflowExecution execution = workflowTask.getWorkflowExecution();
+    String runId = execution.getRunId();
+    WorkflowRunTaskHandler workflowRunTaskHandler = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
-      if (stickyTaskQueueName == null) {
-        workflowExecutor = createWorkflowExecutor(workflowTask, metricsScope);
-      } else {
-        workflowExecutor =
-            cache.getOrCreate(
-                workflowTask,
-                metricsScope,
-                () -> {
-                  createdNew.set(true);
-                  return createWorkflowExecutor(workflowTask, metricsScope);
-                });
-      }
-
+      workflowRunTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
       Optional<Payloads> queryResult =
-          workflowExecutor.handleQueryWorkflowTask(workflowTask, workflowTask.getQuery());
+          workflowRunTaskHandler.handleQueryWorkflowTask(workflowTask, workflowTask.getQuery());
       if (stickyTaskQueueName != null && createdNew.get()) {
-        cache.addToCache(workflowTask, workflowExecutor);
+        cache.addToCache(runId, workflowRunTaskHandler);
       }
       if (queryResult.isPresent()) {
         queryCompletedRequest.setQueryResult(queryResult.get());
@@ -260,10 +256,10 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       queryCompletedRequest.setErrorMessage(sw.toString());
       queryCompletedRequest.setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED);
     } finally {
-      if (stickyTaskQueueName == null && workflowExecutor != null) {
-        workflowExecutor.close();
+      if (stickyTaskQueueName == null && workflowRunTaskHandler != null) {
+        workflowRunTaskHandler.close();
       } else {
-        cache.markProcessingDone(workflowTask);
+        cache.markProcessingDone(runId);
       }
     }
     return new Result(
@@ -278,20 +274,48 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private Result createCompletedRequest(
       String workflowType,
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      WorkflowExecutor.WorkflowTaskResult result) {
+      WorkflowTaskResult result) {
+    WorkflowExecution execution = workflowTask.getWorkflowExecution();
+    if (log.isTraceEnabled()) {
+      log.trace(
+          "WorkflowTask startedEventId="
+              + workflowTask.getStartedEventId()
+              + ", WorkflowId="
+              + execution.getWorkflowId()
+              + ", RunId="
+              + execution.getRunId()
+              + " completed with \n"
+              + WorkflowExecutionUtils.prettyPrintCommands(result.getCommands()));
+    } else if (log.isDebugEnabled()) {
+      log.debug(
+          "WorkflowTask startedEventId="
+              + workflowTask.getStartedEventId()
+              + ", WorkflowId="
+              + execution.getWorkflowId()
+              + ", RunId="
+              + execution.getRunId()
+              + " completed with "
+              + result.getCommands().size()
+              + " new commands");
+    }
     RespondWorkflowTaskCompletedRequest.Builder completedRequest =
         RespondWorkflowTaskCompletedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())
             .addAllCommands(result.getCommands())
             .putAllQueryResults(result.getQueryResults())
-            .setForceCreateNewWorkflowTask(result.getForceCreateNewWorkflowTask());
+            .setForceCreateNewWorkflowTask(result.isForceWorkflowTask())
+            .setReturnNewWorkflowTask(result.isForceWorkflowTask());
 
-    if (stickyTaskQueueName != null && !stickyTaskQueueScheduleToStartTimeout.isZero()) {
+    if (stickyTaskQueueName != null
+        && (stickyTaskQueueScheduleToStartTimeout == null
+            || !stickyTaskQueueScheduleToStartTimeout.isZero())) {
       StickyExecutionAttributes.Builder attributes =
           StickyExecutionAttributes.newBuilder()
-              .setWorkerTaskQueue(createStickyTaskQueue(stickyTaskQueueName))
-              .setScheduleToStartTimeout(
-                  ProtobufTimeUtils.ToProtoDuration(stickyTaskQueueScheduleToStartTimeout));
+              .setWorkerTaskQueue(createStickyTaskQueue(stickyTaskQueueName));
+      if (stickyTaskQueueScheduleToStartTimeout != null) {
+        attributes.setScheduleToStartTimeout(
+            ProtobufTimeUtils.toProtoDuration(stickyTaskQueueScheduleToStartTimeout));
+      }
       completedRequest.setStickyAttributes(attributes);
     }
     return new Result(
@@ -303,11 +327,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     return workflowFactory.isAnyTypeSupported();
   }
 
-  private WorkflowExecutor createWorkflowExecutor(
+  // TODO(maxim): Consider refactoring that avoids mutating workflow task.
+  private WorkflowRunTaskHandler createStatefulHandler(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();
-    // Sticky workflow task with partial history
+    // Sticky workflow task with partial history.
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
       GetWorkflowExecutionHistoryRequest getHistoryRequest =
           GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -319,11 +344,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
               .getWorkflowExecutionHistory(getHistoryRequest);
-      workflowTask.setHistory(getHistoryResponse.getHistory());
-      workflowTask.setNextPageToken(getHistoryResponse.getNextPageToken());
+      workflowTask
+          .setHistory(getHistoryResponse.getHistory())
+          .setNextPageToken(getHistoryResponse.getNextPageToken());
     }
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
-    return new ReplayWorkflowExecutor(
-        service, namespace, workflow, workflowTask, options, metricsScope, laTaskPoller);
+    return new ReplayWorkflowRunTaskHandler(
+        service, namespace, workflow, workflowTask, options, metricsScope, localActivityTaskPoller);
   }
 }

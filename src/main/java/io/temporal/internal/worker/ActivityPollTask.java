@@ -43,7 +43,7 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
   private final double taskQueueActivitiesPerSecond;
-  private Scope metricsScope;
+  private final Scope metricsScope;
 
   public ActivityPollTask(
       WorkflowServiceStubs service,
@@ -108,7 +108,7 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
     metricsScope
         .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
         .record(
-            ProtobufTimeUtils.ToM3Duration(
+            ProtobufTimeUtils.toM3Duration(
                 result.getStartedTime(), result.getCurrentAttemptScheduledTime()));
 
     return result;

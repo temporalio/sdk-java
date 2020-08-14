@@ -21,7 +21,6 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
@@ -40,7 +39,7 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
-import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.client.WorkflowException;
@@ -49,7 +48,6 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.FailureConverter;
@@ -58,8 +56,6 @@ import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.ActivityTaskFailedException;
-import io.temporal.internal.replay.ActivityTaskTimeoutException;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
@@ -72,7 +68,6 @@ import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
-import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -85,10 +80,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,7 +114,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private final DataConverter converter;
   private final List<ContextPropagator> contextPropagators;
   private WorkflowOutboundCallsInterceptor headInterceptor;
-  private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<Optional<Payloads>, Optional<Payloads>>>
       queryCallbacks = new HashMap<>();
   private final Map<String, Functions.Proc2<Optional<Payloads>, Long>> signalCallbacks =
@@ -186,72 +179,34 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       String name, ActivityOptions options, Optional<Payloads> input) {
     ActivityCallback callback = new ActivityCallback();
     ExecuteActivityParameters params = constructExecuteActivityParameters(name, options, input);
-    Consumer<Exception> cancellationCallback =
+    Functions.Proc1<Exception> cancellationCallback =
         context.scheduleActivityTask(params, callback::invoke);
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CanceledFailure(reason));
+              cancellationCallback.apply(new CanceledFailure(reason));
               return null;
             });
     return callback.result;
   }
 
   private class ActivityCallback {
-    private CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
+    private final CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
 
-    public void invoke(Optional<Payloads> output, Exception failure) {
+    public void invoke(Optional<Payloads> output, Failure failure) {
       if (failure != null) {
         runner.executeInWorkflowThread(
             "activity failure callback",
-            () -> result.completeExceptionally(mapActivityException(failure)));
+            () ->
+                result.completeExceptionally(
+                    (RuntimeException)
+                        FailureConverter.failureToException(failure, getDataConverter())));
       } else {
         runner.executeInWorkflowThread(
             "activity completion callback", () -> result.complete(output));
       }
     }
-  }
-
-  private RuntimeException mapActivityException(Exception failure) {
-    if (failure == null) {
-      return null;
-    }
-    if (failure instanceof TemporalFailure) {
-      ((TemporalFailure) failure).setDataConverter(getDataConverter());
-    }
-    if (failure instanceof CanceledFailure) {
-      return (CanceledFailure) failure;
-    }
-    if (failure instanceof ActivityTaskFailedException) {
-      ActivityTaskFailedException taskFailed = (ActivityTaskFailedException) failure;
-      Throwable exception =
-          FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
-      return new ActivityFailure(
-          taskFailed.getScheduledEventId(),
-          taskFailed.getStartedEventId(),
-          taskFailed.getActivityType().getName(),
-          taskFailed.getActivityId(),
-          RetryState.RETRY_STATE_TIMEOUT,
-          "",
-          exception);
-    }
-    if (failure instanceof ActivityTaskTimeoutException) {
-      ActivityTaskTimeoutException timedOut = (ActivityTaskTimeoutException) failure;
-      return new ActivityFailure(
-          timedOut.getScheduledEventId(),
-          timedOut.getStartedEventId(),
-          timedOut.getActivityType().getName(),
-          timedOut.getActivityId(),
-          timedOut.getRetryState(),
-          "",
-          FailureConverter.failureToException(timedOut.getFailure(), converter));
-    }
-    if (failure instanceof ActivityFailure) {
-      return (ActivityFailure) failure;
-    }
-    throw new IllegalArgumentException(
-        "Unexpected exception type: " + failure.getClass().getName(), failure);
   }
 
   @Override
@@ -286,7 +241,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       int attempt) {
     Optional<Payloads> input = converter.toPayloads(args);
     Promise<Optional<Payloads>> binaryResult =
-        executeLocalActivityOnce(name, options, input, elapsed, attempt);
+        executeLocalActivityOnce(name, options, input, attempt);
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
@@ -294,21 +249,17 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private Promise<Optional<Payloads>> executeLocalActivityOnce(
-      String name,
-      LocalActivityOptions options,
-      Optional<Payloads> input,
-      long elapsed,
-      int attempt) {
+      String name, LocalActivityOptions options, Optional<Payloads> input, int attempt) {
     ActivityCallback callback = new ActivityCallback();
     ExecuteLocalActivityParameters params =
-        constructExecuteLocalActivityParameters(name, options, input, elapsed, attempt);
-    Consumer<Exception> cancellationCallback =
+        constructExecuteLocalActivityParameters(name, options, input, attempt);
+    Functions.Proc cancellationCallback =
         context.scheduleLocalActivityTask(params, callback::invoke);
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CanceledFailure(reason));
+              cancellationCallback.apply();
               return null;
             });
     return callback.result;
@@ -325,12 +276,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue))
             .setScheduleToStartTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToStartTimeout()))
+                ProtobufTimeUtils.toProtoDuration(options.getScheduleToStartTimeout()))
             .setStartToCloseTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+                ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
             .setScheduleToCloseTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
-            .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()));
+                ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
+            .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()));
 
     if (input.isPresent()) {
       attributes.setInput(input.get());
@@ -358,9 +309,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     RetryPolicy.Builder builder =
         RetryPolicy.newBuilder()
             .setInitialInterval(
-                ProtobufTimeUtils.ToProtoDuration(retryOptions.getInitialInterval()))
+                ProtobufTimeUtils.toProtoDuration(retryOptions.getInitialInterval()))
             .setMaximumInterval(
-                ProtobufTimeUtils.ToProtoDuration(retryOptions.getMaximumInterval()))
+                ProtobufTimeUtils.toProtoDuration(retryOptions.getMaximumInterval()))
             .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
             .setMaximumAttempts(retryOptions.getMaximumAttempts());
 
@@ -372,23 +323,20 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
-      String name,
-      LocalActivityOptions options,
-      Optional<Payloads> input,
-      long elapsed,
-      int attempt) {
+      String name, LocalActivityOptions options, Optional<Payloads> input, int attempt) {
     options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
 
     PollActivityTaskQueueResponse.Builder activityTask =
         PollActivityTaskQueueResponse.newBuilder()
+            .setActivityId(this.context.randomUUID().toString())
             .setWorkflowNamespace(this.context.getNamespace())
             .setWorkflowExecution(this.context.getWorkflowExecution())
-            .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
+            .setScheduledTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setStartToCloseTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
+                ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
             .setScheduleToCloseTimeout(
-                ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
-            .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
+                ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
+            .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
     if (input.isPresent()) {
@@ -398,7 +346,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (retryOptions != null) {
       activityTask.setRetryPolicy(toRetryPolicy(retryOptions));
     }
-    return new ExecuteLocalActivityParameters(activityTask, elapsed);
+    Duration localRetryThreshold = options.getLocalRetryThreshold();
+    if (localRetryThreshold == null) {
+      localRetryThreshold = context.getWorkflowTaskTimeout().multipliedBy(6);
+    }
+    return new ExecuteLocalActivityParameters(activityTask, localRetryThreshold);
   }
 
   @Override
@@ -424,8 +376,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       CompletablePromise<WorkflowExecution> executionResult) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     if (CancellationScope.current().isCancelRequested()) {
-      CanceledFailure CanceledFailure =
-          new CanceledFailure("execute called from a cancelled scope");
+      CanceledFailure CanceledFailure = new CanceledFailure("execute called from a canceled scope");
       executionResult.completeExceptionally(CanceledFailure);
       result.completeExceptionally(CanceledFailure);
       return result;
@@ -448,11 +399,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setInput(input.get());
     }
     attributes.setWorkflowRunTimeout(
-        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowRunTimeout()));
+        ProtobufTimeUtils.toProtoDuration(options.getWorkflowRunTimeout()));
     attributes.setWorkflowExecutionTimeout(
-        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowExecutionTimeout()));
+        ProtobufTimeUtils.toProtoDuration(options.getWorkflowExecutionTimeout()));
     attributes.setWorkflowTaskTimeout(
-        ProtobufTimeUtils.ToProtoDuration(options.getWorkflowTaskTimeout()));
+        ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
     String taskQueue = options.getTaskQueue();
     TaskQueue.Builder tl = TaskQueue.newBuilder();
     if (taskQueue != null) {
@@ -477,7 +428,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     StartChildWorkflowExecutionParameters parameters =
         new StartChildWorkflowExecutionParameters(attributes, options.getCancellationType());
 
-    Consumer<Exception> cancellationCallback =
+    Functions.Proc1<Exception> cancellationCallback =
         context.startChildWorkflow(
             parameters,
             (we) ->
@@ -490,14 +441,20 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
                     () -> result.completeExceptionally(mapChildWorkflowException(failure)));
               } else {
                 runner.executeInWorkflowThread(
-                    "child workflow completion callback", () -> result.complete(output));
+                    "child workflow completion callback",
+                    () -> {
+                      result.complete(output);
+                    });
               }
             });
+    AtomicBoolean callbackCalled = new AtomicBoolean();
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CanceledFailure(reason));
+              if (!callbackCalled.getAndSet(true)) {
+                cancellationCallback.apply(new CanceledFailure(reason));
+              }
               return null;
             });
     return result;
@@ -553,39 +510,45 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   @Override
   public Promise<Void> newTimer(Duration delay) {
-    Objects.requireNonNull(delay);
-    long delaySeconds = roundUpToSeconds(delay);
-    if (delaySeconds < 0) {
-      throw new IllegalArgumentException("negative delay");
-    }
-    if (delaySeconds == 0) {
-      return Workflow.newPromise(null);
-    }
-    CompletablePromise<Void> timer = Workflow.newPromise();
-    long fireTime = context.currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
-    timers.addTimer(fireTime, timer);
+    CompletablePromise<Void> p = Workflow.newPromise();
+    Functions.Proc1<RuntimeException> cancellationHandler =
+        context.newTimer(
+            delay,
+            (e) -> {
+              runner.executeInWorkflowThread(
+                  "timer-callback",
+                  () -> {
+                    if (e == null) {
+                      p.complete(null);
+                    } else {
+                      p.completeExceptionally(e);
+                    }
+                  });
+            });
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
-            (reason) -> {
-              timers.removeTimer(fireTime, timer);
-              timer.completeExceptionally(new CanceledFailure(reason));
-              return null;
+            (r) -> {
+              cancellationHandler.apply(new CanceledFailure(r));
+              return r;
             });
-    return timer;
+    return p;
   }
 
   @Override
   public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
     try {
       DataConverter dataConverter = getDataConverter();
-      Optional<Payloads> result =
-          context.sideEffect(
-              () -> {
-                R r = func.apply();
-                return dataConverter.toPayloads(r);
-              });
-      return dataConverter.fromPayloads(0, result, resultClass, resultType);
+      CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
+      context.sideEffect(
+          () -> {
+            R r = func.apply();
+            return dataConverter.toPayloads(r);
+          },
+          (p) ->
+              runner.executeInWorkflowThread(
+                  "side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
+      return dataConverter.fromPayloads(0, result.get(), resultClass, resultType);
     } catch (Error e) {
       throw e;
     } catch (Exception e) {
@@ -612,53 +575,47 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   private <R> R mutableSideEffectImpl(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     AtomicReference<R> unserializedResult = new AtomicReference<>();
-    Optional<Payloads> payloads =
-        context.mutableSideEffect(
-            id,
-            converter,
-            (storedBinary) -> {
-              Optional<R> stored =
-                  storedBinary.map(
-                      (b) -> converter.fromPayloads(0, Optional.of(b), resultClass, resultType));
-              R funcResult =
-                  Objects.requireNonNull(
-                      func.apply(), "mutableSideEffect function " + "returned null");
-              if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
-                unserializedResult.set(funcResult);
-                return converter.toPayloads(funcResult);
-              }
-              return Optional.empty(); // returned only when value doesn't need to be updated
-            });
-    if (!payloads.isPresent()) {
-      throw new IllegalArgumentException(
-          "No value found for mutableSideEffectId="
-              + id
-              + ", during replay it usually indicates a different workflow runId than the original one");
+    context.mutableSideEffect(
+        id,
+        (storedBinary) -> {
+          Optional<R> stored =
+              storedBinary.map(
+                  (b) -> converter.fromPayloads(0, Optional.of(b), resultClass, resultType));
+          R funcResult =
+              Objects.requireNonNull(func.apply(), "mutableSideEffect function " + "returned null");
+          if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
+            unserializedResult.set(funcResult);
+            return converter.toPayloads(funcResult);
+          }
+          return Optional.empty(); // returned only when value doesn't need to be updated
+        },
+        (p) ->
+            runner.executeInWorkflowThread(
+                "mutable-side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
+
+    if (!result.get().isPresent()) {
+      throw new IllegalArgumentException("No value found for mutableSideEffectId=" + id);
     }
     // An optimization that avoids unnecessary deserialization of the result.
     R unserialized = unserializedResult.get();
     if (unserialized != null) {
       return unserialized;
     }
-    return converter.fromPayloads(0, payloads, resultClass, resultType);
+    return converter.fromPayloads(0, result.get(), resultClass, resultType);
   }
 
   @Override
   public int getVersion(String changeId, int minSupported, int maxSupported) {
-    return context.getVersion(changeId, converter, minSupported, maxSupported);
-  }
-
-  void fireTimers() {
-    timers.fireTimers(context.currentTimeMillis());
-  }
-
-  boolean hasTimersToFire() {
-    return timers.hasTimersToFire(context.currentTimeMillis());
-  }
-
-  long getNextFireTime() {
-    return timers.getNextFireTime();
+    CompletablePromise<Integer> result = Workflow.newPromise();
+    context.getVersion(
+        changeId,
+        minSupported,
+        maxSupported,
+        (v) -> runner.executeInWorkflowThread("version-callback", () -> result.complete(v)));
+    int r = result.get();
+    return r;
   }
 
   public Optional<Payloads> query(String type, Optional<Payloads> args) {
@@ -777,14 +734,16 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setInput(input.get());
     }
     CompletablePromise<Void> result = Workflow.newPromise();
-    Consumer<Exception> cancellationCallback =
-        context.signalWorkflowExecution(
+    Functions.Proc1<Exception> cancellationCallback =
+        context.signalExternalWorkflowExecution(
             attributes,
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(
                     "child workflow failure callback",
-                    () -> result.completeExceptionally(mapSignalWorkflowException(failure)));
+                    () ->
+                        result.completeExceptionally(
+                            FailureConverter.failureToException(failure, getDataConverter())));
               } else {
                 runner.executeInWorkflowThread(
                     "child workflow completion callback", () -> result.complete(output));
@@ -794,7 +753,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CanceledFailure(reason));
+              cancellationCallback.apply(new CanceledFailure(reason));
               return null;
             });
     return result;
@@ -802,18 +761,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   @Override
   public void sleep(Duration duration) {
-    WorkflowThread.await(
-        duration.toMillis(),
-        "sleep",
-        () -> {
-          CancellationScope.throwCancelled();
-          return false;
-        });
+    newTimer(duration).get();
   }
 
   @Override
   public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
-    return WorkflowThread.await(timeout.toMillis(), reason, unblockCondition);
+    Promise<Void> timer = newTimer(timeout);
+    WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+    return !timer.isCompleted();
   }
 
   @Override
@@ -832,9 +787,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
       attributes.setWorkflowRunTimeout(
-          ProtobufTimeUtils.ToProtoDuration(ops.getWorkflowRunTimeout()));
+          ProtobufTimeUtils.toProtoDuration(ops.getWorkflowRunTimeout()));
       attributes.setWorkflowTaskTimeout(
-          ProtobufTimeUtils.ToProtoDuration(ops.getWorkflowTaskTimeout()));
+          ProtobufTimeUtils.toProtoDuration(ops.getWorkflowTaskTimeout()));
       if (!ops.getTaskQueue().isEmpty()) {
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(ops.getTaskQueue()));
       }
@@ -862,21 +817,17 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   @Override
   public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
-    return context.requestCancelWorkflowExecution(execution);
-  }
-
-  private RuntimeException mapSignalWorkflowException(Exception failure) {
-    if (failure == null) {
-      return null;
-    }
-    if (failure instanceof CanceledFailure) {
-      return (CanceledFailure) failure;
-    }
-
-    if (!(failure instanceof SignalExternalWorkflowException)) {
-      return new IllegalArgumentException("Unexpected exception type: ", failure);
-    }
-    return (SignalExternalWorkflowException) failure;
+    CompletablePromise<Void> result = Workflow.newPromise();
+    context.requestCancelExternalWorkflowExecution(
+        execution,
+        (r, exception) -> {
+          if (exception == null) {
+            result.complete(null);
+          } else {
+            result.completeExceptionally(exception);
+          }
+        });
+    return result;
   }
 
   public Scope getMetricsScope() {
@@ -906,5 +857,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   @Override
   public Object newThread(Runnable runnable, boolean detached, String name) {
     return runner.newThread(runnable, detached, name);
+  }
+
+  @Override
+  public long currentTimeMillis() {
+    return context.currentTimeMillis();
   }
 }

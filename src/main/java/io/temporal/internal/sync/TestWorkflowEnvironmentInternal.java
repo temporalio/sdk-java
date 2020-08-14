@@ -55,7 +55,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final WorkflowServiceStubs workflowServiceStubs;
   private final TestWorkflowService service;
   private final WorkerFactory workerFactory;
-  private TimeLockingInterceptor timeLockingInterceptor;
+  private final TimeLockingInterceptor timeLockingInterceptor;
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {

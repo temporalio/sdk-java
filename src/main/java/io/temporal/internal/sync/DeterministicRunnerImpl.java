@@ -28,10 +28,12 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.replay.ExecuteActivityParameters;
@@ -39,6 +41,7 @@ import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -54,6 +57,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -64,8 +69,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,8 +113,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
   private int addedThreads;
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
-  private final Supplier<Long> clock;
-  private WorkflowExecutorCache cache;
+  private final WorkflowExecutorCache cache;
   private boolean inRunUntilAllBlocked;
   private boolean closeRequested;
   private boolean closed;
@@ -148,15 +150,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   /**
-   * Time at which any thread that runs under sync can make progress. For example when {@link
-   * io.temporal.workflow.Workflow#sleep(long)} expires. 0 means no blocked threads.
-   */
-  private long nextWakeUpTime;
-  /**
    * Used to check for failedPromises that contain an error, but never where accessed. It is to
    * avoid failure swallowing by failedPromises which is very hard to troubleshoot.
    */
-  private Set<Promise> failedPromises = new HashSet<>();
+  private final Set<Promise> failedPromises = new HashSet<>();
 
   private boolean exitRequested;
   private Object exitValue;
@@ -168,13 +165,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
-    this(
-        getDefaultThreadPool(),
-        newDummySyncWorkflowContext(),
-        clock,
-        WORKFLOW_ROOT_THREAD_NAME,
-        root,
-        null);
+    this(getDefaultThreadPool(), newDummySyncWorkflowContext(), root, null);
   }
 
   private static ThreadPoolExecutor getDefaultThreadPool() {
@@ -185,25 +176,19 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   DeterministicRunnerImpl(
-      ExecutorService threadPool,
-      SyncWorkflowContext workflowContext,
-      Supplier<Long> clock,
-      Runnable root) {
-    this(threadPool, workflowContext, clock, WORKFLOW_ROOT_THREAD_NAME, root, null);
+      ExecutorService threadPool, SyncWorkflowContext workflowContext, Runnable root) {
+    this(threadPool, workflowContext, root, null);
   }
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
       SyncWorkflowContext workflowContext,
-      Supplier<Long> clock,
-      String rootName,
       Runnable root,
       WorkflowExecutorCache cache) {
     this.threadPool = threadPool;
     this.workflowContext =
         workflowContext != null ? workflowContext : newDummySyncWorkflowContext();
     this.workflowContext.setRunner(this);
-    this.clock = clock;
     this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
     this.rootRunnable = root;
@@ -289,7 +274,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         toExecuteInWorkflowThread.clear();
         progress = false;
         Iterator<WorkflowThread> ci = threads.iterator();
-        nextWakeUpTime = Long.MAX_VALUE;
         while (ci.hasNext()) {
           WorkflowThread c = ci.next();
           progress = c.runUntilBlocked() || progress;
@@ -303,11 +287,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
               unhandledException = c.getUnhandledException();
               break;
             }
-          } else {
-            long t = c.getBlockedUntil();
-            if (t > currentTimeMillis() && t < nextWakeUpTime) {
-              nextWakeUpTime = t;
-            }
           }
         }
         if (unhandledException != null) {
@@ -318,10 +297,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           threads.add(c);
         }
       } while (progress && !threads.isEmpty());
-
-      if (nextWakeUpTime < currentTimeMillis() || nextWakeUpTime == Long.MAX_VALUE) {
-        nextWakeUpTime = 0;
-      }
     } finally {
       inRunUntilAllBlocked = false;
       // Close was requested while running
@@ -447,32 +422,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
   }
 
-  @Override
-  public long currentTimeMillis() {
-    return clock.get();
-  }
-
-  @Override
-  public long getNextWakeUpTime() {
-    lock.lock();
-    try {
-      checkClosed();
-      if (workflowContext != null) {
-        long nextFireTime = workflowContext.getNextFireTime();
-        if (nextWakeUpTime == 0) {
-          return nextFireTime;
-        }
-        if (nextFireTime == 0) {
-          return nextWakeUpTime;
-        }
-        return Math.min(nextWakeUpTime, nextFireTime);
-      }
-      return nextWakeUpTime;
-    } finally {
-      lock.unlock();
-    }
-  }
-
   /** To be called only from another workflow thread. */
   public WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
     WorkflowThread result;
@@ -580,6 +529,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private static final class DummyReplayWorkflowContext implements ReplayWorkflowContext {
 
+    private final Timer timer = new Timer();
+
     @Override
     public WorkflowExecution getWorkflowExecution() {
       throw new UnsupportedOperationException("not implemented");
@@ -677,35 +628,37 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public Consumer<Exception> scheduleActivityTask(
-        ExecuteActivityParameters parameters, BiConsumer<Optional<Payloads>, Exception> callback) {
+    public Functions.Proc1<Exception> scheduleActivityTask(
+        ExecuteActivityParameters parameters,
+        Functions.Proc2<Optional<Payloads>, Failure> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public Consumer<Exception> scheduleLocalActivityTask(
+    public Functions.Proc scheduleLocalActivityTask(
         ExecuteLocalActivityParameters parameters,
-        BiConsumer<Optional<Payloads>, Exception> callback) {
+        Functions.Proc2<Optional<Payloads>, Failure> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public Consumer<Exception> startChildWorkflow(
+    public Functions.Proc1<Exception> startChildWorkflow(
         StartChildWorkflowExecutionParameters parameters,
-        Consumer<WorkflowExecution> executionCallback,
-        BiConsumer<Optional<Payloads>, Exception> callback) {
+        Functions.Proc1<WorkflowExecution> executionCallback,
+        Functions.Proc2<Optional<Payloads>, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public Consumer<Exception> signalWorkflowExecution(
+    public Functions.Proc1<Exception> signalExternalWorkflowExecution(
         SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
-        BiConsumer<Void, Exception> callback) {
+        Functions.Proc2<Void, Failure> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public Promise<Void> requestCancelWorkflowExecution(WorkflowExecution execution) {
+    public void requestCancelExternalWorkflowExecution(
+        WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -716,34 +669,48 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public Optional<Payloads> mutableSideEffect(
-        String id, DataConverter converter, Func1<Optional<Payloads>, Optional<Payloads>> func) {
-      return func.apply(Optional.empty());
+    public long currentTimeMillis() {
+      return System.currentTimeMillis();
     }
 
     @Override
-    public long currentTimeMillis() {
-      throw new UnsupportedOperationException("not implemented");
+    public Functions.Proc1<RuntimeException> newTimer(
+        Duration delay, Functions.Proc1<RuntimeException> callback) {
+      timer.schedule(
+          new TimerTask() {
+            @Override
+            public void run() {
+              callback.apply(null);
+            }
+          },
+          delay.toMillis());
+      return (e) -> {
+        callback.apply(new CanceledFailure(null));
+      };
+    }
+
+    @Override
+    public void sideEffect(
+        Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback) {
+      callback.apply(func.apply());
+    }
+
+    @Override
+    public void mutableSideEffect(
+        String id,
+        Func1<Optional<Payloads>, Optional<Payloads>> func,
+        Functions.Proc1<Optional<Payloads>> callback) {
+      callback.apply(func.apply(Optional.empty()));
     }
 
     @Override
     public boolean isReplaying() {
-      throw new UnsupportedOperationException("not implemented");
+      return false;
     }
 
     @Override
-    public Consumer<Exception> createTimer(Duration delay, Consumer<Exception> callback) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Optional<Payloads> sideEffect(Func<Optional<Payloads>> func) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public int getVersion(
-        String changeId, DataConverter converter, int minSupported, int maxSupported) {
+    public void getVersion(
+        String changeId, int minSupported, int maxSupported, Functions.Proc1<Integer> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 

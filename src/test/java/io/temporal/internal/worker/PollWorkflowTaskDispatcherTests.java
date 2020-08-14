@@ -34,9 +34,9 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflow.Functions;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -51,7 +51,7 @@ public class PollWorkflowTaskDispatcherTests {
 
   private TestWorkflowService testService;
   private WorkflowServiceStubs service;
-  private Scope metricsScope = new NoopScope();
+  private final Scope metricsScope = new NoopScope();
 
   @Before
   public void setUp() {
@@ -74,7 +74,7 @@ public class PollWorkflowTaskDispatcherTests {
   public void pollWorkflowTasksAreDispatchedBasedOnTaskQueueName() {
     // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
-    Consumer<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
+    Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
 
     PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
@@ -94,8 +94,8 @@ public class PollWorkflowTaskDispatcherTests {
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
-    Consumer<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
-    Consumer<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
+    Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
+    Functions.Proc1<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
 
     PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
@@ -117,8 +117,8 @@ public class PollWorkflowTaskDispatcherTests {
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
-    Consumer<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
-    Consumer<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
+    Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
+    Functions.Proc1<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
 
     PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
@@ -145,7 +145,7 @@ public class PollWorkflowTaskDispatcherTests {
     logger.addAppender(appender);
 
     AtomicBoolean handled = new AtomicBoolean(false);
-    Consumer<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
+    Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub stub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);

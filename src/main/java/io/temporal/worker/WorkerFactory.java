@@ -69,9 +69,9 @@ public final class WorkerFactory {
   private final AtomicInteger workflowThreadCounter = new AtomicInteger();
   private final WorkerFactoryOptions factoryOptions;
 
-  private Poller<PollWorkflowTaskQueueResponse> stickyPoller;
-  private PollWorkflowTaskDispatcher dispatcher;
-  private WorkflowExecutorCache cache;
+  private final Poller<PollWorkflowTaskQueueResponse> stickyPoller;
+  private final PollWorkflowTaskDispatcher dispatcher;
+  private final WorkflowExecutorCache cache;
 
   private State state = State.Initial;
 
@@ -112,7 +112,11 @@ public final class WorkerFactory {
                     .build());
 
     this.cache =
-        new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
+        new WorkflowExecutorCache(
+            this.workflowClient.getWorkflowServiceStubs(),
+            workflowClient.getOptions().getNamespace(),
+            this.factoryOptions.getWorkflowCacheSize(),
+            metricsScope);
     Scope stickyScope =
         metricsScope.tagged(
             new ImmutableMap.Builder<String, String>(1)

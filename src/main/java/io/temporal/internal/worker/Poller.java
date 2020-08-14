@@ -59,7 +59,7 @@ public final class Poller<T> implements SuspendableWorker {
   private BackoffThrottler pollBackoffThrottler;
   private Throttler pollRateThrottler;
 
-  private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
+  private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> {
         if (e instanceof StatusRuntimeException) {
           StatusRuntimeException te = (StatusRuntimeException) e;
@@ -260,7 +260,7 @@ public final class Poller<T> implements SuspendableWorker {
   }
 
   private class PollExecutionTask implements Poller.ThrowingRunnable {
-    private Semaphore pollSemaphore;
+    private final Semaphore pollSemaphore;
 
     PollExecutionTask() {
       this.pollSemaphore = new Semaphore(pollerOptions.getPollThreadCount());

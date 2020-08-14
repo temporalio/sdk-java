@@ -49,7 +49,7 @@ class GrpcTracingInterceptor implements ClientInterceptor {
         next.newCall(method, callOptions)) {
       @Override
       public void sendMessage(ReqT message) {
-        log.trace("Invoking " + method.getFullMethodName() + "with input: " + message);
+        log.trace("Invoking \"" + method.getFullMethodName() + "\" with input: " + message);
         super.sendMessage(message);
       }
 

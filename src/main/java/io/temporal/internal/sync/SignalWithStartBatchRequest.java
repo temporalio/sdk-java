@@ -35,7 +35,7 @@ final class SignalWithStartBatchRequest implements BatchRequest {
   private String signalName;
   private Object[] signalArgs;
   private Object[] startArgs;
-  private AtomicBoolean invoked = new AtomicBoolean();
+  private final AtomicBoolean invoked = new AtomicBoolean();
 
   WorkflowExecution invoke() {
     if (!invoked.compareAndSet(false, true)) {

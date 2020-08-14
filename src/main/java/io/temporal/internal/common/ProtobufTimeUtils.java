@@ -25,7 +25,7 @@ import com.google.protobuf.util.Timestamps;
 import java.time.Duration;
 
 public class ProtobufTimeUtils {
-  public static Duration ToJavaDuration(com.google.protobuf.Duration d) {
+  public static Duration toJavaDuration(com.google.protobuf.Duration d) {
     if (d == null) {
       return Duration.ZERO;
     }
@@ -33,7 +33,7 @@ public class ProtobufTimeUtils {
     return Duration.ofMillis(Durations.toMillis(d));
   }
 
-  public static com.google.protobuf.Duration ToProtoDuration(Duration d) {
+  public static com.google.protobuf.Duration toProtoDuration(Duration d) {
     if (d == null) {
       return Durations.ZERO;
     }
@@ -41,15 +41,15 @@ public class ProtobufTimeUtils {
     return Durations.fromMillis(d.toMillis());
   }
 
-  public static com.google.protobuf.Timestamp GetCurrentProtoTime() {
+  public static com.google.protobuf.Timestamp getCurrentProtoTime() {
     return Timestamps.fromMillis(System.currentTimeMillis());
   }
 
-  public static com.uber.m3.util.Duration ToM3Duration(Timestamp to, Timestamp from) {
+  public static com.uber.m3.util.Duration toM3Duration(Timestamp to, Timestamp from) {
     return com.uber.m3.util.Duration.ofMillis(Timestamps.toMillis(to) - Timestamps.toMillis(from));
   }
 
-  public static com.uber.m3.util.Duration ToM3DurationSinceNow(Timestamp t) {
+  public static com.uber.m3.util.Duration toM3DurationSinceNow(Timestamp t) {
     return com.uber.m3.util.Duration.ofMillis(System.currentTimeMillis() - Timestamps.toMillis(t));
   }
 }

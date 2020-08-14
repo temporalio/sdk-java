@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 /** This class holds the current set of context propagators */
 public class ContextThreadLocal {
 
-  private static WorkflowThreadLocal<List<ContextPropagator>> contextPropagators =
+  private static final WorkflowThreadLocal<List<ContextPropagator>> contextPropagators =
       WorkflowThreadLocal.withInitial(
           new Supplier<List<ContextPropagator>>() {
             @Override

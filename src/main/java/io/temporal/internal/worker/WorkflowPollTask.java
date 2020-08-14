@@ -104,7 +104,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
     metricsScope.counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_SUCCEED_COUNTER).inc(1);
     metricsScope
         .timer(MetricsType.WORKFLOW_TASK_SCHEDULE_TO_START_LATENCY)
-        .record(ProtobufTimeUtils.ToM3Duration(result.getStartedTime(), result.getScheduledTime()));
+        .record(ProtobufTimeUtils.toM3Duration(result.getStartedTime(), result.getScheduledTime()));
     return result;
   }
 }

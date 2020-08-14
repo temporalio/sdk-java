@@ -24,22 +24,31 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.ResetStickyTaskQueueRequest;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class WorkflowExecutorCache {
+  private final WorkflowServiceStubs service;
+  private final String namespace;
   private final Scope metricsScope;
-  private LoadingCache<String, WorkflowExecutor> cache;
-  private Lock cacheLock = new ReentrantLock();
-  private Set<String> inProcessing = new HashSet<>();
+  private final LoadingCache<String, WorkflowRunTaskHandler> cache;
+  private final Lock cacheLock = new ReentrantLock();
+  private final Set<String> inProcessing = new HashSet<>();
 
-  public WorkflowExecutorCache(int workflowCacheSize, Scope scope) {
+  public WorkflowExecutorCache(
+      WorkflowServiceStubs service, String namespace, int workflowCacheSize, Scope scope) {
+    this.service = service;
+    this.namespace = namespace;
     Preconditions.checkArgument(workflowCacheSize > 0, "Max cache size must be greater than 0");
     this.metricsScope = Objects.requireNonNull(scope);
     this.cache =
@@ -47,45 +56,47 @@ public final class WorkflowExecutorCache {
             .maximumSize(workflowCacheSize)
             .removalListener(
                 e -> {
-                  WorkflowExecutor entry = (WorkflowExecutor) e.getValue();
+                  WorkflowRunTaskHandler entry = (WorkflowRunTaskHandler) e.getValue();
                   if (entry != null) {
                     entry.close();
                   }
                 })
             .build(
-                new CacheLoader<String, WorkflowExecutor>() {
+                new CacheLoader<String, WorkflowRunTaskHandler>() {
                   @Override
-                  public WorkflowExecutor load(String key) {
+                  public WorkflowRunTaskHandler load(String key) {
                     return null;
                   }
                 });
   }
 
-  public WorkflowExecutor getOrCreate(
+  public WorkflowRunTaskHandler getOrCreate(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       Scope metricsScope,
-      Callable<WorkflowExecutor> workflowExecutorFn)
+      Callable<WorkflowRunTaskHandler> workflowExecutorFn)
       throws Exception {
-    String runId = workflowTask.getWorkflowExecution().getRunId();
+    WorkflowExecution execution = workflowTask.getWorkflowExecution();
     if (isFullHistory(workflowTask)) {
-      invalidate(runId, metricsScope);
+      invalidate(execution, metricsScope);
       return workflowExecutorFn.call();
     }
 
-    WorkflowExecutor workflowExecutor = getForProcessing(runId, metricsScope);
-    if (workflowExecutor != null) {
-      return workflowExecutor;
+    WorkflowRunTaskHandler workflowRunTaskHandler =
+        getForProcessing(execution.getRunId(), metricsScope);
+    if (workflowRunTaskHandler != null) {
+      return workflowRunTaskHandler;
     }
     return workflowExecutorFn.call();
   }
 
-  private WorkflowExecutor getForProcessing(String runId, Scope metricsScope) throws Exception {
+  private WorkflowRunTaskHandler getForProcessing(String runId, Scope metricsScope)
+      throws ExecutionException {
     cacheLock.lock();
     try {
-      WorkflowExecutor workflowExecutor = cache.get(runId);
+      WorkflowRunTaskHandler workflowRunTaskHandler = cache.get(runId);
       inProcessing.add(runId);
       metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
-      return workflowExecutor;
+      return workflowRunTaskHandler;
     } catch (CacheLoader.InvalidCacheLoadException e) {
       // We don't have a default loader and don't want to have one. So it's ok to get null value.
       metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
@@ -95,9 +106,7 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  void markProcessingDone(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-    String runId = workflowTask.getWorkflowExecution().getRunId();
-
+  void markProcessingDone(String runId) {
     cacheLock.lock();
     try {
       inProcessing.remove(runId);
@@ -106,18 +115,16 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  public void addToCache(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowExecutor workflowExecutor) {
-    String runId = workflowTask.getWorkflowExecution().getRunId();
-    cache.put(runId, workflowExecutor);
+  public void addToCache(String runId, WorkflowRunTaskHandler workflowRunTaskHandler) {
+    cache.put(runId, workflowRunTaskHandler);
   }
 
-  public boolean evictAnyNotInProcessing(String runId, Scope metricsScope) {
+  public boolean evictAnyNotInProcessing(WorkflowExecution execution, Scope metricsScope) {
     cacheLock.lock();
     try {
       this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
       for (String key : cache.asMap().keySet()) {
-        if (!key.equals(runId) && !inProcessing.contains(key)) {
+        if (!key.equals(execution.getRunId()) && !inProcessing.contains(key)) {
           cache.invalidate(key);
           this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
           metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
@@ -131,12 +138,23 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  void invalidate(String runId, Scope metricsScope) {
+  void invalidate(WorkflowExecution execution, Scope metricsScope) {
     cacheLock.lock();
     try {
+      String runId = execution.getRunId();
       cache.invalidate(runId);
       inProcessing.remove(runId);
       metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
+      if (service != null) {
+        // Execute asynchronously
+        service
+            .futureStub()
+            .resetStickyTaskQueue(
+                ResetStickyTaskQueueRequest.newBuilder()
+                    .setNamespace(namespace)
+                    .setExecution(execution)
+                    .build());
+      }
     } finally {
       cacheLock.unlock();
     }

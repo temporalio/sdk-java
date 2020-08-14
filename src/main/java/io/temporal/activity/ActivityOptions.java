@@ -185,7 +185,7 @@ public final class ActivityOptions {
           taskQueue,
           retryOptions,
           contextPropagators,
-          cancellationType);
+          cancellationType == null ? ActivityCancellationType.TRY_CANCEL : cancellationType);
     }
   }
 
