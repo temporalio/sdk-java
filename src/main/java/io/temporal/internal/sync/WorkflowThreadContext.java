@@ -20,9 +20,9 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Throwables;
+import io.temporal.workflow.Functions;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 class WorkflowThreadContext {
@@ -37,7 +37,7 @@ class WorkflowThreadContext {
   private final Condition evaluationCondition;
 
   private Status status = Status.CREATED;
-  private Consumer<String> evaluationFunction;
+  private Functions.Proc1<String> evaluationFunction;
   private Throwable unhandledException;
   private boolean inRunUntilBlocked;
   private boolean remainedBlocked;
@@ -93,16 +93,16 @@ class WorkflowThreadContext {
 
   /**
    * Execute evaluation function by the thread that owns this context if {@link
-   * #evaluateInCoroutineContext(Consumer)} was called.
+   * #evaluateInCoroutineContext(Functions.Proc1)} was called.
    *
    * @param reason human readable reason for current thread blockage passed to await call.
    */
   private void mayBeEvaluate(String reason) {
     if (status == Status.EVALUATING) {
       try {
-        evaluationFunction.accept(reason);
+        evaluationFunction.apply(reason);
       } catch (Exception e) {
-        evaluationFunction.accept(Throwables.getStackTraceAsString(e));
+        evaluationFunction.apply(Throwables.getStackTraceAsString(e));
       } finally {
         status = Status.YIELDED;
         evaluationCondition.signal();
@@ -116,7 +116,7 @@ class WorkflowThreadContext {
    *
    * @param function to evaluate. Consumes reason for yielding parameter.
    */
-  public void evaluateInCoroutineContext(Consumer<String> function) {
+  public void evaluateInCoroutineContext(Functions.Proc1<String> function) {
     lock.lock();
     try {
       if (function == null) {

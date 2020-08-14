@@ -47,7 +47,6 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
       throw new IllegalArgumentException(
           "Missing method annotated with @WorkflowMethod: " + workflowInterface.getName());
     }
-    ;
     Method workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
     MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);

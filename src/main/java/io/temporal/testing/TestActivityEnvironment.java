@@ -22,8 +22,8 @@ package io.temporal.testing;
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.internal.sync.TestActivityEnvironmentInternal;
+import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
-import java.util.function.Consumer;
 
 /**
  * The helper class for unit testing activity implementations. Supports calls to {@link
@@ -88,7 +88,7 @@ public interface TestActivityEnvironment {
    * @param listener listener to register.
    * @param <T> Type of the heartbeat details.
    */
-  <T> void setActivityHeartbeatListener(Class<T> detailsClass, Consumer<T> listener);
+  <T> void setActivityHeartbeatListener(Class<T> detailsClass, Functions.Proc1<T> listener);
 
   /**
    * Sets a listener that is called every time an activity implementation heartbeats through {@link
@@ -101,7 +101,7 @@ public interface TestActivityEnvironment {
    * @param <T> Type of the heartbeat details.
    */
   <T> void setActivityHeartbeatListener(
-      Class<T> detailsClass, Type detailsType, Consumer<T> listener);
+      Class<T> detailsClass, Type detailsType, Functions.Proc1<T> listener);
 
   /**
    * Requests activity cancellation. The cancellation is going to be delivered to the activity on

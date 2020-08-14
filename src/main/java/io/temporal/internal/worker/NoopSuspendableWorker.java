@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 class NoopSuspendableWorker implements SuspendableWorker {
 
-  private AtomicBoolean shutdown = new AtomicBoolean();
+  private final AtomicBoolean shutdown = new AtomicBoolean();
 
   @Override
   public boolean isShutdown() {

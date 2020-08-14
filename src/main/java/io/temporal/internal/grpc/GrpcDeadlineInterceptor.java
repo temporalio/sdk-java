@@ -49,7 +49,7 @@ class GrpcDeadlineInterceptor implements ClientInterceptor {
     long duration;
 
     if (LongPollUtil.isLongPoll(method, callOptions)) {
-      duration = options.getRpcLongPollTimeoutMillis();
+      duration = options.getRpcLongPollTimeout().toMillis();
       if (deadline != null) {
         duration = Math.min(duration, deadline.timeRemaining(TimeUnit.MILLISECONDS));
       }
@@ -57,9 +57,9 @@ class GrpcDeadlineInterceptor implements ClientInterceptor {
       duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
     } else {
       if (method == WorkflowServiceGrpc.getQueryWorkflowMethod()) {
-        duration = options.getRpcQueryTimeoutMillis();
+        duration = options.getRpcQueryTimeout().toMillis();
       } else {
-        duration = options.getRpcTimeoutMillis();
+        duration = options.getRpcTimeout().toMillis();
       }
     }
     if (log.isTraceEnabled()) {

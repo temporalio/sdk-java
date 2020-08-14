@@ -41,7 +41,7 @@ public class MicrometerClientStatsReporterTest {
 
   private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
 
-  private MicrometerClientStatsReporter micrometerClientStatsReporter =
+  private final MicrometerClientStatsReporter micrometerClientStatsReporter =
       new MicrometerClientStatsReporter(registry);
 
   @Test

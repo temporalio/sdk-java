@@ -38,6 +38,7 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.RpcRetryOptions;
@@ -47,17 +48,18 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflow.Functions;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
-import java.util.function.Consumer;
 import org.slf4j.MDC;
 
 public final class WorkflowWorker
-    implements SuspendableWorker, Consumer<PollWorkflowTaskQueueResponse> {
+    implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
 
   private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskQueue=";
 
@@ -266,7 +268,7 @@ public final class WorkflowWorker
   }
 
   @Override
-  public void accept(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
+  public void apply(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
     pollTaskExecutor.process(pollWorkflowTaskQueueResponse);
   }
 
@@ -296,14 +298,25 @@ public final class WorkflowWorker
         runLock.lock();
       }
 
+      Stopwatch swTotal =
+          metricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
       try {
-        Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
-        WorkflowTaskHandler.Result response = handler.handleWorkflowTask(task);
-        sw.stop();
-
-        sendReply(service, task.getTaskToken(), response);
-        sw.stop();
+        Optional<PollWorkflowTaskQueueResponse> nextTask = Optional.of(task);
+        do {
+          Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
+          WorkflowTaskHandler.Result response;
+          try {
+            response = handler.handleWorkflowTask(nextTask.get());
+          } finally {
+            sw.stop();
+          }
+          nextTask = sendReply(service, metricsScope, nextTask.get().getTaskToken(), response);
+          if (nextTask.isPresent()) {
+            metricsScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
+          }
+        } while (nextTask.isPresent());
       } finally {
+        swTotal.stop();
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
@@ -325,8 +338,11 @@ public final class WorkflowWorker
           failure);
     }
 
-    private void sendReply(
-        WorkflowServiceStubs service, ByteString taskToken, WorkflowTaskHandler.Result response) {
+    private Optional<PollWorkflowTaskQueueResponse> sendReply(
+        WorkflowServiceStubs service,
+        Scope metricsScope,
+        ByteString taskToken,
+        WorkflowTaskHandler.Result response) {
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
@@ -342,15 +358,18 @@ public final class WorkflowWorker
             new ImmutableMap.Builder<String, String>(4)
                 .put(MetricsTag.WORKFLOW_TYPE, response.getWorkflowType())
                 .build();
-        ;
+        AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
         GrpcRetryer.retry(
             ro,
             () ->
-                service
-                    .blockingStub()
-                    .withOption(
-                        METRICS_TAGS_CALL_OPTIONS_KEY, options.getMetricsScope().tagged(tags))
-                    .respondWorkflowTaskCompleted(request));
+                nextTask.set(
+                    service
+                        .blockingStub()
+                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope.tagged(tags))
+                        .respondWorkflowTaskCompleted(request)));
+        if (nextTask.get().hasWorkflowTask()) {
+          return Optional.of(nextTask.get().getWorkflowTask());
+        }
       } else {
         RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
@@ -384,6 +403,7 @@ public final class WorkflowWorker
           }
         }
       }
+      return Optional.empty();
     }
   }
 }

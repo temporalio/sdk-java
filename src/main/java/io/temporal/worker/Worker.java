@@ -41,7 +41,6 @@ import io.temporal.internal.worker.Suspendable;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,7 +63,7 @@ public final class Worker implements Suspendable {
   private final WorkflowExecutorCache cache;
   private final String stickyTaskQueueName;
   private final Scope metricsScope;
-  private ThreadPoolExecutor threadPoolExecutor;
+  private final ThreadPoolExecutor threadPoolExecutor;
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
@@ -115,7 +114,7 @@ public final class Worker implements Suspendable {
             service,
             namespace,
             taskQueue,
-            this.options.getTaskQueueActivitiesPerSecond(),
+            this.options.getMaxTaskQueueActivitiesPerSecond(),
             factoryOptions.getActivityInterceptors(),
             activityOptions);
 
@@ -145,8 +144,7 @@ public final class Worker implements Suspendable {
             localActivityOptions,
             this.cache,
             this.stickyTaskQueueName,
-            Duration.ofSeconds(
-                this.factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeoutSeconds()),
+            this.factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeout(),
             this.threadPoolExecutor);
   }
 
@@ -161,7 +159,7 @@ public final class Worker implements Suspendable {
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setMaximumPollRatePerSecond(options.getMaxActivitiesPerSecond())
+                .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
                 .setPollThreadCount(options.getActivityPollThreadCount())
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())

@@ -27,7 +27,9 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.NameResolver;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -36,11 +38,11 @@ public class WorkflowServiceStubsOptions {
   private static final String LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
   /** Default RPC timeout used for all non long poll calls. */
-  private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 10000;
+  private static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofSeconds(10);
   /** Default RPC timeout used for all long poll calls. */
-  private static final long DEFAULT_POLL_RPC_TIMEOUT_MILLIS = 121 * 1000;
+  private static final Duration DEFAULT_POLL_RPC_TIMEOUT = Duration.ofSeconds(121);
   /** Default RPC timeout for QueryWorkflow */
-  private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10000;
+  private static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
 
   private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE;
 
@@ -70,14 +72,14 @@ public class WorkflowServiceStubsOptions {
   /** Indicates whether basic HTTPS/SSL/TLS should be enabled * */
   private final boolean enableHttps;
 
-  /** The gRPC timeout in milliseconds */
-  private final long rpcTimeoutMillis;
+  /** The gRPC timeout */
+  private final Duration rpcTimeout;
 
-  /** The gRPC timeout for long poll calls in milliseconds */
-  private final long rpcLongPollTimeoutMillis;
+  /** The gRPC timeout for long poll calls */
+  private final Duration rpcLongPollTimeout;
 
-  /** The gRPC timeout for query workflow call in milliseconds */
-  private final long rpcQueryTimeoutMillis;
+  /** The gRPC timeout for query workflow call */
+  private final Duration rpcQueryTimeout;
 
   /** Optional gRPC headers */
   private final Map<String, String> headers;
@@ -99,9 +101,9 @@ public class WorkflowServiceStubsOptions {
     this.sslContext = builder.sslContext;
     this.enableHttps = builder.enableHttps;
     this.channel = builder.channel;
-    this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
-    this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
-    this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
+    this.rpcLongPollTimeout = builder.rpcLongPollTimeout;
+    this.rpcQueryTimeout = builder.rpcQueryTimeout;
+    this.rpcTimeout = builder.rpcTimeout;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
@@ -129,9 +131,9 @@ public class WorkflowServiceStubsOptions {
     this.sslContext = builder.sslContext;
     this.enableHttps = builder.enableHttps;
     this.channel = builder.channel;
-    this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
-    this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
-    this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
+    this.rpcLongPollTimeout = builder.rpcLongPollTimeout;
+    this.rpcQueryTimeout = builder.rpcQueryTimeout;
+    this.rpcTimeout = builder.rpcTimeout;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers =
@@ -157,19 +159,19 @@ public class WorkflowServiceStubsOptions {
     return enableHttps;
   }
 
-  /** @return Returns the rpc timeout value in millis. */
-  public long getRpcTimeoutMillis() {
-    return rpcTimeoutMillis;
+  /** @return Returns the rpc timeout value. */
+  public Duration getRpcTimeout() {
+    return rpcTimeout;
   }
 
-  /** @return Returns the rpc timout for long poll requests in millis. */
-  public long getRpcLongPollTimeoutMillis() {
-    return rpcLongPollTimeoutMillis;
+  /** @return Returns the rpc timout for long poll requests. */
+  public Duration getRpcLongPollTimeout() {
+    return rpcLongPollTimeout;
   }
 
-  /** @return Returns the rpc timout for query workflow requests in millis. */
-  public long getRpcQueryTimeoutMillis() {
-    return rpcQueryTimeoutMillis;
+  /** @return Returns the rpc timout for query workflow requests. */
+  public Duration getRpcQueryTimeout() {
+    return rpcQueryTimeout;
   }
 
   public Map<String, String> getHeaders() {
@@ -206,9 +208,9 @@ public class WorkflowServiceStubsOptions {
     private SslContext sslContext;
     private boolean enableHttps;
     private String target;
-    private long rpcTimeoutMillis = DEFAULT_RPC_TIMEOUT_MILLIS;
-    private long rpcLongPollTimeoutMillis = DEFAULT_POLL_RPC_TIMEOUT_MILLIS;
-    private long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
+    private Duration rpcTimeout = DEFAULT_RPC_TIMEOUT;
+    private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
+    private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
     private Map<String, String> headers;
     private Function<
             WorkflowServiceGrpc.WorkflowServiceBlockingStub,
@@ -227,9 +229,9 @@ public class WorkflowServiceStubsOptions {
       this.channel = options.channel;
       this.enableHttps = options.enableHttps;
       this.sslContext = options.sslContext;
-      this.rpcLongPollTimeoutMillis = options.rpcLongPollTimeoutMillis;
-      this.rpcQueryTimeoutMillis = options.rpcQueryTimeoutMillis;
-      this.rpcTimeoutMillis = options.rpcTimeoutMillis;
+      this.rpcLongPollTimeout = options.rpcLongPollTimeout;
+      this.rpcQueryTimeout = options.rpcQueryTimeout;
+      this.rpcTimeout = options.rpcTimeout;
       this.blockingStubInterceptor = options.blockingStubInterceptor;
       this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
@@ -272,13 +274,9 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    /**
-     * Sets the rpc timeout value for non query and non long poll calls. Default is 1000.
-     *
-     * @param timeoutMillis timeout, in millis.
-     */
-    public Builder setRpcTimeout(long timeoutMillis) {
-      this.rpcTimeoutMillis = timeoutMillis;
+    /** Sets the rpc timeout value for non query and non long poll calls. Default is 1000. */
+    public Builder setRpcTimeout(Duration timeout) {
+      this.rpcTimeout = Objects.requireNonNull(timeout);
       return this;
     }
 
@@ -286,21 +284,19 @@ public class WorkflowServiceStubsOptions {
      * Sets the rpc timeout value for the following long poll based operations:
      * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory. Should never be
      * below 60000 as this is server side timeout for the long poll. Default is 61000.
-     *
-     * @param timeoutMillis timeout, in millis.
      */
-    public Builder setRpcLongPollTimeout(long timeoutMillis) {
-      this.rpcLongPollTimeoutMillis = timeoutMillis;
+    public Builder setRpcLongPollTimeout(Duration timeout) {
+      this.rpcLongPollTimeout = Objects.requireNonNull(timeout);
       return this;
     }
 
     /**
      * Sets the rpc timeout value for query calls. Default is 10000.
      *
-     * @param timeoutMillis timeout, in millis.
+     * @param timeout timeout.
      */
-    public Builder setQueryRpcTimeout(long timeoutMillis) {
-      this.rpcQueryTimeoutMillis = timeoutMillis;
+    public Builder setQueryRpcTimeout(Duration timeout) {
+      this.rpcQueryTimeout = Objects.requireNonNull(timeout);
       return this;
     }
 

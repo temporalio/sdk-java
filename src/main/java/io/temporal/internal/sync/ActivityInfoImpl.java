@@ -71,17 +71,17 @@ final class ActivityInfoImpl implements ActivityInfo {
 
   @Override
   public Duration getScheduleToCloseTimeout() {
-    return ProtobufTimeUtils.ToJavaDuration(response.getScheduleToCloseTimeout());
+    return ProtobufTimeUtils.toJavaDuration(response.getScheduleToCloseTimeout());
   }
 
   @Override
   public Duration getStartToCloseTimeout() {
-    return ProtobufTimeUtils.ToJavaDuration(response.getStartToCloseTimeout());
+    return ProtobufTimeUtils.toJavaDuration(response.getStartToCloseTimeout());
   }
 
   @Override
   public Duration getHeartbeatTimeout() {
-    return ProtobufTimeUtils.ToJavaDuration(response.getHeartbeatTimeout());
+    return ProtobufTimeUtils.toJavaDuration(response.getHeartbeatTimeout());
   }
 
   @Override

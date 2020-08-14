@@ -29,7 +29,7 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.client.ActivityCancelledException;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
@@ -69,7 +69,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private boolean hasOutstandingHeartbeat;
   private final ScheduledExecutorService heartbeatExecutor;
   private final Scope metricsScope;
-  private Lock lock = new ReentrantLock();
+  private final Lock lock = new ReentrantLock();
   private ScheduledFuture future;
   private ActivityCompletionException lastException;
 
@@ -202,7 +202,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
               .recordActivityTaskHeartbeat(r.build());
       if (status.getCancelRequested()) {
-        lastException = new ActivityCancelledException(info);
+        lastException = new ActivityCanceledException(info);
       } else {
         lastException = null;
       }

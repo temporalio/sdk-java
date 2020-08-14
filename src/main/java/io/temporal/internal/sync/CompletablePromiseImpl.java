@@ -25,6 +25,7 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -50,11 +51,11 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
   }
 
   @SuppressWarnings("unchecked")
-  static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
-    CompletablePromise<Object> result = Workflow.newPromise();
-    for (Promise<?> p : promises) {
+  static <V> Promise<V> promiseAnyOf(Iterable<Promise<V>> promises) {
+    CompletablePromise<V> result = Workflow.newPromise();
+    for (Promise<V> p : promises) {
       // Rely on the fact that promise ignores all duplicated completions.
-      result.completeFrom((Promise<Object>) p);
+      result.completeFrom(p);
     }
     return result;
   }
@@ -84,7 +85,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
           "Feature.get",
           () -> {
             if (cancellable) {
-              CancellationScope.throwCancelled();
+              CancellationScope.throwCanceled();
             }
             return completed;
           });
@@ -109,12 +110,12 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
   public V cancellableGetImpl(boolean cancellable, long timeout, TimeUnit unit)
       throws TimeoutException {
     if (!completed) {
-      WorkflowThread.await(
-          unit.toMillis(timeout),
+      WorkflowInternal.await(
+          Duration.ofMillis(timeout),
           "Feature.get",
           () -> {
             if (cancellable) {
-              CancellationScope.throwCancelled();
+              CancellationScope.throwCanceled();
             }
             return completed;
           });

@@ -76,7 +76,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public final class TestActivityEnvironmentInternal implements TestActivityEnvironment {
@@ -87,10 +86,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private ClassConsumerPair<Object> activityHeartbetListener;
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
-  private WorkflowServiceStubs workflowServiceStubs;
-  private Server mockServer;
-  private AtomicBoolean cancellationRequested = new AtomicBoolean();
-  private ManagedChannel channel;
+  private final WorkflowServiceStubs workflowServiceStubs;
+  private final Server mockServer;
+  private final AtomicBoolean cancellationRequested = new AtomicBoolean();
+  private final ManagedChannel channel;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     this.testEnvironmentOptions =
@@ -115,6 +114,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             WorkflowServiceStubsOptions.newBuilder()
                 .setChannel(channel)
                 .setMetricsScope(options.getMetricsScope())
+                .setQueryRpcTimeout(Duration.ofSeconds(60))
                 .build());
     activityTaskHandler =
         new POJOActivityTaskHandler(
@@ -144,7 +144,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       requestDetails,
                       activityHeartbetListener.valueClass,
                       activityHeartbetListener.valueType);
-          activityHeartbetListener.consumer.accept(details);
+          activityHeartbetListener.consumer.apply(details);
         }
         responseObserver.onNext(
             RecordActivityTaskHeartbeatResponse.newBuilder()
@@ -197,14 +197,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   @Override
-  public <T> void setActivityHeartbeatListener(Class<T> detailsClass, Consumer<T> listener) {
+  public <T> void setActivityHeartbeatListener(Class<T> detailsClass, Functions.Proc1<T> listener) {
     setActivityHeartbeatListener(detailsClass, detailsClass, listener);
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <T> void setActivityHeartbeatListener(
-      Class<T> detailsClass, Type detailsType, Consumer<T> listener) {
+      Class<T> detailsClass, Type detailsType, Functions.Proc1<T> listener) {
     activityHeartbetListener = new ClassConsumerPair(detailsClass, detailsType, listener);
   }
 
@@ -237,12 +237,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
               .setScheduleToCloseTimeout(
-                  ProtobufTimeUtils.ToProtoDuration(options.getScheduleToCloseTimeout()))
-              .setHeartbeatTimeout(ProtobufTimeUtils.ToProtoDuration(options.getHeartbeatTimeout()))
+                  ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
+              .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()))
               .setStartToCloseTimeout(
-                  ProtobufTimeUtils.ToProtoDuration(options.getStartToCloseTimeout()))
-              .setScheduledTime(ProtobufTimeUtils.GetCurrentProtoTime())
-              .setStartedTime(ProtobufTimeUtils.GetCurrentProtoTime())
+                  ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
+              .setScheduledTime(ProtobufTimeUtils.getCurrentProtoTime())
+              .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(
@@ -371,6 +371,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       throw new UnsupportedOperationException("not implemented");
     }
 
+    @Override
+    public long currentTimeMillis() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
     private <T> T getReply(
         PollActivityTaskQueueResponse task,
         ActivityTaskHandler.Result response,
@@ -401,13 +406,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               "TestActivityEnvironment",
               cause);
         } else {
-          RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
-          if (taskCancelled != null) {
+          RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
+          if (taskCanceled != null) {
             throw new CanceledFailure(
                 "canceled",
                 new EncodedValues(
-                    taskCancelled.hasDetails()
-                        ? Optional.of(taskCancelled.getDetails())
+                    taskCanceled.hasDetails()
+                        ? Optional.of(taskCanceled.getDetails())
                         : Optional.empty(),
                     testEnvironmentOptions.getWorkflowClientOptions().getDataConverter()),
                 null);
@@ -420,11 +425,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
   private static class ClassConsumerPair<T> {
 
-    final Consumer<T> consumer;
+    final Functions.Proc1<T> consumer;
     final Class<T> valueClass;
     final Type valueType;
 
-    ClassConsumerPair(Class<T> valueClass, Type valueType, Consumer<T> consumer) {
+    ClassConsumerPair(Class<T> valueClass, Type valueType, Functions.Proc1<T> consumer) {
       this.valueClass = Objects.requireNonNull(valueClass);
       this.valueType = Objects.requireNonNull(valueType);
       this.consumer = Objects.requireNonNull(consumer);

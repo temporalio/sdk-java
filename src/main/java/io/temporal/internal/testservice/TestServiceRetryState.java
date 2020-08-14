@@ -25,6 +25,7 @@ import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.failure.v1.Failure;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -57,16 +58,22 @@ final class TestServiceRetryState {
   private final RetryPolicy retryPolicy;
   private final Timestamp expirationTime;
   private final int attempt;
+  private final Optional<Failure> lastFailure;
 
   TestServiceRetryState(RetryPolicy retryPolicy, Timestamp expirationTime) {
-    this(validateAndOverrideRetryPolicy(retryPolicy), expirationTime, 1);
+    this(validateAndOverrideRetryPolicy(retryPolicy), expirationTime, 1, Optional.empty());
   }
 
-  private TestServiceRetryState(RetryPolicy retryPolicy, Timestamp expirationTime, int attempt) {
+  private TestServiceRetryState(
+      RetryPolicy retryPolicy,
+      Timestamp expirationTime,
+      int attempt,
+      Optional<Failure> lastFailure) {
     this.retryPolicy = retryPolicy;
     this.expirationTime =
         Timestamps.toMillis(expirationTime) == 0 ? Timestamps.MAX_VALUE : expirationTime;
     this.attempt = attempt;
+    this.lastFailure = lastFailure;
   }
 
   RetryPolicy getRetryPolicy() {
@@ -81,8 +88,12 @@ final class TestServiceRetryState {
     return attempt;
   }
 
-  TestServiceRetryState getNextAttempt() {
-    return new TestServiceRetryState(retryPolicy, expirationTime, attempt + 1);
+  public Optional<Failure> getLastFailure() {
+    return lastFailure;
+  }
+
+  TestServiceRetryState getNextAttempt(Optional<Failure> failure) {
+    return new TestServiceRetryState(retryPolicy, expirationTime, attempt + 1, failure);
   }
 
   BackoffInterval getBackoffIntervalInSeconds(Optional<String> errorType, Timestamp currentTime) {

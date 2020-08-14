@@ -31,7 +31,7 @@ import java.lang.annotation.Target;
  * supplied, and the workflow failed or timeout, the workflow will be retried based on the retry
  * policy. While the workflow is retrying, it won't schedule its next run. If next schedule is due
  * while workflow is running (or retrying), then it will skip that schedule. Cron workflow will not
- * stop until it is terminated or cancelled.
+ * stop until it is terminated or canceled.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)

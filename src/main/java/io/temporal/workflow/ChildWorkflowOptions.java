@@ -134,7 +134,7 @@ public final class ChildWorkflowOptions {
      *
      *     <ul>
      *       AllowDuplicateFailedOnly is a default value. It means that workflow can start if
-     *       previous run failed or was cancelled or terminated.
+     *       previous run failed or was canceled or terminated.
      * </ul>
      *
      * <ul>
@@ -313,7 +313,7 @@ public final class ChildWorkflowOptions {
 
   private final Map<String, Object> searchAttributes;
 
-  private List<ContextPropagator> contextPropagators;
+  private final List<ContextPropagator> contextPropagators;
 
   private final ChildWorkflowCancellationType cancellationType;
 

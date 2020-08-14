@@ -25,7 +25,7 @@ import io.grpc.Status;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
-import io.temporal.client.ActivityCancelledException;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestActivityEnvironment;
@@ -181,7 +181,7 @@ public class ActivityTestingTest {
       try {
         Activity.getExecutionContext().heartbeat(null);
         fail("unreachable");
-      } catch (ActivityCancelledException e) {
+      } catch (ActivityCanceledException e) {
       }
     }
   }
@@ -208,8 +208,8 @@ public class ActivityTestingTest {
       try {
         ctx.heartbeat(null);
         fail("unreachable");
-      } catch (ActivityCancelledException e) {
-        System.out.println("activity cancelled");
+      } catch (ActivityCanceledException e) {
+        // expected
       }
     }
   }
@@ -287,7 +287,7 @@ public class ActivityTestingTest {
   }
 
   public class CImpl implements C {
-    private List<String> invocations = new ArrayList<>();
+    private final List<String> invocations = new ArrayList<>();
 
     @Override
     public void a() {
@@ -306,7 +306,7 @@ public class ActivityTestingTest {
   }
 
   public class BImpl implements B {
-    private List<String> invocations = new ArrayList<>();
+    private final List<String> invocations = new ArrayList<>();
 
     @Override
     public void a() {
@@ -320,7 +320,7 @@ public class ActivityTestingTest {
   }
 
   public class DImpl implements D {
-    private List<String> invocations = new ArrayList<>();
+    private final List<String> invocations = new ArrayList<>();
 
     @Override
     public void a() {
@@ -334,7 +334,7 @@ public class ActivityTestingTest {
   }
 
   public class EImpl implements E {
-    private List<String> invocations = new ArrayList<>();
+    private final List<String> invocations = new ArrayList<>();
 
     @Override
     public void a() {

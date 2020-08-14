@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 class ExecutorThreadFactory implements ThreadFactory {
 
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
-  private AtomicInteger threadIndex = new AtomicInteger();
+  private final AtomicInteger threadIndex = new AtomicInteger();
 
   private final String threadPrefix;
 

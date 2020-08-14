@@ -132,7 +132,7 @@ public final class SingleWorkerOptions {
   private final PollerOptions pollerOptions;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
-  private List<ContextPropagator> contextPropagators;
+  private final List<ContextPropagator> contextPropagators;
 
   private SingleWorkerOptions(
       String identity,

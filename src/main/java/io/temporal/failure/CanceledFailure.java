@@ -22,13 +22,14 @@ package io.temporal.failure;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
+import java.util.Objects;
 
 public final class CanceledFailure extends TemporalFailure {
   private final Values details;
 
   public CanceledFailure(String message, Values details, Throwable cause) {
     super(message, message, cause);
-    this.details = details;
+    this.details = Objects.requireNonNull(details);
   }
 
   public CanceledFailure(String message, Object details) {

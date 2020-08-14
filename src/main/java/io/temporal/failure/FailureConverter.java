@@ -33,7 +33,7 @@ import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
 import io.temporal.api.failure.v1.ServerFailureInfo;
 import io.temporal.api.failure.v1.TerminatedFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
-import io.temporal.client.ActivityCancelledException;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -66,11 +66,11 @@ public class FailureConverter {
 
   private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
 
-  public static Exception failureToException(Failure failure, DataConverter dataConverter) {
+  public static RuntimeException failureToException(Failure failure, DataConverter dataConverter) {
     if (failure == null) {
       return null;
     }
-    Exception result = failureToExceptionImpl(failure, dataConverter);
+    RuntimeException result = failureToExceptionImpl(failure, dataConverter);
     if (result instanceof TemporalFailure) {
       ((TemporalFailure) result).setFailure(failure);
     }
@@ -81,8 +81,9 @@ public class FailureConverter {
     return result;
   }
 
-  private static Exception failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
-    Exception cause =
+  private static RuntimeException failureToExceptionImpl(
+      Failure failure, DataConverter dataConverter) {
+    RuntimeException cause =
         failure.hasCause() ? failureToException(failure.getCause(), dataConverter) : null;
     switch (failure.getFailureInfoCase()) {
       case APPLICATION_FAILURE_INFO:
@@ -257,7 +258,7 @@ public class FailureConverter {
               .setWorkflowType(WorkflowType.newBuilder().setName(ce.getWorkflowType()))
               .setWorkflowExecution(ce.getExecution());
       failure.setChildWorkflowExecutionFailureInfo(info);
-    } else if (e instanceof ActivityCancelledException) {
+    } else if (e instanceof ActivityCanceledException) {
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
       failure.setCanceledFailureInfo(info);
     } else {
