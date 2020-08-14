@@ -4045,7 +4045,8 @@ public class WorkflowTest {
       assertEquals(
           "details1", ((ApplicationFailure) e.getCause()).getDetails().get(0, String.class));
       assertEquals(
-          new Integer(123), ((ApplicationFailure) e.getCause()).getDetails().get(1, Integer.class));
+          Integer.valueOf(123),
+          ((ApplicationFailure) e.getCause()).getDetails().get(1, Integer.class));
       assertEquals(
           "message='simulated 3', type='foo', nonRetryable=true", e.getCause().getMessage());
     }
