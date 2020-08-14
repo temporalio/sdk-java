@@ -96,7 +96,7 @@ public class SideEffectStateMachineTest {
                 (r, c) -> {
                   stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), c);
                 })
-            .add((r) -> stateMachines.newCompleteWorkflow(Optional.empty()));
+            .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
       }
     }
     /*

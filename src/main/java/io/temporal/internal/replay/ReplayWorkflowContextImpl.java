@@ -338,35 +338,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     }
   }
 
-  boolean startUnstartedLaTasks(Duration maxWaitAllowed) {
-    //    return workflowClock.startUnstartedLaTasks(maxWaitAllowed);
-    throw new UnsupportedOperationException("TODO");
-  }
-
-  int numPendingLaTasks() {
-    //    return workflowClock.numPendingLaTasks();
-    // TODO(maxim): implement
-    return 0;
-  }
-
-  void awaitTaskCompletion(Duration duration) throws InterruptedException {
-    //    workflowClock.awaitTaskCompletion(duration);
-    throw new UnsupportedOperationException("TODO");
-  }
-
   @Override
   public void upsertSearchAttributes(SearchAttributes searchAttributes) {
-    //    workflowClock.upsertSearchAttributes(searchAttributes);
+    workflowStateMachines.upseartSearchAttributes(searchAttributes);
     workflowContext.mergeSearchAttributes(searchAttributes);
   }
-
-  //  @Override
-  //  public void handleUpsertSearchAttributes(HistoryEvent event) {
-  //    UpsertWorkflowSearchAttributesEventAttributes attr =
-  //        event.getUpsertWorkflowSearchAttributesEventAttributes();
-  //    if (attr != null) {
-  //      SearchAttributes searchAttributes = attr.getSearchAttributes();
-  //      workflowContext.mergeSearchAttributes(searchAttributes);
-  //    }
-  //  }
 }

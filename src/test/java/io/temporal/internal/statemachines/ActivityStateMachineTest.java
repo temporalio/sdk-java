@@ -94,7 +94,7 @@ public class ActivityStateMachineTest {
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
-            .add((pair) -> stateMachines.newCompleteWorkflow(pair.getT1()));
+            .add((pair) -> stateMachines.completeWorkflow(pair.getT1()));
       }
     }
 
@@ -179,7 +179,7 @@ public class ActivityStateMachineTest {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       "type1", pair.getT2().getCause().getApplicationFailureInfo().getType());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
     }
@@ -261,7 +261,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       TimeoutType.TIMEOUT_TYPE_HEARTBEAT,
                       pair.getT2().getCause().getTimeoutFailureInfo().getTimeoutType());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
     }
@@ -347,7 +347,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
 
         // Immediate cancellation
@@ -395,7 +395,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -497,7 +497,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -581,7 +581,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -687,7 +687,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -805,7 +805,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -925,7 +925,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.TIMEOUT_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -1021,7 +1021,7 @@ public class ActivityStateMachineTest {
                   assertNotNull(pair.getT2());
                   assertEquals(
                       "type1", pair.getT2().getCause().getApplicationFailureInfo().getType());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -1142,7 +1142,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -1251,7 +1251,7 @@ public class ActivityStateMachineTest {
                   assertEquals(
                       Failure.FailureInfoCase.CANCELED_FAILURE_INFO,
                       pair.getT2().getCause().getFailureInfoCase());
-                  stateMachines.newCompleteWorkflow(Optional.empty());
+                  stateMachines.completeWorkflow(Optional.empty());
                 });
       }
 
@@ -1353,7 +1353,7 @@ public class ActivityStateMachineTest {
         builder
             .<Optional<Payloads>, Failure>add2(
                 (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
-            .add((pair) -> stateMachines.newCompleteWorkflow(pair.getT1()));
+            .add((pair) -> stateMachines.completeWorkflow(pair.getT1()));
       }
 
       @Override

@@ -83,7 +83,7 @@ public class VersionStateMachineTest {
         builder
             .<Integer>add1(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -145,7 +145,7 @@ public class VersionStateMachineTest {
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c))
             .<Integer>add1(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
-            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -216,7 +216,7 @@ public class VersionStateMachineTest {
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
             .<Integer>add1(
                 (v, c) -> stateMachines.getVersion("id1", maxSupported + 10, maxSupported + 10, c))
-            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -288,7 +288,7 @@ public class VersionStateMachineTest {
                           .build(),
                       c);
                 })
-            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -343,7 +343,7 @@ public class VersionStateMachineTest {
         builder
             .<Integer>add1(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -413,7 +413,7 @@ public class VersionStateMachineTest {
             .add(
                 (v) -> {
                   trace.append(v);
-                  stateMachines.newCompleteWorkflow(converter.toPayloads(v));
+                  stateMachines.completeWorkflow(converter.toPayloads(v));
                 });
       }
     }
@@ -546,7 +546,7 @@ public class VersionStateMachineTest {
             .add(
                 (v) -> {
                   trace.append(v);
-                  stateMachines.newCompleteWorkflow(converter.toPayloads(v));
+                  stateMachines.completeWorkflow(converter.toPayloads(v));
                 });
       }
     }
@@ -637,7 +637,7 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
-            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
     }
     /*
@@ -740,7 +740,7 @@ public class VersionStateMachineTest {
             .add(
                 (v) -> {
                   trace.append(v);
-                  stateMachines.newCompleteWorkflow(converter.toPayloads(v));
+                  stateMachines.completeWorkflow(converter.toPayloads(v));
                 });
       }
     }
@@ -835,7 +835,7 @@ public class VersionStateMachineTest {
                         c))
             .<Integer>add1(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
-            .add((v) -> stateMachines.newCompleteWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
     }
     /*

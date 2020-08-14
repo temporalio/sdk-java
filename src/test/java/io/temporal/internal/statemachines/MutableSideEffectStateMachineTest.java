@@ -88,7 +88,7 @@ public class MutableSideEffectStateMachineTest {
                 (v, c) ->
                     stateMachines.mutableSideEffect(
                         "id1", (p) -> converter.toPayloads("result1"), c))
-            .add((r) -> stateMachines.newCompleteWorkflow(r));
+            .add((r) -> stateMachines.completeWorkflow(r));
       }
     }
     /*
@@ -151,7 +151,7 @@ public class MutableSideEffectStateMachineTest {
                 (v, c) ->
                     stateMachines.mutableSideEffect(
                         "id1", (p) -> converter.toPayloads("result1"), c))
-            .add((r) -> stateMachines.newCompleteWorkflow(r));
+            .add((r) -> stateMachines.completeWorkflow(r));
       }
     }
     /*
@@ -243,7 +243,7 @@ public class MutableSideEffectStateMachineTest {
                 (v, c) ->
                     stateMachines.mutableSideEffect(
                         "id1", (p) -> converter.toPayloads("result2"), c))
-            .add((r) -> stateMachines.newCompleteWorkflow(r));
+            .add((r) -> stateMachines.completeWorkflow(r));
       }
     }
 

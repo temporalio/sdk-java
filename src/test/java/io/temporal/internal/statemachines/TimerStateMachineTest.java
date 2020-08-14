@@ -87,7 +87,7 @@ public class TimerStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
-            .add((firedEvent) -> stateMachines.newCompleteWorkflow(Optional.empty()));
+            .add((firedEvent) -> stateMachines.completeWorkflow(Optional.empty()));
       }
     }
 
@@ -168,8 +168,7 @@ public class TimerStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
-            .add(
-                (firedEvent) -> stateMachines.newCompleteWorkflow(converter.toPayloads("result1")));
+            .add((firedEvent) -> stateMachines.completeWorkflow(converter.toPayloads("result1")));
 
         // Immediate cancellation
         builder.add((v) -> cancellationHandler.apply());
@@ -230,7 +229,7 @@ public class TimerStateMachineTest {
             .add(
                 (firedEvent) -> {
                   assertEquals(EventType.EVENT_TYPE_TIMER_CANCELED, firedEvent.getEventType());
-                  stateMachines.newCompleteWorkflow(converter.toPayloads("result1"));
+                  stateMachines.completeWorkflow(converter.toPayloads("result1"));
                 });
         builder
             .<HistoryEvent>add1(
