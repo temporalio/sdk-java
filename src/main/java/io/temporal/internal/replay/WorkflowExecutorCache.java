@@ -24,8 +24,11 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.ResetStickyTaskQueueRequest;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -35,12 +38,17 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class WorkflowExecutorCache {
+  private final WorkflowServiceStubs service;
+  private final String namespace;
   private final Scope metricsScope;
   private final LoadingCache<String, WorkflowRunTaskHandler> cache;
   private final Lock cacheLock = new ReentrantLock();
   private final Set<String> inProcessing = new HashSet<>();
 
-  public WorkflowExecutorCache(int workflowCacheSize, Scope scope) {
+  public WorkflowExecutorCache(
+      WorkflowServiceStubs service, String namespace, int workflowCacheSize, Scope scope) {
+    this.service = service;
+    this.namespace = namespace;
     Preconditions.checkArgument(workflowCacheSize > 0, "Max cache size must be greater than 0");
     this.metricsScope = Objects.requireNonNull(scope);
     this.cache =
@@ -67,13 +75,14 @@ public final class WorkflowExecutorCache {
       Scope metricsScope,
       Callable<WorkflowRunTaskHandler> workflowExecutorFn)
       throws Exception {
-    String runId = workflowTask.getWorkflowExecution().getRunId();
+    WorkflowExecution execution = workflowTask.getWorkflowExecution();
     if (isFullHistory(workflowTask)) {
-      invalidate(runId, metricsScope);
+      invalidate(execution, metricsScope);
       return workflowExecutorFn.call();
     }
 
-    WorkflowRunTaskHandler workflowRunTaskHandler = getForProcessing(runId, metricsScope);
+    WorkflowRunTaskHandler workflowRunTaskHandler =
+        getForProcessing(execution.getRunId(), metricsScope);
     if (workflowRunTaskHandler != null) {
       return workflowRunTaskHandler;
     }
@@ -110,12 +119,12 @@ public final class WorkflowExecutorCache {
     cache.put(runId, workflowRunTaskHandler);
   }
 
-  public boolean evictAnyNotInProcessing(String runId, Scope metricsScope) {
+  public boolean evictAnyNotInProcessing(WorkflowExecution execution, Scope metricsScope) {
     cacheLock.lock();
     try {
       this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
       for (String key : cache.asMap().keySet()) {
-        if (!key.equals(runId) && !inProcessing.contains(key)) {
+        if (!key.equals(execution.getRunId()) && !inProcessing.contains(key)) {
           cache.invalidate(key);
           this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
           metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
@@ -129,12 +138,23 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  void invalidate(String runId, Scope metricsScope) {
+  void invalidate(WorkflowExecution execution, Scope metricsScope) {
     cacheLock.lock();
     try {
+      String runId = execution.getRunId();
       cache.invalidate(runId);
       inProcessing.remove(runId);
       metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
+      if (service != null) {
+        // Execute asynchronously
+        service
+            .futureStub()
+            .resetStickyTaskQueue(
+                ResetStickyTaskQueueRequest.newBuilder()
+                    .setNamespace(namespace)
+                    .setExecution(execution)
+                    .build());
+      }
     } finally {
       cacheLock.unlock();
     }

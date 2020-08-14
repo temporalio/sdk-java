@@ -203,7 +203,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       workflowRunTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
       WorkflowTaskResult result = workflowRunTaskHandler.handleWorkflowTask(workflowTask);
       if (result.isFinalCommand()) {
-        cache.invalidate(runId, metricsScope);
+        cache.invalidate(execution, metricsScope);
       } else if (stickyTaskQueueName != null && createdNew.get()) {
         cache.addToCache(runId, workflowRunTaskHandler);
       }
@@ -217,7 +217,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
 
       if (stickyTaskQueueName != null) {
-        cache.invalidate(runId, metricsScope);
+        cache.invalidate(execution, metricsScope);
       }
       throw e;
     } finally {
@@ -303,7 +303,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
             .setTaskToken(workflowTask.getTaskToken())
             .addAllCommands(result.getCommands())
             .putAllQueryResults(result.getQueryResults())
-            .setForceCreateNewWorkflowTask(result.isForceWorkflowTask());
+            .setForceCreateNewWorkflowTask(result.isForceWorkflowTask())
+            .setReturnNewWorkflowTask(result.isForceWorkflowTask());
 
     if (stickyTaskQueueName != null
         && (stickyTaskQueueScheduleToStartTimeout == null

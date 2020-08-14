@@ -68,7 +68,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
   @Test
   public void ifStickyExecutionAttributesAreNotSetThenWorkflowsAreNotCached() throws Throwable {
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
+    WorkflowExecutorCache cache =
+        new WorkflowExecutorCache(service, "default", 10, new NoopScope());
     WorkflowTaskHandler taskHandler =
         new ReplayWorkflowTaskHandler(
             "namespace",
@@ -94,7 +95,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
   @Test
   public void ifStickyExecutionAttributesAreSetThenWorkflowsAreCached() throws Throwable {
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
+    WorkflowExecutorCache cache =
+        new WorkflowExecutorCache(service, "default", 10, new NoopScope());
     WorkflowTaskHandler taskHandler =
         new ReplayWorkflowTaskHandler(
             "namespace",

@@ -29,6 +29,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -636,9 +637,11 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 3, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(3, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 3, scope);
     ReplayWorkflowContext replayWorkflowContext = mock(ReplayWorkflowContext.class);
     when(replayWorkflowContext.getMetricsScope()).thenReturn(scope);
+    when(replayWorkflowContext.getWorkflowExecution())
+        .thenReturn(WorkflowExecution.newBuilder().setWorkflowId("id1").setRunId("run1").build());
     when(replayWorkflowContext.getNamespace()).thenReturn("namespace");
     when(replayWorkflowContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
@@ -703,7 +706,7 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(3, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 3, new NoopScope());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(

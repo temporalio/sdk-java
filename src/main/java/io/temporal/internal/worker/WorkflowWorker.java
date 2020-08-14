@@ -310,7 +310,7 @@ public final class WorkflowWorker
           } finally {
             sw.stop();
           }
-          nextTask = sendReply(service, metricsScope, task.getTaskToken(), response);
+          nextTask = sendReply(service, metricsScope, nextTask.get().getTaskToken(), response);
           if (nextTask.isPresent()) {
             metricsScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
           }

@@ -112,7 +112,11 @@ public final class WorkerFactory {
                     .build());
 
     this.cache =
-        new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
+        new WorkflowExecutorCache(
+            this.workflowClient.getWorkflowServiceStubs(),
+            workflowClient.getOptions().getNamespace(),
+            this.factoryOptions.getWorkflowCacheSize(),
+            metricsScope);
     Scope stickyScope =
         metricsScope.tagged(
             new ImmutableMap.Builder<String, String>(1)

@@ -252,9 +252,10 @@ class WorkflowThreadImpl implements WorkflowThread {
             .inc(1);
         if (cache != null) {
           SyncWorkflowContext workflowContext = this.runner.getWorkflowContext();
+          ReplayWorkflowContext context = workflowContext.getContext();
           boolean evicted =
               cache.evictAnyNotInProcessing(
-                  workflowContext.getContext().getRunId(), workflowContext.getMetricsScope());
+                  context.getWorkflowExecution(), workflowContext.getMetricsScope());
           if (!evicted) {
             // Note here we need to throw error, not exception. Otherwise it will be
             // translated to workflow execution exception and instead of failing the

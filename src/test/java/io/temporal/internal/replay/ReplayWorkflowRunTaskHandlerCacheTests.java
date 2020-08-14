@@ -64,7 +64,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
   public void whenHistoryIsFullNewWorkflowExecutorIsReturnedAndCached_InitiallyEmpty()
       throws Exception {
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 10, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
@@ -88,7 +88,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     WorkflowServiceStubs service = testService.newClientStub();
 
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 10, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory(
             "namespace", "taskQueue", "workflowType", service);
@@ -133,7 +133,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
             .build();
     Scope scope = metricsScope.tagged(tags);
 
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 10, scope);
     TestWorkflowService testService = new TestWorkflowService(true);
     WorkflowServiceStubs service = testService.newClientStub();
     try {
@@ -174,7 +174,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
             .put(MetricsTag.TASK_QUEUE, "stickyTaskQueue")
             .build();
     Scope scope = metricsScope.tagged(tags);
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 10, scope);
 
     // Act
     PollWorkflowTaskQueueResponse workflowTask =
@@ -203,7 +203,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     Scope scope = metricsScope.tagged(tags);
 
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(50, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 50, scope);
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
     PollWorkflowTaskQueueResponse workflowTask2 =
@@ -220,11 +220,12 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     cache.addToCache(workflowTask2.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
     workflowRunTaskHandler =
         cache.getOrCreate(workflowTask3, scope, () -> createFakeExecutor(workflowTask3));
-    cache.addToCache(workflowTask3.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
+    WorkflowExecution execution = workflowTask3.getWorkflowExecution();
+    cache.addToCache(execution.getRunId(), workflowRunTaskHandler);
 
     assertEquals(3, cache.size());
 
-    cache.evictAnyNotInProcessing(workflowTask3.getWorkflowExecution().getRunId(), scope);
+    cache.evictAnyNotInProcessing(execution, scope);
 
     // Assert
     assertEquals(2, cache.size());
@@ -237,18 +238,19 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
   @Test
   public void evictAnyWillNotInvalidateItself() throws Exception {
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(50, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 50, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     // Act
     WorkflowRunTaskHandler workflowRunTaskHandler =
         cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
+    WorkflowExecution execution = workflowTask1.getWorkflowExecution();
+    cache.addToCache(execution.getRunId(), workflowRunTaskHandler);
 
     assertEquals(1, cache.size());
 
-    cache.evictAnyNotInProcessing(workflowTask1.getWorkflowExecution().getRunId(), metricsScope);
+    cache.evictAnyNotInProcessing(execution, metricsScope);
 
     // Assert
     assertEquals(1, cache.size());
