@@ -59,7 +59,7 @@ class WorkflowThreadContext {
     if (status != Status.RUNNING) {
       throw new IllegalStateException("not in RUNNING but in " + status + " state");
     }
-    yield("created", () -> true);
+    this.yield("created", () -> true);
   }
 
   public void yield(String reason, Supplier<Boolean> unblockFunction) {
