@@ -19,10 +19,14 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.*;
+import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.MARKER_DATA_KEY;
+import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.MARKER_ID_KEY;
+import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.MARKER_SKIP_COUNT_KEY;
+import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.MUTABLE_SIDE_EFFECT_MARKER_NAME;
 import static io.temporal.internal.statemachines.TestHistoryBuilder.assertCommand;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.protobuf.Duration;
 import io.temporal.api.command.v1.Command;
@@ -34,14 +38,45 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 public class MutableSideEffectStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
   private WorkflowStateMachines stateMachines;
+
+  private static final List<
+          StateMachine<
+              MutableSideEffectStateMachine.State,
+              MutableSideEffectStateMachine.ExplicitEvent,
+              MutableSideEffectStateMachine.InvocationStateMachine>>
+      stateMachineList = new ArrayList<>();
+
+  private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
+    return new WorkflowStateMachines(
+        listener, (stateMachine -> stateMachineList.add(stateMachine)));
+  }
+
+  @AfterClass
+  public static void generateCoverage() {
+    List<Transition> missed =
+        MutableSideEffectStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
+            stateMachineList);
+    if (!missed.isEmpty()) {
+      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+          "test",
+          MutableSideEffectStateMachine.class,
+          MutableSideEffectStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
+              stateMachineList));
+      fail(
+          "SideEffectStateMachine is missing test coverage for the following transitions:\n"
+              + missed);
+    }
+  }
 
   @Test
   public void testOne() {
@@ -82,7 +117,7 @@ public class MutableSideEffectStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
@@ -96,7 +131,7 @@ public class MutableSideEffectStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.toString(), commands.isEmpty());
     }
@@ -145,7 +180,7 @@ public class MutableSideEffectStateMachineTest {
 
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
@@ -170,7 +205,7 @@ public class MutableSideEffectStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
     }
@@ -268,7 +303,7 @@ public class MutableSideEffectStateMachineTest {
         .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
     {
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
 
       assertEquals(2, commands.size());
@@ -315,7 +350,7 @@ public class MutableSideEffectStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertTrue(commands.isEmpty());
     }

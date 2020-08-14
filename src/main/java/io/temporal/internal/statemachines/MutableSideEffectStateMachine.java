@@ -19,6 +19,7 @@
 
 package io.temporal.internal.statemachines;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
@@ -125,7 +126,8 @@ final class MutableSideEffectStateMachine {
                   InvocationStateMachine::notifyFromEvent);
 
   /** Represents a single invocation of mutableSideEffect. */
-  private class InvocationStateMachine
+  @VisibleForTesting
+  class InvocationStateMachine
       extends EntityStateMachineInitialCommand<State, ExplicitEvent, InvocationStateMachine> {
 
     private final Functions.Proc1<Optional<Payloads>> resultCallback;
