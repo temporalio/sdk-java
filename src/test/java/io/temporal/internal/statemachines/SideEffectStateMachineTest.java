@@ -22,7 +22,9 @@ package io.temporal.internal.statemachines;
 import static io.temporal.internal.statemachines.MutableSideEffectStateMachine.MARKER_DATA_KEY;
 import static io.temporal.internal.statemachines.SideEffectStateMachine.SIDE_EFFECT_MARKER_NAME;
 import static io.temporal.internal.statemachines.TestHistoryBuilder.assertCommand;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.Payloads;
