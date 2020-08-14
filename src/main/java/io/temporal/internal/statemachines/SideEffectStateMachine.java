@@ -119,10 +119,11 @@ final class SideEffectStateMachine
   }
 
   private State createMarkerCommand() {
+    State transitionTo;
     RecordMarkerCommandAttributes markerAttributes;
     if (replaying.apply()) {
       markerAttributes = RecordMarkerCommandAttributes.getDefaultInstance();
-      return State.MARKER_COMMAND_CREATED_REPLAYING;
+      transitionTo = State.MARKER_COMMAND_CREATED_REPLAYING;
     } else {
       // executing first time
       result = func.apply();
@@ -138,13 +139,14 @@ final class SideEffectStateMachine
               .setMarkerName(SIDE_EFFECT_MARKER_NAME)
               .putAllDetails(details)
               .build();
+      transitionTo = State.MARKER_COMMAND_CREATED;
     }
     addCommand(
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
             .setRecordMarkerCommandAttributes(markerAttributes)
             .build());
-    return State.MARKER_COMMAND_CREATED;
+    return transitionTo;
   }
 
   private void markerResultFromEvent() {
