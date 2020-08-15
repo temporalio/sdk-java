@@ -65,9 +65,7 @@ public class TimerStateMachineTest {
           TimerStateMachine.class,
           TimerStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
               stateMachineList));
-      fail(
-          "SideEffectStateMachine is missing test coverage for the following transitions:\n"
-              + missed);
+      fail("isEmpty is missing test coverage for the following transitions:\n" + missed);
     }
   }
 

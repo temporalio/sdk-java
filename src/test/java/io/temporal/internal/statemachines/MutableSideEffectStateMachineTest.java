@@ -73,7 +73,7 @@ public class MutableSideEffectStateMachineTest {
           MutableSideEffectStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
               stateMachineList));
       fail(
-          "SideEffectStateMachine is missing test coverage for the following transitions:\n"
+          "MutableSideEffectStateMachine is missing test coverage for the following transitions:\n"
               + missed);
     }
   }
