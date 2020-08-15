@@ -66,9 +66,9 @@ final class LocalActivityStateMachine
   private Failure failure;
   private ActivityTaskHandler.Result result;
   private Optional<Payloads> laResult;
-  private boolean hasRetryPolicy;
-  private String activityId;
-  private ActivityType activityType;
+  private final boolean hasRetryPolicy;
+  private final String activityId;
+  private final ActivityType activityType;
 
   /**
    * Creates new local activity marker

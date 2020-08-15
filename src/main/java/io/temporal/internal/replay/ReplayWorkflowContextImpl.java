@@ -261,10 +261,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     workflowContext.setContinueAsNewOnCompletion(attributes);
   }
 
-  long getReplayCurrentTimeMilliseconds() {
-    return workflowStateMachines.currentTimeMillis();
-  }
-
   @Override
   public boolean isReplaying() {
     return workflowStateMachines.isReplaying();
