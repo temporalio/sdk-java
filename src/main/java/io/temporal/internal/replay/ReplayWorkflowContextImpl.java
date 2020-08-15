@@ -340,7 +340,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public void upsertSearchAttributes(SearchAttributes searchAttributes) {
-    workflowStateMachines.upseartSearchAttributes(searchAttributes);
+    workflowStateMachines.upsertSearchAttributes(searchAttributes);
     workflowContext.mergeSearchAttributes(searchAttributes);
   }
 }

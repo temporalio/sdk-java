@@ -20,7 +20,13 @@
 package io.temporal.workflow;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -6363,6 +6369,7 @@ public class WorkflowTest {
     TestUpsertSearchAttributes testWorkflow =
         workflowClient.newWorkflowStub(
             TestUpsertSearchAttributes.class, newWorkflowOptionsBuilder(taskQueue).build());
+    WorkflowExecution execution = WorkflowClient.start(testWorkflow::execute, taskQueue, "testKey");
     String result = testWorkflow.execute(taskQueue, "testKey");
     assertEquals("done", result);
     tracer.setExpected(
@@ -6371,6 +6378,22 @@ public class WorkflowTest {
         "upsertSearchAttributes",
         "executeActivity Activity",
         "activity Activity");
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean found = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES == event.getEventType()) {
+        found = true;
+        break;
+      }
+    }
+    assertTrue("EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES found in the history", found);
   }
 
   public static class TestMultiargsWorkflowsFuncChild implements TestMultiargsWorkflowsFunc2 {

@@ -549,7 +549,7 @@ public final class WorkflowStateMachines {
         attributes, completionCallback, commandSink, stateMachineSink);
   }
 
-  public void upseartSearchAttributes(SearchAttributes attributes) {
+  public void upsertSearchAttributes(SearchAttributes attributes) {
     checkEventLoopExecuting();
     UpsertSearchAttributesStateMachine.newInstance(attributes, commandSink, stateMachineSink);
   }
