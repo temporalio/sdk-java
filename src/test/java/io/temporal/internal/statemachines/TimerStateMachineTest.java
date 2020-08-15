@@ -21,6 +21,7 @@ package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.statemachines.TestHistoryBuilder.assertCommand;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
@@ -34,14 +35,39 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 public class TimerStateMachineTest {
 
   private final DataConverter converter = DataConverter.getDefaultInstance();
   private WorkflowStateMachines stateMachines;
+
+  private static final List<
+          StateMachine<TimerStateMachine.State, TimerStateMachine.ExplicitEvent, TimerStateMachine>>
+      stateMachineList = new ArrayList<>();
+
+  private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
+    return new WorkflowStateMachines(
+        listener, (stateMachine -> stateMachineList.add(stateMachine)));
+  }
+
+  @AfterClass
+  public static void generateCoverage() {
+    List<Transition> missed =
+        TimerStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(stateMachineList);
+    if (!missed.isEmpty()) {
+      CommandsGeneratePlantUMLStateDiagrams.writeToFile(
+          "test",
+          TimerStateMachine.class,
+          TimerStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
+              stateMachineList));
+      fail("isEmpty is missing test coverage for the following transitions:\n" + missed);
+    }
+  }
 
   @Test
   public void testTimerFire() {
@@ -59,7 +85,7 @@ public class TimerStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
-            .add((firedEvent) -> stateMachines.newCompleteWorkflow(Optional.empty()));
+            .add((firedEvent) -> stateMachines.completeWorkflow(Optional.empty()));
       }
     }
 
@@ -76,7 +102,7 @@ public class TimerStateMachineTest {
     TestHistoryBuilder h = new TestHistoryBuilder();
     {
       TestEntityManagerListenerBase listener = new TestTimerFireListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTask();
       long timerStartedEventId = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
@@ -99,7 +125,7 @@ public class TimerStateMachineTest {
     {
       // Full replay
       TestEntityManagerListenerBase listener = new TestTimerFireListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
@@ -140,8 +166,7 @@ public class TimerStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         c))
-            .add(
-                (firedEvent) -> stateMachines.newCompleteWorkflow(converter.toPayloads("result1")));
+            .add((firedEvent) -> stateMachines.completeWorkflow(converter.toPayloads("result1")));
 
         // Immediate cancellation
         builder.add((v) -> cancellationHandler.apply());
@@ -156,7 +181,7 @@ public class TimerStateMachineTest {
     h.addWorkflowTaskScheduledAndStarted();
     {
       TestEntityManagerListenerBase listener = new TestTimerImmediateCancellationListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       {
         List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
         assertCommand(CommandType.COMMAND_TYPE_START_TIMER, commands);
@@ -169,7 +194,7 @@ public class TimerStateMachineTest {
     }
     {
       TestEntityManagerListenerBase listener = new TestTimerImmediateCancellationListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
@@ -202,7 +227,7 @@ public class TimerStateMachineTest {
             .add(
                 (firedEvent) -> {
                   assertEquals(EventType.EVENT_TYPE_TIMER_CANCELED, firedEvent.getEventType());
-                  stateMachines.newCompleteWorkflow(converter.toPayloads("result1"));
+                  stateMachines.completeWorkflow(converter.toPayloads("result1"));
                 });
         builder
             .<HistoryEvent>add1(
@@ -260,7 +285,7 @@ public class TimerStateMachineTest {
         .addWorkflowTaskScheduledAndStarted();
     {
       TestTimerCancellationListener listener = new TestTimerCancellationListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       {
         List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
         assertEquals(2, commands.size());
@@ -279,7 +304,7 @@ public class TimerStateMachineTest {
     }
     {
       TestTimerCancellationListener listener = new TestTimerCancellationListener();
-      stateMachines = new WorkflowStateMachines(listener);
+      stateMachines = newStateMachines(listener);
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
       assertEquals("timer2", listener.getFiredTimerId());

@@ -82,8 +82,9 @@ public class CommandsGeneratePlantUMLStateDiagrams {
     String relativePath = type.getName().replace(".", File.separator);
     String fullRelativePath =
         ("src/" + prefix + "/java/" + relativePath).replace("/", File.separator);
-    String diagramFile = (projectPath + "/" + fullRelativePath).replace("/", File.separator);
-    File file = new File(diagramFile + ".puml");
+    String diagramFile =
+        (projectPath + "/" + fullRelativePath).replace("/", File.separator) + ".puml";
+    File file = new File(diagramFile);
     CharSink sink = Files.asCharSink(file, Charsets.UTF_8);
     File licenseFile = new File(projectPath + File.separator + "license-header.txt");
     StringBuilder content = new StringBuilder();
@@ -106,6 +107,9 @@ public class CommandsGeneratePlantUMLStateDiagrams {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-    log.info("Regenerated state diagram file: " + diagramFile);
+    System.err.println(
+        "Look at the generated diagram for the missing state transition: "
+            + diagramFile
+            + ".\nDon't check this file in. Fix the unit test and delete the file.");
   }
 }

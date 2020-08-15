@@ -25,6 +25,7 @@ import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
@@ -42,6 +43,10 @@ import java.util.Optional;
 final class ActivityStateMachine
     extends EntityStateMachineInitialCommand<
         ActivityStateMachine.State, ActivityStateMachine.ExplicitEvent, ActivityStateMachine> {
+
+  private String activityId;
+  private ActivityType activityType;
+  private ActivityCancellationType cancellationType;
 
   enum ExplicitEvent {
     SCHEDULE,
@@ -221,7 +226,7 @@ final class ActivityStateMachine
                   State.CANCELED,
                   ActivityStateMachine::notifyCancellationFromEvent);
 
-  private final ExecuteActivityParameters parameters;
+  private ExecuteActivityParameters parameters;
 
   private final Functions.Proc2<Optional<Payloads>, Failure> completionCallback;
 
@@ -249,6 +254,10 @@ final class ActivityStateMachine
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.parameters = parameters;
+    ScheduleActivityTaskCommandAttributes.Builder scheduleAttr = parameters.getAttributes();
+    this.activityId = scheduleAttr.getActivityId();
+    this.activityType = scheduleAttr.getActivityType();
+    this.cancellationType = parameters.getCancellationType();
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -262,7 +271,7 @@ final class ActivityStateMachine
   }
 
   public void cancel() {
-    if (parameters.getCancellationType() == ActivityCancellationType.ABANDON) {
+    if (cancellationType == ActivityCancellationType.ABANDON) {
       notifyCanceled();
     } else if (!isFinalState()) {
       explicitEvent(ExplicitEvent.CANCEL);
@@ -275,19 +284,18 @@ final class ActivityStateMachine
 
   private void cancelCommandNotifyCanceled() {
     cancelCommand();
-    if (parameters.getCancellationType() != ActivityCancellationType.ABANDON) {
+    if (cancellationType != ActivityCancellationType.ABANDON) {
       notifyCanceled();
     }
   }
 
   private void notifyCanceledIfTryCancel() {
-    if (parameters.getCancellationType() == ActivityCancellationType.TRY_CANCEL) {
+    if (cancellationType == ActivityCancellationType.TRY_CANCEL) {
       notifyCanceled();
     }
   }
 
   private void notifyCanceled() {
-    ScheduleActivityTaskCommandAttributes.Builder scheduleAttr = parameters.getAttributes();
     Failure canceledFailure =
         Failure.newBuilder()
             .setSource(JAVA_SDK)
@@ -295,8 +303,8 @@ final class ActivityStateMachine
             .build();
     ActivityFailureInfo activityFailureInfo =
         ActivityFailureInfo.newBuilder()
-            .setActivityId(scheduleAttr.getActivityId())
-            .setActivityType(scheduleAttr.getActivityType())
+            .setActivityId(activityId)
+            .setActivityType(activityType)
             .setIdentity("workflow")
             .setScheduledEventId(getInitialCommandEventId())
             .setStartedEventId(startedCommandEventId)
@@ -320,11 +328,10 @@ final class ActivityStateMachine
 
   private void notifyFailed() {
     ActivityTaskFailedEventAttributes failed = currentEvent.getActivityTaskFailedEventAttributes();
-    ScheduleActivityTaskCommandAttributes.Builder scheduleAttr = parameters.getAttributes();
     ActivityFailureInfo failureInfo =
         ActivityFailureInfo.newBuilder()
-            .setActivityId(scheduleAttr.getActivityId())
-            .setActivityType(scheduleAttr.getActivityType())
+            .setActivityId(activityId)
+            .setActivityType(activityType)
             .setIdentity(failed.getIdentity())
             .setRetryState(failed.getRetryState())
             .setScheduledEventId(failed.getScheduledEventId())
@@ -340,15 +347,13 @@ final class ActivityStateMachine
   }
 
   private void notifyTimedOut() {
-    ScheduleActivityTaskCommandAttributes.Builder scheduleAttr = parameters.getAttributes();
-
     ActivityTaskTimedOutEventAttributes timedOut =
         currentEvent.getActivityTaskTimedOutEventAttributes();
 
     ActivityFailureInfo failureInfo =
         ActivityFailureInfo.newBuilder()
-            .setActivityId(scheduleAttr.getActivityId())
-            .setActivityType(scheduleAttr.getActivityType())
+            .setActivityId(activityId)
+            .setActivityType(activityType)
             .setRetryState(timedOut.getRetryState())
             .setScheduledEventId(timedOut.getScheduledEventId())
             .setStartedEventId(timedOut.getStartedEventId())
@@ -363,7 +368,7 @@ final class ActivityStateMachine
   }
 
   private void notifyCancellationFromEvent() {
-    if (parameters.getCancellationType() == ActivityCancellationType.WAIT_CANCELLATION_COMPLETED) {
+    if (cancellationType == ActivityCancellationType.WAIT_CANCELLATION_COMPLETED) {
       ActivityTaskCanceledEventAttributes canceledAttr =
           currentEvent.getActivityTaskCanceledEventAttributes();
       Failure canceledFailure =
@@ -373,11 +378,10 @@ final class ActivityStateMachine
                   CanceledFailureInfo.newBuilder().setDetails(canceledAttr.getDetails()))
               .build();
 
-      ScheduleActivityTaskCommandAttributes.Builder scheduleAttr = parameters.getAttributes();
       ActivityFailureInfo failureInfo =
           ActivityFailureInfo.newBuilder()
-              .setActivityId(scheduleAttr.getActivityId())
-              .setActivityType(scheduleAttr.getActivityType())
+              .setActivityId(activityId)
+              .setActivityType(activityType)
               .setScheduledEventId(canceledAttr.getScheduledEventId())
               .setStartedEventId(canceledAttr.getStartedEventId())
               .build();
@@ -392,21 +396,6 @@ final class ActivityStateMachine
     }
   }
 
-  private void cancelCommandNotifyCompleted() {
-    cancelCommand();
-    notifyCompleted();
-  }
-
-  private void cancelCommandNotifyFailed() {
-    cancelCommand();
-    notifyFailed();
-  }
-
-  private void cancelCommandNotifyTimedOut() {
-    cancelCommand();
-    notifyTimedOut();
-  }
-
   private void createRequestCancelActivityTaskCommand() {
     addCommand(
         Command.newBuilder()
@@ -415,5 +404,6 @@ final class ActivityStateMachine
                 RequestCancelActivityTaskCommandAttributes.newBuilder()
                     .setScheduledEventId(getInitialCommandEventId()))
             .build());
+    parameters = null; // avoid retaining large input for the duration of the activity
   }
 }

@@ -123,12 +123,7 @@ final class TimerStateMachine
                   State.CANCEL_TIMER_COMMAND_CREATED,
                   CommandType.COMMAND_TYPE_CANCEL_TIMER,
                   State.CANCEL_TIMER_COMMAND_SENT,
-                  TimerStateMachine::notifyCancellation)
-              .add(
-                  State.CANCEL_TIMER_COMMAND_CREATED,
-                  EventType.EVENT_TYPE_TIMER_FIRED,
-                  State.FIRED,
-                  TimerStateMachine::cancelTimerCommandFireTimer);
+                  TimerStateMachine::notifyCancellation);
 
   private void createStartTimerCommand() {
     addCommand(

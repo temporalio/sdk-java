@@ -21,6 +21,7 @@ package io.temporal.internal.statemachines;
 
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
+import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
@@ -57,7 +58,7 @@ final class LocalActivityStateMachine
   private final Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink;
   private final Functions.Proc2<Optional<Payloads>, Failure> callback;
 
-  private final ExecuteLocalActivityParameters localActivityParameters;
+  private ExecuteLocalActivityParameters localActivityParameters;
   private final Functions.Func<Boolean> replaying;
   /** Accepts proposed current time. Returns accepted current time. */
   private final Functions.Func1<Long, Long> setCurrentTimeCallback;
@@ -65,6 +66,9 @@ final class LocalActivityStateMachine
   private Failure failure;
   private ActivityTaskHandler.Result result;
   private Optional<Payloads> laResult;
+  private final boolean hasRetryPolicy;
+  private final String activityId;
+  private final ActivityType activityType;
 
   /**
    * Creates new local activity marker
@@ -103,6 +107,10 @@ final class LocalActivityStateMachine
     this.replaying = replaying;
     this.setCurrentTimeCallback = setCurrentTimeCallback;
     this.localActivityParameters = localActivityParameters;
+    PollActivityTaskQueueResponse.Builder activityTask = localActivityParameters.getActivityTask();
+    this.hasRetryPolicy = activityTask.hasRetryPolicy();
+    this.activityId = activityTask.getActivityId();
+    this.activityType = activityTask.getActivityType();
     this.localActivityRequestSink = localActivityRequestSink;
     this.callback = callback;
     explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
@@ -197,6 +205,8 @@ final class LocalActivityStateMachine
 
   public void sendRequest() {
     localActivityRequestSink.apply(localActivityParameters);
+    localActivityParameters =
+        null; // avoid retaining parameters for the duration of activity execution
   }
 
   public void markAsSent() {
@@ -219,10 +229,7 @@ final class LocalActivityStateMachine
     Map<String, Payloads> details = new HashMap<>();
     if (!replaying.apply()) {
       markerAttributes.setMarkerName(LOCAL_ACTIVITY_MARKER_NAME);
-      Payloads id =
-          dataConverter
-              .toPayloads(this.localActivityParameters.getActivityTask().getActivityId())
-              .get();
+      Payloads id = dataConverter.toPayloads(activityId).get();
       details.put(MARKER_ACTIVITY_ID_KEY, id);
       // TODO(maxim): Consider using elapsed since start instead of Sytem.currentTimeMillis
       long currentTime = setCurrentTimeCallback.apply(System.currentTimeMillis());
@@ -241,9 +248,8 @@ final class LocalActivityStateMachine
         // TODO(maxim): Result should contain Failure, not an exception
         ActivityTaskHandler.Result.TaskFailedResult failed = result.getTaskFailed();
         // TODO(maxim): Return RetryState in the result
-        PollActivityTaskQueueResponse.Builder task = localActivityParameters.getActivityTask();
         RetryState retryState =
-            task.hasRetryPolicy()
+            hasRetryPolicy
                 ? RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED
                 : RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET;
         failure =
@@ -251,8 +257,8 @@ final class LocalActivityStateMachine
                 .setActivityFailureInfo(
                     ActivityFailureInfo.newBuilder()
                         .setRetryState(retryState)
-                        .setActivityId(task.getActivityId())
-                        .setActivityType(task.getActivityType()))
+                        .setActivityId(activityId)
+                        .setActivityType(activityType))
                 .setCause(FailureConverter.exceptionToFailure(failed.getFailure()))
                 .build();
         markerAttributes.setFailure(failure);

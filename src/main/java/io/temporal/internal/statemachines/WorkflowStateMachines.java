@@ -36,8 +36,8 @@ import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
-import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
@@ -549,23 +549,22 @@ public final class WorkflowStateMachines {
         attributes, completionCallback, commandSink, stateMachineSink);
   }
 
-  public void newUpsertSearchAttributes(
-      UpsertWorkflowSearchAttributesCommandAttributes attributes) {
+  public void upsertSearchAttributes(SearchAttributes attributes) {
     checkEventLoopExecuting();
     UpsertSearchAttributesStateMachine.newInstance(attributes, commandSink, stateMachineSink);
   }
 
-  public void newCompleteWorkflow(Optional<Payloads> workflowOutput) {
+  public void completeWorkflow(Optional<Payloads> workflowOutput) {
     checkEventLoopExecuting();
     CompleteWorkflowStateMachine.newInstance(workflowOutput, commandSink, stateMachineSink);
   }
 
-  public void newFailWorkflow(Failure failure) {
+  public void failWorkflow(Failure failure) {
     checkEventLoopExecuting();
     FailWorkflowStateMachine.newInstance(failure, commandSink, stateMachineSink);
   }
 
-  public void newCancelWorkflow() {
+  public void cancelWorkflow() {
     checkEventLoopExecuting();
     CancelWorkflowStateMachine.newInstance(
         CancelWorkflowExecutionCommandAttributes.getDefaultInstance(),
@@ -573,7 +572,7 @@ public final class WorkflowStateMachines {
         stateMachineSink);
   }
 
-  public void newContinueAsNewWorkflow(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
+  public void continueAsNewWorkflow(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
     checkEventLoopExecuting();
     ContinueAsNewWorkflowStateMachine.newInstance(attributes, commandSink, stateMachineSink);
   }

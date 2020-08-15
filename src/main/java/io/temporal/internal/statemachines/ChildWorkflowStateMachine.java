@@ -49,6 +49,10 @@ final class ChildWorkflowStateMachine
         ChildWorkflowStateMachine.ExplicitEvent,
         ChildWorkflowStateMachine> {
 
+  private String workflowType;
+  private String namespace;
+  private String workflowId;
+
   enum ExplicitEvent {
     SCHEDULE,
     CANCEL
@@ -133,7 +137,7 @@ final class ChildWorkflowStateMachine
                   State.TERMINATED,
                   ChildWorkflowStateMachine::notifyTerminated);
 
-  private final StartChildWorkflowExecutionCommandAttributes startAttributes;
+  private StartChildWorkflowExecutionCommandAttributes startAttributes;
 
   private final Functions.Proc1<WorkflowExecution> startedCallback;
 
@@ -169,6 +173,9 @@ final class ChildWorkflowStateMachine
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.startAttributes = startAttributes;
+    this.workflowType = startAttributes.getWorkflowType().getName();
+    this.namespace = startAttributes.getNamespace();
+    this.workflowId = startAttributes.getWorkflowId();
     this.startedCallback = startedCallback;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -180,6 +187,7 @@ final class ChildWorkflowStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION)
             .setStartChildWorkflowExecutionCommandAttributes(startAttributes)
             .build());
+    startAttributes = null; // avoiding retaining large input for the duration of the child
   }
 
   public boolean isCancellable() {
@@ -203,9 +211,9 @@ final class ChildWorkflowStateMachine
         new ChildWorkflowFailure(
             0,
             0,
-            startAttributes.getWorkflowType().getName(),
-            WorkflowExecution.newBuilder().setWorkflowId(startAttributes.getWorkflowId()).build(),
-            startAttributes.getNamespace(),
+            workflowType,
+            WorkflowExecution.newBuilder().setWorkflowId(workflowId).build(),
+            namespace,
             RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
             new CanceledFailure("Child immediately canceled", null, null));
     completionCallback.apply(Optional.empty(), failure);

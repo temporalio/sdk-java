@@ -21,6 +21,7 @@ package io.temporal.internal.statemachines;
 
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.workflow.Functions;
@@ -31,21 +32,21 @@ final class UpsertSearchAttributesStateMachine
         UpsertSearchAttributesStateMachine.ExplicitEvent,
         UpsertSearchAttributesStateMachine> {
 
-  private final UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes;
+  private SearchAttributes searchAttributes;
 
   public static void newInstance(
-      UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes,
+      SearchAttributes searchAttributes,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    new UpsertSearchAttributesStateMachine(upsertAttributes, commandSink, stateMachineSink);
+    new UpsertSearchAttributesStateMachine(searchAttributes, commandSink, stateMachineSink);
   }
 
   private UpsertSearchAttributesStateMachine(
-      UpsertWorkflowSearchAttributesCommandAttributes upsertAttributes,
+      SearchAttributes searchAttributes,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
-    this.upsertAttributes = upsertAttributes;
+    this.searchAttributes = searchAttributes;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
@@ -83,7 +84,11 @@ final class UpsertSearchAttributesStateMachine
     addCommand(
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES)
-            .setUpsertWorkflowSearchAttributesCommandAttributes(upsertAttributes)
+            .setUpsertWorkflowSearchAttributesCommandAttributes(
+                UpsertWorkflowSearchAttributesCommandAttributes.newBuilder()
+                    .setSearchAttributes(searchAttributes)
+                    .build())
             .build());
+    searchAttributes = null;
   }
 }

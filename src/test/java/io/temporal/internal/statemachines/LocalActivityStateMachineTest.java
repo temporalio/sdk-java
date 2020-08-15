@@ -103,7 +103,7 @@ public class LocalActivityStateMachineTest {
         builder
             .<Optional<Payloads>, Failure>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
-            .add((r) -> stateMachines.newCompleteWorkflow(Optional.empty()));
+            .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
 
         builder
             .<Optional<Payloads>, Failure>add2(
@@ -272,7 +272,7 @@ public class LocalActivityStateMachineTest {
         builder
             .<Optional<Payloads>, Failure>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
-            .add((r) -> stateMachines.newCompleteWorkflow(Optional.empty()));
+            .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
       }
     }
     /*
