@@ -36,9 +36,10 @@ final class SignalExternalStateMachine
         SignalExternalStateMachine.ExplicitEvent,
         SignalExternalStateMachine> {
 
-  private final SignalExternalWorkflowExecutionCommandAttributes signalAttributes;
+  private SignalExternalWorkflowExecutionCommandAttributes signalAttributes;
 
   private final Functions.Proc2<Void, Failure> completionCallback;
+  private WorkflowExecution execution;
 
   /**
    * Register new instance of the signal commands
@@ -68,6 +69,7 @@ final class SignalExternalStateMachine
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.signalAttributes = signalAttributes;
+    this.execution = signalAttributes.getExecution();
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -130,6 +132,7 @@ final class SignalExternalStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
             .setSignalExternalWorkflowExecutionCommandAttributes(signalAttributes)
             .build());
+    signalAttributes = null; // do not retain
   }
 
   public void cancel() {
@@ -146,7 +149,6 @@ final class SignalExternalStateMachine
     SignalExternalWorkflowExecutionFailedEventAttributes attributes =
         currentEvent.getSignalExternalWorkflowExecutionFailedEventAttributes();
     // TODO(maxim): Special failure type
-    WorkflowExecution execution = signalAttributes.getExecution();
     Failure failure =
         Failure.newBuilder()
             .setApplicationFailureInfo(
