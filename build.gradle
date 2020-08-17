@@ -146,7 +146,7 @@ jar {
 
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.12.4'
+        artifact = 'com.google.protobuf:protoc:3.13.0'
     }
     plugins {
         grpc {
