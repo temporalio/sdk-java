@@ -104,7 +104,7 @@ dependencies {
     implementation group: 'com.google.guava', name: 'guava', version: '29.0-jre'
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.1'
     implementation 'io.grpc:grpc-netty-shaded:1.31.1'
-    implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.12.4'
+    implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.13.0'
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.2'
     implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.2'
     if (!JavaVersion.current().isJava8()) {
