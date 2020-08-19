@@ -23,15 +23,14 @@ public class MetricsType {
   public static final String TEMPORAL_METRICS_PREFIX = "temporal_";
   public static final String WORKFLOW_COMPLETED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_completed";
-  public static final String WORKFLOW_CANCELED_COUNTER =
+  public static final String WORKFLOW_CANCELLED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_canceled";
   public static final String WORKFLOW_FAILED_COUNTER = TEMPORAL_METRICS_PREFIX + "workflow_failed";
   public static final String WORKFLOW_CONTINUE_AS_NEW_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_continue_as_new";
-  /** measure workflow execution from start to close */
+  // measure workflow execution from start to close
   public static final String WORKFLOW_E2E_LATENCY =
       TEMPORAL_METRICS_PREFIX + "workflow_endtoend_latency";
-
   public static final String WORKFLOW_TASK_REPLAY_LATENCY =
       TEMPORAL_METRICS_PREFIX + "workflow_task_replay_latency";
 
@@ -43,9 +42,6 @@ public class MetricsType {
       TEMPORAL_METRICS_PREFIX + "workflow_task_schedule_to_start_latency";
   public static final String WORKFLOW_TASK_EXECUTION_LATENCY =
       TEMPORAL_METRICS_PREFIX + "workflow_task_execution_latency";
-  /** Total latency of a workflow task which can include multiple forced decision tasks */
-  public static final String WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY =
-      TEMPORAL_METRICS_PREFIX + "workflow_task_execution_total_latency";
   /** Workflow task failed, possibly failing workflow or reporting failure to the service. */
   public static final String WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_task_execution_failed";
@@ -53,13 +49,10 @@ public class MetricsType {
   public static final String WORKFLOW_TASK_NO_COMPLETION_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_task_no_completion";
 
-  public static final String WORKFLOW_TASK_HEARTBEAT_COUNTER =
-      TEMPORAL_METRICS_PREFIX + "workflow_task_heartbeat";
-
   public static final String ACTIVITY_POLL_NO_TASK_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_poll_no_task";
   public static final String ACTIVITY_SCHEDULE_TO_START_LATENCY =
-      TEMPORAL_METRICS_PREFIX + "activity_scheduled_to_start_latency";
+      TEMPORAL_METRICS_PREFIX + "activity_schedule_to_start_latency";
   public static final String ACTIVITY_EXEC_FAILED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_execution_failed";
   public static final String ACTIVITY_EXEC_LATENCY =
