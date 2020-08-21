@@ -246,7 +246,7 @@ public final class Activity {
    *
    * @return never returns as always throws.
    */
-  public static RuntimeException wrap(Exception e) {
+  public static RuntimeException wrap(Throwable e) {
     return WorkflowInternal.wrap(e);
   }
 
