@@ -2,13 +2,13 @@
 
 buildscript {
     dependencies {
-        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.12'
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.13'
     }
 }
 
 plugins {
     id 'com.github.sherter.google-java-format' version '0.9'
-    id 'com.google.protobuf' version '0.8.12'
+    id 'com.google.protobuf' version '0.8.13'
     id 'java-library'
     id 'net.ltgt.errorprone' version '1.2.1'
     id 'net.minecrell.licenser' version '0.4.1'
@@ -16,7 +16,7 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
-    id 'name.remal.check-updates' version '1.0.209'
+    id 'name.remal.check-updates' version '1.0.211'
 }
 
 repositories {
@@ -96,7 +96,7 @@ dependencies {
 
     api group: 'com.google.code.gson', name: 'gson', version: '2.8.6'
     api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
-    api group: 'io.micrometer', name: 'micrometer-core', version: '1.5.2'
+    api group: 'io.micrometer', name: 'micrometer-core', version: '1.5.4'
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
     api 'io.grpc:grpc-protobuf:1.31.1'
     api 'io.grpc:grpc-stub:1.31.1'
@@ -104,7 +104,7 @@ dependencies {
     implementation group: 'com.google.guava', name: 'guava', version: '29.0-jre'
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.1'
     implementation 'io.grpc:grpc-netty-shaded:1.31.1'
-    implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.12.4'
+    implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.13.0'
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.2'
     implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.2'
     if (!JavaVersion.current().isJava8()) {
@@ -146,7 +146,7 @@ jar {
 
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.12.4'
+        artifact = 'com.google.protobuf:protoc:3.13.0'
     }
     plugins {
         grpc {
