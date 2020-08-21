@@ -43,6 +43,9 @@ import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.SimulatedTimeoutFailure;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -53,8 +56,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class POJOActivityTaskHandler implements ActivityTaskHandler {
 
@@ -233,7 +234,17 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null);
       } catch (Throwable e) {
-        if (log.isWarnEnabled()) {
+        if (e instanceof ActivityCanceledException) {
+          if (log.isInfoEnabled()) {
+            log.info(
+                "Activity canceled. ActivityId="
+                    + info.getActivityId()
+                    + ", activityType="
+                    + info.getActivityType()
+                    + ", attempt="
+                    + info.getAttempt());
+          }
+        } else if (log.isWarnEnabled()) {
           log.warn(
               "Activity failure. ActivityId="
                   + info.getActivityId()
