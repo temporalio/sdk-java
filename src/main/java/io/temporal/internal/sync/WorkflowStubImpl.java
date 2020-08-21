@@ -409,7 +409,11 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private <R> R mapToWorkflowFailureException(
       Exception failure, @SuppressWarnings("unused") Class<R> returnType) {
-    failure = CheckedExceptionWrapper.unwrap(failure);
+    Throwable f = CheckedExceptionWrapper.unwrap(failure);
+    if (f instanceof Error) {
+      throw (Error) f;
+    }
+    failure = (Exception) f;
     Class<Throwable> detailsClass;
     if (failure instanceof WorkflowExecutionFailedException) {
       WorkflowExecutionFailedException executionFailed = (WorkflowExecutionFailedException) failure;

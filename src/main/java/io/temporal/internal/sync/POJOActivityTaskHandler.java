@@ -113,15 +113,6 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
               .setCanceledFailureInfo(CanceledFailureInfo.newBuilder())
               .build());
     }
-    if (exception instanceof Error) {
-      if (isLocalActivity) {
-        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_ERROR_COUNTER).inc(1);
-      } else {
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
-      }
-      throw (Error) exception;
-    }
-
     if (isLocalActivity) {
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
     } else {
@@ -133,7 +124,15 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     if (exception instanceof TimeoutFailure) {
       exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);
     }
-    Failure failure = FailureConverter.exceptionToFailure(exception);
+    Failure failure;
+    if (exception instanceof Error) {
+      if (isLocalActivity) {
+        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_ERROR_COUNTER).inc(1);
+      } else {
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
+      }
+    }
+    failure = FailureConverter.exceptionToFailure(exception);
     RespondActivityTaskFailedRequest.Builder result =
         RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
     return new ActivityTaskHandler.Result(

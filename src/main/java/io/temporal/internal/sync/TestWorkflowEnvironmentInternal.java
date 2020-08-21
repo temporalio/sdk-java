@@ -230,17 +230,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       }
 
       public void lockTimeSkipping(String caller) {
-        log.info(this.hashCode() + " lockTimeSkipping " + caller);
         if (count.incrementAndGet() == 1) {
-          log.info(this.hashCode() + " lockTimeSkipping STORE" + caller);
           store.lockTimeSkipping(caller);
         }
       }
 
       public void unlockTimeSkipping(String caller) {
-        log.info(this.hashCode() + " unlockTimeSkipping " + caller);
         if (count.decrementAndGet() == 0) {
-          log.info(this.hashCode() + " unlockTimeSkipping STORE" + caller);
           store.unlockTimeSkipping(caller);
         }
       }
