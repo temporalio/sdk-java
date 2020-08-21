@@ -282,7 +282,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       } catch (Error e) {
         throw e;
       } catch (InvocationTargetException e) {
-        throw Activity.wrap((Exception) e.getTargetException());
+        throw Activity.wrap(e.getTargetException());
       } catch (Exception e) {
         throw Activity.wrap(e);
       } finally {

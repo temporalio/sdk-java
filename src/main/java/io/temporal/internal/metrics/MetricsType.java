@@ -59,7 +59,7 @@ public class MetricsType {
   public static final String ACTIVITY_POLL_NO_TASK_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_poll_no_task";
   public static final String ACTIVITY_SCHEDULE_TO_START_LATENCY =
-      TEMPORAL_METRICS_PREFIX + "activity_scheduled_to_start_latency";
+      TEMPORAL_METRICS_PREFIX + "activity_schedule_to_start_latency";
   public static final String ACTIVITY_EXEC_FAILED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_execution_failed";
   public static final String ACTIVITY_EXEC_LATENCY =
