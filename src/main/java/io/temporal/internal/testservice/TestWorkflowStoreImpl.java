@@ -40,6 +40,7 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
+import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -256,7 +257,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       for (Timer t : timers) {
         log.trace(
             "scheduling timer with " + t.getDelay() + "delay. Current time=" + this.currentTime());
-        timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
+        Functions.Proc cancellationHandle =
+            timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
+        t.setCancellationHandle(cancellationHandle);
       }
     }
     return result;
@@ -274,7 +277,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
-        timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
+        Functions.Proc cancellationHandle =
+            timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
+        t.setCancellationHandle(cancellationHandle);
       }
     }
 

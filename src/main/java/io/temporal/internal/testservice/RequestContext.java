@@ -27,6 +27,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowTask;
+import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,11 +47,19 @@ final class RequestContext {
     private final Duration delay;
     private final Runnable callback;
     private final String taskInfo;
+    private Functions.Proc cancellationHandle;
+    private final Functions.Proc cancellationHandleWrapper;
 
     Timer(Duration delay, Runnable callback, String taskInfo) {
       this.delay = delay;
       this.callback = callback;
       this.taskInfo = taskInfo;
+      cancellationHandleWrapper =
+          () -> {
+            if (cancellationHandle != null) {
+              cancellationHandle.apply();
+            }
+          };
     }
 
     Duration getDelay() {
@@ -63,6 +72,14 @@ final class RequestContext {
 
     String getTaskInfo() {
       return taskInfo;
+    }
+
+    public void setCancellationHandle(Functions.Proc cancellationHandle) {
+      this.cancellationHandle = cancellationHandle;
+    }
+
+    public Functions.Proc getCancellationHandle() {
+      return cancellationHandleWrapper;
     }
   }
 
@@ -211,9 +228,11 @@ final class RequestContext {
     this.activityTasks.add(activityTask);
   }
 
-  void addTimer(Duration delay, Runnable callback, String name) {
+  /** @return cancellation handle */
+  Functions.Proc addTimer(Duration delay, Runnable callback, String name) {
     Timer timer = new Timer(delay, callback, name);
     this.timers.add(timer);
+    return timer.getCancellationHandle();
   }
 
   public List<Timer> getTimers() {

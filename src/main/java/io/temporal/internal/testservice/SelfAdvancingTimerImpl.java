@@ -20,6 +20,7 @@
 package io.temporal.internal.testservice;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import io.temporal.workflow.Functions;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.Comparator;
@@ -44,6 +45,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     private final long executionTime;
     private final Runnable runnable;
     private final String taskInfo;
+    private boolean canceled;
 
     TimerTask(long executionTime, Runnable runnable, String taskInfo) {
       this.executionTime = executionTime;
@@ -66,6 +68,14 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     @Override
     public String toString() {
       return "TimerTask{" + "executionTime=" + executionTime + '}';
+    }
+
+    public boolean isCanceled() {
+      return canceled;
+    }
+
+    public void cancel() {
+      canceled = true;
     }
   }
 
@@ -227,7 +237,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
       currentTime = timeLastLocked + (System.currentTimeMillis() - systemTimeLastLocked);
     } else {
       TimerTask task = tasks.peek();
-      if (task != null && task.getExecutionTime() > currentTime) {
+      if (task != null && !task.isCanceled() && task.getExecutionTime() > currentTime) {
         currentTime = task.getExecutionTime();
         log.trace("Jumping to the time of the next timer task: " + currentTime);
       }
@@ -247,24 +257,26 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   }
 
   @Override
-  public void schedule(Duration delay, Runnable task) {
-    schedule(delay, task, "unknown");
+  public Functions.Proc schedule(Duration delay, Runnable task) {
+    return schedule(delay, task, "unknown");
   }
 
   @Override
-  public void schedule(Duration delay, Runnable task, String taskInfo) {
+  public Functions.Proc schedule(Duration delay, Runnable task, String taskInfo) {
+    Functions.Proc result;
     lock.lock();
     try {
-      {
-        long executionTime = delay.toMillis() + currentTime;
-        tasks.add(new TimerTask(executionTime, task, taskInfo));
-        // Locked when queue became empty
-        if (tasks.size() == 1 && emptyQueue) {
-          unlockTimeSkippingLocked("schedule task for " + taskInfo);
-          emptyQueue = false;
-        }
-        condition.signal();
+      long executionTime = delay.toMillis() + currentTime;
+      TimerTask timerTask = new TimerTask(executionTime, task, taskInfo);
+      result = () -> timerTask.cancel();
+      tasks.add(timerTask);
+      // Locked when queue became empty
+      if (tasks.size() == 1 && emptyQueue) {
+        unlockTimeSkippingLocked("schedule task for " + taskInfo);
+        emptyQueue = false;
       }
+      condition.signal();
+      return result;
     } finally {
       lock.unlock();
     }

@@ -19,8 +19,27 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.testservice.StateMachines.Action.*;
-import static io.temporal.internal.testservice.StateMachines.State.*;
+import static io.temporal.internal.testservice.StateMachines.Action.CANCEL;
+import static io.temporal.internal.testservice.StateMachines.Action.COMPLETE;
+import static io.temporal.internal.testservice.StateMachines.Action.CONTINUE_AS_NEW;
+import static io.temporal.internal.testservice.StateMachines.Action.FAIL;
+import static io.temporal.internal.testservice.StateMachines.Action.INITIATE;
+import static io.temporal.internal.testservice.StateMachines.Action.QUERY;
+import static io.temporal.internal.testservice.StateMachines.Action.REQUEST_CANCELLATION;
+import static io.temporal.internal.testservice.StateMachines.Action.START;
+import static io.temporal.internal.testservice.StateMachines.Action.TERMINATE;
+import static io.temporal.internal.testservice.StateMachines.Action.TIME_OUT;
+import static io.temporal.internal.testservice.StateMachines.Action.UPDATE;
+import static io.temporal.internal.testservice.StateMachines.State.CANCELED;
+import static io.temporal.internal.testservice.StateMachines.State.CANCELLATION_REQUESTED;
+import static io.temporal.internal.testservice.StateMachines.State.COMPLETED;
+import static io.temporal.internal.testservice.StateMachines.State.CONTINUED_AS_NEW;
+import static io.temporal.internal.testservice.StateMachines.State.FAILED;
+import static io.temporal.internal.testservice.StateMachines.State.INITIATED;
+import static io.temporal.internal.testservice.StateMachines.State.NONE;
+import static io.temporal.internal.testservice.StateMachines.State.STARTED;
+import static io.temporal.internal.testservice.StateMachines.State.TERMINATED;
+import static io.temporal.internal.testservice.StateMachines.State.TIMED_OUT;
 
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
@@ -115,6 +134,7 @@ import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskQueueId;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowTask;
+import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -178,6 +198,7 @@ class StateMachines {
     Payloads lastCompletionResult;
     String originalExecutionRunId;
     Optional<String> continuedExecutionRunId;
+    Functions.Proc runTimerCancellationHandle;
 
     WorkflowData(
         Optional<TestServiceRetryState> retryState,
