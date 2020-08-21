@@ -440,7 +440,16 @@ public final class WorkflowStateMachines {
       ExecuteActivityParameters attributes, Functions.Proc2<Optional<Payloads>, Failure> callback) {
     checkEventLoopExecuting();
     ActivityStateMachine activityStateMachine =
-        ActivityStateMachine.newInstance(attributes, callback, commandSink, stateMachineSink);
+        ActivityStateMachine.newInstance(
+            attributes,
+            (p, f) -> {
+              callback.apply(p, f);
+              if (f != null && f.getCause() != null && f.getCause().hasCanceledFailureInfo()) {
+                eventLoop();
+              }
+            },
+            commandSink,
+            stateMachineSink);
     return () -> activityStateMachine.cancel();
   }
 
@@ -517,12 +526,13 @@ public final class WorkflowStateMachines {
     };
   }
 
-  private static void notifyChildCanceled(
+  private void notifyChildCanceled(
       StartChildWorkflowExecutionCommandAttributes attributes,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback) {
     CanceledFailure failure =
         new CanceledFailure("Child canceled", new EncodedValues(Optional.empty()), null);
     completionCallback.apply(Optional.empty(), failure);
+    eventLoop();
   }
 
   /**

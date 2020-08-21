@@ -291,21 +291,20 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           if (targetException instanceof Error) {
             throw (Error) targetException;
           }
-          // Cancellation should be delivered as it impacts which command closes a
-          // workflow.
-          if (targetException instanceof CanceledFailure) {
-            throw (CanceledFailure) targetException;
-          }
           if (log.isErrorEnabled()) {
-            log.error(
-                "Workflow execution failure "
-                    + "WorkflowId="
-                    + info.getWorkflowId()
-                    + ", RunId="
-                    + info.getRunId()
-                    + ", WorkflowType="
-                    + info.getWorkflowType(),
-                targetException);
+            boolean cancelRequested =
+                WorkflowInternal.getRootWorkflowContext().getContext().isCancelRequested();
+            if (!cancelRequested || FailureConverter.isCanceledCause(targetException)) {
+              log.error(
+                  "Workflow execution failure "
+                      + "WorkflowId="
+                      + info.getWorkflowId()
+                      + ", RunId="
+                      + info.getRunId()
+                      + ", WorkflowType="
+                      + info.getWorkflowType(),
+                  targetException);
+            }
           }
           throw mapToWorkflowExecutionException(targetException, dataConverter);
         }

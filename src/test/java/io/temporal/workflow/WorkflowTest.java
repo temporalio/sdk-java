@@ -1318,38 +1318,6 @@ public class WorkflowTest {
     activitiesImpl.assertInvocations("activityWithDelay", "activity1", "activity2", "activity3");
   }
 
-  public static class TestTryCancelActivity implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      TestActivities testActivities =
-          Workflow.newActivityStub(
-              TestActivities.class,
-              ActivityOptions.newBuilder(newActivityOptions1(taskQueue))
-                  .setHeartbeatTimeout(Duration.ofSeconds(1))
-                  .setCancellationType(ActivityCancellationType.TRY_CANCEL)
-                  .build());
-      testActivities.activityWithDelay(100000, true);
-      return "foo";
-    }
-  }
-
-  public static class TestAbandonOnCancelActivity implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      TestActivities testActivities =
-          Workflow.newActivityStub(
-              TestActivities.class,
-              ActivityOptions.newBuilder(newActivityOptions1(taskQueue))
-                  .setHeartbeatTimeout(Duration.ofSeconds(10))
-                  .setCancellationType(ActivityCancellationType.ABANDON)
-                  .build());
-      testActivities.activityWithDelay(100000, true);
-      return "foo";
-    }
-  }
-
   @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
@@ -1385,6 +1353,22 @@ public class WorkflowTest {
     }
   }
 
+  public static class TestTryCancelActivity implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskQueue) {
+      TestActivities testActivities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder(newActivityOptions1(taskQueue))
+                  .setHeartbeatTimeout(Duration.ofSeconds(1))
+                  .setCancellationType(ActivityCancellationType.TRY_CANCEL)
+                  .build());
+      testActivities.activityWithDelay(100000, true);
+      return "foo";
+    }
+  }
+
   @Test
   public void testTryCancelActivity() {
     startWorkerFor(TestTryCancelActivity.class);
@@ -1401,10 +1385,27 @@ public class WorkflowTest {
       stub.getResult(String.class);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
+    long elapsed = currentTimeMillis() - start;
+    assertTrue(String.valueOf(elapsed), elapsed < 500);
     activitiesImpl.assertInvocations("activityWithDelay");
+  }
+
+  public static class TestAbandonOnCancelActivity implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskQueue) {
+      TestActivities testActivities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder(newActivityOptions1(taskQueue))
+                  .setHeartbeatTimeout(Duration.ofSeconds(10))
+                  .setCancellationType(ActivityCancellationType.ABANDON)
+                  .build());
+      testActivities.activityWithDelay(100000, true);
+      return "foo";
+    }
   }
 
   @Test
@@ -1423,8 +1424,7 @@ public class WorkflowTest {
       stub.getResult(String.class);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
     long elapsed = currentTimeMillis() - start;
     assertTrue(String.valueOf(elapsed), elapsed < 500);
@@ -1508,8 +1508,7 @@ public class WorkflowTest {
       client.getResult(String.class);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ChildWorkflowFailure);
-      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -4210,8 +4209,7 @@ public class WorkflowTest {
       client.getResult(String.class);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ChildWorkflowFailure);
-      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
@@ -4312,6 +4310,11 @@ public class WorkflowTest {
               completionClient.complete(taskToken, "activity");
             } catch (InterruptedException e) {
             } catch (ActivityNotExistsException | ActivityCanceledException e) {
+              try {
+                Thread.sleep(500);
+              } catch (InterruptedException interruptedException) {
+                // noop
+              }
               completionClient.reportCancellation(taskToken, null);
             }
           });

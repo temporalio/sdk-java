@@ -133,13 +133,13 @@ final class ActivityStateMachine
                   ActivityStateMachine::createRequestCancelActivityTaskCommand)
               .add(
                   State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
-                  EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
-                  State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED,
+                  CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK,
+                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
                   ActivityStateMachine::notifyCanceledIfTryCancel)
               .add(
                   State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED,
-                  CommandType.COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK,
-                  State.SCHEDULED_ACTIVITY_CANCEL_COMMAND_CREATED)
+                  EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED,
+                  State.SCHEDULED_ACTIVITY_CANCEL_EVENT_RECORDED)
               /*
               These state transitions are not possible.
               It looks like it is valid when an event, handling of which requests activity
