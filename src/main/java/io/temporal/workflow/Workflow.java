@@ -27,6 +27,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
@@ -850,7 +851,11 @@ public final class Workflow {
    * @return exception causality chain with CheckedExceptionWrapper removed.
    */
   public static Exception unwrap(Exception e) {
-    return WorkflowInternal.unwrap(e);
+    Throwable unwrapped = CheckedExceptionWrapper.unwrap(e);
+    if (unwrapped instanceof Error) {
+      throw (Error) unwrapped;
+    }
+    return (Exception) unwrapped;
   }
 
   /**

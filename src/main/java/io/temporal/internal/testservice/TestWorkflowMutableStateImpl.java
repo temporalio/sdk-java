@@ -19,7 +19,11 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.testservice.StateMachines.*;
+import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
+import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
+import static io.temporal.internal.testservice.StateMachines.MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
+import static io.temporal.internal.testservice.StateMachines.NO_EVENT_ID;
+import static io.temporal.internal.testservice.StateMachines.newActivityStateMachine;
 import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
 
 import com.cronutils.model.Cron;
@@ -96,7 +100,15 @@ import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.testservice.StateMachines.*;
+import io.temporal.internal.testservice.StateMachines.Action;
+import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
+import io.temporal.internal.testservice.StateMachines.CancelExternalData;
+import io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
+import io.temporal.internal.testservice.StateMachines.SignalExternalData;
+import io.temporal.internal.testservice.StateMachines.State;
+import io.temporal.internal.testservice.StateMachines.TimerData;
+import io.temporal.internal.testservice.StateMachines.WorkflowData;
+import io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -366,6 +378,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             WorkflowTaskData data = workflowTaskStateMachine.getData();
             long scheduledEventId = data.scheduledEventId;
             workflowTaskStateMachine.action(StateMachines.Action.START, ctx, pollRequest, 0);
+            task.setStartedTime(ctx.currentTime());
             ctx.addTimer(
                 ProtobufTimeUtils.toJavaDuration(startRequest.getWorkflowTaskTimeout()),
                 () -> timeoutWorkflowTask(scheduledEventId),

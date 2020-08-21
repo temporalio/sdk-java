@@ -25,7 +25,7 @@ import java.lang.reflect.InvocationTargetException;
 /**
  * Do not reference directly by the application level code. Use {@link
  * io.temporal.workflow.Workflow#wrap(Exception)} inside a workflow code and {@link
- * io.temporal.activity.Activity#wrap(Exception)} inside an activity code instead.
+ * io.temporal.activity.Activity#wrap(Throwable)} inside an activity code instead.
  */
 public final class CheckedExceptionWrapper extends RuntimeException {
 
@@ -72,7 +72,7 @@ public final class CheckedExceptionWrapper extends RuntimeException {
    * Removes CheckedException wrapper from the whole chain of Exceptions. Assumes that wrapper
    * always has a cause which cannot be a wrapper.
    */
-  public static Exception unwrap(Throwable e) {
+  public static Throwable unwrap(Throwable e) {
     Throwable head = e;
     if (head instanceof CheckedExceptionWrapper) {
       head = head.getCause();
@@ -87,11 +87,7 @@ public final class CheckedExceptionWrapper extends RuntimeException {
       tail = current;
       current = tail.getCause();
     }
-    if (head instanceof Error) {
-      // Error should be propagated without any handling.
-      throw (Error) head;
-    }
-    return (Exception) head;
+    return head;
   }
 
   /**

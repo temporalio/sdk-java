@@ -1082,6 +1082,7 @@ class StateMachines {
     workflowTaskResponse.setWorkflowExecution(ctx.getExecution());
     workflowTaskResponse.setWorkflowType(request.getWorkflowType());
     workflowTaskResponse.setAttempt(data.attempt);
+    workflowTaskResponse.setScheduledTime(ctx.currentTime());
     TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), request.getTaskQueue().getName());
     WorkflowTask workflowTask = new WorkflowTask(taskQueueId, workflowTaskResponse);
     ctx.setWorkflowTask(workflowTask);

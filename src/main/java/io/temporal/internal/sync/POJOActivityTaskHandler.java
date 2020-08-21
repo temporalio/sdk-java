@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
+import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.common.v1.Payloads;
@@ -38,6 +39,7 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -105,6 +107,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     if (exception instanceof ActivityCanceledException) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
+      } else {
+        metricsScope.counter(MetricsType.ACTIVITY_CANCELED_COUNTER).inc(1);
       }
       String stackTrace = FailureConverter.serializeStackTrace(exception);
       throw new FailureWrapperException(
@@ -113,19 +117,13 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
               .setCanceledFailureInfo(CanceledFailureInfo.newBuilder())
               .build());
     }
-    if (exception instanceof Error) {
-      if (isLocalActivity) {
-        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_ERROR_COUNTER).inc(1);
-      } else {
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
-      }
-      throw (Error) exception;
-    }
-
+    Scope ms =
+        metricsScope.tagged(
+            ImmutableMap.of(MetricsTag.EXCEPTION, exception.getClass().getSimpleName()));
     if (isLocalActivity) {
-      metricsScope.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
+      ms.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
     } else {
-      metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+      ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
     if (exception instanceof TemporalFailure) {
       ((TemporalFailure) exception).setDataConverter(dataConverter);

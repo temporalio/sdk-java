@@ -326,7 +326,7 @@ public final class WorkflowInternal {
     return CheckedExceptionWrapper.wrap(e);
   }
 
-  public static Exception unwrap(Exception e) {
+  public static Throwable unwrap(Throwable e) {
     return CheckedExceptionWrapper.unwrap(e);
   }
 
