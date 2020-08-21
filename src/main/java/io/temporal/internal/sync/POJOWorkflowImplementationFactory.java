@@ -294,7 +294,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           if (log.isErrorEnabled()) {
             boolean cancelRequested =
                 WorkflowInternal.getRootWorkflowContext().getContext().isCancelRequested();
-            if (!cancelRequested || FailureConverter.isCanceledCause(targetException)) {
+            if (!cancelRequested || !FailureConverter.isCanceledCause(targetException)) {
               log.error(
                   "Workflow execution failure "
                       + "WorkflowId="
