@@ -414,7 +414,6 @@ class WorkflowStubImpl implements WorkflowStub {
       throw (Error) f;
     }
     failure = (Exception) f;
-    Class<Throwable> detailsClass;
     if (failure instanceof WorkflowExecutionFailedException) {
       WorkflowExecutionFailedException executionFailed = (WorkflowExecutionFailedException) failure;
       Throwable cause =

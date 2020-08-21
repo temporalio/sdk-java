@@ -30,6 +30,7 @@ public class MetricsTag {
   public static final String SIGNAL_NAME = "SignalName";
   public static final String QUERY_TYPE = "QueryType";
   public static final String STATUS_CODE = "StatusCode";
+  public static final String EXCEPTION = "Exception";
   public static final String OPERATION_NAME = "Operation";
 
   /** Used to pass metrics scope to the interceptor */

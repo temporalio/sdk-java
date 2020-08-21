@@ -62,8 +62,6 @@ final class WorkflowContext {
     if (startedAttributes.hasSearchAttributes()) {
       this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
     }
-    System.out.println("CURRENT TIME: " + System.currentTimeMillis());
-    System.out.println("RUN STARTED:  " + runStartedTimestampMillis);
     this.runStartedTimestampMillis = runStartedTimestampMillis;
     this.contextPropagators = contextPropagators;
   }
