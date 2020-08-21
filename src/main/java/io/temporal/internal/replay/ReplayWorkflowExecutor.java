@@ -93,12 +93,12 @@ final class ReplayWorkflowExecutor {
   }
 
   private void completeWorkflow() {
-    if (failure != null) {
-      workflowStateMachines.failWorkflow(failure.getFailure());
-      metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
-    } else if (cancelRequested) {
+    if (cancelRequested) {
       workflowStateMachines.cancelWorkflow();
       metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
+    } else if (failure != null) {
+      workflowStateMachines.failWorkflow(failure.getFailure());
+      metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
     } else {
       ContinueAsNewWorkflowExecutionCommandAttributes attributes =
           context.getContinueAsNewOnCompletion();

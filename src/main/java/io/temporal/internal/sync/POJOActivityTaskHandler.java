@@ -233,7 +233,17 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null);
       } catch (Throwable e) {
-        if (log.isWarnEnabled()) {
+        if (e instanceof ActivityCanceledException) {
+          if (log.isInfoEnabled()) {
+            log.info(
+                "Activity canceled. ActivityId="
+                    + info.getActivityId()
+                    + ", activityType="
+                    + info.getActivityType()
+                    + ", attempt="
+                    + info.getAttempt());
+          }
+        } else if (log.isWarnEnabled()) {
           log.warn(
               "Activity failure. ActivityId="
                   + info.getActivityId()

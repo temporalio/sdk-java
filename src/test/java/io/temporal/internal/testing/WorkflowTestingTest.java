@@ -653,8 +653,7 @@ public class WorkflowTestingTest {
       untyped.getResult(String.class);
       fail("unreacheable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
   }
 

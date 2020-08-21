@@ -330,4 +330,14 @@ public class FailureConverter {
     }
     return sw.toString();
   }
+
+  public static boolean isCanceledCause(Throwable exception) {
+    while (exception != null) {
+      if (exception instanceof CanceledFailure) {
+        return true;
+      }
+      exception = exception.getCause();
+    }
+    return false;
+  }
 }
