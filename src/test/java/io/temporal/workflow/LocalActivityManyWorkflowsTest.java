@@ -19,6 +19,8 @@
 
 package io.temporal.workflow;
 
+import static org.junit.Assert.assertEquals;
+
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowClient;
@@ -29,8 +31,6 @@ import io.temporal.worker.Worker;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
 
 public class LocalActivityManyWorkflowsTest {
 

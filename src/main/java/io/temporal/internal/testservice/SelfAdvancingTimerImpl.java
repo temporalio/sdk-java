@@ -106,7 +106,9 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
               "peekedTask="
                   + peekedTask.getTaskInfo()
                   + ", executionTime="
-                  + peekedTask.getExecutionTime());
+                  + peekedTask.getExecutionTime()
+                  + ", canceled="
+                  + peekedTask.isCanceled());
         }
         if (peekedTask != null && peekedTask.getExecutionTime() <= currentTime) {
           try {
@@ -118,17 +120,19 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                     + ", executionTime="
                     + peekedTask.getExecutionTime());
 
-            Runnable runnable = polledTask.getRunnable();
-            executor.execute(
-                () -> {
-                  try {
-                    runnable.run();
-                  } catch (Throwable e) {
-                    log.error("Unexpected failure in timer callback", e);
-                  } finally {
-                    lockHandle.unlock();
-                  }
-                });
+            if (!polledTask.isCanceled()) {
+              Runnable runnable = polledTask.getRunnable();
+              executor.execute(
+                  () -> {
+                    try {
+                      runnable.run();
+                    } catch (Throwable e) {
+                      log.error("Unexpected failure in timer callback", e);
+                    } finally {
+                      lockHandle.unlock();
+                    }
+                  });
+            }
           } catch (Throwable e) {
             log.error("Timer task failure", e);
           }
