@@ -25,6 +25,7 @@ import com.google.common.base.Objects;
 import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +54,15 @@ public class JsonDataConverterTest {
     List<UUID> result =
         (List<UUID>) converter.fromPayloads(0, data, parameterType, genericParameterType);
     assertEquals(result.toString(), list, result);
+  }
+
+  @Test
+  public void testOffsetDateTime() {
+    OffsetDateTime dateTime = OffsetDateTime.now();
+    Optional<Payloads> data = converter.toPayloads(dateTime);
+    OffsetDateTime result =
+        converter.fromPayloads(0, data, OffsetDateTime.class, OffsetDateTime.class);
+    assertEquals(result.toString(), dateTime.toInstant(), result.toInstant());
   }
 
   public static class Struct1 {

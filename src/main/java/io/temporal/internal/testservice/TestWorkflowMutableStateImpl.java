@@ -1239,6 +1239,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     workflow.action(StateMachines.Action.COMPLETE, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
+    // cancel run timer to avoid time skipping to the workflow run timeout which defaults to 10
+    // years
+    workflow.getData().runTimerCancellationHandle.apply();
     if (parent.isPresent()) {
       ctx.lockTimer("processCompleteWorkflowExecution notify parent"); // unlocked by the parent
       ChildWorkflowExecutionCompletedEventAttributes a =
@@ -1435,7 +1438,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             if (backoffStartInterval.compareTo(Duration.ZERO) > 0) {
               runTimeout = runTimeout.plus(backoffStartInterval);
             }
-            ctx.addTimer(runTimeout, this::timeoutWorkflow, "workflow execution timeout");
+            workflow.getData().runTimerCancellationHandle =
+                ctx.addTimer(runTimeout, this::timeoutWorkflow, "workflow execution timeout");
           });
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {

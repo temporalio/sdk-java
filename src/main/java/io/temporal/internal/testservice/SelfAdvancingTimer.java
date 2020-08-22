@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.List;
 import java.util.function.LongSupplier;
@@ -32,10 +33,12 @@ interface SelfAdvancingTimer {
   /**
    * Schedule a task with a specified delay. The actual wait time is defined by the internal clock
    * that might advance much faster than the wall clock.
+   *
+   * @return
    */
-  void schedule(Duration delay, Runnable task);
+  Functions.Proc schedule(Duration delay, Runnable task);
 
-  void schedule(Duration delay, Runnable task, String taskInfo);
+  Functions.Proc schedule(Duration delay, Runnable task, String taskInfo);
 
   /** Supplier that returns current time of the timer when called. */
   LongSupplier getClock();
