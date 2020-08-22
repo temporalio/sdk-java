@@ -54,10 +54,10 @@ final class RequestContext {
       this.delay = delay;
       this.callback = callback;
       this.taskInfo = taskInfo;
-      cancellationHandleWrapper =
+      this.cancellationHandleWrapper =
           () -> {
-            if (cancellationHandle != null) {
-              cancellationHandle.apply();
+            if (this.cancellationHandle != null) {
+              this.cancellationHandle.apply();
             }
           };
     }
