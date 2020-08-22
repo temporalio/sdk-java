@@ -267,12 +267,12 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
   @Override
   public Functions.Proc schedule(Duration delay, Runnable task, String taskInfo) {
-    Functions.Proc result;
+    Functions.Proc cancellationHandle;
     lock.lock();
     try {
       long executionTime = delay.toMillis() + currentTime;
       TimerTask timerTask = new TimerTask(executionTime, task, taskInfo);
-      result = () -> timerTask.cancel();
+      cancellationHandle = () -> timerTask.cancel();
       tasks.add(timerTask);
       // Locked when queue became empty
       if (tasks.size() == 1 && emptyQueue) {
@@ -280,7 +280,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
         emptyQueue = false;
       }
       condition.signal();
-      return result;
+      return cancellationHandle;
     } finally {
       lock.unlock();
     }
