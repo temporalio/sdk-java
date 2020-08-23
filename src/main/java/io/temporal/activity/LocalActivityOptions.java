@@ -78,7 +78,7 @@ public final class LocalActivityOptions {
      */
     public Builder setLocalRetryThreshold(Duration localRetryThreshold) {
       if (localRetryThreshold.isZero() || localRetryThreshold.isNegative()) {
-        throw new IllegalArgumentException("Illegal freshold: " + localRetryThreshold);
+        throw new IllegalArgumentException("Illegal threshold: " + localRetryThreshold);
       }
       this.localRetryThreshold = localRetryThreshold;
       return this;
