@@ -5591,6 +5591,7 @@ public class WorkflowTest {
           Workflow.newUntypedLocalActivityStub(
               LocalActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());
       try {
         activity.execute("Execute", Void.class, "boo");
@@ -5791,12 +5792,14 @@ public class WorkflowTest {
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("test123123", result);
-    assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+    assertEquals(activitiesImpl.toString(), 5, activitiesImpl.invocations.size());
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "newThread workflow-method",
         "executeLocalActivity ThrowIO",
         "currentTimeMillis",
+        "local activity ThrowIO",
+        "local activity ThrowIO",
         "local activity ThrowIO",
         "executeLocalActivity Activity2",
         "currentTimeMillis",

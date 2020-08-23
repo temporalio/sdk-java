@@ -343,9 +343,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       activityTask.setInput(input.get());
     }
     RetryOptions retryOptions = options.getRetryOptions();
-    if (retryOptions != null) {
-      activityTask.setRetryPolicy(toRetryPolicy(retryOptions));
-    }
+    activityTask.setRetryPolicy(
+        toRetryPolicy(RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults()));
     Duration localRetryThreshold = options.getLocalRetryThreshold();
     if (localRetryThreshold == null) {
       localRetryThreshold = context.getWorkflowTaskTimeout().multipliedBy(6);
