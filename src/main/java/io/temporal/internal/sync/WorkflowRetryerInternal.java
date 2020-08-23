@@ -101,7 +101,7 @@ final class WorkflowRetryerInternal {
 
   public static <R> R validateOptionsAndRetry(
       RetryOptions options, Optional<Duration> expiration, Functions.Func<R> func) {
-    return retry(RetryOptions.merge(null, options), expiration, func);
+    return retry(options.toBuilder().validateBuildWithDefaults(), expiration, func);
   }
 
   /**
@@ -186,7 +186,6 @@ final class WorkflowRetryerInternal {
   }
 
   private static RetryOptions getRetryOptionsSideEffect(String retryId, RetryOptions options) {
-    options = RetryOptions.newBuilder(options).validateBuildWithDefaults();
     long maximumIntervalMillis =
         options.getMaximumInterval() != null ? options.getMaximumInterval().toMillis() : 0;
     long initialIntervalMillis =
@@ -205,11 +204,14 @@ final class WorkflowRetryerInternal {
             SerializableRetryOptions.class,
             Object::equals,
             () -> sOptions);
-    RetryOptions.Builder result =
-        RetryOptions.newBuilder()
-            .setBackoffCoefficient(sRetryOptions.getBackoffCoefficient())
-            .setInitialInterval(Duration.ofMillis(sRetryOptions.getInitialIntervalMillis()))
-            .setDoNotRetry(sRetryOptions.getDoNotRetry());
+    RetryOptions.Builder result = RetryOptions.newBuilder();
+    if (sRetryOptions.getBackoffCoefficient() > 0) {
+      result.setBackoffCoefficient(sRetryOptions.getBackoffCoefficient());
+    }
+    if (sRetryOptions.getInitialIntervalMillis() > 0) {
+      result.setInitialInterval(Duration.ofMillis(sRetryOptions.getInitialIntervalMillis()));
+    }
+    result.setDoNotRetry(sRetryOptions.getDoNotRetry());
     if (sRetryOptions.getMaximumIntervalMillis() > 0) {
       result.setMaximumInterval(Duration.ofMillis(sRetryOptions.getMaximumIntervalMillis()));
     }

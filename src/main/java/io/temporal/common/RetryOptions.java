@@ -66,10 +66,10 @@ public final class RetryOptions {
       if (o == null) {
         return null;
       }
-      return RetryOptions.newBuilder(o).validateBuildWithDefaults();
+      return o;
     }
     if (o == null) {
-      o = RetryOptions.newBuilder().build();
+      o = RetryOptions.getDefaultInstance();
     }
     Duration initial = merge(r.initialIntervalSeconds(), o.getInitialInterval());
     RetryOptions.Builder builder = RetryOptions.newBuilder();
@@ -89,7 +89,7 @@ public final class RetryOptions {
     return builder
         .setMaximumAttempts(merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
         .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry()))
-        .validateBuildWithDefaults();
+        .build();
   }
 
   /** The parameter options takes precedence. */
@@ -104,31 +104,7 @@ public final class RetryOptions {
             merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
         .setMaximumAttempts(merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
         .setDoNotRetry(merge(getDoNotRetry(), o.getDoNotRetry()))
-        .validateBuildWithDefaults();
-  }
-
-  @SafeVarargs
-  public final RetryOptions addDoNotRetry(String... doNotRetry) {
-    if (doNotRetry == null) {
-      return this;
-    }
-
-    double backoffCoefficient = getBackoffCoefficient();
-    if (backoffCoefficient == 0) {
-      backoffCoefficient = DEFAULT_BACKOFF_COEFFICIENT;
-    }
-
-    RetryOptions.Builder builder =
-        RetryOptions.newBuilder()
-            .setInitialInterval(getInitialInterval())
-            .setMaximumInterval(getMaximumInterval())
-            .setBackoffCoefficient(backoffCoefficient)
-            .setDoNotRetry(merge(doNotRetry, getDoNotRetry()));
-
-    if (getMaximumAttempts() > 0) {
-      builder.setMaximumAttempts(getMaximumAttempts());
-    }
-    return builder.validateBuildWithDefaults();
+        .build();
   }
 
   public static final class Builder {
