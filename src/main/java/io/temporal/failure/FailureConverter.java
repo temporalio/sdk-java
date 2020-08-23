@@ -199,7 +199,7 @@ public class FailureConverter {
     Failure.Builder failure =
         Failure.newBuilder().setMessage(message).setSource(JAVA_SDK).setStackTrace(stackTrace);
     if (e.getCause() != null) {
-      failure.setCause(exceptionToFailure(e.getCause()));
+      failure.setCause(exceptionToFailureNoUnwrapping(e.getCause()));
     }
     if (e instanceof ApplicationFailure) {
       ApplicationFailure ae = (ApplicationFailure) e;

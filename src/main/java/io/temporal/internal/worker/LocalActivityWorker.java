@@ -230,16 +230,23 @@ public final class LocalActivityWorker implements SuspendableWorker {
       RetryPolicy retryPolicy = activityTask.getRetryPolicy();
       String[] doNotRetry = new String[retryPolicy.getNonRetryableErrorTypesCount()];
       retryPolicy.getNonRetryableErrorTypesList().toArray(doNotRetry);
-      RetryOptions retryOptions =
-          RetryOptions.newBuilder()
-              .setMaximumInterval(
-                  ProtobufTimeUtils.toJavaDuration(retryPolicy.getMaximumInterval()))
-              .setInitialInterval(
-                  ProtobufTimeUtils.toJavaDuration(retryPolicy.getInitialInterval()))
-              .setMaximumAttempts(retryPolicy.getMaximumAttempts())
-              .setBackoffCoefficient(retryPolicy.getBackoffCoefficient())
-              .setDoNotRetry(doNotRetry)
-              .build();
+      RetryOptions.Builder roBuilder = RetryOptions.newBuilder();
+      if (retryPolicy.getMaximumInterval().getNanos() > 0) {
+        roBuilder.setMaximumInterval(
+            ProtobufTimeUtils.toJavaDuration(retryPolicy.getMaximumInterval()));
+      }
+      if (retryPolicy.getInitialInterval().getNanos() > 0) {
+        roBuilder.setInitialInterval(
+            ProtobufTimeUtils.toJavaDuration(retryPolicy.getInitialInterval()));
+      }
+      if (retryPolicy.getBackoffCoefficient() >= 1) {
+        roBuilder.setBackoffCoefficient(retryPolicy.getBackoffCoefficient());
+      }
+      if (retryPolicy.getMaximumAttempts() > 0) {
+        roBuilder.setMaximumAttempts(retryPolicy.getMaximumAttempts());
+      }
+      roBuilder.setDoNotRetry(doNotRetry).build();
+      RetryOptions retryOptions = roBuilder.validateBuildWithDefaults();
       long sleepMillis = retryOptions.calculateSleepTime(attempt);
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long sinceScheduled =
