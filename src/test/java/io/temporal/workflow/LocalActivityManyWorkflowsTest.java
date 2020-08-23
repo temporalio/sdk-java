@@ -28,6 +28,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
+import java.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,7 +59,10 @@ public class LocalActivityManyWorkflowsTest {
   public static class ActivityWorkflow implements TestWorkflow {
     private final TestActivity activity =
         Workflow.newLocalActivityStub(
-            TestActivity.class, LocalActivityOptions.newBuilder().build());
+            TestActivity.class,
+            LocalActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(2))
+                .build());
 
     @Override
     public String workflow(String input) {

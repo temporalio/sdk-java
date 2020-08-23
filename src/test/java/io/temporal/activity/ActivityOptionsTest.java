@@ -19,6 +19,11 @@
 
 package io.temporal.activity;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import java.lang.reflect.Method;
@@ -45,12 +50,43 @@ public class ActivityOptionsTest {
     ActivityOptions merged = ActivityOptions.newBuilder(o).mergeMethodRetry(r).build();
 
     RetryOptions rMerged = merged.getRetryOptions();
-    Assert.assertEquals(r.maximumAttempts(), rMerged.getMaximumAttempts());
-    Assert.assertEquals(r.backoffCoefficient(), rMerged.getBackoffCoefficient(), 0.0);
-    Assert.assertEquals(
-        Duration.ofSeconds(r.initialIntervalSeconds()), rMerged.getInitialInterval());
-    Assert.assertEquals(
-        Duration.ofSeconds(r.maximumIntervalSeconds()), rMerged.getMaximumInterval());
+    assertEquals(r.maximumAttempts(), rMerged.getMaximumAttempts());
+    assertEquals(r.backoffCoefficient(), rMerged.getBackoffCoefficient(), 0.0);
+    assertEquals(Duration.ofSeconds(r.initialIntervalSeconds()), rMerged.getInitialInterval());
+    assertEquals(Duration.ofSeconds(r.maximumIntervalSeconds()), rMerged.getMaximumInterval());
     Assert.assertArrayEquals(r.doNotRetry(), rMerged.getDoNotRetry());
+  }
+
+  @Test
+  public void testLocalActivityOptions() {
+    try {
+      LocalActivityOptions.newBuilder().validateAndBuildWithDefaults();
+      fail("unreachable");
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("scheduleToCloseTimeout"));
+    }
+    assertEquals(
+        Duration.ofSeconds(10),
+        LocalActivityOptions.newBuilder()
+            .setScheduleToCloseTimeout(Duration.ofSeconds(10))
+            .validateAndBuildWithDefaults()
+            .getScheduleToCloseTimeout());
+
+    assertEquals(
+        Duration.ofSeconds(11),
+        LocalActivityOptions.newBuilder()
+            .setStartToCloseTimeout(Duration.ofSeconds(11))
+            .validateAndBuildWithDefaults()
+            .getStartToCloseTimeout());
+
+    RetryOptions retryOptions =
+        LocalActivityOptions.newBuilder()
+            .setStartToCloseTimeout(Duration.ofSeconds(11))
+            .validateAndBuildWithDefaults()
+            .getRetryOptions();
+    assertNotNull(retryOptions);
+    assertEquals(2.0, retryOptions.getBackoffCoefficient(), 0e-5);
+    assertEquals(Duration.ofSeconds(1), retryOptions.getInitialInterval());
+    assertEquals(null, retryOptions.getMaximumInterval());
   }
 }
