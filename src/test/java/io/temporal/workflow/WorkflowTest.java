@@ -2720,7 +2720,7 @@ public class WorkflowTest {
           throw new RuntimeException(ae);
         }
         Exception ee = new NumberFormatException();
-        ee.initCause(e);
+        ee.initCause(new Throwable("simulated throwable", e));
         throw Workflow.wrap(ee);
       }
     }
@@ -2738,21 +2738,23 @@ public class WorkflowTest {
         child.execute(taskQueue);
         fail("unreachable");
       } catch (RuntimeException e) {
+        Throwable c1 = e.getCause();
+        Throwable c2 = c1.getCause();
+        Throwable c3 = c2.getCause();
+        Throwable c4 = c3.getCause();
         try {
           assertNoEmptyStacks(e);
           assertTrue(e.getMessage().contains("TestWorkflow1"));
           assertTrue(e instanceof ChildWorkflowFailure);
-          assertTrue(e.getCause() instanceof ApplicationFailure);
-          assertEquals(
-              NumberFormatException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
-          assertTrue(e.getCause().getCause() instanceof ActivityFailure);
-          assertTrue(e.getCause().getCause().getCause() instanceof ApplicationFailure);
-          assertEquals(
-              IOException.class.getName(),
-              ((ApplicationFailure) e.getCause().getCause().getCause()).getType());
+          assertTrue(c1 instanceof ApplicationFailure);
+          assertEquals(NumberFormatException.class.getName(), ((ApplicationFailure) c1).getType());
+          assertEquals(Throwable.class.getName(), ((ApplicationFailure) c2).getType());
+          assertTrue(c3 instanceof ActivityFailure);
+          assertTrue(c4 instanceof ApplicationFailure);
+          assertEquals(IOException.class.getName(), ((ApplicationFailure) c4).getType());
           assertEquals(
               "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
-              e.getCause().getCause().getCause().getMessage());
+              c4.getMessage());
         } catch (AssertionError ae) {
           // Errors cause workflow task to fail. But we want workflow to fail in this case.
           throw new RuntimeException(ae);
@@ -2799,32 +2801,32 @@ public class WorkflowTest {
       fail("Unreachable");
     } catch (WorkflowFailedException e) {
       // Rethrow the assertion failure
-      if (e.getCause().getCause() instanceof AssertionError) {
-        throw (AssertionError) e.getCause().getCause();
+      Throwable c1 = e.getCause();
+      Throwable c2 = c1.getCause();
+      Throwable c3 = c2.getCause();
+      Throwable c4 = c3.getCause();
+      Throwable c5 = c4.getCause();
+      Throwable c6 = c5.getCause();
+      if (c2 instanceof AssertionError) {
+        throw (AssertionError) c2;
       }
       assertNoEmptyStacks(e);
       // Uncomment to see the actual trace.
       //            e.printStackTrace();
       assertTrue(e.getMessage(), e.getMessage().contains("TestExceptionPropagation"));
       assertTrue(e.getStackTrace().length > 0);
-      assertTrue(e.getCause() instanceof ApplicationFailure);
-      assertEquals(
-          FileNotFoundException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
-      assertTrue(e.getCause().getCause() instanceof ChildWorkflowFailure);
-      assertTrue(e.getCause().getCause().getCause() instanceof ApplicationFailure);
-      assertEquals(
-          NumberFormatException.class.getName(),
-          ((ApplicationFailure) e.getCause().getCause().getCause()).getType());
-      assertTrue(e.getCause().getCause().getCause().getCause() instanceof ActivityFailure);
-      assertTrue(
-          e.getCause().getCause().getCause().getCause().getCause() instanceof ApplicationFailure);
-      assertEquals(
-          IOException.class.getName(),
-          ((ApplicationFailure) e.getCause().getCause().getCause().getCause().getCause())
-              .getType());
+      assertTrue(c1 instanceof ApplicationFailure);
+      assertEquals(FileNotFoundException.class.getName(), ((ApplicationFailure) c1).getType());
+      assertTrue(c2 instanceof ChildWorkflowFailure);
+      assertTrue(c3 instanceof ApplicationFailure);
+      assertEquals(NumberFormatException.class.getName(), ((ApplicationFailure) c3).getType());
+      assertEquals(Throwable.class.getName(), ((ApplicationFailure) c4).getType());
+      assertTrue(c5 instanceof ActivityFailure);
+      assertTrue(c6 instanceof ApplicationFailure);
+      assertEquals(IOException.class.getName(), ((ApplicationFailure) c6).getType());
       assertEquals(
           "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
-          e.getCause().getCause().getCause().getCause().getCause().getMessage());
+          c6.getMessage());
     }
   }
 
@@ -3522,7 +3524,6 @@ public class WorkflowTest {
       client.execute(taskQueue);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      e.printStackTrace();
       assertTrue(e.toString(), e.getCause() instanceof ChildWorkflowFailure);
       assertTrue(e.toString(), e.getCause().getCause() instanceof ApplicationFailure);
       assertEquals(
@@ -4327,7 +4328,7 @@ public class WorkflowTest {
       try {
         Thread.sleep(milliseconds);
       } catch (InterruptedException e) {
-        throw Activity.wrap(new RuntimeException("interrupted"));
+        throw Activity.wrap(new RuntimeException("interrupted", new Throwable("simulated")));
       }
       invocations.add("sleepActivity");
       return "sleepActivity" + input;
@@ -4459,7 +4460,7 @@ public class WorkflowTest {
       lastAttempt = info.getAttempt();
       invocations.add("throwIO");
       try {
-        throw new IOException("simulated IO problem");
+        throw new IOException("simulated IO problem", new Throwable("test throwable wrapping"));
       } catch (IOException e) {
         throw Activity.wrap(e);
       }

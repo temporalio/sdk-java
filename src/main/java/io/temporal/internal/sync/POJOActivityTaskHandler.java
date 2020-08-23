@@ -103,7 +103,6 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   private ActivityTaskHandler.Result mapToActivityFailure(
       Throwable exception, String activityId, Scope metricsScope, boolean isLocalActivity) {
-    exception = CheckedExceptionWrapper.unwrap(exception);
     if (exception instanceof ActivityCanceledException) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
@@ -231,6 +230,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null);
       } catch (Throwable e) {
+        e = CheckedExceptionWrapper.unwrap(e);
         if (e instanceof ActivityCanceledException) {
           if (log.isInfoEnabled()) {
             log.info(
@@ -327,6 +327,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null);
       } catch (Throwable e) {
+        e = CheckedExceptionWrapper.unwrap(e);
         if (log.isWarnEnabled()) {
           log.warn(
               "Local activity failure. ActivityId="
