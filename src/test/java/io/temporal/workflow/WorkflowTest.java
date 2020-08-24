@@ -4925,6 +4925,19 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
     workflowStub.execute(taskQueue);
+    WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+
+    // Validate that no marker is recorded
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      assertFalse(EventType.EVENT_TYPE_MARKER_RECORDED == event.getEventType());
+    }
   }
 
   public static class TestGetVersionSameId implements TestWorkflow1 {
