@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
+import java.util.Objects;
 
 /**
  * Application failure is used to communicate application specific failures between workflows and
@@ -61,7 +62,7 @@ public final class ApplicationFailure extends TemporalFailure {
    *
    * @param message optional error message
    * @param type optional error type that is used by {@link
-   *     io.temporal.common.RetryOptions#addDoNotRetry(String...)}.
+   *     io.temporal.common.RetryOptions.Builder#setDoNotRetry(String...)}.
    * @param details optional details about the failure. They are serialized using the same approach
    *     as arguments and results.
    */
@@ -92,7 +93,7 @@ public final class ApplicationFailure extends TemporalFailure {
 
   ApplicationFailure(
       String message, String type, boolean nonRetryable, Values details, Throwable cause) {
-    super(getMessage(message, type, nonRetryable), message, cause);
+    super(getMessage(message, Objects.requireNonNull(type), nonRetryable), message, cause);
     this.type = type;
     this.details = details;
     this.nonRetryable = nonRetryable;
