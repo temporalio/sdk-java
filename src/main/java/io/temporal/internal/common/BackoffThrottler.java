@@ -22,6 +22,7 @@ package io.temporal.internal.common;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 
 /**
  * Used to throttle code execution in presence of failures using exponential backoff logic. The
@@ -71,7 +72,8 @@ public final class BackoffThrottler {
    * @param maxSleep maximum time to sleep independently of number of failures
    * @param backoffCoefficient coefficient used to calculate the next time to sleep.
    */
-  public BackoffThrottler(Duration initialSleep, Duration maxSleep, double backoffCoefficient) {
+  public BackoffThrottler(
+      Duration initialSleep, @Nullable Duration maxSleep, double backoffCoefficient) {
     Objects.requireNonNull(initialSleep, "initialSleep");
     this.initialSleep = initialSleep;
     this.maxSleep = maxSleep;

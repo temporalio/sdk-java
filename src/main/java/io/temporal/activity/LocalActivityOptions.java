@@ -64,8 +64,11 @@ public final class LocalActivityOptions {
     }
 
     /** Overall timeout workflow is willing to wait for activity to complete. */
-    public Builder setScheduleToCloseTimeout(Duration scheduleToCloseTimeout) {
-      this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+    public Builder setScheduleToCloseTimeout(Duration timeout) {
+      if (timeout.isZero() || timeout.isNegative()) {
+        throw new IllegalArgumentException("Illegal timeout: " + timeout);
+      }
+      this.scheduleToCloseTimeout = timeout;
       return this;
     }
 
@@ -74,12 +77,18 @@ public final class LocalActivityOptions {
      * workflow task timeout.
      */
     public Builder setLocalRetryThreshold(Duration localRetryThreshold) {
+      if (localRetryThreshold.isZero() || localRetryThreshold.isNegative()) {
+        throw new IllegalArgumentException("Illegal threshold: " + localRetryThreshold);
+      }
       this.localRetryThreshold = localRetryThreshold;
       return this;
     }
 
-    public Builder setStartToCloseTimeout(Duration startToCloseTimeout) {
-      this.startToCloseTimeout = startToCloseTimeout;
+    public Builder setStartToCloseTimeout(Duration timeout) {
+      if (timeout.isZero() || timeout.isNegative()) {
+        throw new IllegalArgumentException("Illegal timeout: " + timeout);
+      }
+      this.startToCloseTimeout = timeout;
       return this;
     }
 
@@ -109,12 +118,15 @@ public final class LocalActivityOptions {
     }
 
     public LocalActivityOptions validateAndBuildWithDefaults() {
-      RetryOptions ro = null;
-      if (retryOptions != null) {
-        ro = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
+      if (startToCloseTimeout == null && scheduleToCloseTimeout == null) {
+        throw new IllegalArgumentException(
+            "one of the startToCloseTimeout or scheduleToCloseTimeout is required");
       }
       return new LocalActivityOptions(
-          startToCloseTimeout, localRetryThreshold, scheduleToCloseTimeout, ro);
+          startToCloseTimeout,
+          localRetryThreshold,
+          scheduleToCloseTimeout,
+          RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults());
     }
   }
 
