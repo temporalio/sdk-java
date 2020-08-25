@@ -19,8 +19,8 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.common.CheckedExceptionWrapper.wrap;
 import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
-import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.util.Durations;
@@ -184,16 +184,23 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         }
       }
     } catch (Throwable e) {
+      // Fail workflow if exception is of the specified type
       WorkflowImplementationOptions implementationOptions =
           this.replayWorkflowExecutor.getWorkflowImplementationOptions();
-      if (implementationOptions.getWorkflowErrorPolicy() == FailWorkflow) {
-        // fail workflow
-        throw replayWorkflowExecutor.mapError(e);
-      } else {
-        metricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
-        // fail workflow task, not a workflow
-        throw e;
+      Class<? extends Throwable>[] failTypes =
+          implementationOptions.getFailWorkflowExceptionTypes();
+      for (Class<? extends Throwable> failType : failTypes) {
+        if (failType.isAssignableFrom(e.getClass())) {
+          // Wrap any failure into InternalWorkflowTaskException to support specifying them
+          // in the implementation options.
+          if (!(e instanceof InternalWorkflowTaskException)) {
+            e = new InternalWorkflowTaskException(e);
+          }
+          throw replayWorkflowExecutor.mapUnexpectedException(e);
+        }
       }
+      metricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
+      throw wrap(e);
     } finally {
       if (!timerStopped) {
         sw.stop();

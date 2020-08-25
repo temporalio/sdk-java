@@ -19,6 +19,7 @@
 
 package io.temporal.internal.statemachines;
 
+import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 import static io.temporal.internal.common.WorkflowExecutionUtils.getEventTypeForCommand;
 import static io.temporal.internal.common.WorkflowExecutionUtils.isCommandEvent;
 import static io.temporal.internal.statemachines.LocalActivityStateMachine.LOCAL_ACTIVITY_MARKER_NAME;
@@ -50,7 +51,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.internal.replay.NonDeterministicWorkflowError;
+import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.workflow.ChildWorkflowCancellationType;
@@ -176,7 +177,7 @@ public final class WorkflowStateMachines {
     try {
       handleEventImpl(event, hasNextEvent);
     } catch (RuntimeException e) {
-      throw new NonDeterministicWorkflowError(
+      throw new InternalWorkflowTaskException(
           "Failure handling event "
               + event.getEventId()
               + " of '"
@@ -189,7 +190,7 @@ public final class WorkflowStateMachines {
               + this.workflowTaskStartedEventId
               + ", Currently Processing StartedEventId="
               + this.currentStartedEventId,
-          e);
+          unwrap(e));
     }
   }
 

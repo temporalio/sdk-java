@@ -45,6 +45,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
@@ -142,7 +143,8 @@ public class WorkflowTestingTest {
     @Override
     public String workflow1(String input) {
       Workflow.sleep(Duration.ofHours(1)); // test time skipping
-      throw new IllegalThreadStateException(Workflow.getInfo().getWorkflowType() + "-" + input);
+      throw ApplicationFailure.newFailure(
+          Workflow.getInfo().getWorkflowType() + "-" + input, "test");
     }
   }
 
@@ -160,7 +162,7 @@ public class WorkflowTestingTest {
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertEquals(
-          "message='TestWorkflow-input1', type='java.lang.IllegalThreadStateException', nonRetryable=false",
+          "message='TestWorkflow-input1', type='test', nonRetryable=false",
           e.getCause().getMessage());
     }
   }

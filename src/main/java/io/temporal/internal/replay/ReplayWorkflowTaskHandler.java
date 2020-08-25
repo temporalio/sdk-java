@@ -120,8 +120,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private Result failureToResult(PollWorkflowTaskQueueResponse workflowTask, Throwable e)
       throws Exception {
     String workflowType = workflowTask.getWorkflowType().getName();
-    // Fail workflow and not a task as WorkflowExecutionException is thrown only if FailWorkflow
-    // policy was set.
     if (e instanceof WorkflowExecutionException) {
       RespondWorkflowTaskCompletedRequest response =
           RespondWorkflowTaskCompletedRequest.newBuilder()

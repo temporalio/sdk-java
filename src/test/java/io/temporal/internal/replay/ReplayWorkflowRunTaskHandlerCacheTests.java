@@ -19,9 +19,13 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.testUtils.HistoryUtils.*;
+import static io.temporal.testUtils.HistoryUtils.HOST_TASK_QUEUE;
+import static io.temporal.testUtils.HistoryUtils.NAMESPACE;
+import static io.temporal.testUtils.HistoryUtils.WORKFLOW_TYPE;
 import static junit.framework.TestCase.assertEquals;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.fail;
 
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
@@ -288,7 +292,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
           public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {}
 
           @Override
-          public boolean eventLoop() throws Throwable {
+          public boolean eventLoop() {
             return false;
           }
 
@@ -310,11 +314,6 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
           @Override
           public WorkflowExecutionException mapUnexpectedException(Throwable failure) {
-            return null;
-          }
-
-          @Override
-          public WorkflowExecutionException mapError(Throwable failure) {
             return null;
           }
 

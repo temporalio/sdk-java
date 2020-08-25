@@ -75,7 +75,7 @@ interface DeterministicRunner {
    *
    * @throws Throwable if one of the threads didn't handle an exception.
    */
-  void runUntilAllBlocked() throws Throwable;
+  void runUntilAllBlocked();
 
   /** IsDone returns true when all of threads are completed */
   boolean isDone();

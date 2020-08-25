@@ -19,7 +19,8 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
+import static io.temporal.internal.common.CheckedExceptionWrapper.wrap;
+import static io.temporal.internal.sync.WorkflowInternal.unwrap;
 
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payloads;
@@ -102,7 +103,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
     WorkflowImplementationOptions unitTestingOptions =
-        WorkflowImplementationOptions.newBuilder().setWorkflowErrorPolicy(FailWorkflow).build();
+        WorkflowImplementationOptions.newBuilder()
+            .setFailWorkflowExceptionTypes(Throwable.class)
+            .build();
     addWorkflowImplementationFactory(unitTestingOptions, clazz, factory);
   }
 
@@ -287,27 +290,45 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         } catch (IllegalAccessException e) {
           throw new Error(mapToWorkflowExecutionException(e, dataConverter));
         } catch (InvocationTargetException e) {
-          Throwable targetException = e.getTargetException();
-          if (targetException instanceof Error) {
-            throw (Error) targetException;
+          Throwable target = e.getTargetException();
+          if (target instanceof DestroyWorkflowThreadError) {
+            throw (DestroyWorkflowThreadError) target;
           }
-          if (log.isErrorEnabled()) {
-            boolean cancelRequested =
-                WorkflowInternal.getRootWorkflowContext().getContext().isCancelRequested();
-            if (!cancelRequested || !FailureConverter.isCanceledCause(targetException)) {
-              log.error(
-                  "Workflow execution failure "
-                      + "WorkflowId="
-                      + info.getWorkflowId()
-                      + ", RunId="
-                      + info.getRunId()
-                      + ", WorkflowType="
-                      + info.getWorkflowType(),
-                  targetException);
+          Throwable exception = unwrap(target);
+
+          WorkflowImplementationOptions options = implementationOptions.get(info.getWorkflowType());
+          Class<? extends Throwable>[] failTypes = options.getFailWorkflowExceptionTypes();
+          if (exception instanceof TemporalFailure) {
+            logWorkflowExecutionException(info, exception);
+            throw mapToWorkflowExecutionException(exception, dataConverter);
+          }
+          for (Class<? extends Throwable> failType : failTypes) {
+            if (failType.isAssignableFrom(exception.getClass())) {
+              // fail workflow
+              if (log.isErrorEnabled()) {
+                boolean cancelRequested =
+                    WorkflowInternal.getRootWorkflowContext().getContext().isCancelRequested();
+                if (!cancelRequested || !FailureConverter.isCanceledCause(exception)) {
+                  logWorkflowExecutionException(info, exception);
+                }
+              }
+              throw mapToWorkflowExecutionException(exception, dataConverter);
             }
           }
-          throw mapToWorkflowExecutionException(targetException, dataConverter);
+          throw wrap(exception);
         }
+      }
+
+      private void logWorkflowExecutionException(WorkflowInfo info, Throwable exception) {
+        log.error(
+            "Workflow execution failure "
+                + "WorkflowId="
+                + info.getWorkflowId()
+                + ", RunId="
+                + info.getRunId()
+                + ", WorkflowType="
+                + info.getWorkflowType(),
+            exception);
       }
 
       @Override
@@ -362,11 +383,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       e = e.getCause();
     }
     Failure failure = FailureConverter.exceptionToFailure(exception);
-    return new WorkflowExecutionException(failure);
-  }
-
-  static WorkflowExecutionException mapError(Throwable error) {
-    Failure failure = FailureConverter.exceptionToFailureNoUnwrapping(error);
     return new WorkflowExecutionException(failure);
   }
 

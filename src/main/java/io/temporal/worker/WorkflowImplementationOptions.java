@@ -19,9 +19,7 @@
 
 package io.temporal.worker;
 
-import static io.temporal.worker.WorkflowErrorPolicy.BlockWorkflow;
-
-import java.util.Objects;
+import java.util.Arrays;
 
 public final class WorkflowImplementationOptions {
 
@@ -31,41 +29,53 @@ public final class WorkflowImplementationOptions {
 
   public static final class Builder {
 
-    private WorkflowErrorPolicy workflowErrorPolicy = BlockWorkflow;
+    private Class<? extends Throwable>[] failWorkflowExceptionTypes;
 
     private Builder() {}
 
     /**
-     * Optional: Sets how workflow worker deals with Error thrown from the workflow code which
+     * Optional: Sets how workflow worker deals with exceptions thrown from the workflow code which
      * include non-deterministic history events (presumably arising from non-deterministic workflow
      * definitions or non-backward compatible workflow definition changes).
      *
-     * <p>default: BlockWorkflow which lets fixing the problem (frequently by rollback) without
-     * failing open workflows.
+     * <p>The default behavior is to fail workflow on {@link io.temporal.failure.TemporalFailure} or
+     * any of its subclasses. Any other exceptions thrown from the workflow code are treated as bugs
+     * that can be fixed by a new deployment. So workflow is not failed, but it stuck in a retry
+     * loop trying to execute the code that led to the unexpected exception.
+     *
+     * <p>This option allows to specify specific exception types which should lead to workflow
+     * failure instead of blockage. Any exception that extends the configured type considered
+     * matched. For example to fail workflow on any exception pass {@link Throwable} class to this
+     * method.
      */
-    public Builder setWorkflowErrorPolicy(WorkflowErrorPolicy workflowErrorPolicy) {
-      this.workflowErrorPolicy = Objects.requireNonNull(workflowErrorPolicy);
+    public Builder setFailWorkflowExceptionTypes(
+        Class<? extends Throwable>... failWorkflowExceptionTypes) {
+      this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
       return this;
     }
 
     public WorkflowImplementationOptions build() {
-      return new WorkflowImplementationOptions(workflowErrorPolicy);
+      return new WorkflowImplementationOptions(
+          failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes);
     }
   }
 
-  private final WorkflowErrorPolicy workflowErrorPolicy;
+  private final Class<? extends Throwable>[] failWorkflowExceptionTypes;
 
-  public WorkflowImplementationOptions(WorkflowErrorPolicy workflowErrorPolicy) {
-    this.workflowErrorPolicy = workflowErrorPolicy;
+  public WorkflowImplementationOptions(Class<? extends Throwable>[] failWorkflowExceptionTypes) {
+    this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
   }
 
-  public WorkflowErrorPolicy getWorkflowErrorPolicy() {
-    return workflowErrorPolicy;
+  public Class<? extends Throwable>[] getFailWorkflowExceptionTypes() {
+    return failWorkflowExceptionTypes;
   }
 
   @Override
   public String toString() {
-    return "WorkflowImplementationOptions{" + "workflowErrorPolicy=" + workflowErrorPolicy + '}';
+    return "WorkflowImplementationOptions{"
+        + "failWorkflowExceptionTypes="
+        + Arrays.toString(failWorkflowExceptionTypes)
+        + '}';
   }
 
   @Override
@@ -73,11 +83,11 @@ public final class WorkflowImplementationOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkflowImplementationOptions that = (WorkflowImplementationOptions) o;
-    return workflowErrorPolicy == that.workflowErrorPolicy;
+    return Arrays.equals(failWorkflowExceptionTypes, that.failWorkflowExceptionTypes);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(workflowErrorPolicy);
+    return Arrays.hashCode(failWorkflowExceptionTypes);
   }
 }
