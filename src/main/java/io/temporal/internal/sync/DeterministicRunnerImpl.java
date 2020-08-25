@@ -291,12 +291,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         }
         if (unhandledException != null) {
           close();
-          if (unhandledException instanceof RuntimeException) {
-            throw (RuntimeException) unhandledException;
-          }
-          if (unhandledException instanceof Error) {
-            throw (Error) unhandledException;
-          }
           throw WorkflowInternal.wrap(unhandledException);
         }
         for (WorkflowThread c : threadsToAdd) {

@@ -299,15 +299,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           WorkflowImplementationOptions options = implementationOptions.get(info.getWorkflowType());
           Class<? extends Throwable>[] failTypes = options.getFailWorkflowExceptionTypes();
           if (exception instanceof TemporalFailure) {
-            log.error(
-                "Workflow execution failure "
-                    + "WorkflowId="
-                    + info.getWorkflowId()
-                    + ", RunId="
-                    + info.getRunId()
-                    + ", WorkflowType="
-                    + info.getWorkflowType(),
-                exception);
+            logWorkflowExecutionException(info, exception);
             throw mapToWorkflowExecutionException(exception, dataConverter);
           }
           for (Class<? extends Throwable> failType : failTypes) {
@@ -317,15 +309,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 boolean cancelRequested =
                     WorkflowInternal.getRootWorkflowContext().getContext().isCancelRequested();
                 if (!cancelRequested || !FailureConverter.isCanceledCause(exception)) {
-                  log.error(
-                      "Workflow execution failure "
-                          + "WorkflowId="
-                          + info.getWorkflowId()
-                          + ", RunId="
-                          + info.getRunId()
-                          + ", WorkflowType="
-                          + info.getWorkflowType(),
-                      exception);
+                  logWorkflowExecutionException(info, exception);
                 }
               }
               throw mapToWorkflowExecutionException(exception, dataConverter);
@@ -333,6 +317,18 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           }
           throw wrap(exception);
         }
+      }
+
+      private void logWorkflowExecutionException(WorkflowInfo info, Throwable exception) {
+        log.error(
+            "Workflow execution failure "
+                + "WorkflowId="
+                + info.getWorkflowId()
+                + ", RunId="
+                + info.getRunId()
+                + ", WorkflowType="
+                + info.getWorkflowType(),
+            exception);
       }
 
       @Override

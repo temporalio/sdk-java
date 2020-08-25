@@ -149,7 +149,7 @@ final class ReplayWorkflowExecutor {
     workflow.start(startWorkflowEvent, context);
   }
 
-  public WorkflowExecutionException mapFailure(Throwable exception) {
+  public WorkflowExecutionException mapUnexpectedException(Throwable exception) {
     return workflow.mapUnexpectedException(exception);
   }
 }

@@ -19,6 +19,7 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.common.CheckedExceptionWrapper.wrap;
 import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
 
 import com.google.common.base.Throwables;
@@ -195,17 +196,11 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           if (!(e instanceof InternalWorkflowTaskException)) {
             e = new InternalWorkflowTaskException(e);
           }
-          throw replayWorkflowExecutor.mapFailure(e);
+          throw replayWorkflowExecutor.mapUnexpectedException(e);
         }
       }
       metricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
-      if (e instanceof Error) {
-        throw (Error) e;
-      }
-      if (e instanceof RuntimeException) {
-        throw (RuntimeException) e;
-      }
-      throw new InternalWorkflowTaskException(e);
+      throw wrap(e);
     } finally {
       if (!timerStopped) {
         sw.stop();

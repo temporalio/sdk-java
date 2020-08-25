@@ -3527,13 +3527,12 @@ public class WorkflowTest {
   public void testChildWorkflowRetry() {
     AngryChildActivityImpl angryChildActivity = new AngryChildActivityImpl();
     worker.registerActivitiesImplementations(angryChildActivity);
-    worker.registerWorkflowImplementationTypes(
+    startWorkerFor(
         WorkflowImplementationOptions.newBuilder()
             .setFailWorkflowExceptionTypes(UnsupportedOperationException.class)
             .build(),
         TestChildWorkflowRetryWorkflow.class,
         AngryChild.class);
-    startWorkerFor();
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
