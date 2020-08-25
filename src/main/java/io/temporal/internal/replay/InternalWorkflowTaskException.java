@@ -19,9 +19,13 @@
 
 package io.temporal.internal.replay;
 
-public final class NonDeterministicWorkflowError extends Error {
+public final class InternalWorkflowTaskException extends RuntimeException {
 
-  public NonDeterministicWorkflowError(String message, Throwable cause) {
+  public InternalWorkflowTaskException(String message, Throwable cause) {
     super(message, cause);
+  }
+
+  public InternalWorkflowTaskException(Throwable cause) {
+    super(cause);
   }
 }

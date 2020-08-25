@@ -72,8 +72,6 @@ final class ReplayWorkflowExecutor {
     }
     try {
       completed = workflow.eventLoop();
-    } catch (Error e) {
-      throw e;
     } catch (WorkflowExecutionException e) {
       failure = e;
       completed = true;
@@ -81,10 +79,6 @@ final class ReplayWorkflowExecutor {
       if (!cancelRequested) {
         failure = workflow.mapUnexpectedException(e);
       }
-      completed = true;
-    } catch (Throwable e) {
-      // can cast as Error is caught above.
-      failure = workflow.mapUnexpectedException(e);
       completed = true;
     }
     if (completed) {
@@ -147,15 +141,15 @@ final class ReplayWorkflowExecutor {
     return workflow.getWorkflowImplementationOptions();
   }
 
-  public WorkflowExecutionException mapError(Throwable e) {
-    return workflow.mapError(e);
-  }
-
   public void close() {
     workflow.close();
   }
 
   public void start(HistoryEvent startWorkflowEvent) {
     workflow.start(startWorkflowEvent, context);
+  }
+
+  public WorkflowExecutionException mapFailure(Throwable exception) {
+    return workflow.mapUnexpectedException(exception);
   }
 }

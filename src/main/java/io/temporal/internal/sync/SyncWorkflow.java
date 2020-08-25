@@ -130,7 +130,7 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public boolean eventLoop() throws Throwable {
+  public boolean eventLoop() {
     if (runner == null) {
       return false;
     }
@@ -172,10 +172,5 @@ class SyncWorkflow implements ReplayWorkflow {
   public WorkflowExecutionException mapUnexpectedException(Throwable failure) {
     return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(
         failure, dataConverter);
-  }
-
-  @Override
-  public WorkflowExecutionException mapError(Throwable failure) {
-    return POJOWorkflowImplementationFactory.mapError(failure);
   }
 }

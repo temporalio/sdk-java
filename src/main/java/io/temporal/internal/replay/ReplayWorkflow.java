@@ -33,7 +33,7 @@ public interface ReplayWorkflow {
   /** Handle an external signal event. */
   void handleSignal(String signalName, Optional<Payloads> input, long eventId);
 
-  boolean eventLoop() throws Throwable;
+  boolean eventLoop();
 
   /** @return null means no output yet */
   Optional<Payloads> getOutput();
@@ -60,8 +60,6 @@ public interface ReplayWorkflow {
    * @return Serialized failure
    */
   WorkflowExecutionException mapUnexpectedException(Throwable failure);
-
-  WorkflowExecutionException mapError(Throwable failure);
 
   WorkflowImplementationOptions getWorkflowImplementationOptions();
 }

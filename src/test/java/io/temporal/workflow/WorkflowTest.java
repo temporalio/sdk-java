@@ -92,7 +92,7 @@ import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.replay.NonDeterministicWorkflowError;
+import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -103,7 +103,6 @@ import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.WorkflowErrorPolicy;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -381,6 +380,16 @@ public class WorkflowTest {
     }
     if (tracer != null) {
       tracer.assertExpected();
+    }
+  }
+
+  private void startWorkerFor(
+      WorkflowImplementationOptions implementationOptions, Class<?>... workflowTypes) {
+    worker.registerWorkflowImplementationTypes(implementationOptions, workflowTypes);
+    if (useExternalService) {
+      workerFactory.start();
+    } else {
+      testEnvironment.start();
     }
   }
 
@@ -2569,7 +2578,8 @@ public class WorkflowTest {
               Optional.of(Duration.ofSeconds(2)),
               () -> {
                 trace.add("retry at " + Workflow.currentTimeMillis());
-                return Workflow.newFailedPromise(new IllegalThreadStateException("simulated"));
+                return Workflow.newFailedPromise(
+                    ApplicationFailure.newFailure("simulated", "test"));
               })
           .get();
       trace.add("beforeSleep");
@@ -2597,12 +2607,9 @@ public class WorkflowTest {
       fail("unreachable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
+      assertEquals("test", ((ApplicationFailure) e.getCause()).getType());
       assertEquals(
-          IllegalThreadStateException.class.getName(),
-          ((ApplicationFailure) e.getCause()).getType());
-      assertEquals(
-          "message='simulated', type='java.lang.IllegalThreadStateException', nonRetryable=false",
-          e.getCause().getMessage());
+          "message='simulated', type='test', nonRetryable=false", e.getCause().getMessage());
     }
     assertNull(result);
     List<String> trace = client.getTrace();
@@ -2660,7 +2667,11 @@ public class WorkflowTest {
   /** @see DeterministicRunnerTest#testRetry() */
   @Test
   public void testAsyncRetryOptionsChange() {
-    startWorkerFor(TestAsyncRetryOptionsChangeWorkflow.class);
+    startWorkerFor(
+        WorkflowImplementationOptions.newBuilder()
+            .setFailWorkflowExceptionTypes(IllegalThreadStateException.class)
+            .build(),
+        TestAsyncRetryOptionsChangeWorkflow.class);
     TestWorkflow2 client =
         workflowClient.newWorkflowStub(
             TestWorkflow2.class, newWorkflowOptionsBuilder(taskQueue).build());
@@ -2792,7 +2803,12 @@ public class WorkflowTest {
    */
   @Test
   public void testExceptionPropagation() {
-    startWorkerFor(ThrowingChild.class, TestExceptionPropagationImpl.class);
+    startWorkerFor(
+        WorkflowImplementationOptions.newBuilder()
+            .setFailWorkflowExceptionTypes(NumberFormatException.class, FileNotFoundException.class)
+            .build(),
+        ThrowingChild.class,
+        TestExceptionPropagationImpl.class);
     TestExceptionPropagation client =
         workflowClient.newWorkflowStub(
             TestExceptionPropagation.class, newWorkflowOptionsBuilder(taskQueue).build());
@@ -3503,7 +3519,7 @@ public class WorkflowTest {
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .build());
       activity.execute();
-      throw new UnsupportedOperationException("simulated failure");
+      throw ApplicationFailure.newFailure("simulated failure", "test");
     }
   }
 
@@ -3511,7 +3527,13 @@ public class WorkflowTest {
   public void testChildWorkflowRetry() {
     AngryChildActivityImpl angryChildActivity = new AngryChildActivityImpl();
     worker.registerActivitiesImplementations(angryChildActivity);
-    startWorkerFor(TestChildWorkflowRetryWorkflow.class, AngryChild.class);
+    worker.registerWorkflowImplementationTypes(
+        WorkflowImplementationOptions.newBuilder()
+            .setFailWorkflowExceptionTypes(UnsupportedOperationException.class)
+            .build(),
+        TestChildWorkflowRetryWorkflow.class,
+        AngryChild.class);
+    startWorkerFor();
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
@@ -3526,11 +3548,9 @@ public class WorkflowTest {
     } catch (WorkflowFailedException e) {
       assertTrue(e.toString(), e.getCause() instanceof ChildWorkflowFailure);
       assertTrue(e.toString(), e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("test", ((ApplicationFailure) e.getCause().getCause()).getType());
       assertEquals(
-          UnsupportedOperationException.class.getName(),
-          ((ApplicationFailure) e.getCause().getCause()).getType());
-      assertEquals(
-          "message='simulated failure', type='java.lang.UnsupportedOperationException', nonRetryable=false",
+          "message='simulated failure', type='test', nonRetryable=false",
           e.getCause().getCause().getMessage());
     }
     assertEquals("TestWorkflow1", lastStartedWorkflowType.get());
@@ -3823,11 +3843,9 @@ public class WorkflowTest {
     } catch (WorkflowException e) {
       assertTrue(String.valueOf(e.getCause()), e.getCause() instanceof ChildWorkflowFailure);
       assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("test", ((ApplicationFailure) e.getCause().getCause()).getType());
       assertEquals(
-          UnsupportedOperationException.class.getName(),
-          ((ApplicationFailure) e.getCause().getCause()).getType());
-      assertEquals(
-          "message='simulated failure', type='java.lang.UnsupportedOperationException', nonRetryable=false",
+          "message='simulated failure', type='test', nonRetryable=false",
           e.getCause().getCause().getMessage());
     }
     assertEquals(3, angryChildActivity.getInvocationCount());
@@ -3850,6 +3868,51 @@ public class WorkflowTest {
   public void testWorkflowTaskFailureBackoff() {
     testWorkflowTaskFailureBackoffReplayCount = 0;
     startWorkerFor(TestWorkflowTaskFailureBackoff.class);
+    WorkflowOptions o =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofSeconds(10))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
+            .setTaskQueue(taskQueue)
+            .build();
+
+    TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, o);
+    long start = currentTimeMillis();
+    String result = workflowStub.execute(taskQueue);
+    long elapsed = currentTimeMillis() - start;
+    assertTrue("spinned on fail workflow task", elapsed > 1000);
+    assertEquals("result1", result);
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(WorkflowStub.fromTyped(workflowStub).getExecution())
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    int failedTaskCount = 0;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED) {
+        failedTaskCount++;
+      }
+    }
+    assertEquals(1, failedTaskCount);
+  }
+
+  public static class TestWorkflowTaskNPEBackoff implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskQueue) {
+      if (testWorkflowTaskFailureBackoffReplayCount++ < 2) {
+        throw new NullPointerException("simulated workflow task failure");
+      }
+      return "result1";
+    }
+  }
+
+  @Test
+  public void testWorkflowTaskNPEBackoff() {
+    testWorkflowTaskFailureBackoffReplayCount = 0;
+    startWorkerFor(TestWorkflowTaskNPEBackoff.class);
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofSeconds(10))
@@ -3934,7 +3997,7 @@ public class WorkflowTest {
         count = new AtomicInteger();
         retryCount.put(testName, count);
       }
-      throw new IllegalStateException("simulated " + count.incrementAndGet());
+      throw ApplicationFailure.newFailure("simulated " + count.incrementAndGet(), "test");
     }
   }
 
@@ -3958,7 +4021,7 @@ public class WorkflowTest {
     } catch (WorkflowException e) {
       assertEquals(
           e.toString(),
-          "message='simulated 3', type='java.lang.IllegalStateException', nonRetryable=false",
+          "message='simulated 3', type='test', nonRetryable=false",
           e.getCause().getMessage());
     } finally {
       long elapsed = currentTimeMillis() - start;
@@ -4091,7 +4154,12 @@ public class WorkflowTest {
 
   @Test
   public void testWorkflowRetryWithMethodRetryDoNotRetryException() {
-    startWorkerFor(TestWorkflowRetryWithMethodRetryImpl.class);
+    startWorkerFor(
+        WorkflowImplementationOptions.newBuilder()
+            .setFailWorkflowExceptionTypes(
+                IllegalStateException.class, IllegalArgumentException.class)
+            .build(),
+        TestWorkflowRetryWithMethodRetryImpl.class);
     TestWorkflowRetryWithMethodRetry workflowStub =
         workflowClient.newWorkflowStub(
             TestWorkflowRetryWithMethodRetry.class, newWorkflowOptionsBuilder(taskQueue).build());
@@ -4138,7 +4206,7 @@ public class WorkflowTest {
       int c = count.incrementAndGet();
 
       if (c == 3) {
-        throw new RuntimeException("simulated error");
+        throw ApplicationFailure.newFailure("simulated error", "test");
       }
 
       SimpleDateFormat sdf = new SimpleDateFormat("MMM dd,yyyy HH:mm:ss.SSS");
@@ -5281,7 +5349,7 @@ public class WorkflowTest {
       try {
         Workflow.getVersion("test_change", 2, 3);
       } catch (Error e) {
-        throw Workflow.wrap(new Exception("unsupported change version"));
+        throw Workflow.wrap(ApplicationFailure.newFailure("unsupported change version", "test"));
       }
       return result;
     }
@@ -5299,7 +5367,7 @@ public class WorkflowTest {
       fail("unreachable");
     } catch (WorkflowException e) {
       assertEquals(
-          "message='unsupported change version', type='java.lang.Exception', nonRetryable=false",
+          "message='unsupported change version', type='test', nonRetryable=false",
           e.getCause().getMessage());
     }
   }
@@ -5356,7 +5424,7 @@ public class WorkflowTest {
   public void testNonDeterministicWorkflowPolicyFailWorkflow() {
     WorkflowImplementationOptions implementationOptions =
         WorkflowImplementationOptions.newBuilder()
-            .setWorkflowErrorPolicy(WorkflowErrorPolicy.FailWorkflow)
+            .setFailWorkflowExceptionTypes(Throwable.class)
             .build();
     worker.registerWorkflowImplementationTypes(
         implementationOptions, DeterminismFailingWorkflowImpl.class);
@@ -5380,7 +5448,7 @@ public class WorkflowTest {
       // expected to fail on non deterministic error
       assertTrue(e.getCause() instanceof ApplicationFailure);
       assertEquals(
-          NonDeterministicWorkflowError.class.getName(),
+          InternalWorkflowTaskException.class.getName(),
           ((ApplicationFailure) e.getCause()).getType());
     }
   }
@@ -5667,6 +5735,9 @@ public class WorkflowTest {
   @Test
   public void testNonSerializableExceptionInChildWorkflow() {
     startWorkerFor(
+        WorkflowImplementationOptions.newBuilder()
+            .setFailWorkflowExceptionTypes(NonSerializableException.class)
+            .build(),
         TestNonSerializableExceptionInChildWorkflow.class,
         NonSerializableExceptionChildWorkflowImpl.class);
     TestWorkflow1 workflowStub =

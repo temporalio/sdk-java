@@ -219,7 +219,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   @Override
-  public void runUntilAllBlocked() throws Throwable {
+  public void runUntilAllBlocked() {
     if (rootWorkflowThread == null) {
       // TODO: workflow instance specific thread name
       rootWorkflowThread =
@@ -291,7 +291,13 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         }
         if (unhandledException != null) {
           close();
-          throw unhandledException;
+          if (unhandledException instanceof RuntimeException) {
+            throw (RuntimeException) unhandledException;
+          }
+          if (unhandledException instanceof Error) {
+            throw (Error) unhandledException;
+          }
+          throw WorkflowInternal.wrap(unhandledException);
         }
         for (WorkflowThread c : threadsToAdd) {
           threads.add(c);
