@@ -19,37 +19,33 @@
 
 package io.temporal.workflow;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.common.RetryOptions;
-import io.temporal.failure.ActivityFailure;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import java.time.Duration;
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ActivityThrowingErrorTest {
+public class SideEffectRaceConditionTest {
 
   private static final String TASK_QUEUE = "test-workflow";
 
   private TestWorkflowEnvironment testEnvironment;
+  private Worker worker;
 
   @Before
   public void setUp() {
     TestEnvironmentOptions options = TestEnvironmentOptions.newBuilder().build();
     testEnvironment = TestWorkflowEnvironment.newInstance(options);
+    worker = testEnvironment.newWorker(TASK_QUEUE);
   }
 
   @After
@@ -60,116 +56,39 @@ public class ActivityThrowingErrorTest {
   @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
-    String workflow(String input);
+    void execute();
   }
 
-  public static class LocalActivityThrowsErrorWorkflow implements TestWorkflow {
-
-    private final TestActivity1 activity1 =
-        Workflow.newLocalActivityStub(
-            TestActivity1.class,
-            LocalActivityOptions.newBuilder()
-                .setRetryOptions(
-                    RetryOptions.newBuilder()
-                        .setMaximumAttempts(3)
-                        .setInitialInterval(Duration.ofSeconds(1))
-                        .setMaximumInterval(Duration.ofMinutes(2))
-                        .build())
-                .setStartToCloseTimeout(Duration.ofMinutes(2))
-                .build());
+  public static class TestSideEffectBenchWorkflowImpl implements TestWorkflow {
 
     @Override
-    public String workflow(String input) {
-      return activity1.activity1(input);
-    }
-  }
-
-  public static class ActivityThrowsErrorWorkflow implements TestWorkflow {
-
-    private final TestActivity1 activity1 =
-        Workflow.newActivityStub(
-            TestActivity1.class,
-            ActivityOptions.newBuilder()
-                .setRetryOptions(
-                    RetryOptions.newBuilder()
-                        .setMaximumAttempts(3)
-                        .setInitialInterval(Duration.ofSeconds(1))
-                        .setMaximumInterval(Duration.ofMinutes(2))
-                        .build())
-                .setStartToCloseTimeout(Duration.ofMinutes(2))
-                .build());
-
-    @Override
-    public String workflow(String input) {
-      return activity1.activity1(input);
-    }
-  }
-
-  @ActivityInterface
-  public interface TestActivity1 {
-    String activity1(String input);
-  }
-
-  private static class Activity1Impl implements TestActivity1 {
-    @Override
-    public String activity1(String input) {
-      return Workflow.randomUUID().toString();
+    public void execute() {
+      for (int i = 0; i < 100; i++) {
+        Workflow.sideEffect(long.class, () -> new Random().nextLong());
+        Workflow.sleep(Duration.ofMillis(100));
+        Workflow.sideEffect(long.class, () -> new Random().nextLong());
+      }
     }
   }
 
   @Test
-  public void localActivityThrowsError() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(LocalActivityThrowsErrorWorkflow.class);
-    worker.registerActivitiesImplementations(new Activity1Impl());
-
+  public void testSideEffectBench() throws ExecutionException, InterruptedException {
+    worker.registerWorkflowImplementationTypes(TestSideEffectBenchWorkflowImpl.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setMaximumAttempts(1)
-                    .setInitialInterval(Duration.ofMinutes(2))
-                    .build())
-            .build();
-
-    TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
-    try {
-      workflow.workflow(UUID.randomUUID().toString());
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("java.lang.Error", ((ApplicationFailure) e.getCause().getCause()).getType());
+    List<CompletableFuture<Void>> results = new ArrayList<>();
+    int count = 100;
+    for (int i = 0; i < count; i++) {
+      TestWorkflow workflowStub =
+          testEnvironment
+              .getWorkflowClient()
+              .newWorkflowStub(
+                  TestWorkflow.class,
+                  WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
+      CompletableFuture<Void> result = WorkflowClient.execute(workflowStub::execute);
+      results.add(result);
     }
-  }
-
-  @Test
-  public void activityThrowsError() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(ActivityThrowsErrorWorkflow.class);
-    worker.registerActivitiesImplementations(new Activity1Impl());
-
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setMaximumAttempts(1)
-                    .setInitialInterval(Duration.ofMinutes(2))
-                    .build())
-            .build();
-
-    TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
-    try {
-      workflow.workflow(UUID.randomUUID().toString());
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("java.lang.Error", ((ApplicationFailure) e.getCause().getCause()).getType());
+    for (int i = 0; i < count; i++) {
+      results.get(i).get();
     }
   }
 }
