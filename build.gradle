@@ -98,7 +98,7 @@ dependencies {
     api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
     api group: 'io.micrometer', name: 'micrometer-core', version: '1.5.4'
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
-    api 'io.grpc:grpc-protobuf:1.31.1'
+    api 'io.grpc:grpc-protobuf:1.32.1'
     api 'io.grpc:grpc-stub:1.31.1'
 
     implementation group: 'com.google.guava', name: 'guava', version: '29.0-jre'
