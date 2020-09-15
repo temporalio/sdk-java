@@ -738,5 +738,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     public void upsertSearchAttributes(SearchAttributes searchAttributes) {
       throw new UnsupportedOperationException("not implemented");
     }
+
+    @Override
+    public int getAttempt() {
+      return 1;
+    }
   }
 }

@@ -151,6 +151,10 @@ final class WorkflowContext {
         : searchAttributes.build();
   }
 
+  int getAttempt() {
+    return startedAttributes.getAttempt();
+  }
+
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
   }
