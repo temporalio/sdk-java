@@ -6554,7 +6554,7 @@ public class WorkflowTest {
     TestGetAttemptWorkflowsFunc workflow =
         workflowClient.newWorkflowStub(TestGetAttemptWorkflowsFunc.class, workflowOptions);
     int attempt = workflow.func();
-    assertEquals(0, attempt); // TODO should this be equal to 1?
+    assertEquals(1, attempt);
   }
 
   public interface WorkflowBase {
