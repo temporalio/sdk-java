@@ -3996,6 +3996,8 @@ public class WorkflowTest {
         count = new AtomicInteger();
         retryCount.put(testName, count);
       }
+      int attempt = Workflow.getInfo().getAttempt();
+      assertEquals(count.get() + 1, attempt);
       throw ApplicationFailure.newFailure("simulated " + count.incrementAndGet(), "test");
     }
   }
