@@ -37,7 +37,7 @@ class DynamicTransitionAction<State, Data> implements TransitionAction<State, Da
   public State apply(Data data) {
     State state = callback.apply(data);
     for (State s : expectedStates) {
-      if (s == state) {
+      if (s.equals(state)) {
         return state;
       }
     }
