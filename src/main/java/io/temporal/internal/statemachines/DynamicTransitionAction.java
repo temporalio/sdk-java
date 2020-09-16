@@ -27,7 +27,6 @@ class DynamicTransitionAction<State, Data> implements TransitionAction<State, Da
 
   final DynamicCallback<State, Data> callback;
   State[] expectedStates;
-  State state;
 
   DynamicTransitionAction(State[] expectedStates, DynamicCallback<State, Data> callback) {
     this.expectedStates = expectedStates;
@@ -36,7 +35,7 @@ class DynamicTransitionAction<State, Data> implements TransitionAction<State, Da
 
   @Override
   public State apply(Data data) {
-    state = callback.apply(data);
+    State state = callback.apply(data);
     for (State s : expectedStates) {
       if (s.equals(state)) {
         return state;
@@ -53,11 +52,6 @@ class DynamicTransitionAction<State, Data> implements TransitionAction<State, Da
 
   @Override
   public String toString() {
-    return "DynamicTransitionAction{"
-        + ", state="
-        + state
-        + "expectedStates="
-        + Arrays.toString(expectedStates)
-        + '}';
+    return "DynamicTransitionAction{" + "expectedStates=" + Arrays.toString(expectedStates) + '}';
   }
 }
