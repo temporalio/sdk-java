@@ -262,4 +262,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   /** Updates or inserts search attributes used to index workflows. */
   void upsertSearchAttributes(SearchAttributes searchAttributes);
+
+  int getAttempt();
 }

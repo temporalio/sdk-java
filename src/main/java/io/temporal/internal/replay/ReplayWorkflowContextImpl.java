@@ -339,4 +339,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
     workflowContext.mergeSearchAttributes(searchAttributes);
   }
+
+  @Override
+  public int getAttempt() {
+    return workflowContext.getAttempt();
+  }
 }

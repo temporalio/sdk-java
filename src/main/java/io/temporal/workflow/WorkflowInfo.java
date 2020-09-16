@@ -52,4 +52,6 @@ public interface WorkflowInfo {
   Optional<String> getParentWorkflowId();
 
   Optional<String> getParentRunId();
+
+  int getAttempt();
 }

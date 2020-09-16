@@ -818,7 +818,8 @@ class StateMachines {
             .setWorkflowExecutionTimeout(request.getWorkflowExecutionTimeout())
             .setIdentity(request.getIdentity())
             .setInput(request.getInput())
-            .setTaskQueue(request.getTaskQueue());
+            .setTaskQueue(request.getTaskQueue())
+            .setAttempt(1);
     if (data.retryState.isPresent()) {
       a.setAttempt(data.retryState.get().getAttempt());
     }

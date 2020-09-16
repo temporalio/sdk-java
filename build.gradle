@@ -98,12 +98,12 @@ dependencies {
     api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
     api group: 'io.micrometer', name: 'micrometer-core', version: '1.5.4'
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
-    api 'io.grpc:grpc-protobuf:1.31.1'
-    api 'io.grpc:grpc-stub:1.31.1'
+    api 'io.grpc:grpc-protobuf:1.32.1'
+    api 'io.grpc:grpc-stub:1.32.1'
 
     implementation group: 'com.google.guava', name: 'guava', version: '29.0-jre'
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.1'
-    implementation 'io.grpc:grpc-netty-shaded:1.31.1'
+    implementation 'io.grpc:grpc-netty-shaded:1.32.1'
     implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.13.0'
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.2'
     implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.2'
@@ -150,7 +150,7 @@ protobuf {
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.31.1'
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.32.1'
         }
     }
     generateProtoTasks {

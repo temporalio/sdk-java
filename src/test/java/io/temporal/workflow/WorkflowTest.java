@@ -3996,6 +3996,8 @@ public class WorkflowTest {
         count = new AtomicInteger();
         retryCount.put(testName, count);
       }
+      int attempt = Workflow.getInfo().getAttempt();
+      assertEquals(count.get() + 1, attempt);
       throw ApplicationFailure.newFailure("simulated " + count.incrementAndGet(), "test");
     }
   }
@@ -4669,6 +4671,13 @@ public class WorkflowTest {
 
     @WorkflowMethod
     void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
+  }
+
+  @WorkflowInterface
+  public interface TestGetAttemptWorkflowsFunc {
+
+    @WorkflowMethod
+    int func();
   }
 
   public static class TestMultiargsWorkflowsImpl
@@ -6495,6 +6504,14 @@ public class WorkflowTest {
     }
   }
 
+  public static class TestAttemptReturningWorkflowFunc implements TestGetAttemptWorkflowsFunc {
+    @Override
+    public int func() {
+      WorkflowInfo wi = Workflow.getInfo();
+      return wi.getAttempt();
+    }
+  }
+
   public static class TestMultiargsWorkflowsFuncParent implements TestMultiargsWorkflowsFunc {
     @Override
     public String func() {
@@ -6528,6 +6545,18 @@ public class WorkflowTest {
     String result = parent.func();
     String expected = String.format("%s - %s", false, workflowId);
     assertEquals(expected, result);
+  }
+
+  @Test
+  public void testGetAttemptFromWorkflowInfo() {
+    startWorkerFor(TestMultiargsWorkflowsFuncParent.class, TestAttemptReturningWorkflowFunc.class);
+    String workflowId = "testGetAttemptWorkflow";
+    WorkflowOptions workflowOptions =
+        newWorkflowOptionsBuilder(taskQueue).setWorkflowId(workflowId).build();
+    TestGetAttemptWorkflowsFunc workflow =
+        workflowClient.newWorkflowStub(TestGetAttemptWorkflowsFunc.class, workflowOptions);
+    int attempt = workflow.func();
+    assertEquals(1, attempt);
   }
 
   public interface WorkflowBase {

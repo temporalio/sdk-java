@@ -99,4 +99,9 @@ final class WorkflowInfoImpl implements WorkflowInfo {
         ? Optional.empty()
         : Optional.of(parentWorkflowExecution.getRunId());
   }
+
+  @Override
+  public int getAttempt() {
+    return context.getAttempt();
+  }
 }
