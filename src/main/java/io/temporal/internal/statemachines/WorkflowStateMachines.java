@@ -182,7 +182,7 @@ public final class WorkflowStateMachines {
               + event.getEventId()
               + " of '"
               + event.getEventType()
-              + "' type. IsReplayng="
+              + "' type. IsReplaying="
               + this.isReplaying()
               + ", PreviousStartedEventId="
               + this.getLastStartedEventId()
