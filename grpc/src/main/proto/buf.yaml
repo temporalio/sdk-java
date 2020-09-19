@@ -1,8 +1,0 @@
-build:
-  roots:
-    - .
-lint:
-  ignore:
-    - dependencies
-  use:
-    - DEFAULT

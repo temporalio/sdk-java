@@ -1,3 +1,0 @@
-[submodule "src/main/proto"]
-	path = grpc/src/main/proto/proto
-	url = https://github.com/temporalio/temporal-proto.git
