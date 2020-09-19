@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;

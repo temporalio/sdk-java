@@ -19,7 +19,7 @@
 
 package io.temporal.internal.worker;
 
-import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Scope;

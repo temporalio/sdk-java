@@ -20,7 +20,7 @@
 package io.temporal.internal.worker;
 
 import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
-import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;

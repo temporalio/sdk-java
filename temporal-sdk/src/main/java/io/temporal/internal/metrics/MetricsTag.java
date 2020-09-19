@@ -19,9 +19,6 @@
 
 package io.temporal.internal.metrics;
 
-import com.uber.m3.tally.Scope;
-import io.grpc.CallOptions;
-
 public class MetricsTag {
   public static final String ACTIVITY_TYPE = "ActivityType";
   public static final String NAMESPACE = "Namespace";
@@ -32,12 +29,4 @@ public class MetricsTag {
   public static final String STATUS_CODE = "StatusCode";
   public static final String EXCEPTION = "Exception";
   public static final String OPERATION_NAME = "Operation";
-
-  /** Used to pass metrics scope to the interceptor */
-  public static final CallOptions.Key<Scope> METRICS_TAGS_CALL_OPTIONS_KEY =
-      CallOptions.Key.create("metrics-tags-call-options-key");
-
-  /** Indicates to interceptors that GetWorkflowExecutionHistory is a long poll. */
-  public static final CallOptions.Key<Boolean> HISTORY_LONG_POLL_CALL_OPTIONS_KEY =
-      CallOptions.Key.create("history-long-poll");
 }

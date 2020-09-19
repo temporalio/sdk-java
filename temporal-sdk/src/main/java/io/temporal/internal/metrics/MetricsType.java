@@ -82,13 +82,6 @@ public class MetricsType {
   public static final String WORKER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "worker_start";
   public static final String POLLER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "poller_start";
 
-  public static final String TEMPORAL_REQUEST = TEMPORAL_METRICS_PREFIX + "request";
-  public static final String TEMPORAL_REQUEST_FAILURE = TEMPORAL_REQUEST + "_failure";
-  public static final String TEMPORAL_REQUEST_LATENCY = TEMPORAL_REQUEST + "_latency";
-  public static final String TEMPORAL_LONG_REQUEST = TEMPORAL_METRICS_PREFIX + "long_request";
-  public static final String TEMPORAL_LONG_REQUEST_FAILURE = TEMPORAL_LONG_REQUEST + "_failure";
-  public static final String TEMPORAL_LONG_REQUEST_LATENCY = TEMPORAL_LONG_REQUEST + "_latency";
-
   public static final String STICKY_CACHE_HIT = TEMPORAL_METRICS_PREFIX + "sticky_cache_hit";
   public static final String STICKY_CACHE_MISS = TEMPORAL_METRICS_PREFIX + "sticky_cache_miss";
   public static final String STICKY_CACHE_TOTAL_FORCED_EVICTION =

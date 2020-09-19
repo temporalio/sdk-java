@@ -19,6 +19,11 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.internal.metrics.MetricsType.CORRUPTED_SIGNALS_COUNTER;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -42,7 +47,6 @@ import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.metrics.MetricsTag;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -262,10 +266,10 @@ public class MetricsTest {
     reporter.assertCounter("temporal_worker_start", tagsB.build(), 3);
     reporter.assertCounter("temporal_poller_start", tagsB.build());
     reporter.assertCounter(
-        MetricsType.TEMPORAL_LONG_REQUEST,
+        TEMPORAL_LONG_REQUEST,
         tagsB.put(MetricsTag.OPERATION_NAME, "PollActivityTaskQueue").build());
     reporter.assertCounter(
-        MetricsType.TEMPORAL_LONG_REQUEST,
+        TEMPORAL_LONG_REQUEST,
         tagsB.put(MetricsTag.OPERATION_NAME, "PollWorkflowTaskQueue").build());
 
     ImmutableMap<String, String> tags =
@@ -303,7 +307,7 @@ public class MetricsTest {
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .put(MetricsTag.OPERATION_NAME, "RespondActivityTaskCompleted")
             .build();
-    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, activityCompletionTags, 1);
+    reporter.assertCounter(TEMPORAL_REQUEST, activityCompletionTags, 1);
 
     tagsB =
         new ImmutableMap.Builder<String, String>(3)
@@ -315,8 +319,8 @@ public class MetricsTest {
             .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .build();
-    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, tags, 1);
-    reporter.assertTimer(MetricsType.TEMPORAL_REQUEST_LATENCY, tags);
+    reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
+    reporter.assertTimer(TEMPORAL_REQUEST_LATENCY, tags);
 
     Map<String, String> workflowTaskCompletionTags =
         new ImmutableMap.Builder<String, String>(4)
@@ -325,7 +329,7 @@ public class MetricsTest {
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
             .build();
-    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, workflowTaskCompletionTags, 4);
+    reporter.assertCounter(TEMPORAL_REQUEST, workflowTaskCompletionTags, 4);
   }
 
   @Test
@@ -364,7 +368,7 @@ public class MetricsTest {
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectChildWorkflow")
             .build();
-    reporter.assertCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 1);
+    reporter.assertCounter(CORRUPTED_SIGNALS_COUNTER, tags, 1);
   }
 
   private static class CorruptedSignalWorkflowInterceptor implements WorkflowInterceptor {
@@ -413,13 +417,13 @@ public class MetricsTest {
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.OPERATION_NAME, "DescribeNamespace")
             .build();
-    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, tags, 1);
+    reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
     tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.OPERATION_NAME, "DescribeNamespace")
             .put(MetricsTag.STATUS_CODE, "UNIMPLEMENTED")
             .build();
-    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST_FAILURE, tags, 1);
+    reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
   }
 
   @Test
@@ -448,13 +452,13 @@ public class MetricsTest {
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
             .build();
-    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST, tags, 1);
+    reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
 
     tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
             .put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT")
             .build();
-    reporter.assertCounter(MetricsType.TEMPORAL_REQUEST_FAILURE, tags, 1);
+    reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
   }
 }

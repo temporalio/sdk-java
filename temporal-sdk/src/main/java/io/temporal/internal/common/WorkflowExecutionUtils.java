@@ -19,8 +19,8 @@
 
 package io.temporal.internal.common;
 
-import static io.temporal.internal.metrics.MetricsTag.HISTORY_LONG_POLL_CALL_OPTIONS_KEY;
-import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+import static io.temporal.serviceclient.MetricsTag.HISTORY_LONG_POLL_CALL_OPTIONS_KEY;
+import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.io.CharStreams;

@@ -23,14 +23,11 @@ import com.uber.m3.tally.Scope;
 import io.grpc.CallOptions;
 
 public class MetricsTag {
-  public static final String ACTIVITY_TYPE = "ActivityType";
   public static final String NAMESPACE = "Namespace";
   public static final String TASK_QUEUE = "TaskQueue";
   public static final String WORKFLOW_TYPE = "WorkflowType";
-  public static final String SIGNAL_NAME = "SignalName";
   public static final String QUERY_TYPE = "QueryType";
   public static final String STATUS_CODE = "StatusCode";
-  public static final String EXCEPTION = "Exception";
   public static final String OPERATION_NAME = "Operation";
 
   /** Used to pass metrics scope to the interceptor */
