@@ -1,2 +1,3 @@
-//include 'sdk'
-include 'grpc-client'
+rootProject.name='temporalio'
+include 'serviceclient'
+include 'sdk'

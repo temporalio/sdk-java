@@ -17,20 +17,22 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal;
+package io.temporal.serviceclient;
 
 import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.workflowservice.v1.RegisterNamespaceRequest;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 
 /**
  * Waits for local service to become available and registers namespace specified through
- * TEMPORAL_NAMESPACE.
+ * TEMPORAL_NAMESPACE (or default UnitTest). Registers the namespace only if USE_DOCKER_SERVICE
+ * environment variable is true.
  */
 public class RegisterTestNamespace {
+
+  private static final boolean useDockerService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   public static final String NAMESPACE;
@@ -41,6 +43,10 @@ public class RegisterTestNamespace {
   }
 
   public static void main(String[] args) throws InterruptedException {
+    if (!useDockerService) {
+      return;
+    }
+
     WorkflowServiceStubsOptions.Builder options = WorkflowServiceStubsOptions.newBuilder();
     if (serviceAddress != null) {
       options.setTarget(serviceAddress);

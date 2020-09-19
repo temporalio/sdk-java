@@ -222,7 +222,7 @@ task sourceJar(type: Jar) {
 }
 
 task registerNamespace(type: JavaExec) {
-    main = 'io.temporal.RegisterTestNamespace'
+    main = 'io.temporal.serviceclient.RegisterTestNamespace'
     classpath = sourceSets.test.runtimeClasspath
 }
 
