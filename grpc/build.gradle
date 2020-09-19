@@ -1,0 +1,333 @@
+// Run 'gradle checkUpdates' to find out which dependencies have newer versions
+
+buildscript {
+    dependencies {
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.13'
+    }
+}
+
+plugins {
+    id 'com.github.sherter.google-java-format' version '0.9'
+    id 'com.google.protobuf' version '0.8.13'
+    id 'java-library'
+    id 'net.ltgt.errorprone' version '1.2.1'
+    id 'net.minecrell.licenser' version '0.4.1'
+    id 'maven-publish'
+    id 'signing'
+    id 'de.marcphilipp.nexus-publish' version '0.4.0'
+    id 'name.remal.check-updates' version '1.0.211'
+}
+
+apply plugin: 'com.github.sherter.google-java-format'
+apply plugin: 'com.google.protobuf'
+//apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
+apply plugin: 'maven-publish'
+apply plugin: 'de.marcphilipp.nexus-publish'
+apply plugin: 'java'
+
+if (hasProperty('signing.keyId')) {
+    apply plugin: 'signing'
+    signing {
+        sign configurations.archives
+    }
+}
+
+googleJavaFormat {
+    toolVersion '1.7'
+    include '**/*.java'
+    exclude '**/generated/*'
+    exclude '**/.idea/**'
+}
+
+// v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
+ext.getTag = { ->
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'describe', '--tags'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim().substring(1)
+}
+
+// 0.20.0-2-g000a42a -> 0.20.0-SNAPSHOT
+// 0.20.0 -> 0.20.0
+// Used to name jar files
+ext.getVersionName = { ->
+    def split = getTag().split('-')
+    if (split.size() > 1) {
+        return split[0] + '-SNAPSHOT'
+    }
+    return split[0]
+}
+
+// 0.20.0-SNAPSHOT -> 0.20.0
+// 0.20.0 -> 0.20.0
+// Stored int version.properties which is loaded
+// and used as a value of temporal-client-version gRPC header.
+ext.getClientVersionName = { ->
+    def split = getVersionName().split('-')
+    return split[0]
+}
+
+group = 'io.temporal'
+version = getVersionName()
+//archivesBaseName = "temporal-sdk"
+
+description = '''Temporal Workflow Java SDK'''
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withJavadocJar()
+    withSourcesJar()
+}
+
+dependencies {
+    errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
+    errorprone('com.google.errorprone:error_prone_core:2.4.0')
+
+    api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
+    api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
+    api 'io.grpc:grpc-protobuf:1.32.1'
+    api 'io.grpc:grpc-stub:1.32.1'
+
+    implementation 'io.grpc:grpc-netty-shaded:1.32.1'
+    implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.13.0'
+
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+    testImplementation group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
+    testImplementation group: 'junit', name: 'junit', version: '4.13'
+}
+
+configurations.all {
+    // Conflicts with logback
+    exclude group: 'org.slf4j', module: 'slf4j-simple'
+}
+
+license {
+    header rootProject.file('license-header.txt')
+    exclude '**/*.puml'
+}
+
+task initSubmodules(type: Exec) {
+    description = 'Initializes submodules'
+    commandLine 'git', 'submodule', 'init'
+}
+
+task updateSubmodules(type: Exec) {
+    dependsOn initSubmodules
+    description = 'Update submodules'
+    commandLine 'git', 'submodule', 'update'
+}
+
+//TODO(maxim): For some reason the following doesn't exclude proto files from the lib jar.
+// But it should according to https://github.com/google/protobuf-gradle-plugin/issues/390
+jar {
+    exclude '**.proto'
+    includeEmptyDirs false
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.13.0'
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.32.1'
+        }
+    }
+    generateProtoTasks {
+        all().each { task -> task.dependsOn updateSubmodules }
+        all()*.plugins {
+            grpc {
+                outputSubDir = 'java'
+            }
+        }
+    }
+}
+
+clean {
+    delete protobuf.generatedFilesBaseDir
+}
+
+protobuf {
+    generatedFilesBaseDir = "$buildDir/generated"
+}
+
+idea {
+    module {
+        sourceDirs += file("$buildDir/generated/main/java")
+        sourceDirs += file("$buildDir/generated/main/grpc")
+    }
+}
+
+compileJava {
+    dependsOn 'googleJavaFormat'
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+    options.errorprone.excludedPaths = '.*/generated-sources/.*'
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+    options.errorprone.excludedPaths = '.*/generated-sources/.*'
+}
+
+// Generation version.properties for value to be included into the request header
+task createProperties(dependsOn: processResources) {
+    doLast {
+        def subdir = new File("$buildDir/resources/main/io/temporal/")
+        if (!subdir.exists()) {
+            subdir.mkdirs()
+        }
+        new File("$buildDir/resources/main/io/temporal/version.properties").withWriter { w ->
+            Properties p = new Properties()
+            p['temporal-client-version'] = getClientVersionName()
+            p.store w, null
+        }
+    }
+}
+
+classes {
+    dependsOn createProperties
+}
+
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
+javadoc {
+    options.encoding = 'UTF-8'
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+}
+
+// Needed to include generated fils into the source jar
+task sourceJar(type: Jar) {
+    from sourceSets.main.allSource, file("$buildDir/generated/main/java")
+    classifier "sources"
+}
+
+task registerNamespace(type: JavaExec) {
+    main = 'io.temporal.RegisterTestNamespace'
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+test {
+    dependsOn 'registerNamespace'
+    dependsOn 'checkLicenseMain'
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+        // Uncomment the following line if you want to see test logs in gradlew run.
+        showStandardStreams true
+    }
+    forkEvery = 1
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name = 'Temporal Java SDK'
+                packaging = 'jar'
+                // optionally artifactId can be defined here
+                description = 'Temporal Workflow Java SDK'
+                url = 'https://github.com/temporalio/temporal-java-sdk'
+
+                scm {
+                    connection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
+                    developerConnection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
+                    url = 'https://github.com/temporalio/temporal-java-sdk.git'
+                }
+
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'mfateev'
+                        name = 'Maxim Fateev'
+                        email = 'maxim@temporal.io'
+                    }
+                    developer {
+                        id = 'samarabbas'
+                        name = 'Samar Abbas'
+                        email = 'samar@temporal.io'
+                    }
+                }
+            }
+        }
+
+    }
+
+    signing {
+        sign publishing.publications.mavenJava
+    }
+
+    // Uncomment to test local publishing and comment nexusPublishing
+//    repositories {
+//        maven {
+//            def releasesRepoUrl = "$System.env.HOME/repos/releases"
+//            def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
+//            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+//        }
+//    }
+
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            username = project.hasProperty('ossrhUsername') ? project.property('ossrhUsername') : ''
+            password = project.hasProperty('ossrhPassword') ? project.property('ossrhPassword') : ''
+        }
+    }
+}
+
+// Logs list of failed tests after build is done.
+allprojects {
+    // add a collection to track failedTests
+    ext.failedTests = []
+
+    // add a testlistener to all tasks of type Test
+    tasks.withType(Test) {
+        afterTest { TestDescriptor descriptor, TestResult result ->
+            if (result.resultType == org.gradle.api.tasks.testing.TestResult.ResultType.FAILURE) {
+                failedTests << ["${descriptor.className}::${descriptor.name}"]
+            }
+        }
+    }
+
+    // print out tracked failed tests when the build has finished
+    gradle.buildFinished {
+        if (!failedTests.empty) {
+            println "Failed tests for ${project.name}:"
+            failedTests.each { failedTest ->
+                println failedTest
+            }
+            println ""
+        }
+    }
+}
+//logging.captureStandardOutput LogLevel.INFO
