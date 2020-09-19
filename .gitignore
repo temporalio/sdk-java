@@ -6,6 +6,7 @@ target
 .idea
 .gradle
 /build
+/*/build
 /out
 /lib
 dummy
