@@ -17,12 +17,11 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.grpc;
+package io.temporal.serviceclient;
 
 import io.grpc.CallOptions;
 import io.grpc.MethodDescriptor;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.internal.metrics.MetricsTag;
 
 class LongPollUtil {
 

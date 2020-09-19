@@ -1,0 +1,3 @@
+[submodule "grpc-client/src/main/proto"]
+	path = grpc-client/src/main/proto
+	url = git@github.com:temporalio/api.git

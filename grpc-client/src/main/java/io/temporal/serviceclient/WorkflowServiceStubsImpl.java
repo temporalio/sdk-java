@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.grpc;
+package io.temporal.serviceclient;
 
 import io.grpc.Channel;
 import io.grpc.ClientInterceptor;
@@ -30,9 +30,6 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.internal.Version;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;

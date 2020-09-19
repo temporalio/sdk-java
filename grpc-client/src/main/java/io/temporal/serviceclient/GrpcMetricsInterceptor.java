@@ -17,10 +17,10 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.grpc;
+package io.temporal.serviceclient;
 
-import static io.temporal.internal.metrics.MetricsTag.OPERATION_NAME;
-import static io.temporal.internal.metrics.MetricsTag.STATUS_CODE;
+import static io.temporal.serviceclient.MetricsTag.OPERATION_NAME;
+import static io.temporal.serviceclient.MetricsTag.STATUS_CODE;
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
@@ -36,8 +36,6 @@ import io.grpc.MethodDescriptor;
 import io.grpc.ServiceDescriptor;
 import io.grpc.Status;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.internal.metrics.MetricsTag;
-import io.temporal.internal.metrics.MetricsType;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;

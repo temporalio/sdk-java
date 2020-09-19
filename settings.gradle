@@ -1,2 +1,2 @@
 //include 'sdk'
-include 'grpc'
+include 'grpc-client'
