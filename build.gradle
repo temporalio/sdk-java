@@ -1,5 +1,12 @@
 // Logs list of failed tests after build is done.
-allprojects {
+subprojects {
+    repositories {
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+        mavenCentral()
+    }
+
     // add a collection to track failedTests
     ext.failedTests = []
 
