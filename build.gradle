@@ -1,3 +1,8 @@
+
+plugins {
+    id 'com.github.sherter.google-java-format' version '0.9' apply false
+}
+
 // Logs list of failed tests after build is done.
 subprojects {
     repositories {
@@ -15,7 +20,7 @@ subprojects {
         exclude '**/generated/*'
         exclude '**/.idea/**'
     }
-    
+
     // add a collection to track failedTests
     ext.failedTests = []
 

@@ -7,7 +7,6 @@ buildscript {
 }
 
 plugins {
-    id 'com.github.sherter.google-java-format' version '0.9'
     id 'com.google.protobuf' version '0.8.13'
     id 'java-library'
     id 'net.ltgt.errorprone' version '1.2.1'
@@ -18,7 +17,6 @@ plugins {
     id 'name.remal.check-updates' version '1.0.211'
 }
 
-apply plugin: 'com.github.sherter.google-java-format'
 apply plugin: 'com.google.protobuf'
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 apply plugin: 'maven-publish'
@@ -30,13 +28,6 @@ if (hasProperty('signing.keyId')) {
     signing {
         sign configurations.archives
     }
-}
-
-googleJavaFormat {
-    toolVersion '1.7'
-    include '**/*.java'
-    exclude '**/generated/*'
-    exclude '**/.idea/**'
 }
 
 // v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
