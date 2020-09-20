@@ -33,13 +33,6 @@ if (hasProperty('signing.keyId')) {
     }
 }
 
-googleJavaFormat {
-    toolVersion '1.7'
-    include '**/*.java'
-    exclude '**/generated/*'
-    exclude '**/.idea/**'
-}
-
 // v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
 ext.getTag = { ->
     def stdout = new ByteArrayOutputStream()

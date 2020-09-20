@@ -7,6 +7,15 @@ subprojects {
         mavenCentral()
     }
 
+    apply plugin: 'com.github.sherter.google-java-format'
+
+    googleJavaFormat {
+        toolVersion '1.7'
+        include '**/*.java'
+        exclude '**/generated/*'
+        exclude '**/.idea/**'
+    }
+    
     // add a collection to track failedTests
     ext.failedTests = []
 
