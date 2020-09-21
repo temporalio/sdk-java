@@ -1,1 +1,3 @@
-rootProject.name = 'temporal-sdk'
+rootProject.name='temporalio'
+include 'temporal-serviceclient'
+include 'temporal-sdk'
