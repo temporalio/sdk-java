@@ -1,3 +1,3 @@
-[submodule "grpc-client/src/main/proto"]
+[submodule "temporal-serviceclient/src/main/proto"]
 	path = temporal-serviceclient/src/main/proto
 	url = git@github.com:temporalio/api.git
