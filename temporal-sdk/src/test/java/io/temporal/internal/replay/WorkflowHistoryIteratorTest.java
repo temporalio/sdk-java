@@ -43,7 +43,8 @@ public class WorkflowHistoryIteratorTest {
      1. hasNext() method makes a call to the server to retrieve workflow history when current
      history is empty and history token is available and cached the result.
      2. next() method reuses cached history when possible.
-     3. next() throws NoSuchElementException when neither history no history token is available.
+     3. hasNext() fetches an empty page and return false.
+     4. next() throws NoSuchElementException when neither history no history token is available.
   */
   @Test
   public void verifyHasNextIsFalseWhenHistoryIsEmpty() {
