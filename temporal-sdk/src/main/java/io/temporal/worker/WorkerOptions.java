@@ -177,8 +177,8 @@ public final class WorkerOptions {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
           maxConcurrentActivityExecutionSize,
-          DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
-          DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE,
+          maxConcurrentWorkflowTaskExecutionSize,
+          maxConcurrentActivityExecutionSize,
           maxTaskQueueActivitiesPerSecond,
           workflowPollThreadCount,
           activityPollThreadCount);
