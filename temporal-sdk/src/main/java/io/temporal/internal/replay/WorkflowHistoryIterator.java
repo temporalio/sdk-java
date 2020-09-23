@@ -49,7 +49,7 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
   private final Scope metricsScope;
   private final PollWorkflowTaskQueueResponseOrBuilder task;
   private Iterator<HistoryEvent> current;
-  private ByteString nextPageToken;
+  ByteString nextPageToken;
 
   WorkflowHistoryIterator(
       WorkflowServiceStubs service,

@@ -33,6 +33,11 @@ import org.junit.Test;
 
 public class WorkflowHistoryIteratorTest {
 
+  public static final ByteString EMPTY_PAGE_TOKEN =
+      ByteString.copyFrom("empty page token", Charset.defaultCharset());
+  public static final ByteString NEXT_PAGE_TOKEN =
+      ByteString.copyFrom("next token", Charset.defaultCharset());
+
   /*
      This test Scenario verifies following things:
      1. hasNext() method makes a call to the server to retrieve workflow history when current
@@ -43,9 +48,7 @@ public class WorkflowHistoryIteratorTest {
   @Test
   public void verifyHasNextIsFalseWhenHistoryIsEmpty() {
     PollWorkflowTaskQueueResponse workflowTask =
-        PollWorkflowTaskQueueResponse.newBuilder()
-            .setNextPageToken(ByteString.copyFrom("next token", Charset.defaultCharset()))
-            .build();
+        PollWorkflowTaskQueueResponse.newBuilder().setNextPageToken(NEXT_PAGE_TOKEN).build();
 
     AtomicInteger timesCalledServer = new AtomicInteger(0);
     WorkflowHistoryIterator iterator =
@@ -53,8 +56,14 @@ public class WorkflowHistoryIteratorTest {
           GetWorkflowExecutionHistoryResponse queryWorkflowExecutionHistory() {
             timesCalledServer.incrementAndGet();
             try {
+              if (EMPTY_PAGE_TOKEN.equals(nextPageToken)) {
+                return GetWorkflowExecutionHistoryResponse.newBuilder().build();
+              }
               History history = HistoryUtils.generateWorkflowTaskWithInitialHistory().getHistory();
-              return GetWorkflowExecutionHistoryResponse.newBuilder().setHistory(history).build();
+              return GetWorkflowExecutionHistoryResponse.newBuilder()
+                  .setHistory(history)
+                  .setNextPageToken(EMPTY_PAGE_TOKEN)
+                  .build();
             } catch (Exception e) {
               throw new RuntimeException(e);
             }
@@ -68,8 +77,10 @@ public class WorkflowHistoryIteratorTest {
     Assert.assertNotNull(iterator.next());
     Assert.assertTrue(iterator.hasNext());
     Assert.assertNotNull(iterator.next());
-    Assert.assertFalse(iterator.hasNext());
-    Assert.assertThrows(NoSuchElementException.class, iterator::next);
     Assert.assertEquals(1, timesCalledServer.get());
+    Assert.assertFalse(iterator.hasNext());
+    Assert.assertEquals(2, timesCalledServer.get());
+    Assert.assertThrows(NoSuchElementException.class, iterator::next);
+    Assert.assertEquals(2, timesCalledServer.get());
   }
 }
