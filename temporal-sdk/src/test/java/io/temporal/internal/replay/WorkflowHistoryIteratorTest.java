@@ -23,40 +23,15 @@ import com.google.protobuf.ByteString;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.internal.testservice.TestWorkflowService;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.NoSuchElementException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 public class WorkflowHistoryIteratorTest {
-
-  private TestWorkflowService testService;
-  private WorkflowServiceStubs service;
-
-  @Before
-  public void setUp() {
-    testService = new TestWorkflowService(true);
-    service = testService.newClientStub();
-  }
-
-  @After
-  public void tearDown() {
-    service.shutdownNow();
-    try {
-      service.awaitTermination(1, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
-    testService.close();
-  }
 
   /*
      This test Scenario verifies following things:
@@ -74,8 +49,7 @@ public class WorkflowHistoryIteratorTest {
 
     AtomicInteger timesCalledServer = new AtomicInteger(0);
     WorkflowHistoryIterator iterator =
-        new WorkflowHistoryIterator(
-            service, "default", workflowTask, Duration.ofSeconds(10), null) {
+        new WorkflowHistoryIterator(null, "default", workflowTask, Duration.ofSeconds(10), null) {
           GetWorkflowExecutionHistoryResponse queryWorkflowExecutionHistory() {
             timesCalledServer.incrementAndGet();
             try {
