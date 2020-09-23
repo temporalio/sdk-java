@@ -34,6 +34,7 @@ import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 
 /** Supports iteration over history while loading new pages through calls to the service. */
@@ -48,7 +49,7 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
   private final Scope metricsScope;
   private final PollWorkflowTaskQueueResponseOrBuilder task;
   private Iterator<HistoryEvent> current;
-  private ByteString nextPageToken;
+  ByteString nextPageToken;
 
   WorkflowHistoryIterator(
       WorkflowServiceStubs service,
@@ -66,17 +67,36 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
     nextPageToken = task.getNextPageToken();
   }
 
+  // Returns true if more history events are available.
+  // Server can return page tokens that point to empty pages.
+  // We need to verify that page is valid before returning true.
+  // Otherwise next() method would throw NoSuchElementException after hasNext() returning true.
   @Override
   public boolean hasNext() {
-    return current.hasNext() || !nextPageToken.isEmpty();
+    if (current.hasNext()) {
+      return true;
+    }
+    if (nextPageToken.isEmpty()) {
+      return false;
+    }
+
+    GetWorkflowExecutionHistoryResponse response = queryWorkflowExecutionHistory();
+
+    current = response.getHistory().getEventsList().iterator();
+    nextPageToken = response.getNextPageToken();
+
+    return current.hasNext();
   }
 
   @Override
   public HistoryEvent next() {
-    if (current.hasNext()) {
+    if (hasNext()) {
       return current.next();
     }
+    throw new NoSuchElementException();
+  }
 
+  GetWorkflowExecutionHistoryResponse queryWorkflowExecutionHistory() {
     Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
     Duration expiration = workflowTaskTimeout.minus(passed);
     if (expiration.isZero() || expiration.isNegative()) {
@@ -91,28 +111,22 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
             .setInitialInterval(retryServiceOperationInitialInterval)
             .setMaximumInterval(retryServiceOperationMaxInterval)
             .build();
-
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
             .setNamespace(namespace)
             .setExecution(task.getWorkflowExecution())
             .setNextPageToken(nextPageToken)
             .build();
-
     try {
-      GetWorkflowExecutionHistoryResponse r =
-          GrpcRetryer.retryWithResult(
-              retryOptions,
-              () ->
-                  service
-                      .blockingStub()
-                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                      .getWorkflowExecutionHistory(request));
-      current = r.getHistory().getEventsList().iterator();
-      nextPageToken = r.getNextPageToken();
+      return GrpcRetryer.retryWithResult(
+          retryOptions,
+          () ->
+              service
+                  .blockingStub()
+                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                  .getWorkflowExecutionHistory(request));
     } catch (Exception e) {
       throw new Error(e);
     }
-    return current.next();
   }
 }
