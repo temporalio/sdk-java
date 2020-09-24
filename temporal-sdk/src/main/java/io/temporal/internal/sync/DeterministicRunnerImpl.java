@@ -425,7 +425,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   /** To be called only from another workflow thread. */
   public WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
     if (name == null) {
-      name = "workflow-" + workflowContext.getContext().getWorkflowId();
+      name = "workflow[" + workflowContext.getContext().getWorkflowId() + "]-" + addedThreads;
     }
     WorkflowThread result;
     if (rootWorkflowThread == null) {
