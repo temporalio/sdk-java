@@ -43,6 +43,8 @@ public class WorkflowServiceStubsOptions {
   private static final Duration DEFAULT_POLL_RPC_TIMEOUT = Duration.ofSeconds(121);
   /** Default RPC timeout for QueryWorkflow */
   private static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
+  /** Default timeout that will be used to reset connection backoff. */
+  private static final Duration DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY = Duration.ofSeconds(10);
 
   private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE;
 
@@ -81,6 +83,9 @@ public class WorkflowServiceStubsOptions {
   /** The gRPC timeout for query workflow call */
   private final Duration rpcQueryTimeout;
 
+  /** Frequency at which connection backoff is going to be reset */
+  private final Duration connectionBackoffResetFrequency;
+
   /** Optional gRPC headers */
   private final Map<String, String> headers;
 
@@ -104,6 +109,7 @@ public class WorkflowServiceStubsOptions {
     this.rpcLongPollTimeout = builder.rpcLongPollTimeout;
     this.rpcQueryTimeout = builder.rpcQueryTimeout;
     this.rpcTimeout = builder.rpcTimeout;
+    this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
@@ -134,6 +140,7 @@ public class WorkflowServiceStubsOptions {
     this.rpcLongPollTimeout = builder.rpcLongPollTimeout;
     this.rpcQueryTimeout = builder.rpcQueryTimeout;
     this.rpcTimeout = builder.rpcTimeout;
+    this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers =
@@ -174,6 +181,11 @@ public class WorkflowServiceStubsOptions {
     return rpcQueryTimeout;
   }
 
+  /** @return frequency at which connection backoff should be reset. */
+  public Duration getConnectionBackoffResetFrequency() {
+    return connectionBackoffResetFrequency;
+  }
+
   public Map<String, String> getHeaders() {
     return headers;
   }
@@ -211,6 +223,7 @@ public class WorkflowServiceStubsOptions {
     private Duration rpcTimeout = DEFAULT_RPC_TIMEOUT;
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
+    private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
     private Map<String, String> headers;
     private Function<
             WorkflowServiceGrpc.WorkflowServiceBlockingStub,
@@ -232,6 +245,7 @@ public class WorkflowServiceStubsOptions {
       this.rpcLongPollTimeout = options.rpcLongPollTimeout;
       this.rpcQueryTimeout = options.rpcQueryTimeout;
       this.rpcTimeout = options.rpcTimeout;
+      this.connectionBackoffResetFrequency = options.connectionBackoffResetFrequency;
       this.blockingStubInterceptor = options.blockingStubInterceptor;
       this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
