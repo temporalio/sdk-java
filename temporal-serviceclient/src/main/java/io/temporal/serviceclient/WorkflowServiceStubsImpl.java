@@ -31,6 +31,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -127,8 +128,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       // custom policy during channel creation and get rid of the code below.
       if (options.getConnectionBackoffResetFrequency() != null) {
         scheduledBackoffResetter =
-            startConnectionBackoffResetter(
-                options.getConnectionBackoffResetFrequency().getSeconds());
+            startConnectionBackoffResetter(options.getConnectionBackoffResetFrequency());
       }
       channelNeedsShutdown = true;
     }
@@ -164,7 +164,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
-  private ScheduledExecutorService startConnectionBackoffResetter(long backoffResetFrequency) {
+  private ScheduledExecutorService startConnectionBackoffResetter(Duration backoffResetFrequency) {
     ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     executor.scheduleWithFixedDelay(
         () -> {
@@ -175,8 +175,8 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
             log.warn("Unable to reset gRPC connection backoff.", e);
           }
         },
-        backoffResetFrequency,
-        backoffResetFrequency,
+        backoffResetFrequency.getSeconds(),
+        backoffResetFrequency.getSeconds(),
         TimeUnit.SECONDS);
     return executor;
   }
