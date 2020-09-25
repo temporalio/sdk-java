@@ -315,8 +315,9 @@ public class WorkflowServiceStubsOptions {
      *
      * @param connectionBackoffResetFrequency frequency.
      */
-    public void setConnectionBackoffResetFrequency(Duration connectionBackoffResetFrequency) {
+    public Builder setConnectionBackoffResetFrequency(Duration connectionBackoffResetFrequency) {
       this.connectionBackoffResetFrequency = connectionBackoffResetFrequency;
+      return this;
     }
 
     /**
