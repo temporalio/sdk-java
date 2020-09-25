@@ -68,7 +68,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
   private final Server inProcessServer;
-  private ScheduledExecutorService scheduledBackoffResetter;
+  private final ScheduledExecutorService scheduledBackoffResetter;
 
   /**
    * Creates a factory that connects to the Temporal according to the specified options. When
@@ -102,6 +102,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     }
     options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
+    ScheduledExecutorService backoffResetter = null;
     if (options.getChannel() != null) {
       this.channel = options.getChannel();
       // Do not shutdown a channel passed to the constructor from outside
@@ -127,11 +128,12 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       // Once https://github.com/grpc/grpc-java/issues/7456 is done we should be able to define
       // custom policy during channel creation and get rid of the code below.
       if (options.getConnectionBackoffResetFrequency() != null) {
-        scheduledBackoffResetter =
+        backoffResetter =
             startConnectionBackoffResetter(options.getConnectionBackoffResetFrequency());
       }
       channelNeedsShutdown = true;
     }
+    scheduledBackoffResetter = backoffResetter;
     GrpcMetricsInterceptor metricsInterceptor =
         new GrpcMetricsInterceptor(options.getMetricsScope());
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
@@ -166,6 +168,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private ScheduledExecutorService startConnectionBackoffResetter(Duration backoffResetFrequency) {
     ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
     executor.scheduleWithFixedDelay(
         () -> {
           try {

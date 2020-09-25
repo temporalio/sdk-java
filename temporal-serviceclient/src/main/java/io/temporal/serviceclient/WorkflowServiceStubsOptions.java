@@ -310,7 +310,8 @@ public class WorkflowServiceStubsOptions {
     /**
      * Sets frequency at which gRPC connection backoff should be reset practically defining an upper
      * limit for the maximum backoff duration.
-     *
+     * If set to null then no backoff reset will be performed and we'll rely on default gRPC
+     * backoff behavior defined in ExponentialBackoffPolicy.
      * @param connectionBackoffResetFrequency frequency.
      */
     public void setConnectionBackoffResetFrequency(Duration connectionBackoffResetFrequency) {
