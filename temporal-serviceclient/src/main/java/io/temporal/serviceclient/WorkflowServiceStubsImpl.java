@@ -55,7 +55,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private static final Metadata.Key<String> CLIENT_NAME_HEADER_KEY =
       Metadata.Key.of("client-name", Metadata.ASCII_STRING_MARSHALLER);
 
-  private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-java";
+  private static final String CLIENT_NAME_HEADER_VALUE = "temporal-java";
 
   private final WorkflowServiceStubsOptions options;
   private final ManagedChannel channel;
@@ -126,7 +126,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     Metadata headers = new Metadata();
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
     headers.put(SUPPORTED_SERVER_VERSIONS_HEADER_KEY, Version.SUPPORTED_SERVER_VERSIONS);
-    headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_IMPL_HEADER_VALUE);
+    headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_NAME_HEADER_VALUE);
     Channel interceptedChannel =
         ClientInterceptors.intercept(
             channel,
