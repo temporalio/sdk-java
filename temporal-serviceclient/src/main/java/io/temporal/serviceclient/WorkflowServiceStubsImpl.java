@@ -45,15 +45,15 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   /** refers to the name of the gRPC header that contains the client library version */
   private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
-      Metadata.Key.of("temporal-client-version", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("client-version", Metadata.ASCII_STRING_MARSHALLER);
 
-  /** refers to the name of the gRPC header that contains the client feature version */
-  private static final Metadata.Key<String> FEATURE_VERSION_HEADER_KEY =
-      Metadata.Key.of("temporal-client-feature-version", Metadata.ASCII_STRING_MARSHALLER);
+  /** refers to the name of the gRPC header that contains supported server versions */
+  private static final Metadata.Key<String> SUPPORTED_SERVER_VERSIONS_HEADER_KEY =
+      Metadata.Key.of("supported-server-versions", Metadata.ASCII_STRING_MARSHALLER);
 
   /** refers to the name of the gRPC header that contains the client SDK name */
-  private static final Metadata.Key<String> CLIENT_IMPL_HEADER_KEY =
-      Metadata.Key.of("temporal-client-name", Metadata.ASCII_STRING_MARSHALLER);
+  private static final Metadata.Key<String> CLIENT_NAME_HEADER_KEY =
+      Metadata.Key.of("client-name", Metadata.ASCII_STRING_MARSHALLER);
 
   private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-java";
 
@@ -125,8 +125,8 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     GrpcTracingInterceptor tracingInterceptor = new GrpcTracingInterceptor();
     Metadata headers = new Metadata();
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
-    headers.put(FEATURE_VERSION_HEADER_KEY, Version.FEATURE_VERSION);
-    headers.put(CLIENT_IMPL_HEADER_KEY, CLIENT_IMPL_HEADER_VALUE);
+    headers.put(SUPPORTED_SERVER_VERSIONS_HEADER_KEY, Version.SUPPORTED_SERVER_VERSIONS);
+    headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_IMPL_HEADER_VALUE);
     Channel interceptedChannel =
         ClientInterceptors.intercept(
             channel,
