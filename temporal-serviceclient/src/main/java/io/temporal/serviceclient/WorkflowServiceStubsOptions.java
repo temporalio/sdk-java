@@ -181,8 +181,10 @@ public class WorkflowServiceStubsOptions {
     return rpcQueryTimeout;
   }
 
-  /** @return frequency at which connection backoff should be reset or
-   * null if backoff reset is disabled. */
+  /**
+   * @return frequency at which connection backoff should be reset or null if backoff reset is
+   *     disabled.
+   */
   public Duration getConnectionBackoffResetFrequency() {
     return connectionBackoffResetFrequency;
   }
@@ -306,8 +308,9 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Sets frequency at which gRPC connection backoff should be reset practically defining an
-     * upper limit for the maximum backoff duration.
+     * Sets frequency at which gRPC connection backoff should be reset practically defining an upper
+     * limit for the maximum backoff duration.
+     *
      * @param connectionBackoffResetFrequency frequency.
      */
     public void setConnectionBackoffResetFrequency(Duration connectionBackoffResetFrequency) {
