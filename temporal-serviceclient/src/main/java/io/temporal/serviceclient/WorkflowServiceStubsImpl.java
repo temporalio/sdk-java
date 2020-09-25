@@ -31,6 +31,9 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -65,6 +68,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
   private final Server inProcessServer;
+  private final ScheduledExecutorService scheduledBackoffResetter;
 
   /**
    * Creates a factory that connects to the Temporal according to the specified options. When
@@ -98,6 +102,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     }
     options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
+    ScheduledExecutorService backoffResetter = null;
     if (options.getChannel() != null) {
       this.channel = options.getChannel();
       // Do not shutdown a channel passed to the constructor from outside
@@ -117,8 +122,18 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       }
 
       this.channel = builder.build();
+      // Currently it is impossible to modify backoff policy on NettyChannelBuilder.
+      // For this reason we reset connection backoff every few seconds in order to limit maximum
+      // retry interval, which by default equals to 2 minutes.
+      // Once https://github.com/grpc/grpc-java/issues/7456 is done we should be able to define
+      // custom policy during channel creation and get rid of the code below.
+      if (options.getConnectionBackoffResetFrequency() != null) {
+        backoffResetter =
+            startConnectionBackoffResetter(options.getConnectionBackoffResetFrequency());
+      }
       channelNeedsShutdown = true;
     }
+    scheduledBackoffResetter = backoffResetter;
     GrpcMetricsInterceptor metricsInterceptor =
         new GrpcMetricsInterceptor(options.getMetricsScope());
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
@@ -151,6 +166,24 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
+  private ScheduledExecutorService startConnectionBackoffResetter(Duration backoffResetFrequency) {
+    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+    executor.scheduleWithFixedDelay(
+        () -> {
+          try {
+            log.debug("Resetting gRPC connection backoff.");
+            channel.resetConnectBackoff();
+          } catch (Exception e) {
+            log.warn("Unable to reset gRPC connection backoff.", e);
+          }
+        },
+        backoffResetFrequency.getSeconds(),
+        backoffResetFrequency.getSeconds(),
+        TimeUnit.SECONDS);
+    return executor;
+  }
+
   /** @return Blocking (synchronous) stub that allows direct calls to service. */
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
     return blockingStub;
@@ -171,6 +204,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     if (inProcessServer != null) {
       inProcessServer.shutdown();
     }
+    if (scheduledBackoffResetter != null) {
+      scheduledBackoffResetter.shutdown();
+    }
   }
 
   @Override
@@ -183,6 +219,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     if (inProcessServer != null) {
       inProcessServer.shutdownNow();
     }
+    if (scheduledBackoffResetter != null) {
+      scheduledBackoffResetter.shutdownNow();
+    }
   }
 
   @Override
@@ -194,6 +233,10 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     long left = System.currentTimeMillis() - unit.toMillis(start);
     if (inProcessServer != null) {
       inProcessServer.awaitTermination(left, TimeUnit.MILLISECONDS);
+    }
+    left = System.currentTimeMillis() - unit.toMillis(start);
+    if (scheduledBackoffResetter != null) {
+      scheduledBackoffResetter.awaitTermination(left, TimeUnit.MILLISECONDS);
     }
     return true;
   }
@@ -214,6 +257,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     if (inProcessServer != null) {
       result = result && inProcessServer.isShutdown();
     }
+    if (scheduledBackoffResetter != null) {
+      result = result && scheduledBackoffResetter.isShutdown();
+    }
     return result;
   }
 
@@ -227,6 +273,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     }
     if (inProcessServer != null) {
       result = result && inProcessServer.isTerminated();
+    }
+    if (scheduledBackoffResetter != null) {
+      result = result && scheduledBackoffResetter.isTerminated();
     }
     return result;
   }
