@@ -1,4 +1,4 @@
-# Temporal Java SDK  [![Build status](https://badge.buildkite.com/182afcb377dc16cf9d41b263620446719de2d96d6cd9d43882.svg?branch=master)](https://buildkite.com/temporal/temporal-java-sdk)
+# Temporal Java SDK  [![Build status](https://badge.buildkite.com/182afcb377dc16cf9d41b263620446719de2d96d6cd9d43882.svg?branch=master)](https://buildkite.com/temporal/sdk-java)
 
 
 [Temporal](https://github.com/temporalio/temporal) is a Workflow as Code platform used to build and operate 
@@ -6,11 +6,11 @@ resilient applications using developer friendly primitives, instead of constantl
 
 `temporal-java-sdk` is the framework for authoring workflows and activities in Java.
 
-If you are authoring in Go, see [Temporal Go SDK](https://github.com/temporalio/go-sdk).
+If you are authoring in Go, see [Temporal Go SDK](https://github.com/temporalio/sdk-go).
 
 ## Samples
 
-For samples, see [Samples for the Temporal Java SDK](https://github.com/temporalio/temporal-java-samples).
+For samples, see [Samples for the Temporal Java SDK](https://github.com/temporalio/samples-java).
 
 ## Run Temporal Server
 
