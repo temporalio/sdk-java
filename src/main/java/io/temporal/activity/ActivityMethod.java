@@ -34,7 +34,7 @@ public @interface ActivityMethod {
 
   /**
    * Name of the activity type. Default is method name. Also consider using {@link
-   * ActivityInterface#namePrefix()}.
+   * ActivityInterface#namePrefix()}. Note that the prefix is ignored if the name is specified.
    *
    * <p>Be careful about names that contain special characters. These names can be used as metric
    * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
