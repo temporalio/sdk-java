@@ -50,6 +50,7 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.QueryRejectCondition;
+import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
@@ -911,6 +912,49 @@ public class WorkflowTest {
           e.getCause().getCause().toString());
     }
     assertEquals(3, activitiesImpl.applicationFailureCounter.get());
+  }
+
+  public static class TestActivityApplicationFailureNonRetryable implements TestWorkflow1 {
+
+    private TestActivities activities;
+
+    @Override
+    public String execute(String taskQueue) {
+      ActivityOptions options =
+          ActivityOptions.newBuilder()
+              .setTaskQueue(taskQueue)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
+              .setRetryOptions(
+                  RetryOptions.newBuilder()
+                      .setMaximumInterval(Duration.ofSeconds(1))
+                      .setDoNotRetry(IOException.class.getName())
+                      .build())
+              .build();
+      activities = Workflow.newActivityStub(TestActivities.class, options);
+      activities.throwIO();
+      return "ignored";
+    }
+  }
+
+  @Test
+  public void testActivityApplicationFailureNonRetryable() {
+    startWorkerFor(TestActivityApplicationFailureNonRetryable.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+    try {
+      workflowStub.execute(taskQueue);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("java.io.IOException", ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(
+          RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
+          ((ActivityFailure) e.getCause()).getRetryState());
+    }
+    assertEquals(activitiesImpl.toString(), 1, activitiesImpl.invocations.size());
   }
 
   public static class TestActivityApplicationNoSpecifiedRetry implements TestWorkflow1 {

@@ -1884,6 +1884,7 @@ class StateMachines {
 
     return RetryPolicy.newBuilder()
         .setInitialInterval(initialInterval)
+        .addAllNonRetryableErrorTypes(originalPolicy.getNonRetryableErrorTypesList())
         .setMaximumInterval(
             Durations.compare(originalPolicy.getMaximumInterval(), Durations.ZERO) == 0
                 ? Durations.fromMillis(
