@@ -36,14 +36,14 @@ import java.lang.annotation.Target;
  * annotations: {@literal @}WorkflowMethod, {@literal @}SignalMethod or {@literal @}QueryMethod
  *
  * <p>An interface annotated with WorkflowInterface can extend other interfaces annotated with
- * WorkflowInterface having that it can have at most one method annotated with
+ * WorkflowInterface having that it can have <b>at most one</b> method annotated with
  * {@literal @}WorkflowMethod including all inherited methods.
  *
  * <p>The prefix of workflow, signal and query type names is the name of the declaring interface
  * annotated with WorkflowInterface. If a method is declared in non annotated interface the prefix
  * comes from the first sub-interface that has the WorkflowInterface annotation.
  *
- * <p>A workflow implementation object must have exactly one method annotated with
+ * <p>A workflow implementation object must have <b>exactly one</b> method annotated with
  * {@literal @}WorkflowMethod inherited from all the interfaces it implements.
  *
  * <p>Example:
@@ -61,7 +61,7 @@ import java.lang.annotation.Target;
  *     {@literal @}SignalMethod
  *      b();
  *
- *     {@literal @}SignalMethod // must to define the type of the inherited method
+ *     {@literal @}SignalMethod // must define the type of the inherited method
  *      aa();
  *  }
  *
@@ -92,18 +92,16 @@ import java.lang.annotation.Target;
  * <p>
  *
  * <ul>
- *   <li>B_a signal handler
- *   <li>B_b signal handler
- *   <li>B_aa signal handler
- *   <li>C_c workflow main method
- *   <li>D_d query method
+ *   <li>a signal handler
+ *   <li>b signal handler
+ *   <li>aa signal handler
+ *   <li>c workflow main method
+ *   <li>d query method
  * </ul>
  *
- * Note that methods <code>a()</code> and <code>aa()</code> are registered with "B_" prefix because
- * interface <code>A</code> lacks the WorkflowInterface annotation. The client code can call signals
- * through stubs to <code>B</code>, <code>C</code> and <code>D</code> interfaces. A call to crate a
- * stub to <code>A</code> interface will fail as <code>A</code> is not annotated with the
- * WorkflowInterface.
+ * The client code can call signals through stubs to <code>B</code>, <code>C</code> and <code>D
+ * </code> interfaces. A call to crate a stub to <code>A</code> interface will fail as <code>A
+ * </code> is not annotated with the WorkflowInterface.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
