@@ -494,7 +494,7 @@ public class StickyWorkerTest {
 
     private TestWorkflowEnvironment testEnv;
     private WorkerFactory factory;
-    private String identity = UUID.randomUUID().toString();
+    private final String identity = UUID.randomUUID().toString();
 
     public TestEnvironmentWrapper(WorkerFactoryOptions options) {
       if (options == null) {

@@ -21,7 +21,7 @@ package io.temporal.internal.worker;
 
 class CircularLongBuffer {
 
-  private long[] values_;
+  private final long[] values_;
 
   public CircularLongBuffer(int size) {
     values_ = new long[size];
@@ -33,15 +33,15 @@ class CircularLongBuffer {
 
   public void set(long i, long value) {
     values_[getArrayOffset(i)] = value;
-  };
+  }
 
   public long get(long i) {
     return values_[getArrayOffset(i)];
-  };
+  }
 
   public int size() {
     return values_.length;
-  };
+  }
 
   public CircularLongBuffer copy(long index1, int length) {
     if (length == 0) {

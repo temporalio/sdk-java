@@ -147,7 +147,7 @@ public final class WorkflowInternal {
 
   /** Should be used to get current time instead of {@link System#currentTimeMillis()} */
   public static long currentTimeMillis() {
-    return DeterministicRunnerImpl.currentThreadInternal().getRunner().currentTimeMillis();
+    return getWorkflowInterceptor().currentTimeMillis();
   }
 
   /**
@@ -292,7 +292,7 @@ public final class WorkflowInternal {
     return getWorkflowInterceptor().getVersion(changeId, minSupported, maxSupported);
   }
 
-  public static Promise<Void> promiseAllOf(Iterable<Promise<?>> promises) {
+  public static <V> Promise<Void> promiseAllOf(Iterable<Promise<V>> promises) {
     return new AllOfPromise(promises);
   }
 
@@ -301,7 +301,7 @@ public final class WorkflowInternal {
     return new AllOfPromise(promises);
   }
 
-  public static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
+  public static <V> Promise<V> promiseAnyOf(Iterable<Promise<V>> promises) {
     return CompletablePromiseImpl.promiseAnyOf(promises);
   }
 

@@ -30,7 +30,7 @@ import java.util.Set;
 
 class CancellationScopeImpl implements CancellationScope {
 
-  private static ThreadLocal<Deque<CancellationScopeImpl>> scopeStack =
+  private static final ThreadLocal<Deque<CancellationScopeImpl>> scopeStack =
       ThreadLocal.withInitial(ArrayDeque::new);
   private boolean detached;
   private CompletablePromise<String> cancellationPromise;

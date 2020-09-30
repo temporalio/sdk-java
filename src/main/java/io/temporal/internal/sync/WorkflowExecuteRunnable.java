@@ -74,10 +74,4 @@ class WorkflowExecuteRunnable implements Runnable {
   public Optional<Payloads> query(String type, Optional<Payloads> args) {
     return context.query(type, args);
   }
-
-  public void fireTimers() {
-    if (context.hasTimersToFire()) {
-      context.getRunner().executeInWorkflowThread("timers callback", () -> context.fireTimers());
-    }
-  }
 }

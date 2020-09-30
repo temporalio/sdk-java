@@ -29,12 +29,8 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.api.history.v1.History;
-import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
 import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsResponse;
 import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsRequest;
@@ -42,6 +38,7 @@ import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
@@ -51,7 +48,6 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
-import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -76,7 +72,6 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
-import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,8 +79,6 @@ import org.slf4j.MDC;
 
 public class WorkflowTestingTest {
   private static final Logger log = LoggerFactory.getLogger(WorkflowTestingTest.class);
-
-  @Rule public Timeout globalTimeout = Timeout.seconds(10);
 
   @Rule
   public TestWatcher watchman =
@@ -127,7 +120,7 @@ public class WorkflowTestingTest {
 
     @Override
     public String workflow1(String input) {
-      Workflow.sleep(Duration.ofHours(1)); // test time skipping
+      Workflow.sleep(Duration.ofMinutes(5)); // test time skipping
       return Workflow.getInfo().getWorkflowType() + "-" + input;
     }
   }
@@ -615,6 +608,11 @@ public class WorkflowTestingTest {
       long start = System.currentTimeMillis();
       while (true) {
         Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
+        try {
+          Thread.sleep(50);
+        } catch (InterruptedException e) {
+          // NOOP
+        }
       }
     }
   }
@@ -626,7 +624,7 @@ public class WorkflowTestingTest {
             TestCancellationActivity.class,
             ActivityOptions.newBuilder()
                 .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
-                .setHeartbeatTimeout(Duration.ofSeconds(2))
+                .setHeartbeatTimeout(Duration.ofSeconds(1))
                 .build());
 
     @Override
@@ -636,7 +634,7 @@ public class WorkflowTestingTest {
     }
   }
 
-  @Test
+  @Test(timeout = 5000)
   public void testActivityCancellation() {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(TestCancellationWorkflow.class);
@@ -654,11 +652,13 @@ public class WorkflowTestingTest {
       untyped.cancel();
       untyped.getResult(String.class);
       fail("unreacheable");
-    } catch (CanceledFailure e) {
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof CanceledFailure);
     }
   }
 
-  public static class TestTimerCancellationWorkflow implements TestWorkflow {
+  public static class TestTimersWorkflow implements TestWorkflow {
 
     @Override
     public String workflow1(String input) {
@@ -682,11 +682,12 @@ public class WorkflowTestingTest {
   }
 
   @Test
-  public void testTimerCancellation() {
+  public void testTimers() {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(TestTimerCancellationWorkflow.class);
+    worker.registerWorkflowImplementationTypes(TestTimersWorkflow.class);
     worker.registerActivitiesImplementations(new ActivityImpl());
     testEnvironment.start();
+    long start = testEnvironment.currentTimeMillis();
     WorkflowClient client = testEnvironment.getWorkflowClient();
     String workflowId = UUID.randomUUID().toString();
     TestWorkflow workflow =
@@ -698,21 +699,8 @@ public class WorkflowTestingTest {
                 .build());
     String result = workflow.workflow1("input1");
     assertEquals("result", result);
-
-    History history =
-        testEnvironment
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(
-                GetWorkflowExecutionHistoryRequest.newBuilder()
-                    .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).build())
-                    .setNamespace(client.getOptions().getNamespace())
-                    .build())
-            .getHistory();
-    List<HistoryEvent> historyEvents = history.getEventsList();
-    assertTrue(
-        WorkflowExecutionUtils.prettyPrintHistory(history, false),
-        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.EVENT_TYPE_TIMER_CANCELED));
+    long elapsed = testEnvironment.currentTimeMillis() - start;
+    assertTrue(elapsed > Duration.ofHours(3).toMillis());
   }
 
   @WorkflowInterface

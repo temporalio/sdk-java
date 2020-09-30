@@ -32,31 +32,26 @@ class AllOfPromise implements Promise<Void> {
   private int notReadyCount;
 
   AllOfPromise(Promise<?>[] promises) {
-    int index = 0;
     for (Promise<?> f : promises) {
-      addPromise(index, f);
-      index++;
+      addPromise(f);
     }
     if (notReadyCount == 0) {
       impl.complete(null);
     }
   }
 
-  public AllOfPromise(Iterable<Promise<?>> promises) {
-    int index = 0;
+  public <V> AllOfPromise(Iterable<Promise<V>> promises) {
     for (Promise<?> f : promises) {
-      addPromise(index, f);
-      index++;
+      addPromise(f);
     }
     if (notReadyCount == 0) {
       impl.complete(null);
     }
   }
 
-  private void addPromise(int index, Promise<?> f) {
+  private void addPromise(Promise<?> f) {
     if (!f.isCompleted()) {
       notReadyCount++;
-      final int i = index;
       f.handle(
           (r, e) -> {
             if (notReadyCount == 0) {

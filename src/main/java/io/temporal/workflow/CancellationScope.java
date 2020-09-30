@@ -31,7 +31,7 @@ import io.temporal.internal.sync.WorkflowInternal;
 public interface CancellationScope extends Runnable {
 
   /**
-   * When set to false parent thread cancellation causes this one to get cancelled automatically.
+   * When set to false parent thread cancellation causes this one to get canceled automatically.
    * When set to true only call to {@link #cancel()} leads to this scope cancellation.
    */
   boolean isDetached();
@@ -52,14 +52,14 @@ public interface CancellationScope extends Runnable {
   /**
    * Is scope was asked to cancel through {@link #cancel()} or by a parent scope.
    *
-   * @return whether request is cancelled or not.
+   * @return whether request is canceled or not.
    */
   boolean isCancelRequested();
 
   /**
    * Use this promise to perform cancellation of async operations.
    *
-   * @return promise that becomes ready when scope is cancelled. It contains reason value or null if
+   * @return promise that becomes ready when scope is canceled. It contains reason value or null if
    *     none was provided.
    */
   Promise<String> getCancellationRequest();
@@ -68,8 +68,8 @@ public interface CancellationScope extends Runnable {
     return WorkflowInternal.currentCancellationScope();
   }
 
-  /** Throws {@link CanceledFailure} if scope is cancelled. Noop if not cancelled. */
-  static void throwCancelled() throws CanceledFailure {
+  /** Throws {@link CanceledFailure} if scope is canceled. Noop if not canceled. */
+  static void throwCanceled() throws CanceledFailure {
     if (current().isCancelRequested()) {
       throw new CanceledFailure(current().getCancellationReason());
     }

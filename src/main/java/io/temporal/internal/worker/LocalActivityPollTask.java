@@ -24,18 +24,27 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class LocalActivityPollTask
     implements Poller.PollTask<LocalActivityWorker.Task>,
         BiFunction<LocalActivityWorker.Task, Duration, Boolean> {
+  private static final Logger log = LoggerFactory.getLogger(LocalActivityPollTask.class);
+
   private static final int QUEUE_SIZE = 1000;
-  private BlockingQueue<LocalActivityWorker.Task> pendingTasks =
+  private final BlockingQueue<LocalActivityWorker.Task> pendingTasks =
       new ArrayBlockingQueue<>(QUEUE_SIZE);
 
   @Override
   public LocalActivityWorker.Task poll() {
     try {
-      return pendingTasks.take();
+      LocalActivityWorker.Task task = pendingTasks.take();
+      if (log.isTraceEnabled()) {
+        log.trace("LocalActivity Task poll returned: " + task.getActivityId());
+      }
+      return task;
+
     } catch (InterruptedException e) {
       throw new RuntimeException("local activity poll task interrupted", e);
     }
@@ -44,8 +53,19 @@ final class LocalActivityPollTask
   @Override
   public Boolean apply(LocalActivityWorker.Task task, Duration maxWaitAllowed) {
     try {
-      pendingTasks.offer(task, maxWaitAllowed.toMillis(), TimeUnit.MILLISECONDS);
-      return true;
+      boolean accepted = pendingTasks.offer(task, maxWaitAllowed.toMillis(), TimeUnit.MILLISECONDS);
+      if (log.isTraceEnabled()) {
+        if (accepted) {
+          log.trace("LocalActivity queued: " + task.getActivityId());
+        } else {
+          log.trace(
+              "LocalActivity queue timed out for "
+                  + task.getActivityId()
+                  + " maxWaitAllowed="
+                  + maxWaitAllowed);
+        }
+      }
+      return accepted;
     } catch (InterruptedException e) {
       return false;
     }

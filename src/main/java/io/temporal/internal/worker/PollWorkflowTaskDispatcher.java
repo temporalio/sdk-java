@@ -27,13 +27,13 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.failure.FailureConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflow.Functions;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,13 +41,13 @@ public final class PollWorkflowTaskDispatcher
     implements ShutdownableTaskExecutor<PollWorkflowTaskQueueResponse> {
 
   private static final Logger log = LoggerFactory.getLogger(PollWorkflowTaskDispatcher.class);
-  private final Map<String, Consumer<PollWorkflowTaskQueueResponse>> subscribers =
+  private final Map<String, Functions.Proc1<PollWorkflowTaskQueueResponse>> subscribers =
       new ConcurrentHashMap<>();
   private final Scope metricsScope;
-  private WorkflowServiceStubs service;
+  private final WorkflowServiceStubs service;
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> log.error("uncaught exception", e);
-  private AtomicBoolean shutdown = new AtomicBoolean();
+  private final AtomicBoolean shutdown = new AtomicBoolean();
 
   public PollWorkflowTaskDispatcher(WorkflowServiceStubs service, Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
@@ -72,7 +72,7 @@ public final class PollWorkflowTaskDispatcher
     }
     String taskQueueName = t.getWorkflowExecutionTaskQueue().getName();
     if (subscribers.containsKey(taskQueueName)) {
-      subscribers.get(taskQueueName).accept(t);
+      subscribers.get(taskQueueName).apply(t);
     } else {
       Exception exception =
           new Exception(
@@ -98,7 +98,7 @@ public final class PollWorkflowTaskDispatcher
     }
   }
 
-  public void subscribe(String taskQueue, Consumer<PollWorkflowTaskQueueResponse> consumer) {
+  public void subscribe(String taskQueue, Functions.Proc1<PollWorkflowTaskQueueResponse> consumer) {
     subscribers.put(taskQueue, consumer);
   }
 

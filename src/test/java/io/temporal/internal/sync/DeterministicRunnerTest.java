@@ -23,13 +23,13 @@ import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
-import com.google.common.collect.Maps;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -40,8 +40,9 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflowContext;
-import io.temporal.internal.replay.WorkflowExecutor;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.replay.WorkflowRunTaskHandler;
+import io.temporal.internal.replay.WorkflowTaskResult;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -60,10 +61,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -121,45 +122,6 @@ public class DeterministicRunnerTest {
     assertTrue(d.isDone());
   }
 
-  @Test
-  public void testSleep() throws Throwable {
-    DeterministicRunnerImpl d =
-        new DeterministicRunnerImpl(
-            threadPool,
-            null,
-            () -> currentTime, // clock override
-            () -> {
-              status = "started";
-              Workflow.sleep(60000);
-              status = "afterSleep1";
-              Workflow.sleep(60000);
-              status = "done";
-            });
-    currentTime = 1000;
-    assertEquals("initial", status);
-    assertEquals(1000, d.currentTimeMillis());
-    d.runUntilAllBlocked();
-    currentTime = 20000;
-    assertEquals("started", status);
-    assertEquals(20000, d.currentTimeMillis());
-    d.runUntilAllBlocked();
-    assertEquals("started", status);
-    assertFalse(d.isDone());
-
-    currentTime = 70000; // unblocks first sleep
-    d.runUntilAllBlocked();
-    assertEquals("afterSleep1", status);
-    // Just check that running again doesn't make any progress.
-    d.runUntilAllBlocked();
-    assertEquals("afterSleep1", status);
-    assertEquals(70000, d.currentTimeMillis());
-
-    currentTime = 200000; // unblock second sleep
-    d.runUntilAllBlocked();
-    assertEquals("done", status);
-    assertTrue(d.isDone());
-  }
-
   /**
    * Async retry cannot be tested here as it relies on timer that is implemented outside of
    * Dispatcher.
@@ -167,6 +129,7 @@ public class DeterministicRunnerTest {
    * @see WorkflowTest#testAsyncRetry()
    */
   @Test
+  @Ignore // timer removed from dispatcher
   public void testRetry() throws Throwable {
     RetryOptions retryOptions =
         RetryOptions.newBuilder()
@@ -179,7 +142,6 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             null,
-            () -> currentTime, // clock override
             () -> {
               trace.add("started");
               Workflow.retry(
@@ -195,7 +157,6 @@ public class DeterministicRunnerTest {
             });
     try {
       for (int i = 0; i < Duration.ofSeconds(400).toMillis(); i += 10) {
-        currentTime = i;
         d.runUntilAllBlocked();
       }
       fail("failure expected");
@@ -354,7 +315,7 @@ public class DeterministicRunnerTest {
                 var.get();
                 trace.add("after get");
               } catch (CanceledFailure e) {
-                trace.add("scope cancelled");
+                trace.add("scope canceled");
               }
               trace.add("root done");
             });
@@ -367,8 +328,8 @@ public class DeterministicRunnerTest {
           "scope started",
           "scope done",
           "root before cancel",
-          "timer cancelled",
-          "scope cancelled",
+          "timer canceled",
+          "scope canceled",
           "root done",
         };
     trace.setExpected(expected);
@@ -396,7 +357,7 @@ public class DeterministicRunnerTest {
                 var.get();
                 trace.add("after get");
               } catch (CanceledFailure e) {
-                trace.add("scope cancelled");
+                trace.add("scope canceled");
               }
               trace.add("root done");
             });
@@ -409,8 +370,8 @@ public class DeterministicRunnerTest {
           "scope started",
           "scope done",
           "root before cancel",
-          "timer cancelled",
-          "scope cancelled",
+          "timer canceled",
+          "scope canceled",
           "root done",
         };
     trace.setExpected(expected);
@@ -423,7 +384,7 @@ public class DeterministicRunnerTest {
             Workflow.sleep(milliseconds);
             trace.add("timer fired");
           } catch (CanceledFailure e) {
-            trace.add("timer cancelled");
+            trace.add("timer canceled");
             throw e;
           }
         });
@@ -559,7 +520,7 @@ public class DeterministicRunnerTest {
               try {
                 done.get();
               } catch (CanceledFailure e) {
-                trace.add("done cancelled");
+                trace.add("done canceled");
               }
               trace.add("root done");
             });
@@ -614,51 +575,6 @@ public class DeterministicRunnerTest {
     d.runUntilAllBlocked();
     assertEquals("done", status);
     assertTrue(d.isDone());
-  }
-
-  @Test
-  public void testJoinTimeout() throws Throwable {
-    DeterministicRunnerImpl d =
-        new DeterministicRunnerImpl(
-            threadPool,
-            null,
-            () -> currentTime, // clock override
-            () -> {
-              trace.add("root started");
-
-              Promise<Void> thread =
-                  Async.procedure(
-                      () -> {
-                        trace.add("child started");
-                        WorkflowThread.await("blockForever", () -> false);
-                        trace.add("child done");
-                      });
-              try {
-                thread.get(60000, TimeUnit.MILLISECONDS);
-              } catch (TimeoutException e) {
-                trace.add("timeout exception");
-              }
-              trace.add("root done");
-            });
-    currentTime = 1000;
-    d.runUntilAllBlocked();
-    assertEquals(61000, d.getNextWakeUpTime());
-    assertFalse(d.isDone());
-    String[] expected =
-        new String[] {
-          "root started", "child started",
-        };
-    trace.setExpected(expected);
-    trace.assertExpected();
-    // Just check that running again doesn't make any progress.
-    d.runUntilAllBlocked();
-    assertEquals(61000, d.getNextWakeUpTime());
-    currentTime = 70000;
-    d.runUntilAllBlocked();
-    assertFalse(d.isDone());
-    expected = new String[] {"root started", "child started", "timeout exception", "root done"};
-    trace.setExpected(expected);
-    d.close();
   }
 
   private static final int CHILDREN = 10;
@@ -721,9 +637,11 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 3, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(3, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 3, scope);
     ReplayWorkflowContext replayWorkflowContext = mock(ReplayWorkflowContext.class);
     when(replayWorkflowContext.getMetricsScope()).thenReturn(scope);
+    when(replayWorkflowContext.getWorkflowExecution())
+        .thenReturn(WorkflowExecution.newBuilder().setWorkflowId("id1").setRunId("run1").build());
     when(replayWorkflowContext.getNamespace()).thenReturn("namespace");
     when(replayWorkflowContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
@@ -732,8 +650,6 @@ public class DeterministicRunnerTest {
             threadPool,
             new SyncWorkflowContext(
                 replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
-            () -> 0L, // clock override
-            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -745,11 +661,12 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    WorkflowExecutor workflowExecutor = new DetermisiticRunnerContainerWorkflowExecutor(d);
+    WorkflowRunTaskHandler workflowRunTaskHandler =
+        new DeterministicRunnerTestWorkflowRunTaskHandler(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
-    cache.addToCache(response, workflowExecutor);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowRunTaskHandler);
+    cache.addToCache(response.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -759,8 +676,6 @@ public class DeterministicRunnerTest {
             threadPool,
             new SyncWorkflowContext(
                 replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
-            () -> 0L, // clock override
-            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -791,14 +706,12 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(3, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 3, new NoopScope());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
             null,
-            () -> 0L, // clock override
-            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -810,11 +723,12 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-    WorkflowExecutor workflowExecutor = new DetermisiticRunnerContainerWorkflowExecutor(d);
+    WorkflowRunTaskHandler workflowRunTaskHandler =
+        new DeterministicRunnerTestWorkflowRunTaskHandler(d);
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowExecutor);
-    cache.addToCache(response, workflowExecutor);
+    cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowRunTaskHandler);
+    cache.addToCache(response.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -823,8 +737,6 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             null,
-            () -> 0L, // clock override
-            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -845,22 +757,23 @@ public class DeterministicRunnerTest {
     assertEquals(1, cache.size());
   }
 
-  private static class DetermisiticRunnerContainerWorkflowExecutor implements WorkflowExecutor {
+  private static class DeterministicRunnerTestWorkflowRunTaskHandler
+      implements WorkflowRunTaskHandler {
     DeterministicRunner runner;
 
-    DetermisiticRunnerContainerWorkflowExecutor(DeterministicRunner runner) {
+    DeterministicRunnerTestWorkflowRunTaskHandler(DeterministicRunner runner) {
       this.runner = Objects.requireNonNull(runner);
     }
 
     @Override
     public WorkflowTaskResult handleWorkflowTask(
         PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-      return new WorkflowTaskResult(new ArrayList<>(), Maps.newHashMap(), false, false);
+      return WorkflowTaskResult.newBuilder().build();
     }
 
     @Override
     public Optional<Payloads> handleQueryWorkflowTask(
-        PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) throws Throwable {
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) {
       return Optional.empty();
     }
 
@@ -879,7 +792,6 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             null,
-            System::currentTimeMillis,
             () -> {
               Promise<Void> async = Async.procedure(() -> status = "started");
               async.get();

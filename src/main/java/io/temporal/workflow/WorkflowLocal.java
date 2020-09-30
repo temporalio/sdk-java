@@ -49,7 +49,7 @@ import java.util.function.Supplier;
 public final class WorkflowLocal<T> {
 
   private final RunnerLocalInternal<T> impl = new RunnerLocalInternal<>();
-  private Supplier<? extends T> supplier;
+  private final Supplier<? extends T> supplier;
 
   private WorkflowLocal(Supplier<? extends T> supplier) {
     this.supplier = Objects.requireNonNull(supplier);

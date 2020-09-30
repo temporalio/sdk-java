@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 public class WorkflowRunLockManagerTest {
   private static final Logger log = LoggerFactory.getLogger(WorkflowRunLockManagerTest.class);
-  private WorkflowRunLockManager runLockManager = new WorkflowRunLockManager();
+  private final WorkflowRunLockManager runLockManager = new WorkflowRunLockManager();
 
   @Test
   public void lockAndUnlockTest() throws ExecutionException, InterruptedException {

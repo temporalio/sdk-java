@@ -132,7 +132,7 @@ public final class WorkflowOptions {
      *
      *     <ul>
      *       AllowDuplicateFailedOnly is a default value. It means that workflow can start if
-     *       previous run failed or was cancelled or terminated.
+     *       previous run failed or was canceled or terminated.
      * </ul>
      *
      * <ul>
@@ -263,15 +263,15 @@ public final class WorkflowOptions {
 
   private final String taskQueue;
 
-  private RetryOptions retryOptions;
+  private final RetryOptions retryOptions;
 
-  private String cronSchedule;
+  private final String cronSchedule;
 
-  private Map<String, Object> memo;
+  private final Map<String, Object> memo;
 
-  private Map<String, Object> searchAttributes;
+  private final Map<String, Object> searchAttributes;
 
-  private List<ContextPropagator> contextPropagators;
+  private final List<ContextPropagator> contextPropagators;
 
   private WorkflowOptions(
       String workflowId,

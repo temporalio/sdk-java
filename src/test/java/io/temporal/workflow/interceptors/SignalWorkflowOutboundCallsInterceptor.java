@@ -40,8 +40,8 @@ import java.util.function.Supplier;
 
 public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundCallsInterceptor {
 
-  private Function<Object[], Object[]> overrideArgs;
-  private Function<String, String> overrideSignalName;
+  private final Function<Object[], Object[]> overrideArgs;
+  private final Function<String, String> overrideSignalName;
   private final WorkflowOutboundCallsInterceptor next;
 
   public SignalWorkflowOutboundCallsInterceptor(
@@ -180,5 +180,10 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   @Override
   public Object newThread(Runnable runnable, boolean detached, String name) {
     return next.newThread(runnable, detached, name);
+  }
+
+  @Override
+  public long currentTimeMillis() {
+    return next.currentTimeMillis();
   }
 }

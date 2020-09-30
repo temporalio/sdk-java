@@ -31,9 +31,9 @@ import io.temporal.client.WorkflowException;
 @SuppressWarnings("serial")
 public final class CancelExternalWorkflowException extends WorkflowException {
 
-  protected CancelExternalWorkflowException(
-      WorkflowExecution execution, String workflowType, Throwable cause) {
-    super(execution, workflowType, cause);
+  public CancelExternalWorkflowException(
+      String message, WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(message, execution, workflowType, cause);
   }
 
   @Override

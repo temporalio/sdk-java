@@ -96,7 +96,7 @@ public class WorkflowExecutionUtils {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowExecutionUtils.class);
 
-  private static RpcRetryOptions retryParameters =
+  private static final RpcRetryOptions retryParameters =
       RpcRetryOptions.newBuilder()
           .setBackoffCoefficient(2)
           .setInitialInterval(Duration.ofMillis(500))
@@ -113,7 +113,7 @@ public class WorkflowExecutionUtils {
    * @param workflowType is optional.
    * @param metricsScope metrics with NAMESPACE tag populated
    * @throws TimeoutException if workflow didn't complete within specified timeout
-   * @throws CanceledFailure if workflow was cancelled
+   * @throws CanceledFailure if workflow was canceled
    * @throws WorkflowExecutionFailedException if workflow execution failed
    */
   public static Optional<Payloads> getWorkflowExecutionResult(
@@ -168,7 +168,12 @@ public class WorkflowExecutionUtils {
             closeEvent.getWorkflowExecutionCanceledEventAttributes();
         Optional<Payloads> details =
             attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-        throw new CanceledFailure("Workflow canceled", new EncodedValues(details, converter), null);
+        throw new WorkflowFailedException(
+            workflowExecution,
+            workflowType.orElse(null),
+            0,
+            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
+            new CanceledFailure("Workflow canceled", new EncodedValues(details, converter), null));
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
@@ -813,6 +818,7 @@ public class WorkflowExecutionUtils {
     return result;
   }
 
+  /** Returns event that corresponds to a command. */
   public static EventType getEventTypeForCommand(CommandType commandType) {
     switch (commandType) {
       case COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK:
@@ -830,7 +836,7 @@ public class WorkflowExecutionUtils {
       case COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION:
         return EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED;
       case COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION:
-        return EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED;
+        return EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED;
       case COMMAND_TYPE_RECORD_MARKER:
         return EventType.EVENT_TYPE_MARKER_RECORDED;
       case COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:

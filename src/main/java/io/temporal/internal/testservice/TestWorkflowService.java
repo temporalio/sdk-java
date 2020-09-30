@@ -128,8 +128,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
 
   private final String serverName;
-  private ManagedChannel channel;
-  private WorkflowServiceStubs stubs;
+  private final ManagedChannel channel;
+  private final WorkflowServiceStubs stubs;
 
   public WorkflowServiceStubs newClientStub() {
     return stubs;
@@ -261,7 +261,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<TestServiceRetryState> retryState;
       if (startRequest.hasRetryPolicy()) {
         Duration expirationInterval =
-            ProtobufTimeUtils.ToJavaDuration(startRequest.getWorkflowExecutionTimeout());
+            ProtobufTimeUtils.toJavaDuration(startRequest.getWorkflowExecutionTimeout());
         retryState = newRetryStateLocked(startRequest.getRetryPolicy(), expirationInterval);
       } else {
         retryState = Optional.empty();
@@ -288,7 +288,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         expirationInterval.isZero()
             ? Timestamps.fromNanos(0)
             : Timestamps.add(
-                store.currentTime(), ProtobufTimeUtils.ToProtoDuration(expirationInterval));
+                store.currentTime(), ProtobufTimeUtils.toProtoDuration(expirationInterval));
     return Optional.of(new TestServiceRetryState(retryPolicy, expirationTime));
   }
 
@@ -878,7 +878,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               a.getNewExecutionRunId(),
               Optional.of(executionId.getExecution().getRunId()),
               retryState,
-              ProtobufTimeUtils.ToJavaDuration(a.getBackoffStartInterval()),
+              ProtobufTimeUtils.toJavaDuration(a.getBackoffStartInterval()),
               a.getLastCompletionResult(),
               parent,
               parentChildInitiatedEventId,

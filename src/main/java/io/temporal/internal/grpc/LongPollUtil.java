@@ -34,9 +34,7 @@ class LongPollUtil {
     }
     if (method == WorkflowServiceGrpc.getGetWorkflowExecutionHistoryMethod()) {
       Boolean longPoll = callOptions.getOption(MetricsTag.HISTORY_LONG_POLL_CALL_OPTIONS_KEY);
-      if (longPoll != null && longPoll.booleanValue()) {
-        return true;
-      }
+      return longPoll != null && longPoll.booleanValue();
     }
     return false;
   }

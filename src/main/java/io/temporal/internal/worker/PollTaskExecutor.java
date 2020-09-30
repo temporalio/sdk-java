@@ -72,6 +72,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
           try {
             handler.handle(task);
           } catch (Throwable ee) {
+            ee.printStackTrace();
             if (!isShutdown()) {
               options
                   .getPollerOptions()

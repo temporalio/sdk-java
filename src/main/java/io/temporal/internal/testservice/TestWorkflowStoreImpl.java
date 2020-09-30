@@ -19,6 +19,8 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Deadline;
@@ -375,6 +377,29 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       HistoryStore historyStore = getHistoryStore(executionId);
       List<HistoryEvent> events = new ArrayList<>(historyStore.getEventsLocked());
       History.Builder history = History.newBuilder();
+      PeekingIterator<HistoryEvent> iterator = Iterators.peekingIterator(events.iterator());
+      long startedEventId = 0;
+      long previousStaredEventId = 0;
+      while (iterator.hasNext()) {
+        HistoryEvent event = iterator.next();
+        if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED) {
+          if (!iterator.hasNext()
+              || iterator.peek().getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
+            previousStaredEventId = startedEventId;
+            startedEventId = event.getEventId();
+          }
+        } else if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
+          previousStaredEventId = startedEventId;
+          startedEventId = 0;
+          if (iterator.hasNext()) {
+            throw Status.INTERNAL
+                .withDescription("Unexpected event after the completion event: " + iterator.peek())
+                .asRuntimeException();
+          }
+        }
+      }
+      task.setPreviousStartedEventId(previousStaredEventId);
+      task.setStartedEventId(startedEventId);
       if (taskQueue.getTaskQueueName().equals(task.getWorkflowExecutionTaskQueue().getName())) {
         history.addAllEvents(events);
       } else {
