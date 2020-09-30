@@ -16,7 +16,7 @@ For samples, see [Samples for the Temporal Java SDK](https://github.com/temporal
 
 Run Temporal Server using Docker Compose:
 
-    curl -O https://raw.githubusercontent.com/temporalio/temporal/master/docker/docker-compose.yml
+    curl -L https://github.com/temporalio/temporal/releases/latest/download/docker.tar.gz | tar -xz --strip-components 1 docker/docker-compose.yml
     docker-compose up
 
 If this does not work, see instructions for running the Temporal Server at https://github.com/temporalio/temporal/blob/master/README.md.
