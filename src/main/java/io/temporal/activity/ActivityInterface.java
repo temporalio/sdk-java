@@ -65,7 +65,7 @@ import java.lang.annotation.Target;
  *
  * <ul>
  *   <li>B_a
- *   <li>b
+ *   <li>B_b
  *   <li>C_c
  * </ul>
  *
