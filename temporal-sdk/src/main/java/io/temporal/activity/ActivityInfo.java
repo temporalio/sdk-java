@@ -71,7 +71,7 @@ public interface ActivityInfo {
 
   String getActivityNamespace();
 
-  /** Activity execution attempt starting from 0. */
+  /** Activity execution attempt starting from 1. */
   int getAttempt();
 
   /** Is this activity invoked as a local activity? */

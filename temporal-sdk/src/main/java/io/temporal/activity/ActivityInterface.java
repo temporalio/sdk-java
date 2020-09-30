@@ -30,8 +30,9 @@ import java.lang.annotation.Target;
  * annotation can be used as parameters to {@link Workflow#newActivityStub(Class)} methods.
  *
  * <p>Each method of the interface annotated with <code>ActivityInterface</code> including inherited
- * from interfaces is a separate activity. By default the name of an activity type is "short
- * interface name"_"method name".
+ * from interfaces is a separate activity. By default the name of an activity type is its method
+ * name with the first letter capitalized. Use {@link ActivityInterface#namePrefix()} or {{@link
+ * ActivityMethod#name()}} to make sure that activity type names are distinct.
  *
  * <p>Example:
  *
@@ -40,12 +41,12 @@ import java.lang.annotation.Target;
  *      a();
  *  }
  *
- * {@literal @}ActivityInterface
+ * {@literal @}ActivityInterface(namePrefix = "B_")
  *  public interface B extends A {
  *     b();
  *  }
  *
- * {@literal @}ActivityInterface
+ * {@literal @}ActivityInterface(namePrefix = "C_")
  *  public interface C extends B {
  *     c();
  *  }
@@ -68,8 +69,7 @@ import java.lang.annotation.Target;
  *   <li>C_c
  * </ul>
  *
- * Note that method <code>a()</code> is registered as "B_a" because interface <code>A</code> lacks
- * ActivityInterface annotation. The workflow code can call activities through stubs to <code>B
+ * The workflow code can call activities through stubs to <code>B
  * </code> and <code>C</code> interfaces. A call to crate stub to <code>A</code> interface will fail
  * as <code>A</code> is not annotated with ActivityInterface.
  */
@@ -79,6 +79,9 @@ public @interface ActivityInterface {
   /**
    * Prefix to prepend to method names to generate activity types. Default is empty string which
    * means that method names are used as activity types.
+   *
+   * <p>Note that this value is ignored if a name of an activity is specified explicitly through
+   * {@link ActivityMethod#name()}.
    *
    * <p>Be careful about names that contain special characters. These names can be used as metric
    * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
