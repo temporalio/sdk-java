@@ -19,6 +19,8 @@
 
 package io.temporal.worker;
 
+import static io.temporal.internal.metrics.DefaultMetricsTags.defaultTags;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -106,10 +108,7 @@ public final class WorkerFactory {
             .getWorkflowServiceStubs()
             .getOptions()
             .getMetricsScope()
-            .tagged(
-                new ImmutableMap.Builder<String, String>(1)
-                    .put(MetricsTag.NAMESPACE, workflowClient.getOptions().getNamespace())
-                    .build());
+            .tagged(defaultTags(workflowClient.getOptions().getNamespace()));
 
     this.cache =
         new WorkflowExecutorCache(
