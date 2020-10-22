@@ -23,6 +23,8 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.grpc.CallOptions;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class MetricsTag {
   public static final String ACTIVITY_TYPE = "ActivityType";
@@ -45,17 +47,24 @@ public class MetricsTag {
 
   public static final String DEFAULT_VALUE = "none";
 
+  private static final ConcurrentMap<String, Map<String, String>> tagsByNamespace =
+      new ConcurrentHashMap<>();
+
   public static Map<String, String> defaultTags(String namespace) {
+    return tagsByNamespace.computeIfAbsent(namespace, MetricsTag::tags);
+  }
+
+  private static Map<String, String> tags(String namespace) {
     return new ImmutableMap.Builder<String, String>(9)
         .put(NAMESPACE, namespace)
-        .put(MetricsTag.ACTIVITY_TYPE, DEFAULT_VALUE)
-        .put(MetricsTag.OPERATION_NAME, DEFAULT_VALUE)
-        .put(MetricsTag.SIGNAL_NAME, DEFAULT_VALUE)
-        .put(MetricsTag.QUERY_TYPE, DEFAULT_VALUE)
-        .put(MetricsTag.TASK_QUEUE, DEFAULT_VALUE)
-        .put(MetricsTag.STATUS_CODE, DEFAULT_VALUE)
-        .put(MetricsTag.EXCEPTION, DEFAULT_VALUE)
-        .put(MetricsTag.WORKFLOW_TYPE, DEFAULT_VALUE)
+        .put(ACTIVITY_TYPE, DEFAULT_VALUE)
+        .put(OPERATION_NAME, DEFAULT_VALUE)
+        .put(SIGNAL_NAME, DEFAULT_VALUE)
+        .put(QUERY_TYPE, DEFAULT_VALUE)
+        .put(TASK_QUEUE, DEFAULT_VALUE)
+        .put(STATUS_CODE, DEFAULT_VALUE)
+        .put(EXCEPTION, DEFAULT_VALUE)
+        .put(WORKFLOW_TYPE, DEFAULT_VALUE)
         .build();
   }
 }
