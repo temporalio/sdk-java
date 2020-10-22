@@ -36,7 +36,7 @@ import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
-import io.temporal.internal.metrics.MetricsTag;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Map;
 import java.util.Optional;

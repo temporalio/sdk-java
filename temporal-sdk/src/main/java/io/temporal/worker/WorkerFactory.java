@@ -19,8 +19,6 @@
 
 package io.temporal.worker;
 
-import static io.temporal.internal.metrics.DefaultMetricsTags.defaultTags;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -30,12 +28,12 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.PollWorkflowTaskDispatcher;
 import io.temporal.internal.worker.Poller;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
+import io.temporal.serviceclient.MetricsTag;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -108,7 +106,7 @@ public final class WorkerFactory {
             .getWorkflowServiceStubs()
             .getOptions()
             .getMetricsScope()
-            .tagged(defaultTags(workflowClient.getOptions().getNamespace()));
+            .tagged(MetricsTag.defaultTags(workflowClient.getOptions().getNamespace()));
 
     this.cache =
         new WorkflowExecutorCache(

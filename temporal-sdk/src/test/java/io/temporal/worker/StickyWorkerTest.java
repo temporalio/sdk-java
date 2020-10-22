@@ -33,10 +33,9 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.internal.metrics.DefaultMetricsTags;
-import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -160,7 +159,7 @@ public class StickyWorkerTest {
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "GreetingSignalWorkflow")
             .build();
@@ -260,7 +259,7 @@ public class StickyWorkerTest {
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "ActivitiesWorkflow")
             .build();
@@ -301,7 +300,7 @@ public class StickyWorkerTest {
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "GreetingParentWorkflow")
             .build();
@@ -350,7 +349,7 @@ public class StickyWorkerTest {
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "TestMutableSideEffectWorkflow")
             .build();

@@ -47,8 +47,7 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.internal.metrics.DefaultMetricsTags;
-import io.temporal.internal.metrics.MetricsTag;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -267,7 +266,7 @@ public class MetricsTest {
 
     ImmutableMap.Builder<String, String> tagsB =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
     reporter.assertCounter("temporal_worker_start", tagsB.build(), 3);
     reporter.assertCounter("temporal_poller_start", tagsB.build());
@@ -280,14 +279,14 @@ public class MetricsTest {
 
     ImmutableMap<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, "sticky")
             .build();
     reporter.assertCounter("temporal_poller_start", tags);
 
     tags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .build();
@@ -296,7 +295,7 @@ public class MetricsTest {
     reporter.assertCounter("test_done", tags, 1);
     tags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow")
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .build();
@@ -307,7 +306,7 @@ public class MetricsTest {
 
     Map<String, String> activityCompletionTags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.ACTIVITY_TYPE, "RunActivity")
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
@@ -317,7 +316,7 @@ public class MetricsTest {
 
     tagsB =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
 
     tags =
@@ -330,7 +329,7 @@ public class MetricsTest {
 
     Map<String, String> workflowTaskCompletionTags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
@@ -370,7 +369,7 @@ public class MetricsTest {
 
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
-            .putAll(DefaultMetricsTags.defaultTags(NAMESPACE))
+            .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectChildWorkflow")
             .build();
@@ -420,12 +419,14 @@ public class MetricsTest {
     Thread.sleep(REPORTING_FLUSH_TIME);
 
     Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(2)
+        new ImmutableMap.Builder<String, String>(9)
+            .putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE))
             .put(MetricsTag.OPERATION_NAME, "DescribeNamespace")
             .build();
     reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
     tags =
-        new ImmutableMap.Builder<String, String>(2)
+        new ImmutableMap.Builder<String, String>(9)
+            .putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE))
             .put(MetricsTag.OPERATION_NAME, "DescribeNamespace")
             .put(MetricsTag.STATUS_CODE, "UNIMPLEMENTED")
             .build();
@@ -455,13 +456,15 @@ public class MetricsTest {
     Thread.sleep(REPORTING_FLUSH_TIME);
 
     Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(2)
+        new ImmutableMap.Builder<String, String>(9)
+            .putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE))
             .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
             .build();
     reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
 
     tags =
-        new ImmutableMap.Builder<String, String>(2)
+        new ImmutableMap.Builder<String, String>(9)
+            .putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE))
             .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
             .put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT")
             .build();
