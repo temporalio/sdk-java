@@ -50,6 +50,7 @@ public class MetricsTag {
   private static final ConcurrentMap<String, Map<String, String>> tagsByNamespace =
       new ConcurrentHashMap<>();
 
+  /** Returns a set of default metric tags for a given namespace. */
   public static Map<String, String> defaultTags(String namespace) {
     return tagsByNamespace.computeIfAbsent(namespace, MetricsTag::tags);
   }
