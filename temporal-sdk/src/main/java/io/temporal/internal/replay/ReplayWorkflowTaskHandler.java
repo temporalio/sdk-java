@@ -38,6 +38,7 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.ResetStickyTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
@@ -216,6 +217,14 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
       if (stickyTaskQueueName != null) {
         cache.invalidate(execution, metricsScope);
+        // Execute asynchronously
+        service
+            .futureStub()
+            .resetStickyTaskQueue(
+                ResetStickyTaskQueueRequest.newBuilder()
+                    .setNamespace(namespace)
+                    .setExecution(execution)
+                    .build());
       }
       throw e;
     } finally {

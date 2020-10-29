@@ -26,9 +26,7 @@ import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
-import io.temporal.api.workflowservice.v1.ResetStickyTaskQueueRequest;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -38,17 +36,12 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class WorkflowExecutorCache {
-  private final WorkflowServiceStubs service;
-  private final String namespace;
   private final Scope metricsScope;
   private final LoadingCache<String, WorkflowRunTaskHandler> cache;
   private final Lock cacheLock = new ReentrantLock();
   private final Set<String> inProcessing = new HashSet<>();
 
-  public WorkflowExecutorCache(
-      WorkflowServiceStubs service, String namespace, int workflowCacheSize, Scope scope) {
-    this.service = service;
-    this.namespace = namespace;
+  public WorkflowExecutorCache(int workflowCacheSize, Scope scope) {
     Preconditions.checkArgument(workflowCacheSize > 0, "Max cache size must be greater than 0");
     this.metricsScope = Objects.requireNonNull(scope);
     this.cache =
@@ -145,16 +138,6 @@ public final class WorkflowExecutorCache {
       cache.invalidate(runId);
       inProcessing.remove(runId);
       metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
-      if (service != null) {
-        // Execute asynchronously
-        service
-            .futureStub()
-            .resetStickyTaskQueue(
-                ResetStickyTaskQueueRequest.newBuilder()
-                    .setNamespace(namespace)
-                    .setExecution(execution)
-                    .build());
-      }
     } finally {
       cacheLock.unlock();
     }
