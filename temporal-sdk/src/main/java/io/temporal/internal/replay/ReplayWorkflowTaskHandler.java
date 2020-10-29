@@ -218,13 +218,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       if (stickyTaskQueueName != null) {
         cache.invalidate(execution, metricsScope);
         // Execute asynchronously
-        service
-            .futureStub()
-            .resetStickyTaskQueue(
-                ResetStickyTaskQueueRequest.newBuilder()
-                    .setNamespace(namespace)
-                    .setExecution(execution)
-                    .build());
+        resetStickyTaskList(execution);
       }
       throw e;
     } finally {
@@ -234,6 +228,16 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         cache.markProcessingDone(runId);
       }
     }
+  }
+
+  private void resetStickyTaskList(WorkflowExecution execution) {
+    service
+        .futureStub()
+        .resetStickyTaskQueue(
+            ResetStickyTaskQueueRequest.newBuilder()
+                .setNamespace(namespace)
+                .setExecution(execution)
+                .build());
   }
 
   private Result handleQueryOnlyWorkflowTask(
