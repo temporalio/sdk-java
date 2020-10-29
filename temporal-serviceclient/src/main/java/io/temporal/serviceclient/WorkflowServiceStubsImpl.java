@@ -31,6 +31,8 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
@@ -123,7 +125,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
         new GrpcMetricsInterceptor(options.getMetricsScope());
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
     GrpcTracingInterceptor tracingInterceptor = new GrpcTracingInterceptor();
-    Metadata headers = new Metadata();
+    Metadata headers = headersFrom(options.getHeaders());
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
     headers.put(SUPPORTED_SERVER_VERSIONS_HEADER_KEY, Version.SUPPORTED_SERVER_VERSIONS);
     headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_NAME_HEADER_VALUE);
@@ -149,6 +151,15 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     }
     this.futureStub = fs;
     log.info(String.format("Created GRPC client for channel: %s", channel));
+  }
+
+  private Metadata headersFrom(Map<String, String> headers) {
+    Metadata metadata = new Metadata();
+    for (Entry<String, String> header : headers.entrySet()) {
+      metadata.put(
+          Metadata.Key.of(header.getKey(), Metadata.ASCII_STRING_MARSHALLER), header.getValue());
+    }
+    return metadata;
   }
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */
