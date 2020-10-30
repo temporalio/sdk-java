@@ -19,16 +19,15 @@
 
 package io.temporal.serviceclient;
 
-import com.google.common.collect.ImmutableMap;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
 import io.grpc.NameResolver;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -87,7 +86,7 @@ public class WorkflowServiceStubsOptions {
   private final Duration connectionBackoffResetFrequency;
 
   /** Optional gRPC headers */
-  private final Map<String, String> headers;
+  private final Metadata headers;
 
   private final Scope metricsScope;
 
@@ -143,8 +142,11 @@ public class WorkflowServiceStubsOptions {
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
-    this.headers =
-        builder.headers == null ? ImmutableMap.of() : ImmutableMap.copyOf(builder.headers);
+    if (builder.headers != null) {
+      this.headers = builder.headers;
+    } else {
+      this.headers = new Metadata();
+    }
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
   }
 
@@ -189,7 +191,7 @@ public class WorkflowServiceStubsOptions {
     return connectionBackoffResetFrequency;
   }
 
-  public Map<String, String> getHeaders() {
+  public Metadata getHeaders() {
     return headers;
   }
 
@@ -219,6 +221,7 @@ public class WorkflowServiceStubsOptions {
    * @author venkat
    */
   public static class Builder {
+
     private ManagedChannel channel;
     private SslContext sslContext;
     private boolean enableHttps;
@@ -227,7 +230,7 @@ public class WorkflowServiceStubsOptions {
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
-    private Map<String, String> headers;
+    private Metadata headers;
     private Function<
             WorkflowServiceGrpc.WorkflowServiceBlockingStub,
             WorkflowServiceGrpc.WorkflowServiceBlockingStub>
@@ -330,7 +333,7 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    public Builder setHeaders(Map<String, String> headers) {
+    public Builder setHeaders(Metadata headers) {
       this.headers = headers;
       return this;
     }
