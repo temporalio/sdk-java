@@ -168,15 +168,6 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
-  private Metadata headersFrom(Map<String, String> headers) {
-    Metadata metadata = new Metadata();
-    for (Entry<String, String> header : headers.entrySet()) {
-      metadata.put(
-          Metadata.Key.of(header.getKey(), Metadata.ASCII_STRING_MARSHALLER), header.getValue());
-    }
-    return metadata;
-  }
-
   private ScheduledExecutorService startConnectionBackoffResetter(Duration backoffResetFrequency) {
     ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
