@@ -19,12 +19,9 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.metrics.MetricsTag.NAMESPACE;
-
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
-import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.BatchRequest;
@@ -38,6 +35,7 @@ import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueryMethod;
@@ -83,7 +81,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
         workflowServiceStubs
             .getOptions()
             .getMetricsScope()
-            .tagged(new ImmutableMap.Builder<String, String>(1).put(NAMESPACE, namespace).build());
+            .tagged(MetricsTag.defaultTags(namespace));
     this.genericClient =
         new GenericWorkflowClientExternalImpl(
             workflowServiceStubs, options.getNamespace(), options.getIdentity(), metricsScope);

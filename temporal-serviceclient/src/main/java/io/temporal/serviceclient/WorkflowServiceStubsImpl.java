@@ -139,6 +139,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
     GrpcTracingInterceptor tracingInterceptor = new GrpcTracingInterceptor();
     Metadata headers = new Metadata();
+    headers.merge(options.getHeaders());
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
     headers.put(SUPPORTED_SERVER_VERSIONS_HEADER_KEY, Version.SUPPORTED_SERVER_VERSIONS);
     headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_NAME_HEADER_VALUE);

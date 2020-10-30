@@ -28,12 +28,12 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.PollWorkflowTaskDispatcher;
 import io.temporal.internal.worker.Poller;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
+import io.temporal.serviceclient.MetricsTag;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -106,17 +106,10 @@ public final class WorkerFactory {
             .getWorkflowServiceStubs()
             .getOptions()
             .getMetricsScope()
-            .tagged(
-                new ImmutableMap.Builder<String, String>(1)
-                    .put(MetricsTag.NAMESPACE, workflowClient.getOptions().getNamespace())
-                    .build());
+            .tagged(MetricsTag.defaultTags(workflowClient.getOptions().getNamespace()));
 
     this.cache =
-        new WorkflowExecutorCache(
-            this.workflowClient.getWorkflowServiceStubs(),
-            workflowClient.getOptions().getNamespace(),
-            this.factoryOptions.getWorkflowCacheSize(),
-            metricsScope);
+        new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
     Scope stickyScope =
         metricsScope.tagged(
             new ImmutableMap.Builder<String, String>(1)

@@ -20,6 +20,7 @@
 package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
+import static io.temporal.internal.common.WorkflowExecutionUtils.isFullHistory;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;
@@ -38,18 +39,19 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.ResetStickyTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowTaskHandler;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.io.PrintWriter;
@@ -216,6 +218,11 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
       if (stickyTaskQueueName != null) {
         cache.invalidate(execution, metricsScope);
+        // If history if full and exception occurred then sticky session hasn't been established
+        // yet and we can avoid doing a reset.
+        if (!isFullHistory(workflowTask)) {
+          resetStickyTaskList(execution);
+        }
       }
       throw e;
     } finally {
@@ -225,6 +232,16 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         cache.markProcessingDone(runId);
       }
     }
+  }
+
+  private void resetStickyTaskList(WorkflowExecution execution) {
+    service
+        .futureStub()
+        .resetStickyTaskQueue(
+            ResetStickyTaskQueueRequest.newBuilder()
+                .setNamespace(namespace)
+                .setExecution(execution)
+                .build());
   }
 
   private Result handleQueryOnlyWorkflowTask(

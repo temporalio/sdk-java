@@ -47,7 +47,7 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
   private final Map<MethodDescriptor<?, ?>, Map<String, String>> methodTags = new HashMap<>();
 
   GrpcMetricsInterceptor(Scope scope) {
-    this.defaultScope = scope;
+    this.defaultScope = scope.tagged(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
     ServiceDescriptor descriptor = WorkflowServiceGrpc.getServiceDescriptor();
     String serviceName = descriptor.getName();
     Collection<MethodDescriptor<?, ?>> methods = descriptor.getMethods();

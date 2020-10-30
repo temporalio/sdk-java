@@ -38,11 +38,11 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -68,7 +68,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
   public void whenHistoryIsFullNewWorkflowExecutorIsReturnedAndCached_InitiallyEmpty()
       throws Exception {
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 10, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
@@ -92,7 +92,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     WorkflowServiceStubs service = testService.newClientStub();
 
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 10, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory(
             "namespace", "taskQueue", "workflowType", service);
@@ -137,7 +137,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
             .build();
     Scope scope = metricsScope.tagged(tags);
 
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 10, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, scope);
     TestWorkflowService testService = new TestWorkflowService(true);
     WorkflowServiceStubs service = testService.newClientStub();
     try {
@@ -178,7 +178,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
             .put(MetricsTag.TASK_QUEUE, "stickyTaskQueue")
             .build();
     Scope scope = metricsScope.tagged(tags);
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 10, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, scope);
 
     // Act
     PollWorkflowTaskQueueResponse workflowTask =
@@ -207,7 +207,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     Scope scope = metricsScope.tagged(tags);
 
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 50, scope);
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(50, scope);
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
     PollWorkflowTaskQueueResponse workflowTask2 =
@@ -242,7 +242,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
   @Test
   public void evictAnyWillNotInvalidateItself() throws Exception {
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(null, "default", 50, new NoopScope());
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(50, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
