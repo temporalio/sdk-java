@@ -19,6 +19,8 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.common.WorkflowExecutionUtils.isFullHistory;
+
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -145,12 +147,6 @@ public final class WorkflowExecutorCache {
 
   public long size() {
     return cache.size();
-  }
-
-  private boolean isFullHistory(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-    return workflowTask.getHistory() != null
-        && workflowTask.getHistory().getEventsCount() > 0
-        && workflowTask.getHistory().getEvents(0).getEventId() == 1;
   }
 
   public void invalidateAll() {

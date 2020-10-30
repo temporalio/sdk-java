@@ -56,6 +56,7 @@ import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -864,5 +865,11 @@ public class WorkflowExecutionUtils {
       String jsonHistory = CharStreams.toString(reader);
       return WorkflowExecutionHistory.fromJson(jsonHistory);
     }
+  }
+
+  public static boolean isFullHistory(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
+    return workflowTask.getHistory() != null
+        && workflowTask.getHistory().getEventsCount() > 0
+        && workflowTask.getHistory().getEvents(0).getEventId() == 1;
   }
 }

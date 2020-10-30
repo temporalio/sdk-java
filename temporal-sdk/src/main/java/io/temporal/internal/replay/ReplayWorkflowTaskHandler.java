@@ -20,6 +20,7 @@
 package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
+import static io.temporal.internal.common.WorkflowExecutionUtils.isFullHistory;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;
@@ -217,8 +218,11 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
       if (stickyTaskQueueName != null) {
         cache.invalidate(execution, metricsScope);
-        // Execute asynchronously
-        resetStickyTaskList(execution);
+        // If history if full and exception occurred then sticky session hasn't been established
+        // yet and we can avoid doing a reset.
+        if (!isFullHistory(workflowTask)) {
+          resetStickyTaskList(execution);
+        }
       }
       throw e;
     } finally {
