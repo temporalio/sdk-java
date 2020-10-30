@@ -142,9 +142,10 @@ public class WorkflowServiceStubsOptions {
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
-    this.headers = new Metadata();
     if (builder.headers != null) {
-      this.headers.merge(builder.headers);
+      this.headers = builder.headers;
+    } else {
+      this.headers = new Metadata();
     }
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
   }
