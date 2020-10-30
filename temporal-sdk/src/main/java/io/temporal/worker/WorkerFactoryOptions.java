@@ -187,8 +187,7 @@ public class WorkerFactoryOptions {
             !workflowHostLocalTaskQueueScheduleToStartTimeout.isNegative(),
             "negative workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds");
       }
-      if (workflowHostLocalTaskQueueScheduleToStartTimeout == null
-          || workflowHostLocalTaskQueueScheduleToStartTimeout.isZero()) {
+      if (workflowHostLocalTaskQueueScheduleToStartTimeout == null) {
         workflowHostLocalTaskQueueScheduleToStartTimeout = DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT;
       }
       if (workflowInterceptors == null) {

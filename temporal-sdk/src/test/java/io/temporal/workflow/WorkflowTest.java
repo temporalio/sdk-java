@@ -325,6 +325,7 @@ public class WorkflowTest {
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptors(tracer)
             .setActivityInterceptors(activityInterceptor)
+            .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
             .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(
                 versionTest ? Duration.ZERO : Duration.ofSeconds(10))
             .build();
