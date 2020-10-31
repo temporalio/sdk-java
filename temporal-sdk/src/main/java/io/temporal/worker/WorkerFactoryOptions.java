@@ -41,6 +41,7 @@ public class WorkerFactoryOptions {
   private static final int DEFAULT_HOST_LOCAL_WORKFLOW_POLL_THREAD_COUNT = 5;
   private static final int DEFAULT_WORKFLOW_CACHE_SIZE = 600;
   private static final int DEFAULT_MAX_WORKFLOW_THREAD_COUNT = 600;
+  private static final Duration DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT = Duration.ofSeconds(5);
 
   private static final WorkerFactoryOptions DEFAULT_INSTANCE;
 
@@ -49,6 +50,7 @@ public class WorkerFactoryOptions {
   }
 
   public static class Builder {
+
     private Duration workflowHostLocalTaskQueueScheduleToStartTimeout;
     private int workflowCacheSize;
     private int maxWorkflowThreadCount;
@@ -184,6 +186,9 @@ public class WorkerFactoryOptions {
         Preconditions.checkState(
             !workflowHostLocalTaskQueueScheduleToStartTimeout.isNegative(),
             "negative workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds");
+      }
+      if (workflowHostLocalTaskQueueScheduleToStartTimeout == null) {
+        workflowHostLocalTaskQueueScheduleToStartTimeout = DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT;
       }
       if (workflowInterceptors == null) {
         workflowInterceptors = new WorkflowInterceptor[0];
