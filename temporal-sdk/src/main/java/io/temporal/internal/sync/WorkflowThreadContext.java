@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Throwables;
 import io.temporal.workflow.Functions;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
@@ -201,8 +202,9 @@ class WorkflowThreadContext {
   /**
    * @return true if thread made some progress. Which is await was unblocked and some code after it
    *     was executed.
+   * @param timeout
    */
-  public boolean runUntilBlocked() {
+  public boolean runUntilBlocked(long timeout) {
     lock.lock();
     try {
       if (status == Status.DONE) {
@@ -218,7 +220,11 @@ class WorkflowThreadContext {
       remainedBlocked = true;
       yieldCondition.signal();
       while (status == Status.RUNNING || status == Status.CREATED) {
-        runCondition.await();
+        if (!runCondition.await(timeout, TimeUnit.MILLISECONDS)) {
+          throw new IllegalStateException(
+              "Potential detected: workflow thread blocked for over " + timeout + " milliseconds.");
+        }
+        ;
         if (evaluationFunction != null) {
           throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
         }
@@ -259,7 +265,7 @@ class WorkflowThreadContext {
         (r) -> {
           throw new DestroyWorkflowThreadError();
         });
-    runUntilBlocked();
+    runUntilBlocked(1000);
   }
 
   /** To be called only from a workflow thread. */

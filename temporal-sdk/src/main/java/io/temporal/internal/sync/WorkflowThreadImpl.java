@@ -310,11 +310,11 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   /** @return true if coroutine made some progress. */
   @Override
-  public boolean runUntilBlocked() {
+  public boolean runUntilBlocked(long timeout) {
     if (taskFuture == null) {
       start();
     }
-    return context.runUntilBlocked();
+    return context.runUntilBlocked(timeout);
   }
 
   @Override
