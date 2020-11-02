@@ -87,6 +87,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     @Override
     public void run() {
       thread = Thread.currentThread();
+      threadContext.setCurrentThread(thread);
       originalName = thread.getName();
       thread.setName(name);
       DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadImpl.this);
@@ -99,7 +100,6 @@ class WorkflowThreadImpl implements WorkflowThread {
       // Repopulate the context(s)
       ContextThreadLocal.setContextPropagators(this.contextPropagators);
       ContextThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
-
       try {
         // initialYield blocks thread until the first runUntilBlocked is called.
         // Otherwise r starts executing without control of the sync.
@@ -125,6 +125,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         threadContext.setStatus(Status.DONE);
         thread.setName(originalName);
         thread = null;
+        threadContext.setCurrentThread(null);
         MDC.clear();
       }
     }
@@ -310,7 +311,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   /** @return true if coroutine made some progress. */
   @Override
-  public boolean runUntilBlocked(long timeout) {
+  public boolean runUntilBlocked(long timeout) throws PotentialDeadlockException {
     if (taskFuture == null) {
       start();
     }
@@ -352,7 +353,7 @@ class WorkflowThreadImpl implements WorkflowThread {
    * and return underlying Future to be waited on.
    */
   @Override
-  public Future<?> stopNow() {
+  public Future<?> stopNow() throws PotentialDeadlockException {
     // Cannot call destroy() on itself
     if (thread == Thread.currentThread()) {
       throw new Error("Cannot call destroy on itself: " + thread.getName());

@@ -44,6 +44,7 @@ class WorkflowThreadContext {
   private boolean remainedBlocked;
   private String yieldReason;
   private boolean destroyRequested;
+  private Thread currentThread;
 
   WorkflowThreadContext(Lock lock) {
     this.lock = lock;
@@ -195,6 +196,10 @@ class WorkflowThreadContext {
     }
   }
 
+  public void setCurrentThread(Thread currentThread) {
+    this.currentThread = currentThread;
+  }
+
   public String getYieldReason() {
     return yieldReason;
   }
@@ -202,7 +207,7 @@ class WorkflowThreadContext {
   /**
    * @return true if thread made some progress. Which is await was unblocked and some code after it
    *     was executed.
-   * @param timeout
+   * @param timeout maximum time to wait for the thread yielding
    */
   public boolean runUntilBlocked(long timeout) {
     lock.lock();
@@ -221,8 +226,7 @@ class WorkflowThreadContext {
       yieldCondition.signal();
       while (status == Status.RUNNING || status == Status.CREATED) {
         if (!runCondition.await(timeout, TimeUnit.MILLISECONDS)) {
-          throw new IllegalStateException(
-              "Potential detected: workflow thread blocked for over " + timeout + " milliseconds.");
+          throw new PotentialDeadlockException(currentThread.getStackTrace());
         }
         ;
         if (evaluationFunction != null) {

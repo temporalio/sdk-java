@@ -19,10 +19,15 @@
 
 package io.temporal.workflow;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.time.Duration;
 import org.junit.Test;
 
@@ -52,7 +57,11 @@ public class DeadlockDetectorTest {
   public void testDeadlockDetector() {
     TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance();
     Worker worker = env.newWorker(taskQueue);
-    worker.registerWorkflowImplementationTypes(TestDeadlockWorkflow.class);
+    worker.registerWorkflowImplementationTypes(
+        WorkflowImplementationOptions.newBuilder()
+            .setFailWorkflowExceptionTypes(Throwable.class)
+            .build(),
+        TestDeadlockWorkflow.class);
     env.start();
 
     WorkflowClient workflowClient = env.getWorkflowClient();
@@ -62,6 +71,15 @@ public class DeadlockDetectorTest {
             .setTaskQueue(taskQueue)
             .build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
-    workflow.execute();
+    try {
+      workflow.execute();
+      fail("not reachable");
+    } catch (WorkflowFailedException e) {
+      Throwable failure = e;
+      while (failure.getCause() != null) {
+        failure = failure.getCause();
+      }
+      assertTrue(failure.getMessage().contains("Potential deadlock detected"));
+    }
   }
 }
