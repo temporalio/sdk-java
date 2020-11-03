@@ -26,6 +26,8 @@ import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.Duration;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.config.NamingConvention;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +39,7 @@ public class MicrometerClientStatsReporter implements StatsReporter {
 
   public MicrometerClientStatsReporter(MeterRegistry registry) {
     this.registry = Objects.requireNonNull(registry);
+    registry.config().namingConvention(NamingConvention.snakeCase);
   }
 
   @Override
@@ -66,7 +69,11 @@ public class MicrometerClientStatsReporter implements StatsReporter {
 
   @Override
   public void reportTimer(String name, Map<String, String> tags, Duration interval) {
-    registry.timer(name, getTags(tags)).record(interval.getNanos(), TimeUnit.NANOSECONDS);
+    Timer.builder(name)
+        .tags(getTags(tags))
+        .publishPercentileHistogram(true)
+        .register(registry)
+        .record(interval.getNanos(), TimeUnit.NANOSECONDS);
   }
 
   @Override
