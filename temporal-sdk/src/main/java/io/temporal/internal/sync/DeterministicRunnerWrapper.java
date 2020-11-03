@@ -45,7 +45,9 @@ class DeterministicRunnerWrapper implements InvocationHandler {
                 result.completeExceptionally(throwable);
               }
             });
-    runner.runUntilAllBlocked();
+    // Used to execute activities under TestActivityEnvironment
+    // So it is expected that a workflow thread is blocked for a long time.
+    runner.runUntilAllBlocked(Long.MAX_VALUE);
     try {
       return result.get();
     } catch (ExecutionException e) {

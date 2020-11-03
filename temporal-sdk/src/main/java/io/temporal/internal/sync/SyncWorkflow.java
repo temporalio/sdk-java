@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.sync.DeterministicRunner.DEADLOCK_DETECTION_TIMEOUT;
+
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.EventType;
@@ -134,7 +136,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (runner == null) {
       return false;
     }
-    runner.runUntilAllBlocked();
+    runner.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     return runner.isDone() || workflowProc.isDone(); // Do not wait for all other threads.
   }
 

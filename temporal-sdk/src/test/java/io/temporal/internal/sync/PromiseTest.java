@@ -19,7 +19,11 @@
 
 package io.temporal.internal.sync;
 
-import static org.junit.Assert.*;
+import static io.temporal.internal.sync.DeterministicRunner.DEADLOCK_DETECTION_TIMEOUT;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
@@ -69,7 +73,7 @@ public class PromiseTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin", "root done", "thread1 get failure",
@@ -88,7 +92,7 @@ public class PromiseTest {
               trace.add(f.get());
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin", "thread1", "root done",
@@ -107,7 +111,7 @@ public class PromiseTest {
               trace.add(f.cancellableGet());
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin", "thread1", "root done",
@@ -129,9 +133,9 @@ public class PromiseTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     r.cancel("test");
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin", "root CanceledException", "root done",
@@ -224,7 +228,7 @@ public class PromiseTest {
               assertTrue(f3.get());
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin",
@@ -268,7 +272,7 @@ public class PromiseTest {
               f1.complete("value1");
               trace.add("root done");
             });
-    runner.runUntilAllBlocked();
+    runner.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected = new String[] {"root begin", "value1.thenApply.f2Handle", "root done"};
 
     trace.setExpected(expected);
@@ -310,7 +314,7 @@ public class PromiseTest {
               }
               trace.add("root done");
             });
-    runner.runUntilAllBlocked();
+    runner.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected = new String[] {"root begin", "exceptionally", "failure caught", "root done"};
 
     trace.setExpected(expected);
@@ -359,7 +363,7 @@ public class PromiseTest {
               assertTrue(f1.isCompleted() && f2.isCompleted() && f3.isCompleted());
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin",
@@ -403,7 +407,7 @@ public class PromiseTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin",
@@ -460,7 +464,7 @@ public class PromiseTest {
               assertEquals("value1", any.get());
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin",
@@ -520,7 +524,7 @@ public class PromiseTest {
               assertTrue(f1.isCompleted());
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin",
@@ -581,7 +585,7 @@ public class PromiseTest {
               assertTrue(f3.isCompleted());
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin",
@@ -624,7 +628,7 @@ public class PromiseTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked();
+    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin",

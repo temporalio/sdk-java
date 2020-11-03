@@ -311,11 +311,11 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   /** @return true if coroutine made some progress. */
   @Override
-  public boolean runUntilBlocked(long timeout) throws PotentialDeadlockException {
+  public boolean runUntilBlocked() {
     if (taskFuture == null) {
       start();
     }
-    return context.runUntilBlocked(timeout);
+    return context.runUntilBlocked();
   }
 
   @Override
@@ -353,7 +353,7 @@ class WorkflowThreadImpl implements WorkflowThread {
    * and return underlying Future to be waited on.
    */
   @Override
-  public Future<?> stopNow() throws PotentialDeadlockException {
+  public Future<?> stopNow() {
     // Cannot call destroy() on itself
     if (thread == Thread.currentThread()) {
       throw new Error("Cannot call destroy on itself: " + thread.getName());

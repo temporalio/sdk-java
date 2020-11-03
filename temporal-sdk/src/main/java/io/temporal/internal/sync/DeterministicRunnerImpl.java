@@ -219,7 +219,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   @Override
-  public void runUntilAllBlocked() {
+  public void runUntilAllBlocked(long deadlockDetectionTimeout) {
     if (rootWorkflowThread == null) {
       // TODO: workflow instance specific thread name
       rootWorkflowThread =
@@ -276,8 +276,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         Iterator<WorkflowThread> ci = threads.iterator();
         while (ci.hasNext()) {
           WorkflowThread c = ci.next();
-          // TODO(maxim): Configurable timeout
-          progress = c.runUntilBlocked(1000) || progress;
+          progress = c.runUntilBlocked() || progress;
           if (exitRequested) {
             close();
             break outerLoop;

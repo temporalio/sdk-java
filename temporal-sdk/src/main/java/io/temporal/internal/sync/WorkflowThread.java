@@ -82,7 +82,7 @@ interface WorkflowThread extends CancellationScope {
 
   SyncWorkflowContext getWorkflowContext();
 
-  boolean runUntilBlocked(long timeout);
+  boolean runUntilBlocked();
 
   Throwable getUnhandledException();
 
