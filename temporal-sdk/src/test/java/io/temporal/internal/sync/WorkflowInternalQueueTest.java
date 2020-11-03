@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.DeterministicRunner.DEADLOCK_DETECTION_TIMEOUT;
+import static io.temporal.internal.sync.DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT;
 import static org.junit.Assert.*;
 
 import io.temporal.client.WorkflowOptions;
@@ -67,7 +67,7 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
     String[] expected =
         new String[] {
           "root begin",
@@ -102,9 +102,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
     r.cancel("test");
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
 
     String[] expected =
         new String[] {
@@ -135,9 +135,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
     r.cancel("test");
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
 
     String[] expected =
         new String[] {
@@ -291,9 +291,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
     r.cancel("test");
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
 
     String[] expected =
         new String[] {
@@ -325,9 +325,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
     r.cancel("test");
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
 
     String[] expected =
         new String[] {
@@ -361,9 +361,9 @@ public class WorkflowInternalQueueTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
     r.cancel("test");
-    r.runUntilAllBlocked(DEADLOCK_DETECTION_TIMEOUT);
+    r.runUntilAllBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
 
     String[] expected =
         new String[] {
