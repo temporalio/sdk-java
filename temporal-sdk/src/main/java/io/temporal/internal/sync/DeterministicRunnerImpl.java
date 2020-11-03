@@ -276,7 +276,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         Iterator<WorkflowThread> ci = threads.iterator();
         while (ci.hasNext()) {
           WorkflowThread c = ci.next();
-          progress = c.runUntilBlocked() || progress;
+          progress = c.runUntilBlocked(deadlockDetectionTimeout) || progress;
           if (exitRequested) {
             close();
             break outerLoop;

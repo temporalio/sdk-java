@@ -28,9 +28,6 @@ import java.util.function.Supplier;
 
 class WorkflowThreadContext {
 
-  /** Workflow thread that took longer than one second to yield is considered deadlocked. */
-  private static final long DEADLOCK_DETECTION_TIMEOUT = 1000;
-
   // Shared runner lock
   private final Lock lock;
   // Used to block await call
@@ -210,8 +207,9 @@ class WorkflowThreadContext {
   /**
    * @return true if thread made some progress. Which is await was unblocked and some code after it
    *     was executed.
+   * @param deadlockDetectionTimeout
    */
-  public boolean runUntilBlocked() {
+  public boolean runUntilBlocked(long deadlockDetectionTimeout) {
     lock.lock();
     try {
       if (status == Status.DONE) {
@@ -227,7 +225,7 @@ class WorkflowThreadContext {
       remainedBlocked = true;
       yieldCondition.signal();
       while (status == Status.RUNNING || status == Status.CREATED) {
-        if (!runCondition.await(DEADLOCK_DETECTION_TIMEOUT, TimeUnit.MILLISECONDS)) {
+        if (!runCondition.await(deadlockDetectionTimeout, TimeUnit.MILLISECONDS)) {
           throw new PotentialDeadlockException(currentThread.getStackTrace());
         }
         ;
@@ -271,7 +269,7 @@ class WorkflowThreadContext {
         (r) -> {
           throw new DestroyWorkflowThreadError();
         });
-    runUntilBlocked();
+    runUntilBlocked(1000);
   }
 
   /** To be called only from a workflow thread. */
