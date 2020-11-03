@@ -32,6 +32,8 @@ import java.util.function.Supplier;
  */
 interface DeterministicRunner {
 
+  long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
+
   static DeterministicRunner newRunner(Runnable root) {
     return new DeterministicRunnerImpl(root);
   }
@@ -74,8 +76,9 @@ interface DeterministicRunner {
    * completed or blocked.
    *
    * @throws Throwable if one of the threads didn't handle an exception.
+   * @param deadlockDetectionTimeout the maximum time a thread can run without calling yield.
    */
-  void runUntilAllBlocked();
+  void runUntilAllBlocked(long deadlockDetectionTimeout);
 
   /** IsDone returns true when all of threads are completed */
   boolean isDone();
