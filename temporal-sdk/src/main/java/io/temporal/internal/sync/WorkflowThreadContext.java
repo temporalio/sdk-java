@@ -19,8 +19,11 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.sync.DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT;
+
 import com.google.common.base.Throwables;
 import io.temporal.workflow.Functions;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
@@ -43,6 +46,7 @@ class WorkflowThreadContext {
   private boolean remainedBlocked;
   private String yieldReason;
   private boolean destroyRequested;
+  private Thread currentThread;
 
   WorkflowThreadContext(Lock lock) {
     this.lock = lock;
@@ -194,6 +198,10 @@ class WorkflowThreadContext {
     }
   }
 
+  public void setCurrentThread(Thread currentThread) {
+    this.currentThread = currentThread;
+  }
+
   public String getYieldReason() {
     return yieldReason;
   }
@@ -201,8 +209,9 @@ class WorkflowThreadContext {
   /**
    * @return true if thread made some progress. Which is await was unblocked and some code after it
    *     was executed.
+   * @param deadlockDetectionTimeout
    */
-  public boolean runUntilBlocked() {
+  public boolean runUntilBlocked(long deadlockDetectionTimeout) {
     lock.lock();
     try {
       if (status == Status.DONE) {
@@ -218,7 +227,10 @@ class WorkflowThreadContext {
       remainedBlocked = true;
       yieldCondition.signal();
       while (status == Status.RUNNING || status == Status.CREATED) {
-        runCondition.await();
+        if (!runCondition.await(deadlockDetectionTimeout, TimeUnit.MILLISECONDS)) {
+          throw new PotentialDeadlockException(currentThread.getStackTrace());
+        }
+        ;
         if (evaluationFunction != null) {
           throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
         }
@@ -259,7 +271,7 @@ class WorkflowThreadContext {
         (r) -> {
           throw new DestroyWorkflowThreadError();
         });
-    runUntilBlocked();
+    runUntilBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
   }
 
   /** To be called only from a workflow thread. */

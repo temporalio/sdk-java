@@ -87,6 +87,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     @Override
     public void run() {
       thread = Thread.currentThread();
+      threadContext.setCurrentThread(thread);
       originalName = thread.getName();
       thread.setName(name);
       DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadImpl.this);
@@ -99,7 +100,6 @@ class WorkflowThreadImpl implements WorkflowThread {
       // Repopulate the context(s)
       ContextThreadLocal.setContextPropagators(this.contextPropagators);
       ContextThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
-
       try {
         // initialYield blocks thread until the first runUntilBlocked is called.
         // Otherwise r starts executing without control of the sync.
@@ -125,6 +125,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         threadContext.setStatus(Status.DONE);
         thread.setName(originalName);
         thread = null;
+        threadContext.setCurrentThread(null);
         MDC.clear();
       }
     }
@@ -308,13 +309,16 @@ class WorkflowThreadImpl implements WorkflowThread {
     return priority;
   }
 
-  /** @return true if coroutine made some progress. */
+  /**
+   * @return true if coroutine made some progress.
+   * @param deadlockDetectionTimeout maximum time the thread can run before calling yield.
+   */
   @Override
-  public boolean runUntilBlocked() {
+  public boolean runUntilBlocked(long deadlockDetectionTimeout) {
     if (taskFuture == null) {
       start();
     }
-    return context.runUntilBlocked();
+    return context.runUntilBlocked(deadlockDetectionTimeout);
   }
 
   @Override
