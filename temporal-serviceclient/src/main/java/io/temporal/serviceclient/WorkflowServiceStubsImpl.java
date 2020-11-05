@@ -19,6 +19,7 @@
 
 package io.temporal.serviceclient;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptor;
 import io.grpc.ClientInterceptors;
@@ -168,7 +169,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   }
 
   private ScheduledExecutorService startConnectionBackoffResetter(Duration backoffResetFrequency) {
-    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    ScheduledExecutorService executor =
+        Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder().setDaemon(true).build());
 
     executor.scheduleWithFixedDelay(
         () -> {
