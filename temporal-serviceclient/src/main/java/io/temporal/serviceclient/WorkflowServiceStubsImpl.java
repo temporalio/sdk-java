@@ -171,7 +171,10 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private ScheduledExecutorService startConnectionBackoffResetter(Duration backoffResetFrequency) {
     ScheduledExecutorService executor =
         Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder().setDaemon(true).build());
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("ConnectionBackoffResetter-thread-%d")
+                .build());
 
     executor.scheduleWithFixedDelay(
         () -> {
