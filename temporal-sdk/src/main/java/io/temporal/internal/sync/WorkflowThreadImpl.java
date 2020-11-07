@@ -275,7 +275,8 @@ class WorkflowThreadImpl implements WorkflowThread {
     return context.getStatus() != Status.CREATED;
   }
 
-  public WorkflowThreadContext getContext() {
+  @Override
+  public WorkflowThreadContext getWorkflowThreadContext() {
     return context;
   }
 
@@ -385,7 +386,10 @@ class WorkflowThreadImpl implements WorkflowThread {
       result.append("(NEW)");
       return;
     }
-    result.append(": (BLOCKED on ").append(getContext().getYieldReason()).append(")\n");
+    result
+        .append(": (BLOCKED on ")
+        .append(getWorkflowThreadContext().getYieldReason())
+        .append(")\n");
     // These numbers might change if implementation changes.
     int omitTop = 5;
     int omitBottom = 7;

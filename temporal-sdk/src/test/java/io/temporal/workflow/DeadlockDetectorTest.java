@@ -45,6 +45,8 @@ public class DeadlockDetectorTest {
 
     @Override
     public void execute() {
+      Async.procedure(() -> Workflow.await(() -> false));
+      Workflow.sleep(Duration.ofSeconds(1));
       try {
         Thread.sleep(2000);
       } catch (InterruptedException e) {
@@ -80,6 +82,7 @@ public class DeadlockDetectorTest {
         failure = failure.getCause();
       }
       assertTrue(failure.getMessage().contains("Potential deadlock detected"));
+      assertTrue(failure.getMessage().contains("Workflow.await"));
     }
   }
 }
