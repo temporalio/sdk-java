@@ -109,4 +109,6 @@ interface WorkflowThread extends CancellationScope {
   <T> void setThreadLocal(WorkflowThreadLocalInternal<T> key, T value);
 
   <T> Optional<T> getThreadLocal(WorkflowThreadLocalInternal<T> key);
+
+  WorkflowThreadContext getWorkflowThreadContext();
 }

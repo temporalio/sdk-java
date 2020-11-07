@@ -228,9 +228,9 @@ class WorkflowThreadContext {
       yieldCondition.signal();
       while (status == Status.RUNNING || status == Status.CREATED) {
         if (!runCondition.await(deadlockDetectionTimeout, TimeUnit.MILLISECONDS)) {
-          throw new PotentialDeadlockException(currentThread.getStackTrace());
+          throw new PotentialDeadlockException(
+              currentThread.getName(), currentThread.getStackTrace(), this);
         }
-        ;
         if (evaluationFunction != null) {
           throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
         }

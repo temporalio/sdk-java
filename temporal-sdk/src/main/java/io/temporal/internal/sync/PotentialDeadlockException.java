@@ -21,9 +21,34 @@ package io.temporal.internal.sync;
 
 class PotentialDeadlockException extends RuntimeException {
 
-  PotentialDeadlockException(StackTraceElement[] stackTrace) {
+  private final WorkflowThreadContext workflowThreadContext;
+  private String stackDump;
+
+  PotentialDeadlockException(
+      String threadName,
+      StackTraceElement[] stackTrace,
+      WorkflowThreadContext workflowThreadContext) {
     super(
-        "Potential deadlock detected: workflow thread blocked for over a second", null, true, true);
+        "Potential deadlock detected: workflow thread \""
+            + threadName
+            + "\" didn't yield control for over a second.",
+        null,
+        true,
+        true);
     setStackTrace(stackTrace);
+    this.workflowThreadContext = workflowThreadContext;
+  }
+
+  void setStackDump(String stackDump) {
+    this.stackDump = stackDump;
+  }
+
+  @Override
+  public String getMessage() {
+    return super.getMessage() + " Other workflow threads:\n\n" + stackDump + "\n";
+  }
+
+  public WorkflowThreadContext getWorkflowThreadContext() {
+    return this.workflowThreadContext;
   }
 }
