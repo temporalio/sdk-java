@@ -25,9 +25,13 @@ class PotentialDeadlockException extends RuntimeException {
   private String stackDump;
 
   PotentialDeadlockException(
-      StackTraceElement[] stackTrace, WorkflowThreadContext workflowThreadContext) {
+      String threadName,
+      StackTraceElement[] stackTrace,
+      WorkflowThreadContext workflowThreadContext) {
     super(
-        "Potential deadlock detected: workflow thread blocked for over a second.",
+        "Potential deadlock detected: workflow thread \""
+            + threadName
+            + "\" didn't yield control for over a second.",
         null,
         true,
         true);

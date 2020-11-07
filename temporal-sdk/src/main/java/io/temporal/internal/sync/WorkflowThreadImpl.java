@@ -436,6 +436,8 @@ class WorkflowThreadImpl implements WorkflowThread {
     StackTraceElement[] st = task.getStackTrace();
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
+    pw.append(thread.getName());
+    pw.append("\n");
     for (StackTraceElement se : st) {
       pw.println("\tat " + se);
     }
