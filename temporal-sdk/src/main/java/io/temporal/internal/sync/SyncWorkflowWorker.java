@@ -136,7 +136,7 @@ public class SyncWorkflowWorker
 
   @Override
   public boolean isStarted() {
-    return workflowWorker.isStarted() && laWorker.isStarted();
+    return workflowWorker.isStarted() && (laWorker.isStarted() || !laWorker.hasSupportedTypes());
   }
 
   @Override
