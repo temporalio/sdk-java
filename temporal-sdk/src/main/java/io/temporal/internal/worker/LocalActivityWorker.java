@@ -93,7 +93,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
     }
   }
 
-  public boolean hasSupportedTypes() {
+  public boolean isAnyTypeSupported() {
     return handler.isAnyTypeSupported();
   }
 
