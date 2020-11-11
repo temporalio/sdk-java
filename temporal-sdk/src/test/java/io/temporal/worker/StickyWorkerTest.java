@@ -154,7 +154,6 @@ public class StickyWorkerTest {
     WorkflowExecutorCache cache = factory.getCache();
     assertNotNull(cache);
     assertEquals(0, cache.size()); // removed from cache on completion
-    Thread.sleep(100);
 
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
@@ -163,6 +162,7 @@ public class StickyWorkerTest {
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "GreetingSignalWorkflow")
             .build();
+    metricsScope.close();
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
 
