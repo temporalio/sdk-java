@@ -162,7 +162,7 @@ public class StickyWorkerTest {
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "GreetingSignalWorkflow")
             .build();
-    metricsScope.close();
+    metricsScope.close(); // Flush metrics
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
 
@@ -260,7 +260,7 @@ public class StickyWorkerTest {
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "ActivitiesWorkflow")
             .build();
-    metricsScope.close();
+    metricsScope.close(); // Flush metrics
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 4);
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
     // Finish Workflow
@@ -299,7 +299,7 @@ public class StickyWorkerTest {
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "GreetingParentWorkflow")
             .build();
-    metricsScope.close();
+    metricsScope.close(); // Flush metrics
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 2);
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
     // Finish Workflow
@@ -346,7 +346,7 @@ public class StickyWorkerTest {
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "TestMutableSideEffectWorkflow")
             .build();
-    metricsScope.close();
+    metricsScope.close(); // Flush metrics
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
     // Finish Workflow
