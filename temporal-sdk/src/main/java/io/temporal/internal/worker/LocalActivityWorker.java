@@ -93,6 +93,10 @@ public final class LocalActivityWorker implements SuspendableWorker {
     }
   }
 
+  public boolean isAnyTypeSupported() {
+    return handler.isAnyTypeSupported();
+  }
+
   @Override
   public boolean isStarted() {
     if (poller == null) {

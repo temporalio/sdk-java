@@ -176,7 +176,6 @@ public final class WorkerFactory {
             workflowThreadPool,
             workflowClient.getOptions().getContextPropagators());
     workers.add(worker);
-    dispatcher.subscribe(taskQueue, worker.workflowWorker);
     return worker;
   }
 
@@ -196,6 +195,9 @@ public final class WorkerFactory {
 
     for (Worker worker : workers) {
       worker.start();
+      if (worker.workflowWorker.isStarted()) {
+        dispatcher.subscribe(worker.getTaskQueue(), worker.workflowWorker);
+      }
     }
 
     if (stickyPoller != null) {
