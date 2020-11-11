@@ -253,9 +253,6 @@ public class StickyWorkerTest {
     w.TaskQueueName = taskQueueName;
     workflow.execute(w);
 
-    // Wait for reporter
-    Thread.sleep(600);
-
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
@@ -263,6 +260,7 @@ public class StickyWorkerTest {
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "ActivitiesWorkflow")
             .build();
+    metricsScope.close();
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 4);
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
     // Finish Workflow
@@ -294,9 +292,6 @@ public class StickyWorkerTest {
     // Act
     Assert.assertEquals("Hello World!", workflow.getGreeting("World"));
 
-    // Wait for reporter
-    Thread.sleep(600);
-
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
@@ -304,6 +299,7 @@ public class StickyWorkerTest {
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "GreetingParentWorkflow")
             .build();
+    metricsScope.close();
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 2);
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
     // Finish Workflow
@@ -343,9 +339,6 @@ public class StickyWorkerTest {
     String result = workflow.execute(taskQueueName);
     assertEquals("1234, 1234, 1234, 3456", result);
 
-    // Wait for reporter
-    Thread.sleep(600);
-
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
@@ -353,6 +346,7 @@ public class StickyWorkerTest {
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
             .put(MetricsTag.WORKFLOW_TYPE, "TestMutableSideEffectWorkflow")
             .build();
+    metricsScope.close();
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
     // Finish Workflow
