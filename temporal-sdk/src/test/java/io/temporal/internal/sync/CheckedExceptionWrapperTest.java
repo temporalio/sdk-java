@@ -49,8 +49,9 @@ public class CheckedExceptionWrapperTest {
     } catch (Exception e) {
       Throwable result = CheckedExceptionWrapper.unwrap(e);
       Assert.assertEquals("2", result.getMessage());
-      Assert.assertEquals("1", result.getCause().getMessage());
-      Assert.assertNull(result.getCause().getCause());
+      Assert.assertEquals("java.lang.Exception: 1", result.getCause().getMessage());
+      Assert.assertEquals("1", result.getCause().getCause().getMessage());
+      Assert.assertNull(result.getCause().getCause().getCause());
     }
     Exception e = new Exception("5");
     Throwable eu = CheckedExceptionWrapper.unwrap(e);

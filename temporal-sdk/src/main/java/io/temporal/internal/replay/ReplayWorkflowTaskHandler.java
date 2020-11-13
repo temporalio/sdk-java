@@ -158,12 +158,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               + ". If see continuously the workflow might be stuck.",
           e);
     }
-    Failure failure;
-    if (e instanceof Error) {
-      failure = FailureConverter.exceptionToFailureNoUnwrapping(e);
-    } else {
-      failure = FailureConverter.exceptionToFailure(e);
-    }
+    Failure failure = FailureConverter.exceptionToFailure(e);
     RespondWorkflowTaskFailedRequest failedRequest =
         RespondWorkflowTaskFailedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())
