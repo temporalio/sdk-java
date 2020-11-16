@@ -180,6 +180,9 @@ public class FailureConverter {
   }
 
   public static Failure exceptionToFailure(Throwable e) {
+    if (e instanceof CheckedExceptionWrapper) {
+      return exceptionToFailure(e.getCause());
+    }
     String message;
     if (e instanceof TemporalFailure) {
       TemporalFailure tf = (TemporalFailure) e;
@@ -189,9 +192,6 @@ public class FailureConverter {
       message = tf.getOriginalMessage();
     } else {
       message = e.getMessage() == null ? "" : e.getMessage();
-    }
-    if (e instanceof CheckedExceptionWrapper) {
-      return exceptionToFailure(e.getCause());
     }
     String stackTrace = serializeStackTrace(e);
     Failure.Builder failure =
