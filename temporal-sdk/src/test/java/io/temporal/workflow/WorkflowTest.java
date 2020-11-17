@@ -2815,7 +2815,7 @@ public class WorkflowTest {
           // Errors cause workflow task to fail. But we want workflow to fail in this case.
           throw new RuntimeException(ae);
         }
-        Exception fnf = new FileNotFoundException();
+        Exception fnf = new FileNotFoundException("simulated exception");
         fnf.initCause(e);
         throw Workflow.wrap(fnf);
       }

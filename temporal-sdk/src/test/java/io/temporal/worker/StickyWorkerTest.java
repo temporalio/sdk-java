@@ -105,7 +105,7 @@ public class StickyWorkerTest {
     metricsScope =
         new RootScopeBuilder()
             .reporter(reporter)
-            .reportEvery(com.uber.m3.util.Duration.ofMillis(10));
+            .reportEvery(com.uber.m3.util.Duration.ofSeconds(10));
   }
 
   @After

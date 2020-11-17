@@ -103,8 +103,9 @@ public class RetryerTest {
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
-      assertTrue(e.getCause() instanceof InterruptedException);
-      assertEquals("simulated", e.getCause().getMessage());
+      assertTrue(e.getCause() instanceof CheckedExceptionWrapper);
+      assertTrue(e.getCause().getCause() instanceof InterruptedException);
+      assertEquals("simulated", e.getCause().getCause().getMessage());
     }
     assertTrue(System.currentTimeMillis() - start < 100000);
   }

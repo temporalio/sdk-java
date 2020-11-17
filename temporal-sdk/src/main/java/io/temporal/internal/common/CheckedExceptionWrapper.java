@@ -29,17 +29,6 @@ import java.lang.reflect.InvocationTargetException;
  */
 public final class CheckedExceptionWrapper extends RuntimeException {
 
-  private static final Field causeField;
-
-  static {
-    try {
-      causeField = Throwable.class.getDeclaredField("cause");
-      causeField.setAccessible(true);
-    } catch (NoSuchFieldException e) {
-      throw new RuntimeException("unexpected", e);
-    }
-  }
-
   /**
    * Returns CheckedExceptionWrapper if e is checked exception. If there is a need to return a
    * checked exception from an activity or workflow implementation throw a wrapped exception it
@@ -69,37 +58,11 @@ public final class CheckedExceptionWrapper extends RuntimeException {
   }
 
   /**
-   * Removes CheckedException wrapper from the whole chain of Exceptions. Assumes that wrapper
+   * Removes CheckedExceptionWrapper from the top of the chain of Exceptions. Assumes that wrapper
    * always has a cause which cannot be a wrapper.
    */
   public static Throwable unwrap(Throwable e) {
-    Throwable head = e;
-    if (head instanceof CheckedExceptionWrapper) {
-      head = head.getCause();
-    }
-    Throwable tail = head;
-    Throwable current = tail.getCause();
-    while (current != null) {
-      if (current instanceof CheckedExceptionWrapper) {
-        current = current.getCause();
-        setThrowableCause(tail, current);
-      }
-      tail = current;
-      current = tail.getCause();
-    }
-    return head;
-  }
-
-  /**
-   * Throwable.initCause throws IllegalStateException if cause is already set. This method uses
-   * reflection to set it directly.
-   */
-  private static void setThrowableCause(Throwable throwable, Throwable cause) {
-    try {
-      causeField.set(throwable, cause);
-    } catch (IllegalAccessException e) {
-      throw new RuntimeException("unexpected", e);
-    }
+    return e instanceof CheckedExceptionWrapper ? e.getCause() : e;
   }
 
   private CheckedExceptionWrapper(Exception e) {

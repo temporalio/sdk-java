@@ -180,11 +180,9 @@ public class FailureConverter {
   }
 
   public static Failure exceptionToFailure(Throwable e) {
-    e = CheckedExceptionWrapper.unwrap(e);
-    return exceptionToFailureNoUnwrapping(e);
-  }
-
-  public static Failure exceptionToFailureNoUnwrapping(Throwable e) {
+    if (e instanceof CheckedExceptionWrapper) {
+      return exceptionToFailure(e.getCause());
+    }
     String message;
     if (e instanceof TemporalFailure) {
       TemporalFailure tf = (TemporalFailure) e;
@@ -199,7 +197,7 @@ public class FailureConverter {
     Failure.Builder failure =
         Failure.newBuilder().setMessage(message).setSource(JAVA_SDK).setStackTrace(stackTrace);
     if (e.getCause() != null) {
-      failure.setCause(exceptionToFailureNoUnwrapping(e.getCause()));
+      failure.setCause(exceptionToFailure(e.getCause()));
     }
     if (e instanceof ApplicationFailure) {
       ApplicationFailure ae = (ApplicationFailure) e;

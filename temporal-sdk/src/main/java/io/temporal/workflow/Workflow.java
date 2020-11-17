@@ -27,7 +27,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
@@ -812,9 +811,8 @@ public final class Workflow {
   /**
    * If there is a need to return a checked exception from a workflow implementation do not add the
    * exception to a method signature but wrap it using this method before rethrowing. The library
-   * code will unwrap it automatically using {@link #unwrap(Exception)} when propagating exception
-   * to a remote caller. {@link RuntimeException} are just returned from this method without
-   * modification.
+   * code will unwrap it automatically using when propagating exception to a remote caller. {@link
+   * RuntimeException} are just returned from this method without modification.
    *
    * <p>The reason for such design is that returning originally thrown exception from a remote call
    * (which child workflow and activity invocations are ) would not allow adding context information
@@ -841,21 +839,6 @@ public final class Workflow {
    */
   public static RuntimeException wrap(Exception e) {
     return WorkflowInternal.wrap(e);
-  }
-
-  /**
-   * Removes {@link io.temporal.internal.common.CheckedExceptionWrapper} from causal exception
-   * chain.
-   *
-   * @param e exception with causality chain that might contain wrapped exceptions.
-   * @return exception causality chain with CheckedExceptionWrapper removed.
-   */
-  public static Exception unwrap(Exception e) {
-    Throwable unwrapped = CheckedExceptionWrapper.unwrap(e);
-    if (unwrapped instanceof Error) {
-      throw (Error) unwrapped;
-    }
-    return (Exception) unwrapped;
   }
 
   /**
