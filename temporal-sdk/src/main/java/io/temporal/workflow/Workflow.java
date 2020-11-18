@@ -1188,7 +1188,7 @@ public final class Workflow {
    * any previous workflow has failed, this function returns that failure. If no previous workflows
    * have failed, an empty optional is returned.
    *
-   * @return result of last failure
+   * @return The last {@link Failure} that occurred in this workflow, if there has been one.
    */
   public static Optional<Failure> getLastFailure() {
     return WorkflowInternal.getLastFailure();

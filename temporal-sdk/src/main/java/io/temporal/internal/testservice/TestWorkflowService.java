@@ -278,7 +278,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           parentChildInitiatedEventId,
           signalWithStartSignal,
           workflowId,
-          // TODO: No need to pass separately if this is what I actually need...
           retryState.flatMap(TestServiceRetryState::getLastFailure).orElse(null));
     } finally {
       lock.unlock();
