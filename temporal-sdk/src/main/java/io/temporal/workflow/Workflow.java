@@ -23,6 +23,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
@@ -1179,6 +1180,18 @@ public final class Workflow {
    */
   public static <R> R getLastCompletionResult(Class<R> resultClass) {
     return WorkflowInternal.getLastCompletionResult(resultClass, resultClass);
+  }
+
+  /**
+   * Extract the latest failure from some previous run for this cron workflow. This is used in
+   * combination with cron schedule. A workflow can be started with an optional cron schedule. If
+   * any previous workflow has failed, this function returns that failure. If no previous workflows
+   * have failed, an empty optional is returned.
+   *
+   * @return result of last failure
+   */
+  public static Optional<Failure> getLastFailure() {
+    return WorkflowInternal.getLastFailure();
   }
 
   /**

@@ -199,6 +199,7 @@ class StateMachines {
     String originalExecutionRunId;
     Optional<String> continuedExecutionRunId;
     Functions.Proc runTimerCancellationHandle;
+    Failure lastFailure;
 
     WorkflowData(
         Optional<TestServiceRetryState> retryState,
@@ -206,13 +207,15 @@ class StateMachines {
         String cronSchedule,
         Payloads lastCompletionResult,
         String originalExecutionRunId,
-        Optional<String> continuedExecutionRunId) {
+        Optional<String> continuedExecutionRunId,
+        Failure lastFailure) {
       this.retryState = retryState;
       this.backoffStartInterval = backoffStartInterval;
       this.cronSchedule = cronSchedule;
       this.lastCompletionResult = lastCompletionResult;
       this.originalExecutionRunId = originalExecutionRunId;
       this.continuedExecutionRunId = continuedExecutionRunId;
+      this.lastFailure = lastFailure;
     }
 
     @Override
@@ -829,6 +832,9 @@ class StateMachines {
     }
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
+    }
+    if (data.lastFailure != null) {
+      a.setContinuedFailure(data.lastFailure);
     }
     if (request.hasMemo()) {
       a.setMemo(request.getMemo());

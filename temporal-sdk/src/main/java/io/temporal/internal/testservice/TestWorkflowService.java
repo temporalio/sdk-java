@@ -38,6 +38,7 @@ import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
@@ -276,7 +277,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           parent,
           parentChildInitiatedEventId,
           signalWithStartSignal,
-          workflowId);
+          workflowId,
+          // TODO: No need to pass separately if this is what I actually need...
+          retryState.flatMap(TestServiceRetryState::getLastFailure).orElse(null));
     } finally {
       lock.unlock();
     }
@@ -317,7 +320,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
-      WorkflowId workflowId) {
+      WorkflowId workflowId,
+      Failure lastFailure) {
     String namespace = startRequest.getNamespace();
     TestWorkflowMutableState mutableState =
         new TestWorkflowMutableStateImpl(
@@ -330,7 +334,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             parentChildInitiatedEventId,
             continuedExecutionRunId,
             this,
-            store);
+            store,
+            lastFailure);
     WorkflowExecution execution = mutableState.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(namespace, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
@@ -871,6 +876,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
+    Failure curFail = a.getFailure();
+    Failure lastFail =
+        curFail != null
+            ? curFail
+            : retryState.flatMap(TestServiceRetryState::getLastFailure).orElse(null);
     try {
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(
@@ -883,7 +893,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               parent,
               parentChildInitiatedEventId,
               Optional.empty(),
-              executionId.getWorkflowId());
+              executionId.getWorkflowId(),
+              lastFail);
       return response.getRunId();
     } finally {
       lock.unlock();

@@ -25,6 +25,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
@@ -419,5 +420,9 @@ public final class WorkflowInternal {
     POJOWorkflowInterfaceMetadata metadata =
         POJOWorkflowInterfaceMetadata.newInstance(workflowInterfaceClass);
     return metadata.getWorkflowType().get();
+  }
+
+  public static Optional<Failure> getLastFailure() {
+    return getRootWorkflowContext().getLastFailure();
   }
 }

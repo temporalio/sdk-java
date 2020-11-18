@@ -62,6 +62,7 @@ import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
@@ -183,7 +184,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       OptionalLong parentChildInitiatedEventId,
       Optional<String> continuedExecutionRunId,
       TestWorkflowService service,
-      TestWorkflowStore store) {
+      TestWorkflowStore store,
+      Failure lastFailure) {
     startRequest = overrideStartWorkflowExecutionRequest(startRequest);
     this.startRequest = startRequest;
     this.parent = parent;
@@ -202,7 +204,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             lastCompletionResult,
             runId, // Test service doesn't support reset. Thus originalRunId is always the same as
             // runId.
-            continuedExecutionRunId);
+            continuedExecutionRunId,
+            lastFailure);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
     this.workflowTaskStateMachine = StateMachines.newCommandStateMachine(store, startRequest);
   }
