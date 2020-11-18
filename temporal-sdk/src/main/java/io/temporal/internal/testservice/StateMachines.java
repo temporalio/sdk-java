@@ -920,6 +920,7 @@ class StateMachines {
     a.setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
     a.setBackoffStartInterval(d.getBackoffStartInterval());
     a.setLastCompletionResult(d.getLastCompletionResult());
+    a.setFailure(d.getFailure());
     a.setNewExecutionRunId(UUID.randomUUID().toString());
     HistoryEvent event =
         HistoryEvent.newBuilder()

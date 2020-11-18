@@ -106,7 +106,6 @@ class SyncWorkflow implements ReplayWorkflow {
         startEvent.hasContinuedFailure()
             ? Optional.of(startEvent.getContinuedFailure())
             : Optional.empty();
-    log.info("Huh? {}", lastFail);
     SyncWorkflowContext syncContext =
         new SyncWorkflowContext(context, dataConverter, contextPropagators, result, lastFail);
 

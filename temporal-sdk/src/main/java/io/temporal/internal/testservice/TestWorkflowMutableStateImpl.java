@@ -37,20 +37,7 @@ import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.api.command.v1.CancelTimerCommandAttributes;
-import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.Command;
-import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.FailWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
-import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
-import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
-import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.StartTimerCommandAttributes;
-import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
+import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
@@ -1194,7 +1181,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     if (!Strings.isNullOrEmpty(data.cronSchedule)) {
-      startNewCronRun(ctx, workflowTaskCompletedId, identity, data, data.lastCompletionResult);
+      startNewCronRun(
+          ctx,
+          workflowTaskCompletedId,
+          identity,
+          data,
+          data.lastCompletionResult,
+          Optional.of(d.getFailure()));
       return;
     }
 
@@ -1236,7 +1229,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity) {
     WorkflowData data = workflow.getData();
     if (!Strings.isNullOrEmpty(data.cronSchedule)) {
-      startNewCronRun(ctx, workflowTaskCompletedId, identity, data, d.getResult());
+      startNewCronRun(
+          ctx, workflowTaskCompletedId, identity, data, d.getResult(), Optional.empty());
       return;
     }
 
@@ -1280,7 +1274,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long workflowTaskCompletedId,
       String identity,
       WorkflowData data,
-      Payloads lastCompletionResult) {
+      Payloads lastCompletionResult,
+      Optional<Failure> lastFailure) {
     Cron cron = parseCron(data.cronSchedule);
 
     Instant i = Instant.ofEpochMilli(Timestamps.toMillis(store.currentTime()));
@@ -1299,7 +1294,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       backoffInterval = backoff.get();
     }
 
-    ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewAttr =
+    ContinueAsNewWorkflowExecutionCommandAttributes.Builder builder =
         ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder()
             .setInput(startRequest.getInput())
             .setWorkflowType(startRequest.getWorkflowType())
@@ -1308,8 +1303,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setTaskQueue(startRequest.getTaskQueue())
             .setBackoffStartInterval(ProtobufTimeUtils.toProtoDuration(backoffInterval))
             .setRetryPolicy(startRequest.getRetryPolicy())
-            .setLastCompletionResult(lastCompletionResult)
-            .build();
+            .setLastCompletionResult(lastCompletionResult);
+    lastFailure.ifPresent(builder::setFailure);
+    ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewAttr = builder.build();
     workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);

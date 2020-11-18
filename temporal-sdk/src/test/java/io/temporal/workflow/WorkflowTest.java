@@ -4298,6 +4298,7 @@ public class WorkflowTest {
     assertEquals("run 2", lastCompletionResult);
     // The last failure ought to be the one from run 3
     assertTrue(lastFail.isPresent());
+    assertEquals("simulated error", lastFail.get().getMessage());
   }
 
   public static class TestCronParentWorkflow implements TestWorkflow1 {
