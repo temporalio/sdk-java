@@ -182,8 +182,24 @@ public final class RetryOptions {
     }
 
     /**
-     * List of exceptions application failures types to retry. Application failures are converted to
-     * {@link ApplicationFailure#getType()}.
+     * List of application failures types to not retry.
+     *
+     * <p>An application failure is represented as {@link ApplicationFailure}. The type of the
+     * failure is stored in the {@link ApplicationFailure#getType()} property. An {@link
+     * ApplicationFailure} instance is created through {@link *
+     * ApplicationFailure#newFailure(String, String, Object...)}. An ApplicationFailure created
+     * through {@link ApplicationFailure#newNonRetryableFailure(String, String, Object...)} will
+     * have {@link ApplicationFailure#isNonRetryable()} property set to true which means that it is
+     * not retried even if the type of failure is not included into DoNotRetry list.
+     *
+     * <p>If an activity or workflow throws any exception which is not {@link ApplicationFailure}
+     * then the exception is converted to {@link ApplicationFailure} with the fully qualified name
+     * of the exception as type value.
+     *
+     * <p>Note that activity failures are wrapped into {@link ActivityFailure} exception. So if an
+     * activity failure is not handled the workflow retry policy is going to see ActivityFailure
+     * which is always retryable, not the original exception. The same way a child workflow failure
+     * is wrapped into {@link ChildWorkflowFailure}.
      *
      * <p>{@link Error} and {@link CanceledFailure} are never retried and are not even passed to
      * this filter.
