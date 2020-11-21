@@ -260,10 +260,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         }
       }
       Optional<TestServiceRetryState> retryState;
+      Optional<Failure> lastFailure = Optional.empty();
       if (startRequest.hasRetryPolicy()) {
         Duration expirationInterval =
             ProtobufTimeUtils.toJavaDuration(startRequest.getWorkflowExecutionTimeout());
         retryState = newRetryStateLocked(startRequest.getRetryPolicy(), expirationInterval);
+        if (retryState.isPresent()) {
+          lastFailure = retryState.get().getLastFailure();
+        }
       } else {
         retryState = Optional.empty();
       }
@@ -274,11 +278,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           retryState,
           backoffStartInterval,
           null,
+          lastFailure,
           parent,
           parentChildInitiatedEventId,
           signalWithStartSignal,
-          workflowId,
-          retryState.flatMap(TestServiceRetryState::getLastFailure).orElse(null));
+          workflowId);
     } finally {
       lock.unlock();
     }
@@ -316,11 +320,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<TestServiceRetryState> retryState,
       Duration backoffStartInterval,
       Payloads lastCompletionResult,
+      Optional<Failure> lastFailure,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
-      WorkflowId workflowId,
-      Failure lastFailure) {
+      WorkflowId workflowId) {
     String namespace = startRequest.getNamespace();
     TestWorkflowMutableState mutableState =
         new TestWorkflowMutableStateImpl(
@@ -329,12 +333,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             retryState,
             backoffStartInterval,
             lastCompletionResult,
+            lastFailure,
             parent,
             parentChildInitiatedEventId,
             continuedExecutionRunId,
             this,
-            store,
-            lastFailure);
+            store);
     WorkflowExecution execution = mutableState.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(namespace, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
@@ -876,10 +880,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
     Failure curFail = a.getFailure();
-    Failure lastFail =
+    Optional<Failure> lastFail =
         curFail != null
-            ? curFail
-            : retryState.flatMap(TestServiceRetryState::getLastFailure).orElse(null);
+            ? Optional.of(curFail)
+            : retryState.flatMap(TestServiceRetryState::getLastFailure);
     try {
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(
@@ -889,11 +893,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               retryState,
               ProtobufTimeUtils.toJavaDuration(a.getBackoffStartInterval()),
               a.getLastCompletionResult(),
+              lastFail,
               parent,
               parentChildInitiatedEventId,
               Optional.empty(),
-              executionId.getWorkflowId(),
-              lastFail);
+              executionId.getWorkflowId());
       return response.getRunId();
     } finally {
       lock.unlock();

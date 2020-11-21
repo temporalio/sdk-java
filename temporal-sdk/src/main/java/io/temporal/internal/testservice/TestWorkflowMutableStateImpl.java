@@ -167,12 +167,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       Optional<TestServiceRetryState> retryState,
       Duration backoffStartInterval,
       Payloads lastCompletionResult,
+      Optional<Failure> lastFailure,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<String> continuedExecutionRunId,
       TestWorkflowService service,
-      TestWorkflowStore store,
-      Failure lastFailure) {
+      TestWorkflowStore store) {
     startRequest = overrideStartWorkflowExecutionRequest(startRequest);
     this.startRequest = startRequest;
     this.parent = parent;
@@ -189,10 +189,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             ProtobufTimeUtils.toProtoDuration(backoffStartInterval),
             startRequest.getCronSchedule(),
             lastCompletionResult,
+            lastFailure,
             runId, // Test service doesn't support reset. Thus originalRunId is always the same as
             // runId.
-            continuedExecutionRunId,
-            lastFailure);
+            continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
     this.workflowTaskStateMachine = StateMachines.newCommandStateMachine(store, startRequest);
   }
