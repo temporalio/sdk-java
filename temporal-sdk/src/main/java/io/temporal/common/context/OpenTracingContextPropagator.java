@@ -114,10 +114,14 @@ public class OpenTracingContextPropagator implements ContextPropagator {
   @Override
   public void setUp() {
     Tracer openTracingTracer = GlobalTracer.get();
-    Tracer.SpanBuilder builder =
-        openTracingTracer
-            .buildSpan("cadence.workflow")
-            .withTag("resource.name", MDC.get(LoggerTag.WORKFLOW_TYPE));
+    Tracer.SpanBuilder builder = openTracingTracer.buildSpan("cadence.workflow");
+
+    if (MDC.getCopyOfContextMap().containsKey(LoggerTag.WORKFLOW_TYPE)) {
+      builder.withTag("resource.name", MDC.get(LoggerTag.WORKFLOW_TYPE));
+    } else {
+      builder.withTag("resource.name", MDC.get(LoggerTag.ACTIVITY_TYPE));
+    }
+
     if (getCurrentOpenTracingSpanContext() != null) {
       builder.asChildOf(getCurrentOpenTracingSpanContext());
     }
