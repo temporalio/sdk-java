@@ -25,7 +25,6 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
@@ -33,18 +32,18 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.common.context.ContextPropagator;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RpcRetryOptions;
+import io.temporal.internal.context.ContextActivityThreadLocal;
+import io.temporal.internal.context.ContextPropagatorUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.MDC;
@@ -185,7 +184,13 @@ public final class ActivityWorker implements SuspendableWorker {
       MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
 
-      propagateContext(task);
+      ContextActivityThreadLocal contextActivityThreadLocal =
+          ContextActivityThreadLocal.getInstance();
+      contextActivityThreadLocal.setContextPropagators(options.getContextPropagators());
+      contextActivityThreadLocal.propagateContextToCurrentThread(
+          ContextPropagatorUtils.extractContextsFromHeaders(
+              options.getContextPropagators(), task.getHeader()));
+      contextActivityThreadLocal.setUpContextPropagators();
 
       try {
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
@@ -215,28 +220,14 @@ public final class ActivityWorker implements SuspendableWorker {
               new Result(task.getActivityId(), null, null, canceledRequest.build(), null),
               metricsScope);
         }
+        contextActivityThreadLocal.onErrorContextPropagators(
+            FailureConverter.failureToException(failure, options.getDataConverter()));
       } finally {
+        contextActivityThreadLocal.finishContextPropagators();
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.RUN_ID);
-      }
-    }
-
-    void propagateContext(PollActivityTaskQueueResponse response) {
-      if (options.getContextPropagators() == null || options.getContextPropagators().isEmpty()) {
-        return;
-      }
-
-      if (!response.hasHeader()) {
-        return;
-      }
-      Map<String, Payload> headerData = new HashMap<>();
-      for (Map.Entry<String, Payload> entry : response.getHeader().getFieldsMap().entrySet()) {
-        headerData.put(entry.getKey(), entry.getValue());
-      }
-      for (ContextPropagator propagator : options.getContextPropagators()) {
-        propagator.setCurrentContext(propagator.deserializeContext(headerData));
       }
     }
 

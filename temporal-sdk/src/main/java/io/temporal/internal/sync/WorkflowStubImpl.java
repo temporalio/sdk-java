@@ -54,7 +54,6 @@ import io.temporal.client.WorkflowQueryRejectedException;
 import io.temporal.client.WorkflowServiceException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -63,10 +62,9 @@ import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.context.ContextPropagatorUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -234,7 +232,8 @@ class WorkflowStubImpl implements WorkflowStub {
               .putAllIndexedFields(convertMemoFromObjectToBytes(o.getSearchAttributes())));
     }
     if (o.getContextPropagators() != null && !o.getContextPropagators().isEmpty()) {
-      Map<String, Payload> context = extractContextsAndConvertToBytes(o.getContextPropagators());
+      Map<String, Payload> context =
+          ContextPropagatorUtils.extractContextsAndConvertToBytes(o.getContextPropagators());
       request.setHeader(Header.newBuilder().putAllFields(context));
     }
     return request.build();
@@ -246,18 +245,6 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private Map<String, Payload> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
     return convertMapFromObjectToBytes(map, clientOptions.getDataConverter());
-  }
-
-  private Map<String, Payload> extractContextsAndConvertToBytes(
-      List<ContextPropagator> contextPropagators) {
-    if (contextPropagators == null) {
-      return null;
-    }
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : contextPropagators) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return result;
   }
 
   @Override

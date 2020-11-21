@@ -21,7 +21,6 @@ package io.temporal.internal.replay;
 
 import com.google.protobuf.util.Timestamps;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -29,8 +28,8 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.context.ContextPropagatorUtils;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -161,26 +160,8 @@ final class WorkflowContext {
 
   /** Returns a map of propagated context objects, keyed by propagator name */
   Map<String, Object> getPropagatedContexts() {
-    if (contextPropagators == null || contextPropagators.isEmpty()) {
-      return new HashMap<>();
-    }
-
-    Header headers = startedAttributes.getHeader();
-    if (headers == null) {
-      return new HashMap<>();
-    }
-
-    Map<String, Payload> headerData = new HashMap<>();
-    for (Map.Entry<String, Payload> pair : headers.getFieldsMap().entrySet()) {
-      headerData.put(pair.getKey(), pair.getValue());
-    }
-
-    Map<String, Object> contextData = new HashMap<>();
-    for (ContextPropagator propagator : contextPropagators) {
-      contextData.put(propagator.getName(), propagator.deserializeContext(headerData));
-    }
-
-    return contextData;
+    return ContextPropagatorUtils.extractContextsFromHeaders(
+        contextPropagators, startedAttributes.getHeader());
   }
 
   void mergeSearchAttributes(SearchAttributes searchAttributes) {

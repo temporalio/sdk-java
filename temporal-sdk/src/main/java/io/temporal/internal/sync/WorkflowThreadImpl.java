@@ -22,7 +22,7 @@ package io.temporal.internal.sync;
 import com.google.common.util.concurrent.RateLimiter;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.context.ContextThreadLocal;
+import io.temporal.internal.context.ContextWorkflowThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -98,8 +98,12 @@ class WorkflowThreadImpl implements WorkflowThread {
       MDC.put(LoggerTag.NAMESPACE, replayWorkflowContext.getNamespace());
 
       // Repopulate the context(s)
-      ContextThreadLocal.setContextPropagators(this.contextPropagators);
-      ContextThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
+      ContextWorkflowThreadLocal contextWorkflowThreadLocal =
+          ContextWorkflowThreadLocal.getInstance();
+      contextWorkflowThreadLocal.setContextPropagators(this.contextPropagators);
+      contextWorkflowThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
+      contextWorkflowThreadLocal.setUpContextPropagators();
+
       try {
         // initialYield blocks thread until the first runUntilBlocked is called.
         // Otherwise r starts executing without control of the sync.
@@ -107,20 +111,25 @@ class WorkflowThreadImpl implements WorkflowThread {
         cancellationScope.run();
       } catch (DestroyWorkflowThreadError e) {
         if (!threadContext.isDestroyRequested()) {
+          contextWorkflowThreadLocal.onErrorContextPropagators(e);
           threadContext.setUnhandledException(e);
         }
       } catch (Error e) {
+        contextWorkflowThreadLocal.onErrorContextPropagators(e);
         threadContext.setUnhandledException(e);
       } catch (CanceledFailure e) {
         if (!isCancelRequested()) {
+          contextWorkflowThreadLocal.onErrorContextPropagators(e);
           threadContext.setUnhandledException(e);
         }
         if (log.isDebugEnabled()) {
           log.debug(String.format("Workflow thread \"%s\" run canceled", name));
         }
       } catch (Throwable e) {
+        contextWorkflowThreadLocal.onErrorContextPropagators(e);
         threadContext.setUnhandledException(e);
       } finally {
+        contextWorkflowThreadLocal.finishContextPropagators();
         DeterministicRunnerImpl.setCurrentThreadInternal(null);
         threadContext.setStatus(Status.DONE);
         thread.setName(originalName);

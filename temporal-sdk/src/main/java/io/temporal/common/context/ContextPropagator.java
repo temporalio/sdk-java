@@ -23,8 +23,12 @@ import io.temporal.api.common.v1.Payload;
 import java.util.Map;
 
 /**
- * Context Propagators are used to propagate information from workflow to activity, workflow to
- * child workflow, and workflow to child thread (using {@link io.temporal.workflow.Async}).
+ * Context Propagators are used to propagate information from workflow stub to workflow, workflow to
+ * activity, workflow to child workflow, and workflow to child thread (using {@link
+ * io.temporal.workflow.Async}).
+ *
+ * <p>It is important to note that all threads share one ContextPropagator instance, so your
+ * implementation <b>must</b> be thread-safe and store any state in ThreadLocal variables.
  *
  * <p>A sample <code>ContextPropagator</code> that copies all {@link org.slf4j.MDC} entries starting
  * with a given prefix along the code path looks like this:
@@ -126,4 +130,27 @@ public interface ContextPropagator {
 
   /** Sets the current context */
   void setCurrentContext(Object context);
+
+  /**
+   * This is a lifecycle method, called after the context has been propagated to the
+   * workflow/activity thread but the workflow/activity has not yet started.
+   */
+  default void setUp() {
+    // No-op
+  }
+
+  /** This is a lifecycle method, called after the workflow/activity has completed. */
+  default void finish() {
+    // No-op
+  }
+
+  /**
+   * This is a lifecycle method, called when the workflow/activity finishes by throwing an unhandled
+   * exception. {@link #finish()} is called after this method.
+   *
+   * @param t The unhandled exception that caused the workflow/activity to terminate
+   */
+  default void onError(Throwable t) {
+    // No-op
+  }
 }

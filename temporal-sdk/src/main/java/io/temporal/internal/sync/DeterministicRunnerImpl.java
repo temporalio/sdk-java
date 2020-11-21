@@ -35,7 +35,7 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.internal.context.ContextThreadLocal;
+import io.temporal.internal.context.ContextWorkflowThreadLocal;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -96,6 +96,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
   static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-method";
   private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
+  private final ContextWorkflowThreadLocal currentWorkflowThreadLocal =
+      ContextWorkflowThreadLocal.getInstance();
 
   private final Lock lock = new ReentrantLock();
   private final ExecutorService threadPool;
@@ -528,7 +530,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
    */
   private Map<String, Object> getPropagatedContexts() {
     if (currentThreadThreadLocal.get() != null) {
-      return ContextThreadLocal.getCurrentContextForPropagation();
+      return currentWorkflowThreadLocal.getCurrentContextForPropagation();
     } else {
       return workflowContext.getContext().getPropagatedContexts();
     }
@@ -536,7 +538,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private List<ContextPropagator> getContextPropagators() {
     if (currentThreadThreadLocal.get() != null) {
-      return ContextThreadLocal.getContextPropagators();
+      return currentWorkflowThreadLocal.getContextPropagators();
     } else {
       return workflowContext.getContext().getContextPropagators();
     }

@@ -32,7 +32,6 @@ import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Memo;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.SearchAttributes;
@@ -55,6 +54,7 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.context.ContextPropagatorUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ExecuteActivityParameters;
@@ -298,7 +298,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (propagators == null) {
       propagators = this.contextPropagators;
     }
-    Header header = toHeaderGrpc(extractContextsAndConvertToBytes(propagators));
+    Header header =
+        toHeaderGrpc(ContextPropagatorUtils.extractContextsAndConvertToBytes(propagators));
     if (header != null) {
       attributes.setHeader(header);
     }
@@ -416,7 +417,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
-    Header header = toHeaderGrpc(extractContextsAndConvertToBytes(propagators));
+    Header header =
+        toHeaderGrpc(ContextPropagatorUtils.extractContextsAndConvertToBytes(propagators));
     if (header != null) {
       attributes.setHeader(header);
     }
@@ -456,18 +458,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
               }
               return null;
             });
-    return result;
-  }
-
-  private Map<String, Payload> extractContextsAndConvertToBytes(
-      List<ContextPropagator> contextPropagators) {
-    if (contextPropagators == null) {
-      return null;
-    }
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : contextPropagators) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
     return result;
   }
 
