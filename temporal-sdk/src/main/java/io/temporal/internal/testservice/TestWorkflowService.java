@@ -879,10 +879,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
-    Failure curFail = a.getFailure();
     Optional<Failure> lastFail =
-        curFail != null
-            ? Optional.of(curFail)
+        a.hasFailure()
+            ? Optional.of(a.getFailure())
             : retryState.flatMap(TestServiceRetryState::getLastFailure);
     try {
       StartWorkflowExecutionResponse response =

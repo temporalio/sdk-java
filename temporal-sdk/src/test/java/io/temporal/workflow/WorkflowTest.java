@@ -54,7 +54,6 @@ import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
@@ -4231,7 +4230,7 @@ public class WorkflowTest {
   }
 
   static String lastCompletionResult;
-  static Optional<Failure> lastFail;
+  static Optional<Exception> lastFail;
 
   public static class TestWorkflowWithCronScheduleImpl implements TestWorkflowWithCronSchedule {
 
@@ -4267,10 +4266,6 @@ public class WorkflowTest {
 
   @Test
   public void testWorkflowWithCronSchedule() {
-    // REVIEW: Min interval can be less than 1min when running against a real server - what explains
-    // that discrepancy?
-    //   Why doesn't "@every 1s" work here? Different cron parsing libs?
-
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
     Assume.assumeFalse("skipping as test will timeout", useExternalService);
@@ -4298,7 +4293,7 @@ public class WorkflowTest {
     assertEquals("run 2", lastCompletionResult);
     // The last failure ought to be the one from run 3
     assertTrue(lastFail.isPresent());
-    assertEquals("simulated error", lastFail.get().getMessage());
+    assertTrue(lastFail.get().getMessage().contains("simulated error"));
   }
 
   public static class TestCronParentWorkflow implements TestWorkflow1 {

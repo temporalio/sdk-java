@@ -1182,12 +1182,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     if (!Strings.isNullOrEmpty(data.cronSchedule)) {
       startNewCronRun(
-          ctx,
-          workflowTaskCompletedId,
-          identity,
-          data,
-          data.lastCompletionResult,
-          Optional.of(d.getFailure()));
+          ctx, workflowTaskCompletedId, identity, data, data.lastCompletionResult, d.getFailure());
       return;
     }
 
@@ -1229,8 +1224,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity) {
     WorkflowData data = workflow.getData();
     if (!Strings.isNullOrEmpty(data.cronSchedule)) {
-      startNewCronRun(
-          ctx, workflowTaskCompletedId, identity, data, d.getResult(), Optional.empty());
+      startNewCronRun(ctx, workflowTaskCompletedId, identity, data, d.getResult(), null);
       return;
     }
 
@@ -1275,7 +1269,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity,
       WorkflowData data,
       Payloads lastCompletionResult,
-      Optional<Failure> lastFailure) {
+      Failure lastFailure) {
     Cron cron = parseCron(data.cronSchedule);
 
     Instant i = Instant.ofEpochMilli(Timestamps.toMillis(store.currentTime()));
@@ -1304,7 +1298,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setBackoffStartInterval(ProtobufTimeUtils.toProtoDuration(backoffInterval))
             .setRetryPolicy(startRequest.getRetryPolicy())
             .setLastCompletionResult(lastCompletionResult);
-    lastFailure.ifPresent(builder::setFailure);
+    if (lastFailure != null) {
+      builder.setFailure(lastFailure);
+    }
     ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewAttr = builder.build();
     workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;

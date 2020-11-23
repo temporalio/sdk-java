@@ -23,11 +23,12 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
@@ -1188,10 +1189,11 @@ public final class Workflow {
    * any previous workflow has failed, this function returns that failure. If no previous workflows
    * have failed, an empty optional is returned.
    *
-   * @return The last {@link Failure} that occurred in this workflow, if there has been one.
+   * @return The last {@link Exception} that occurred in this workflow, if there has been one.
    */
-  public static Optional<Failure> getLastFailure() {
-    return WorkflowInternal.getLastFailure();
+  public static Optional<Exception> getLastFailure() {
+    return WorkflowInternal.getLastFailure()
+        .map(f -> FailureConverter.failureToException(f, DataConverter.getDefaultInstance()));
   }
 
   /**
