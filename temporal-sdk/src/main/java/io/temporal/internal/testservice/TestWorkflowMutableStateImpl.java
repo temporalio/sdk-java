@@ -350,6 +350,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED;
       case CONTINUED_AS_NEW:
         return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW;
+      case TERMINATED:
+        return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED;
     }
     throw new IllegalStateException("unreachable");
   }
