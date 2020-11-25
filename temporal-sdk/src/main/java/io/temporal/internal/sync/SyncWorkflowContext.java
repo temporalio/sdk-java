@@ -845,7 +845,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return dataConverter.fromPayloads(0, lastCompletionResult, resultClass, resultType);
   }
 
-  public Optional<Failure> getLastFailure() {
+  public Optional<Failure> getPreviousRunFailure() {
     return lastFailure;
   }
 

@@ -140,6 +140,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
@@ -215,7 +216,7 @@ class StateMachines {
       this.lastCompletionResult = lastCompletionResult;
       this.originalExecutionRunId = originalExecutionRunId;
       this.continuedExecutionRunId = continuedExecutionRunId;
-      this.lastFailure = lastFailure;
+      this.lastFailure = Objects.requireNonNull(lastFailure);
     }
 
     @Override
@@ -833,7 +834,7 @@ class StateMachines {
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
     }
-    if (data.lastFailure != null && data.lastFailure.isPresent()) {
+    if (data.lastFailure.isPresent()) {
       a.setContinuedFailure(data.lastFailure.get());
     }
     if (request.hasMemo()) {

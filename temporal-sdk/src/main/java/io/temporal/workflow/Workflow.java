@@ -24,11 +24,9 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
@@ -1184,16 +1182,15 @@ public final class Workflow {
   }
 
   /**
-   * Extract the latest failure from some previous run for this cron workflow. This is used in
-   * combination with cron schedule. A workflow can be started with an optional cron schedule. If
-   * any previous workflow has failed, this function returns that failure. If no previous workflows
-   * have failed, an empty optional is returned.
+   * Extract the latest failure from some previous of this workflow. If any previous run of this
+   * workflow has failed, this function returns that failure. If no previous runs have failed, an
+   * empty optional is returned. The run you are calling this from may have been created as a retry
+   * of the previous failed run or as a next cron invocation for cron workflows.
    *
    * @return The last {@link Exception} that occurred in this workflow, if there has been one.
    */
-  public static Optional<Exception> getLastFailure() {
-    return WorkflowInternal.getLastFailure()
-        .map(f -> FailureConverter.failureToException(f, DataConverter.getDefaultInstance()));
+  public static Optional<Exception> getPreviousRunFailure() {
+    return WorkflowInternal.getPreviousRunFailure();
   }
 
   /**

@@ -266,7 +266,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             ProtobufTimeUtils.toJavaDuration(startRequest.getWorkflowExecutionTimeout());
         retryState = newRetryStateLocked(startRequest.getRetryPolicy(), expirationInterval);
         if (retryState.isPresent()) {
-          lastFailure = retryState.get().getLastFailure();
+          lastFailure = retryState.get().getPreviousRunFailure();
         }
       } else {
         retryState = Optional.empty();
@@ -882,7 +882,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     Optional<Failure> lastFail =
         a.hasFailure()
             ? Optional.of(a.getFailure())
-            : retryState.flatMap(TestServiceRetryState::getLastFailure);
+            : retryState.flatMap(TestServiceRetryState::getPreviousRunFailure);
     try {
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(

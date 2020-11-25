@@ -88,7 +88,7 @@ final class TestServiceRetryState {
     return attempt;
   }
 
-  public Optional<Failure> getLastFailure() {
+  public Optional<Failure> getPreviousRunFailure() {
     return lastFailure;
   }
 
