@@ -25,10 +25,10 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.workflow.ActivityStub;
@@ -422,7 +422,9 @@ public final class WorkflowInternal {
     return metadata.getWorkflowType().get();
   }
 
-  public static Optional<Failure> getLastFailure() {
-    return getRootWorkflowContext().getLastFailure();
+  public static Optional<Exception> getPreviousRunFailure() {
+    return getRootWorkflowContext()
+        .getPreviousRunFailure()
+        .map(f -> FailureConverter.failureToException(f, DataConverter.getDefaultInstance()));
   }
 }

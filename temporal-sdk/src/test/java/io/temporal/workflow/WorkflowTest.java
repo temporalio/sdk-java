@@ -4244,7 +4244,7 @@ public class WorkflowTest {
       }
 
       lastCompletionResult = Workflow.getLastCompletionResult(String.class);
-      lastFail = Workflow.getLastFailure();
+      lastFail = Workflow.getPreviousRunFailure();
 
       AtomicInteger count = retryCount.get(testName);
       if (count == null) {
