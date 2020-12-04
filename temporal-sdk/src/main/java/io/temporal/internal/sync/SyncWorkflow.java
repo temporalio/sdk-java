@@ -24,6 +24,7 @@ import static io.temporal.internal.sync.DeterministicRunner.DEFAULT_DEADLOCK_DET
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
@@ -101,8 +102,12 @@ class SyncWorkflow implements ReplayWorkflow {
         startEvent.hasLastCompletionResult()
             ? Optional.of(startEvent.getLastCompletionResult())
             : Optional.empty();
+    Optional<Failure> lastFailure =
+        startEvent.hasContinuedFailure()
+            ? Optional.of(startEvent.getContinuedFailure())
+            : Optional.empty();
     SyncWorkflowContext syncContext =
-        new SyncWorkflowContext(context, dataConverter, contextPropagators, result);
+        new SyncWorkflowContext(context, dataConverter, contextPropagators, result, lastFailure);
 
     workflowProc = new WorkflowExecuteRunnable(syncContext, workflow, startEvent);
     // The following order is ensured by this code and DeterministicRunner implementation:

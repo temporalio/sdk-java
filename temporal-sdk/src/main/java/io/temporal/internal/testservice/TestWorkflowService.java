@@ -38,6 +38,7 @@ import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
@@ -259,10 +260,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         }
       }
       Optional<TestServiceRetryState> retryState;
+      Optional<Failure> lastFailure = Optional.empty();
       if (startRequest.hasRetryPolicy()) {
         Duration expirationInterval =
             ProtobufTimeUtils.toJavaDuration(startRequest.getWorkflowExecutionTimeout());
         retryState = newRetryStateLocked(startRequest.getRetryPolicy(), expirationInterval);
+        if (retryState.isPresent()) {
+          lastFailure = retryState.get().getPreviousRunFailure();
+        }
       } else {
         retryState = Optional.empty();
       }
@@ -273,6 +278,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           retryState,
           backoffStartInterval,
           null,
+          lastFailure,
           parent,
           parentChildInitiatedEventId,
           signalWithStartSignal,
@@ -314,6 +320,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<TestServiceRetryState> retryState,
       Duration backoffStartInterval,
       Payloads lastCompletionResult,
+      Optional<Failure> lastFailure,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
@@ -326,6 +333,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             retryState,
             backoffStartInterval,
             lastCompletionResult,
+            lastFailure,
             parent,
             parentChildInitiatedEventId,
             continuedExecutionRunId,
@@ -871,6 +879,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
+    Optional<Failure> lastFail =
+        a.hasFailure()
+            ? Optional.of(a.getFailure())
+            : retryState.flatMap(TestServiceRetryState::getPreviousRunFailure);
     try {
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(
@@ -880,6 +892,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               retryState,
               ProtobufTimeUtils.toJavaDuration(a.getBackoffStartInterval()),
               a.getLastCompletionResult(),
+              lastFail,
               parent,
               parentChildInitiatedEventId,
               Optional.empty(),

@@ -62,6 +62,7 @@ import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
@@ -117,6 +118,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
@@ -179,6 +181,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       Optional<TestServiceRetryState> retryState,
       Duration backoffStartInterval,
       Payloads lastCompletionResult,
+      Optional<Failure> lastFailure,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<String> continuedExecutionRunId,
@@ -200,6 +203,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             ProtobufTimeUtils.toProtoDuration(backoffStartInterval),
             startRequest.getCronSchedule(),
             lastCompletionResult,
+            lastFailure,
             runId, // Test service doesn't support reset. Thus originalRunId is always the same as
             // runId.
             continuedExecutionRunId);
@@ -1193,7 +1197,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     if (!Strings.isNullOrEmpty(data.cronSchedule)) {
-      startNewCronRun(ctx, workflowTaskCompletedId, identity, data, data.lastCompletionResult);
+      startNewCronRun(
+          ctx,
+          workflowTaskCompletedId,
+          identity,
+          data,
+          data.lastCompletionResult,
+          Optional.of(d.getFailure()));
       return;
     }
 
@@ -1235,7 +1245,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity) {
     WorkflowData data = workflow.getData();
     if (!Strings.isNullOrEmpty(data.cronSchedule)) {
-      startNewCronRun(ctx, workflowTaskCompletedId, identity, data, d.getResult());
+      startNewCronRun(
+          ctx, workflowTaskCompletedId, identity, data, d.getResult(), Optional.empty());
       return;
     }
 
@@ -1279,7 +1290,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long workflowTaskCompletedId,
       String identity,
       WorkflowData data,
-      Payloads lastCompletionResult) {
+      Payloads lastCompletionResult,
+      Optional<Failure> lastFailure) {
+    Objects.requireNonNull(lastFailure);
     Cron cron = parseCron(data.cronSchedule);
 
     Instant i = Instant.ofEpochMilli(Timestamps.toMillis(store.currentTime()));
@@ -1298,7 +1311,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       backoffInterval = backoff.get();
     }
 
-    ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewAttr =
+    ContinueAsNewWorkflowExecutionCommandAttributes.Builder builder =
         ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder()
             .setInput(startRequest.getInput())
             .setWorkflowType(startRequest.getWorkflowType())
@@ -1307,8 +1320,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setTaskQueue(startRequest.getTaskQueue())
             .setBackoffStartInterval(ProtobufTimeUtils.toProtoDuration(backoffInterval))
             .setRetryPolicy(startRequest.getRetryPolicy())
-            .setLastCompletionResult(lastCompletionResult)
-            .build();
+            .setLastCompletionResult(lastCompletionResult);
+    if (lastFailure.isPresent()) {
+      builder.setFailure(lastFailure.get());
+    }
+    ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewAttr = builder.build();
     workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);

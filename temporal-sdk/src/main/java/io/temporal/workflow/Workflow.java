@@ -1182,6 +1182,18 @@ public final class Workflow {
   }
 
   /**
+   * Extract the latest failure from some previous of this workflow. If any previous run of this
+   * workflow has failed, this function returns that failure. If no previous runs have failed, an
+   * empty optional is returned. The run you are calling this from may have been created as a retry
+   * of the previous failed run or as a next cron invocation for cron workflows.
+   *
+   * @return The last {@link Exception} that occurred in this workflow, if there has been one.
+   */
+  public static Optional<Exception> getPreviousRunFailure() {
+    return WorkflowInternal.getPreviousRunFailure();
+  }
+
+  /**
    * GetLastCompletionResult extract last completion result from previous run for this cron
    * workflow. This is used in combination with cron schedule. A workflow can be started with an
    * optional cron schedule. If a cron workflow wants to pass some data to next schedule, it can

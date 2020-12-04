@@ -4230,6 +4230,7 @@ public class WorkflowTest {
   }
 
   static String lastCompletionResult;
+  static Optional<Exception> lastFail;
 
   public static class TestWorkflowWithCronScheduleImpl implements TestWorkflowWithCronSchedule {
 
@@ -4243,6 +4244,7 @@ public class WorkflowTest {
       }
 
       lastCompletionResult = Workflow.getLastCompletionResult(String.class);
+      lastFail = Workflow.getPreviousRunFailure();
 
       AtomicInteger count = retryCount.get(testName);
       if (count == null) {
@@ -4289,6 +4291,9 @@ public class WorkflowTest {
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
     assertEquals("run 2", lastCompletionResult);
+    // The last failure ought to be the one from run 3
+    assertTrue(lastFail.isPresent());
+    assertTrue(lastFail.get().getMessage().contains("simulated error"));
   }
 
   public static class TestCronParentWorkflow implements TestWorkflow1 {

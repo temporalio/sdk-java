@@ -211,7 +211,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private static SyncWorkflowContext newDummySyncWorkflowContext() {
     return new SyncWorkflowContext(
-        new DummyReplayWorkflowContext(), DataConverter.getDefaultInstance(), null, null);
+        new DummyReplayWorkflowContext(), DataConverter.getDefaultInstance(), null, null, null);
   }
 
   SyncWorkflowContext getWorkflowContext() {

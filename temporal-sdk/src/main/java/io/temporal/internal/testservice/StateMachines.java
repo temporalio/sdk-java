@@ -140,6 +140,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
@@ -196,6 +197,7 @@ class StateMachines {
     Duration backoffStartInterval;
     String cronSchedule;
     Payloads lastCompletionResult;
+    Optional<Failure> lastFailure;
     String originalExecutionRunId;
     Optional<String> continuedExecutionRunId;
     Functions.Proc runTimerCancellationHandle;
@@ -205,6 +207,7 @@ class StateMachines {
         Duration backoffStartInterval,
         String cronSchedule,
         Payloads lastCompletionResult,
+        Optional<Failure> lastFailure,
         String originalExecutionRunId,
         Optional<String> continuedExecutionRunId) {
       this.retryState = retryState;
@@ -213,6 +216,7 @@ class StateMachines {
       this.lastCompletionResult = lastCompletionResult;
       this.originalExecutionRunId = originalExecutionRunId;
       this.continuedExecutionRunId = continuedExecutionRunId;
+      this.lastFailure = Objects.requireNonNull(lastFailure);
     }
 
     @Override
@@ -830,6 +834,9 @@ class StateMachines {
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
     }
+    if (data.lastFailure.isPresent()) {
+      a.setContinuedFailure(data.lastFailure.get());
+    }
     if (request.hasMemo()) {
       a.setMemo(request.getMemo());
     }
@@ -913,7 +920,12 @@ class StateMachines {
     }
     a.setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
     a.setBackoffStartInterval(d.getBackoffStartInterval());
-    a.setLastCompletionResult(d.getLastCompletionResult());
+    if (d.hasLastCompletionResult()) {
+      a.setLastCompletionResult(d.getLastCompletionResult());
+    }
+    if (d.hasFailure()) {
+      a.setFailure(d.getFailure());
+    }
     a.setNewExecutionRunId(UUID.randomUUID().toString());
     HistoryEvent event =
         HistoryEvent.newBuilder()

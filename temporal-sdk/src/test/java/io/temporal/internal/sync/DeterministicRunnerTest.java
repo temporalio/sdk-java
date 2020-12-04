@@ -650,7 +650,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             new SyncWorkflowContext(
-                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
+                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null, null),
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -676,7 +676,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             new SyncWorkflowContext(
-                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null),
+                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null, null),
             () -> {
               Promise<Void> thread =
                   Async.procedure(

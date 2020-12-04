@@ -124,16 +124,19 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private final Map<String, List<SignalData>> signalBuffers = new HashMap<>();
 
   private final Optional<Payloads> lastCompletionResult;
+  private final Optional<Failure> lastFailure;
 
   public SyncWorkflowContext(
       ReplayWorkflowContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
-      Optional<Payloads> lastCompletionResult) {
+      Optional<Payloads> lastCompletionResult,
+      Optional<Failure> lastFailure) {
     this.context = context;
     this.converter = converter;
     this.contextPropagators = contextPropagators;
     this.lastCompletionResult = lastCompletionResult;
+    this.lastFailure = lastFailure;
   }
 
   /**
@@ -840,6 +843,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
     DataConverter dataConverter = getDataConverter();
     return dataConverter.fromPayloads(0, lastCompletionResult, resultClass, resultType);
+  }
+
+  public Optional<Failure> getPreviousRunFailure() {
+    return lastFailure;
   }
 
   @Override

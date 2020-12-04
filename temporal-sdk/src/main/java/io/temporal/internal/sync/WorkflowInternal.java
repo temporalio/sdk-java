@@ -28,6 +28,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.workflow.ActivityStub;
@@ -419,5 +420,11 @@ public final class WorkflowInternal {
     POJOWorkflowInterfaceMetadata metadata =
         POJOWorkflowInterfaceMetadata.newInstance(workflowInterfaceClass);
     return metadata.getWorkflowType().get();
+  }
+
+  public static Optional<Exception> getPreviousRunFailure() {
+    return getRootWorkflowContext()
+        .getPreviousRunFailure()
+        .map(f -> FailureConverter.failureToException(f, DataConverter.getDefaultInstance()));
   }
 }
