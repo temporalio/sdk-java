@@ -59,7 +59,6 @@ To solve the problem add the following entries to your `/etc/hosts` file (where 
 ::1         my-macbook
 ```
 
-
 ## Contributing
 We'd love your help in making the Temporal Java SDKL great. Please review our [contribution guidelines](CONTRIBUTING.md).
 
