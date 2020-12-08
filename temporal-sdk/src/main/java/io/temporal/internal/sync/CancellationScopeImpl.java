@@ -52,6 +52,9 @@ class CancellationScopeImpl implements CancellationScope {
       throw new Error("Unexpected scope");
     }
     if (!current.detached) {
+      if (current.cancellationPromise != null && current.parent.cancellationPromise == null) {
+        current.parent.cancellationPromise = current.cancellationPromise;
+      }
       current.parent.removeChild(current);
     }
   }
