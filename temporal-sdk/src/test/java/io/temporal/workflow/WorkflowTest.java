@@ -20,13 +20,7 @@
 package io.temporal.workflow;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -36,60 +30,23 @@ import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
-import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityCancellationType;
-import io.temporal.activity.ActivityExecutionContext;
-import io.temporal.activity.ActivityInfo;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.LocalActivityOptions;
+import io.temporal.activity.*;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.QueryRejectCondition;
-import io.temporal.api.enums.v1.RetryState;
-import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.enums.v1.*;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.client.ActivityCanceledException;
-import io.temporal.client.ActivityCompletionClient;
-import io.temporal.client.ActivityCompletionException;
-import io.temporal.client.ActivityNotExistsException;
-import io.temporal.client.BatchRequest;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowException;
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowQueryException;
-import io.temporal.client.WorkflowQueryRejectedException;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.*;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
-import io.temporal.common.interceptors.ActivityExecutionContextBase;
-import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
-import io.temporal.common.interceptors.ActivityInterceptor;
-import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
-import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
-import io.temporal.common.interceptors.WorkflowInterceptor;
-import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.failure.ActivityFailure;
-import io.temporal.failure.ApplicationFailure;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.failure.TerminatedFailure;
-import io.temporal.failure.TimeoutFailure;
+import io.temporal.common.interceptors.*;
+import io.temporal.failure.*;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -100,64 +57,23 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.worker.*;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinTask;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
@@ -1294,12 +1210,56 @@ public class WorkflowTest {
     }
   }
 
+  public static class SleepyChild implements TestChildWorkflow {
+
+    @Override
+    public void execute() {
+      Workflow.await(() -> false);
+    }
+  }
+
+  public static class ParentThatStartsChildInCancellationScope implements TestWorkflow {
+
+    @Override
+    public void execute(ChildWorkflowCancellationType cancellationType) {
+      TestChildWorkflow child =
+          Workflow.newChildWorkflowStub(
+              TestChildWorkflow.class,
+              ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
+      List<Promise<Void>> children = new ArrayList<>();
+      // This is a non blocking call that returns immediately.
+      // Use child.composeGreeting("Hello", name) to call synchronously.
+      CancellationScope scope =
+          Workflow.newCancellationScope(
+              () -> {
+                Promise<Void> promise = Async.procedure(child::execute);
+                children.add(promise);
+              });
+      scope.run();
+      Promise.allOf(children).get();
+    }
+  }
+
+  @Test
+  public void testStartChildWorkflowWithCancellationScopeAndCancelParent() {
+    startWorkerFor(ParentThatStartsChildInCancellationScope.class, SleepyChild.class);
+    WorkflowStub workflow =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow", newWorkflowOptionsBuilder(taskQueue).build());
+    workflow.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
+    workflow.cancel();
+    try {
+      workflow.getResult(Void.class);
+      fail("unreachable");
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
+    }
+  }
+
   public static class TestCancellationScopePromise implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      Promise<String> cancellationRequest = CancellationScope.current().getCancellationRequest();
-      cancellationRequest.get();
       return "done";
     }
   }
@@ -2843,7 +2803,7 @@ public class WorkflowTest {
    *             ->OriginalActivityException
    * </pre>
    *
-   * This test also tests that Checked exception wrapping and unwrapping works producing a nice
+   * <p>This test also tests that Checked exception wrapping and unwrapping works producing a nice
    * exception chain without the wrappers.
    */
   @Test
