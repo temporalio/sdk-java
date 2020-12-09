@@ -19,10 +19,6 @@
 
 package io.temporal.worker;
 
-import static io.temporal.workflow.WorkflowTest.NAMESPACE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
@@ -48,6 +44,17 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -59,16 +66,10 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static io.temporal.workflow.WorkflowTest.NAMESPACE;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 @RunWith(Parameterized.class)
 public class StickyWorkerTest {
@@ -489,13 +490,18 @@ public class StickyWorkerTest {
     private TestWorkflowEnvironment testEnv;
     private WorkerFactory factory;
     private final String identity = UUID.randomUUID().toString();
+    private final String binaryChecksum = UUID.randomUUID().toString();
 
     public TestEnvironmentWrapper(WorkerFactoryOptions options) {
       if (options == null) {
         options = WorkerFactoryOptions.newBuilder().build();
       }
       WorkflowClientOptions clientOptions =
-          WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).setIdentity(identity).build();
+          WorkflowClientOptions.newBuilder()
+              .setNamespace(NAMESPACE)
+              .setIdentity(identity)
+              .setBinaryChecksum(binaryChecksum)
+              .build();
       if (useExternalService) {
         service =
             WorkflowServiceStubs.newInstance(

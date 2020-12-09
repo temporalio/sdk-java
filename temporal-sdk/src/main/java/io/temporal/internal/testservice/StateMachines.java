@@ -1338,6 +1338,7 @@ class StateMachines {
     WorkflowTaskCompletedEventAttributes.Builder a =
         WorkflowTaskCompletedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
+            .setBinaryChecksum(request.getBinaryChecksum())
             .setScheduledEventId(data.scheduledEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()

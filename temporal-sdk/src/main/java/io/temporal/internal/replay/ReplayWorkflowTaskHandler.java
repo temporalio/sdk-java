@@ -19,10 +19,6 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
-import static io.temporal.internal.common.WorkflowExecutionUtils.isFullHistory;
-import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
-
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.command.v1.Command;
@@ -54,6 +50,9 @@ import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
@@ -62,8 +61,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
+import static io.temporal.internal.common.WorkflowExecutionUtils.isFullHistory;
+import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
@@ -127,6 +128,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           RespondWorkflowTaskCompletedRequest.newBuilder()
               .setTaskToken(workflowTask.getTaskToken())
               .setIdentity(options.getIdentity())
+              .setBinaryChecksum(options.getBinaryChecksum())
               .addCommands(
                   Command.newBuilder()
                       .setCommandType(CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION)

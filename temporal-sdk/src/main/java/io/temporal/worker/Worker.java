@@ -157,6 +157,7 @@ public final class Worker implements Suspendable {
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
+        .setBinaryChecksum(clientOptions.getBinaryChecksum())
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
@@ -181,6 +182,7 @@ public final class Worker implements Suspendable {
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
+        .setBinaryChecksum(clientOptions.getBinaryChecksum())
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollThreadCount(options.getWorkflowPollThreadCount())
@@ -201,6 +203,7 @@ public final class Worker implements Suspendable {
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
+        .setBinaryChecksum(clientOptions.getBinaryChecksum())
         .setPollerOptions(PollerOptions.newBuilder().build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
         .setMetricsScope(metricsScope)

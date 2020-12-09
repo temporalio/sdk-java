@@ -125,7 +125,8 @@ public final class WorkerFactory {
                     workflowClient.getOptions().getNamespace(),
                     getStickyTaskQueueName(),
                     stickyScope,
-                    id.toString())
+                    id.toString(),
+                    workflowClient.getOptions().getBinaryChecksum())
                 .get(),
             dispatcher,
             PollerOptions.newBuilder()
