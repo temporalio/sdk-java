@@ -1344,6 +1344,8 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskQueue) {
+      Promise<String> cancellationRequest = CancellationScope.current().getCancellationRequest();
+      cancellationRequest.get();
       return "done";
     }
   }
