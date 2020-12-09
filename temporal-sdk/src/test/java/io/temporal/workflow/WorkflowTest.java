@@ -1294,6 +1294,52 @@ public class WorkflowTest {
     }
   }
 
+  public static class SleepyChild implements TestChildWorkflow {
+
+    @Override
+    public void execute() {
+      Workflow.await(() -> false);
+    }
+  }
+
+  public static class ParentThatStartsChildInCancellationScope implements TestWorkflow {
+
+    @Override
+    public void execute(ChildWorkflowCancellationType cancellationType) {
+      TestChildWorkflow child =
+          Workflow.newChildWorkflowStub(
+              TestChildWorkflow.class,
+              ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
+      List<Promise<Void>> children = new ArrayList<>();
+      // This is a non blocking call that returns immediately.
+      // Use child.composeGreeting("Hello", name) to call synchronously.
+      CancellationScope scope =
+          Workflow.newCancellationScope(
+              () -> {
+                Promise<Void> promise = Async.procedure(child::execute);
+                children.add(promise);
+              });
+      scope.run();
+      Promise.allOf(children).get();
+    }
+  }
+
+  @Test
+  public void testStartChildWorkflowWithCancellationScopeAndCancelParent() {
+    startWorkerFor(ParentThatStartsChildInCancellationScope.class, SleepyChild.class);
+    WorkflowStub workflow =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow", newWorkflowOptionsBuilder(taskQueue).build());
+    workflow.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
+    workflow.cancel();
+    try {
+      workflow.getResult(Void.class);
+      fail("unreachable");
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
+    }
+  }
+
   public static class TestCancellationScopePromise implements TestWorkflow1 {
 
     @Override
@@ -2843,7 +2889,7 @@ public class WorkflowTest {
    *             ->OriginalActivityException
    * </pre>
    *
-   * This test also tests that Checked exception wrapping and unwrapping works producing a nice
+   * <p>This test also tests that Checked exception wrapping and unwrapping works producing a nice
    * exception chain without the wrappers.
    */
   @Test
