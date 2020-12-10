@@ -19,10 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.workflow.CancellationScope;
-import io.temporal.workflow.CompletablePromise;
-import io.temporal.workflow.Functions;
-import io.temporal.workflow.Workflow;
+import io.temporal.workflow.*;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
@@ -51,7 +48,7 @@ class CancellationScopeImpl implements CancellationScope {
     if (current != expected) {
       throw new Error("Unexpected scope");
     }
-    if (!current.detached) {
+    if (!current.detached && current.cancellationPromise == null && current.children.isEmpty()) {
       current.parent.removeChild(current);
     }
   }
@@ -121,6 +118,7 @@ class CancellationScopeImpl implements CancellationScope {
     }
     if (cancellationPromise != null) {
       cancellationPromise.complete(null);
+      cancellationPromise = null;
     }
   }
 
@@ -133,6 +131,7 @@ class CancellationScopeImpl implements CancellationScope {
     }
     if (cancellationPromise != null) {
       cancellationPromise.complete(reason);
+      cancellationPromise = null;
     }
   }
 
