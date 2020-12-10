@@ -20,13 +20,7 @@
 package io.temporal.workflow;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -57,20 +51,7 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.client.ActivityCanceledException;
-import io.temporal.client.ActivityCompletionClient;
-import io.temporal.client.ActivityCompletionException;
-import io.temporal.client.ActivityNotExistsException;
-import io.temporal.client.BatchRequest;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowException;
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowQueryException;
-import io.temporal.client.WorkflowQueryRejectedException;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.*;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
@@ -118,34 +99,8 @@ import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinTask;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
@@ -174,6 +129,7 @@ public class WorkflowTest {
   private static final boolean DEBUGGER_TIMEOUTS = false;
 
   private static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
+  public static final String BINARY_CHECKSUM = "testChecksum";
 
   private TracingWorkflowInterceptor tracer;
   private static final boolean useExternalService =
@@ -309,6 +265,7 @@ public class WorkflowTest {
     lastStartedWorkflowType.set(null);
     WorkflowClientOptions workflowClientOptions =
         WorkflowClientOptions.newBuilder()
+            .setBinaryChecksum(BINARY_CHECKSUM)
             .setInterceptors(
                 new WorkflowClientInterceptorBase() {
                   @Override
@@ -1490,6 +1447,47 @@ public class WorkflowTest {
     long elapsed = currentTimeMillis() - start;
     assertTrue(String.valueOf(elapsed), elapsed < 500);
     activitiesImpl.assertInvocations("activityWithDelay");
+  }
+
+  public static class SimpleTestWorkflow implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskQueue) {
+      TestActivities testActivities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder(newActivityOptions1(taskQueue)).build());
+      testActivities.activity();
+      return "done";
+    }
+  }
+
+  @Test
+  public void testBinaryChecksumSetWhenTaskCompleted() {
+    startWorkerFor(SimpleTestWorkflow.class);
+    TestWorkflow1 client =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+    WorkflowExecution execution = WorkflowClient.start(client::execute, taskQueue);
+    WorkflowStub stub = WorkflowStub.fromTyped(client);
+    waitForOKQuery(stub);
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean foundCompletedTask = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
+        assertEquals(
+            BINARY_CHECKSUM, event.getWorkflowTaskCompletedEventAttributes().getBinaryChecksum());
+        foundCompletedTask = true;
+      }
+    }
+    assertTrue(foundCompletedTask);
   }
 
   public static class TestAbandonOnCancelActivity implements TestWorkflow1 {

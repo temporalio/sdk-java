@@ -42,18 +42,21 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
   private final String taskQueue;
   private final String identity;
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
+  private final String binaryChecksum;
 
   WorkflowPollTask(
       WorkflowServiceStubs service,
       String namespace,
       String taskQueue,
       Scope metricsScope,
-      String identity) {
+      String identity,
+      String binaryChecksum) {
     this.identity = Objects.requireNonNull(identity);
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.metricsScope = Objects.requireNonNull(metricsScope);
+    this.binaryChecksum = binaryChecksum;
   }
 
   @Override
@@ -61,6 +64,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
     PollWorkflowTaskQueueRequest pollRequest =
         PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
+            .setBinaryChecksum(binaryChecksum)
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build())
             .build();

@@ -33,22 +33,26 @@ public class WorkflowPollTaskFactory
   private final String taskQueue;
   private final Scope metricScope;
   private final String identity;
+  private final String binaryChecksum;
 
   public WorkflowPollTaskFactory(
       WorkflowServiceStubs service,
       String namespace,
       String taskQueue,
       Scope metricScope,
-      String identity) {
+      String identity,
+      String binaryChecksum) {
     this.service = Objects.requireNonNull(service, "service should not be null");
     this.namespace = Objects.requireNonNull(namespace, "namespace should not be null");
     this.taskQueue = Objects.requireNonNull(taskQueue, "taskQueue should not be null");
     this.metricScope = Objects.requireNonNull(metricScope, "metricScope should not be null");
     this.identity = Objects.requireNonNull(identity, "identity should not be null");
+    this.binaryChecksum = binaryChecksum;
   }
 
   @Override
   public Poller.PollTask<PollWorkflowTaskQueueResponse> get() {
-    return new WorkflowPollTask(service, namespace, taskQueue, metricScope, identity);
+    return new WorkflowPollTask(
+        service, namespace, taskQueue, metricScope, identity, binaryChecksum);
   }
 }

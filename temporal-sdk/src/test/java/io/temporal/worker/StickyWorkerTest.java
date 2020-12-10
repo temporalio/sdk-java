@@ -489,13 +489,18 @@ public class StickyWorkerTest {
     private TestWorkflowEnvironment testEnv;
     private WorkerFactory factory;
     private final String identity = UUID.randomUUID().toString();
+    private final String binaryChecksum = UUID.randomUUID().toString();
 
     public TestEnvironmentWrapper(WorkerFactoryOptions options) {
       if (options == null) {
         options = WorkerFactoryOptions.newBuilder().build();
       }
       WorkflowClientOptions clientOptions =
-          WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).setIdentity(identity).build();
+          WorkflowClientOptions.newBuilder()
+              .setNamespace(NAMESPACE)
+              .setIdentity(identity)
+              .setBinaryChecksum(binaryChecksum)
+              .build();
       if (useExternalService) {
         service =
             WorkflowServiceStubs.newInstance(

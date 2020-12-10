@@ -127,6 +127,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           RespondWorkflowTaskCompletedRequest.newBuilder()
               .setTaskToken(workflowTask.getTaskToken())
               .setIdentity(options.getIdentity())
+              .setBinaryChecksum(options.getBinaryChecksum())
               .addCommands(
                   Command.newBuilder()
                       .setCommandType(CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION)

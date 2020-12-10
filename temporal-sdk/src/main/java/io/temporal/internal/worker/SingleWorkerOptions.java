@@ -39,6 +39,7 @@ public final class SingleWorkerOptions {
   public static final class Builder {
 
     private String identity;
+    private String binaryChecksum;
     private DataConverter dataConverter;
     private int taskExecutorThreadPoolSize = 100;
     private PollerOptions pollerOptions;
@@ -53,6 +54,7 @@ public final class SingleWorkerOptions {
         return;
       }
       this.identity = options.getIdentity();
+      this.binaryChecksum = options.getBinaryChecksum();
       this.dataConverter = options.getDataConverter();
       this.pollerOptions = options.getPollerOptions();
       this.taskExecutorThreadPoolSize = options.getTaskExecutorThreadPoolSize();
@@ -63,6 +65,11 @@ public final class SingleWorkerOptions {
 
     public Builder setIdentity(String identity) {
       this.identity = identity;
+      return this;
+    }
+
+    public Builder setBinaryChecksum(String binaryChecksum) {
+      this.binaryChecksum = binaryChecksum;
       return this;
     }
 
@@ -117,6 +124,7 @@ public final class SingleWorkerOptions {
 
       return new SingleWorkerOptions(
           identity,
+          binaryChecksum,
           dataConverter,
           taskExecutorThreadPoolSize,
           pollerOptions,
@@ -127,6 +135,7 @@ public final class SingleWorkerOptions {
   }
 
   private final String identity;
+  private final String binaryChecksum;
   private final DataConverter dataConverter;
   private final int taskExecutorThreadPoolSize;
   private final PollerOptions pollerOptions;
@@ -136,6 +145,7 @@ public final class SingleWorkerOptions {
 
   private SingleWorkerOptions(
       String identity,
+      String binaryChecksum,
       DataConverter dataConverter,
       int taskExecutorThreadPoolSize,
       PollerOptions pollerOptions,
@@ -143,6 +153,7 @@ public final class SingleWorkerOptions {
       boolean enableLoggingInReplay,
       List<ContextPropagator> contextPropagators) {
     this.identity = identity;
+    this.binaryChecksum = binaryChecksum;
     this.dataConverter = dataConverter;
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
     this.pollerOptions = pollerOptions;
@@ -153,6 +164,10 @@ public final class SingleWorkerOptions {
 
   public String getIdentity() {
     return identity;
+  }
+
+  public String getBinaryChecksum() {
+    return binaryChecksum;
   }
 
   public DataConverter getDataConverter() {

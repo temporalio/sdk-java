@@ -33,6 +33,7 @@ public final class WorkflowClientOptions {
 
   private static final WorkflowClientOptions DEFAULT_INSTANCE;
   private static final String DEFAULT_NAMESPACE = "default";
+  private static final String DEFAULT_BINARY_CHECKSUM = "";
 
   static {
     DEFAULT_INSTANCE = newBuilder().build();
@@ -56,6 +57,7 @@ public final class WorkflowClientOptions {
     private DataConverter dataConverter;
     private WorkflowClientInterceptor[] interceptors;
     private String identity;
+    private String binaryChecksum;
     private List<ContextPropagator> contextPropagators;
     private QueryRejectCondition queryRejectCondition;
 
@@ -69,6 +71,7 @@ public final class WorkflowClientOptions {
       dataConverter = options.dataConverter;
       interceptors = options.interceptors;
       identity = options.identity;
+      binaryChecksum = options.binaryChecksum;
       contextPropagators = options.contextPropagators;
       queryRejectCondition = options.queryRejectCondition;
     }
@@ -111,6 +114,15 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * Sets worker binary checksum, which gets propagated in all history events and can be used for
+     * auto-reset assuming that every build has a new unique binary checksum. Can be null.
+     */
+    public Builder setBinaryChecksum(String binaryChecksum) {
+      this.binaryChecksum = binaryChecksum;
+      return this;
+    }
+
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
       return this;
@@ -133,6 +145,7 @@ public final class WorkflowClientOptions {
           dataConverter,
           interceptors,
           identity,
+          binaryChecksum,
           contextPropagators,
           queryRejectCondition);
     }
@@ -144,6 +157,7 @@ public final class WorkflowClientOptions {
           dataConverter == null ? DataConverter.getDefaultInstance() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           name,
+          binaryChecksum == null ? DEFAULT_BINARY_CHECKSUM : binaryChecksum,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
           queryRejectCondition == null
               ? QueryRejectCondition.QUERY_REJECT_CONDITION_UNSPECIFIED
@@ -164,6 +178,8 @@ public final class WorkflowClientOptions {
 
   private final String identity;
 
+  private final String binaryChecksum;
+
   private final List<ContextPropagator> contextPropagators;
 
   private final QueryRejectCondition queryRejectCondition;
@@ -173,12 +189,14 @@ public final class WorkflowClientOptions {
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors,
       String identity,
+      String binaryChecksum,
       List<ContextPropagator> contextPropagators,
       QueryRejectCondition queryRejectCondition) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
     this.identity = identity;
+    this.binaryChecksum = binaryChecksum;
     this.contextPropagators = contextPropagators;
     this.queryRejectCondition = queryRejectCondition;
   }
@@ -197,6 +215,10 @@ public final class WorkflowClientOptions {
 
   public String getIdentity() {
     return identity;
+  }
+
+  public String getBinaryChecksum() {
+    return binaryChecksum;
   }
 
   public List<ContextPropagator> getContextPropagators() {
@@ -220,6 +242,9 @@ public final class WorkflowClientOptions {
         + ", identity='"
         + identity
         + '\''
+        + ", binaryChecksum='"
+        + binaryChecksum
+        + '\''
         + ", contextPropagators="
         + contextPropagators
         + ", queryRejectCondition="
@@ -236,6 +261,7 @@ public final class WorkflowClientOptions {
         && com.google.common.base.Objects.equal(dataConverter, that.dataConverter)
         && Arrays.equals(interceptors, that.interceptors)
         && com.google.common.base.Objects.equal(identity, that.identity)
+        && com.google.common.base.Objects.equal(binaryChecksum, that.binaryChecksum)
         && com.google.common.base.Objects.equal(contextPropagators, that.contextPropagators)
         && queryRejectCondition == that.queryRejectCondition;
   }
@@ -247,6 +273,7 @@ public final class WorkflowClientOptions {
         dataConverter,
         Arrays.hashCode(interceptors),
         identity,
+        binaryChecksum,
         contextPropagators,
         queryRejectCondition);
   }

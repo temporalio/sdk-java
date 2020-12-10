@@ -111,7 +111,12 @@ public final class WorkflowWorker
           new Poller<>(
               options.getIdentity(),
               new WorkflowPollTask(
-                  service, namespace, taskQueue, options.getMetricsScope(), options.getIdentity()),
+                  service,
+                  namespace,
+                  taskQueue,
+                  options.getMetricsScope(),
+                  options.getIdentity(),
+                  options.getBinaryChecksum()),
               pollTaskExecutor,
               options.getPollerOptions(),
               options.getMetricsScope());
@@ -352,6 +357,7 @@ public final class WorkflowWorker
             taskCompleted
                 .toBuilder()
                 .setIdentity(options.getIdentity())
+                .setBinaryChecksum(options.getBinaryChecksum())
                 .setTaskToken(taskToken)
                 .build();
         Map<String, String> tags =
