@@ -54,7 +54,7 @@ public class RegisterTestNamespace {
     WorkflowServiceStubs service = WorkflowServiceStubs.newInstance(options.build());
     RegisterNamespaceRequest request =
         RegisterNamespaceRequest.newBuilder()
-            .setName(NAMESPACE)
+            .setNamespace(NAMESPACE)
             .setWorkflowExecutionRetentionPeriod(Durations.fromDays(1))
             .build();
     while (true) {
