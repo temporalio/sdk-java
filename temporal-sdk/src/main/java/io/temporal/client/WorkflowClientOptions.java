@@ -33,7 +33,7 @@ public final class WorkflowClientOptions {
 
   private static final WorkflowClientOptions DEFAULT_INSTANCE;
   private static final String DEFAULT_NAMESPACE = "default";
-  private static final String DEFAULT_BINARY_CHECKSUM = "none";
+  private static final String DEFAULT_BINARY_CHECKSUM = "";
 
   static {
     DEFAULT_INSTANCE = newBuilder().build();

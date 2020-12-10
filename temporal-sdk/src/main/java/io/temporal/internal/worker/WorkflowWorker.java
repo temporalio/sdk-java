@@ -19,6 +19,9 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
@@ -46,8 +49,6 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
-import org.slf4j.MDC;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,9 +56,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
-
-import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
-import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+import org.slf4j.MDC;
 
 public final class WorkflowWorker
     implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
