@@ -206,7 +206,9 @@ public final class ActivityWorker implements SuspendableWorker {
         if (failure.hasCanceledFailureInfo()) {
           CanceledFailureInfo info = failure.getCanceledFailureInfo();
           RespondActivityTaskCanceledRequest.Builder canceledRequest =
-              RespondActivityTaskCanceledRequest.newBuilder().setIdentity(options.getIdentity());
+              RespondActivityTaskCanceledRequest.newBuilder()
+                  .setIdentity(options.getIdentity())
+                  .setNamespace(namespace);
           if (info.hasDetails()) {
             canceledRequest.setDetails(info.getDetails());
           }
@@ -268,6 +270,7 @@ public final class ActivityWorker implements SuspendableWorker {
                 .toBuilder()
                 .setTaskToken(task.getTaskToken())
                 .setIdentity(options.getIdentity())
+                .setNamespace(namespace)
                 .build();
         GrpcRetryer.retry(
             ro,
@@ -286,6 +289,7 @@ public final class ActivityWorker implements SuspendableWorker {
                   .toBuilder()
                   .setTaskToken(task.getTaskToken())
                   .setIdentity(options.getIdentity())
+                  .setNamespace(namespace)
                   .build();
           ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
@@ -304,6 +308,7 @@ public final class ActivityWorker implements SuspendableWorker {
                     .toBuilder()
                     .setTaskToken(task.getTaskToken())
                     .setIdentity(options.getIdentity())
+                    .setNamespace(namespace)
                     .build();
             ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 

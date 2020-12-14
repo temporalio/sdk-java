@@ -27,16 +27,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
@@ -68,13 +59,14 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   ManualActivityCompletionClientImpl(
       WorkflowServiceStubs service,
+      String namespace,
       byte[] taskToken,
       DataConverter dataConverter,
       Scope metricsScope) {
     this.service = service;
     this.taskToken = taskToken;
     this.dataConverter = dataConverter;
-    this.namespace = null;
+    this.namespace = namespace;
     this.execution = null;
     this.activityId = null;
     this.metricsScope = metricsScope;
@@ -102,6 +94,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     if (taskToken != null) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder()
+              .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken));
       if (convertedResult.isPresent()) {
         request.setResult(convertedResult.get());
@@ -161,6 +154,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
               .setFailure(FailureConverter.exceptionToFailure(exception))
+              .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
       try {
@@ -216,6 +210,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     if (taskToken != null) {
       RecordActivityTaskHeartbeatRequest.Builder request =
           RecordActivityTaskHeartbeatRequest.newBuilder()
+              .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken));
       if (convertedDetails.isPresent()) {
         request.setDetails(convertedDetails.get());
@@ -275,6 +270,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     if (taskToken != null) {
       RespondActivityTaskCanceledRequest.Builder request =
           RespondActivityTaskCanceledRequest.newBuilder()
+              .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken));
       if (convertedDetails.isPresent()) {
         request.setDetails(convertedDetails.get());

@@ -127,6 +127,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           RespondWorkflowTaskCompletedRequest.newBuilder()
               .setTaskToken(workflowTask.getTaskToken())
               .setIdentity(options.getIdentity())
+              .setNamespace(namespace)
               .setBinaryChecksum(options.getBinaryChecksum())
               .addCommands(
                   Command.newBuilder()
@@ -243,7 +244,9 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private Result handleQueryOnlyWorkflowTask(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) {
     RespondQueryTaskCompletedRequest.Builder queryCompletedRequest =
-        RespondQueryTaskCompletedRequest.newBuilder().setTaskToken(workflowTask.getTaskToken());
+        RespondQueryTaskCompletedRequest.newBuilder()
+            .setTaskToken(workflowTask.getTaskToken())
+            .setNamespace(namespace);
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
     String runId = execution.getRunId();
     WorkflowRunTaskHandler workflowRunTaskHandler = null;

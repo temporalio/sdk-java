@@ -69,7 +69,8 @@ public class ManualActivityCompletionClientFactoryImpl
     if (taskToken == null || taskToken.length == 0) {
       throw new IllegalArgumentException("null or empty task token");
     }
-    return new ManualActivityCompletionClientImpl(service, taskToken, dataConverter, metricsScope);
+    return new ManualActivityCompletionClientImpl(
+        service, namespace, taskToken, dataConverter, metricsScope);
   }
 
   @Override

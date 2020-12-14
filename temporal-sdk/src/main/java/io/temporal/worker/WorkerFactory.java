@@ -116,7 +116,10 @@ public final class WorkerFactory {
                 .put(MetricsTag.TASK_QUEUE, "sticky")
                 .build());
     dispatcher =
-        new PollWorkflowTaskDispatcher(workflowClient.getWorkflowServiceStubs(), metricsScope);
+        new PollWorkflowTaskDispatcher(
+            workflowClient.getWorkflowServiceStubs(),
+            workflowClient.getOptions().getNamespace(),
+            metricsScope);
     stickyPoller =
         new Poller<>(
             id.toString(),
