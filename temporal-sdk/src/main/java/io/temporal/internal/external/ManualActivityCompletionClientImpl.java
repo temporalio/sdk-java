@@ -27,16 +27,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
@@ -217,6 +208,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       RecordActivityTaskHeartbeatRequest.Builder request =
           RecordActivityTaskHeartbeatRequest.newBuilder()
               .setTaskToken(ByteString.copyFrom(taskToken));
+      if (namespace != null) {
+        request.setNamespace(namespace);
+      }
       if (convertedDetails.isPresent()) {
         request.setDetails(convertedDetails.get());
       }

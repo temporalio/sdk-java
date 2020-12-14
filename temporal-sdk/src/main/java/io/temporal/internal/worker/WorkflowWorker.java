@@ -357,6 +357,7 @@ public final class WorkflowWorker
             taskCompleted
                 .toBuilder()
                 .setIdentity(options.getIdentity())
+                .setNamespace(namespace)
                 .setBinaryChecksum(options.getBinaryChecksum())
                 .setTaskToken(taskToken)
                 .build();
@@ -388,6 +389,7 @@ public final class WorkflowWorker
               taskFailed
                   .toBuilder()
                   .setIdentity(options.getIdentity())
+                  .setNamespace(namespace)
                   .setTaskToken(taskToken)
                   .build();
           GrpcRetryer.retry(
@@ -400,7 +402,8 @@ public final class WorkflowWorker
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {
-            queryCompleted = queryCompleted.toBuilder().setTaskToken(taskToken).build();
+            queryCompleted =
+                queryCompleted.toBuilder().setTaskToken(taskToken).setNamespace(namespace).build();
             // Do not retry query response.
             service
                 .blockingStub()
