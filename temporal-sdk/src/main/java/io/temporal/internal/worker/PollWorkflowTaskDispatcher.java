@@ -43,26 +43,18 @@ public final class PollWorkflowTaskDispatcher
   private static final Logger log = LoggerFactory.getLogger(PollWorkflowTaskDispatcher.class);
   private final Map<String, Functions.Proc1<PollWorkflowTaskQueueResponse>> subscribers =
       new ConcurrentHashMap<>();
+  private String namespace;
   private final Scope metricsScope;
   private final WorkflowServiceStubs service;
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> log.error("uncaught exception", e);
   private final AtomicBoolean shutdown = new AtomicBoolean();
 
-  public PollWorkflowTaskDispatcher(WorkflowServiceStubs service, Scope metricsScope) {
-    this.service = Objects.requireNonNull(service);
-    this.metricsScope = Objects.requireNonNull(metricsScope);
-  }
-
   public PollWorkflowTaskDispatcher(
-      WorkflowServiceStubs service,
-      Scope metricsScope,
-      Thread.UncaughtExceptionHandler exceptionHandler) {
+      WorkflowServiceStubs service, String namespace, Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
+    this.namespace = namespace;
     this.metricsScope = Objects.requireNonNull(metricsScope);
-    if (exceptionHandler != null) {
-      this.uncaughtExceptionHandler = exceptionHandler;
-    }
   }
 
   @Override
@@ -81,6 +73,7 @@ public final class PollWorkflowTaskDispatcher
                   taskQueueName));
       RespondWorkflowTaskFailedRequest request =
           RespondWorkflowTaskFailedRequest.newBuilder()
+              .setNamespace(namespace)
               .setTaskToken(t.getTaskToken())
               .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_STICKY_TASK_QUEUE)
               .setFailure(FailureConverter.exceptionToFailure(exception))

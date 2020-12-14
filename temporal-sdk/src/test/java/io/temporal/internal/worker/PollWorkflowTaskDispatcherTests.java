@@ -76,7 +76,8 @@ public class PollWorkflowTaskDispatcherTests {
     AtomicBoolean handled = new AtomicBoolean(false);
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
 
-    PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
+    PollWorkflowTaskDispatcher dispatcher =
+        new PollWorkflowTaskDispatcher(service, "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
     // Act
@@ -97,7 +98,8 @@ public class PollWorkflowTaskDispatcherTests {
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
 
-    PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
+    PollWorkflowTaskDispatcher dispatcher =
+        new PollWorkflowTaskDispatcher(service, "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue2", handler2);
 
@@ -120,7 +122,8 @@ public class PollWorkflowTaskDispatcherTests {
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
 
-    PollWorkflowTaskDispatcher dispatcher = new PollWorkflowTaskDispatcher(service, metricsScope);
+    PollWorkflowTaskDispatcher dispatcher =
+        new PollWorkflowTaskDispatcher(service, "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue1", handler2);
 
@@ -153,7 +156,7 @@ public class PollWorkflowTaskDispatcherTests {
     when(mockService.blockingStub()).thenReturn(stub);
 
     PollWorkflowTaskDispatcher dispatcher =
-        new PollWorkflowTaskDispatcher(mockService, metricsScope);
+        new PollWorkflowTaskDispatcher(mockService, "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
     // Act
