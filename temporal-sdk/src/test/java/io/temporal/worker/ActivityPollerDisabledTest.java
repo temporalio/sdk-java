@@ -22,6 +22,7 @@ package io.temporal.worker;
 import static java.util.stream.Collectors.groupingBy;
 import static org.junit.Assert.*;
 
+import io.temporal.activity.ActivityInterface;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.WorkflowInterface;
@@ -32,6 +33,16 @@ import java.util.stream.Collectors;
 import org.junit.Test;
 
 public class ActivityPollerDisabledTest {
+
+  @ActivityInterface
+  public interface Activity {
+    void foo();
+  }
+
+  public static class ActivityImpl implements WorkerPollerThreadCountTest.Activity {
+    @Override
+    public void foo() {}
+  }
 
   @WorkflowInterface
   public interface Workflow {
@@ -71,6 +82,7 @@ public class ActivityPollerDisabledTest {
                 .setActivityPollerDisabled(true)
                 .build());
     // Need to register something for workers to start
+    worker.registerActivitiesImplementations(new ActivityImpl());
     worker.registerWorkflowImplementationTypes(WorkflowImpl.class);
     env.start();
     Thread.sleep(1000);
