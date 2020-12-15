@@ -22,39 +22,14 @@ package io.temporal.worker;
 import static java.util.stream.Collectors.groupingBy;
 import static org.junit.Assert.*;
 
-import io.temporal.activity.ActivityInterface;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.Test;
 
 public class ActivityPollerDisabledTest {
-
-  @ActivityInterface
-  public interface Activity {
-    void foo();
-  }
-
-  public static class ActivityImpl implements WorkerPollerThreadCountTest.Activity {
-    @Override
-    public void foo() {}
-  }
-
-  @WorkflowInterface
-  public interface Workflow {
-    @WorkflowMethod
-    void bar();
-  }
-
-  public static class WorkflowImpl implements Workflow {
-
-    @Override
-    public void bar() {}
-  }
 
   @Test
   public void testActivityPollerDisabled() throws InterruptedException {
@@ -82,8 +57,8 @@ public class ActivityPollerDisabledTest {
                 .setActivityPollerDisabled(true)
                 .build());
     // Need to register something for workers to start
-    worker.registerActivitiesImplementations(new ActivityImpl());
-    worker.registerWorkflowImplementationTypes(WorkflowImpl.class);
+    worker.registerActivitiesImplementations(new WorkerPollerThreadCountTest.ActivityImpl());
+    worker.registerWorkflowImplementationTypes(WorkerPollerThreadCountTest.WorkflowImpl.class);
     env.start();
     Thread.sleep(1000);
     Map<String, Long> threads =
