@@ -19,6 +19,8 @@
 
 package io.temporal.worker;
 
+import static java.lang.Double.compare;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
@@ -57,6 +59,7 @@ public final class WorkerOptions {
     private double maxTaskQueueActivitiesPerSecond;
     private int workflowPollThreadCount;
     private int activityPollThreadCount;
+    private boolean activityPollerDisabled;
 
     private Builder() {}
 
@@ -71,6 +74,7 @@ public final class WorkerOptions {
       maxTaskQueueActivitiesPerSecond = o.maxTaskQueueActivitiesPerSecond;
       workflowPollThreadCount = o.workflowPollThreadCount;
       activityPollThreadCount = o.activityPollThreadCount;
+      activityPollerDisabled = o.activityPollerDisabled;
     }
 
     /**
@@ -173,6 +177,17 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * If set to true disables activity poller on this worker. Can be useful if you want to handle
+     * workflow tasks only.
+     *
+     * <p>Default is false.
+     */
+    public Builder setActivityPollerDisabled(boolean activityPollerDisabled) {
+      this.activityPollerDisabled = activityPollerDisabled;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -181,7 +196,8 @@ public final class WorkerOptions {
           maxConcurrentActivityExecutionSize,
           maxTaskQueueActivitiesPerSecond,
           workflowPollThreadCount,
-          activityPollThreadCount);
+          activityPollThreadCount,
+          activityPollerDisabled);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -216,7 +232,8 @@ public final class WorkerOptions {
               : workflowPollThreadCount,
           activityPollThreadCount == 0
               ? DEFAULT_ACTIVITY_POLL_THREAD_COUNT
-              : activityPollThreadCount);
+              : activityPollThreadCount,
+          activityPollerDisabled);
     }
   }
 
@@ -227,6 +244,7 @@ public final class WorkerOptions {
   private final double maxTaskQueueActivitiesPerSecond;
   private final int workflowPollThreadCount;
   private final int activityPollThreadCount;
+  private final boolean activityPollerDisabled;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -235,7 +253,8 @@ public final class WorkerOptions {
       int maxConcurrentLocalActivityExecutionSize,
       double maxTaskQueueActivitiesPerSecond,
       int workflowPollThreadCount,
-      int activityPollThreadCount) {
+      int activityPollThreadCount,
+      boolean activityPollerDisabled) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -243,6 +262,7 @@ public final class WorkerOptions {
     this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
     this.workflowPollThreadCount = workflowPollThreadCount;
     this.activityPollThreadCount = activityPollThreadCount;
+    this.activityPollerDisabled = activityPollerDisabled;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -273,19 +293,23 @@ public final class WorkerOptions {
     return activityPollThreadCount;
   }
 
+  public boolean isActivityPollerDisabled() {
+    return activityPollerDisabled;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkerOptions that = (WorkerOptions) o;
-    return Double.compare(that.maxWorkerActivitiesPerSecond, maxWorkerActivitiesPerSecond) == 0
+    return compare(that.maxWorkerActivitiesPerSecond, maxWorkerActivitiesPerSecond) == 0
         && maxConcurrentActivityExecutionSize == that.maxConcurrentActivityExecutionSize
         && maxConcurrentWorkflowTaskExecutionSize == that.maxConcurrentWorkflowTaskExecutionSize
         && maxConcurrentLocalActivityExecutionSize == that.maxConcurrentLocalActivityExecutionSize
-        && Double.compare(that.maxTaskQueueActivitiesPerSecond, maxTaskQueueActivitiesPerSecond)
-            == 0
+        && compare(that.maxTaskQueueActivitiesPerSecond, maxTaskQueueActivitiesPerSecond) == 0
         && workflowPollThreadCount == that.workflowPollThreadCount
-        && activityPollThreadCount == that.activityPollThreadCount;
+        && activityPollThreadCount == that.activityPollThreadCount
+        && activityPollerDisabled == that.activityPollerDisabled;
   }
 
   @Override
@@ -297,7 +321,8 @@ public final class WorkerOptions {
         maxConcurrentLocalActivityExecutionSize,
         maxTaskQueueActivitiesPerSecond,
         workflowPollThreadCount,
-        activityPollThreadCount);
+        activityPollThreadCount,
+        activityPollerDisabled);
   }
 
   @Override
@@ -317,6 +342,8 @@ public final class WorkerOptions {
         + workflowPollThreadCount
         + ", activityPollThreadCount="
         + activityPollThreadCount
+        + ", activityPollerDisabled="
+        + activityPollerDisabled
         + '}';
   }
 }

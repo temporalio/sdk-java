@@ -109,14 +109,18 @@ public final class Worker implements Suspendable {
             clientOptions,
             contextPropagators,
             this.metricsScope);
-    activityWorker =
-        new SyncActivityWorker(
-            service,
-            namespace,
-            taskQueue,
-            this.options.getMaxTaskQueueActivitiesPerSecond(),
-            factoryOptions.getActivityInterceptors(),
-            activityOptions);
+    if (this.options.isActivityPollerDisabled()) {
+      activityWorker = null;
+    } else {
+      activityWorker =
+          new SyncActivityWorker(
+              service,
+              namespace,
+              taskQueue,
+              this.options.getMaxTaskQueueActivitiesPerSecond(),
+              factoryOptions.getActivityInterceptors(),
+              activityOptions);
+    }
 
     SingleWorkerOptions workflowOptions =
         toWorkflowOptions(
@@ -323,25 +327,38 @@ public final class Worker implements Suspendable {
       return;
     }
     workflowWorker.start();
-    activityWorker.start();
+    if (!options.isActivityPollerDisabled()) {
+      activityWorker.start();
+    }
   }
 
   void shutdown() {
-    activityWorker.shutdown();
+    if (!options.isActivityPollerDisabled()) {
+      activityWorker.shutdown();
+    }
     workflowWorker.shutdown();
   }
 
   void shutdownNow() {
-    activityWorker.shutdownNow();
+    if (!options.isActivityPollerDisabled()) {
+      activityWorker.shutdownNow();
+    }
     workflowWorker.shutdownNow();
   }
 
   boolean isTerminated() {
-    return activityWorker.isTerminated() && workflowWorker.isTerminated();
+    boolean isTerminated = workflowWorker.isTerminated();
+    if (!options.isActivityPollerDisabled()) {
+      isTerminated = activityWorker.isTerminated();
+    }
+    return isTerminated;
   }
 
   void awaitTermination(long timeout, TimeUnit unit) {
-    long timeoutMillis = InternalUtils.awaitTermination(activityWorker, unit.toMillis(timeout));
+    long timeoutMillis = timeout;
+    if (!options.isActivityPollerDisabled()) {
+      timeoutMillis = InternalUtils.awaitTermination(activityWorker, unit.toMillis(timeout));
+    }
     InternalUtils.awaitTermination(workflowWorker, timeoutMillis);
   }
 
@@ -393,18 +410,26 @@ public final class Worker implements Suspendable {
   @Override
   public void suspendPolling() {
     workflowWorker.suspendPolling();
-    activityWorker.suspendPolling();
+    if (!options.isActivityPollerDisabled()) {
+      activityWorker.suspendPolling();
+    }
   }
 
   @Override
   public void resumePolling() {
     workflowWorker.resumePolling();
-    activityWorker.resumePolling();
+    if (!options.isActivityPollerDisabled()) {
+      activityWorker.resumePolling();
+    }
   }
 
   @Override
   public boolean isSuspended() {
-    return workflowWorker.isSuspended() && activityWorker.isSuspended();
+    boolean isSuspended = workflowWorker.isSuspended();
+    if (!options.isActivityPollerDisabled()) {
+      isSuspended = isSuspended && activityWorker.isSuspended();
+    }
+    return isSuspended;
   }
 
   /**
