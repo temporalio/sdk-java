@@ -178,8 +178,8 @@ public final class WorkerOptions {
     }
 
     /**
-     * If set to true disables activity poller on this worker. Can be useful if you want to handle
-     * workflow tasks only.
+     * If set to true worker would only handle workflow tasks and local activities.
+     * Non-local activities will not be executed by this worker.
      *
      * <p>Default is false.
      */
