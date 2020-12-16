@@ -19,6 +19,9 @@
 
 package io.temporal.worker;
 
+import static java.util.stream.Collectors.groupingBy;
+import static org.junit.Assert.*;
+
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -31,15 +34,11 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import static java.util.stream.Collectors.groupingBy;
-import static org.junit.Assert.*;
+import org.junit.Test;
 
 public class LocalActivityWorkerOnlyTest {
 
