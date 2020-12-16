@@ -109,7 +109,7 @@ public final class Worker implements Suspendable {
             clientOptions,
             contextPropagators,
             this.metricsScope);
-    if (this.options.isActivityPollerDisabled()) {
+    if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
     } else {
       activityWorker =
@@ -327,20 +327,20 @@ public final class Worker implements Suspendable {
       return;
     }
     workflowWorker.start();
-    if (!options.isActivityPollerDisabled()) {
+    if (activityWorker != null) {
       activityWorker.start();
     }
   }
 
   void shutdown() {
-    if (!options.isActivityPollerDisabled()) {
+    if (activityWorker != null) {
       activityWorker.shutdown();
     }
     workflowWorker.shutdown();
   }
 
   void shutdownNow() {
-    if (!options.isActivityPollerDisabled()) {
+    if (activityWorker != null) {
       activityWorker.shutdownNow();
     }
     workflowWorker.shutdownNow();
@@ -348,7 +348,7 @@ public final class Worker implements Suspendable {
 
   boolean isTerminated() {
     boolean isTerminated = workflowWorker.isTerminated();
-    if (!options.isActivityPollerDisabled()) {
+    if (activityWorker != null) {
       isTerminated = activityWorker.isTerminated();
     }
     return isTerminated;
@@ -356,7 +356,7 @@ public final class Worker implements Suspendable {
 
   void awaitTermination(long timeout, TimeUnit unit) {
     long timeoutMillis = timeout;
-    if (!options.isActivityPollerDisabled()) {
+    if (activityWorker != null) {
       timeoutMillis = InternalUtils.awaitTermination(activityWorker, unit.toMillis(timeout));
     }
     InternalUtils.awaitTermination(workflowWorker, timeoutMillis);
@@ -410,7 +410,7 @@ public final class Worker implements Suspendable {
   @Override
   public void suspendPolling() {
     workflowWorker.suspendPolling();
-    if (!options.isActivityPollerDisabled()) {
+    if (activityWorker != null) {
       activityWorker.suspendPolling();
     }
   }
@@ -418,7 +418,7 @@ public final class Worker implements Suspendable {
   @Override
   public void resumePolling() {
     workflowWorker.resumePolling();
-    if (!options.isActivityPollerDisabled()) {
+    if (activityWorker != null) {
       activityWorker.resumePolling();
     }
   }
@@ -426,7 +426,7 @@ public final class Worker implements Suspendable {
   @Override
   public boolean isSuspended() {
     boolean isSuspended = workflowWorker.isSuspended();
-    if (!options.isActivityPollerDisabled()) {
+    if (activityWorker != null) {
       isSuspended = isSuspended && activityWorker.isSuspended();
     }
     return isSuspended;

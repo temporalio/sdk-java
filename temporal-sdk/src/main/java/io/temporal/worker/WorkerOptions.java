@@ -59,7 +59,7 @@ public final class WorkerOptions {
     private double maxTaskQueueActivitiesPerSecond;
     private int workflowPollThreadCount;
     private int activityPollThreadCount;
-    private boolean activityPollerDisabled;
+    private boolean localActivityWorkerOnly;
 
     private Builder() {}
 
@@ -74,7 +74,7 @@ public final class WorkerOptions {
       maxTaskQueueActivitiesPerSecond = o.maxTaskQueueActivitiesPerSecond;
       workflowPollThreadCount = o.workflowPollThreadCount;
       activityPollThreadCount = o.activityPollThreadCount;
-      activityPollerDisabled = o.activityPollerDisabled;
+      localActivityWorkerOnly = o.localActivityWorkerOnly;
     }
 
     /**
@@ -183,8 +183,8 @@ public final class WorkerOptions {
      *
      * <p>Default is false.
      */
-    public Builder setActivityPollerDisabled(boolean activityPollerDisabled) {
-      this.activityPollerDisabled = activityPollerDisabled;
+    public Builder setLocalActivityWorkerOnly(boolean localActivityWorkerOnly) {
+      this.localActivityWorkerOnly = localActivityWorkerOnly;
       return this;
     }
 
@@ -197,7 +197,7 @@ public final class WorkerOptions {
           maxTaskQueueActivitiesPerSecond,
           workflowPollThreadCount,
           activityPollThreadCount,
-          activityPollerDisabled);
+          localActivityWorkerOnly);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -233,7 +233,7 @@ public final class WorkerOptions {
           activityPollThreadCount == 0
               ? DEFAULT_ACTIVITY_POLL_THREAD_COUNT
               : activityPollThreadCount,
-          activityPollerDisabled);
+          localActivityWorkerOnly);
     }
   }
 
@@ -244,7 +244,7 @@ public final class WorkerOptions {
   private final double maxTaskQueueActivitiesPerSecond;
   private final int workflowPollThreadCount;
   private final int activityPollThreadCount;
-  private final boolean activityPollerDisabled;
+  private final boolean localActivityWorkerOnly;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -254,7 +254,7 @@ public final class WorkerOptions {
       double maxTaskQueueActivitiesPerSecond,
       int workflowPollThreadCount,
       int activityPollThreadCount,
-      boolean activityPollerDisabled) {
+      boolean localActivityWorkerOnly) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -262,7 +262,7 @@ public final class WorkerOptions {
     this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
     this.workflowPollThreadCount = workflowPollThreadCount;
     this.activityPollThreadCount = activityPollThreadCount;
-    this.activityPollerDisabled = activityPollerDisabled;
+    this.localActivityWorkerOnly = localActivityWorkerOnly;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -293,8 +293,8 @@ public final class WorkerOptions {
     return activityPollThreadCount;
   }
 
-  public boolean isActivityPollerDisabled() {
-    return activityPollerDisabled;
+  public boolean isLocalActivityWorkerOnly() {
+    return localActivityWorkerOnly;
   }
 
   @Override
@@ -309,7 +309,7 @@ public final class WorkerOptions {
         && compare(that.maxTaskQueueActivitiesPerSecond, maxTaskQueueActivitiesPerSecond) == 0
         && workflowPollThreadCount == that.workflowPollThreadCount
         && activityPollThreadCount == that.activityPollThreadCount
-        && activityPollerDisabled == that.activityPollerDisabled;
+        && localActivityWorkerOnly == that.localActivityWorkerOnly;
   }
 
   @Override
@@ -322,7 +322,7 @@ public final class WorkerOptions {
         maxTaskQueueActivitiesPerSecond,
         workflowPollThreadCount,
         activityPollThreadCount,
-        activityPollerDisabled);
+        localActivityWorkerOnly);
   }
 
   @Override
@@ -342,8 +342,8 @@ public final class WorkerOptions {
         + workflowPollThreadCount
         + ", activityPollThreadCount="
         + activityPollThreadCount
-        + ", activityPollerDisabled="
-        + activityPollerDisabled
+        + ", localActivityWorkerOnly="
+        + localActivityWorkerOnly
         + '}';
   }
 }
