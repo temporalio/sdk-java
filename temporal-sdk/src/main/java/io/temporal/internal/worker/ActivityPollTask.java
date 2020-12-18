@@ -75,14 +75,6 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
               .build());
     }
 
-    if (taskQueueActivitiesPerSecond > 0) {
-      pollRequest.setTaskQueueMetadata(
-          TaskQueueMetadata.newBuilder()
-              .setMaxTasksPerSecond(
-                  DoubleValue.newBuilder().setValue(taskQueueActivitiesPerSecond).build())
-              .build());
-    }
-
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }

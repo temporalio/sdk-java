@@ -48,6 +48,8 @@ public final class PollerOptions {
 
     private int maximumPollRateIntervalMilliseconds = 1000;
 
+    private int taskExecutorThreadPoolSize;
+
     private double maximumPollRatePerSecond;
 
     private double pollBackoffCoefficient = 2;
@@ -69,6 +71,7 @@ public final class PollerOptions {
         return;
       }
       this.maximumPollRateIntervalMilliseconds = options.getMaximumPollRateIntervalMilliseconds();
+      this.taskExecutorThreadPoolSize = options.getTaskExecutorThreadPoolSize();
       this.maximumPollRatePerSecond = options.getMaximumPollRatePerSecond();
       this.pollBackoffCoefficient = options.getPollBackoffCoefficient();
       this.pollBackoffInitialInterval = options.getPollBackoffInitialInterval();
@@ -133,12 +136,22 @@ public final class PollerOptions {
       return this;
     }
 
+    /**
+     * Number of threads used in the task handler. Is used to put pollers on hold when there is no
+     * capacity to handle the task.
+     */
+    public Builder setTaskExecutorThreadPoolSize(int taskExecutorThreadPoolSize) {
+      this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
+      return this;
+    }
+
     public PollerOptions build() {
       if (uncaughtExceptionHandler == null) {
         uncaughtExceptionHandler = (t, e) -> log.error("uncaught exception", e);
       }
       return new PollerOptions(
           maximumPollRateIntervalMilliseconds,
+          taskExecutorThreadPoolSize,
           maximumPollRatePerSecond,
           pollBackoffCoefficient,
           pollBackoffInitialInterval,
@@ -152,6 +165,8 @@ public final class PollerOptions {
   private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
 
   private final int maximumPollRateIntervalMilliseconds;
+
+  private final int taskExecutorThreadPoolSize;
 
   private final double maximumPollRatePerSecond;
 
@@ -169,6 +184,7 @@ public final class PollerOptions {
 
   private PollerOptions(
       int maximumPollRateIntervalMilliseconds,
+      int taskExecutorThreadPoolSize,
       double maximumPollRatePerSecond,
       double pollBackoffCoefficient,
       Duration pollBackoffInitialInterval,
@@ -177,6 +193,8 @@ public final class PollerOptions {
       Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
       String pollThreadNamePrefix) {
     this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
+    this.taskExecutorThreadPoolSize =
+        taskExecutorThreadPoolSize == 0 ? 100 : taskExecutorThreadPoolSize;
     this.maximumPollRatePerSecond = maximumPollRatePerSecond;
     this.pollBackoffCoefficient = pollBackoffCoefficient;
     this.pollBackoffInitialInterval = pollBackoffInitialInterval;
@@ -204,6 +222,10 @@ public final class PollerOptions {
 
   public Duration getPollBackoffMaximumInterval() {
     return pollBackoffMaximumInterval;
+  }
+
+  public int getTaskExecutorThreadPoolSize() {
+    return taskExecutorThreadPoolSize;
   }
 
   public int getPollThreadCount() {

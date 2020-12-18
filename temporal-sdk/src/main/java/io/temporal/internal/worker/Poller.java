@@ -263,7 +263,7 @@ public final class Poller<T> implements SuspendableWorker {
     private final Semaphore pollSemaphore;
 
     PollExecutionTask() {
-      this.pollSemaphore = new Semaphore(pollerOptions.getPollThreadCount());
+      this.pollSemaphore = new Semaphore(pollerOptions.getTaskExecutorThreadPoolSize());
     }
 
     @Override

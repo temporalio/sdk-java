@@ -41,7 +41,6 @@ public final class SingleWorkerOptions {
     private String identity;
     private String binaryChecksum;
     private DataConverter dataConverter;
-    private int taskExecutorThreadPoolSize = 100;
     private PollerOptions pollerOptions;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
@@ -57,7 +56,6 @@ public final class SingleWorkerOptions {
       this.binaryChecksum = options.getBinaryChecksum();
       this.dataConverter = options.getDataConverter();
       this.pollerOptions = options.getPollerOptions();
-      this.taskExecutorThreadPoolSize = options.getTaskExecutorThreadPoolSize();
       this.metricsScope = options.getMetricsScope();
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
       this.contextPropagators = options.getContextPropagators();
@@ -75,11 +73,6 @@ public final class SingleWorkerOptions {
 
     public Builder setDataConverter(DataConverter dataConverter) {
       this.dataConverter = dataConverter;
-      return this;
-    }
-
-    public Builder setTaskExecutorThreadPoolSize(int taskExecutorThreadPoolSize) {
-      this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
       return this;
     }
 
@@ -126,7 +119,6 @@ public final class SingleWorkerOptions {
           identity,
           binaryChecksum,
           dataConverter,
-          taskExecutorThreadPoolSize,
           pollerOptions,
           metricsScope,
           enableLoggingInReplay,
@@ -137,7 +129,6 @@ public final class SingleWorkerOptions {
   private final String identity;
   private final String binaryChecksum;
   private final DataConverter dataConverter;
-  private final int taskExecutorThreadPoolSize;
   private final PollerOptions pollerOptions;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
@@ -147,7 +138,6 @@ public final class SingleWorkerOptions {
       String identity,
       String binaryChecksum,
       DataConverter dataConverter,
-      int taskExecutorThreadPoolSize,
       PollerOptions pollerOptions,
       Scope metricsScope,
       boolean enableLoggingInReplay,
@@ -155,7 +145,6 @@ public final class SingleWorkerOptions {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.dataConverter = dataConverter;
-    this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
     this.pollerOptions = pollerOptions;
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
@@ -172,10 +161,6 @@ public final class SingleWorkerOptions {
 
   public DataConverter getDataConverter() {
     return dataConverter;
-  }
-
-  int getTaskExecutorThreadPoolSize() {
-    return taskExecutorThreadPoolSize;
   }
 
   PollerOptions getPollerOptions() {

@@ -52,7 +52,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     taskExecutor =
         new ThreadPoolExecutor(
             0,
-            options.getTaskExecutorThreadPoolSize(),
+            options.getPollerOptions().getTaskExecutorThreadPoolSize(),
             1,
             TimeUnit.SECONDS,
             new SynchronousQueue<>());
