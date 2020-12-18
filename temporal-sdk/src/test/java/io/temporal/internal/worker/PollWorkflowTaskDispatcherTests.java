@@ -82,7 +82,7 @@ public class PollWorkflowTaskDispatcherTests {
 
     // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
-    dispatcher.process(response);
+    dispatcher.process(response, () -> {});
 
     // Assert
     assertTrue(handled.get());
@@ -105,7 +105,7 @@ public class PollWorkflowTaskDispatcherTests {
 
     // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
-    dispatcher.process(response);
+    dispatcher.process(response, () -> {});
 
     // Assert
     assertTrue(handled.get());
@@ -129,7 +129,7 @@ public class PollWorkflowTaskDispatcherTests {
 
     // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
-    dispatcher.process(response);
+    dispatcher.process(response, () -> {});
 
     // Assert
     assertTrue(handled2.get());
@@ -162,7 +162,7 @@ public class PollWorkflowTaskDispatcherTests {
     // Act
     PollWorkflowTaskQueueResponse response =
         CreatePollWorkflowTaskQueueResponse("I Don't Exist TaskQueue");
-    dispatcher.process(response);
+    dispatcher.process(response, () -> {});
 
     // Assert
     verify(stub, times(1)).respondWorkflowTaskFailed(any());

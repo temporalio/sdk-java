@@ -58,7 +58,7 @@ public final class PollWorkflowTaskDispatcher
   }
 
   @Override
-  public void process(PollWorkflowTaskQueueResponse t) {
+  public void process(PollWorkflowTaskQueueResponse t, Functions.Proc unsupported) {
     if (isShutdown()) {
       throw new RejectedExecutionException("shutdown");
     }

@@ -22,12 +22,13 @@ package io.temporal.internal.worker;
 import com.google.common.base.Preconditions;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.workflow.Functions;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.MDC;
 
-final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
+final class PollTaskExecutor<T> implements CompletionAwareTaskExecutor<T> {
 
   public interface TaskHandler<TT> {
     void handle(TT task) throws Exception;
@@ -64,7 +65,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   }
 
   @Override
-  public void process(T task) {
+  public void process(T task, Functions.Proc completionCallback) {
     taskExecutor.execute(
         () -> {
           MDC.put(LoggerTag.NAMESPACE, namespace);
@@ -81,6 +82,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
           } finally {
             MDC.remove(LoggerTag.NAMESPACE);
             MDC.remove(LoggerTag.TASK_QUEUE);
+            completionCallback.apply();
           }
         });
   }

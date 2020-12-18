@@ -53,6 +53,7 @@ public final class Poller<T> implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(Poller.class);
   private ThreadPoolExecutor pollExecutor;
   private final Scope metricsScope;
+  private final boolean isCompletionAware;
 
   private final AtomicReference<CountDownLatch> suspendLatch = new AtomicReference<>();
 
@@ -86,6 +87,7 @@ public final class Poller<T> implements SuspendableWorker {
     this.identity = identity;
     this.pollTask = pollTask;
     this.taskExecutor = taskExecutor;
+    this.isCompletionAware = taskExecutor instanceof CompletionAwareTaskExecutor;
     this.pollerOptions = pollerOptions;
     this.metricsScope = metricsScope;
   }
@@ -123,7 +125,11 @@ public final class Poller<T> implements SuspendableWorker {
             pollerOptions.getPollBackoffMaximumInterval(),
             pollerOptions.getPollBackoffCoefficient());
     for (int i = 0; i < pollerOptions.getPollThreadCount(); i++) {
-      pollExecutor.execute(new PollLoopTask(new PollExecutionTask()));
+      pollExecutor.execute(
+          new PollLoopTask(
+              isCompletionAware
+                  ? new CompletionAwarePollExecutionTask()
+                  : new PollExecutionTask()));
       metricsScope.counter(MetricsType.POLLER_START_COUNTER).inc(1);
     }
   }
@@ -259,11 +265,29 @@ public final class Poller<T> implements SuspendableWorker {
     }
   }
 
+  private class CompletionAwarePollExecutionTask implements Poller.ThrowingRunnable {
+    private final Semaphore pollSemaphore;
+
+    CompletionAwarePollExecutionTask() {
+      this.pollSemaphore = new Semaphore(pollerOptions.getTaskExecutorThreadPoolSize());
+    }
+
+    @Override
+    public void run() throws Exception {
+      pollSemaphore.acquire();
+      T task = pollTask.poll();
+      if (task == null) {
+        return;
+      }
+      taskExecutor.process(task, pollSemaphore::release);
+    }
+  }
+
   private class PollExecutionTask implements Poller.ThrowingRunnable {
     private final Semaphore pollSemaphore;
 
     PollExecutionTask() {
-      this.pollSemaphore = new Semaphore(pollerOptions.getTaskExecutorThreadPoolSize());
+      this.pollSemaphore = new Semaphore(pollerOptions.getPollThreadCount());
     }
 
     @Override
@@ -274,7 +298,7 @@ public final class Poller<T> implements SuspendableWorker {
         if (task == null) {
           return;
         }
-        taskExecutor.process(task);
+        taskExecutor.process(task, () -> {});
       } finally {
         pollSemaphore.release();
       }

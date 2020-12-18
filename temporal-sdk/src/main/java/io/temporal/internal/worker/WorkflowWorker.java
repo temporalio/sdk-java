@@ -274,7 +274,7 @@ public final class WorkflowWorker
 
   @Override
   public void apply(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
-    pollTaskExecutor.process(pollWorkflowTaskQueueResponse);
+    pollTaskExecutor.process(pollWorkflowTaskQueueResponse, () -> {});
   }
 
   private class TaskHandlerImpl

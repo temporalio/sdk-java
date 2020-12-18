@@ -19,8 +19,4 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.workflow.Functions;
-
-interface TaskExecutor<T> {
-  void process(T task, Functions.Proc completionCallback);
-}
+public interface CompletionAwareTaskExecutor<T> extends ShutdownableTaskExecutor<T> {}
