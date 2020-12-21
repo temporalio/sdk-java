@@ -178,8 +178,8 @@ public final class WorkerOptions {
     }
 
     /**
-     * If set to true worker would only handle workflow tasks and local activities.
-     * Non-local activities will not be executed by this worker.
+     * If set to true worker would only handle workflow tasks and local activities. Non-local
+     * activities will not be executed by this worker.
      *
      * <p>Default is false.
      */

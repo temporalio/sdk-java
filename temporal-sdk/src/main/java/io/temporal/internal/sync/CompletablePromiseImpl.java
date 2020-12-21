@@ -111,7 +111,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
       throws TimeoutException {
     if (!completed) {
       WorkflowInternal.await(
-          Duration.ofMillis(timeout),
+          Duration.ofMillis(unit.toMillis(timeout)),
           "Feature.get",
           () -> {
             if (cancellable) {
