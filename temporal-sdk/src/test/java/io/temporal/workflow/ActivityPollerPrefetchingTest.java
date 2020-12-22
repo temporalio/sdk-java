@@ -45,6 +45,8 @@ public class ActivityPollerPrefetchingTest {
                   .build())
           .withWorkflowTypes(TestWorkflowImpl.class)
           .withActivityImplementations(new SleepyMultiplier())
+          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
+          .setServiceAddress(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @WorkflowInterface

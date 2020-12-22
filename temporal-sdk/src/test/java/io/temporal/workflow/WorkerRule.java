@@ -39,13 +39,16 @@ public class WorkerRule implements TestRule {
   private WorkerOptions workerOptions;
   private Worker worker;
   private String taskQueue;
+  private boolean useExternalService;
 
   private WorkerRule(
       TestWorkflowEnvironment testEnvironment,
+      boolean useExternalService,
       Class<?>[] workflowTypes,
       Object[] activityImplementations,
       WorkerOptions workerOptions) {
     this.testEnvironment = testEnvironment;
+    this.useExternalService = useExternalService;
     this.workflowTypes = workflowTypes;
     this.activityImplementations = activityImplementations;
     this.workerOptions = workerOptions;
@@ -56,6 +59,8 @@ public class WorkerRule implements TestRule {
     private String namespace;
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
+    private boolean useExternalService;
+    private String serviceAddress;
 
     public Builder withWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
@@ -77,6 +82,16 @@ public class WorkerRule implements TestRule {
       return this;
     }
 
+    public Builder setUseExternalService(boolean useExternalService) {
+      this.useExternalService = useExternalService;
+      return this;
+    }
+
+    public Builder setServiceAddress(String serviceAddress) {
+      this.serviceAddress = serviceAddress;
+      return this;
+    }
+
     public WorkerRule build() {
       namespace = namespace == null ? "UnitTest" : namespace;
       WorkflowClientOptions clientOptions =
@@ -86,10 +101,17 @@ public class WorkerRule implements TestRule {
           TestEnvironmentOptions.newBuilder()
               .setWorkflowClientOptions(clientOptions)
               .setWorkerFactoryOptions(factoryOptions)
+              .setUseExternalService(useExternalService)
+              .setServiceAddress(serviceAddress)
               .build();
       TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       workerOptions = workerOptions == null ? WorkerOptions.newBuilder().build() : workerOptions;
-      return new WorkerRule(testEnvironment, workflowTypes, activityImplementations, workerOptions);
+      return new WorkerRule(
+          testEnvironment,
+          useExternalService,
+          workflowTypes,
+          activityImplementations,
+          workerOptions);
     }
   }
 
@@ -133,5 +155,9 @@ public class WorkerRule implements TestRule {
 
   public WorkflowClient getWorkflowClient() {
     return testEnvironment.getWorkflowClient();
+  }
+
+  public boolean isUseExternalService() {
+    return useExternalService;
   }
 }
