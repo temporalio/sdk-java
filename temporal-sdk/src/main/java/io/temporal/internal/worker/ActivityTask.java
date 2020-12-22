@@ -22,7 +22,7 @@ package io.temporal.internal.worker;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.workflow.Functions;
 
-public class ActivityTask {
+final class ActivityTask {
   private final PollActivityTaskQueueResponse response;
   private final Functions.Proc completionHandle;
 
