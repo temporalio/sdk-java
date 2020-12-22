@@ -91,8 +91,13 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     }
     PollActivityTaskQueueResponse response;
     boolean isSuccessful = false;
+
     try {
       pollSemaphore.acquire();
+    } catch (InterruptedException e) {
+      return null;
+    }
+    try {
       try {
         response =
             service
@@ -117,8 +122,6 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               ProtobufTimeUtils.toM3Duration(
                   response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
       isSuccessful = true;
-    } catch (InterruptedException e) {
-      return null;
     } finally {
       if (!isSuccessful) pollSemaphore.release();
     }
