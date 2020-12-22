@@ -90,34 +90,37 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
       log.trace("poll request begin: " + pollRequest);
     }
     PollActivityTaskQueueResponse response;
-    try {
-      response =
-          service
-              .blockingStub()
-              .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-              .pollActivityTaskQueue(pollRequest.build());
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
-          && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
-        return null;
-      }
-      throw e;
-    }
-
-    if (response == null || response.getTaskToken().isEmpty()) {
-      metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
-      return null;
-    }
-    metricsScope
-        .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-        .record(
-            ProtobufTimeUtils.toM3Duration(
-                response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
-
+    boolean isSuccessful = false;
     try {
       pollSemaphore.acquire();
+      try {
+        response =
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .pollActivityTaskQueue(pollRequest.build());
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
+            && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
+          return null;
+        }
+        throw e;
+      }
+
+      if (response == null || response.getTaskToken().isEmpty()) {
+        metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
+        return null;
+      }
+      metricsScope
+          .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
+          .record(
+              ProtobufTimeUtils.toM3Duration(
+                  response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
+      isSuccessful = true;
     } catch (InterruptedException e) {
       return null;
+    } finally {
+      if (!isSuccessful) pollSemaphore.release();
     }
     return new ActivityTask(response, pollSemaphore::release);
   }
