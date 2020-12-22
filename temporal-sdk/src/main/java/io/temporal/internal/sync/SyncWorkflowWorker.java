@@ -121,8 +121,8 @@ public class SyncWorkflowWorker
     this.factory.addWorkflowImplementationFactory(clazz, factory);
   }
 
-  public void setLocalActivitiesImplementation(Object... activitiesImplementation) {
-    this.laTaskHandler.setLocalActivitiesImplementation(activitiesImplementation);
+  public void registerLocalActivityImplementations(Object... activitiesImplementation) {
+    this.laTaskHandler.registerLocalActivityImplementations(activitiesImplementation);
   }
 
   @Override

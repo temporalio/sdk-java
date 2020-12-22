@@ -19,7 +19,9 @@
 
 package io.temporal.internal.testing;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.grpc.Status;
 import io.temporal.activity.Activity;
@@ -353,61 +355,96 @@ public class ActivityTestingTest {
   }
 
   @Test
-  public void testInvokingActivityByBaseInterface() {
+  public void testInvokingActivityByBaseInterface1() {
     BImpl bImpl = new BImpl();
     DImpl dImpl = new DImpl();
-    EImpl eImpl = new EImpl();
-    {
-      testEnvironment.registerActivitiesImplementations(bImpl, dImpl);
-      try {
-        testEnvironment.newActivityStub(A.class);
-        fail("A doesn't implement activity");
-      } catch (IllegalArgumentException e) {
-        // expected as A doesn't implement any activity
-      }
-      B b = testEnvironment.newActivityStub(B.class);
-      b.a();
-      b.b();
-      A a = b;
-      a.a();
-      D d = testEnvironment.newActivityStub(D.class);
-      d.a();
-      d.d();
-      a = d;
-      a.a();
-      List<String> expectedB = new ArrayList<>();
-      expectedB.add("a");
-      expectedB.add("b");
-      expectedB.add("a");
-      assertEquals(expectedB, bImpl.invocations);
+    testEnvironment.registerActivitiesImplementations(bImpl, dImpl);
+    try {
+      testEnvironment.newActivityStub(A.class);
+      fail("A doesn't implement activity");
+    } catch (IllegalArgumentException e) {
+      // expected as A doesn't implement any activity
+    }
+    B b = testEnvironment.newActivityStub(B.class);
+    b.a();
+    b.b();
+    A a = b;
+    a.a();
+    D d = testEnvironment.newActivityStub(D.class);
+    d.a();
+    d.d();
+    a = d;
+    a.a();
+    List<String> expectedB = new ArrayList<>();
+    expectedB.add("a");
+    expectedB.add("b");
+    expectedB.add("a");
+    assertEquals(expectedB, bImpl.invocations);
 
-      List<String> expectedD = new ArrayList<>();
-      expectedD.add("a");
-      expectedD.add("d");
-      expectedD.add("a");
-      assertEquals(expectedD, dImpl.invocations);
-    }
-    {
-      testEnvironment.registerActivitiesImplementations(eImpl);
-      E e = testEnvironment.newActivityStub(E.class);
-      e.a();
-      e.d();
-      e.e();
-      D d = testEnvironment.newActivityStub(D.class);
-      d.a();
-      d.d();
-      List<String> expectedE = new ArrayList<>();
-      expectedE.add("a");
-      expectedE.add("d");
-      expectedE.add("e");
-      expectedE.add("a");
-      expectedE.add("d");
-      assertEquals(expectedE, eImpl.invocations);
-    }
+    List<String> expectedD = new ArrayList<>();
+    expectedD.add("a");
+    expectedD.add("d");
+    expectedD.add("a");
+    assertEquals(expectedD, dImpl.invocations);
   }
 
   @Test
-  public void testDuplicates() {
+  public void testInvokingActivityByBaseInterface1CallRegisterTwice() {
+    BImpl bImpl = new BImpl();
+    DImpl dImpl = new DImpl();
+    testEnvironment.registerActivitiesImplementations(bImpl);
+    testEnvironment.registerActivitiesImplementations(dImpl);
+    try {
+      testEnvironment.newActivityStub(A.class);
+      fail("A doesn't implement activity");
+    } catch (IllegalArgumentException e) {
+      // expected as A doesn't implement any activity
+    }
+    B b = testEnvironment.newActivityStub(B.class);
+    b.a();
+    b.b();
+    A a = b;
+    a.a();
+    D d = testEnvironment.newActivityStub(D.class);
+    d.a();
+    d.d();
+    a = d;
+    a.a();
+    List<String> expectedB = new ArrayList<>();
+    expectedB.add("a");
+    expectedB.add("b");
+    expectedB.add("a");
+    assertEquals(expectedB, bImpl.invocations);
+
+    List<String> expectedD = new ArrayList<>();
+    expectedD.add("a");
+    expectedD.add("d");
+    expectedD.add("a");
+    assertEquals(expectedD, dImpl.invocations);
+  }
+
+  @Test
+  public void testInvokingActivityByBaseInterface2() {
+    EImpl eImpl = new EImpl();
+    testEnvironment.registerActivitiesImplementations(eImpl);
+    E e = testEnvironment.newActivityStub(E.class);
+    e.a();
+    e.d();
+    e.e();
+    D d = testEnvironment.newActivityStub(D.class);
+    d.a();
+    d.d();
+    List<String> expectedE = new ArrayList<>();
+    expectedE.add("a");
+    expectedE.add("d");
+    expectedE.add("e");
+    expectedE.add("a");
+    expectedE.add("d");
+    assertEquals(expectedE, eImpl.invocations);
+  }
+
+  @Test
+  public void testDuplicates1() {
     try {
       CImpl cImpl = new CImpl();
       testEnvironment.registerActivitiesImplementations(cImpl);
@@ -415,10 +452,27 @@ public class ActivityTestingTest {
       assertTrue(e.getMessage().contains("A.a()"));
       assertTrue(e.getMessage().contains("Duplicated"));
     }
+  }
+
+  @Test
+  public void testDuplicates2() {
     DImpl dImpl = new DImpl();
     EImpl eImpl = new EImpl();
     try {
       testEnvironment.registerActivitiesImplementations(dImpl, eImpl);
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("a"));
+      assertTrue(e.getMessage().contains("already registered"));
+    }
+  }
+
+  @Test
+  public void testDuplicates2CallRegisterTwice() {
+    DImpl dImpl = new DImpl();
+    EImpl eImpl = new EImpl();
+    try {
+      testEnvironment.registerActivitiesImplementations(dImpl);
+      testEnvironment.registerActivitiesImplementations(eImpl);
     } catch (IllegalArgumentException e) {
       assertTrue(e.getMessage().contains("a"));
       assertTrue(e.getMessage().contains("already registered"));

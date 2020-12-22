@@ -147,15 +147,13 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     return activities.keySet();
   }
 
-  void setActivitiesImplementation(Object[] activitiesImplementation) {
-    activities.clear();
+  void registerActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
       addActivityImplementation(activity, POJOActivityImplementation::new);
     }
   }
 
-  void setLocalActivitiesImplementation(Object[] activitiesImplementation) {
-    activities.clear();
+  void registerLocalActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
       addActivityImplementation(activity, POJOLocalActivityImplementation::new);
     }
