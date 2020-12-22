@@ -83,11 +83,21 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
+    /**
+     * Set to true in order to make test environment use external temporal service or false for
+     * in-memory test implementation.
+     */
     public Builder setUseExternalService(boolean useExternalService) {
       this.useExternalService = useExternalService;
       return this;
     }
 
+    /**
+     * Optional parameter that defines an endpoint which will be used for the communication with
+     * standalone temporal service. Has no effect if {@link #useExternalService} is set to false.
+     *
+     * <p>Defaults to 127.0.0.1:7233
+     */
     public Builder setTarget(String target) {
       this.target = target;
       return this;
@@ -139,18 +149,10 @@ public final class TestEnvironmentOptions {
     return metricsScope;
   }
 
-  /**
-   * Returns true if the test environment is using external temporal service or false for in-memory
-   * test implementation.
-   */
   public boolean isUseExternalService() {
     return useExternalService;
   }
 
-  /**
-   * Optional parameter that defines an endpoint which will be used for the communication with
-   * standalone temporal service. Has no effect if {@link #useExternalService} is set to false.
-   */
   public String getTarget() {
     return target;
   }

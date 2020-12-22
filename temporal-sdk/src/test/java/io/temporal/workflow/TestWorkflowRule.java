@@ -128,7 +128,7 @@ public class TestWorkflowRule implements TestRule {
      * standalone temporal service. Has no effect if {@link #setUseExternalService(boolean)} is set
      * to false.
      *
-     * <p>Default is to use localhost:7233
+     * <p>Default is to use 127.0.0.1:7233
      */
     public Builder setTarget(String target) {
       this.target = target;
