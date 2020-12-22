@@ -98,19 +98,11 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
       return null;
     }
     try {
-      try {
-        response =
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .pollActivityTaskQueue(pollRequest.build());
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
-            && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
-          return null;
-        }
-        throw e;
-      }
+      response =
+          service
+              .blockingStub()
+              .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+              .pollActivityTaskQueue(pollRequest.build());
 
       if (response == null || response.getTaskToken().isEmpty()) {
         metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
@@ -122,6 +114,12 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               ProtobufTimeUtils.toM3Duration(
                   response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
       isSuccessful = true;
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
+          && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
+        return null;
+      }
+      throw e;
     } finally {
       if (!isSuccessful) pollSemaphore.release();
     }
