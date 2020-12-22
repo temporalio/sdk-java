@@ -35,6 +35,10 @@ final class ActivityTask {
     return response;
   }
 
+  /**
+   * Completion handle function that must be called by the handler whenever activity processing is
+   * completed.
+   */
   public Functions.Proc getCompletionHandle() {
     return completionHandle;
   }

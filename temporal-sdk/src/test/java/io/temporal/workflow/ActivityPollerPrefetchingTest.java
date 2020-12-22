@@ -36,17 +36,17 @@ import org.junit.Test;
 public class ActivityPollerPrefetchingTest {
 
   @Rule
-  public WorkerRule workerRule =
-      new WorkerRule.Builder()
-          .withWorkerOptions(
+  public TestWorkflowRule testWorkflowRule =
+      TestWorkflowRule.newBuilder()
+          .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setMaxConcurrentActivityExecutionSize(1)
                   .setActivityPollThreadCount(5)
                   .build())
-          .withWorkflowTypes(TestWorkflowImpl.class)
-          .withActivityImplementations(new SleepyMultiplier())
+          .setWorkflowTypes(TestWorkflowImpl.class)
+          .setActivityImplementations(new SleepyMultiplier())
           .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setServiceAddress(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
+          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @WorkflowInterface
@@ -113,9 +113,69 @@ public class ActivityPollerPrefetchingTest {
    */
   @Test
   public void verifyThatActivityIsNotPrefetchedWhenThereIsNoHandlerAvailable() {
-    String taskQueue = workerRule.getTaskQueue();
+    String taskQueue = testWorkflowRule.getTaskQueue();
     TestWorkflow workflow =
-        workerRule
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    String result = workflow.execute(taskQueue);
+    Assert.assertEquals("success", result);
+  }
+
+  @Test
+  public void verifyThatActivityIsNotPrefetchedWhenThereIsNoHandlerAvailable1() {
+    String taskQueue = testWorkflowRule.getTaskQueue();
+    TestWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    String result = workflow.execute(taskQueue);
+    Assert.assertEquals("success", result);
+  }
+
+  @Test
+  public void verifyThatActivityIsNotPrefetchedWhenThereIsNoHandlerAvailable2() {
+    String taskQueue = testWorkflowRule.getTaskQueue();
+    TestWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    String result = workflow.execute(taskQueue);
+    Assert.assertEquals("success", result);
+  }
+
+  @Test
+  public void verifyThatActivityIsNotPrefetchedWhenThereIsNoHandlerAvailable3() {
+    String taskQueue = testWorkflowRule.getTaskQueue();
+    TestWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    String result = workflow.execute(taskQueue);
+    Assert.assertEquals("success", result);
+  }
+
+  @Test
+  public void verifyThatActivityIsNotPrefetchedWhenThereIsNoHandlerAvailable4() {
+    String taskQueue = testWorkflowRule.getTaskQueue();
+    TestWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    String result = workflow.execute(taskQueue);
+    Assert.assertEquals("success", result);
+  }
+
+  @Test
+  public void verifyThatActivityIsNotPrefetchedWhenThereIsNoHandlerAvailable5() {
+    String taskQueue = testWorkflowRule.getTaskQueue();
+    TestWorkflow workflow =
+        testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());

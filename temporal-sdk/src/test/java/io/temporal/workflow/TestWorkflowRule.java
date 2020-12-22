@@ -31,17 +31,17 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
-public class WorkerRule implements TestRule {
+public class TestWorkflowRule implements TestRule {
 
-  private Class<?>[] workflowTypes;
-  private Object[] activityImplementations;
-  private TestWorkflowEnvironment testEnvironment;
-  private WorkerOptions workerOptions;
+  private final Class<?>[] workflowTypes;
+  private final Object[] activityImplementations;
+  private final TestWorkflowEnvironment testEnvironment;
+  private final WorkerOptions workerOptions;
+  private final boolean useExternalService;
   private Worker worker;
   private String taskQueue;
-  private boolean useExternalService;
 
-  private WorkerRule(
+  private TestWorkflowRule(
       TestWorkflowEnvironment testEnvironment,
       boolean useExternalService,
       Class<?>[] workflowTypes,
@@ -54,30 +54,36 @@ public class WorkerRule implements TestRule {
     this.workerOptions = workerOptions;
   }
 
-  static class Builder {
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static class Builder {
     private WorkerOptions workerOptions;
     private String namespace;
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
     private boolean useExternalService;
-    private String serviceAddress;
+    private String target;
 
-    public Builder withWorkerOptions(WorkerOptions options) {
+    private Builder() {}
+
+    public Builder setWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
       return this;
     }
 
-    public Builder withNamespace(String namespace) {
+    public Builder setNamespace(String namespace) {
       this.namespace = namespace;
       return this;
     }
 
-    public Builder withWorkflowTypes(Class<?>... workflowTypes) {
+    public Builder setWorkflowTypes(Class<?>... workflowTypes) {
       this.workflowTypes = workflowTypes;
       return this;
     }
 
-    public Builder withActivityImplementations(Object... activityImplementations) {
+    public Builder setActivityImplementations(Object... activityImplementations) {
       this.activityImplementations = activityImplementations;
       return this;
     }
@@ -87,12 +93,12 @@ public class WorkerRule implements TestRule {
       return this;
     }
 
-    public Builder setServiceAddress(String serviceAddress) {
-      this.serviceAddress = serviceAddress;
+    public Builder setTarget(String target) {
+      this.target = target;
       return this;
     }
 
-    public WorkerRule build() {
+    public TestWorkflowRule build() {
       namespace = namespace == null ? "UnitTest" : namespace;
       WorkflowClientOptions clientOptions =
           WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
@@ -102,11 +108,11 @@ public class WorkerRule implements TestRule {
               .setWorkflowClientOptions(clientOptions)
               .setWorkerFactoryOptions(factoryOptions)
               .setUseExternalService(useExternalService)
-              .setServiceAddress(serviceAddress)
+              .setServiceAddress(target)
               .build();
       TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       workerOptions = workerOptions == null ? WorkerOptions.newBuilder().build() : workerOptions;
-      return new WorkerRule(
+      return new TestWorkflowRule(
           testEnvironment,
           useExternalService,
           workflowTypes,

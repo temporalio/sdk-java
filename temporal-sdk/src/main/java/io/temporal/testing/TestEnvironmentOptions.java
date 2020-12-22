@@ -143,6 +143,10 @@ public final class TestEnvironmentOptions {
     return metricsScope;
   }
 
+  /**
+   * Returns true if the test environment is using external temporal service or false for in-memory
+   * test implementation.
+   */
   public boolean isUseExternalService() {
     return useExternalService;
   }
