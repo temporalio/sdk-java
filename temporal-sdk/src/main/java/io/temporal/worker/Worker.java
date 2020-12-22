@@ -317,9 +317,9 @@ public final class Worker implements Suspendable {
         "registerActivitiesImplementations is not allowed after worker has started");
 
     if (activityWorker != null) {
-      activityWorker.setActivitiesImplementation(activityImplementations);
+      activityWorker.registerActivityImplementations(activityImplementations);
     }
-    workflowWorker.setLocalActivitiesImplementation(activityImplementations);
+    workflowWorker.registerLocalActivityImplementations(activityImplementations);
   }
 
   void start() {

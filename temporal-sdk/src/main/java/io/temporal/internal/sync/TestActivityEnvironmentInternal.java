@@ -169,7 +169,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
    */
   @Override
   public void registerActivitiesImplementations(Object... activityImplementations) {
-    activityTaskHandler.setActivitiesImplementation(activityImplementations);
+    activityTaskHandler.registerActivityImplementations(activityImplementations);
   }
 
   /**

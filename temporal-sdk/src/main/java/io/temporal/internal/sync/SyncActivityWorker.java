@@ -55,8 +55,8 @@ public class SyncActivityWorker implements SuspendableWorker {
             service, namespace, taskQueue, taskQueueActivitiesPerSecond, options, taskHandler);
   }
 
-  public void setActivitiesImplementation(Object... activitiesImplementation) {
-    taskHandler.setActivitiesImplementation(activitiesImplementation);
+  public void registerActivityImplementations(Object... activitiesImplementation) {
+    taskHandler.registerActivityImplementations(activitiesImplementation);
   }
 
   @Override
