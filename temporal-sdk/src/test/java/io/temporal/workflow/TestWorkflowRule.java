@@ -31,6 +31,31 @@ import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+/**
+ * Test rule that sets up test environment, simplifying workflow worker creation and shutdown. Can
+ * be used with both in-memory and standalone temporal service. (see {@link
+ * Builder#setUseExternalService(boolean)} and {@link Builder#setTarget(String)}})
+ *
+ * <p>Example of usage:
+ *
+ * <pre><code>
+ *   public class MyTest {
+ *
+ *  {@literal @}Rule
+ *   public TestWorkflowRule workflowRule =
+ *       TestWorkflowRule.newBuilder()
+ *           .setWorkflowTypes(TestWorkflowImpl.class)
+ *           .setActivityImplementations(new TestActivities())
+ *           .build();
+ *
+ *  {@literal @}Test
+ *   public void testMyWorkflow() {
+ *       TestWorkflow workflow = workflowRule.getWorkflowClient().newWorkflowStub(
+ *                 TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(workflowRule.getTaskQueue()).build());
+ *       ...
+ *   }
+ * </code></pre>
+ */
 public class TestWorkflowRule implements TestRule {
 
   private final Class<?>[] workflowTypes;
@@ -38,7 +63,6 @@ public class TestWorkflowRule implements TestRule {
   private final TestWorkflowEnvironment testEnvironment;
   private final WorkerOptions workerOptions;
   private final boolean useExternalService;
-  private Worker worker;
   private String taskQueue;
 
   private TestWorkflowRule(
@@ -88,11 +112,24 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
+    /**
+     * Switches between in-memory and external temporal service implementations.
+     *
+     * @param useExternalService use external service if true.
+     *     <p>Default is false.
+     */
     public Builder setUseExternalService(boolean useExternalService) {
       this.useExternalService = useExternalService;
       return this;
     }
 
+    /**
+     * Optional parameter that defines an endpoint which will be used for the communication with
+     * standalone temporal service. Has no effect if {@link #setUseExternalService(boolean)} is set
+     * to false.
+     *
+     * <p>Default is to use localhost:7233
+     */
     public Builder setTarget(String target) {
       this.target = target;
       return this;
@@ -145,24 +182,27 @@ public class TestWorkflowRule implements TestRule {
   private String init(Description description) {
     String testMethod = description.getMethodName();
     String taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
-    worker = testEnvironment.newWorker(taskQueue, workerOptions);
+    Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
     worker.registerWorkflowImplementationTypes(workflowTypes);
     worker.registerActivitiesImplementations(activityImplementations);
     return taskQueue;
   }
 
-  public Worker getWorker() {
-    return worker;
-  }
-
+  /** Returns name of the task queue that test worker is polling. */
   public String getTaskQueue() {
     return taskQueue;
   }
 
+  /** Returns client to the Temporal service used to start and query workflows. */
   public WorkflowClient getWorkflowClient() {
     return testEnvironment.getWorkflowClient();
   }
 
+  /**
+   * See {@link Builder#setUseExternalService(boolean)}
+   *
+   * @return true if the rule is using external temporal service.
+   */
   public boolean isUseExternalService() {
     return useExternalService;
   }
