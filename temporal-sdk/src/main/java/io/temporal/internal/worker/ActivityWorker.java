@@ -171,22 +171,21 @@ public final class ActivityWorker implements SuspendableWorker {
                       r.getActivityType().getName(),
                       MetricsTag.WORKFLOW_TYPE,
                       r.getWorkflowType().getName()));
-
-      metricsScope
-          .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-          .record(
-              ProtobufTimeUtils.toM3Duration(
-                  r.getStartedTime(), r.getCurrentAttemptScheduledTime()));
-
-      // The following tags are for logging.
-      MDC.put(LoggerTag.ACTIVITY_ID, r.getActivityId());
-      MDC.put(LoggerTag.ACTIVITY_TYPE, r.getActivityType().getName());
-      MDC.put(LoggerTag.WORKFLOW_ID, r.getWorkflowExecution().getWorkflowId());
-      MDC.put(LoggerTag.RUN_ID, r.getWorkflowExecution().getRunId());
-
-      propagateContext(r);
-
       try {
+        metricsScope
+            .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
+            .record(
+                ProtobufTimeUtils.toM3Duration(
+                    r.getStartedTime(), r.getCurrentAttemptScheduledTime()));
+
+        // The following tags are for logging.
+        MDC.put(LoggerTag.ACTIVITY_ID, r.getActivityId());
+        MDC.put(LoggerTag.ACTIVITY_TYPE, r.getActivityType().getName());
+        MDC.put(LoggerTag.WORKFLOW_ID, r.getWorkflowExecution().getWorkflowId());
+        MDC.put(LoggerTag.RUN_ID, r.getWorkflowExecution().getRunId());
+
+        propagateContext(r);
+
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
         ActivityTaskHandler.Result response;
         try {
