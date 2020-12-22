@@ -57,6 +57,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final WorkerFactory workerFactory;
   private final TimeLockingInterceptor timeLockingInterceptor;
 
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
       this.testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
@@ -72,13 +76,19 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     service = new TestWorkflowService();
     timeLockingInterceptor = new TimeLockingInterceptor(service);
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
-    workflowServiceStubs =
-        WorkflowServiceStubs.newInstance(
-            service,
-            WorkflowServiceStubsOptions.newBuilder()
-                .setMetricsScope(options.getMetricsScope())
-                .build());
 
+    if (useExternalService) {
+      workflowServiceStubs =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+    } else {
+      workflowServiceStubs =
+          WorkflowServiceStubs.newInstance(
+              service,
+              WorkflowServiceStubsOptions.newBuilder()
+                  .setMetricsScope(options.getMetricsScope())
+                  .build());
+    }
     WorkflowClient client = WorkflowClient.newInstance(workflowServiceStubs, workflowClientOptions);
     workerFactory = WorkerFactory.newInstance(client, options.getWorkerFactoryOptions());
   }

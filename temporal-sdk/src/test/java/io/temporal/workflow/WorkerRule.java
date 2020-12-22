@@ -21,12 +21,9 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import java.util.UUID;
@@ -36,18 +33,23 @@ import org.junit.runners.model.Statement;
 
 public class WorkerRule implements TestRule {
 
-  private static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-  private WorkflowServiceStubs service;
   private Class<?>[] workflowTypes;
   private Object[] activityImplementations;
-  private WorkerFactory workerFactory;
-  private WorkflowClient workflowClient;
   private TestWorkflowEnvironment testEnvironment;
   private WorkerOptions workerOptions;
   private Worker worker;
   private String taskQueue;
+
+  private WorkerRule(
+      TestWorkflowEnvironment testEnvironment,
+      Class<?>[] workflowTypes,
+      Object[] activityImplementations,
+      WorkerOptions workerOptions) {
+    this.testEnvironment = testEnvironment;
+    this.workflowTypes = workflowTypes;
+    this.activityImplementations = activityImplementations;
+    this.workerOptions = workerOptions;
+  }
 
   static class Builder {
     private WorkerOptions workerOptions;
@@ -87,47 +89,8 @@ public class WorkerRule implements TestRule {
               .build();
       TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       workerOptions = workerOptions == null ? WorkerOptions.newBuilder().build() : workerOptions;
-      final WorkflowServiceStubs service;
-      final WorkflowClient workflowClient;
-      final WorkerFactory workerFactory;
-      if (useExternalService) {
-        service =
-            WorkflowServiceStubs.newInstance(
-                WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
-        workflowClient = WorkflowClient.newInstance(service, clientOptions);
-        workerFactory = WorkerFactory.newInstance(workflowClient, factoryOptions);
-      } else {
-        service = testEnvironment.getWorkflowService();
-        workflowClient = testEnvironment.getWorkflowClient();
-        workerFactory = testEnvironment.getWorkerFactory();
-      }
-
-      return new WorkerRule(
-          service,
-          workflowTypes,
-          activityImplementations,
-          workerFactory,
-          workflowClient,
-          testEnvironment,
-          workerOptions);
+      return new WorkerRule(testEnvironment, workflowTypes, activityImplementations, workerOptions);
     }
-  }
-
-  private WorkerRule(
-      WorkflowServiceStubs service,
-      Class<?>[] workflowTypes,
-      Object[] activityImplementations,
-      WorkerFactory workerFactory,
-      WorkflowClient workflowClient,
-      TestWorkflowEnvironment testEnvironment,
-      WorkerOptions workerOptions) {
-    this.service = service;
-    this.workflowTypes = workflowTypes;
-    this.activityImplementations = activityImplementations;
-    this.workerFactory = workerFactory;
-    this.workflowClient = workflowClient;
-    this.testEnvironment = testEnvironment;
-    this.workerOptions = workerOptions;
   }
 
   @Override
@@ -144,29 +107,17 @@ public class WorkerRule implements TestRule {
   }
 
   private void shutdown() {
-    if (useExternalService) {
-      workerFactory.shutdown();
-    } else {
-      testEnvironment.close();
-    }
+    testEnvironment.close();
   }
 
   private void start() {
-    if (useExternalService) {
-      workerFactory.start();
-    } else {
-      testEnvironment.start();
-    }
+    testEnvironment.start();
   }
 
   private String init(Description description) {
     String testMethod = description.getMethodName();
     String taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
-    if (useExternalService) {
-      worker = workerFactory.newWorker(taskQueue, workerOptions);
-    } else {
-      worker = testEnvironment.newWorker(taskQueue, workerOptions);
-    }
+    worker = testEnvironment.newWorker(taskQueue, workerOptions);
     worker.registerWorkflowImplementationTypes(workflowTypes);
     worker.registerActivitiesImplementations(activityImplementations);
     return taskQueue;
@@ -181,6 +132,6 @@ public class WorkerRule implements TestRule {
   }
 
   public WorkflowClient getWorkflowClient() {
-    return workflowClient;
+    return testEnvironment.getWorkflowClient();
   }
 }

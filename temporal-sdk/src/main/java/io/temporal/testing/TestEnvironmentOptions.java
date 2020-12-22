@@ -54,6 +54,8 @@ public final class TestEnvironmentOptions {
 
     private Scope metricsScope;
 
+    private String serviceAddress;
+
     private Builder() {}
 
     private Builder(TestEnvironmentOptions o) {
