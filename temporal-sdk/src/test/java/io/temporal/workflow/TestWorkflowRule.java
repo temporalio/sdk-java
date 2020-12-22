@@ -145,7 +145,7 @@ public class TestWorkflowRule implements TestRule {
               .setWorkflowClientOptions(clientOptions)
               .setWorkerFactoryOptions(factoryOptions)
               .setUseExternalService(useExternalService)
-              .setServiceAddress(target)
+              .setTarget(target)
               .build();
       TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       workerOptions = workerOptions == null ? WorkerOptions.newBuilder().build() : workerOptions;

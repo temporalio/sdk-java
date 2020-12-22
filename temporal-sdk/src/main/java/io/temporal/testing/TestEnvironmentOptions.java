@@ -56,7 +56,7 @@ public final class TestEnvironmentOptions {
 
     private boolean useExternalService;
 
-    private String serviceAddress;
+    private String target;
 
     private Builder() {}
 
@@ -64,7 +64,7 @@ public final class TestEnvironmentOptions {
       workerFactoryOptions = o.workerFactoryOptions;
       workflowClientOptions = o.workflowClientOptions;
       useExternalService = o.useExternalService;
-      serviceAddress = o.serviceAddress;
+      target = o.target;
     }
 
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
@@ -88,18 +88,14 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
-    public Builder setServiceAddress(String serviceAddress) {
-      this.serviceAddress = serviceAddress;
+    public Builder setTarget(String target) {
+      this.target = target;
       return this;
     }
 
     public TestEnvironmentOptions build() {
       return new TestEnvironmentOptions(
-          workflowClientOptions,
-          workerFactoryOptions,
-          useExternalService,
-          serviceAddress,
-          metricsScope);
+          workflowClientOptions, workerFactoryOptions, useExternalService, target, metricsScope);
     }
 
     public TestEnvironmentOptions validateAndBuildWithDefaults() {
@@ -107,7 +103,7 @@ public final class TestEnvironmentOptions {
           WorkflowClientOptions.newBuilder(workflowClientOptions).validateAndBuildWithDefaults(),
           WorkerFactoryOptions.newBuilder(workerFactoryOptions).validateAndBuildWithDefaults(),
           useExternalService,
-          serviceAddress,
+          target,
           metricsScope == null ? new NoopScope() : metricsScope);
     }
   }
@@ -116,19 +112,19 @@ public final class TestEnvironmentOptions {
   private final WorkflowClientOptions workflowClientOptions;
   private final Scope metricsScope;
   private final boolean useExternalService;
-  private final String serviceAddress;
+  private final String target;
 
   private TestEnvironmentOptions(
       WorkflowClientOptions workflowClientOptions,
       WorkerFactoryOptions workerFactoryOptions,
       boolean useExternalService,
-      String serviceAddress,
+      String target,
       Scope metricsScope) {
     this.workflowClientOptions = workflowClientOptions;
     this.workerFactoryOptions = workerFactoryOptions;
     this.metricsScope = metricsScope;
     this.useExternalService = useExternalService;
-    this.serviceAddress = serviceAddress;
+    this.target = target;
   }
 
   public WorkerFactoryOptions getWorkerFactoryOptions() {
@@ -151,8 +147,12 @@ public final class TestEnvironmentOptions {
     return useExternalService;
   }
 
-  public String getServiceAddress() {
-    return serviceAddress;
+  /**
+   * Optional parameter that defines an endpoint which will be used for the communication with
+   * standalone temporal service. Has no effect if {@link #useExternalService} is set to false.
+   */
+  public String getTarget() {
+    return target;
   }
 
   @Override
@@ -162,6 +162,10 @@ public final class TestEnvironmentOptions {
         + workerFactoryOptions
         + ", workflowClientOptions="
         + workflowClientOptions
+        + ", useExternalService="
+        + useExternalService
+        + ", target="
+        + target
         + '}';
   }
 }

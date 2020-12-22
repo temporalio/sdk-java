@@ -77,7 +77,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       workflowServiceStubs =
           WorkflowServiceStubs.newInstance(
               WorkflowServiceStubsOptions.newBuilder()
-                  .setTarget(this.testEnvironmentOptions.getServiceAddress())
+                  .setTarget(this.testEnvironmentOptions.getTarget())
                   .build());
     } else {
       workflowServiceStubs =
