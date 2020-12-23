@@ -1,0 +1,31 @@
+#Highlights
+
+* Deadlock detector will now show all workflow threads making debugging easier.
+* SDK will no longer use illegal reflective access during exception unwrapping.
+* Fixed a bug with missing cancellation in child sub-scopes.
+* Added binary checksum to the worker options, which can now be used in the auto-reset.
+* Added an option to run only workflow task and local activity pollers.
+* Fixed an issue with eager activity task pre-fetching which could be causing activity timeouts when all handlers are busy.
+
+#All changes
+
+2020-11-06 - ac9805c4 - Use JSR250 javax.annotation-api when compiling serviceclient with JDK 9 and up. (#231)
+2020-11-06 - d1ea450c - Added dump of all workflow thread to the deadlock detector (#246)
+2020-11-10 - aa04a4b8 - Fix NPE in sticky poller (#249)
+2020-11-11 - cd103b0f - Fix flaky test that was relying on sleep (#250)
+2020-11-16 - 4bb23c3a - Stop using illegal reflective access for setting cause during exception (#251)
+2020-11-19 - fcbb4e38 - Updated setDoNotRetry javadoc (#261)
+2020-11-23 - 6f2ef6ef - Added missing status to testservice (#266)
+2020-11-25 - 7b3c8470 - Remove redundant line break from the README (#268)
+2020-12-04 - e735da26 - Add getPreviousRunFailure method to Workflow API (#260)
+2020-12-09 - 4a598d3c - Avoid removing sub-scopes that have cancellation promise or child sub-scopes (#269)
+2020-12-09 - ff0bb114 - Updating proto submodule to v1.3.0 (#271)
+2020-12-10 - 4c150040 - Add a gradle task that cleans all sub-projects (#272)
+2020-12-10 - 5e4ecb39 - Adding binary checksum to WorkflowClientOptions (#270)
+2020-12-10 - d951d7a1 - Upgrade dependencies and gradle version (#274)
+2020-12-14 - 2b4bb01a - Add namespace to requests where it was missing (#275)
+2020-12-15 - 2457ee67 - Adding an option to disable activity pollers (#276)
+2020-12-21 - 81911681 - Updating dependencies to the latest (#285)
+2020-12-21 - 9f88794f - Apply time unit in cancellable scope (#279)
+2020-12-21 - bf1e538e - Fixed activity registration (#287)
+2020-12-22 - d1e0f6b8 - Avoid activity task prefetching when handlers are busy (#286)
