@@ -1,4 +1,5 @@
-Highlights:
+#Highlights
+
 * Deadlock detector will now show all workflow threads making debugging easier.
 * SDK will no longer use illegal reflective access during exception unwrapping.
 * Fixed a bug with missing cancellation in child sub-scopes.
@@ -6,7 +7,8 @@ Highlights:
 * Added an option to run only workflow task and local activity pollers.
 * Fixed an issue with eager activity task pre-fetching which could be causing activity timeouts when all handlers are busy.
 
-All changes:
+#All changes
+
 2020-11-06 - ac9805c4 - Use JSR250 javax.annotation-api when compiling serviceclient with JDK 9 and up. (#231)
 2020-11-06 - d1ea450c - Added dump of all workflow thread to the deadlock detector (#246)
 2020-11-10 - aa04a4b8 - Fix NPE in sticky poller (#249)
