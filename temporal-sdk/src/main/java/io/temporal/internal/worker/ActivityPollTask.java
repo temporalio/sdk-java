@@ -32,10 +32,11 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import java.util.concurrent.Semaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueResponse> {
+final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
 
   private final WorkflowServiceStubs service;
   private final String namespace;
@@ -44,6 +45,7 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
   private final double taskQueueActivitiesPerSecond;
   private final Scope metricsScope;
+  private final Semaphore pollSemaphore;
 
   public ActivityPollTask(
       WorkflowServiceStubs service,
@@ -58,10 +60,11 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
     this.options = options;
     this.metricsScope = options.getMetricsScope();
     this.taskQueueActivitiesPerSecond = taskQueueActivitiesPerSecond;
+    this.pollSemaphore = new Semaphore(options.getTaskExecutorThreadPoolSize());
   }
 
   @Override
-  public PollActivityTaskQueueResponse poll() {
+  public ActivityTask poll() {
     PollActivityTaskQueueRequest.Builder pollRequest =
         PollActivityTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
@@ -86,31 +89,40 @@ final class ActivityPollTask implements Poller.PollTask<PollActivityTaskQueueRes
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }
-    PollActivityTaskQueueResponse result;
+    PollActivityTaskQueueResponse response;
+    boolean isSuccessful = false;
+
     try {
-      result =
+      pollSemaphore.acquire();
+    } catch (InterruptedException e) {
+      return null;
+    }
+    try {
+      response =
           service
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
               .pollActivityTaskQueue(pollRequest.build());
+
+      if (response == null || response.getTaskToken().isEmpty()) {
+        metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
+        return null;
+      }
+      metricsScope
+          .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
+          .record(
+              ProtobufTimeUtils.toM3Duration(
+                  response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
+      isSuccessful = true;
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
           && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
         return null;
       }
       throw e;
+    } finally {
+      if (!isSuccessful) pollSemaphore.release();
     }
-
-    if (result == null || result.getTaskToken().isEmpty()) {
-      metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
-      return null;
-    }
-    metricsScope
-        .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-        .record(
-            ProtobufTimeUtils.toM3Duration(
-                result.getStartedTime(), result.getCurrentAttemptScheduledTime()));
-
-    return result;
+    return new ActivityTask(response, pollSemaphore::release);
   }
 }

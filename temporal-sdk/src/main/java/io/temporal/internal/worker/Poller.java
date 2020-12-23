@@ -29,7 +29,6 @@ import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -260,24 +259,14 @@ public final class Poller<T> implements SuspendableWorker {
   }
 
   private class PollExecutionTask implements Poller.ThrowingRunnable {
-    private final Semaphore pollSemaphore;
-
-    PollExecutionTask() {
-      this.pollSemaphore = new Semaphore(pollerOptions.getPollThreadCount());
-    }
 
     @Override
     public void run() throws Exception {
-      try {
-        pollSemaphore.acquire();
-        T task = pollTask.poll();
-        if (task == null) {
-          return;
-        }
-        taskExecutor.process(task);
-      } finally {
-        pollSemaphore.release();
+      T task = pollTask.poll();
+      if (task == null) {
+        return;
       }
+      taskExecutor.process(task);
     }
   }
 }
