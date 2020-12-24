@@ -63,7 +63,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
-  private static final byte[] EMPTY_BLOB = {};
   private final WorkflowInterceptor[] workflowInterceptors;
 
   private DataConverter dataConverter;
@@ -106,6 +105,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   }
 
   <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
+    @SuppressWarnings("unchecked")
     WorkflowImplementationOptions unitTestingOptions =
         WorkflowImplementationOptions.newBuilder()
             .setFailWorkflowExceptionTypes(Throwable.class)
@@ -146,6 +146,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
   }
 
+  @SuppressWarnings("unchecked")
   private void registerWorkflowImplementationType(
       WorkflowImplementationOptions options, Class<?> workflowImplementationClass) {
     if (UntypedWorkflow.class.isAssignableFrom(workflowImplementationClass)) {

@@ -19,10 +19,8 @@
 
 package io.temporal.workflow;
 
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.common.converter.DataConverter;
-import java.util.Optional;
+import io.temporal.common.converter.EncodedValues;
 
 public interface UntypedSignalHandler {
-  void handle(String signalName, Optional<Payloads> input, DataConverter dataConverter);
+  void handle(String signalName, EncodedValues args);
 }

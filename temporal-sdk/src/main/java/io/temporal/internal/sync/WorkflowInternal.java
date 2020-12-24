@@ -42,6 +42,8 @@ import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.QueryMethod;
+import io.temporal.workflow.UntypedQueryHandler;
+import io.temporal.workflow.UntypedSignalHandler;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import io.temporal.workflow.WorkflowMethod;
@@ -110,6 +112,14 @@ public final class WorkflowInternal {
    * QueryMethod} are registered.
    */
   public static void registerListener(Object implementation) {
+    if (implementation instanceof UntypedSignalHandler) {
+      getWorkflowInterceptor().registerUntypedSignalHandler((UntypedSignalHandler) implementation);
+      return;
+    }
+    if (implementation instanceof UntypedQueryHandler) {
+      getWorkflowInterceptor().registerUntypedQueryHandler((UntypedQueryHandler) implementation);
+      return;
+    }
     Class<?> cls = implementation.getClass();
     POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newListenerInstance(cls);
     for (String queryType : workflowMetadata.getQueryTypes()) {

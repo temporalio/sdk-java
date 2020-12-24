@@ -19,17 +19,17 @@
 
 package io.temporal.workflow;
 
+import static org.junit.Assert.assertEquals;
+
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.EncodedValues;
-import org.junit.Assert;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 public class UntypedWorkflowTest {
-
-  @Rule public Timeout globalTimeout = Timeout.seconds(10);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -43,8 +43,20 @@ public class UntypedWorkflowTest {
 
     @Override
     public Object execute(EncodedValues args) {
+      List<String> signals = new ArrayList<>();
       String type = Workflow.getInfo().getWorkflowType();
-      Workflow.registerListener((UntypedSignalHandler) (signalName, input1, dc) -> {});
+      Workflow.registerListener(
+          (UntypedSignalHandler)
+              (signalName, encodedArgs) ->
+                  signals.add(signalName + "-" + encodedArgs.get(0, String.class)));
+      Workflow.registerListener(
+          (UntypedQueryHandler)
+              (queryType, encodedArgs) ->
+                  queryType
+                      + "-"
+                      + encodedArgs.get(0, String.class)
+                      + "-"
+                      + signals.get(signals.size() - 1));
       String arg0 = args.get(0, String.class);
       return arg0 + "-" + type;
     }
@@ -62,7 +74,9 @@ public class UntypedWorkflowTest {
     WorkflowStub workflow =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("workflowFoo", workflowOptions);
     workflow.signalWithStart("signal1", new Object[] {"signalArg0"}, new Object[] {"startArg0"});
+    String queryResult = workflow.query("query1", String.class, "queryArg0");
+    assertEquals("query1-queryArg0-signal1-signalArg0", queryResult);
     String result = workflow.getResult(String.class);
-    Assert.assertEquals("startArg0-workflowFoo", result);
+    assertEquals("startArg0-workflowFoo", result);
   }
 }

@@ -47,6 +47,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -634,7 +635,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     Functions.Func1<Optional<Payloads>, Optional<Payloads>> callback = queryCallbacks.get(type);
     if (callback == null) {
       if (catchAllQueryHandler != null) {
-        return catchAllQueryHandler.handle(type, args, converter);
+        Object result = catchAllQueryHandler.handle(type, new EncodedValues(args, converter));
+        return converter.toPayloads(result);
       }
       throw new IllegalArgumentException(
           "Unknown query type: " + type + ", knownTypes=" + queryCallbacks.keySet());
@@ -646,7 +648,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     Functions.Proc2<Optional<Payloads>, Long> callback = signalCallbacks.get(signalName);
     if (callback == null) {
       if (catchAllSignalHandler != null) {
-        catchAllSignalHandler.handle(signalName, args, converter);
+        catchAllSignalHandler.handle(signalName, new EncodedValues(args, converter));
         return;
       }
       signalBuffer.add(new SignalData(signalName, args, eventId));
@@ -703,7 +705,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public void registerUntypedSignalHandler(UntypedSignalHandler handler) {
     catchAllSignalHandler = handler;
     for (SignalData signalData : signalBuffer) {
-      handler.handle(signalData.getSignalName(), signalData.getPayload(), converter);
+      handler.handle(
+          signalData.getSignalName(), new EncodedValues(signalData.getPayload(), converter));
     }
   }
 

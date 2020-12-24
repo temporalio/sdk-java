@@ -29,6 +29,7 @@ import io.temporal.worker.WorkerOptions;
 import java.util.UUID;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
@@ -59,6 +60,8 @@ import org.junit.runners.model.Statement;
  */
 public class TestWorkflowRule implements TestRule {
 
+  public Timeout globalTimeout = Timeout.seconds(10);
+
   private final TestWatcher watchman =
       new TestWatcher() {
         @Override
@@ -72,6 +75,7 @@ public class TestWorkflowRule implements TestRule {
   private final TestWorkflowEnvironment testEnvironment;
   private final WorkerOptions workerOptions;
   private final boolean useExternalService;
+  private final long testTimeoutSeconds;
   private String taskQueue;
 
   private TestWorkflowRule(
@@ -80,12 +84,13 @@ public class TestWorkflowRule implements TestRule {
       Class<?>[] workflowTypes,
       Object[] activityImplementations,
       WorkerOptions workerOptions,
-      boolean debugTimeouts) {
+      long testTimeoutSeconds) {
     this.testEnvironment = testEnvironment;
     this.useExternalService = useExternalService;
     this.workflowTypes = workflowTypes;
     this.activityImplementations = activityImplementations;
     this.workerOptions = workerOptions;
+    this.testTimeoutSeconds = testTimeoutSeconds;
   }
 
   public static Builder newBuilder() {
@@ -99,7 +104,7 @@ public class TestWorkflowRule implements TestRule {
     private Object[] activityImplementations;
     private boolean useExternalService;
     private String target;
-    private boolean debugTimeouts;
+    private long testTimeoutSeconds;
 
     private Builder() {}
 
@@ -146,6 +151,12 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
+    /** Global test timeout. Default is 10 seconds. */
+    public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
+      this.testTimeoutSeconds = testTimeoutSeconds;
+      return this;
+    }
+
     public TestWorkflowRule build() {
       namespace = namespace == null ? "UnitTest" : namespace;
       WorkflowClientOptions clientOptions =
@@ -166,14 +177,14 @@ public class TestWorkflowRule implements TestRule {
           workflowTypes == null ? new Class[0] : workflowTypes,
           activityImplementations == null ? new Object[0] : activityImplementations,
           workerOptions,
-          debugTimeouts);
+          testTimeoutSeconds);
     }
   }
 
   @Override
   public Statement apply(Statement base, Description description) {
     taskQueue = init(description);
-    return watchman.apply(
+    Statement testWorkflowStatement =
         new Statement() {
           @Override
           public void evaluate() throws Throwable {
@@ -181,8 +192,8 @@ public class TestWorkflowRule implements TestRule {
             base.evaluate();
             shutdown();
           }
-        },
-        description);
+        };
+    return watchman.apply(globalTimeout.apply(testWorkflowStatement, description), description);
   }
 
   private void shutdown() {
