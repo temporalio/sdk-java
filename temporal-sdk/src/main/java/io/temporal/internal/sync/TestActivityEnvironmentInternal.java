@@ -59,12 +59,14 @@ import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.UntypedSignalHandler;
 import io.temporal.workflow.Workflow;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -348,11 +350,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void registerSignal(
-        String signalType,
-        Class<?>[] argTypes,
-        Type[] genericArgTypes,
-        Functions.Proc1<Object[]> callback) {
+    public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void registerUntypedSignalHandler(UntypedSignalHandler handler) {
       throw new UnsupportedOperationException("not implemented");
     }
 

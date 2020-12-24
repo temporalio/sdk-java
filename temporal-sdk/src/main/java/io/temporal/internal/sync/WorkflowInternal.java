@@ -51,6 +51,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -127,12 +129,13 @@ public final class WorkflowInternal {
                 }
               });
     }
+    List<WorkflowOutboundCallsInterceptor.SignalRegistrationRequest> requests = new ArrayList<>();
     for (String signalType : workflowMetadata.getSignalTypes()) {
       POJOWorkflowMethodMetadata methodMetadata =
           workflowMetadata.getSignalMethodMetadata(signalType);
       Method method = methodMetadata.getWorkflowMethod();
-      getWorkflowInterceptor()
-          .registerSignal(
+      requests.add(
+          new WorkflowOutboundCallsInterceptor.SignalRegistrationRequest(
               methodMetadata.getName(),
               method.getParameterTypes(),
               method.getGenericParameterTypes(),
@@ -142,7 +145,10 @@ public final class WorkflowInternal {
                 } catch (Throwable e) {
                   throw CheckedExceptionWrapper.wrap(e);
                 }
-              });
+              }));
+    }
+    if (!requests.isEmpty()) {
+      getWorkflowInterceptor().registerSignalHandlers(requests);
     }
   }
 

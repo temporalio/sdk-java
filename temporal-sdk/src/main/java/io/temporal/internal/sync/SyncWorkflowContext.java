@@ -68,16 +68,18 @@ import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.UntypedSignalHandler;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -90,12 +92,18 @@ import org.slf4j.LoggerFactory;
 final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   private static class SignalData {
+    private final String signalName;
     private final Optional<Payloads> payload;
     private final long eventId;
 
-    private SignalData(Optional<Payloads> payload, long eventId) {
+    private SignalData(String signalName, Optional<Payloads> payload, long eventId) {
+      this.signalName = signalName;
       this.payload = payload;
       this.eventId = eventId;
+    }
+
+    public String getSignalName() {
+      return signalName;
     }
 
     public Optional<Payloads> getPayload() {
@@ -118,10 +126,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       queryCallbacks = new HashMap<>();
   private final Map<String, Functions.Proc2<Optional<Payloads>, Long>> signalCallbacks =
       new HashMap<>();
-  /**
-   * Buffers signals which don't have registered listener. Key is signal type. Value is signal data.
-   */
-  private final Map<String, List<SignalData>> signalBuffers = new HashMap<>();
+  private UntypedSignalHandler catchAllSignalHandler;
+
+  /** Buffers signals which don't have registered listener. */
+  private final Queue<SignalData> signalBuffer = new ArrayDeque<>();
 
   private final Optional<Payloads> lastCompletionResult;
   private final Optional<Failure> lastFailure;
@@ -632,12 +640,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public void signal(String signalName, Optional<Payloads> args, long eventId) {
     Functions.Proc2<Optional<Payloads>, Long> callback = signalCallbacks.get(signalName);
     if (callback == null) {
-      List<SignalData> buffer = signalBuffers.get(signalName);
-      if (buffer == null) {
-        buffer = new ArrayList<>();
-        signalBuffers.put(signalName, buffer);
+      if (catchAllSignalHandler != null) {
+        catchAllSignalHandler.handle(signalName, args, converter);
+        return;
       }
-      buffer.add(new SignalData(args, eventId));
+      signalBuffer.add(new SignalData(signalName, args, eventId));
     } else {
       callback.apply(args, eventId);
     }
@@ -663,31 +670,36 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public void registerSignal(
-      String signalType,
-      Class<?>[] argTypes,
-      Type[] genericArgTypes,
-      Functions.Proc1<Object[]> callback) {
-    if (signalCallbacks.containsKey(signalType)) {
-      throw new IllegalStateException("Signal \"" + signalType + "\" is already registered");
-    }
-    Functions.Proc2<Optional<Payloads>, Long> signalCallback =
-        (input, eventId) -> {
-          try {
-            Object[] args =
-                DataConverter.arrayFromPayloads(converter, input, argTypes, genericArgTypes);
-            callback.apply(args);
-          } catch (DataConverterException e) {
-            logSerializationException(signalType, eventId, e);
-          }
-        };
-    List<SignalData> buffer = signalBuffers.remove(signalType);
-    if (buffer != null) {
-      for (SignalData signalData : buffer) {
-        signalCallback.apply(signalData.getPayload(), signalData.getEventId());
+  public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
+    for (SignalRegistrationRequest request : requests) {
+      String signalType = request.getSignalType();
+      if (signalCallbacks.containsKey(signalType)) {
+        throw new IllegalStateException("Signal \"" + signalType + "\" is already registered");
       }
+      Functions.Proc2<Optional<Payloads>, Long> signalCallback =
+          (input, eventId) -> {
+            try {
+              Object[] args =
+                  DataConverter.arrayFromPayloads(
+                      converter, input, request.getArgTypes(), request.getGenericArgTypes());
+              request.getCallback().apply(args);
+            } catch (DataConverterException e) {
+              logSerializationException(signalType, eventId, e);
+            }
+          };
+      signalCallbacks.put(signalType, signalCallback);
     }
-    signalCallbacks.put(signalType, signalCallback);
+    for (SignalData signalData : signalBuffer) {
+      signal(signalData.getSignalName(), signalData.getPayload(), signalData.getEventId());
+    }
+  }
+
+  @Override
+  public void registerUntypedSignalHandler(UntypedSignalHandler handler) {
+    catchAllSignalHandler = handler;
+    for (SignalData signalData : signalBuffer) {
+      handler.handle(signalData.getSignalName(), signalData.getPayload(), converter);
+    }
   }
 
   void logSerializationException(

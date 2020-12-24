@@ -27,8 +27,10 @@ import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.UntypedSignalHandler;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -63,6 +65,40 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Promise<WorkflowExecution> getWorkflowExecution() {
       return workflowExecution;
+    }
+  }
+
+  final class SignalRegistrationRequest {
+    private final String signalType;
+    private final Class<?>[] argTypes;
+    private final Type[] genericArgTypes;
+    private final Functions.Proc1<Object[]> callback;
+
+    public SignalRegistrationRequest(
+        String signalType,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Proc1<Object[]> callback) {
+      this.signalType = signalType;
+      this.argTypes = argTypes;
+      this.genericArgTypes = genericArgTypes;
+      this.callback = callback;
+    }
+
+    public String getSignalType() {
+      return signalType;
+    }
+
+    public Class<?>[] getArgTypes() {
+      return argTypes;
+    }
+
+    public Type[] getGenericArgTypes() {
+      return genericArgTypes;
+    }
+
+    public Functions.Proc1<Object[]> getCallback() {
+      return callback;
     }
   }
 
@@ -118,11 +154,10 @@ public interface WorkflowOutboundCallsInterceptor {
       Type[] genericArgTypes,
       Functions.Func1<Object[], Object> callback);
 
-  void registerSignal(
-      String signalType,
-      Class<?>[] argTypes,
-      Type[] genericArgTypes,
-      Functions.Proc1<Object[]> callback);
+  void registerSignalHandlers(List<SignalRegistrationRequest> requests);
+
+  /** Catch all signal handler. */
+  void registerUntypedSignalHandler(UntypedSignalHandler handler);
 
   UUID randomUUID();
 

@@ -27,8 +27,10 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.UntypedSignalHandler;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -159,12 +161,13 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   }
 
   @Override
-  public void registerSignal(
-      String signalType,
-      Class<?>[] argTypes,
-      Type[] genericArgTypes,
-      Functions.Proc1<Object[]> callback) {
-    next.registerSignal(signalType, argTypes, genericArgTypes, callback);
+  public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
+    next.registerSignalHandlers(requests);
+  }
+
+  @Override
+  public void registerUntypedSignalHandler(UntypedSignalHandler handler) {
+    next.registerUntypedSignalHandler(handler);
   }
 
   @Override
