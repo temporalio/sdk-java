@@ -233,7 +233,7 @@ public final class Worker implements Suspendable {
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
-    workflowWorker.addWorkflowImplementationTypes(
+    workflowWorker.registerWorkflowImplementationTypes(
         WorkflowImplementationOptions.newBuilder().build(), workflowImplementationClasses);
   }
 
@@ -255,7 +255,7 @@ public final class Worker implements Suspendable {
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
-    workflowWorker.addWorkflowImplementationTypes(options, workflowImplementationClasses);
+    workflowWorker.registerWorkflowImplementationTypes(options, workflowImplementationClasses);
   }
 
   /**

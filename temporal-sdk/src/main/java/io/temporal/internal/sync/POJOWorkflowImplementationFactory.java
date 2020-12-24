@@ -94,10 +94,10 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     this.contextPropagators = contextPropagators;
   }
 
-  void addWorkflowImplementationTypes(
+  void registerWorkflowImplementationTypes(
       WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes) {
     for (Class<?> type : workflowImplementationTypes) {
-      addWorkflowImplementationType(options, type);
+      registerWorkflowImplementationType(options, type);
     }
   }
 
@@ -142,7 +142,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
   }
 
-  private void addWorkflowImplementationType(
+  private void registerWorkflowImplementationType(
       WorkflowImplementationOptions options, Class<?> workflowImplementationClass) {
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);

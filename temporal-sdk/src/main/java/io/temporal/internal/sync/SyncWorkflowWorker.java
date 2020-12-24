@@ -107,9 +107,9 @@ public class SyncWorkflowWorker
             service, namespace, taskQueue, workflowOptions, taskHandler, stickyTaskQueueName);
   }
 
-  public void addWorkflowImplementationTypes(
+  public void registerWorkflowImplementationTypes(
       WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes) {
-    factory.addWorkflowImplementationTypes(options, workflowImplementationTypes);
+    factory.registerWorkflowImplementationTypes(options, workflowImplementationTypes);
   }
 
   public <R> void addWorkflowImplementationFactory(
