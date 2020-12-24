@@ -43,6 +43,7 @@ import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
+import io.temporal.workflow.UntypedWorkflow;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import java.lang.reflect.InvocationTargetException;
@@ -77,6 +78,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private final Map<Class<?>, Functions.Func<?>> workflowImplementationFactories =
       Collections.synchronizedMap(new HashMap<>());
+
+  /** If registered then it is called for any unknown workflow type. */
+  private Class<? extends UntypedWorkflow> untypedWorkflow;
 
   private final ExecutorService threadPool;
   private final WorkflowExecutorCache cache;
@@ -144,6 +148,15 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private void registerWorkflowImplementationType(
       WorkflowImplementationOptions options, Class<?> workflowImplementationClass) {
+    if (UntypedWorkflow.class.isAssignableFrom(workflowImplementationClass)) {
+      if (untypedWorkflow != null) {
+        throw new IllegalStateException(
+            "an implementation of UntypedWorkflow is already registered with the worker: "
+                + untypedWorkflow);
+      }
+      untypedWorkflow = (Class<? extends UntypedWorkflow>) workflowImplementationClass;
+      return;
+    }
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);
     Set<String> workflowMethodTypes = workflowMetadata.getWorkflowTypes();
@@ -183,6 +196,10 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     Functions.Func<SyncWorkflowDefinition> factory =
         workflowDefinitions.get(workflowType.getName());
     if (factory == null) {
+      if (untypedWorkflow != null) {
+        return new UntypedSyncWorkflowDefinition(
+            untypedWorkflow, workflowInterceptors, dataConverter);
+      }
       // throw Error to abort the workflow task task, not fail the workflow
       throw new Error(
           "Unknown workflow type \""
@@ -211,7 +228,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   @Override
   public boolean isAnyTypeSupported() {
-    return !workflowDefinitions.isEmpty();
+    return !workflowDefinitions.isEmpty() || untypedWorkflow != null;
   }
 
   private class POJOWorkflowImplementation implements SyncWorkflowDefinition {

@@ -28,6 +28,7 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import java.util.UUID;
 import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
@@ -58,6 +59,14 @@ import org.junit.runners.model.Statement;
  */
 public class TestWorkflowRule implements TestRule {
 
+  private final TestWatcher watchman =
+      new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, Description description) {
+          System.err.println("WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+        }
+      };
+
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
   private final TestWorkflowEnvironment testEnvironment;
@@ -70,7 +79,8 @@ public class TestWorkflowRule implements TestRule {
       boolean useExternalService,
       Class<?>[] workflowTypes,
       Object[] activityImplementations,
-      WorkerOptions workerOptions) {
+      WorkerOptions workerOptions,
+      boolean debugTimeouts) {
     this.testEnvironment = testEnvironment;
     this.useExternalService = useExternalService;
     this.workflowTypes = workflowTypes;
@@ -89,6 +99,7 @@ public class TestWorkflowRule implements TestRule {
     private Object[] activityImplementations;
     private boolean useExternalService;
     private String target;
+    private boolean debugTimeouts;
 
     private Builder() {}
 
@@ -152,23 +163,26 @@ public class TestWorkflowRule implements TestRule {
       return new TestWorkflowRule(
           testEnvironment,
           useExternalService,
-          workflowTypes,
-          activityImplementations,
-          workerOptions);
+          workflowTypes == null ? new Class[0] : workflowTypes,
+          activityImplementations == null ? new Object[0] : activityImplementations,
+          workerOptions,
+          debugTimeouts);
     }
   }
 
   @Override
   public Statement apply(Statement base, Description description) {
     taskQueue = init(description);
-    return new Statement() {
-      @Override
-      public void evaluate() throws Throwable {
-        start();
-        base.evaluate();
-        shutdown();
-      }
-    };
+    return watchman.apply(
+        new Statement() {
+          @Override
+          public void evaluate() throws Throwable {
+            start();
+            base.evaluate();
+            shutdown();
+          }
+        },
+        description);
   }
 
   private void shutdown() {
