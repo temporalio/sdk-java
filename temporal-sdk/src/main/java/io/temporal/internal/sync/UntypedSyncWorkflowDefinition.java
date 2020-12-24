@@ -21,6 +21,8 @@ package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.converter.Values;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
@@ -56,7 +58,9 @@ class UntypedSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   @Override
   public Optional<Payloads> execute(Optional<Payloads> input) {
-    return (Optional<Payloads>) workflowInvoker.execute(new Object[] {input});
+    Values args = new EncodedValues(input, dataConverter);
+    Object result = workflowInvoker.execute(new Object[] {args});
+    return dataConverter.toPayloads(result);
   }
 
   private class RootWorkflowInboundCallsInterceptor implements WorkflowInboundCallsInterceptor {
@@ -69,7 +73,7 @@ class UntypedSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
     @Override
     public Object execute(Object[] arguments) {
-      return workflow.execute((Optional<Payloads>) arguments[0], dataConverter);
+      return workflow.execute((EncodedValues) arguments[0]);
     }
 
     @Override

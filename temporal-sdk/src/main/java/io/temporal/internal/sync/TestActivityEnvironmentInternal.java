@@ -59,6 +59,7 @@ import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.UntypedQueryHandler;
 import io.temporal.workflow.UntypedSignalHandler;
 import io.temporal.workflow.Workflow;
 import java.io.IOException;
@@ -356,6 +357,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public void registerUntypedSignalHandler(UntypedSignalHandler handler) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void registerUntypedQueryHandler(UntypedQueryHandler handler) {
       throw new UnsupportedOperationException("not implemented");
     }
 

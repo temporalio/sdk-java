@@ -24,6 +24,5 @@ import io.temporal.common.converter.DataConverter;
 import java.util.Optional;
 
 public interface UntypedSignalHandler {
-  Optional<Payloads> handle(
-      String signalName, Optional<Payloads> input, DataConverter dataConverter);
+  void handle(String signalName, Optional<Payloads> input, DataConverter dataConverter);
 }

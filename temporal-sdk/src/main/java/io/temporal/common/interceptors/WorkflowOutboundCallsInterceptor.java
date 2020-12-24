@@ -27,6 +27,7 @@ import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.UntypedQueryHandler;
 import io.temporal.workflow.UntypedSignalHandler;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -158,6 +159,9 @@ public interface WorkflowOutboundCallsInterceptor {
 
   /** Catch all signal handler. */
   void registerUntypedSignalHandler(UntypedSignalHandler handler);
+
+  /** Catch all query handler. */
+  void registerUntypedQueryHandler(UntypedQueryHandler handler);
 
   UUID randomUUID();
 

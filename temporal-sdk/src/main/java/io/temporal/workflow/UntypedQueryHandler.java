@@ -19,8 +19,11 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.converter.EncodedValues;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.common.converter.DataConverter;
+import java.util.Optional;
 
-public interface UntypedWorkflow {
-  Object execute(EncodedValues args);
+public interface UntypedQueryHandler {
+  Optional<Payloads> handle(
+      String queryType, Optional<Payloads> input, DataConverter dataConverter);
 }

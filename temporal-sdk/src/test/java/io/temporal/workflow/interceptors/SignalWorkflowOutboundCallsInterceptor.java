@@ -27,6 +27,7 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.UntypedQueryHandler;
 import io.temporal.workflow.UntypedSignalHandler;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -168,6 +169,11 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   @Override
   public void registerUntypedSignalHandler(UntypedSignalHandler handler) {
     next.registerUntypedSignalHandler(handler);
+  }
+
+  @Override
+  public void registerUntypedQueryHandler(UntypedQueryHandler handler) {
+    next.registerUntypedQueryHandler(handler);
   }
 
   @Override

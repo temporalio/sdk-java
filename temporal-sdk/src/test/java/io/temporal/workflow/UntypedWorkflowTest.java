@@ -19,11 +19,9 @@
 
 package io.temporal.workflow;
 
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.converter.DataConverter;
-import java.util.Optional;
+import io.temporal.common.converter.EncodedValues;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,11 +42,11 @@ public class UntypedWorkflowTest {
   public static class UntypedWorkflowImpl implements UntypedWorkflow {
 
     @Override
-    public Optional<Payloads> execute(Optional<Payloads> input, DataConverter dataConverter) {
+    public Object execute(EncodedValues args) {
       String type = Workflow.getInfo().getWorkflowType();
-      String arg0 =
-          dataConverter.fromPayload(input.get().getPayloads(0), String.class, String.class);
-      return dataConverter.toPayloads(arg0 + type);
+      Workflow.registerListener((UntypedSignalHandler) (signalName, input1, dc) -> {});
+      String arg0 = args.get(0, String.class);
+      return arg0 + "-" + type;
     }
   }
 
@@ -63,8 +61,8 @@ public class UntypedWorkflowTest {
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
     WorkflowStub workflow =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("workflowFoo", workflowOptions);
-    workflow.start("arg0-");
+    workflow.signalWithStart("signal1", new Object[] {"signalArg0"}, new Object[] {"startArg0"});
     String result = workflow.getResult(String.class);
-    Assert.assertEquals("arg0-workflowFoo", result);
+    Assert.assertEquals("startArg0-workflowFoo", result);
   }
 }

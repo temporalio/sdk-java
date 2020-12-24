@@ -7061,6 +7061,14 @@ public class WorkflowTest {
     }
 
     @Override
+    public void registerUntypedQueryHandler(UntypedQueryHandler handler) {
+      if (!Workflow.isReplaying()) {
+        trace.add("registerUntypedQueryHandler");
+      }
+      next.registerUntypedQueryHandler(handler);
+    }
+
+    @Override
     public UUID randomUUID() {
       if (!Workflow.isReplaying()) {
         trace.add("randomUUID");

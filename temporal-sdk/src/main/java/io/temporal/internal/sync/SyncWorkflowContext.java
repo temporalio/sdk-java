@@ -68,6 +68,7 @@ import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.UntypedQueryHandler;
 import io.temporal.workflow.UntypedSignalHandler;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
@@ -127,6 +128,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private final Map<String, Functions.Proc2<Optional<Payloads>, Long>> signalCallbacks =
       new HashMap<>();
   private UntypedSignalHandler catchAllSignalHandler;
+  private UntypedQueryHandler catchAllQueryHandler;
 
   /** Buffers signals which don't have registered listener. */
   private final Queue<SignalData> signalBuffer = new ArrayDeque<>();
@@ -631,6 +633,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public Optional<Payloads> query(String type, Optional<Payloads> args) {
     Functions.Func1<Optional<Payloads>, Optional<Payloads>> callback = queryCallbacks.get(type);
     if (callback == null) {
+      if (catchAllQueryHandler != null) {
+        return catchAllQueryHandler.handle(type, args, converter);
+      }
       throw new IllegalArgumentException(
           "Unknown query type: " + type + ", knownTypes=" + queryCallbacks.keySet());
     }
@@ -700,6 +705,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     for (SignalData signalData : signalBuffer) {
       handler.handle(signalData.getSignalName(), signalData.getPayload(), converter);
     }
+  }
+
+  @Override
+  public void registerUntypedQueryHandler(UntypedQueryHandler handler) {
+    catchAllQueryHandler = handler;
   }
 
   void logSerializationException(
