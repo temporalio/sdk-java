@@ -21,6 +21,18 @@ package io.temporal.workflow;
 
 import io.temporal.common.converter.EncodedValues;
 
+/**
+ * Use DynamicSignalHandler to process any signal dynamically. This is useful for a library level
+ * code and implementation of DSLs.
+ *
+ * <p>Use {@link Workflow#registerListener(Object)} to register an implementation of the
+ * DynamicSignalListener. Only one such listener can be registered per workflow execution.
+ *
+ * <p>When registered any signals which don't have a specific handler will be delivered to it.
+ *
+ * @see DynamicQueryHandler
+ * @see DynamicWorkflow
+ */
 public interface DynamicSignalHandler {
   void handle(String signalName, EncodedValues args);
 }

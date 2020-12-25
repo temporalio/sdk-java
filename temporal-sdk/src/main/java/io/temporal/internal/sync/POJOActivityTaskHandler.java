@@ -25,6 +25,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
@@ -46,7 +47,6 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.SimulatedTimeoutFailure;
-import io.temporal.workflow.DynamicActivity;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -60,7 +60,7 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class POJOActivityTaskHandler implements ActivityTaskHandler {
+final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   private static final Logger log = LoggerFactory.getLogger(POJOActivityTaskHandler.class);
 

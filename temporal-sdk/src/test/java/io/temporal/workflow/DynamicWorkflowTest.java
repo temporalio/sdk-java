@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.DynamicActivity;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.EncodedValues;
@@ -99,19 +100,13 @@ public class DynamicWorkflowTest {
     assertEquals("activityType1-startArg0-workflowFoo", result);
   }
 
-  /**
-   * This test runs a workflow that executes multiple activities in the single handler thread. Test
-   * workflow is configured to fail with heartbeat timeout errors in case if activity pollers are
-   * too eager to poll tasks before previously fetched tasks are handled.
-   */
   @Test
   public void testDynamicWorkflowFactory() {
     TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
     testEnvironment
         .getWorkerFactory()
         .getWorker(testWorkflowRule.getTaskQueue())
-        .addWorkflowImplementationFactory(
-            DynamicWorkflowImpl.class, () -> new DynamicWorkflowImpl());
+        .addWorkflowImplementationFactory(DynamicWorkflowImpl.class, DynamicWorkflowImpl::new);
     testEnvironment.start();
 
     WorkflowOptions workflowOptions =
