@@ -26,23 +26,23 @@ import io.temporal.common.converter.Values;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.UntypedWorkflow;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Optional;
 
 class UntypedSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
-  private final Class<? extends UntypedWorkflow> workflowImplementationClass;
+  private final Functions.Func<? extends UntypedWorkflow> factory;
   private final WorkflowInterceptor[] workflowInterceptors;
   private final DataConverter dataConverter;
   private WorkflowInboundCallsInterceptor workflowInvoker;
   private UntypedWorkflow workflow;
 
   public UntypedSyncWorkflowDefinition(
-      Class<? extends UntypedWorkflow> workflowImplementationClass,
+      Functions.Func<? extends UntypedWorkflow> factory,
       WorkflowInterceptor[] workflowInterceptors,
       DataConverter dataConverter) {
-    this.workflowImplementationClass = workflowImplementationClass;
+    this.factory = factory;
     this.workflowInterceptors = workflowInterceptors;
     this.dataConverter = dataConverter;
   }
@@ -86,18 +86,7 @@ class UntypedSyncWorkflowDefinition implements SyncWorkflowDefinition {
       if (workflow != null) {
         throw new IllegalStateException("Already called");
       }
-      try {
-        workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
-      } catch (NoSuchMethodException
-          | InstantiationException
-          | IllegalAccessException
-          | InvocationTargetException e) {
-        // Error to fail workflow task as this can be fixed by a new deployment.
-        throw new Error(
-            "Failure instantiating workflow implementation class "
-                + workflowImplementationClass.getName(),
-            e);
-      }
+      workflow = factory.apply();
     }
   }
 }

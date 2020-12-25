@@ -60,7 +60,7 @@ import org.junit.runners.model.Statement;
  */
 public class TestWorkflowRule implements TestRule {
 
-  public Timeout globalTimeout = Timeout.seconds(10);
+  public Timeout globalTimeout;
 
   private final TestWatcher watchman =
       new TestWatcher() {
@@ -75,7 +75,8 @@ public class TestWorkflowRule implements TestRule {
   private final TestWorkflowEnvironment testEnvironment;
   private final WorkerOptions workerOptions;
   private final boolean useExternalService;
-  private final long testTimeoutSeconds;
+  private final boolean doNotStart;
+
   private String taskQueue;
 
   private TestWorkflowRule(
@@ -84,13 +85,15 @@ public class TestWorkflowRule implements TestRule {
       Class<?>[] workflowTypes,
       Object[] activityImplementations,
       WorkerOptions workerOptions,
-      long testTimeoutSeconds) {
+      long testTimeoutSeconds,
+      boolean doNotStart) {
     this.testEnvironment = testEnvironment;
     this.useExternalService = useExternalService;
     this.workflowTypes = workflowTypes;
     this.activityImplementations = activityImplementations;
     this.workerOptions = workerOptions;
-    this.testTimeoutSeconds = testTimeoutSeconds;
+    this.globalTimeout = Timeout.seconds(testTimeoutSeconds);
+    this.doNotStart = doNotStart;
   }
 
   public static Builder newBuilder() {
@@ -105,6 +108,7 @@ public class TestWorkflowRule implements TestRule {
     private boolean useExternalService;
     private String target;
     private long testTimeoutSeconds;
+    private boolean doNotStart;
 
     private Builder() {}
 
@@ -157,6 +161,16 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
+    /**
+     * When set to true the {@link TestWorkflowEnvironment#start()} is not called by the rule before
+     * executing the test. This to support tests that register activities and workflows with workers
+     * directly instead of using only {@link TestWorkflowRule.Builder}.
+     */
+    public Builder setDoNotStart(boolean doNotStart) {
+      this.doNotStart = doNotStart;
+      return this;
+    }
+
     public TestWorkflowRule build() {
       namespace = namespace == null ? "UnitTest" : namespace;
       WorkflowClientOptions clientOptions =
@@ -177,7 +191,8 @@ public class TestWorkflowRule implements TestRule {
           workflowTypes == null ? new Class[0] : workflowTypes,
           activityImplementations == null ? new Object[0] : activityImplementations,
           workerOptions,
-          testTimeoutSeconds);
+          testTimeoutSeconds,
+          doNotStart);
     }
   }
 
@@ -201,7 +216,9 @@ public class TestWorkflowRule implements TestRule {
   }
 
   private void start() {
-    testEnvironment.start();
+    if (!doNotStart) {
+      testEnvironment.start();
+    }
   }
 
   private String init(Description description) {
@@ -230,5 +247,9 @@ public class TestWorkflowRule implements TestRule {
    */
   public boolean isUseExternalService() {
     return useExternalService;
+  }
+
+  public TestWorkflowEnvironment getTestEnvironment() {
+    return testEnvironment;
   }
 }

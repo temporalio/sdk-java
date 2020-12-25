@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.testing.TestWorkflowEnvironment;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
@@ -34,9 +35,9 @@ public class UntypedWorkflowTest {
   @Rule
   public TestWorkflowRule testWorkflowRule =
       TestWorkflowRule.newBuilder()
-          .setWorkflowTypes(UntypedWorkflowImpl.class)
           .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
           .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
+          .setDoNotStart(true)
           .build();
 
   public static class UntypedWorkflowImpl implements UntypedWorkflow {
@@ -62,13 +63,41 @@ public class UntypedWorkflowTest {
     }
   }
 
+  @Test
+  public void testUntypedWorkflow() {
+    TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
+    testEnvironment
+        .getWorkerFactory()
+        .getWorker(testWorkflowRule.getTaskQueue())
+        .registerWorkflowImplementationTypes(UntypedWorkflowImpl.class);
+    testEnvironment.start();
+
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
+    WorkflowStub workflow =
+        testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("workflowFoo", workflowOptions);
+    workflow.signalWithStart("signal1", new Object[] {"signalArg0"}, new Object[] {"startArg0"});
+    String queryResult = workflow.query("query1", String.class, "queryArg0");
+    assertEquals("query1-queryArg0-signal1-signalArg0", queryResult);
+    String result = workflow.getResult(String.class);
+    assertEquals("startArg0-workflowFoo", result);
+  }
+
   /**
    * This test runs a workflow that executes multiple activities in the single handler thread. Test
    * workflow is configured to fail with heartbeat timeout errors in case if activity pollers are
    * too eager to poll tasks before previously fetched tasks are handled.
    */
   @Test
-  public void testUntypedWorkflow() {
+  public void testUntypedWorkflowFactory() {
+    TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
+    testEnvironment
+        .getWorkerFactory()
+        .getWorker(testWorkflowRule.getTaskQueue())
+        .addWorkflowImplementationFactory(
+            UntypedWorkflowImpl.class, () -> new UntypedWorkflowImpl());
+    testEnvironment.start();
+
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
     WorkflowStub workflow =

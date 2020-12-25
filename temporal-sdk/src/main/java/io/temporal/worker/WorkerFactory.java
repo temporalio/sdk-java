@@ -34,8 +34,8 @@ import io.temporal.internal.worker.Poller;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
 import io.temporal.serviceclient.MetricsTag;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.SynchronousQueue;
@@ -61,7 +61,7 @@ public final class WorkerFactory {
 
   private static final String POLL_THREAD_NAME = "Host Local Workflow Poller";
 
-  private final List<Worker> workers = new ArrayList<>();
+  private final Map<String, Worker> workers = new HashMap<>();
   private final WorkflowClient workflowClient;
   private final UUID id =
       UUID.randomUUID(); // Guarantee uniqueness for stickyTaskQueueName when multiple factories
@@ -179,8 +179,20 @@ public final class WorkerFactory {
             getStickyTaskQueueName(),
             workflowThreadPool,
             workflowClient.getOptions().getContextPropagators());
-    workers.add(worker);
+    workers.put(taskQueue, worker);
     return worker;
+  }
+
+  /**
+   * Returns a worker created previously through {@link #newWorker(String)} for the given task
+   * queue.
+   */
+  public synchronized Worker getWorker(String taskQueue) {
+    Worker result = workers.get(taskQueue);
+    if (result == null) {
+      throw new IllegalArgumentException("No worker for taskQueue: " + taskQueue);
+    }
+    return result;
   }
 
   /** Starts all the workers created by this factory. */
@@ -197,7 +209,7 @@ public final class WorkerFactory {
     }
     state = State.Started;
 
-    for (Worker worker : workers) {
+    for (Worker worker : workers.values()) {
       worker.start();
       if (worker.workflowWorker.isStarted()) {
         dispatcher.subscribe(worker.getTaskQueue(), worker.workflowWorker);
@@ -232,7 +244,7 @@ public final class WorkerFactory {
         return false;
       }
     }
-    for (Worker worker : workers) {
+    for (Worker worker : workers.values()) {
       if (!worker.isTerminated()) {
         return false;
       }
@@ -261,7 +273,7 @@ public final class WorkerFactory {
       // To ensure that it doesn't get new tasks before workers are shutdown.
       stickyPoller.awaitTermination(1, TimeUnit.SECONDS);
     }
-    for (Worker worker : workers) {
+    for (Worker worker : workers.values()) {
       worker.shutdown();
     }
   }
@@ -284,7 +296,7 @@ public final class WorkerFactory {
       // To ensure that it doesn't get new tasks before workers are shutdown.
       stickyPoller.awaitTermination(1, TimeUnit.SECONDS);
     }
-    for (Worker worker : workers) {
+    for (Worker worker : workers.values()) {
       worker.shutdownNow();
     }
   }
@@ -297,7 +309,7 @@ public final class WorkerFactory {
     log.info("awaitTermination begin");
     long timeoutMillis = unit.toMillis(timeout);
     timeoutMillis = InternalUtils.awaitTermination(stickyPoller, timeoutMillis);
-    for (Worker worker : workers) {
+    for (Worker worker : workers.values()) {
       long t = timeoutMillis; // closure needs immutable value
       timeoutMillis =
           InternalUtils.awaitTermination(
@@ -325,7 +337,7 @@ public final class WorkerFactory {
     if (stickyPoller != null) {
       stickyPoller.suspendPolling();
     }
-    for (Worker worker : workers) {
+    for (Worker worker : workers.values()) {
       worker.suspendPolling();
     }
   }
@@ -340,7 +352,7 @@ public final class WorkerFactory {
     if (stickyPoller != null) {
       stickyPoller.resumePolling();
     }
-    for (Worker worker : workers) {
+    for (Worker worker : workers.values()) {
       worker.resumePolling();
     }
   }
