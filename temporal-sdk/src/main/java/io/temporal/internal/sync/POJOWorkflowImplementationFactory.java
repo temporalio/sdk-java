@@ -119,7 +119,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     if (UntypedWorkflow.class.isAssignableFrom(clazz)) {
       if (unregisteredTypeImplementationFactory != null) {
         throw new IllegalStateException(
-            "an implementation of UntypedWorkflow or its implementation factory is already registered with the worker");
+            "An implementation of UntypedWorkflow or its implementation factory is already registered with the worker");
       }
       unregisteredTypeImplementationFactory = (Func<? extends UntypedWorkflow>) factory;
       return;

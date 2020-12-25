@@ -33,6 +33,7 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.failure.FailureConverter;
@@ -45,6 +46,7 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.SimulatedTimeoutFailure;
+import io.temporal.workflow.UntypedActivity;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -69,6 +71,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final ActivityInterceptor[] interceptors;
+  private ActivityTaskExecutor untypedActivity;
 
   POJOActivityTaskHandler(
       WorkflowServiceStubs service,
@@ -83,10 +86,18 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     this.interceptors = Objects.requireNonNull(interceptors);
   }
 
-  private void addActivityImplementation(
+  private void registerActivityImplementation(
       Object activity, BiFunction<Method, Object, ActivityTaskExecutor> newTaskExecutor) {
     if (activity instanceof Class) {
       throw new IllegalArgumentException("Activity object instance expected, not the class");
+    }
+    if (activity instanceof UntypedActivity) {
+      if (untypedActivity != null) {
+        throw new IllegalStateException(
+            "An implementation of UntypedActivity is already registered with the worker");
+      }
+      untypedActivity = new UntypedActivityImplementation((UntypedActivity) activity);
+      return;
     }
     Class<?> cls = activity.getClass();
     POJOActivityImplMetadata activityMetadata = POJOActivityImplMetadata.newInstance(cls);
@@ -139,7 +150,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public boolean isAnyTypeSupported() {
-    return !activities.isEmpty();
+    return !activities.isEmpty() || untypedActivity != null;
   }
 
   @VisibleForTesting
@@ -149,13 +160,13 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   void registerActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
-      addActivityImplementation(activity, POJOActivityImplementation::new);
+      registerActivityImplementation(activity, POJOActivityImplementation::new);
     }
   }
 
   void registerLocalActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
-      addActivityImplementation(activity, POJOLocalActivityImplementation::new);
+      registerActivityImplementation(activity, POJOLocalActivityImplementation::new);
     }
   }
 
@@ -167,6 +178,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         new ActivityInfoImpl(pollResponse, this.namespace, localActivity);
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
+      if (untypedActivity != null) {
+        return untypedActivity.execute(activityTask, metricsScope);
+      }
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
           new IllegalArgumentException(
@@ -279,6 +293,96 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         throw e;
       } catch (InvocationTargetException e) {
         throw Activity.wrap(e.getTargetException());
+      } catch (Exception e) {
+        throw Activity.wrap(e);
+      } finally {
+        CurrentActivityExecutionContext.unset();
+      }
+    }
+  }
+
+  private class UntypedActivityImplementation implements ActivityTaskExecutor {
+
+    private final UntypedActivity activity;
+
+    public UntypedActivityImplementation(UntypedActivity activity) {
+      this.activity = activity;
+    }
+
+    @Override
+    public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
+      ActivityExecutionContext context =
+          new ActivityExecutionContextImpl(
+              service, namespace, info, dataConverter, heartbeatExecutor, metricsScope);
+      Optional<Payloads> input = info.getInput();
+      ActivityInboundCallsInterceptor inboundCallsInterceptor =
+          new UntypedActivityInboundCallsInterceptor(activity);
+      for (ActivityInterceptor interceptor : interceptors) {
+        inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
+      }
+      inboundCallsInterceptor.init(context);
+      try {
+        EncodedValues args = new EncodedValues(input, dataConverter);
+        Object result = inboundCallsInterceptor.execute(new Object[] {args});
+        if (context.isDoNotCompleteOnReturn()) {
+          return new ActivityTaskHandler.Result(info.getActivityId(), null, null, null, null);
+        }
+        RespondActivityTaskCompletedRequest.Builder request =
+            RespondActivityTaskCompletedRequest.newBuilder();
+        Optional<Payloads> serialized = dataConverter.toPayloads(result);
+        if (serialized.isPresent()) {
+          request.setResult(serialized.get());
+        }
+        return new ActivityTaskHandler.Result(
+            info.getActivityId(), request.build(), null, null, null);
+      } catch (Throwable e) {
+        e = CheckedExceptionWrapper.unwrap(e);
+        if (e instanceof ActivityCanceledException) {
+          if (log.isInfoEnabled()) {
+            log.info(
+                "Activity canceled. ActivityId="
+                    + info.getActivityId()
+                    + ", activityType="
+                    + info.getActivityType()
+                    + ", attempt="
+                    + info.getAttempt());
+          }
+        } else if (log.isWarnEnabled()) {
+          log.warn(
+              "Activity failure. ActivityId="
+                  + info.getActivityId()
+                  + ", activityType="
+                  + info.getActivityType()
+                  + ", attempt="
+                  + info.getAttempt(),
+              e);
+        }
+        return mapToActivityFailure(e, info.getActivityId(), metricsScope, false);
+      }
+    }
+  }
+
+  private static class UntypedActivityInboundCallsInterceptor
+      implements ActivityInboundCallsInterceptor {
+    private final UntypedActivity activity;
+    private ActivityExecutionContext context;
+
+    private UntypedActivityInboundCallsInterceptor(UntypedActivity activity) {
+      this.activity = activity;
+    }
+
+    @Override
+    public void init(ActivityExecutionContext context) {
+      this.context = context;
+    }
+
+    @Override
+    public Object execute(Object[] arguments) {
+      CurrentActivityExecutionContext.set(context);
+      try {
+        return activity.execute((EncodedValues) arguments[0]);
+      } catch (Error e) {
+        throw e;
       } catch (Exception e) {
         throw Activity.wrap(e);
       } finally {

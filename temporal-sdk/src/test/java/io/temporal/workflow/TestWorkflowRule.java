@@ -101,6 +101,8 @@ public class TestWorkflowRule implements TestRule {
   }
 
   public static class Builder {
+    private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
+
     private WorkerOptions workerOptions;
     private String namespace;
     private Class<?>[] workflowTypes;
@@ -191,7 +193,7 @@ public class TestWorkflowRule implements TestRule {
           workflowTypes == null ? new Class[0] : workflowTypes,
           activityImplementations == null ? new Object[0] : activityImplementations,
           workerOptions,
-          testTimeoutSeconds,
+          testTimeoutSeconds == 0 ? DEFAULT_TEST_TIMEOUT_SECONDS : testTimeoutSeconds,
           doNotStart);
     }
   }

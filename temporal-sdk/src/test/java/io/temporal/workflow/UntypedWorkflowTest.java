@@ -21,10 +21,13 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.testing.TestWorkflowEnvironment;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
@@ -38,6 +41,7 @@ public class UntypedWorkflowTest {
           .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
           .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .setDoNotStart(true)
+          .setActivityImplementations(new UntypedActivityImpl())
           .build();
 
   public static class UntypedWorkflowImpl implements UntypedWorkflow {
@@ -59,7 +63,19 @@ public class UntypedWorkflowTest {
                       + "-"
                       + signals.get(signals.size() - 1));
       String arg0 = args.get(0, String.class);
-      return arg0 + "-" + type;
+      ActivityStub activity =
+          Workflow.newUntypedActivityStub(
+              ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
+      return activity.execute("activityType1", String.class, arg0 + "-" + type);
+    }
+  }
+
+  public static class UntypedActivityImpl implements UntypedActivity {
+    @Override
+    public Object execute(EncodedValues args) {
+      return Activity.getExecutionContext().getInfo().getActivityType()
+          + "-"
+          + args.get(0, String.class);
     }
   }
 
@@ -80,7 +96,7 @@ public class UntypedWorkflowTest {
     String queryResult = workflow.query("query1", String.class, "queryArg0");
     assertEquals("query1-queryArg0-signal1-signalArg0", queryResult);
     String result = workflow.getResult(String.class);
-    assertEquals("startArg0-workflowFoo", result);
+    assertEquals("activityType1-startArg0-workflowFoo", result);
   }
 
   /**
@@ -106,6 +122,6 @@ public class UntypedWorkflowTest {
     String queryResult = workflow.query("query1", String.class, "queryArg0");
     assertEquals("query1-queryArg0-signal1-signalArg0", queryResult);
     String result = workflow.getResult(String.class);
-    assertEquals("startArg0-workflowFoo", result);
+    assertEquals("activityType1-startArg0-workflowFoo", result);
   }
 }
