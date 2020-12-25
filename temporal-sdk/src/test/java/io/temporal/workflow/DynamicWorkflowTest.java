@@ -33,7 +33,7 @@ import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class UntypedWorkflowTest {
+public class DynamicWorkflowTest {
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -41,21 +41,21 @@ public class UntypedWorkflowTest {
           .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
           .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .setDoNotStart(true)
-          .setActivityImplementations(new UntypedActivityImpl())
+          .setActivityImplementations(new DynamicActivityImpl())
           .build();
 
-  public static class UntypedWorkflowImpl implements UntypedWorkflow {
+  public static class DynamicWorkflowImpl implements DynamicWorkflow {
 
     @Override
     public Object execute(EncodedValues args) {
       List<String> signals = new ArrayList<>();
       String type = Workflow.getInfo().getWorkflowType();
       Workflow.registerListener(
-          (UntypedSignalHandler)
+          (DynamicSignalHandler)
               (signalName, encodedArgs) ->
                   signals.add(signalName + "-" + encodedArgs.get(0, String.class)));
       Workflow.registerListener(
-          (UntypedQueryHandler)
+          (DynamicQueryHandler)
               (queryType, encodedArgs) ->
                   queryType
                       + "-"
@@ -64,13 +64,13 @@ public class UntypedWorkflowTest {
                       + signals.get(signals.size() - 1));
       String arg0 = args.get(0, String.class);
       ActivityStub activity =
-          Workflow.newUntypedActivityStub(
+          Workflow.newDynamicActivityStub(
               ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
       return activity.execute("activityType1", String.class, arg0 + "-" + type);
     }
   }
 
-  public static class UntypedActivityImpl implements UntypedActivity {
+  public static class DynamicActivityImpl implements DynamicActivity {
     @Override
     public Object execute(EncodedValues args) {
       return Activity.getExecutionContext().getInfo().getActivityType()
@@ -80,12 +80,12 @@ public class UntypedWorkflowTest {
   }
 
   @Test
-  public void testUntypedWorkflow() {
+  public void testDynamicWorkflow() {
     TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
     testEnvironment
         .getWorkerFactory()
         .getWorker(testWorkflowRule.getTaskQueue())
-        .registerWorkflowImplementationTypes(UntypedWorkflowImpl.class);
+        .registerWorkflowImplementationTypes(DynamicWorkflowImpl.class);
     testEnvironment.start();
 
     WorkflowOptions workflowOptions =
@@ -105,13 +105,13 @@ public class UntypedWorkflowTest {
    * too eager to poll tasks before previously fetched tasks are handled.
    */
   @Test
-  public void testUntypedWorkflowFactory() {
+  public void testDynamicWorkflowFactory() {
     TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
     testEnvironment
         .getWorkerFactory()
         .getWorker(testWorkflowRule.getTaskQueue())
         .addWorkflowImplementationFactory(
-            UntypedWorkflowImpl.class, () -> new UntypedWorkflowImpl());
+            DynamicWorkflowImpl.class, () -> new DynamicWorkflowImpl());
     testEnvironment.start();
 
     WorkflowOptions workflowOptions =

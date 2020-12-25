@@ -21,6 +21,6 @@ package io.temporal.workflow;
 
 import io.temporal.common.converter.EncodedValues;
 
-public interface UntypedActivity {
-  Object execute(EncodedValues args);
+public interface DynamicSignalHandler {
+  void handle(String signalName, EncodedValues args);
 }

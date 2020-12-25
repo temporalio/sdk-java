@@ -41,9 +41,9 @@ import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.UntypedWorkflow;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import java.lang.reflect.InvocationTargetException;
@@ -79,7 +79,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       Collections.synchronizedMap(new HashMap<>());
 
   /** If registered then it is called for any unknown workflow type. */
-  private Functions.Func<? extends UntypedWorkflow> unregisteredTypeImplementationFactory;
+  private Functions.Func<? extends DynamicWorkflow> dynamicWorkflowImplementationFactory;
 
   private final ExecutorService threadPool;
   private final WorkflowExecutorCache cache;
@@ -116,12 +116,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   @SuppressWarnings("unchecked")
   <R> void addWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory) {
-    if (UntypedWorkflow.class.isAssignableFrom(clazz)) {
-      if (unregisteredTypeImplementationFactory != null) {
+    if (DynamicWorkflow.class.isAssignableFrom(clazz)) {
+      if (dynamicWorkflowImplementationFactory != null) {
         throw new IllegalStateException(
-            "An implementation of UntypedWorkflow or its implementation factory is already registered with the worker");
+            "An implementation of DynamicWorkflow or its implementation factory is already registered with the worker");
       }
-      unregisteredTypeImplementationFactory = (Func<? extends UntypedWorkflow>) factory;
+      dynamicWorkflowImplementationFactory = (Func<? extends DynamicWorkflow>) factory;
       return;
     }
     workflowImplementationFactories.put(clazz, factory);
@@ -157,7 +157,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private <T> void registerWorkflowImplementationType(
       WorkflowImplementationOptions options, Class<T> workflowImplementationClass) {
-    if (UntypedWorkflow.class.isAssignableFrom(workflowImplementationClass)) {
+    if (DynamicWorkflow.class.isAssignableFrom(workflowImplementationClass)) {
       addWorkflowImplementationFactory(
           options,
           workflowImplementationClass,
@@ -216,9 +216,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     Functions.Func<SyncWorkflowDefinition> factory =
         workflowDefinitions.get(workflowType.getName());
     if (factory == null) {
-      if (unregisteredTypeImplementationFactory != null) {
-        return new UntypedSyncWorkflowDefinition(
-            unregisteredTypeImplementationFactory, workflowInterceptors, dataConverter);
+      if (dynamicWorkflowImplementationFactory != null) {
+        return new DynamicSyncWorkflowDefinition(
+            dynamicWorkflowImplementationFactory, workflowInterceptors, dataConverter);
       }
       // throw Error to abort the workflow task task, not fail the workflow
       throw new Error(
@@ -248,7 +248,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   @Override
   public boolean isAnyTypeSupported() {
-    return !workflowDefinitions.isEmpty() || unregisteredTypeImplementationFactory != null;
+    return !workflowDefinitions.isEmpty() || dynamicWorkflowImplementationFactory != null;
   }
 
   private class POJOWorkflowImplementation implements SyncWorkflowDefinition {

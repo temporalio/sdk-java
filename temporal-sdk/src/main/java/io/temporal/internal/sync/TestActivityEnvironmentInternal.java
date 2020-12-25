@@ -55,12 +55,12 @@ import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.DynamicQueryHandler;
+import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
-import io.temporal.workflow.UntypedQueryHandler;
-import io.temporal.workflow.UntypedSignalHandler;
 import io.temporal.workflow.Workflow;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
@@ -356,12 +356,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void registerUntypedSignalHandler(UntypedSignalHandler handler) {
+    public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerUntypedQueryHandler(UntypedQueryHandler handler) {
+    public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
       throw new UnsupportedOperationException("not implemented");
     }
 

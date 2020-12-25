@@ -26,20 +26,20 @@ import io.temporal.common.converter.Values;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
-import io.temporal.workflow.UntypedWorkflow;
 import java.util.Optional;
 
-class UntypedSyncWorkflowDefinition implements SyncWorkflowDefinition {
+class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
-  private final Functions.Func<? extends UntypedWorkflow> factory;
+  private final Functions.Func<? extends DynamicWorkflow> factory;
   private final WorkflowInterceptor[] workflowInterceptors;
   private final DataConverter dataConverter;
   private WorkflowInboundCallsInterceptor workflowInvoker;
-  private UntypedWorkflow workflow;
+  private DynamicWorkflow workflow;
 
-  public UntypedSyncWorkflowDefinition(
-      Functions.Func<? extends UntypedWorkflow> factory,
+  public DynamicSyncWorkflowDefinition(
+      Functions.Func<? extends DynamicWorkflow> factory,
       WorkflowInterceptor[] workflowInterceptors,
       DataConverter dataConverter) {
     this.factory = factory;

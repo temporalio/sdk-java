@@ -46,7 +46,7 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.SimulatedTimeoutFailure;
-import io.temporal.workflow.UntypedActivity;
+import io.temporal.workflow.DynamicActivity;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -71,7 +71,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final ActivityInterceptor[] interceptors;
-  private ActivityTaskExecutor untypedActivity;
+  private ActivityTaskExecutor dynamicActivity;
 
   POJOActivityTaskHandler(
       WorkflowServiceStubs service,
@@ -91,12 +91,12 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     if (activity instanceof Class) {
       throw new IllegalArgumentException("Activity object instance expected, not the class");
     }
-    if (activity instanceof UntypedActivity) {
-      if (untypedActivity != null) {
+    if (activity instanceof DynamicActivity) {
+      if (dynamicActivity != null) {
         throw new IllegalStateException(
-            "An implementation of UntypedActivity is already registered with the worker");
+            "An implementation of DynamicActivity is already registered with the worker");
       }
-      untypedActivity = new UntypedActivityImplementation((UntypedActivity) activity);
+      dynamicActivity = new DynamicActivityImplementation((DynamicActivity) activity);
       return;
     }
     Class<?> cls = activity.getClass();
@@ -150,7 +150,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public boolean isAnyTypeSupported() {
-    return !activities.isEmpty() || untypedActivity != null;
+    return !activities.isEmpty() || dynamicActivity != null;
   }
 
   @VisibleForTesting
@@ -178,8 +178,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         new ActivityInfoImpl(pollResponse, this.namespace, localActivity);
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
-      if (untypedActivity != null) {
-        return untypedActivity.execute(activityTask, metricsScope);
+      if (dynamicActivity != null) {
+        return dynamicActivity.execute(activityTask, metricsScope);
       }
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
@@ -195,7 +195,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     return activity.execute(activityTask, metricsScope);
   }
 
-  interface ActivityTaskExecutor {
+  private interface ActivityTaskExecutor {
     ActivityTaskHandler.Result execute(ActivityInfoImpl task, Scope metricsScope);
   }
 
@@ -301,11 +301,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
   }
 
-  private class UntypedActivityImplementation implements ActivityTaskExecutor {
+  private class DynamicActivityImplementation implements ActivityTaskExecutor {
 
-    private final UntypedActivity activity;
+    private final DynamicActivity activity;
 
-    public UntypedActivityImplementation(UntypedActivity activity) {
+    public DynamicActivityImplementation(DynamicActivity activity) {
       this.activity = activity;
     }
 
@@ -316,7 +316,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
               service, namespace, info, dataConverter, heartbeatExecutor, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
-          new UntypedActivityInboundCallsInterceptor(activity);
+          new DynamicActivityInboundCallsInterceptor(activity);
       for (ActivityInterceptor interceptor : interceptors) {
         inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
       }
@@ -362,12 +362,12 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
   }
 
-  private static class UntypedActivityInboundCallsInterceptor
+  private static class DynamicActivityInboundCallsInterceptor
       implements ActivityInboundCallsInterceptor {
-    private final UntypedActivity activity;
+    private final DynamicActivity activity;
     private ActivityExecutionContext context;
 
-    private UntypedActivityInboundCallsInterceptor(UntypedActivity activity) {
+    private DynamicActivityInboundCallsInterceptor(DynamicActivity activity) {
       this.activity = activity;
     }
 

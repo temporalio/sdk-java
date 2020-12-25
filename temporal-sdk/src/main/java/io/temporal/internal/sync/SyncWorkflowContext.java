@@ -66,11 +66,11 @@ import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.DynamicQueryHandler;
+import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
-import io.temporal.workflow.UntypedQueryHandler;
-import io.temporal.workflow.UntypedSignalHandler;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -128,8 +128,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       queryCallbacks = new HashMap<>();
   private final Map<String, Functions.Proc2<Optional<Payloads>, Long>> signalCallbacks =
       new HashMap<>();
-  private UntypedSignalHandler catchAllSignalHandler;
-  private UntypedQueryHandler catchAllQueryHandler;
+  private DynamicSignalHandler dynamicSignalHandler;
+  private DynamicQueryHandler dynamicQueryHandler;
 
   /** Buffers signals which don't have registered listener. */
   private final Queue<SignalData> signalBuffer = new ArrayDeque<>();
@@ -634,8 +634,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public Optional<Payloads> query(String type, Optional<Payloads> args) {
     Functions.Func1<Optional<Payloads>, Optional<Payloads>> callback = queryCallbacks.get(type);
     if (callback == null) {
-      if (catchAllQueryHandler != null) {
-        Object result = catchAllQueryHandler.handle(type, new EncodedValues(args, converter));
+      if (dynamicQueryHandler != null) {
+        Object result = dynamicQueryHandler.handle(type, new EncodedValues(args, converter));
         return converter.toPayloads(result);
       }
       throw new IllegalArgumentException(
@@ -647,8 +647,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public void signal(String signalName, Optional<Payloads> args, long eventId) {
     Functions.Proc2<Optional<Payloads>, Long> callback = signalCallbacks.get(signalName);
     if (callback == null) {
-      if (catchAllSignalHandler != null) {
-        catchAllSignalHandler.handle(signalName, new EncodedValues(args, converter));
+      if (dynamicSignalHandler != null) {
+        dynamicSignalHandler.handle(signalName, new EncodedValues(args, converter));
         return;
       }
       signalBuffer.add(new SignalData(signalName, args, eventId));
@@ -702,8 +702,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public void registerUntypedSignalHandler(UntypedSignalHandler handler) {
-    catchAllSignalHandler = handler;
+  public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
+    dynamicSignalHandler = handler;
     for (SignalData signalData : signalBuffer) {
       handler.handle(
           signalData.getSignalName(), new EncodedValues(signalData.getPayload(), converter));
@@ -711,8 +711,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public void registerUntypedQueryHandler(UntypedQueryHandler handler) {
-    catchAllQueryHandler = handler;
+  public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
+    dynamicQueryHandler = handler;
   }
 
   void logSerializationException(

@@ -37,13 +37,13 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.DynamicQueryHandler;
+import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.UntypedQueryHandler;
-import io.temporal.workflow.UntypedSignalHandler;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import io.temporal.workflow.WorkflowMethod;
@@ -112,12 +112,12 @@ public final class WorkflowInternal {
    * QueryMethod} are registered.
    */
   public static void registerListener(Object implementation) {
-    if (implementation instanceof UntypedSignalHandler) {
-      getWorkflowInterceptor().registerUntypedSignalHandler((UntypedSignalHandler) implementation);
+    if (implementation instanceof DynamicSignalHandler) {
+      getWorkflowInterceptor().registerDynamicSignalHandler((DynamicSignalHandler) implementation);
       return;
     }
-    if (implementation instanceof UntypedQueryHandler) {
-      getWorkflowInterceptor().registerUntypedQueryHandler((UntypedQueryHandler) implementation);
+    if (implementation instanceof DynamicQueryHandler) {
+      getWorkflowInterceptor().registerDynamicQueryHandler((DynamicQueryHandler) implementation);
       return;
     }
     Class<?> cls = implementation.getClass();
@@ -192,7 +192,7 @@ public final class WorkflowInternal {
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
-  public static ActivityStub newUntypedActivityStub(ActivityOptions options) {
+  public static ActivityStub newDynamicActivityStub(ActivityOptions options) {
     return ActivityStubImpl.newInstance(options, getWorkflowInterceptor());
   }
 

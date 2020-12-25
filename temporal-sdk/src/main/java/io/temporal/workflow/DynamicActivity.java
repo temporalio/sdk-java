@@ -21,6 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.common.converter.EncodedValues;
 
-public interface UntypedWorkflow {
+/** */
+public interface DynamicActivity {
   Object execute(EncodedValues args);
 }

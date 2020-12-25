@@ -21,6 +21,6 @@ package io.temporal.workflow;
 
 import io.temporal.common.converter.EncodedValues;
 
-public interface UntypedQueryHandler {
-  Object handle(String queryType, EncodedValues args);
+public interface DynamicWorkflow {
+  Object execute(EncodedValues args);
 }

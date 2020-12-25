@@ -24,11 +24,11 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.DynamicQueryHandler;
+import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
-import io.temporal.workflow.UntypedQueryHandler;
-import io.temporal.workflow.UntypedSignalHandler;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.List;
@@ -157,11 +157,9 @@ public interface WorkflowOutboundCallsInterceptor {
 
   void registerSignalHandlers(List<SignalRegistrationRequest> requests);
 
-  /** Catch all signal handler. */
-  void registerUntypedSignalHandler(UntypedSignalHandler handler);
+  void registerDynamicSignalHandler(DynamicSignalHandler handler);
 
-  /** Catch all query handler. */
-  void registerUntypedQueryHandler(UntypedQueryHandler handler);
+  void registerDynamicQueryHandler(DynamicQueryHandler handler);
 
   UUID randomUUID();
 
