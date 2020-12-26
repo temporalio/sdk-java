@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.DynamicActivity;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.EncodedValues;
@@ -67,7 +68,13 @@ public class DynamicWorkflowTest {
       ActivityStub activity =
           Workflow.newUntypedActivityStub(
               ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
-      return activity.execute("activityType1", String.class, arg0 + "-" + type);
+      String activityResult = activity.execute("activityType1", String.class, arg0 + "-" + type);
+      ActivityStub localActivity =
+          Workflow.newUntypedLocalActivityStub(
+              LocalActivityOptions.newBuilder()
+                  .setStartToCloseTimeout(Duration.ofSeconds(10))
+                  .build());
+      return localActivity.execute("activityType2", String.class, activityResult);
     }
   }
 
@@ -97,7 +104,7 @@ public class DynamicWorkflowTest {
     String queryResult = workflow.query("query1", String.class, "queryArg0");
     assertEquals("query1-queryArg0-signal1-signalArg0", queryResult);
     String result = workflow.getResult(String.class);
-    assertEquals("activityType1-startArg0-workflowFoo", result);
+    assertEquals("activityType2-activityType1-startArg0-workflowFoo", result);
   }
 
   @Test
@@ -117,6 +124,6 @@ public class DynamicWorkflowTest {
     String queryResult = workflow.query("query1", String.class, "queryArg0");
     assertEquals("query1-queryArg0-signal1-signalArg0", queryResult);
     String result = workflow.getResult(String.class);
-    assertEquals("activityType1-startArg0-workflowFoo", result);
+    assertEquals("activityType2-activityType1-startArg0-workflowFoo", result);
   }
 }
