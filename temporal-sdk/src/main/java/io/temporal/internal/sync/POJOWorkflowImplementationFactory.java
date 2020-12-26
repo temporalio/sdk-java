@@ -78,7 +78,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final Map<Class<?>, Functions.Func<?>> workflowImplementationFactories =
       Collections.synchronizedMap(new HashMap<>());
 
-  /** If registered then it is called for any unknown workflow type. */
+  /** If present then it is called for any unknown workflow type. */
   private Functions.Func<? extends DynamicWorkflow> dynamicWorkflowImplementationFactory;
 
   private final ExecutorService threadPool;
@@ -119,7 +119,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     if (DynamicWorkflow.class.isAssignableFrom(clazz)) {
       if (dynamicWorkflowImplementationFactory != null) {
         throw new IllegalStateException(
-            "An implementation of DynamicWorkflow or its implementation factory is already registered with the worker");
+            "An implementation of DynamicWorkflow or its factory is already registered with the worker");
       }
       dynamicWorkflowImplementationFactory = (Func<? extends DynamicWorkflow>) factory;
       return;

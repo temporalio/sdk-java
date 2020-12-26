@@ -192,7 +192,7 @@ public final class WorkflowInternal {
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
-  public static ActivityStub newDynamicActivityStub(ActivityOptions options) {
+  public static ActivityStub newUntypedActivityStub(ActivityOptions options) {
     return ActivityStubImpl.newInstance(options, getWorkflowInterceptor());
   }
 

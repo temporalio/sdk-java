@@ -65,7 +65,7 @@ public class DynamicWorkflowTest {
                       + signals.get(signals.size() - 1));
       String arg0 = args.get(0, String.class);
       ActivityStub activity =
-          Workflow.newDynamicActivityStub(
+          Workflow.newUntypedActivityStub(
               ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
       return activity.execute("activityType1", String.class, arg0 + "-" + type);
     }

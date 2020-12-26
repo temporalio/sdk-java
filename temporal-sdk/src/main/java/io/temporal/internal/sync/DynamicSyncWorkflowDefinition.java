@@ -30,7 +30,7 @@ import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
 
-class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
+final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   private final Functions.Func<? extends DynamicWorkflow> factory;
   private final WorkflowInterceptor[] workflowInterceptors;

@@ -749,7 +749,7 @@ public class WorkflowTest {
     assertEquals(activitiesImpl.toString(), 2, activitiesImpl.invocations.size());
   }
 
-  public static class TestDynamicActivityRetry implements TestWorkflow1 {
+  public static class TestUntypedActivityRetry implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
@@ -767,15 +767,15 @@ public class WorkflowTest {
                       .setMaximumAttempts(3)
                       .build())
               .build();
-      ActivityStub activities = Workflow.newDynamicActivityStub(options);
+      ActivityStub activities = Workflow.newUntypedActivityStub(options);
       activities.execute("ThrowIO", Void.class);
       return "ignored";
     }
   }
 
   @Test
-  public void testDynamicActivityRetry() {
-    startWorkerFor(TestDynamicActivityRetry.class);
+  public void testUntypedActivityRetry() {
+    startWorkerFor(TestUntypedActivityRetry.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
@@ -1861,7 +1861,7 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskQueue) {
-      ActivityStub testActivities = Workflow.newDynamicActivityStub(newActivityOptions2());
+      ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
       Promise<String> a = Async.function(testActivities::<String>execute, "Activity", String.class);
       Promise<String> a1 =
           Async.function(
@@ -1891,7 +1891,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testAsyncDynamicActivity() {
+  public void testAsyncUntypedActivity() {
     startWorkerFor(TestAsyncUtypedActivityWorkflowImpl.class);
     TestWorkflow1 client =
         workflowClient.newWorkflowStub(
@@ -1909,7 +1909,7 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskQueue) {
-      ActivityStub testActivities = Workflow.newDynamicActivityStub(newActivityOptions2());
+      ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
       Promise<String> a = testActivities.executeAsync("Activity", String.class);
       Promise<String> a1 =
           testActivities.executeAsync(
@@ -5766,7 +5766,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       StringBuilder result = new StringBuilder();
       ActivityStub activity =
-          Workflow.newDynamicActivityStub(
+          Workflow.newUntypedActivityStub(
               ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .build());
@@ -7055,7 +7055,7 @@ public class WorkflowTest {
     @Override
     public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
       if (!Workflow.isReplaying()) {
-        trace.add("registerUntypedSignalHandler");
+        trace.add("registerDynamicSignalHandler");
       }
       next.registerDynamicSignalHandler(handler);
     }
@@ -7063,7 +7063,7 @@ public class WorkflowTest {
     @Override
     public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
       if (!Workflow.isReplaying()) {
-        trace.add("registerUntypedQueryHandler");
+        trace.add("registerDynamicQueryHandler");
       }
       next.registerDynamicQueryHandler(handler);
     }

@@ -396,8 +396,8 @@ public final class Workflow {
    *
    * @param options specify the activity invocation parameters.
    */
-  public static ActivityStub newDynamicActivityStub(ActivityOptions options) {
-    return WorkflowInternal.newDynamicActivityStub(options);
+  public static ActivityStub newUntypedActivityStub(ActivityOptions options) {
+    return WorkflowInternal.newUntypedActivityStub(options);
   }
 
   /**

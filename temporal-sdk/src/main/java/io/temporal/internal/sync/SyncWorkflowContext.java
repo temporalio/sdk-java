@@ -131,7 +131,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private DynamicSignalHandler dynamicSignalHandler;
   private DynamicQueryHandler dynamicQueryHandler;
 
-  /** Buffers signals which don't have registered listener. */
+  /** Buffers signals which don't have a registered listener. */
   private final Queue<SignalData> signalBuffer = new ArrayDeque<>();
 
   private final Optional<Payloads> lastCompletionResult;

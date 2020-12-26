@@ -66,11 +66,11 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
-  private final Map<String, ActivityTaskExecutor> activities =
-      Collections.synchronizedMap(new HashMap<>());
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final ActivityInterceptor[] interceptors;
+  private final Map<String, ActivityTaskExecutor> activities =
+      Collections.synchronizedMap(new HashMap<>());
   private ActivityTaskExecutor dynamicActivity;
 
   POJOActivityTaskHandler(
