@@ -242,28 +242,7 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null);
       } catch (Throwable e) {
-        e = CheckedExceptionWrapper.unwrap(e);
-        if (e instanceof ActivityCanceledException) {
-          if (log.isInfoEnabled()) {
-            log.info(
-                "Activity canceled. ActivityId="
-                    + info.getActivityId()
-                    + ", activityType="
-                    + info.getActivityType()
-                    + ", attempt="
-                    + info.getAttempt());
-          }
-        } else if (log.isWarnEnabled()) {
-          log.warn(
-              "Activity failure. ActivityId="
-                  + info.getActivityId()
-                  + ", activityType="
-                  + info.getActivityType()
-                  + ", attempt="
-                  + info.getAttempt(),
-              e);
-        }
-        return mapToActivityFailure(e, info.getActivityId(), metricsScope, false);
+        return activityFailureToResult(info, metricsScope, e);
       }
     }
   }
@@ -289,8 +268,6 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
       CurrentActivityExecutionContext.set(context);
       try {
         return method.invoke(activity, arguments);
-      } catch (Error e) {
-        throw e;
       } catch (InvocationTargetException e) {
         throw Activity.wrap(e.getTargetException());
       } catch (Exception e) {
@@ -336,30 +313,34 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null);
       } catch (Throwable e) {
-        e = CheckedExceptionWrapper.unwrap(e);
-        if (e instanceof ActivityCanceledException) {
-          if (log.isInfoEnabled()) {
-            log.info(
-                "Activity canceled. ActivityId="
-                    + info.getActivityId()
-                    + ", activityType="
-                    + info.getActivityType()
-                    + ", attempt="
-                    + info.getAttempt());
-          }
-        } else if (log.isWarnEnabled()) {
-          log.warn(
-              "Activity failure. ActivityId="
-                  + info.getActivityId()
-                  + ", activityType="
-                  + info.getActivityType()
-                  + ", attempt="
-                  + info.getAttempt(),
-              e);
-        }
-        return mapToActivityFailure(e, info.getActivityId(), metricsScope, false);
+        return activityFailureToResult(info, metricsScope, e);
       }
     }
+  }
+
+  private Result activityFailureToResult(ActivityInfoImpl info, Scope metricsScope, Throwable e) {
+    e = CheckedExceptionWrapper.unwrap(e);
+    if (e instanceof ActivityCanceledException) {
+      if (log.isInfoEnabled()) {
+        log.info(
+            "Activity canceled. ActivityId="
+                + info.getActivityId()
+                + ", activityType="
+                + info.getActivityType()
+                + ", attempt="
+                + info.getAttempt());
+      }
+    } else if (log.isWarnEnabled()) {
+      log.warn(
+          "Activity failure. ActivityId="
+              + info.getActivityId()
+              + ", activityType="
+              + info.getActivityType()
+              + ", attempt="
+              + info.getAttempt(),
+          e);
+    }
+    return mapToActivityFailure(e, info.getActivityId(), metricsScope, false);
   }
 
   private static class DynamicActivityInboundCallsInterceptor
@@ -381,8 +362,6 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
       CurrentActivityExecutionContext.set(context);
       try {
         return activity.execute((EncodedValues) arguments[0]);
-      } catch (Error e) {
-        throw e;
       } catch (Exception e) {
         throw Activity.wrap(e);
       } finally {
