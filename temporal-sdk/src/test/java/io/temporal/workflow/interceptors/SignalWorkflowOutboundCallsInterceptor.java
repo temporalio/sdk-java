@@ -25,10 +25,13 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.DynamicQueryHandler;
+import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -159,12 +162,18 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   }
 
   @Override
-  public void registerSignal(
-      String signalType,
-      Class<?>[] argTypes,
-      Type[] genericArgTypes,
-      Functions.Proc1<Object[]> callback) {
-    next.registerSignal(signalType, argTypes, genericArgTypes, callback);
+  public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
+    next.registerSignalHandlers(requests);
+  }
+
+  @Override
+  public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
+    next.registerDynamicSignalHandler(handler);
+  }
+
+  @Override
+  public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
+    next.registerDynamicQueryHandler(handler);
   }
 
   @Override

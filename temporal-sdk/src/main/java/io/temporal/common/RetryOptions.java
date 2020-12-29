@@ -186,11 +186,11 @@ public final class RetryOptions {
      *
      * <p>An application failure is represented as {@link ApplicationFailure}. The type of the
      * failure is stored in the {@link ApplicationFailure#getType()} property. An {@link
-     * ApplicationFailure} instance is created through {@link *
-     * ApplicationFailure#newFailure(String, String, Object...)}. An ApplicationFailure created
-     * through {@link ApplicationFailure#newNonRetryableFailure(String, String, Object...)} will
-     * have {@link ApplicationFailure#isNonRetryable()} property set to true which means that it is
-     * not retried even if the type of failure is not included into DoNotRetry list.
+     * ApplicationFailure} instance is created through {@link ApplicationFailure#newFailure(String,
+     * String, Object...)}. An ApplicationFailure created through {@link
+     * ApplicationFailure#newNonRetryableFailure(String, String, Object...)} will have {@link
+     * ApplicationFailure#isNonRetryable()} property set to true which means that it is not retried
+     * even if the type of failure is not included into DoNotRetry list.
      *
      * <p>If an activity or workflow throws any exception which is not {@link ApplicationFailure}
      * then the exception is converted to {@link ApplicationFailure} with the fully qualified name

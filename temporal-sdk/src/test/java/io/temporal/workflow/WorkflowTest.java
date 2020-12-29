@@ -3760,7 +3760,7 @@ public class WorkflowTest {
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     tracer.setExpected(
         "interceptExecuteWorkflow " + stub.getExecution().getWorkflowId(),
-        "registerSignal testSignal",
+        "registerSignalHandlers testSignal",
         "newThread workflow-method",
         "executeChildWorkflow SignalingChild",
         "interceptExecuteWorkflow " + UUID_REGEXP, // child
@@ -7038,15 +7038,34 @@ public class WorkflowTest {
     }
 
     @Override
-    public void registerSignal(
-        String signalType,
-        Class<?>[] argTypes,
-        Type[] genericArgTypes,
-        Functions.Proc1<Object[]> callback) {
+    public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
       if (!Workflow.isReplaying()) {
-        trace.add("registerSignal " + signalType);
+        StringBuilder signals = new StringBuilder();
+        for (SignalRegistrationRequest request : requests) {
+          if (signals.length() > 0) {
+            signals.append(", ");
+          }
+          signals.append(request.getSignalType());
+        }
+        trace.add("registerSignalHandlers " + signals);
       }
-      next.registerSignal(signalType, argTypes, genericArgTypes, callback);
+      next.registerSignalHandlers(requests);
+    }
+
+    @Override
+    public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
+      if (!Workflow.isReplaying()) {
+        trace.add("registerDynamicSignalHandler");
+      }
+      next.registerDynamicSignalHandler(handler);
+    }
+
+    @Override
+    public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
+      if (!Workflow.isReplaying()) {
+        trace.add("registerDynamicQueryHandler");
+      }
+      next.registerDynamicQueryHandler(handler);
     }
 
     @Override

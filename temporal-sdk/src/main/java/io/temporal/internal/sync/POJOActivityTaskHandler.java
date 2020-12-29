@@ -25,6 +25,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
@@ -33,6 +34,7 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.failure.FailureConverter;
@@ -58,17 +60,18 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class POJOActivityTaskHandler implements ActivityTaskHandler {
+final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   private static final Logger log = LoggerFactory.getLogger(POJOActivityTaskHandler.class);
 
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
-  private final Map<String, ActivityTaskExecutor> activities =
-      Collections.synchronizedMap(new HashMap<>());
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final ActivityInterceptor[] interceptors;
+  private final Map<String, ActivityTaskExecutor> activities =
+      Collections.synchronizedMap(new HashMap<>());
+  private ActivityTaskExecutor dynamicActivity;
 
   POJOActivityTaskHandler(
       WorkflowServiceStubs service,
@@ -83,10 +86,18 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     this.interceptors = Objects.requireNonNull(interceptors);
   }
 
-  private void addActivityImplementation(
+  private void registerActivityImplementation(
       Object activity, BiFunction<Method, Object, ActivityTaskExecutor> newTaskExecutor) {
     if (activity instanceof Class) {
       throw new IllegalArgumentException("Activity object instance expected, not the class");
+    }
+    if (activity instanceof DynamicActivity) {
+      if (dynamicActivity != null) {
+        throw new IllegalStateException(
+            "An implementation of DynamicActivity is already registered with the worker");
+      }
+      dynamicActivity = new DynamicActivityImplementation((DynamicActivity) activity);
+      return;
     }
     Class<?> cls = activity.getClass();
     POJOActivityImplMetadata activityMetadata = POJOActivityImplMetadata.newInstance(cls);
@@ -139,7 +150,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public boolean isAnyTypeSupported() {
-    return !activities.isEmpty();
+    return !activities.isEmpty() || dynamicActivity != null;
   }
 
   @VisibleForTesting
@@ -149,13 +160,13 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   void registerActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
-      addActivityImplementation(activity, POJOActivityImplementation::new);
+      registerActivityImplementation(activity, POJOActivityImplementation::new);
     }
   }
 
   void registerLocalActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
-      addActivityImplementation(activity, POJOLocalActivityImplementation::new);
+      registerActivityImplementation(activity, POJOLocalActivityImplementation::new);
     }
   }
 
@@ -167,6 +178,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         new ActivityInfoImpl(pollResponse, this.namespace, localActivity);
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
+      if (dynamicActivity != null) {
+        return dynamicActivity.execute(activityTask, metricsScope);
+      }
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
           new IllegalArgumentException(
@@ -181,7 +195,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     return activity.execute(activityTask, metricsScope);
   }
 
-  interface ActivityTaskExecutor {
+  private interface ActivityTaskExecutor {
     ActivityTaskHandler.Result execute(ActivityInfoImpl task, Scope metricsScope);
   }
 
@@ -228,28 +242,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null);
       } catch (Throwable e) {
-        e = CheckedExceptionWrapper.unwrap(e);
-        if (e instanceof ActivityCanceledException) {
-          if (log.isInfoEnabled()) {
-            log.info(
-                "Activity canceled. ActivityId="
-                    + info.getActivityId()
-                    + ", activityType="
-                    + info.getActivityType()
-                    + ", attempt="
-                    + info.getAttempt());
-          }
-        } else if (log.isWarnEnabled()) {
-          log.warn(
-              "Activity failure. ActivityId="
-                  + info.getActivityId()
-                  + ", activityType="
-                  + info.getActivityType()
-                  + ", attempt="
-                  + info.getAttempt(),
-              e);
-        }
-        return mapToActivityFailure(e, info.getActivityId(), metricsScope, false);
+        return activityFailureToResult(info, metricsScope, e);
       }
     }
   }
@@ -275,10 +268,100 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       CurrentActivityExecutionContext.set(context);
       try {
         return method.invoke(activity, arguments);
-      } catch (Error e) {
-        throw e;
       } catch (InvocationTargetException e) {
         throw Activity.wrap(e.getTargetException());
+      } catch (Exception e) {
+        throw Activity.wrap(e);
+      } finally {
+        CurrentActivityExecutionContext.unset();
+      }
+    }
+  }
+
+  private class DynamicActivityImplementation implements ActivityTaskExecutor {
+
+    private final DynamicActivity activity;
+
+    public DynamicActivityImplementation(DynamicActivity activity) {
+      this.activity = activity;
+    }
+
+    @Override
+    public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
+      ActivityExecutionContext context =
+          new ActivityExecutionContextImpl(
+              service, namespace, info, dataConverter, heartbeatExecutor, metricsScope);
+      Optional<Payloads> input = info.getInput();
+      ActivityInboundCallsInterceptor inboundCallsInterceptor =
+          new DynamicActivityInboundCallsInterceptor(activity);
+      for (ActivityInterceptor interceptor : interceptors) {
+        inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
+      }
+      inboundCallsInterceptor.init(context);
+      try {
+        EncodedValues args = new EncodedValues(input, dataConverter);
+        Object result = inboundCallsInterceptor.execute(new Object[] {args});
+        if (context.isDoNotCompleteOnReturn()) {
+          return new ActivityTaskHandler.Result(info.getActivityId(), null, null, null, null);
+        }
+        RespondActivityTaskCompletedRequest.Builder request =
+            RespondActivityTaskCompletedRequest.newBuilder();
+        Optional<Payloads> serialized = dataConverter.toPayloads(result);
+        if (serialized.isPresent()) {
+          request.setResult(serialized.get());
+        }
+        return new ActivityTaskHandler.Result(
+            info.getActivityId(), request.build(), null, null, null);
+      } catch (Throwable e) {
+        return activityFailureToResult(info, metricsScope, e);
+      }
+    }
+  }
+
+  private Result activityFailureToResult(ActivityInfoImpl info, Scope metricsScope, Throwable e) {
+    e = CheckedExceptionWrapper.unwrap(e);
+    if (e instanceof ActivityCanceledException) {
+      if (log.isInfoEnabled()) {
+        log.info(
+            "Activity canceled. ActivityId="
+                + info.getActivityId()
+                + ", activityType="
+                + info.getActivityType()
+                + ", attempt="
+                + info.getAttempt());
+      }
+    } else if (log.isWarnEnabled()) {
+      log.warn(
+          "Activity failure. ActivityId="
+              + info.getActivityId()
+              + ", activityType="
+              + info.getActivityType()
+              + ", attempt="
+              + info.getAttempt(),
+          e);
+    }
+    return mapToActivityFailure(e, info.getActivityId(), metricsScope, false);
+  }
+
+  private static class DynamicActivityInboundCallsInterceptor
+      implements ActivityInboundCallsInterceptor {
+    private final DynamicActivity activity;
+    private ActivityExecutionContext context;
+
+    private DynamicActivityInboundCallsInterceptor(DynamicActivity activity) {
+      this.activity = activity;
+    }
+
+    @Override
+    public void init(ActivityExecutionContext context) {
+      this.context = context;
+    }
+
+    @Override
+    public Object execute(Object[] arguments) {
+      CurrentActivityExecutionContext.set(context);
+      try {
+        return activity.execute((EncodedValues) arguments[0]);
       } catch (Exception e) {
         throw Activity.wrap(e);
       } finally {

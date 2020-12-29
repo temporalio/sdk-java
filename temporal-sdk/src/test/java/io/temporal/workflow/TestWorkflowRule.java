@@ -28,6 +28,8 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import java.util.UUID;
 import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
@@ -58,11 +60,23 @@ import org.junit.runners.model.Statement;
  */
 public class TestWorkflowRule implements TestRule {
 
+  public Timeout globalTimeout;
+
+  private final TestWatcher watchman =
+      new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, Description description) {
+          System.err.println("WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+        }
+      };
+
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
   private final TestWorkflowEnvironment testEnvironment;
   private final WorkerOptions workerOptions;
   private final boolean useExternalService;
+  private final boolean doNotStart;
+
   private String taskQueue;
 
   private TestWorkflowRule(
@@ -70,12 +84,16 @@ public class TestWorkflowRule implements TestRule {
       boolean useExternalService,
       Class<?>[] workflowTypes,
       Object[] activityImplementations,
-      WorkerOptions workerOptions) {
+      WorkerOptions workerOptions,
+      long testTimeoutSeconds,
+      boolean doNotStart) {
     this.testEnvironment = testEnvironment;
     this.useExternalService = useExternalService;
     this.workflowTypes = workflowTypes;
     this.activityImplementations = activityImplementations;
     this.workerOptions = workerOptions;
+    this.globalTimeout = Timeout.seconds(testTimeoutSeconds);
+    this.doNotStart = doNotStart;
   }
 
   public static Builder newBuilder() {
@@ -83,12 +101,16 @@ public class TestWorkflowRule implements TestRule {
   }
 
   public static class Builder {
+    private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
+
     private WorkerOptions workerOptions;
     private String namespace;
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
     private boolean useExternalService;
     private String target;
+    private long testTimeoutSeconds;
+    private boolean doNotStart;
 
     private Builder() {}
 
@@ -135,6 +157,22 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
+    /** Global test timeout. Default is 10 seconds. */
+    public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
+      this.testTimeoutSeconds = testTimeoutSeconds;
+      return this;
+    }
+
+    /**
+     * When set to true the {@link TestWorkflowEnvironment#start()} is not called by the rule before
+     * executing the test. This to support tests that register activities and workflows with workers
+     * directly instead of using only {@link TestWorkflowRule.Builder}.
+     */
+    public Builder setDoNotStart(boolean doNotStart) {
+      this.doNotStart = doNotStart;
+      return this;
+    }
+
     public TestWorkflowRule build() {
       namespace = namespace == null ? "UnitTest" : namespace;
       WorkflowClientOptions clientOptions =
@@ -152,23 +190,27 @@ public class TestWorkflowRule implements TestRule {
       return new TestWorkflowRule(
           testEnvironment,
           useExternalService,
-          workflowTypes,
-          activityImplementations,
-          workerOptions);
+          workflowTypes == null ? new Class[0] : workflowTypes,
+          activityImplementations == null ? new Object[0] : activityImplementations,
+          workerOptions,
+          testTimeoutSeconds == 0 ? DEFAULT_TEST_TIMEOUT_SECONDS : testTimeoutSeconds,
+          doNotStart);
     }
   }
 
   @Override
   public Statement apply(Statement base, Description description) {
     taskQueue = init(description);
-    return new Statement() {
-      @Override
-      public void evaluate() throws Throwable {
-        start();
-        base.evaluate();
-        shutdown();
-      }
-    };
+    Statement testWorkflowStatement =
+        new Statement() {
+          @Override
+          public void evaluate() throws Throwable {
+            start();
+            base.evaluate();
+            shutdown();
+          }
+        };
+    return watchman.apply(globalTimeout.apply(testWorkflowStatement, description), description);
   }
 
   private void shutdown() {
@@ -176,7 +218,9 @@ public class TestWorkflowRule implements TestRule {
   }
 
   private void start() {
-    testEnvironment.start();
+    if (!doNotStart) {
+      testEnvironment.start();
+    }
   }
 
   private String init(Description description) {
@@ -205,5 +249,9 @@ public class TestWorkflowRule implements TestRule {
    */
   public boolean isUseExternalService() {
     return useExternalService;
+  }
+
+  public TestWorkflowEnvironment getTestEnvironment() {
+    return testEnvironment;
   }
 }

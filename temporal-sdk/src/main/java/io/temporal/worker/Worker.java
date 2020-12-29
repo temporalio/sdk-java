@@ -219,35 +219,37 @@ public final class Worker implements Suspendable {
   /**
    * Registers workflow implementation classes with a worker. Can be called multiple times to add
    * more types. A workflow implementation class must implement at least one interface with a method
-   * annotated with {@link WorkflowMethod}. That method becomes a workflow type that this worker
-   * supports.
+   * annotated with {@link WorkflowMethod}. By default the short name of the interface is used as a
+   * workflow type that this worker supports.
    *
    * <p>Implementations that share a worker must implement different interfaces as a workflow type
    * is identified by the workflow interface, not by the implementation.
    *
-   * <p>The reason for registration accepting workflow class, but not the workflow instance is that
-   * workflows are stateful and a new instance is created for each workflow execution.
+   * <p>Use {@link io.temporal.workflow.DynamicWorkflow} implementation to implement many workflow
+   * types dynamically. It can be useful for implementing DSL based workflows. Only a single type
+   * that implements DynamicWorkflow can be registered per worker.
    */
   public void registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
     Preconditions.checkState(
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
-    workflowWorker.addWorkflowImplementationTypes(
+    workflowWorker.registerWorkflowImplementationTypes(
         WorkflowImplementationOptions.newBuilder().build(), workflowImplementationClasses);
   }
 
   /**
-   * Registers workflow implementation classes with a worker. Can be called multiple times to add *
+   * Registers workflow implementation classes with a worker. Can be called multiple times to add
    * more types. A workflow implementation class must implement at least one interface with a method
-   * annotated with {@link WorkflowMethod}. That method becomes a workflow type that this worker
-   * supports.
+   * annotated with {@link WorkflowMethod}. By default the short name of the interface is used as a
+   * workflow type that this worker supports.
    *
    * <p>Implementations that share a worker must implement different interfaces as a workflow type
    * is identified by the workflow interface, not by the implementation.
    *
-   * <p>The reason for registration accepting workflow class, but not the workflow instance is that
-   * workflows are stateful and a new instance is created for each workflow execution.
+   * <p>Use {@link io.temporal.workflow.DynamicWorkflow} implementation to implement many workflow
+   * types dynamically. It can be useful for implementing DSL based workflows. Only a single type
+   * that implements DynamicWorkflow can be registered per worker.
    */
   public void registerWorkflowImplementationTypes(
       WorkflowImplementationOptions options, Class<?>... workflowImplementationClasses) {
@@ -255,7 +257,7 @@ public final class Worker implements Suspendable {
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
-    workflowWorker.addWorkflowImplementationTypes(options, workflowImplementationClasses);
+    workflowWorker.registerWorkflowImplementationTypes(options, workflowImplementationClasses);
   }
 
   /**
@@ -302,14 +304,19 @@ public final class Worker implements Suspendable {
   }
 
   /**
-   * Register activity implementation objects with a worker. Overwrites previously registered
-   * objects. As activities are reentrant and stateless only one instance per activity type is
-   * registered.
+   * Register activity implementation objects with a worker. An implementation object can implement
+   * one or more activity types.
+   *
+   * <p>An activity implementation object must implement at least one interface annotated with
+   * {@link io.temporal.activity.ActivityInterface}. Each method of the annotated interface becomes
+   * an activity type.
    *
    * <p>Implementations that share a worker must implement different interfaces as an activity type
    * is identified by the activity interface, not by the implementation.
    *
-   * <p>
+   * <p>Use an implementation of {@link io.temporal.activity.DynamicActivity} to register an object
+   * that can implement activity types dynamically. A single registration of DynamicActivity
+   * implementation per worker is allowed.
    */
   public void registerActivitiesImplementations(Object... activityImplementations) {
     Preconditions.checkState(

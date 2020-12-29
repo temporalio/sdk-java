@@ -37,6 +37,8 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.DynamicQueryHandler;
+import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -51,6 +53,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -108,6 +112,14 @@ public final class WorkflowInternal {
    * QueryMethod} are registered.
    */
   public static void registerListener(Object implementation) {
+    if (implementation instanceof DynamicSignalHandler) {
+      getWorkflowInterceptor().registerDynamicSignalHandler((DynamicSignalHandler) implementation);
+      return;
+    }
+    if (implementation instanceof DynamicQueryHandler) {
+      getWorkflowInterceptor().registerDynamicQueryHandler((DynamicQueryHandler) implementation);
+      return;
+    }
     Class<?> cls = implementation.getClass();
     POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newListenerInstance(cls);
     for (String queryType : workflowMetadata.getQueryTypes()) {
@@ -127,12 +139,13 @@ public final class WorkflowInternal {
                 }
               });
     }
+    List<WorkflowOutboundCallsInterceptor.SignalRegistrationRequest> requests = new ArrayList<>();
     for (String signalType : workflowMetadata.getSignalTypes()) {
       POJOWorkflowMethodMetadata methodMetadata =
           workflowMetadata.getSignalMethodMetadata(signalType);
       Method method = methodMetadata.getWorkflowMethod();
-      getWorkflowInterceptor()
-          .registerSignal(
+      requests.add(
+          new WorkflowOutboundCallsInterceptor.SignalRegistrationRequest(
               methodMetadata.getName(),
               method.getParameterTypes(),
               method.getGenericParameterTypes(),
@@ -142,7 +155,10 @@ public final class WorkflowInternal {
                 } catch (Throwable e) {
                   throw CheckedExceptionWrapper.wrap(e);
                 }
-              });
+              }));
+    }
+    if (!requests.isEmpty()) {
+      getWorkflowInterceptor().registerSignalHandlers(requests);
     }
   }
 
