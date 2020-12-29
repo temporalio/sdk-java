@@ -27,7 +27,8 @@ import io.temporal.common.converter.EncodedValues;
  * invocation that doesn't have an explicitly registered handler. Only one instance that implements
  * DynamicActivity per {@link io.temporal.worker.Worker} is allowed.
  *
- * <p>The DynamicActivity can be useful for integrations with existing libraries.
+ * <p>The DynamicActivity can be useful for integrations with existing libraries. For example it can
+ * be used to call some external HTTP API with each function exposed as a different activity type.
  *
  * <p>Use {@link Activity#getExecutionContext()} to query information about the activity type that
  * should be implemented dynamically.

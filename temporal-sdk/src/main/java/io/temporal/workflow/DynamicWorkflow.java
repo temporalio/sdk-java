@@ -38,6 +38,8 @@ import io.temporal.common.converter.EncodedValues;
  * using {@link DynamicSignalHandler} and {@link DynamicQueryHandler} to implement handlers that can
  * support any signal or query type dynamically.
  *
+ * <p>All the determinism rules still apply to workflows that implement this interface.
+ *
  * @see io.temporal.activity.DynamicActivity
  */
 public interface DynamicWorkflow {
