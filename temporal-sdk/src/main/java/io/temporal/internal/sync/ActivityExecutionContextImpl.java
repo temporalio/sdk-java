@@ -30,13 +30,16 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.ActivityCanceledException;
+import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -72,6 +75,9 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private final Lock lock = new ReentrantLock();
   private ScheduledFuture future;
   private ActivityCompletionException lastException;
+  private final ManualActivityCompletionClientFactoryImpl manualCompletionClientFactory;
+  private Functions.Proc completionHandle;
+  private boolean useLocalManualCompletion;
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
@@ -80,6 +86,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       ActivityInfo info,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
+      Functions.Proc completionHandle,
       Scope metricsScope) {
     this.namespace = namespace;
     this.service = service;
@@ -89,7 +96,11 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         Math.min(
             (long) (0.8 * info.getHeartbeatTimeout().toMillis()), MAX_HEARTBEAT_INTERVAL_MILLIS);
     this.heartbeatExecutor = heartbeatExecutor;
+    this.completionHandle = completionHandle;
     this.metricsScope = metricsScope;
+    this.manualCompletionClientFactory =
+        new ManualActivityCompletionClientFactoryImpl(
+            service, namespace, dataConverter, metricsScope);
   }
 
   /** @see ActivityExecutionContext#heartbeat(Object) */
@@ -226,6 +237,17 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   @Override
   public boolean isDoNotCompleteOnReturn() {
     return doNotCompleteOnReturn;
+  }
+
+  public boolean isUseLocalManualCompletion() {
+    return useLocalManualCompletion;
+  }
+
+  @Override
+  public ActivityCompletionClient useLocalManualCompletion() {
+    doNotCompleteOnReturn();
+    useLocalManualCompletion = true;
+    return new ActivityCompletionClientImpl(manualCompletionClientFactory, completionHandle);
   }
 
   @Override

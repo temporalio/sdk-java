@@ -171,6 +171,7 @@ public final class ActivityWorker implements SuspendableWorker {
                       r.getActivityType().getName(),
                       MetricsTag.WORKFLOW_TYPE,
                       r.getWorkflowType().getName()));
+      ActivityTaskHandler.Result response = null;
       try {
         metricsScope
             .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
@@ -187,9 +188,8 @@ public final class ActivityWorker implements SuspendableWorker {
         propagateContext(r);
 
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
-        ActivityTaskHandler.Result response;
         try {
-          response = handler.handle(r, metricsScope, false);
+          response = handler.handle(task, metricsScope, false);
         } finally {
           sw.stop();
         }
@@ -210,17 +210,20 @@ public final class ActivityWorker implements SuspendableWorker {
           if (info.hasDetails()) {
             canceledRequest.setDetails(info.getDetails());
           }
-          sendReply(
-              r,
-              new Result(r.getActivityId(), null, null, canceledRequest.build(), null),
-              metricsScope);
+          response =
+              new Result(r.getActivityId(), null, null, canceledRequest.build(), null, false);
+          sendReply(r, response, metricsScope);
         }
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.RUN_ID);
-        task.getCompletionHandle().apply();
+        // Apply completion handle if task has been completed synchronously or is async and manual
+        // completion hasn't been requested.
+        if (response != null && !response.isManualCompletion()) {
+          task.getCompletionHandle().apply();
+        }
       }
     }
 

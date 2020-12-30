@@ -238,6 +238,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       RecordActivityTaskHeartbeatByIdRequest.Builder request =
           RecordActivityTaskHeartbeatByIdRequest.newBuilder()
               .setWorkflowId(execution.getWorkflowId())
+              .setNamespace(namespace)
               .setRunId(execution.getRunId())
               .setActivityId(activityId);
       if (convertedDetails.isPresent()) {

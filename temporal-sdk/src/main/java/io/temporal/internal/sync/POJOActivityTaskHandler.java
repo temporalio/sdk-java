@@ -43,6 +43,7 @@ import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
+import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -145,7 +146,12 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
     RespondActivityTaskFailedRequest.Builder result =
         RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
     return new ActivityTaskHandler.Result(
-        activityId, null, new Result.TaskFailedResult(result.build(), exception), null, null);
+        activityId,
+        null,
+        new Result.TaskFailedResult(result.build(), exception),
+        null,
+        null,
+        false);
   }
 
   @Override
@@ -171,15 +177,16 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   @Override
-  public Result handle(
-      PollActivityTaskQueueResponse pollResponse, Scope metricsScope, boolean localActivity) {
+  public Result handle(ActivityTask activityTask, Scope metricsScope, boolean localActivity) {
+    PollActivityTaskQueueResponse pollResponse = activityTask.getResponse();
     String activityType = pollResponse.getActivityType().getName();
-    ActivityInfoImpl activityTask =
-        new ActivityInfoImpl(pollResponse, this.namespace, localActivity);
+    ActivityInfoImpl activityInfo =
+        new ActivityInfoImpl(
+            pollResponse, this.namespace, localActivity, activityTask.getCompletionHandle());
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
       if (dynamicActivity != null) {
-        return dynamicActivity.execute(activityTask, metricsScope);
+        return dynamicActivity.execute(activityInfo, metricsScope);
       }
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
@@ -192,7 +199,7 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
           metricsScope,
           localActivity);
     }
-    return activity.execute(activityTask, metricsScope);
+    return activity.execute(activityInfo, metricsScope);
   }
 
   private interface ActivityTaskExecutor {
@@ -212,7 +219,13 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
     public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
-              service, namespace, info, dataConverter, heartbeatExecutor, metricsScope);
+              service,
+              namespace,
+              info,
+              dataConverter,
+              heartbeatExecutor,
+              info.getCompletionHandle(),
+              metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new POJOActivityInboundCallsInterceptor(activity, method);
@@ -229,7 +242,8 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
                 method.getGenericParameterTypes());
         Object result = inboundCallsInterceptor.execute(args);
         if (context.isDoNotCompleteOnReturn()) {
-          return new ActivityTaskHandler.Result(info.getActivityId(), null, null, null, null);
+          return new ActivityTaskHandler.Result(
+              info.getActivityId(), null, null, null, null, context.isUseLocalManualCompletion());
         }
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
@@ -240,7 +254,7 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
           }
         }
         return new ActivityTaskHandler.Result(
-            info.getActivityId(), request.build(), null, null, null);
+            info.getActivityId(), request.build(), null, null, null, false);
       } catch (Throwable e) {
         return activityFailureToResult(info, metricsScope, e);
       }
@@ -290,7 +304,13 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
     public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
-              service, namespace, info, dataConverter, heartbeatExecutor, metricsScope);
+              service,
+              namespace,
+              info,
+              dataConverter,
+              heartbeatExecutor,
+              info.getCompletionHandle(),
+              metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new DynamicActivityInboundCallsInterceptor(activity);
@@ -302,7 +322,8 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
         EncodedValues args = new EncodedValues(input, dataConverter);
         Object result = inboundCallsInterceptor.execute(new Object[] {args});
         if (context.isDoNotCompleteOnReturn()) {
-          return new ActivityTaskHandler.Result(info.getActivityId(), null, null, null, null);
+          return new ActivityTaskHandler.Result(
+              info.getActivityId(), null, null, null, null, context.isUseLocalManualCompletion());
         }
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
@@ -311,7 +332,7 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
           request.setResult(serialized.get());
         }
         return new ActivityTaskHandler.Result(
-            info.getActivityId(), request.build(), null, null, null);
+            info.getActivityId(), request.build(), null, null, null, false);
       } catch (Throwable e) {
         return activityFailureToResult(info, metricsScope, e);
       }
@@ -406,7 +427,7 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
           }
         }
         return new ActivityTaskHandler.Result(
-            info.getActivityId(), request.build(), null, null, null);
+            info.getActivityId(), request.build(), null, null, null, false);
       } catch (Throwable e) {
         e = CheckedExceptionWrapper.unwrap(e);
         if (log.isWarnEnabled()) {

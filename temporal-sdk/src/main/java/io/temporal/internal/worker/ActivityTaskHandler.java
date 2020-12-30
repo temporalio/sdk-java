@@ -20,7 +20,6 @@
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
@@ -41,6 +40,7 @@ public interface ActivityTaskHandler {
     private final TaskFailedResult taskFailed;
     private final RespondActivityTaskCanceledRequest taskCanceled;
     private final RpcRetryOptions requestRetryOptions;
+    private final boolean manualCompletion;
     private int attempt;
     private Duration backoff;
 
@@ -92,12 +92,14 @@ public interface ActivityTaskHandler {
         RespondActivityTaskCompletedRequest taskCompleted,
         TaskFailedResult taskFailed,
         RespondActivityTaskCanceledRequest taskCanceled,
-        RpcRetryOptions requestRetryOptions) {
+        RpcRetryOptions requestRetryOptions,
+        boolean manualCompletion) {
       this.activityId = activityId;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.taskCanceled = taskCanceled;
       this.requestRetryOptions = requestRetryOptions;
+      this.manualCompletion = manualCompletion;
     }
 
     public String getActivityId() {
@@ -135,6 +137,10 @@ public interface ActivityTaskHandler {
     public Duration getBackoff() {
       return backoff;
     }
+
+    public boolean isManualCompletion() {
+      return manualCompletion;
+    }
   }
 
   /**
@@ -145,8 +151,7 @@ public interface ActivityTaskHandler {
    * @param activityTask activity task which is response to PollActivityTaskQueue call.
    * @return One of the possible activity task replies.
    */
-  Result handle(
-      PollActivityTaskQueueResponse activityTask, Scope metricsScope, boolean isLocalActivity);
+  Result handle(ActivityTask activityTask, Scope metricsScope, boolean isLocalActivity);
 
   /** True if this handler handles at least one activity type. */
   boolean isAnyTypeSupported();

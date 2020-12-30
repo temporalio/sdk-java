@@ -195,7 +195,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public ActivityCompletionClient newActivityCompletionClient() {
     ActivityCompletionClient result =
-        new ActivityCompletionClientImpl(manualActivityCompletionClientFactory);
+        new ActivityCompletionClientImpl(manualActivityCompletionClientFactory, () -> {});
     for (WorkflowClientInterceptor i : interceptors) {
       result = i.newActivityCompletionClient(result);
     }

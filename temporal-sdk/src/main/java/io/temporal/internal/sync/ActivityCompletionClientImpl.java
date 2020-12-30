@@ -23,58 +23,98 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
+import io.temporal.workflow.Functions;
 import java.util.Optional;
 
 class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   private final ManualActivityCompletionClientFactory factory;
+  private final Functions.Proc completionHandle;
 
   public ActivityCompletionClientImpl(
-      ManualActivityCompletionClientFactory manualActivityCompletionClientFactory) {
+      ManualActivityCompletionClientFactory manualActivityCompletionClientFactory,
+      Functions.Proc completionHandle) {
     this.factory = manualActivityCompletionClientFactory;
+    this.completionHandle = completionHandle;
   }
 
   @Override
   public <R> void complete(byte[] taskToken, R result) {
-    factory.getClient(taskToken).complete(result);
+    try {
+      factory.getClient(taskToken).complete(result);
+    } finally {
+      completionHandle.apply();
+    }
   }
 
   @Override
   public <R> void complete(String workflowId, Optional<String> runId, String activityId, R result) {
-    factory.getClient(toExecution(workflowId, runId), activityId).complete(result);
+    try {
+      factory.getClient(toExecution(workflowId, runId), activityId).complete(result);
+    } finally {
+      completionHandle.apply();
+    }
   }
 
   @Override
   public void completeExceptionally(byte[] taskToken, Exception result) {
-    factory.getClient(taskToken).fail(result);
+    try {
+      factory.getClient(taskToken).fail(result);
+    } finally {
+      completionHandle.apply();
+    }
   }
 
   @Override
   public void completeExceptionally(
       String workflowId, Optional<String> runId, String activityId, Exception result) {
-    factory.getClient(toExecution(workflowId, runId), activityId).fail(result);
+    try {
+      factory.getClient(toExecution(workflowId, runId), activityId).fail(result);
+    } finally {
+      completionHandle.apply();
+    }
   }
 
   @Override
   public <V> void reportCancellation(byte[] taskToken, V details) {
-    factory.getClient(taskToken).reportCancellation(details);
+    try {
+      factory.getClient(taskToken).reportCancellation(details);
+    } finally {
+      completionHandle.apply();
+    }
   }
 
   @Override
   public <V> void reportCancellation(
       String workflowId, Optional<String> runId, String activityId, V details) {
-    factory.getClient(toExecution(workflowId, runId), activityId).reportCancellation(details);
+    try {
+      factory.getClient(toExecution(workflowId, runId), activityId).reportCancellation(details);
+    } finally {
+      completionHandle.apply();
+    }
   }
 
   @Override
   public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
-    factory.getClient(taskToken).recordHeartbeat(details);
+    try {
+      factory.getClient(taskToken).recordHeartbeat(details);
+    } finally {
+      completionHandle.apply();
+    }
   }
 
   @Override
   public <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException {
-    factory.getClient(toExecution(workflowId, runId), activityId).recordHeartbeat(details);
+    try {
+      factory.getClient(toExecution(workflowId, runId), activityId).recordHeartbeat(details);
+    } finally {
+      completionHandle.apply();
+    }
+  }
+
+  Functions.Proc getCompletionHandle() {
+    return completionHandle;
   }
 
   private static WorkflowExecution toExecution(String workflowId, Optional<String> runId) {

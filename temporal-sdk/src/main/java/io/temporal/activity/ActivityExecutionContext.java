@@ -20,7 +20,10 @@
 package io.temporal.activity;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.worker.WorkerOptions;
+
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -88,6 +91,19 @@ public interface ActivityExecutionContext {
   void doNotCompleteOnReturn();
 
   boolean isDoNotCompleteOnReturn();
+
+  /** Returns true if {@link #useLocalManualCompletion()} method has been called on this context. */
+  boolean isUseLocalManualCompletion();
+
+  /**
+   * Local manual completion, sets {@link #doNotCompleteOnReturn()} flag making activity completion
+   * asynchronous, also returns completion client. Returned completion client must be used to
+   * complete the activity on the same machine. Main difference from calling {@link
+   * #doNotCompleteOnReturn()} directly is that by using this method maximum number of concurrent
+   * activities defined by {@link WorkerOptions#getMaxConcurrentActivityExecutionSize()} will be
+   * respected.
+   */
+  ActivityCompletionClient useLocalManualCompletion();
 
   Scope getMetricsScope();
 }

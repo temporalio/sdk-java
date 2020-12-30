@@ -47,6 +47,7 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -259,7 +260,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       }
       PollActivityTaskQueueResponse task = taskBuilder.build();
       Result taskResult =
-          activityTaskHandler.handle(task, testEnvironmentOptions.getMetricsScope(), false);
+          activityTaskHandler.handle(
+              new ActivityTask(task, () -> {}), testEnvironmentOptions.getMetricsScope(), false);
       return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
     }
 
