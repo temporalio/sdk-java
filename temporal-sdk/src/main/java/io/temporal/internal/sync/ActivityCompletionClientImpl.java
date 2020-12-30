@@ -24,6 +24,7 @@ import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.workflow.Functions;
+
 import java.util.Optional;
 
 class ActivityCompletionClientImpl implements ActivityCompletionClient {
@@ -96,21 +97,13 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
-    try {
-      factory.getClient(taskToken).recordHeartbeat(details);
-    } finally {
-      completionHandle.apply();
-    }
+    factory.getClient(taskToken).recordHeartbeat(details);
   }
 
   @Override
   public <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException {
-    try {
-      factory.getClient(toExecution(workflowId, runId), activityId).recordHeartbeat(details);
-    } finally {
-      completionHandle.apply();
-    }
+    factory.getClient(toExecution(workflowId, runId), activityId).recordHeartbeat(details);
   }
 
   Functions.Proc getCompletionHandle() {
