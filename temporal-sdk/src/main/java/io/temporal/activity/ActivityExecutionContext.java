@@ -23,6 +23,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.worker.WorkerOptions;
+
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -85,13 +86,22 @@ public interface ActivityExecutionContext {
   /**
    * If this method is called during an activity execution then activity is not going to complete
    * when its method returns. It is expected to be completed asynchronously using {@link
-   * io.temporal.client.ActivityCompletionClient}.
+   * io.temporal.client.ActivityCompletionClient}. Note that async activities that have {@link
+   * #isUseLocalManualCompletion()} set to false would not respect the limit defined by {@link
+   * WorkerOptions#getMaxConcurrentActivityExecutionSize()}. If you want to limit the number of
+   * concurrent async activities and if you always complete those activities from the same activity
+   * worker you should use {@link #useLocalManualCompletion()} instead.
    */
   void doNotCompleteOnReturn();
 
   boolean isDoNotCompleteOnReturn();
 
-  /** Returns true if {@link #useLocalManualCompletion()} method has been called on this context. */
+  /**
+   * Returns true if {@link #useLocalManualCompletion()} method has been called on this context. If
+   * this flag is set to true, {@link io.temporal.internal.worker.ActivityWorker} would not release
+   * concurrency semaphore and delegate release function to the manual activity client returned by
+   * {@link #useLocalManualCompletion()}
+   */
   boolean isUseLocalManualCompletion();
 
   /**
@@ -100,7 +110,9 @@ public interface ActivityExecutionContext {
    * complete the activity on the same machine. Main difference from calling {@link
    * #doNotCompleteOnReturn()} directly is that by using this method maximum number of concurrent
    * activities defined by {@link WorkerOptions#getMaxConcurrentActivityExecutionSize()} will be
-   * respected.
+   * respected. Users must be careful and always call completion method on the {@link
+   * ActivityCompletionClient} otherwise activity worker could stop polling new work as it will
+   * consider all activities that didn't explicitly finish as still running.
    */
   ActivityCompletionClient useLocalManualCompletion();
 

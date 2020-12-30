@@ -28,13 +28,14 @@ import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.worker.WorkerOptions;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
 
 public class LocalAsyncCompletionWorkflowTest {
 
@@ -85,7 +86,7 @@ public class LocalAsyncCompletionWorkflowTest {
         if (promise.getFailure() != null) {
           return "exception";
         }
-        if (promise.get() != 4) {
+        if (promise.get() != 4) { // All activities compute 2 * 2
           return "wrong result";
         }
       }
@@ -127,9 +128,9 @@ public class LocalAsyncCompletionWorkflowTest {
   }
 
   /**
-   * This test runs a workflow that executes multiple activities in the single handler thread. Test
-   * workflow is configured to fail with heartbeat timeout errors in case if activity pollers are
-   * too eager to poll tasks before previously fetched tasks are handled.
+   * This test runs 10 async activities in parallel. The expectation is that
+   * MAX_CONCURRENT_ACTIVITIES limit is being respected and only 1 activity should be running at the
+   * same time.
    */
   @Test
   public void verifyLocalActivityCompletionRespectsConcurrencySettings() {
