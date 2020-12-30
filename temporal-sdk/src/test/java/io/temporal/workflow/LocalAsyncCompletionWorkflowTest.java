@@ -31,6 +31,7 @@ import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -53,8 +54,6 @@ public class LocalAsyncCompletionWorkflowTest {
           .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
           .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
-
-  private static final AtomicInteger concurrentActivitiesCount = new AtomicInteger(0);
 
   @WorkflowInterface
   public interface TestWorkflow {
@@ -101,6 +100,7 @@ public class LocalAsyncCompletionWorkflowTest {
   }
 
   public static class AsyncActivityWithManualCompletion implements TestActivity {
+    private final AtomicInteger concurrentActivitiesCount = new AtomicInteger(0);
 
     @Override
     public int execute(int value) {
@@ -113,16 +113,22 @@ public class LocalAsyncCompletionWorkflowTest {
       ActivityExecutionContext context = Activity.getExecutionContext();
       context.heartbeat(value);
       ActivityCompletionClient completionClient = context.useLocalManualCompletion();
+      ForkJoinPool.commonPool().execute(() -> asyncActivityFn(value, context, completionClient));
+      return 0;
+    }
+
+    private void asyncActivityFn(
+        int value, ActivityExecutionContext context, ActivityCompletionClient completionClient) {
       try {
         Thread.sleep(500);
+        concurrentActivitiesCount.decrementAndGet();
         completionClient.complete(context.getTaskToken(), value * 2);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         e.printStackTrace();
+        concurrentActivitiesCount.decrementAndGet();
         completionClient.completeExceptionally(context.getTaskToken(), e);
       }
-      concurrentActivitiesCount.decrementAndGet();
-      return 0;
     }
   }
 

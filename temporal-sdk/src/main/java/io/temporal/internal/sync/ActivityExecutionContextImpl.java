@@ -37,6 +37,7 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
@@ -75,7 +76,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private final Lock lock = new ReentrantLock();
   private ScheduledFuture future;
   private ActivityCompletionException lastException;
-  private final ManualActivityCompletionClientFactoryImpl manualCompletionClientFactory;
+  private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private Functions.Proc completionHandle;
   private boolean useLocalManualCompletion;
 
@@ -241,11 +242,21 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   @Override
   public boolean isDoNotCompleteOnReturn() {
-    return doNotCompleteOnReturn;
+    lock.lock();
+    try {
+      return doNotCompleteOnReturn;
+    } finally {
+      lock.unlock();
+    }
   }
 
   public boolean isUseLocalManualCompletion() {
-    return useLocalManualCompletion;
+    lock.lock();
+    try {
+      return useLocalManualCompletion;
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override
