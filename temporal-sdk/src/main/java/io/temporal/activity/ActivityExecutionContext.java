@@ -23,7 +23,6 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.worker.WorkerOptions;
-
 import java.lang.reflect.Type;
 import java.util.Optional;
 

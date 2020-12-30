@@ -231,7 +231,12 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   @Override
   public void doNotCompleteOnReturn() {
-    doNotCompleteOnReturn = true;
+    lock.lock();
+    try {
+      doNotCompleteOnReturn = true;
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override
@@ -245,9 +250,14 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   @Override
   public ActivityCompletionClient useLocalManualCompletion() {
-    doNotCompleteOnReturn();
-    useLocalManualCompletion = true;
-    return new ActivityCompletionClientImpl(manualCompletionClientFactory, completionHandle);
+    lock.lock();
+    try {
+      doNotCompleteOnReturn();
+      useLocalManualCompletion = true;
+      return new ActivityCompletionClientImpl(manualCompletionClientFactory, completionHandle);
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override

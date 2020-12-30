@@ -24,7 +24,6 @@ import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.workflow.Functions;
-
 import java.util.Optional;
 
 class ActivityCompletionClientImpl implements ActivityCompletionClient {
