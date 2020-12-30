@@ -28,14 +28,13 @@ import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.worker.WorkerOptions;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
 
 public class LocalAsyncCompletionWorkflowTest {
 
