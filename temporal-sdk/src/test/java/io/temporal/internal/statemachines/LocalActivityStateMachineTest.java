@@ -172,7 +172,8 @@ public class LocalActivityStateMachineTest {
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result2).build(),
               null,
               null,
-              null);
+              null,
+              false);
       stateMachines.handleLocalActivityCompletion(completionActivity2);
       requests = stateMachines.takeLocalActivityRequests();
       assertEquals(1, requests.size());
@@ -185,7 +186,8 @@ public class LocalActivityStateMachineTest {
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result3).build(),
               null,
               null,
-              null);
+              null,
+              false);
       stateMachines.handleLocalActivityCompletion(completionActivity3);
       requests = stateMachines.takeLocalActivityRequests();
       assertTrue(requests.isEmpty());
@@ -223,7 +225,8 @@ public class LocalActivityStateMachineTest {
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result).build(),
               null,
               null,
-              null);
+              null,
+              false);
       stateMachines.handleLocalActivityCompletion(completionActivity1);
       requests = stateMachines.takeLocalActivityRequests();
       assertTrue(requests.isEmpty());

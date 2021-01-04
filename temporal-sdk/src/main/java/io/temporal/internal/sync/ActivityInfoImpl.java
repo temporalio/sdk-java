@@ -24,6 +24,7 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -32,12 +33,17 @@ final class ActivityInfoImpl implements ActivityInfo {
   private final PollActivityTaskQueueResponse response;
   private final String activityNamespace;
   private final boolean local;
+  private final Functions.Proc completionHandle;
 
   ActivityInfoImpl(
-      PollActivityTaskQueueResponse response, String activityNamespace, boolean local) {
+      PollActivityTaskQueueResponse response,
+      String activityNamespace,
+      boolean local,
+      Functions.Proc completionHandle) {
     this.response = Objects.requireNonNull(response);
     this.activityNamespace = Objects.requireNonNull(activityNamespace);
     this.local = local;
+    this.completionHandle = completionHandle;
   }
 
   public byte[] getTaskToken() {
@@ -116,6 +122,10 @@ final class ActivityInfoImpl implements ActivityInfo {
   @Override
   public boolean isLocal() {
     return local;
+  }
+
+  public Functions.Proc getCompletionHandle() {
+    return completionHandle;
   }
 
   public Optional<Payloads> getInput() {

@@ -220,7 +220,8 @@ public final class LocalActivityWorker implements SuspendableWorker {
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_TOTAL_COUNTER).inc(1);
 
       Stopwatch sw = metricsScope.timer(MetricsType.LOCAL_ACTIVITY_EXECUTION_LATENCY).start();
-      ActivityTaskHandler.Result result = handler.handle(activityTask.build(), metricsScope, true);
+      ActivityTaskHandler.Result result =
+          handler.handle(new ActivityTask(activityTask.build(), () -> {}), metricsScope, true);
       sw.stop();
       int attempt = activityTask.getAttempt();
       result.setAttempt(attempt);
