@@ -33,5 +33,5 @@ STARTED --> TIMED_OUT: WORKFLOW_TASK_TIMED_OUT
 COMPLETED --> [*]
 TIMED_OUT --> [*]
 FAILED --> [*]
-center footer Copyright (C) 2021 Temporal Technologies, Inc. All Rights Reserved.
+center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
 @enduml

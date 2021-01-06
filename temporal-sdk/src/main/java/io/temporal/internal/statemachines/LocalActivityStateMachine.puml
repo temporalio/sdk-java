@@ -36,5 +36,5 @@ RESULT_NOTIFIED --> MARKER_COMMAND_RECORDED: MARKER_RECORDED
 WAITING_MARKER_EVENT --> MARKER_COMMAND_RECORDED: MARKER_RECORDED
 WAITING_MARKER_EVENT --> REQUEST_PREPARED: NON_REPLAY_WORKFLOW_TASK_STARTED
 MARKER_COMMAND_RECORDED --> [*]
-center footer Copyright (C) 2021 Temporal Technologies, Inc. All Rights Reserved.
+center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
 @enduml
