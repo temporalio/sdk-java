@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.temporal.common.MethodRetry;
 import io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import java.lang.reflect.InvocationHandler;
@@ -31,12 +32,14 @@ import java.util.Map;
 import java.util.function.Function;
 
 /** Dynamic implementation of a strongly typed activity interface. */
-abstract class ActivityInvocationHandlerBase implements InvocationHandler {
+@VisibleForTesting
+public abstract class ActivityInvocationHandlerBase implements InvocationHandler {
 
   private final Map<Method, Function<Object[], Object>> methodFunctions = new HashMap<>();
 
+  @VisibleForTesting
   @SuppressWarnings("unchecked")
-  static <T> T newProxy(Class<T> activityInterface, InvocationHandler invocationHandler) {
+  public static <T> T newProxy(Class<T> activityInterface, InvocationHandler invocationHandler) {
     return (T)
         Proxy.newProxyInstance(
             activityInterface.getClassLoader(),

@@ -26,12 +26,11 @@ import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.Status;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.testservice.TestWorkflowService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class LoggingInterceptor implements io.grpc.ServerInterceptor {
-  private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
+  private static final Logger log = LoggerFactory.getLogger(LoggingInterceptor.class);
 
   @Override
   public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(

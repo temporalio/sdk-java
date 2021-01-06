@@ -21,7 +21,6 @@ package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityExecutionContext;
-import io.temporal.internal.sync.TestActivityEnvironmentInternal;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 

@@ -17,10 +17,9 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.testing;
+package io.temporal.failure;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.temporal.failure.TimeoutFailure;
 
 /** Internal do not use in application code. */
 @VisibleForTesting

@@ -10,7 +10,6 @@ plugins {
     id 'name.remal.check-updates' version '1.1.6'
 }
 
-apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 apply plugin: 'maven-publish'
 apply plugin: 'de.marcphilipp.nexus-publish'
 apply plugin: 'java'
@@ -24,9 +23,9 @@ if (hasProperty('signing.keyId')) {
 
 group = 'io.temporal'
 version = getVersionName()
-archivesBaseName = "temporal-sdk"
+archivesBaseName = "temporal-testing"
 
-description = '''Temporal Workflow Java SDK'''
+description = '''Temporal Workflow Java SDK testing'''
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -39,27 +38,12 @@ dependencies {
     errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
     errorprone('com.google.errorprone:error_prone_core:2.4.0')
 
-    api project(':temporal-serviceclient')
-    api group: 'com.google.code.gson', name: 'gson', version: '2.8.6'
-    api group: 'io.micrometer', name: 'micrometer-core', version: '1.6.2'
+    api project(':temporal-sdk')
 
     implementation group: 'com.google.guava', name: 'guava', version: '30.1-jre'
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.3'
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.12.0'
-    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.12.0'
-    if (!JavaVersion.current().isJava8()) {
-        implementation 'javax.annotation:javax.annotation-api:1.3.2'
-    }
 
-    testImplementation project(':temporal-testing')
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
-    testImplementation group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
-    testImplementation group: 'junit', name: 'junit', version: '4.13.1'
-}
-
-configurations.all {
-    // Conflicts with logback
-    exclude group: 'org.slf4j', module: 'slf4j-simple'
+    implementation group: 'junit', name: 'junit', version: '4.13.1'
 }
 
 license {
@@ -67,28 +51,15 @@ license {
     exclude '**/*.puml'
 }
 
-task initSubmodules(type: Exec) {
-    description = 'Initializes submodules'
-    commandLine 'git', 'submodule', 'init'
-}
-
-task updateSubmodules(type: Exec) {
-    dependsOn initSubmodules
-    description = 'Update submodules'
-    commandLine 'git', 'submodule', 'update'
-}
-
 compileJava {
     dependsOn 'googleJavaFormat'
     options.encoding = 'UTF-8'
     options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-    options.errorprone.excludedPaths = '.*/generated-sources/.*'
 }
 
 compileTestJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-    options.errorprone.excludedPaths = '.*/generated-sources/.*'
 }
 
 if (JavaVersion.current().isJava8Compatible()) {
@@ -106,19 +77,12 @@ javadoc {
     }
 }
 
-// Needed to include generated fils into the source jar
 task sourceJar(type: Jar) {
-    from sourceSets.main.allSource, file("$buildDir/generated/main/java")
+    from sourceSets.main.allSource
     classifier "sources"
 }
 
-task registerNamespace(type: JavaExec) {
-    main = 'io.temporal.RegisterTestNamespace'
-    classpath = sourceSets.test.runtimeClasspath
-}
-
 test {
-    dependsOn 'registerNamespace'
     dependsOn 'checkLicenseMain'
     testLogging {
         events 'passed', 'skipped', 'failed'
@@ -143,10 +107,10 @@ publishing {
                 }
             }
             pom {
-                name = 'Temporal Java SDK'
+                name = 'Temporal Java SDK testing'
                 packaging = 'jar'
                 // optionally artifactId can be defined here
-                description = 'Temporal Workflow Java SDK'
+                description = 'Temporal Workflow Java SDK testing'
                 url = 'https://github.com/temporalio/temporal-java-sdk'
 
                 scm {

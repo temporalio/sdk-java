@@ -25,6 +25,7 @@ import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
 import java.util.ArrayList;

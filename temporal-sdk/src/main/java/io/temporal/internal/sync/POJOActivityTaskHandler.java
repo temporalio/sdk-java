@@ -38,6 +38,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.failure.FailureConverter;
+import io.temporal.failure.SimulatedTimeoutFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -47,7 +48,6 @@ import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.testing.SimulatedTimeoutFailure;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -61,7 +61,8 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class POJOActivityTaskHandler implements ActivityTaskHandler {
+@VisibleForTesting
+public final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   private static final Logger log = LoggerFactory.getLogger(POJOActivityTaskHandler.class);
 
@@ -74,7 +75,8 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
       Collections.synchronizedMap(new HashMap<>());
   private ActivityTaskExecutor dynamicActivity;
 
-  POJOActivityTaskHandler(
+  @VisibleForTesting
+  public POJOActivityTaskHandler(
       WorkflowServiceStubs service,
       String namespace,
       DataConverter dataConverter,
@@ -164,7 +166,7 @@ final class POJOActivityTaskHandler implements ActivityTaskHandler {
     return activities.keySet();
   }
 
-  void registerActivityImplementations(Object[] activitiesImplementation) {
+  public void registerActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
       registerActivityImplementation(activity, POJOActivityImplementation::new);
     }

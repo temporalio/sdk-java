@@ -21,7 +21,6 @@ package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.client.WorkflowClient;
-import io.temporal.internal.sync.TestWorkflowEnvironmentInternal;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
