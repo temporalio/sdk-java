@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.TestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;

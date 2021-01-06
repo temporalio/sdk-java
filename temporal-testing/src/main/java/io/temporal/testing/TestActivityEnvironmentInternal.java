@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.testing;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
@@ -47,13 +47,15 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.sync.ActivityInvocationHandler;
+import io.temporal.internal.sync.ActivityInvocationHandlerBase;
+import io.temporal.internal.sync.DeterministicRunnerWrapper;
+import io.temporal.internal.sync.POJOActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.testing.TestActivityEnvironment;
-import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.DynamicQueryHandler;

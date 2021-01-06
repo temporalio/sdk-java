@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
@@ -27,11 +28,13 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.function.Function;
 
-class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
+@VisibleForTesting
+public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private final ActivityOptions options;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
 
-  static InvocationHandler newInstance(
+  @VisibleForTesting
+  public static InvocationHandler newInstance(
       Class<?> activityInterface,
       ActivityOptions options,
       WorkflowOutboundCallsInterceptor activityExecutor) {

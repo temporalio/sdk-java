@@ -1,3 +1,4 @@
 rootProject.name='temporalio'
 include 'temporal-serviceclient'
 include 'temporal-sdk'
+include 'temporal-testing'

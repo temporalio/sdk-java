@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.testing;
 
 import com.google.common.collect.ObjectArrays;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -27,11 +27,10 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.internal.sync.WorkflowClientInternal;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
