@@ -314,9 +314,8 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
       result.append(finalState);
       result.append(" --> [*]\n");
     }
-    int year = Calendar.getInstance().get(Calendar.YEAR);
     result.append("center footer Copyright (C) ");
-    result.append(year);
+    result.append("2020");
     result.append(" Temporal Technologies, Inc. All Rights Reserved.\n");
     result.append("@enduml\n");
     return result.toString();
@@ -407,9 +406,8 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
       result.append(finalState);
       result.append(" --> [*]\n");
     }
-    int year = Calendar.getInstance().get(Calendar.YEAR);
     result.append("center footer Copyright (C) ");
-    result.append(year);
+    result.append("2020");
     result.append(" Temporal Technologies, Inc. All Rights Reserved.\n");
     result.append("@enduml\n");
     return result.toString();
