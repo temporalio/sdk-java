@@ -20,7 +20,6 @@
 package io.temporal.internal.sync;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.Objects;

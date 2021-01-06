@@ -38,5 +38,5 @@ RESULT_NOTIFIED_REPLAYING --> SKIPPED_NOTIFIED: MARKER_RECORDED
 SKIPPED --> SKIPPED_NOTIFIED: RECORD_MARKER
 MARKER_COMMAND_RECORDED --> [*]
 SKIPPED_NOTIFIED --> [*]
-center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+center footer Copyright (C) 2021 Temporal Technologies, Inc. All Rights Reserved.
 @enduml

@@ -41,5 +41,5 @@ FAILED --> [*]
 CANCELED --> [*]
 TIMED_OUT --> [*]
 TERMINATED --> [*]
-center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+center footer Copyright (C) 2021 Temporal Technologies, Inc. All Rights Reserved.
 @enduml

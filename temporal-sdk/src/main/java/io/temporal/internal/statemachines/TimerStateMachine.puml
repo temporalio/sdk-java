@@ -35,5 +35,5 @@ START_COMMAND_RECORDED --> FIRED: TIMER_FIRED
 START_COMMAND_RECORDED --> CANCEL_TIMER_COMMAND_CREATED: CANCEL
 FIRED --> [*]
 CANCELED --> [*]
-center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+center footer Copyright (C) 2021 Temporal Technologies, Inc. All Rights Reserved.
 @enduml

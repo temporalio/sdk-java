@@ -34,5 +34,5 @@ SIGNAL_EXTERNAL_COMMAND_RECORDED --> FAILED: SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_
 SIGNALED --> [*]
 FAILED --> [*]
 CANCELED --> [*]
-center footer Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+center footer Copyright (C) 2021 Temporal Technologies, Inc. All Rights Reserved.
 @enduml
