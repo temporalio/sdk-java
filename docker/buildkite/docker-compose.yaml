@@ -57,14 +57,13 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: bash -c "
-      ./gradlew --no-daemon test
-      if [ ! -z "$(git status --porcelain)" ]; then 
-        echo "Some files were improperly formatted, please run build locally and check in any files that were modified."
-        git status
+    command: >
+      bash -c "./gradlew --no-daemon test
+      if [ ! -z $(git status --porcelain) ]; then 
+        echo 'Some files were improperly formatted. Please run build locally and check in all changes.'
+        git status;
         exit 1;
-      fi
-      "
+      fi"
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
