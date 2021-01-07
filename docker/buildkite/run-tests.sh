@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+set -eou pipefail
+set -x
 
 ./gradlew --no-daemon test
 
