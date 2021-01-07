@@ -43,7 +43,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: "./gradlew --no-daemon test"
+    command: /bin/sh -c "docker/buildkite/run-tests.sh"
     environment:
       - "USER=unittest"
       - "TEMPORAL_SERVICE_ADDRESS=temporal:7233"
@@ -57,13 +57,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: >
-      bash -c "./gradlew --no-daemon test
-      if [ ! -z $$(git status --porcelain) ]; then 
-        echo 'Some files were improperly formatted. Please run build locally and check in all changes.'
-        git status;
-        exit 1;
-      fi"
+    command: /bin/sh -c "docker/buildkite/run-tests.sh"
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
