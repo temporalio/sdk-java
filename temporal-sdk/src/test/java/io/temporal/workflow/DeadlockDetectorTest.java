@@ -34,6 +34,7 @@ import org.junit.Test;
 public class DeadlockDetectorTest {
 
   private static final String taskQueue = "deadlock-test";
+  boolean debugMode = Boolean.parseBoolean(System.getenv("TEMPORAL_DEBUG_MODE"));
 
   @WorkflowInterface
   public interface TestWorkflow {
@@ -75,8 +76,13 @@ public class DeadlockDetectorTest {
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     try {
       workflow.execute();
-      fail("not reachable");
+      if (!debugMode) {
+        fail("not reachable in non-debug mode");
+      }
     } catch (WorkflowFailedException e) {
+      if (debugMode) {
+        fail("not reachable in debug mode");
+      }
       Throwable failure = e;
       while (failure.getCause() != null) {
         failure = failure.getCause();
