@@ -43,7 +43,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: "./gradlew --no-daemon test"
+    command: /bin/sh -c "docker/buildkite/run-tests.sh"
     environment:
       - "USER=unittest"
       - "TEMPORAL_SERVICE_ADDRESS=temporal:7233"
@@ -57,7 +57,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: "./gradlew --no-daemon test"
+    command: /bin/sh -c "docker/buildkite/run-tests.sh"
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
