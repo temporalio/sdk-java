@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT;
+import static io.temporal.internal.sync.DeterministicRunner.getDeadlockDetectionTimeout;
 
 import com.google.common.base.Throwables;
 import io.temporal.workflow.Functions;
@@ -271,7 +271,7 @@ class WorkflowThreadContext {
         (r) -> {
           throw new DestroyWorkflowThreadError();
         });
-    runUntilBlocked(DEFAULT_DEADLOCK_DETECTION_TIMEOUT);
+    runUntilBlocked(getDeadlockDetectionTimeout());
   }
 
   /** To be called only from a workflow thread. */
