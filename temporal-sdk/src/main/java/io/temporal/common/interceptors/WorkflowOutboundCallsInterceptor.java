@@ -156,12 +156,53 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
-  final class WorkflowResult<R> {
+  final class ChildWorkflowInput<R> {
+    private final String workflowType;
+    private final Class<R> resultClass;
+    private final Type resultType;
+    private final Object[] args;
+    private final ChildWorkflowOptions options;
+
+    public ChildWorkflowInput(
+        String workflowType,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        ChildWorkflowOptions options) {
+      this.workflowType = workflowType;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+      this.args = args;
+      this.options = options;
+    }
+
+    public String getWorkflowType() {
+      return workflowType;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+
+    public Object[] getArgs() {
+      return args;
+    }
+
+    public ChildWorkflowOptions getOptions() {
+      return options;
+    }
+  }
+
+  final class ChildWorkflowOutput<R> {
 
     private final Promise<R> result;
     private final Promise<WorkflowExecution> workflowExecution;
 
-    public WorkflowResult(Promise<R> result, Promise<WorkflowExecution> workflowExecution) {
+    public ChildWorkflowOutput(Promise<R> result, Promise<WorkflowExecution> workflowExecution) {
       this.result = result;
       this.workflowExecution = workflowExecution;
     }
@@ -172,6 +213,42 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Promise<WorkflowExecution> getWorkflowExecution() {
       return workflowExecution;
+    }
+  }
+
+  final class SignalExternalInput {
+    private final WorkflowExecution execution;
+    private final String signalName;
+    private final Object[] args;
+
+    public SignalExternalInput(WorkflowExecution execution, String signalName, Object[] args) {
+      this.execution = execution;
+      this.signalName = signalName;
+      this.args = args;
+    }
+
+    public WorkflowExecution getExecution() {
+      return execution;
+    }
+
+    public String getSignalName() {
+      return signalName;
+    }
+
+    public Object[] getArgs() {
+      return args;
+    }
+  }
+
+  final class SignalExternalOutput {
+    private final Promise<Void> result;
+
+    public SignalExternalOutput(Promise<Void> result) {
+      this.result = result;
+    }
+
+    public Promise<Void> getResult() {
+      return result;
     }
   }
 
@@ -213,17 +290,11 @@ public interface WorkflowOutboundCallsInterceptor {
 
   <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input);
 
-  <R> WorkflowResult<R> executeChildWorkflow(
-      String workflowType,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      ChildWorkflowOptions options);
+  <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input);
 
   Random newRandom();
 
-  Promise<Void> signalExternalWorkflow(
-      WorkflowExecution execution, String signalName, Object[] args);
+  SignalExternalOutput signalExternalWorkflow(SignalExternalInput input);
 
   Promise<Void> cancelWorkflow(WorkflowExecution execution);
 

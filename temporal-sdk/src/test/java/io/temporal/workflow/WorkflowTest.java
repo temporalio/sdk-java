@@ -6899,16 +6899,11 @@ public class WorkflowTest {
     }
 
     @Override
-    public <R> WorkflowResult<R> executeChildWorkflow(
-        String workflowType,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        ChildWorkflowOptions options) {
+    public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
       if (!Workflow.isReplaying()) {
-        trace.add("executeChildWorkflow " + workflowType);
+        trace.add("executeChildWorkflow " + input.getWorkflowType());
       }
-      return next.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
+      return next.executeChildWorkflow(input);
     }
 
     @Override
@@ -6920,12 +6915,15 @@ public class WorkflowTest {
     }
 
     @Override
-    public Promise<Void> signalExternalWorkflow(
-        WorkflowExecution execution, String signalName, Object[] args) {
+    public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
       if (!Workflow.isReplaying()) {
-        trace.add("signalExternalWorkflow " + execution.getWorkflowId() + " " + signalName);
+        trace.add(
+            "signalExternalWorkflow "
+                + input.getExecution().getWorkflowId()
+                + " "
+                + input.getSignalName());
       }
-      return next.signalExternalWorkflow(execution, signalName, args);
+      return next.signalExternalWorkflow(input);
     }
 
     @Override

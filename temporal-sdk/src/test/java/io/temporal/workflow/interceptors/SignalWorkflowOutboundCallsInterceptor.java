@@ -21,7 +21,6 @@ package io.temporal.workflow.interceptors;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.DynamicQueryHandler;
 import io.temporal.workflow.DynamicSignalHandler;
@@ -65,13 +64,8 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   }
 
   @Override
-  public <R> WorkflowResult<R> executeChildWorkflow(
-      String workflowType,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      ChildWorkflowOptions options) {
-    return next.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
+  public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
+    return next.executeChildWorkflow(input);
   }
 
   @Override
@@ -80,13 +74,16 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   }
 
   @Override
-  public Promise<Void> signalExternalWorkflow(
-      WorkflowExecution execution, String signalName, Object[] args) {
+  public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
+    Object[] args = input.getArgs();
     if (args != null && args.length > 0) {
       args = new Object[] {"corrupted signal"};
     }
     return next.signalExternalWorkflow(
-        execution, overrideSignalName.apply(signalName), overrideArgs.apply(args));
+        new SignalExternalInput(
+            input.getExecution(),
+            overrideSignalName.apply(input.getSignalName()),
+            overrideArgs.apply(args)));
   }
 
   @Override

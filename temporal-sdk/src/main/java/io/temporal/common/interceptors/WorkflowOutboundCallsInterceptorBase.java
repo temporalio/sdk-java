@@ -20,7 +20,6 @@
 package io.temporal.common.interceptors;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.DynamicQueryHandler;
 import io.temporal.workflow.DynamicSignalHandler;
@@ -57,13 +56,8 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public <R> WorkflowResult<R> executeChildWorkflow(
-      String workflowType,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      ChildWorkflowOptions options) {
-    return next.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
+  public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
+    return next.executeChildWorkflow(input);
   }
 
   @Override
@@ -72,9 +66,8 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public Promise<Void> signalExternalWorkflow(
-      WorkflowExecution execution, String signalName, Object[] args) {
-    return next.signalExternalWorkflow(execution, signalName, args);
+  public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
+    return next.signalExternalWorkflow(input);
   }
 
   @Override

@@ -55,7 +55,6 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.DynamicQueryHandler;
 import io.temporal.workflow.DynamicSignalHandler;
@@ -272,12 +271,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public <R> WorkflowResult<R> executeChildWorkflow(
-        String workflowType,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        ChildWorkflowOptions options) {
+    public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -287,8 +281,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public Promise<Void> signalExternalWorkflow(
-        WorkflowExecution execution, String signalName, Object[] args) {
+    public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 

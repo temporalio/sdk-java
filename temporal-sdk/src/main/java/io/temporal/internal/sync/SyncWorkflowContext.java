@@ -349,19 +349,15 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public <R> WorkflowResult<R> executeChildWorkflow(
-      String workflowType,
-      Class<R> returnClass,
-      Type returnType,
-      Object[] args,
-      ChildWorkflowOptions options) {
-    Optional<Payloads> input = converter.toPayloads(args);
+  public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
+    Optional<Payloads> payloads = converter.toPayloads(input.getArgs());
     CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
     Promise<Optional<Payloads>> output =
-        executeChildWorkflow(workflowType, options, input, execution);
+        executeChildWorkflow(input.getWorkflowType(), input.getOptions(), payloads, execution);
     Promise<R> result =
-        output.thenApply((b) -> converter.fromPayloads(0, b, returnClass, returnType));
-    return new WorkflowResult<>(result, execution);
+        output.thenApply(
+            (b) -> converter.fromPayloads(0, b, input.getResultClass(), input.getResultType()));
+    return new ChildWorkflowOutput<>(result, execution);
   }
 
   private Promise<Optional<Payloads>> executeChildWorkflow(
@@ -732,15 +728,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public Promise<Void> signalExternalWorkflow(
-      WorkflowExecution execution, String signalName, Object[] args) {
+  public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
     SignalExternalWorkflowExecutionCommandAttributes.Builder attributes =
         SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
-    attributes.setSignalName(signalName);
-    attributes.setExecution(execution);
-    Optional<Payloads> input = getDataConverter().toPayloads(args);
-    if (input.isPresent()) {
-      attributes.setInput(input.get());
+    attributes.setSignalName(input.getSignalName());
+    attributes.setExecution(input.getExecution());
+    Optional<Payloads> payloads = getDataConverter().toPayloads(input.getArgs());
+    if (payloads.isPresent()) {
+      attributes.setInput(payloads.get());
     }
     CompletablePromise<Void> result = Workflow.newPromise();
     Functions.Proc1<Exception> cancellationCallback =
@@ -765,7 +760,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
               cancellationCallback.apply(new CanceledFailure(reason));
               return null;
             });
-    return result;
+    return new SignalExternalOutput(result);
   }
 
   @Override
