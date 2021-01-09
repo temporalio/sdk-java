@@ -27,6 +27,60 @@ import java.util.Map;
  * restrictions on the workflow code should be obeyed.
  */
 public interface WorkflowInboundCallsInterceptor {
+  final class WorkflowInput {
+    private final Map<String, Payload> header;
+    private final Object[] arguments;
+
+    public WorkflowInput(Map<String, Payload> header, Object[] arguments) {
+      this.header = header;
+      this.arguments = arguments;
+    }
+
+    public Map<String, Payload> getHeader() {
+      return header;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+  }
+
+  final class WorkflowOutput {
+    private final Object result;
+
+    public WorkflowOutput(Object result) {
+      this.result = result;
+    }
+
+    public Object getResult() {
+      return result;
+    }
+  }
+
+  final class SignalInput {
+    private final String signalName;
+    private final Object[] arguments;
+    private final long EventId;
+
+    public SignalInput(String signalName, Object[] arguments, long eventId) {
+      this.signalName = signalName;
+      this.arguments = arguments;
+      EventId = eventId;
+    }
+
+    public String getSignalName() {
+      return signalName;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+
+    public long getEventId() {
+      return EventId;
+    }
+  }
+
   /**
    * Called when workflow class is instantiated.
    *
@@ -39,8 +93,8 @@ public interface WorkflowInboundCallsInterceptor {
    *
    * @return result of the workflow execution.
    */
-  Object execute(Map<String, Payload> header, Object[] arguments);
+  WorkflowOutput execute(WorkflowInput input);
 
   /** Called when signal is delivered to the workflow instance. */
-  void processSignal(String signalName, Object[] arguments, long EventId);
+  void processSignal(SignalInput input);
 }

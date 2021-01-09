@@ -288,11 +288,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
               workflowMethod.getParameterTypes(),
               workflowMethod.getGenericParameterTypes());
       Preconditions.checkNotNull(workflowInvoker, "initialize not called");
-      Object result = workflowInvoker.execute(header, args);
+      WorkflowInboundCallsInterceptor.WorkflowOutput result =
+          workflowInvoker.execute(new WorkflowInboundCallsInterceptor.WorkflowInput(header, args));
       if (workflowMethod.getReturnType() == Void.TYPE) {
         return Optional.empty();
       }
-      return dataConverter.toPayloads(result);
+      return dataConverter.toPayloads(result.getResult());
     }
 
     private void newInstance() {
@@ -321,10 +322,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     private class RootWorkflowInboundCallsInterceptor implements WorkflowInboundCallsInterceptor {
 
       @Override
-      public Object execute(Map<String, Payload> header, Object[] arguments) {
+      public WorkflowOutput execute(WorkflowInput input) {
         WorkflowInfo info = Workflow.getInfo();
         try {
-          return workflowMethod.invoke(workflow, arguments);
+          Object result = workflowMethod.invoke(workflow, input.getArguments());
+          return new WorkflowOutput(result);
         } catch (IllegalAccessException e) {
           throw new Error(mapToWorkflowExecutionException(e, dataConverter));
         } catch (InvocationTargetException e) {
@@ -377,10 +379,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       }
 
       @Override
-      public void processSignal(String signalName, Object[] arguments, long eventId) {
+      public void processSignal(SignalInput input) {
+        String signalName = input.getSignalName();
+        long eventId = input.getEventId();
         Method signalMethod = signalHandlers.get(signalName);
         try {
-          signalMethod.invoke(workflow, arguments);
+          signalMethod.invoke(workflow, input.getArguments());
         } catch (IllegalAccessException e) {
           throw new Error("Failure processing \"" + signalName + "\" at eventId " + eventId, e);
         } catch (InvocationTargetException e) {

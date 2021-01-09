@@ -19,9 +19,6 @@
 
 package io.temporal.common.interceptors;
 
-import io.temporal.api.common.v1.Payload;
-import java.util.Map;
-
 /** Convenience base class for WorkflowInboundCallsInterceptor implementations. */
 public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCallsInterceptor {
   private final WorkflowInboundCallsInterceptor next;
@@ -36,12 +33,12 @@ public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCalls
   }
 
   @Override
-  public Object execute(Map<String, Payload> header, Object[] arguments) {
-    return next.execute(header, arguments);
+  public WorkflowOutput execute(WorkflowInput input) {
+    return next.execute(input);
   }
 
   @Override
-  public void processSignal(String signalName, Object[] arguments, long eventId) {
-    next.processSignal(signalName, arguments, eventId);
+  public void processSignal(SignalInput input) {
+    next.processSignal(input);
   }
 }

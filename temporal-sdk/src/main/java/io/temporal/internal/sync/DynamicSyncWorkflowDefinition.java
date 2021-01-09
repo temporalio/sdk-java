@@ -61,8 +61,10 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
   @Override
   public Optional<Payloads> execute(Map<String, Payload> header, Optional<Payloads> input) {
     Values args = new EncodedValues(input, dataConverter);
-    Object result = workflowInvoker.execute(header, new Object[] {args});
-    return dataConverter.toPayloads(result);
+    WorkflowInboundCallsInterceptor.WorkflowOutput result =
+        workflowInvoker.execute(
+            new WorkflowInboundCallsInterceptor.WorkflowInput(header, new Object[] {args}));
+    return dataConverter.toPayloads(result.getResult());
   }
 
   private class RootWorkflowInboundCallsInterceptor implements WorkflowInboundCallsInterceptor {
@@ -74,12 +76,13 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
     }
 
     @Override
-    public Object execute(Map<String, Payload> header, Object[] arguments) {
-      return workflow.execute((EncodedValues) arguments[0]);
+    public WorkflowOutput execute(WorkflowInput input) {
+      Object result = workflow.execute((EncodedValues) input.getArguments()[0]);
+      return new WorkflowOutput(result);
     }
 
     @Override
-    public void processSignal(String signalName, Object[] arguments, long EventId) {
+    public void processSignal(SignalInput input) {
       throw new UnsupportedOperationException(
           "Signals are delivered through Workflow.registerListener");
     }
