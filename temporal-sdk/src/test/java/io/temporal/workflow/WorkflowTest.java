@@ -6927,11 +6927,11 @@ public class WorkflowTest {
     }
 
     @Override
-    public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+    public CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input) {
       if (!Workflow.isReplaying()) {
-        trace.add("cancelWorkflow " + execution.getWorkflowId());
+        trace.add("cancelWorkflow " + input.getExecution().getWorkflowId());
       }
-      return next.cancelWorkflow(execution);
+      return next.cancelWorkflow(input);
     }
 
     @Override

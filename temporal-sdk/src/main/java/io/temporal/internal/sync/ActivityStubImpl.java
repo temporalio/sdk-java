@@ -46,7 +46,7 @@ final class ActivityStubImpl extends ActivityStubBase {
       String activityName, Class<R> resultClass, Type resultType, Object... args) {
     return activityExecutor
         .executeActivity(
-            new WorkflowOutboundCallsInterceptor.ActivityInput(
+            new WorkflowOutboundCallsInterceptor.ActivityInput<>(
                 activityName, resultClass, resultType, args, options))
         .getResult();
   }

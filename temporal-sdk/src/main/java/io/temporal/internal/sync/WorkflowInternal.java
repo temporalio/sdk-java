@@ -383,7 +383,9 @@ public final class WorkflowInternal {
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {
-    return getWorkflowInterceptor().cancelWorkflow(execution);
+    return getWorkflowInterceptor()
+        .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))
+        .getResult();
   }
 
   public static void sleep(Duration duration) {

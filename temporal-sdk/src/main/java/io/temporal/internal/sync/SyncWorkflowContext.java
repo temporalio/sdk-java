@@ -820,10 +820,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+  public CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input) {
     CompletablePromise<Void> result = Workflow.newPromise();
     context.requestCancelExternalWorkflowExecution(
-        execution,
+        input.getExecution(),
         (r, exception) -> {
           if (exception == null) {
             result.complete(null);
@@ -831,7 +831,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             result.completeExceptionally(exception);
           }
         });
-    return result;
+    return new CancelWorkflowOutput(result);
   }
 
   public Scope getMetricsScope() {

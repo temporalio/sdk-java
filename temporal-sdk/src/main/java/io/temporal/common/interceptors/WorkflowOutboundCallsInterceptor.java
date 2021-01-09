@@ -252,6 +252,30 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
+  final class CancelWorkflowInput {
+    private final WorkflowExecution execution;
+
+    public CancelWorkflowInput(WorkflowExecution execution) {
+      this.execution = execution;
+    }
+
+    public WorkflowExecution getExecution() {
+      return execution;
+    }
+  }
+
+  final class CancelWorkflowOutput {
+    private final Promise<Void> result;
+
+    public CancelWorkflowOutput(Promise<Void> result) {
+      this.result = result;
+    }
+
+    public Promise<Void> getResult() {
+      return result;
+    }
+  }
+
   final class SignalRegistrationRequest {
     private final String signalType;
     private final Class<?>[] argTypes;
@@ -296,7 +320,7 @@ public interface WorkflowOutboundCallsInterceptor {
 
   SignalExternalOutput signalExternalWorkflow(SignalExternalInput input);
 
-  Promise<Void> cancelWorkflow(WorkflowExecution execution);
+  CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input);
 
   void sleep(Duration duration);
 

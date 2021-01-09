@@ -68,7 +68,10 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
-    Promise<Void> cancelRequested = outboundCallsInterceptor.cancelWorkflow(execution);
+    Promise<Void> cancelRequested =
+        outboundCallsInterceptor
+            .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))
+            .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(cancelRequested);
       return;

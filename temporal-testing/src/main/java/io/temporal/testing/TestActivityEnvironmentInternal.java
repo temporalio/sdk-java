@@ -286,7 +286,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+    public CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 

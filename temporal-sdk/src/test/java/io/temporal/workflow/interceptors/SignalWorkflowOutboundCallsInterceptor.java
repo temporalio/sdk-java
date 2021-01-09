@@ -19,7 +19,6 @@
 
 package io.temporal.workflow.interceptors;
 
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.DynamicQueryHandler;
@@ -87,8 +86,8 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   }
 
   @Override
-  public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
-    return next.cancelWorkflow(execution);
+  public CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input) {
+    return next.cancelWorkflow(input);
   }
 
   @Override
