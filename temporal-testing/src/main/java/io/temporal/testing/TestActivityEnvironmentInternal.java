@@ -55,12 +55,10 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.DynamicQueryHandler;
 import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.io.IOException;
@@ -68,7 +66,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -327,22 +324,17 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void continueAsNew(
-        Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+    public void continueAsNew(ContinueAsNewInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerQuery(
-        String queryType,
-        Class<?>[] argTypes,
-        Type[] genericArgTypes,
-        Func1<Object[], Object> callback) {
+    public void registerQuery(RegisterQueryInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
+    public void registerSignalHandlers(RegisterSignalHandlerInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 

@@ -128,16 +128,17 @@ public final class WorkflowInternal {
       Method method = methodMetadata.getWorkflowMethod();
       getWorkflowInterceptor()
           .registerQuery(
-              methodMetadata.getName(),
-              method.getParameterTypes(),
-              method.getGenericParameterTypes(),
-              (args) -> {
-                try {
-                  return method.invoke(implementation, args);
-                } catch (Throwable e) {
-                  throw CheckedExceptionWrapper.wrap(e);
-                }
-              });
+              new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
+                  methodMetadata.getName(),
+                  method.getParameterTypes(),
+                  method.getGenericParameterTypes(),
+                  (args) -> {
+                    try {
+                      return method.invoke(implementation, args);
+                    } catch (Throwable e) {
+                      throw CheckedExceptionWrapper.wrap(e);
+                    }
+                  }));
     }
     List<WorkflowOutboundCallsInterceptor.SignalRegistrationRequest> requests = new ArrayList<>();
     for (String signalType : workflowMetadata.getSignalTypes()) {
@@ -158,7 +159,9 @@ public final class WorkflowInternal {
               }));
     }
     if (!requests.isEmpty()) {
-      getWorkflowInterceptor().registerSignalHandlers(requests);
+      getWorkflowInterceptor()
+          .registerSignalHandlers(
+              new WorkflowOutboundCallsInterceptor.RegisterSignalHandlerInput(requests));
     }
   }
 
@@ -371,7 +374,9 @@ public final class WorkflowInternal {
 
   public static void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
-    getWorkflowInterceptor().continueAsNew(workflowType, options, args);
+    getWorkflowInterceptor()
+        .continueAsNew(
+            new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(workflowType, options, args));
   }
 
   public static void continueAsNew(
@@ -379,7 +384,8 @@ public final class WorkflowInternal {
       Optional<ContinueAsNewOptions> options,
       Object[] args,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
-    outboundCallsInterceptor.continueAsNew(workflowType, options, args);
+    outboundCallsInterceptor.continueAsNew(
+        new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(workflowType, options, args));
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {

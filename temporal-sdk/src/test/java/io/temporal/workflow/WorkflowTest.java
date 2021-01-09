@@ -87,7 +87,6 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Functions.Func1;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -6992,44 +6991,41 @@ public class WorkflowTest {
     }
 
     @Override
-    public void continueAsNew(
-        Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+    public void continueAsNew(ContinueAsNewInput input) {
       if (!Workflow.isReplaying()) {
         trace.add("continueAsNew");
       }
-      next.continueAsNew(workflowType, options, args);
+      next.continueAsNew(input);
     }
 
     @Override
-    public void registerQuery(
-        String queryType,
-        Class<?>[] argTypes,
-        Type[] genericArgTypes,
-        Func1<Object[], Object> callback) {
+    public void registerQuery(RegisterQueryInput input) {
+      String queryType = input.getQueryType();
       if (!Workflow.isReplaying()) {
         trace.add("registerQuery " + queryType);
       }
       next.registerQuery(
-          queryType,
-          argTypes,
-          genericArgTypes,
-          (args) -> {
-            Object result = callback.apply(args);
-            if (!Workflow.isReplaying()) {
-              if (queryType.equals("query")) {
-                log.trace("query", new Throwable());
-              }
-              trace.add("query " + queryType);
-            }
-            return result;
-          });
+          new RegisterQueryInput(
+              queryType,
+              input.getArgTypes(),
+              input.getGenericArgTypes(),
+              (args) -> {
+                Object result = input.getCallback().apply(args);
+                if (!Workflow.isReplaying()) {
+                  if (queryType.equals("query")) {
+                    log.trace("query", new Throwable());
+                  }
+                  trace.add("query " + queryType);
+                }
+                return result;
+              }));
     }
 
     @Override
-    public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
+    public void registerSignalHandlers(RegisterSignalHandlerInput input) {
       if (!Workflow.isReplaying()) {
         StringBuilder signals = new StringBuilder();
-        for (SignalRegistrationRequest request : requests) {
+        for (SignalRegistrationRequest request : input.getRequests()) {
           if (signals.length() > 0) {
             signals.append(", ");
           }
@@ -7037,7 +7033,7 @@ public class WorkflowTest {
         }
         trace.add("registerSignalHandlers " + signals);
       }
-      next.registerSignalHandlers(requests);
+      next.registerSignalHandlers(input);
     }
 
     @Override

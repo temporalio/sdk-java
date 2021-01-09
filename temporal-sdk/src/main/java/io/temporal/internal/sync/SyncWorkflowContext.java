@@ -636,37 +636,35 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public void registerQuery(
-      String queryType,
-      Class<?>[] argTypes,
-      Type[] genericArgTypes,
-      Functions.Func1<Object[], Object> callback) {
+  public void registerQuery(RegisterQueryInput input) {
+    String queryType = input.getQueryType();
     if (queryCallbacks.containsKey(queryType)) {
       throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
     }
     queryCallbacks.put(
         queryType,
-        (input) -> {
+        (i) -> {
           Object[] args =
-              DataConverter.arrayFromPayloads(converter, input, argTypes, genericArgTypes);
-          Object result = callback.apply(args);
+              DataConverter.arrayFromPayloads(
+                  converter, i, input.getArgTypes(), input.getGenericArgTypes());
+          Object result = input.getCallback().apply(args);
           return converter.toPayloads(result);
         });
   }
 
   @Override
-  public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
-    for (SignalRegistrationRequest request : requests) {
+  public void registerSignalHandlers(RegisterSignalHandlerInput input) {
+    for (SignalRegistrationRequest request : input.getRequests()) {
       String signalType = request.getSignalType();
       if (signalCallbacks.containsKey(signalType)) {
         throw new IllegalStateException("Signal \"" + signalType + "\" is already registered");
       }
       Functions.Proc2<Optional<Payloads>, Long> signalCallback =
-          (input, eventId) -> {
+          (payloads, eventId) -> {
             try {
               Object[] args =
                   DataConverter.arrayFromPayloads(
-                      converter, input, request.getArgTypes(), request.getGenericArgTypes());
+                      converter, payloads, request.getArgTypes(), request.getGenericArgTypes());
               request.getCallback().apply(args);
             } catch (DataConverterException e) {
               logSerializationException(signalType, eventId, e);
@@ -781,13 +779,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public void continueAsNew(
-      Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+  public void continueAsNew(ContinueAsNewInput input) {
     ContinueAsNewWorkflowExecutionCommandAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder();
+    Optional<String> workflowType = input.getWorkflowType();
     if (workflowType.isPresent()) {
       attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()));
     }
+    Optional<ContinueAsNewOptions> options = input.getOptions();
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
       attributes.setWorkflowRunTimeout(
@@ -810,7 +809,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
                     convertMapFromObjectToBytes(searchAttributes, getDataConverter())));
       }
     }
-    Optional<Payloads> payloads = getDataConverter().toPayloads(args);
+    Optional<Payloads> payloads = getDataConverter().toPayloads(input.getArgs());
     if (payloads.isPresent()) {
       attributes.setInput(payloads.get());
     }

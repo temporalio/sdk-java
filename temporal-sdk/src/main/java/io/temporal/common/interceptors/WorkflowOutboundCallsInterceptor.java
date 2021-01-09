@@ -276,6 +276,31 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
+  final class ContinueAsNewInput {
+    private final Optional<String> workflowType;
+    private final Optional<ContinueAsNewOptions> options;
+    private final Object[] args;
+
+    public ContinueAsNewInput(
+        Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+      this.workflowType = workflowType;
+      this.options = options;
+      this.args = args;
+    }
+
+    public Optional<String> getWorkflowType() {
+      return workflowType;
+    }
+
+    public Optional<ContinueAsNewOptions> getOptions() {
+      return options;
+    }
+
+    public Object[] getArgs() {
+      return args;
+    }
+  }
+
   final class SignalRegistrationRequest {
     private final String signalType;
     private final Class<?>[] argTypes;
@@ -310,6 +335,52 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
+  final class RegisterSignalHandlerInput {
+    private final List<SignalRegistrationRequest> requests;
+
+    public RegisterSignalHandlerInput(List<SignalRegistrationRequest> requests) {
+      this.requests = requests;
+    }
+
+    public List<SignalRegistrationRequest> getRequests() {
+      return requests;
+    }
+  }
+
+  final class RegisterQueryInput {
+    private final String queryType;
+    private final Class<?>[] argTypes;
+    private final Type[] genericArgTypes;
+    private final Functions.Func1<Object[], Object> callback;
+
+    public RegisterQueryInput(
+        String queryType,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Func1<Object[], Object> callback) {
+      this.queryType = queryType;
+      this.argTypes = argTypes;
+      this.genericArgTypes = genericArgTypes;
+      this.callback = callback;
+    }
+
+    public String getQueryType() {
+      return queryType;
+    }
+
+    public Class<?>[] getArgTypes() {
+      return argTypes;
+    }
+
+    public Type[] getGenericArgTypes() {
+      return genericArgTypes;
+    }
+
+    public Functions.Func1<Object[], Object> getCallback() {
+      return callback;
+    }
+  }
+
   <R> ActivityOutput<R> executeActivity(ActivityInput<R> input);
 
   <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input);
@@ -337,16 +408,11 @@ public interface WorkflowOutboundCallsInterceptor {
 
   int getVersion(String changeId, int minSupported, int maxSupported);
 
-  void continueAsNew(
-      Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args);
+  void continueAsNew(ContinueAsNewInput input);
 
-  void registerQuery(
-      String queryType,
-      Class<?>[] argTypes,
-      Type[] genericArgTypes,
-      Functions.Func1<Object[], Object> callback);
+  void registerQuery(RegisterQueryInput input);
 
-  void registerSignalHandlers(List<SignalRegistrationRequest> requests);
+  void registerSignalHandlers(RegisterSignalHandlerInput input);
 
   void registerDynamicSignalHandler(DynamicSignalHandler handler);
 
