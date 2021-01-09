@@ -23,6 +23,7 @@ import static io.temporal.internal.common.CheckedExceptionWrapper.wrap;
 import static io.temporal.internal.sync.WorkflowInternal.unwrap;
 
 import com.google.common.base.Preconditions;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
@@ -278,7 +279,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
 
     @Override
-    public Optional<Payloads> execute(Optional<Payloads> input)
+    public Optional<Payloads> execute(Map<String, Payload> header, Optional<Payloads> input)
         throws CanceledFailure, WorkflowExecutionException {
       Object[] args =
           DataConverter.arrayFromPayloads(
@@ -287,7 +288,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
               workflowMethod.getParameterTypes(),
               workflowMethod.getGenericParameterTypes());
       Preconditions.checkNotNull(workflowInvoker, "initialize not called");
-      Object result = workflowInvoker.execute(args);
+      Object result = workflowInvoker.execute(header, args);
       if (workflowMethod.getReturnType() == Void.TYPE) {
         return Optional.empty();
       }
@@ -320,7 +321,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     private class RootWorkflowInboundCallsInterceptor implements WorkflowInboundCallsInterceptor {
 
       @Override
-      public Object execute(Object[] arguments) {
+      public Object execute(Map<String, Payload> header, Object[] arguments) {
         WorkflowInfo info = Workflow.getInfo();
         try {
           return workflowMethod.invoke(workflow, arguments);

@@ -49,7 +49,7 @@ class WorkflowExecuteRunnable implements Runnable {
     try {
       Optional<Payloads> input =
           attributes.hasInput() ? Optional.of(attributes.getInput()) : Optional.empty();
-      output = workflow.execute(input);
+      output = workflow.execute(attributes.getHeader().getFieldsMap(), input);
     } finally {
       done = true;
     }

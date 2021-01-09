@@ -19,7 +19,9 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import java.util.Map;
 import java.util.Optional;
 
 interface SyncWorkflowDefinition {
@@ -27,5 +29,5 @@ interface SyncWorkflowDefinition {
   /** Always called first. */
   void initialize();
 
-  Optional<Payloads> execute(Optional<Payloads> input);
+  Optional<Payloads> execute(Map<String, Payload> header, Optional<Payloads> input);
 }

@@ -19,6 +19,9 @@
 
 package io.temporal.common.interceptors;
 
+import io.temporal.api.common.v1.Payload;
+import java.util.Map;
+
 /**
  * Intercepts calls to the workflow execution. Executes under workflow context. So all the
  * restrictions on the workflow code should be obeyed.
@@ -36,7 +39,7 @@ public interface WorkflowInboundCallsInterceptor {
    *
    * @return result of the workflow execution.
    */
-  Object execute(Object[] arguments);
+  Object execute(Map<String, Payload> header, Object[] arguments);
 
   /** Called when signal is delivered to the workflow instance. */
   void processSignal(String signalName, Object[] arguments, long EventId);

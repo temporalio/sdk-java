@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -28,6 +29,7 @@ import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
+import java.util.Map;
 import java.util.Optional;
 
 final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
@@ -57,9 +59,9 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
   }
 
   @Override
-  public Optional<Payloads> execute(Optional<Payloads> input) {
+  public Optional<Payloads> execute(Map<String, Payload> header, Optional<Payloads> input) {
     Values args = new EncodedValues(input, dataConverter);
-    Object result = workflowInvoker.execute(new Object[] {args});
+    Object result = workflowInvoker.execute(header, new Object[] {args});
     return dataConverter.toPayloads(result);
   }
 
@@ -72,7 +74,7 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
     }
 
     @Override
-    public Object execute(Object[] arguments) {
+    public Object execute(Map<String, Payload> header, Object[] arguments) {
       return workflow.execute((EncodedValues) arguments[0]);
     }
 
