@@ -222,42 +222,26 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public <R> Promise<R> executeLocalActivity(
-      String activityName,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      LocalActivityOptions options) {
+  public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
     long startTime = WorkflowInternal.currentTimeMillis();
-    return WorkflowRetryerInternal.retryAsync(
-        (attempt, currentStart) ->
-            executeLocalActivityOnce(
-                activityName,
-                options,
-                args,
-                resultClass,
-                resultType,
-                currentStart - startTime,
-                attempt),
-        1,
-        startTime);
+    return new LocalActivityOutput<>(
+        WorkflowRetryerInternal.retryAsync(
+            (attempt, currentStart) ->
+                executeLocalActivityOnce(input, currentStart - startTime, attempt),
+            1,
+            startTime));
   }
 
   private <T> Promise<T> executeLocalActivityOnce(
-      String name,
-      LocalActivityOptions options,
-      Object[] args,
-      Class<T> returnClass,
-      Type returnType,
-      long elapsed,
-      int attempt) {
-    Optional<Payloads> input = converter.toPayloads(args);
+      LocalActivityInput<T> i, long elapsed, int attempt) {
+    Optional<Payloads> input = converter.toPayloads(i.getArgs());
     Promise<Optional<Payloads>> binaryResult =
-        executeLocalActivityOnce(name, options, input, attempt);
-    if (returnClass == Void.TYPE) {
+        executeLocalActivityOnce(i.getActivityName(), i.getOptions(), input, attempt);
+    if (i.getResultClass() == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromPayloads(0, r, returnClass, returnType));
+    return binaryResult.thenApply(
+        (r) -> converter.fromPayloads(0, r, i.getResultClass(), i.getResultType()));
   }
 
   private Promise<Optional<Payloads>> executeLocalActivityOnce(

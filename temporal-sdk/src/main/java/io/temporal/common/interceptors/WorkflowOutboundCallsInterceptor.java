@@ -103,6 +103,59 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
+  final class LocalActivityInput<R> {
+    private final String activityName;
+    private final Class<R> resultClass;
+    private final Type resultType;
+    private final Object[] args;
+    private final LocalActivityOptions options;
+
+    public LocalActivityInput(
+        String activityName,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        LocalActivityOptions options) {
+      this.activityName = activityName;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+      this.args = args;
+      this.options = options;
+    }
+
+    public String getActivityName() {
+      return activityName;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+
+    public Object[] getArgs() {
+      return args;
+    }
+
+    public LocalActivityOptions getOptions() {
+      return options;
+    }
+  }
+
+  final class LocalActivityOutput<R> {
+    private final Promise<R> result;
+
+    public LocalActivityOutput(Promise<R> result) {
+      this.result = result;
+    }
+
+    public Promise<R> getResult() {
+      return result;
+    }
+  }
+
   final class WorkflowResult<R> {
 
     private final Promise<R> result;
@@ -158,12 +211,7 @@ public interface WorkflowOutboundCallsInterceptor {
 
   <R> ActivityOutput<R> executeActivity(ActivityInput<R> input);
 
-  <R> Promise<R> executeLocalActivity(
-      String activityName,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      LocalActivityOptions options);
+  <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input);
 
   <R> WorkflowResult<R> executeChildWorkflow(
       String workflowType,

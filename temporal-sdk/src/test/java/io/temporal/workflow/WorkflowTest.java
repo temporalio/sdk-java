@@ -6883,7 +6883,7 @@ public class WorkflowTest {
     }
 
     @Override
-    public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
+    public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {
       if (!Workflow.isReplaying()) {
         trace.add("executeActivity " + input.getActivityName());
       }
@@ -6891,16 +6891,11 @@ public class WorkflowTest {
     }
 
     @Override
-    public <R> Promise<R> executeLocalActivity(
-        String activityName,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        LocalActivityOptions options) {
+    public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
       if (!Workflow.isReplaying()) {
-        trace.add("executeLocalActivity " + activityName);
+        trace.add("executeLocalActivity " + input.getActivityName());
       }
-      return next.executeLocalActivity(activityName, resultClass, resultType, args, options);
+      return next.executeLocalActivity(input);
     }
 
     @Override

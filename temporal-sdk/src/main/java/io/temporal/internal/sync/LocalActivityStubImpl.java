@@ -45,7 +45,10 @@ public class LocalActivityStubImpl extends ActivityStubBase {
   @Override
   public <R> Promise<R> executeAsync(
       String activityName, Class<R> resultClass, Type resultType, Object... args) {
-    return activityExecutor.executeLocalActivity(
-        activityName, resultClass, resultType, args, options);
+    return activityExecutor
+        .executeLocalActivity(
+            new WorkflowOutboundCallsInterceptor.LocalActivityInput<>(
+                activityName, resultClass, resultType, args, options))
+        .getResult();
   }
 }
