@@ -44,6 +44,10 @@ final class ActivityStubImpl extends ActivityStubBase {
   @Override
   public <R> Promise<R> executeAsync(
       String activityName, Class<R> resultClass, Type resultType, Object... args) {
-    return activityExecutor.executeActivity(activityName, resultClass, resultType, args, options);
+    return activityExecutor
+        .executeActivity(
+            new WorkflowOutboundCallsInterceptor.ActivityInput(
+                activityName, resultClass, resultType, args, options))
+        .getResult();
   }
 }

@@ -50,6 +50,59 @@ import java.util.function.Supplier;
  */
 public interface WorkflowOutboundCallsInterceptor {
 
+  final class ActivityInput<R> {
+    private final String activityName;
+    private final Class<R> resultClass;
+    private final Type resultType;
+    private final Object[] args;
+    private final ActivityOptions options;
+
+    public ActivityInput(
+        String activityName,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        ActivityOptions options) {
+      this.activityName = activityName;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+      this.args = args;
+      this.options = options;
+    }
+
+    public String getActivityName() {
+      return activityName;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+
+    public Object[] getArgs() {
+      return args;
+    }
+
+    public ActivityOptions getOptions() {
+      return options;
+    }
+  }
+
+  final class ActivityOutput<R> {
+    private final Promise<R> result;
+
+    public ActivityOutput(Promise<R> result) {
+      this.result = result;
+    }
+
+    public Promise<R> getResult() {
+      return result;
+    }
+  }
+
   final class WorkflowResult<R> {
 
     private final Promise<R> result;
@@ -103,12 +156,7 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
-  <R> Promise<R> executeActivity(
-      String activityName,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      ActivityOptions options);
+  <R> ActivityOutput<R> executeActivity(ActivityInput<R> input);
 
   <R> Promise<R> executeLocalActivity(
       String activityName,

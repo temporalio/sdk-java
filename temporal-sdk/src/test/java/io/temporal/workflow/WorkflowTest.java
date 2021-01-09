@@ -6883,16 +6883,11 @@ public class WorkflowTest {
     }
 
     @Override
-    public <R> Promise<R> executeActivity(
-        String activityName,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        ActivityOptions options) {
+    public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
       if (!Workflow.isReplaying()) {
-        trace.add("executeActivity " + activityName);
+        trace.add("executeActivity " + input.getActivityName());
       }
-      return next.executeActivity(activityName, resultClass, resultType, args, options);
+      return next.executeActivity(input);
     }
 
     @Override

@@ -27,6 +27,7 @@ import java.util.Map;
  * restrictions on the workflow code should be obeyed.
  */
 public interface WorkflowInboundCallsInterceptor {
+
   final class WorkflowInput {
     private final Map<String, Payload> header;
     private final Object[] arguments;

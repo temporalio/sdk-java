@@ -268,7 +268,11 @@ public final class WorkflowInternal {
   public static <R> R executeActivity(
       String name, ActivityOptions options, Class<R> resultClass, Type resultType, Object... args) {
     Promise<R> result =
-        getWorkflowInterceptor().executeActivity(name, resultClass, resultType, args, options);
+        getWorkflowInterceptor()
+            .executeActivity(
+                new WorkflowOutboundCallsInterceptor.ActivityInput<>(
+                    name, resultClass, resultType, args, options))
+            .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
       return null; // ignored

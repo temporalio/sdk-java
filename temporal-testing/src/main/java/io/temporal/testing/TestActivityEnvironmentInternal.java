@@ -232,14 +232,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private class TestActivityExecutor implements WorkflowOutboundCallsInterceptor {
 
     @Override
-    public <T> Promise<T> executeActivity(
-        String activityType,
-        Class<T> resultClass,
-        Type resultType,
-        Object[] args,
-        ActivityOptions options) {
-      Optional<Payloads> input =
-          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toPayloads(args);
+    public <T> ActivityOutput<T> executeActivity(ActivityInput<T> i) {
+      Optional<Payloads> payloads =
+          testEnvironmentOptions
+              .getWorkflowClientOptions()
+              .getDataConverter()
+              .toPayloads(i.getArgs());
+      ActivityOptions options = i.getOptions();
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
               .setScheduleToCloseTimeout(
@@ -256,15 +255,16 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       .setWorkflowId("test-workflow-id")
                       .setRunId(UUID.randomUUID().toString())
                       .build())
-              .setActivityType(ActivityType.newBuilder().setName(activityType).build());
-      if (input.isPresent()) {
-        taskBuilder.setInput(input.get());
+              .setActivityType(ActivityType.newBuilder().setName(i.getActivityName()).build());
+      if (payloads.isPresent()) {
+        taskBuilder.setInput(payloads.get());
       }
       PollActivityTaskQueueResponse task = taskBuilder.build();
       Result taskResult =
           activityTaskHandler.handle(
               new ActivityTask(task, () -> {}), testEnvironmentOptions.getMetricsScope(), false);
-      return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
+      return new ActivityOutput<>(
+          Workflow.newPromise(getReply(task, taskResult, i.getResultClass(), i.getResultType())));
     }
 
     @Override
