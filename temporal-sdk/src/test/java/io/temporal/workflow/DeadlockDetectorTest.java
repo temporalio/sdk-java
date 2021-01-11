@@ -34,7 +34,7 @@ import org.junit.Test;
 public class DeadlockDetectorTest {
 
   private static final String taskQueue = "deadlock-test";
-  boolean debugMode = Boolean.parseBoolean(System.getenv("TEMPORAL_DEBUG_MODE"));
+  boolean debugMode = System.getenv("TEMPORAL_DEBUG") != null;
 
   @WorkflowInterface
   public interface TestWorkflow {

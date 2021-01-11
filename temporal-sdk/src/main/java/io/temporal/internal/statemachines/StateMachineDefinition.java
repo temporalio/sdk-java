@@ -24,7 +24,6 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
