@@ -32,7 +32,7 @@ import java.util.function.Supplier;
  */
 interface DeterministicRunner {
 
-  boolean debugMode = Boolean.parseBoolean(System.getenv("TEMPORAL_DEBUG_MODE"));
+  boolean debugMode = System.getenv("TEMPORAL_DEBUG") != null;
 
   long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
 
