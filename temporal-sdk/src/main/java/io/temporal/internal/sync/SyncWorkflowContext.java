@@ -178,7 +178,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
     Optional<Payloads> args = converter.toPayloads(input.getArgs());
     Promise<Optional<Payloads>> binaryResult =
-        executeActivityOnce(input.getActivityName(), input.getOptions(), args);
+        executeActivityOnce(input.getActivityName(), input.getOptions(), input.getHeader(), args);
     if (input.getResultType() == Void.TYPE) {
       return new ActivityOutput<>(binaryResult.thenApply((r) -> null));
     }
@@ -188,9 +188,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private Promise<Optional<Payloads>> executeActivityOnce(
-      String name, ActivityOptions options, Optional<Payloads> input) {
+      String name, ActivityOptions options, Map<String, Payload> header, Optional<Payloads> input) {
     ActivityCallback callback = new ActivityCallback();
-    ExecuteActivityParameters params = constructExecuteActivityParameters(name, options, input);
+    ExecuteActivityParameters params =
+        constructExecuteActivityParameters(name, options, header, input);
     Functions.Proc1<Exception> cancellationCallback =
         context.scheduleActivityTask(params, callback::invoke);
     CancellationScope.current()
@@ -233,22 +234,27 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private <T> Promise<T> executeLocalActivityOnce(
-      LocalActivityInput<T> i, long elapsed, int attempt) {
-    Optional<Payloads> input = converter.toPayloads(i.getArgs());
+      LocalActivityInput<T> input, long elapsed, int attempt) {
+    Optional<Payloads> payloads = converter.toPayloads(input.getArgs());
     Promise<Optional<Payloads>> binaryResult =
-        executeLocalActivityOnce(i.getActivityName(), i.getOptions(), input, attempt);
-    if (i.getResultClass() == Void.TYPE) {
+        executeLocalActivityOnce(
+            input.getActivityName(), input.getOptions(), input.getHeader(), payloads, attempt);
+    if (input.getResultClass() == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
     return binaryResult.thenApply(
-        (r) -> converter.fromPayloads(0, r, i.getResultClass(), i.getResultType()));
+        (r) -> converter.fromPayloads(0, r, input.getResultClass(), input.getResultType()));
   }
 
   private Promise<Optional<Payloads>> executeLocalActivityOnce(
-      String name, LocalActivityOptions options, Optional<Payloads> input, int attempt) {
+      String name,
+      LocalActivityOptions options,
+      Map<String, Payload> header,
+      Optional<Payloads> input,
+      int attempt) {
     ActivityCallback callback = new ActivityCallback();
     ExecuteLocalActivityParameters params =
-        constructExecuteLocalActivityParameters(name, options, input, attempt);
+        constructExecuteLocalActivityParameters(name, options, header, input, attempt);
     Functions.Proc cancellationCallback =
         context.scheduleLocalActivityTask(params, callback::invoke);
     CancellationScope.current()
@@ -262,7 +268,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private ExecuteActivityParameters constructExecuteActivityParameters(
-      String name, ActivityOptions options, Optional<Payloads> input) {
+      String name, ActivityOptions options, Map<String, Payload> header, Optional<Payloads> input) {
     String taskQueue = options.getTaskQueue();
     if (taskQueue == null) {
       taskQueue = context.getTaskQueue();
@@ -282,7 +288,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (input.isPresent()) {
       attributes.setInput(input.get());
     }
-
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
@@ -294,9 +299,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (propagators == null) {
       propagators = this.contextPropagators;
     }
-    Header header = toHeaderGrpc(extractContextsAndConvertToBytes(propagators));
-    if (header != null) {
-      attributes.setHeader(header);
+    Header grpcHeader = toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
+    if (grpcHeader != null) {
+      attributes.setHeader(grpcHeader);
     }
     return new ExecuteActivityParameters(attributes, options.getCancellationType());
   }
@@ -319,7 +324,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
-      String name, LocalActivityOptions options, Optional<Payloads> input, int attempt) {
+      String name,
+      LocalActivityOptions options,
+      Map<String, Payload> header,
+      Optional<Payloads> input,
+      int attempt) {
     options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
 
     PollActivityTaskQueueResponse.Builder activityTask =
@@ -335,6 +344,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
+    Header grpcHeader = toHeaderGrpc(header, extractContextsAndConvertToBytes(contextPropagators));
+    if (grpcHeader != null) {
+      activityTask.setHeader(grpcHeader);
+    }
     if (input.isPresent()) {
       activityTask.setInput(input.get());
     }
@@ -353,7 +366,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     Optional<Payloads> payloads = converter.toPayloads(input.getArgs());
     CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
     Promise<Optional<Payloads>> output =
-        executeChildWorkflow(input.getWorkflowType(), input.getOptions(), payloads, execution);
+        executeChildWorkflow(
+            input.getWorkflowType(), input.getOptions(), input.getHeader(), payloads, execution);
     Promise<R> result =
         output.thenApply(
             (b) -> converter.fromPayloads(0, b, input.getResultClass(), input.getResultType()));
@@ -363,6 +377,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private Promise<Optional<Payloads>> executeChildWorkflow(
       String name,
       ChildWorkflowOptions options,
+      Map<String, Payload> header,
       Optional<Payloads> input,
       CompletablePromise<WorkflowExecution> executionResult) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
@@ -408,9 +423,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
-    Header header = toHeaderGrpc(extractContextsAndConvertToBytes(propagators));
-    if (header != null) {
-      attributes.setHeader(header);
+    Header grpcHeader = toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
+    if (grpcHeader != null) {
+      attributes.setHeader(grpcHeader);
     }
     ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
     if (parentClosePolicy != null) {

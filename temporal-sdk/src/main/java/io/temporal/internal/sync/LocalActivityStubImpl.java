@@ -24,6 +24,7 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
+import java.util.HashMap;
 
 public class LocalActivityStubImpl extends ActivityStubBase {
   protected final LocalActivityOptions options;
@@ -48,7 +49,7 @@ public class LocalActivityStubImpl extends ActivityStubBase {
     return activityExecutor
         .executeLocalActivity(
             new WorkflowOutboundCallsInterceptor.LocalActivityInput<>(
-                activityName, resultClass, resultType, args, options))
+                activityName, resultClass, resultType, args, options, new HashMap<>()))
         .getResult();
   }
 }

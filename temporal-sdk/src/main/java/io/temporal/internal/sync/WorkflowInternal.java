@@ -54,6 +54,7 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -274,7 +275,7 @@ public final class WorkflowInternal {
         getWorkflowInterceptor()
             .executeActivity(
                 new WorkflowOutboundCallsInterceptor.ActivityInput<>(
-                    name, resultClass, resultType, args, options))
+                    name, resultClass, resultType, args, options, new HashMap<>()))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
@@ -376,7 +377,8 @@ public final class WorkflowInternal {
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
     getWorkflowInterceptor()
         .continueAsNew(
-            new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(workflowType, options, args));
+            new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
+                workflowType, options, args, new HashMap<>()));
   }
 
   public static void continueAsNew(
@@ -385,7 +387,8 @@ public final class WorkflowInternal {
       Object[] args,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     outboundCallsInterceptor.continueAsNew(
-        new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(workflowType, options, args));
+        new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
+            workflowType, options, args, new HashMap<>()));
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {

@@ -28,13 +28,12 @@ import java.util.Map;
 
 public class HeaderUtils {
 
-  public static Header toHeaderGrpc(Map<String, Payload> headers) {
-    if (headers == null || headers.isEmpty()) {
-      return null;
-    }
-    Header.Builder builder = Header.newBuilder();
-    for (Map.Entry<String, Payload> item : headers.entrySet()) {
-      builder.putFields(item.getKey(), item.getValue());
+  public static Header toHeaderGrpc(Map<String, Payload> header, Map<String, Payload> headers) {
+    Header.Builder builder = Header.newBuilder().putAllFields(header);
+    if (headers != null) {
+      for (Map.Entry<String, Payload> item : headers.entrySet()) {
+        builder.putFields(item.getKey(), item.getValue());
+      }
     }
     return builder.build();
   }

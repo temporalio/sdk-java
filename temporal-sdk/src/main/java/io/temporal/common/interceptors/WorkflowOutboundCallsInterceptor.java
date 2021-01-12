@@ -21,6 +21,7 @@ package io.temporal.common.interceptors;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
@@ -56,18 +57,21 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Type resultType;
     private final Object[] args;
     private final ActivityOptions options;
+    private final Map<String, Payload> header;
 
     public ActivityInput(
         String activityName,
         Class<R> resultClass,
         Type resultType,
         Object[] args,
-        ActivityOptions options) {
+        ActivityOptions options,
+        Map<String, Payload> header) {
       this.activityName = activityName;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
       this.options = options;
+      this.header = header;
     }
 
     public String getActivityName() {
@@ -89,6 +93,10 @@ public interface WorkflowOutboundCallsInterceptor {
     public ActivityOptions getOptions() {
       return options;
     }
+
+    public Map<String, Payload> getHeader() {
+      return header;
+    }
   }
 
   final class ActivityOutput<R> {
@@ -109,18 +117,21 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Type resultType;
     private final Object[] args;
     private final LocalActivityOptions options;
+    private final Map<String, Payload> header;
 
     public LocalActivityInput(
         String activityName,
         Class<R> resultClass,
         Type resultType,
         Object[] args,
-        LocalActivityOptions options) {
+        LocalActivityOptions options,
+        Map<String, Payload> header) {
       this.activityName = activityName;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
       this.options = options;
+      this.header = header;
     }
 
     public String getActivityName() {
@@ -142,6 +153,10 @@ public interface WorkflowOutboundCallsInterceptor {
     public LocalActivityOptions getOptions() {
       return options;
     }
+
+    public Map<String, Payload> getHeader() {
+      return header;
+    }
   }
 
   final class LocalActivityOutput<R> {
@@ -162,18 +177,21 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Type resultType;
     private final Object[] args;
     private final ChildWorkflowOptions options;
+    private final Map<String, Payload> header;
 
     public ChildWorkflowInput(
         String workflowType,
         Class<R> resultClass,
         Type resultType,
         Object[] args,
-        ChildWorkflowOptions options) {
+        ChildWorkflowOptions options,
+        Map<String, Payload> header) {
       this.workflowType = workflowType;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
       this.options = options;
+      this.header = header;
     }
 
     public String getWorkflowType() {
@@ -194,6 +212,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public ChildWorkflowOptions getOptions() {
       return options;
+    }
+
+    public Map<String, Payload> getHeader() {
+      return header;
     }
   }
 
@@ -280,12 +302,17 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Optional<String> workflowType;
     private final Optional<ContinueAsNewOptions> options;
     private final Object[] args;
+    private final Map<String, Payload> header;
 
     public ContinueAsNewInput(
-        Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+        Optional<String> workflowType,
+        Optional<ContinueAsNewOptions> options,
+        Object[] args,
+        Map<String, Payload> header) {
       this.workflowType = workflowType;
       this.options = options;
       this.args = args;
+      this.header = header;
     }
 
     public Optional<String> getWorkflowType() {
@@ -298,6 +325,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Object[] getArgs() {
       return args;
+    }
+
+    public Map<String, Payload> getHeader() {
+      return header;
     }
   }
 
