@@ -90,7 +90,8 @@ public class AsyncActivityCompleteWithErrorTest {
     private void asyncActivityFn(
         ActivityExecutionContext context, ActivityCompletionClient completionClient) {
       completionClient.completeExceptionally(
-          context.getTaskToken(), ApplicationFailure.newFailure("simulated failure", "test"));
+          context.getTaskToken(),
+          ApplicationFailure.newFailure("simulated failure", "test", "some details"));
     }
   }
 

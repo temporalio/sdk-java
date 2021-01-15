@@ -37,6 +37,7 @@ public final class EncodedValues implements Values {
 
   public EncodedValues(Object... values) {
     this.values = values;
+    this.converter = DefaultDataConverter.getDefaultInstance();
     this.payloads = null;
   }
 
