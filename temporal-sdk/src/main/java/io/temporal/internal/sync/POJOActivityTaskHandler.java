@@ -36,7 +36,7 @@ import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
-import io.temporal.common.interceptors.ActivityInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.SimulatedTimeoutFailure;
 import io.temporal.failure.TemporalFailure;
@@ -70,7 +70,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final ScheduledExecutorService heartbeatExecutor;
   private final WorkflowServiceStubs service;
   private final String namespace;
-  private final ActivityInterceptor[] interceptors;
+  private final WorkerInterceptor[] interceptors;
   private final Map<String, ActivityTaskExecutor> activities =
       Collections.synchronizedMap(new HashMap<>());
   private ActivityTaskExecutor dynamicActivity;
@@ -81,7 +81,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
       String namespace,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
-      ActivityInterceptor[] interceptors) {
+      WorkerInterceptor[] interceptors) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.dataConverter = Objects.requireNonNull(dataConverter);
@@ -231,7 +231,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new POJOActivityInboundCallsInterceptor(activity, method);
-      for (ActivityInterceptor interceptor : interceptors) {
+      for (WorkerInterceptor interceptor : interceptors) {
         inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
       }
       inboundCallsInterceptor.init(context);
@@ -316,7 +316,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new DynamicActivityInboundCallsInterceptor(activity);
-      for (ActivityInterceptor interceptor : interceptors) {
+      for (WorkerInterceptor interceptor : interceptors) {
         inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
       }
       inboundCallsInterceptor.init(context);
@@ -408,7 +408,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new POJOActivityInboundCallsInterceptor(activity, method);
-      for (ActivityInterceptor interceptor : interceptors) {
+      for (WorkerInterceptor interceptor : interceptors) {
         inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
       }
       inboundCallsInterceptor.init(context);

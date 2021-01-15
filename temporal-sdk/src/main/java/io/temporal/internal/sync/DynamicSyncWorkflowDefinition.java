@@ -24,8 +24,8 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
@@ -35,25 +35,25 @@ import java.util.Optional;
 final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   private final Functions.Func<? extends DynamicWorkflow> factory;
-  private final WorkflowInterceptor[] workflowInterceptors;
+  private final WorkerInterceptor[] workerInterceptors;
   private final DataConverter dataConverter;
   private WorkflowInboundCallsInterceptor workflowInvoker;
   private DynamicWorkflow workflow;
 
   public DynamicSyncWorkflowDefinition(
       Functions.Func<? extends DynamicWorkflow> factory,
-      WorkflowInterceptor[] workflowInterceptors,
+      WorkerInterceptor[] workerInterceptors,
       DataConverter dataConverter) {
     this.factory = factory;
-    this.workflowInterceptors = workflowInterceptors;
+    this.workerInterceptors = workerInterceptors;
     this.dataConverter = dataConverter;
   }
 
   @Override
   public void initialize() {
     workflowInvoker = new RootWorkflowInboundCallsInterceptor();
-    for (WorkflowInterceptor workflowInterceptor : workflowInterceptors) {
-      workflowInvoker = workflowInterceptor.interceptWorkflow(workflowInvoker);
+    for (WorkerInterceptor workerInterceptor : workerInterceptors) {
+      workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
     }
     workflowInvoker.init(WorkflowInternal.getRootWorkflowContext());
   }

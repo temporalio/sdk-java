@@ -59,11 +59,10 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
 import io.temporal.common.interceptors.ActivityExecutionContextBase;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
-import io.temporal.common.interceptors.ActivityInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
-import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
@@ -130,7 +129,7 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
   public static final String BINARY_CHECKSUM = "testChecksum";
 
-  private TracingWorkflowInterceptor tracer;
+  private TracingWorkerInterceptor tracer;
   private static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
@@ -258,8 +257,7 @@ public class WorkflowTest {
       taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
     }
     FilteredTrace trace = new FilteredTrace();
-    tracer = new TracingWorkflowInterceptor(trace);
-    ActivityInterceptor activityInterceptor = new TracingActivityInterceptor(trace);
+    tracer = new TracingWorkerInterceptor(trace);
     // TODO: Create a version of TestWorkflowEnvironment that runs against a real service.
     lastStartedWorkflowType.set(null);
     WorkflowClientOptions workflowClientOptions =
@@ -279,8 +277,7 @@ public class WorkflowTest {
     boolean versionTest = testMethod.contains("GetVersion") || testMethod.contains("Deterministic");
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptors(tracer)
-            .setActivityInterceptors(activityInterceptor)
+            .setWorkerInterceptors(tracer)
             .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
             .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(
                 versionTest ? Duration.ZERO : Duration.ofSeconds(10))
@@ -6810,12 +6807,12 @@ public class WorkflowTest {
     }
   }
 
-  private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
+  private static class TracingWorkerInterceptor implements WorkerInterceptor {
 
     private final FilteredTrace trace;
     private List<String> expected;
 
-    private TracingWorkflowInterceptor(FilteredTrace trace) {
+    private TracingWorkerInterceptor(FilteredTrace trace) {
       this.trace = trace;
     }
 
@@ -6864,6 +6861,46 @@ public class WorkflowTest {
           next.init(new TracingWorkflowOutboundCallsInterceptor(trace, outboundCalls));
         }
       };
+    }
+
+    @Override
+    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
+      return new TracingActivityInboundCallsInterceptor(trace, next);
+    }
+  }
+
+  private static class TracingActivityInboundCallsInterceptor
+      implements ActivityInboundCallsInterceptor {
+
+    private final FilteredTrace trace;
+    private final ActivityInboundCallsInterceptor next;
+    private String type;
+    private boolean local;
+
+    public TracingActivityInboundCallsInterceptor(
+        FilteredTrace trace, ActivityInboundCallsInterceptor next) {
+      this.trace = trace;
+      this.next = next;
+    }
+
+    @Override
+    public void init(ActivityExecutionContext context) {
+      this.type = context.getInfo().getActivityType();
+      this.local = context.getInfo().isLocal();
+      next.init(
+          new ActivityExecutionContextBase(context) {
+            @Override
+            public <V> void heartbeat(V details) throws ActivityCompletionException {
+              trace.add("heartbeat " + details);
+              super.heartbeat(details);
+            }
+          });
+    }
+
+    @Override
+    public Object execute(Object[] arguments) {
+      trace.add((local ? "local " : "") + "activity " + type);
+      return next.execute(arguments);
     }
   }
 
@@ -7082,55 +7119,6 @@ public class WorkflowTest {
         trace.add("currentTimeMillis");
       }
       return next.currentTimeMillis();
-    }
-  }
-
-  private static class TracingActivityInterceptor implements ActivityInterceptor {
-
-    private final FilteredTrace trace;
-
-    private TracingActivityInterceptor(FilteredTrace trace) {
-      this.trace = trace;
-    }
-
-    @Override
-    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
-      return new TracingActivityInboundCallsInterceptor(trace, next);
-    }
-  }
-
-  private static class TracingActivityInboundCallsInterceptor
-      implements ActivityInboundCallsInterceptor {
-
-    private final FilteredTrace trace;
-    private final ActivityInboundCallsInterceptor next;
-    private String type;
-    private boolean local;
-
-    public TracingActivityInboundCallsInterceptor(
-        FilteredTrace trace, ActivityInboundCallsInterceptor next) {
-      this.trace = trace;
-      this.next = next;
-    }
-
-    @Override
-    public void init(ActivityExecutionContext context) {
-      this.type = context.getInfo().getActivityType();
-      this.local = context.getInfo().isLocal();
-      next.init(
-          new ActivityExecutionContextBase(context) {
-            @Override
-            public <V> void heartbeat(V details) throws ActivityCompletionException {
-              trace.add("heartbeat " + details);
-              super.heartbeat(details);
-            }
-          });
-    }
-
-    @Override
-    public Object execute(Object[] arguments) {
-      trace.add((local ? "local " : "") + "activity " + type);
-      return next.execute(arguments);
     }
   }
 }

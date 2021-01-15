@@ -19,6 +19,13 @@
 
 package io.temporal.common.interceptors;
 
-public interface ActivityInterceptor {
+/**
+ * Intercepts workflow and activity executions.
+ *
+ * <p>TODO(maxim): JavaDoc with sample
+ */
+public interface WorkerInterceptor {
+  WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next);
+
   ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next);
 }

@@ -30,8 +30,8 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
@@ -64,7 +64,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
-  private final WorkflowInterceptor[] workflowInterceptors;
+  private final WorkerInterceptor[] workerInterceptors;
 
   private DataConverter dataConverter;
   private final List<ContextPropagator> contextPropagators;
@@ -88,12 +88,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
-      WorkflowInterceptor[] workflowInterceptors,
+      WorkerInterceptor[] workerInterceptors,
       WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
-    this.workflowInterceptors = Objects.requireNonNull(workflowInterceptors);
+    this.workerInterceptors = Objects.requireNonNull(workerInterceptors);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
   }
@@ -219,7 +219,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     if (factory == null) {
       if (dynamicWorkflowImplementationFactory != null) {
         return new DynamicSyncWorkflowDefinition(
-            dynamicWorkflowImplementationFactory, workflowInterceptors, dataConverter);
+            dynamicWorkflowImplementationFactory, workerInterceptors, dataConverter);
       }
       // throw Error to abort the workflow task task, not fail the workflow
       throw new Error(
@@ -272,8 +272,8 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     @Override
     public void initialize() {
       workflowInvoker = new RootWorkflowInboundCallsInterceptor();
-      for (WorkflowInterceptor workflowInterceptor : workflowInterceptors) {
-        workflowInvoker = workflowInterceptor.interceptWorkflow(workflowInvoker);
+      for (WorkerInterceptor workerInterceptor : workerInterceptors) {
+        workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
       }
       workflowInvoker.init(WorkflowInternal.getRootWorkflowContext());
     }
