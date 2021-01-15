@@ -65,8 +65,10 @@ public class AsyncActivityCompleteWithErrorTest {
       RuntimeException failure = promise.getFailure();
       Assert.assertNotNull(failure);
       Assert.assertTrue(failure.getCause() instanceof ApplicationFailure);
-      Assert.assertEquals(
-          "simulated failure", ((ApplicationFailure) failure.getCause()).getOriginalMessage());
+      ApplicationFailure cause = (ApplicationFailure) failure.getCause();
+      Assert.assertEquals("simulated failure", cause.getOriginalMessage());
+      Assert.assertEquals("some details", cause.getDetails().get(String.class));
+      Assert.assertEquals("test", cause.getType());
       return "success";
     }
   }
