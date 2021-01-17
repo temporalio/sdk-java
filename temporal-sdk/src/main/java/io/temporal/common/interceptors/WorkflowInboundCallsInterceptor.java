@@ -97,5 +97,5 @@ public interface WorkflowInboundCallsInterceptor {
   WorkflowOutput execute(WorkflowInput input);
 
   /** Called when signal is delivered to the workflow instance. */
-  void processSignal(SignalInput input);
+  void handleSignal(SignalInput input);
 }

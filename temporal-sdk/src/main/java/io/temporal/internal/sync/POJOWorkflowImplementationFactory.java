@@ -29,14 +29,12 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
@@ -275,7 +273,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       for (WorkerInterceptor workerInterceptor : workerInterceptors) {
         workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
       }
-      workflowInvoker.init(WorkflowInternal.getRootWorkflowContext());
+      SyncWorkflowContext syncWorkflowContext = WorkflowInternal.getRootWorkflowContext();
+      syncWorkflowContext.setHeadInboundCallsInterceptor(workflowInvoker);
+      workflowInvoker.init(syncWorkflowContext);
     }
 
     @Override
@@ -379,40 +379,10 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       }
 
       @Override
-      public void processSignal(SignalInput input) {
-        String signalName = input.getSignalName();
-        long eventId = input.getEventId();
-        Method signalMethod = signalHandlers.get(signalName);
-        try {
-          signalMethod.invoke(workflow, input.getArguments());
-        } catch (IllegalAccessException e) {
-          throw new Error("Failure processing \"" + signalName + "\" at eventId " + eventId, e);
-        } catch (InvocationTargetException e) {
-          Throwable targetException = e.getTargetException();
-          if (targetException instanceof DataConverterException) {
-            logSerializationException(
-                signalName, eventId, (DataConverterException) targetException);
-          } else if (targetException instanceof Error) {
-            throw (Error) targetException;
-          } else {
-            throw new Error(
-                "Failure processing \"" + signalName + "\" at eventId " + eventId, targetException);
-          }
-        }
+      public void handleSignal(SignalInput input) {
+        WorkflowInternal.getRootWorkflowContext().handleInterceptedSignal(input);
       }
     }
-  }
-
-  void logSerializationException(
-      String signalName, Long eventId, DataConverterException exception) {
-    log.error(
-        "Failure deserializing signal input for \""
-            + signalName
-            + "\" at eventId "
-            + eventId
-            + ". Dropping it.",
-        exception);
-    Workflow.getMetricsScope().counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
   }
 
   static WorkflowExecutionException mapToWorkflowExecutionException(

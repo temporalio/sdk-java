@@ -19,7 +19,9 @@
 
 package io.temporal.internal.sync;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.converter.DataConverter;

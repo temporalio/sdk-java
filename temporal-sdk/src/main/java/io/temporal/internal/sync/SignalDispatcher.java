@@ -23,6 +23,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.workflow.DynamicSignalHandler;
@@ -64,6 +65,7 @@ class SignalDispatcher {
 
   private static final Logger log = LoggerFactory.getLogger(SignalDispatcher.class);
 
+  private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
   private final DataConverter converter;
 
   private final Map<String, WorkflowOutboundCallsInterceptor.SignalRegistrationRequest>
@@ -78,21 +80,45 @@ class SignalDispatcher {
     this.converter = converter;
   }
 
-  public void signal(String signalName, Optional<Payloads> input, long eventId) {
+  public void setInboundCallsInterceptor(WorkflowInboundCallsInterceptor inboundCallsInterceptor) {
+    this.inboundCallsInterceptor = inboundCallsInterceptor;
+  }
+
+  /** Called from the interceptor tail */
+  public void handleInterceptedSignal(WorkflowInboundCallsInterceptor.SignalInput input) {
+    String signalName = input.getSignalName();
+    Object[] args = input.getArguments();
     WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler =
         signalCallbacks.get(signalName);
     if (handler == null) {
       if (dynamicSignalHandler != null) {
-        dynamicSignalHandler.handle(signalName, new EncodedValues(input, converter));
+        dynamicSignalHandler.handle(signalName, (EncodedValues) args[0]);
         return;
       }
-      signalBuffer.add(new SignalData(signalName, input, eventId));
+      throw new IllegalStateException("Unknown signal type: " + signalName);
+    } else {
+      handler.getCallback().apply(args);
+    }
+  }
+
+  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+    WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler =
+        signalCallbacks.get(signalName);
+    if (handler == null) {
+      if (dynamicSignalHandler != null) {
+        inboundCallsInterceptor.handleSignal(
+            new WorkflowInboundCallsInterceptor.SignalInput(
+                signalName, new Object[] {new EncodedValues(input, converter)}, eventId));
+      } else {
+        signalBuffer.add(new SignalData(signalName, input, eventId));
+      }
     } else {
       try {
         Object[] args =
             DataConverter.arrayFromPayloads(
                 converter, input, handler.getArgTypes(), handler.getGenericArgTypes());
-        handler.getCallback().apply(args);
+        inboundCallsInterceptor.handleSignal(
+            new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId));
       } catch (DataConverterException e) {
         logSerializationException(signalName, eventId, e);
       }
@@ -109,7 +135,7 @@ class SignalDispatcher {
       signalCallbacks.put(signalType, request);
     }
     for (SignalData signalData : signalBuffer) {
-      signal(signalData.getSignalName(), signalData.getPayload(), signalData.getEventId());
+      handleSignal(signalData.getSignalName(), signalData.getPayload(), signalData.getEventId());
     }
   }
 

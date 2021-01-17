@@ -47,6 +47,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -166,6 +167,18 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
               return null;
             });
     return callback.result;
+  }
+
+  public void handleInterceptedSignal(WorkflowInboundCallsInterceptor.SignalInput input) {
+    signalDispatcher.handleInterceptedSignal(input);
+  }
+
+  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+    signalDispatcher.handleSignal(signalName, input, eventId);
+  }
+
+  public void setHeadInboundCallsInterceptor(WorkflowInboundCallsInterceptor inbound) {
+    signalDispatcher.setInboundCallsInterceptor(inbound);
   }
 
   private class ActivityCallback {
@@ -599,10 +612,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
           "Unknown query type: " + type + ", knownTypes=" + queryCallbacks.keySet());
     }
     return callback.apply(args);
-  }
-
-  public void signal(String signalName, Optional<Payloads> args, long eventId) {
-    signalDispatcher.signal(signalName, args, eventId);
   }
 
   @Override

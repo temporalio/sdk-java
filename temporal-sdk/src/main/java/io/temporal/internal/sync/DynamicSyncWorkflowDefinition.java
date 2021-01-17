@@ -82,7 +82,7 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
     }
 
     @Override
-    public void processSignal(SignalInput input) {
+    public void handleSignal(SignalInput input) {
       throw new UnsupportedOperationException(
           "Signals are delivered through Workflow.registerListener");
     }

@@ -67,8 +67,8 @@ class WorkflowExecuteRunnable implements Runnable {
 
   public void close() {}
 
-  public void processSignal(String signalName, Optional<Payloads> input, long eventId) {
-    context.signal(signalName, input, eventId);
+  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+    context.handleSignal(signalName, input, eventId);
   }
 
   public Optional<Payloads> query(String type, Optional<Payloads> args) {

@@ -38,7 +38,7 @@ public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCalls
   }
 
   @Override
-  public void processSignal(SignalInput input) {
-    next.processSignal(input);
+  public void handleSignal(SignalInput input) {
+    next.handleSignal(input);
   }
 }
