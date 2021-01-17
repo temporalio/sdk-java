@@ -34,6 +34,7 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -148,6 +149,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   public void fail(Throwable exception) {
     if (exception == null) {
       throw new IllegalArgumentException("null exception");
+    }
+    if (exception instanceof TemporalFailure) {
+      ((TemporalFailure) exception).setDataConverter(dataConverter);
     }
     // When converting failures reason is class name, details are serialized exception.
     if (taskToken != null) {
