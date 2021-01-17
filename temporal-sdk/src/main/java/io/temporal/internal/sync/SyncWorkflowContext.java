@@ -46,7 +46,6 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
@@ -56,7 +55,6 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
@@ -74,65 +72,30 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
-
-  private static class SignalData {
-    private final String signalName;
-    private final Optional<Payloads> payload;
-    private final long eventId;
-
-    private SignalData(String signalName, Optional<Payloads> payload, long eventId) {
-      this.signalName = signalName;
-      this.payload = payload;
-      this.eventId = eventId;
-    }
-
-    public String getSignalName() {
-      return signalName;
-    }
-
-    public Optional<Payloads> getPayload() {
-      return payload;
-    }
-
-    public long getEventId() {
-      return eventId;
-    }
-  }
-
-  private static final Logger log = LoggerFactory.getLogger(SyncWorkflowContext.class);
 
   private final ReplayWorkflowContext context;
   private DeterministicRunner runner;
   private final DataConverter converter;
   private final List<ContextPropagator> contextPropagators;
   private WorkflowOutboundCallsInterceptor headInterceptor;
+  private final SignalDispatcher signalDispatcher;
   private final Map<String, Functions.Func1<Optional<Payloads>, Optional<Payloads>>>
       queryCallbacks = new HashMap<>();
-  private final Map<String, Functions.Proc2<Optional<Payloads>, Long>> signalCallbacks =
-      new HashMap<>();
-  private DynamicSignalHandler dynamicSignalHandler;
   private DynamicQueryHandler dynamicQueryHandler;
-
-  /** Buffers signals which don't have a registered listener. */
-  private final Queue<SignalData> signalBuffer = new ArrayDeque<>();
 
   private final Optional<Payloads> lastCompletionResult;
   private final Optional<Failure> lastFailure;
@@ -148,6 +111,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     this.contextPropagators = contextPropagators;
     this.lastCompletionResult = lastCompletionResult;
     this.lastFailure = lastFailure;
+    this.signalDispatcher = new SignalDispatcher(converter);
   }
 
   /**
@@ -638,16 +602,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   public void signal(String signalName, Optional<Payloads> args, long eventId) {
-    Functions.Proc2<Optional<Payloads>, Long> callback = signalCallbacks.get(signalName);
-    if (callback == null) {
-      if (dynamicSignalHandler != null) {
-        dynamicSignalHandler.handle(signalName, new EncodedValues(args, converter));
-        return;
-      }
-      signalBuffer.add(new SignalData(signalName, args, eventId));
-    } else {
-      callback.apply(args, eventId);
-    }
+    signalDispatcher.signal(signalName, args, eventId);
   }
 
   @Override
@@ -669,53 +624,17 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   @Override
   public void registerSignalHandlers(RegisterSignalHandlerInput input) {
-    for (SignalRegistrationRequest request : input.getRequests()) {
-      String signalType = request.getSignalType();
-      if (signalCallbacks.containsKey(signalType)) {
-        throw new IllegalStateException("Signal \"" + signalType + "\" is already registered");
-      }
-      Functions.Proc2<Optional<Payloads>, Long> signalCallback =
-          (payloads, eventId) -> {
-            try {
-              Object[] args =
-                  DataConverter.arrayFromPayloads(
-                      converter, payloads, request.getArgTypes(), request.getGenericArgTypes());
-              request.getCallback().apply(args);
-            } catch (DataConverterException e) {
-              logSerializationException(signalType, eventId, e);
-            }
-          };
-      signalCallbacks.put(signalType, signalCallback);
-    }
-    for (SignalData signalData : signalBuffer) {
-      signal(signalData.getSignalName(), signalData.getPayload(), signalData.getEventId());
-    }
+    signalDispatcher.registerSignalHandlers(input);
   }
 
   @Override
   public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
-    dynamicSignalHandler = handler;
-    for (SignalData signalData : signalBuffer) {
-      handler.handle(
-          signalData.getSignalName(), new EncodedValues(signalData.getPayload(), converter));
-    }
+    signalDispatcher.registerDynamicSignalHandler(handler);
   }
 
   @Override
   public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
     dynamicQueryHandler = handler;
-  }
-
-  void logSerializationException(
-      String signalName, Long eventId, DataConverterException exception) {
-    log.error(
-        "Failure deserializing signal input for \""
-            + signalName
-            + "\" at eventId "
-            + eventId
-            + ". Dropping it.",
-        exception);
-    Workflow.getMetricsScope().counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
   }
 
   @Override
