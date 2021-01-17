@@ -26,11 +26,11 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.workflow.DynamicSignalHandler;
-import io.temporal.workflow.Functions;
 import io.temporal.workflow.Workflow;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import org.slf4j.Logger;
@@ -44,8 +44,8 @@ class SignalDispatcher {
     private final long eventId;
 
     private SignalData(String signalName, Optional<Payloads> payload, long eventId) {
-      this.signalName = signalName;
-      this.payload = payload;
+      this.signalName = Objects.requireNonNull(signalName);
+      this.payload = Objects.requireNonNull(payload);
       this.eventId = eventId;
     }
 
@@ -66,8 +66,8 @@ class SignalDispatcher {
 
   private final DataConverter converter;
 
-  private final Map<String, Functions.Proc2<Optional<Payloads>, Long>> signalCallbacks =
-      new HashMap<>();
+  private final Map<String, WorkflowOutboundCallsInterceptor.SignalRegistrationRequest>
+      signalCallbacks = new HashMap<>();
 
   private DynamicSignalHandler dynamicSignalHandler;
 
@@ -78,16 +78,24 @@ class SignalDispatcher {
     this.converter = converter;
   }
 
-  public void signal(String signalName, Optional<Payloads> args, long eventId) {
-    Functions.Proc2<Optional<Payloads>, Long> callback = signalCallbacks.get(signalName);
-    if (callback == null) {
+  public void signal(String signalName, Optional<Payloads> input, long eventId) {
+    WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler =
+        signalCallbacks.get(signalName);
+    if (handler == null) {
       if (dynamicSignalHandler != null) {
-        dynamicSignalHandler.handle(signalName, new EncodedValues(args, converter));
+        dynamicSignalHandler.handle(signalName, new EncodedValues(input, converter));
         return;
       }
-      signalBuffer.add(new SignalData(signalName, args, eventId));
+      signalBuffer.add(new SignalData(signalName, input, eventId));
     } else {
-      callback.apply(args, eventId);
+      try {
+        Object[] args =
+            DataConverter.arrayFromPayloads(
+                converter, input, handler.getArgTypes(), handler.getGenericArgTypes());
+        handler.getCallback().apply(args);
+      } catch (DataConverterException e) {
+        logSerializationException(signalName, eventId, e);
+      }
     }
   }
 
@@ -98,18 +106,7 @@ class SignalDispatcher {
       if (signalCallbacks.containsKey(signalType)) {
         throw new IllegalStateException("Signal \"" + signalType + "\" is already registered");
       }
-      Functions.Proc2<Optional<Payloads>, Long> signalCallback =
-          (payloads, eventId) -> {
-            try {
-              Object[] args =
-                  DataConverter.arrayFromPayloads(
-                      converter, payloads, request.getArgTypes(), request.getGenericArgTypes());
-              request.getCallback().apply(args);
-            } catch (DataConverterException e) {
-              logSerializationException(signalType, eventId, e);
-            }
-          };
-      signalCallbacks.put(signalType, signalCallback);
+      signalCallbacks.put(signalType, request);
     }
     for (SignalData signalData : signalBuffer) {
       signal(signalData.getSignalName(), signalData.getPayload(), signalData.getEventId());
