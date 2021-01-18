@@ -6806,6 +6806,18 @@ public class WorkflowTest {
         assertTrue(e.getMessage().contains("Unknown query type: getSignal"));
       }
     }
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "registerSignalHandlers register",
+        "newThread workflow-method",
+        "await await",
+        "handleSignal register",
+        "registerQuery getSignal",
+        "registerSignalHandlers signal",
+        "handleSignal signal",
+        "handleSignal signal",
+        "handleQuery getSignal",
+        "query getSignal");
   }
 
   private static class TracingWorkerInterceptor implements WorkerInterceptor {
@@ -6822,7 +6834,6 @@ public class WorkflowTest {
     }
 
     public void setExpected(String... expected) {
-
       this.expected = Arrays.asList(expected);
     }
 
@@ -6866,6 +6877,12 @@ public class WorkflowTest {
         public void handleSignal(SignalInput input) {
           trace.add("handleSignal " + input.getSignalName());
           super.handleSignal(input);
+        }
+
+        @Override
+        public QueryOutput handleQuery(QueryInput input) {
+          trace.add("handleQuery " + input.getQueryName());
+          return super.handleQuery(input);
         }
       };
     }
@@ -6921,6 +6938,7 @@ public class WorkflowTest {
         FilteredTrace trace, WorkflowOutboundCallsInterceptor next) {
       WorkflowInfo workflowInfo =
           Workflow.getInfo(); // checks that info is available in the constructor
+      assertNotNull(workflowInfo);
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
     }
