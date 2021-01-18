@@ -84,7 +84,7 @@ dependencies {
     api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
 
-    implementation 'io.grpc:grpc-netty-shaded:1.34.1'
+    implementation 'io.grpc:grpc-netty-shaded:1.35.0'
     if (!JavaVersion.current().isJava8()) {
         implementation 'javax.annotation:javax.annotation-api:1.3.2'
     }
