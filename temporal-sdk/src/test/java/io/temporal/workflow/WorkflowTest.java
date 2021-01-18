@@ -3571,6 +3571,18 @@ public class WorkflowTest {
     }
   }
 
+  public static class AlteredTestChildWorkflowRetryWorkflow
+      extends TestChildWorkflowAsyncRetryWorkflow {
+
+    public AlteredTestChildWorkflowRetryWorkflow() {}
+
+    @Override
+    public String execute(String taskQueue) {
+      Workflow.sleep(Duration.ofMinutes(1));
+      return super.execute(taskQueue);
+    }
+  }
+
   @ActivityInterface
   public interface AngryChildActivity {
 
@@ -3653,6 +3665,15 @@ public class WorkflowTest {
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
+  }
+
+  /** Tests that WorkflowReplayer fails if replay does not match workflow run. */
+  @Test(expected = RuntimeException.class)
+  public void testAlteredWorkflowReplayFailure() throws Exception {
+    Assume.assumeFalse("skipping for docker tests", useExternalService);
+
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "testChildWorkflowRetryHistory.json", AlteredTestChildWorkflowRetryWorkflow.class);
   }
 
   public static class TestChildWorkflowExecutionPromiseHandler implements TestWorkflow1 {

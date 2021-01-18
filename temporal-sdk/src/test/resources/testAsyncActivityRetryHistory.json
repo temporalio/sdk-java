@@ -16,7 +16,7 @@
       "input": {
         "payloads": [{
           "metadata": {
-            "encoding": "anNvbg=="
+            "encoding": "anNvbi9wbGFpbg=="
           },
           "data": "IldvcmtmbG93VGVzdC10ZXN0QXN5bmNBY3Rpdml0eVJldHJ5LTYxNzI0YTU2LTgyOTktNDJlYy1hOThkLWYxODAwMDBlODc4NCI="
         }]
@@ -25,9 +25,9 @@
       "workflowRunTimeout": "108000s",
       "workflowTaskTimeout": "5s",
       "initiator": "CONTINUE_AS_NEW_INITIATOR_WORKFLOW",
-      "originalExecutionRunId": "825ddcc7-0511-46a2-83ab-462c7731a927",
+      "originalExecutionRunId": "abdb8767-2b5c-4b1d-bda5-c40581f9eeb5",
       "identity": "unknown-mac",
-      "firstExecutionRunId": "825ddcc7-0511-46a2-83ab-462c7731a927"
+      "firstExecutionRunId": "abdb8767-2b5c-4b1d-bda5-c40581f9eeb5"
     }
   }, {
     "eventId": "2",
@@ -70,7 +70,7 @@
     "version": "-24",
     "taskId": "1051015",
     "activityTaskScheduledEventAttributes": {
-      "activityId": "0",
+      "activityId": "ec1557a9-20ec-3436-b765-f9f4e14fe8a8",
       "activityType": {
         "name": "HeartbeatAndThrowIO"
       },
@@ -187,7 +187,7 @@
           "activityType": {
             "name": "HeartbeatAndThrowIO"
           },
-          "activityId": "0",
+          "activityId": "ec1557a9-20ec-3436-b765-f9f4e14fe8a8",
           "retryState": "RETRY_STATE_TIMEOUT"
         }
       },
