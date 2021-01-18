@@ -71,7 +71,7 @@ class WorkflowExecuteRunnable implements Runnable {
     context.handleSignal(signalName, input, eventId);
   }
 
-  public Optional<Payloads> query(String type, Optional<Payloads> args) {
-    return context.query(type, args);
+  public Optional<Payloads> handleQuery(String type, Optional<Payloads> args) {
+    return context.handleQuery(type, args);
   }
 }

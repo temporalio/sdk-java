@@ -329,7 +329,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void registerQuery(RegisterQueryInput input) {
+    public void registerQuery(QueryRegistrationRequest input) {
       throw new UnsupportedOperationException("not implemented");
     }
 

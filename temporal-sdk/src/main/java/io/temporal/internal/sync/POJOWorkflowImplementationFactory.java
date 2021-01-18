@@ -131,7 +131,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           "Workflow interface doesn't contain a method annotated with @WorkflowMethod: " + clazz);
     }
     List<POJOWorkflowMethodMetadata> methodsMetadata = workflowMetadata.getMethodsMetadata();
-    Map<String, Method> signalHandlers = new HashMap<>();
     for (POJOWorkflowMethodMetadata methodMetadata : methodsMetadata) {
       switch (methodMetadata.getType()) {
         case WORKFLOW:
@@ -142,13 +141,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           }
           workflowDefinitions.put(
               workflowName,
-              () ->
-                  new POJOWorkflowImplementation(
-                      clazz, methodMetadata.getWorkflowMethod(), signalHandlers));
+              () -> new POJOWorkflowImplementation(clazz, methodMetadata.getWorkflowMethod()));
           implementationOptions.put(workflowName, options);
           break;
         case SIGNAL:
-          signalHandlers.put(methodMetadata.getName(), methodMetadata.getWorkflowMethod());
+          // Signals are registered through Workflow.registerListener
           break;
       }
     }
@@ -179,15 +176,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);
     Set<String> workflowMethodTypes = workflowMetadata.getWorkflowTypes();
-    Set<String> signalTypes = workflowMetadata.getSignalTypes();
-    Map<String, Method> signalHandlers = new HashMap<>();
     boolean hasWorkflowMethod = false;
     for (String workflowType : workflowMethodTypes) {
       POJOWorkflowMethodMetadata methodMetadata =
           workflowMetadata.getWorkflowMethodMetadata(workflowType);
       Method method = methodMetadata.getWorkflowMethod();
       Functions.Func<SyncWorkflowDefinition> factory =
-          () -> new POJOWorkflowImplementation(workflowImplementationClass, method, signalHandlers);
+          () -> new POJOWorkflowImplementation(workflowImplementationClass, method);
 
       String workflowName = methodMetadata.getName();
       if (workflowDefinitions.containsKey(workflowName)) {
@@ -197,11 +192,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       workflowDefinitions.put(workflowName, factory);
       implementationOptions.put(workflowName, options);
       hasWorkflowMethod = true;
-    }
-    for (String signalType : signalTypes) {
-      POJOWorkflowMethodMetadata methodMetadata =
-          workflowMetadata.getSignalMethodMetadata(signalType);
-      signalHandlers.put(methodMetadata.getName(), methodMetadata.getWorkflowMethod());
     }
     if (!hasWorkflowMethod) {
       throw new IllegalArgumentException(
@@ -254,28 +244,23 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     private final Method workflowMethod;
     private final Class<?> workflowImplementationClass;
-    private final Map<String, Method> signalHandlers;
     private Object workflow;
     private WorkflowInboundCallsInterceptor workflowInvoker;
 
-    public POJOWorkflowImplementation(
-        Class<?> workflowImplementationClass,
-        Method workflowMethod,
-        Map<String, Method> signalHandlers) {
+    public POJOWorkflowImplementation(Class<?> workflowImplementationClass, Method workflowMethod) {
       this.workflowMethod = workflowMethod;
       this.workflowImplementationClass = workflowImplementationClass;
-      this.signalHandlers = signalHandlers;
     }
 
     @Override
     public void initialize() {
-      workflowInvoker = new RootWorkflowInboundCallsInterceptor();
+      SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
+      workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext);
       for (WorkerInterceptor workerInterceptor : workerInterceptors) {
         workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
       }
-      SyncWorkflowContext syncWorkflowContext = WorkflowInternal.getRootWorkflowContext();
-      syncWorkflowContext.setHeadInboundCallsInterceptor(workflowInvoker);
-      workflowInvoker.init(syncWorkflowContext);
+      workflowContext.setHeadInboundCallsInterceptor(workflowInvoker);
+      workflowInvoker.init(workflowContext);
     }
 
     @Override
@@ -320,6 +305,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
 
     private class RootWorkflowInboundCallsInterceptor implements WorkflowInboundCallsInterceptor {
+
+      private final SyncWorkflowContext workflowContext;
+
+      public RootWorkflowInboundCallsInterceptor(SyncWorkflowContext workflowContext) {
+        this.workflowContext = workflowContext;
+      }
 
       @Override
       public WorkflowOutput execute(WorkflowInput input) {
@@ -380,7 +371,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
       @Override
       public void handleSignal(SignalInput input) {
-        WorkflowInternal.getRootWorkflowContext().handleInterceptedSignal(input);
+        workflowContext.handleInterceptedSignal(input);
+      }
+
+      @Override
+      public QueryOutput handleQuery(QueryInput input) {
+        return workflowContext.handleInterceptedQuery(input);
       }
     }
   }

@@ -51,11 +51,13 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
   @Override
   public void initialize() {
-    workflowInvoker = new RootWorkflowInboundCallsInterceptor();
+    SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
+    workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext);
     for (WorkerInterceptor workerInterceptor : workerInterceptors) {
       workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
     }
-    workflowInvoker.init(WorkflowInternal.getRootWorkflowContext());
+    workflowContext.setHeadInboundCallsInterceptor(workflowInvoker);
+    workflowInvoker.init(workflowContext);
   }
 
   @Override
@@ -68,6 +70,12 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
   }
 
   private class RootWorkflowInboundCallsInterceptor implements WorkflowInboundCallsInterceptor {
+    private final SyncWorkflowContext workflowContext;
+
+    public RootWorkflowInboundCallsInterceptor(SyncWorkflowContext workflowContext) {
+      this.workflowContext = workflowContext;
+    }
+
     @Override
     public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
       WorkflowInternal.getRootWorkflowContext().setHeadInterceptor(outboundCalls);
@@ -83,8 +91,12 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
 
     @Override
     public void handleSignal(SignalInput input) {
-      throw new UnsupportedOperationException(
-          "Signals are delivered through Workflow.registerListener");
+      workflowContext.handleInterceptedSignal(input);
+    }
+
+    @Override
+    public QueryOutput handleQuery(QueryInput input) {
+      return workflowContext.handleInterceptedQuery(input);
     }
 
     private void newInstance() {

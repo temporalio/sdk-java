@@ -378,13 +378,13 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
-  final class RegisterQueryInput {
+  final class QueryRegistrationRequest {
     private final String queryType;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
     private final Functions.Func1<Object[], Object> callback;
 
-    public RegisterQueryInput(
+    public QueryRegistrationRequest(
         String queryType,
         Class<?>[] argTypes,
         Type[] genericArgTypes,
@@ -441,7 +441,7 @@ public interface WorkflowOutboundCallsInterceptor {
 
   void continueAsNew(ContinueAsNewInput input);
 
-  void registerQuery(RegisterQueryInput input);
+  void registerQuery(QueryRegistrationRequest input);
 
   void registerSignalHandlers(RegisterSignalHandlerInput input);
 

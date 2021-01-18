@@ -82,6 +82,36 @@ public interface WorkflowInboundCallsInterceptor {
     }
   }
 
+  final class QueryInput {
+    private final String queryName;
+    private final Object[] arguments;
+
+    public QueryInput(String signalName, Object[] arguments) {
+      this.queryName = signalName;
+      this.arguments = arguments;
+    }
+
+    public String getQueryName() {
+      return queryName;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+  }
+
+  final class QueryOutput {
+    private final Object result;
+
+    public QueryOutput(Object result) {
+      this.result = result;
+    }
+
+    public Object getResult() {
+      return result;
+    }
+  }
+
   /**
    * Called when workflow class is instantiated.
    *
@@ -98,4 +128,6 @@ public interface WorkflowInboundCallsInterceptor {
 
   /** Called when signal is delivered to the workflow instance. */
   void handleSignal(SignalInput input);
+
+  QueryOutput handleQuery(QueryInput input);
 }

@@ -129,7 +129,7 @@ public final class WorkflowInternal {
       Method method = methodMetadata.getWorkflowMethod();
       getWorkflowInterceptor()
           .registerQuery(
-              new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
+              new WorkflowOutboundCallsInterceptor.QueryRegistrationRequest(
                   methodMetadata.getName(),
                   method.getParameterTypes(),
                   method.getGenericParameterTypes(),

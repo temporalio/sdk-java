@@ -46,7 +46,6 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
@@ -94,10 +93,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private final List<ContextPropagator> contextPropagators;
   private WorkflowOutboundCallsInterceptor headInterceptor;
   private final SignalDispatcher signalDispatcher;
-  private final Map<String, Functions.Func1<Optional<Payloads>, Optional<Payloads>>>
-      queryCallbacks = new HashMap<>();
-  private DynamicQueryHandler dynamicQueryHandler;
-
+  private final QueryDispatcher queryDispatcher;
   private final Optional<Payloads> lastCompletionResult;
   private final Optional<Failure> lastFailure;
 
@@ -113,6 +109,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     this.lastCompletionResult = lastCompletionResult;
     this.lastFailure = lastFailure;
     this.signalDispatcher = new SignalDispatcher(converter);
+    this.queryDispatcher = new QueryDispatcher(converter);
   }
 
   /**
@@ -177,8 +174,18 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     signalDispatcher.handleSignal(signalName, input, eventId);
   }
 
+  public WorkflowInboundCallsInterceptor.QueryOutput handleInterceptedQuery(
+      WorkflowInboundCallsInterceptor.QueryInput input) {
+    return queryDispatcher.handleInterceptedQuery(input);
+  }
+
+  public Optional<Payloads> handleQuery(String queryName, Optional<Payloads> input) {
+    return queryDispatcher.handleQuery(queryName, input);
+  }
+
   public void setHeadInboundCallsInterceptor(WorkflowInboundCallsInterceptor inbound) {
     signalDispatcher.setInboundCallsInterceptor(inbound);
+    queryDispatcher.setInboundCallsInterceptor(inbound);
   }
 
   private class ActivityCallback {
@@ -601,34 +608,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return r;
   }
 
-  public Optional<Payloads> query(String type, Optional<Payloads> args) {
-    Functions.Func1<Optional<Payloads>, Optional<Payloads>> callback = queryCallbacks.get(type);
-    if (callback == null) {
-      if (dynamicQueryHandler != null) {
-        Object result = dynamicQueryHandler.handle(type, new EncodedValues(args, converter));
-        return converter.toPayloads(result);
-      }
-      throw new IllegalArgumentException(
-          "Unknown query type: " + type + ", knownTypes=" + queryCallbacks.keySet());
-    }
-    return callback.apply(args);
-  }
-
   @Override
-  public void registerQuery(RegisterQueryInput input) {
-    String queryType = input.getQueryType();
-    if (queryCallbacks.containsKey(queryType)) {
-      throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
-    }
-    queryCallbacks.put(
-        queryType,
-        (i) -> {
-          Object[] args =
-              DataConverter.arrayFromPayloads(
-                  converter, i, input.getArgTypes(), input.getGenericArgTypes());
-          Object result = input.getCallback().apply(args);
-          return converter.toPayloads(result);
-        });
+  public void registerQuery(QueryRegistrationRequest request) {
+    queryDispatcher.registerQueryHandlers(request);
   }
 
   @Override
@@ -643,7 +625,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   @Override
   public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
-    dynamicQueryHandler = handler;
+    queryDispatcher.registerDynamicQueryHandler(handler);
   }
 
   @Override

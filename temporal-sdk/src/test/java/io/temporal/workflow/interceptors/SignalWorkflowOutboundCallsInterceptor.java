@@ -133,7 +133,7 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   }
 
   @Override
-  public void registerQuery(RegisterQueryInput input) {
+  public void registerQuery(QueryRegistrationRequest input) {
     next.registerQuery(input);
   }
 

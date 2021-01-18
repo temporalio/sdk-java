@@ -7043,13 +7043,13 @@ public class WorkflowTest {
     }
 
     @Override
-    public void registerQuery(RegisterQueryInput input) {
+    public void registerQuery(QueryRegistrationRequest input) {
       String queryType = input.getQueryType();
       if (!Workflow.isReplaying()) {
         trace.add("registerQuery " + queryType);
       }
       next.registerQuery(
-          new RegisterQueryInput(
+          new QueryRegistrationRequest(
               queryType,
               input.getArgTypes(),
               input.getGenericArgTypes(),

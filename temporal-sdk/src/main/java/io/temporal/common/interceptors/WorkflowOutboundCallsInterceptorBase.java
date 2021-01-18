@@ -112,7 +112,7 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public void registerQuery(RegisterQueryInput input) {
+  public void registerQuery(QueryRegistrationRequest input) {
     next.registerQuery(input);
   }
 

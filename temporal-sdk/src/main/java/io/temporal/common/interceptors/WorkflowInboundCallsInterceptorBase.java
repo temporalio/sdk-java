@@ -41,4 +41,9 @@ public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCalls
   public void handleSignal(SignalInput input) {
     next.handleSignal(input);
   }
+
+  @Override
+  public QueryOutput handleQuery(QueryInput input) {
+    return next.handleQuery(input);
+  }
 }
