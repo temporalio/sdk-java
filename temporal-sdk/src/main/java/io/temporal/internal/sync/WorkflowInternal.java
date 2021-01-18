@@ -114,11 +114,17 @@ public final class WorkflowInternal {
    */
   public static void registerListener(Object implementation) {
     if (implementation instanceof DynamicSignalHandler) {
-      getWorkflowInterceptor().registerDynamicSignalHandler((DynamicSignalHandler) implementation);
+      getWorkflowInterceptor()
+          .registerDynamicSignalHandler(
+              new WorkflowOutboundCallsInterceptor.RegisterDynamicSignalHandlerInput(
+                  (DynamicSignalHandler) implementation));
       return;
     }
     if (implementation instanceof DynamicQueryHandler) {
-      getWorkflowInterceptor().registerDynamicQueryHandler((DynamicQueryHandler) implementation);
+      getWorkflowInterceptor()
+          .registerDynamicQueryHandler(
+              new WorkflowOutboundCallsInterceptor.RegisterDynamicQueryHandlerInput(
+                  (DynamicQueryHandler) implementation));
       return;
     }
     Class<?> cls = implementation.getClass();
@@ -129,7 +135,7 @@ public final class WorkflowInternal {
       Method method = methodMetadata.getWorkflowMethod();
       getWorkflowInterceptor()
           .registerQuery(
-              new WorkflowOutboundCallsInterceptor.QueryRegistrationRequest(
+              new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
                   methodMetadata.getName(),
                   method.getParameterTypes(),
                   method.getGenericParameterTypes(),
@@ -162,7 +168,7 @@ public final class WorkflowInternal {
     if (!requests.isEmpty()) {
       getWorkflowInterceptor()
           .registerSignalHandlers(
-              new WorkflowOutboundCallsInterceptor.RegisterSignalHandlerInput(requests));
+              new WorkflowOutboundCallsInterceptor.RegisterSignalHandlersInput(requests));
     }
   }
 

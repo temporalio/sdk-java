@@ -38,8 +38,8 @@ class QueryDispatcher {
   private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
   private final DataConverter converter;
 
-  private final Map<String, WorkflowOutboundCallsInterceptor.QueryRegistrationRequest>
-      queryCallbacks = new HashMap<>();
+  private final Map<String, WorkflowOutboundCallsInterceptor.RegisterQueryInput> queryCallbacks =
+      new HashMap<>();
 
   private DynamicQueryHandler dynamicQueryHandler;
 
@@ -56,8 +56,7 @@ class QueryDispatcher {
       WorkflowInboundCallsInterceptor.QueryInput input) {
     String queryName = input.getQueryName();
     Object[] args = input.getArguments();
-    WorkflowOutboundCallsInterceptor.QueryRegistrationRequest handler =
-        queryCallbacks.get(queryName);
+    WorkflowOutboundCallsInterceptor.RegisterQueryInput handler = queryCallbacks.get(queryName);
     Object result;
     if (handler == null) {
       if (dynamicQueryHandler != null) {
@@ -72,8 +71,7 @@ class QueryDispatcher {
   }
 
   public Optional<Payloads> handleQuery(String queryName, Optional<Payloads> input) {
-    WorkflowOutboundCallsInterceptor.QueryRegistrationRequest handler =
-        queryCallbacks.get(queryName);
+    WorkflowOutboundCallsInterceptor.RegisterQueryInput handler = queryCallbacks.get(queryName);
     Object result;
     if (handler == null) {
       if (dynamicQueryHandler != null) {
@@ -98,8 +96,7 @@ class QueryDispatcher {
     return converter.toPayloads(result);
   }
 
-  public void registerQueryHandlers(
-      WorkflowOutboundCallsInterceptor.QueryRegistrationRequest request) {
+  public void registerQueryHandlers(WorkflowOutboundCallsInterceptor.RegisterQueryInput request) {
     String queryType = request.getQueryType();
     if (queryCallbacks.containsKey(queryType)) {
       throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
@@ -107,7 +104,8 @@ class QueryDispatcher {
     queryCallbacks.put(queryType, request);
   }
 
-  public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
-    dynamicQueryHandler = handler;
+  public void registerDynamicQueryHandler(
+      WorkflowOutboundCallsInterceptor.RegisterDynamicQueryHandlerInput input) {
+    dynamicQueryHandler = input.getHandler();
   }
 }

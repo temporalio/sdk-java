@@ -126,7 +126,7 @@ class SignalDispatcher {
   }
 
   public void registerSignalHandlers(
-      WorkflowOutboundCallsInterceptor.RegisterSignalHandlerInput input) {
+      WorkflowOutboundCallsInterceptor.RegisterSignalHandlersInput input) {
     for (WorkflowOutboundCallsInterceptor.SignalRegistrationRequest request : input.getRequests()) {
       String signalType = request.getSignalType();
       if (signalCallbacks.containsKey(signalType)) {
@@ -139,10 +139,11 @@ class SignalDispatcher {
     }
   }
 
-  public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
-    dynamicSignalHandler = handler;
+  public void registerDynamicSignalHandler(
+      WorkflowOutboundCallsInterceptor.RegisterDynamicSignalHandlerInput input) {
+    dynamicSignalHandler = input.getHandler();
     for (SignalData signalData : signalBuffer) {
-      handler.handle(
+      dynamicSignalHandler.handle(
           signalData.getSignalName(), new EncodedValues(signalData.getPayload(), converter));
     }
   }

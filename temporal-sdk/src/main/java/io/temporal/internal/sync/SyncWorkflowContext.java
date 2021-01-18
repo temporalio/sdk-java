@@ -64,8 +64,6 @@ import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.ContinueAsNewOptions;
-import io.temporal.workflow.DynamicQueryHandler;
-import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
@@ -609,23 +607,23 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public void registerQuery(QueryRegistrationRequest request) {
+  public void registerQuery(RegisterQueryInput request) {
     queryDispatcher.registerQueryHandlers(request);
   }
 
   @Override
-  public void registerSignalHandlers(RegisterSignalHandlerInput input) {
+  public void registerSignalHandlers(RegisterSignalHandlersInput input) {
     signalDispatcher.registerSignalHandlers(input);
   }
 
   @Override
-  public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
-    signalDispatcher.registerDynamicSignalHandler(handler);
+  public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
+    signalDispatcher.registerDynamicSignalHandler(input);
   }
 
   @Override
-  public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
-    queryDispatcher.registerDynamicQueryHandler(handler);
+  public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
+    queryDispatcher.registerDynamicQueryHandler(input);
   }
 
   @Override

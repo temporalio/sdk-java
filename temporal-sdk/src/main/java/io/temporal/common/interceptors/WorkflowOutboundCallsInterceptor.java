@@ -366,10 +366,10 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
-  final class RegisterSignalHandlerInput {
+  final class RegisterSignalHandlersInput {
     private final List<SignalRegistrationRequest> requests;
 
-    public RegisterSignalHandlerInput(List<SignalRegistrationRequest> requests) {
+    public RegisterSignalHandlersInput(List<SignalRegistrationRequest> requests) {
       this.requests = requests;
     }
 
@@ -378,13 +378,13 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
-  final class QueryRegistrationRequest {
+  final class RegisterQueryInput {
     private final String queryType;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
     private final Functions.Func1<Object[], Object> callback;
 
-    public QueryRegistrationRequest(
+    public RegisterQueryInput(
         String queryType,
         Class<?>[] argTypes,
         Type[] genericArgTypes,
@@ -409,6 +409,30 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Functions.Func1<Object[], Object> getCallback() {
       return callback;
+    }
+  }
+
+  final class RegisterDynamicQueryHandlerInput {
+    private final DynamicQueryHandler handler;
+
+    public RegisterDynamicQueryHandlerInput(DynamicQueryHandler handler) {
+      this.handler = handler;
+    }
+
+    public DynamicQueryHandler getHandler() {
+      return handler;
+    }
+  }
+
+  final class RegisterDynamicSignalHandlerInput {
+    private final DynamicSignalHandler handler;
+
+    public RegisterDynamicSignalHandlerInput(DynamicSignalHandler handler) {
+      this.handler = handler;
+    }
+
+    public DynamicSignalHandler getHandler() {
+      return handler;
     }
   }
 
@@ -441,13 +465,13 @@ public interface WorkflowOutboundCallsInterceptor {
 
   void continueAsNew(ContinueAsNewInput input);
 
-  void registerQuery(QueryRegistrationRequest input);
+  void registerQuery(RegisterQueryInput input);
 
-  void registerSignalHandlers(RegisterSignalHandlerInput input);
+  void registerSignalHandlers(RegisterSignalHandlersInput input);
 
-  void registerDynamicSignalHandler(DynamicSignalHandler handler);
+  void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput handler);
 
-  void registerDynamicQueryHandler(DynamicQueryHandler handler);
+  void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input);
 
   UUID randomUUID();
 

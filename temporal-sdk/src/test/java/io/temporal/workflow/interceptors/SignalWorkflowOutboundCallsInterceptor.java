@@ -20,8 +20,6 @@
 package io.temporal.workflow.interceptors;
 
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.workflow.DynamicQueryHandler;
-import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
@@ -133,23 +131,23 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   }
 
   @Override
-  public void registerQuery(QueryRegistrationRequest input) {
+  public void registerQuery(RegisterQueryInput input) {
     next.registerQuery(input);
   }
 
   @Override
-  public void registerSignalHandlers(RegisterSignalHandlerInput input) {
+  public void registerSignalHandlers(RegisterSignalHandlersInput input) {
     next.registerSignalHandlers(input);
   }
 
   @Override
-  public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
-    next.registerDynamicSignalHandler(handler);
+  public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
+    next.registerDynamicSignalHandler(input);
   }
 
   @Override
-  public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
-    next.registerDynamicQueryHandler(handler);
+  public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
+    next.registerDynamicQueryHandler(input);
   }
 
   @Override

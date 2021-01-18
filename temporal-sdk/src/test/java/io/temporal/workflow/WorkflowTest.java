@@ -7061,13 +7061,13 @@ public class WorkflowTest {
     }
 
     @Override
-    public void registerQuery(QueryRegistrationRequest input) {
+    public void registerQuery(RegisterQueryInput input) {
       String queryType = input.getQueryType();
       if (!Workflow.isReplaying()) {
         trace.add("registerQuery " + queryType);
       }
       next.registerQuery(
-          new QueryRegistrationRequest(
+          new RegisterQueryInput(
               queryType,
               input.getArgTypes(),
               input.getGenericArgTypes(),
@@ -7084,7 +7084,7 @@ public class WorkflowTest {
     }
 
     @Override
-    public void registerSignalHandlers(RegisterSignalHandlerInput input) {
+    public void registerSignalHandlers(RegisterSignalHandlersInput input) {
       if (!Workflow.isReplaying()) {
         StringBuilder signals = new StringBuilder();
         for (SignalRegistrationRequest request : input.getRequests()) {
@@ -7099,19 +7099,19 @@ public class WorkflowTest {
     }
 
     @Override
-    public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
+    public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
       if (!Workflow.isReplaying()) {
         trace.add("registerDynamicSignalHandler");
       }
-      next.registerDynamicSignalHandler(handler);
+      next.registerDynamicSignalHandler(input);
     }
 
     @Override
-    public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
+    public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
       if (!Workflow.isReplaying()) {
         trace.add("registerDynamicQueryHandler");
       }
-      next.registerDynamicQueryHandler(handler);
+      next.registerDynamicQueryHandler(input);
     }
 
     @Override

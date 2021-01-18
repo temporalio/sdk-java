@@ -55,8 +55,6 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.workflow.DynamicQueryHandler;
-import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
@@ -329,22 +327,22 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void registerQuery(QueryRegistrationRequest input) {
+    public void registerQuery(RegisterQueryInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerSignalHandlers(RegisterSignalHandlerInput input) {
+    public void registerSignalHandlers(RegisterSignalHandlersInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
+    public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
+    public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 

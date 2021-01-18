@@ -126,8 +126,9 @@ public interface WorkflowInboundCallsInterceptor {
    */
   WorkflowOutput execute(WorkflowInput input);
 
-  /** Called when signal is delivered to the workflow instance. */
+  /** Called when signal is delivered to a workflow execution. */
   void handleSignal(SignalInput input);
 
+  /** Called when a workflow is queried. */
   QueryOutput handleQuery(QueryInput input);
 }
