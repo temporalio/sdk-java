@@ -3761,7 +3761,8 @@ public class WorkflowTest {
         "executeChildWorkflow SignalingChild",
         "interceptExecuteWorkflow " + UUID_REGEXP, // child
         "newThread workflow-method",
-        "signalExternalWorkflow " + UUID_REGEXP + " testSignal");
+        "signalExternalWorkflow " + UUID_REGEXP + " testSignal",
+        "handleSignal testSignal");
   }
 
   public static class TestUntypedSignalExternalWorkflow implements TestWorkflowSignaled {
@@ -6859,6 +6860,12 @@ public class WorkflowTest {
         @Override
         public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
           next.init(new TracingWorkflowOutboundCallsInterceptor(trace, outboundCalls));
+        }
+
+        @Override
+        public void handleSignal(SignalInput input) {
+          trace.add("handleSignal " + input.getSignalName());
+          super.handleSignal(input);
         }
       };
     }
