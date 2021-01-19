@@ -7,7 +7,7 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
-    id 'name.remal.check-updates' version '1.1.6'
+    id 'name.remal.check-updates' version '1.2.2'
 }
 
 apply plugin: 'maven-publish'
@@ -36,7 +36,7 @@ java {
 
 dependencies {
     errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
-    errorprone('com.google.errorprone:error_prone_core:2.4.0')
+    errorprone('com.google.errorprone:error_prone_core:2.5.1')
 
     api project(':temporal-sdk')
 
