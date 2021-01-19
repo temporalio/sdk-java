@@ -16,7 +16,7 @@
       "input": {
         "payloads": [{
           "metadata": {
-            "encoding": "anNvbg=="
+            "encoding": "anNvbi9wbGFpbg=="
           },
           "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LWM1YzU5OGNkLTA1ZDYtNDc5MC1iNDNlLWViZjE0OWFlZTY1YiI="
         }]
@@ -80,12 +80,12 @@
       "input": {
         "payloads": [{
           "metadata": {
-            "encoding": "anNvbg=="
+            "encoding": "anNvbi9wbGFpbg=="
           },
           "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LWM1YzU5OGNkLTA1ZDYtNDc5MC1iNDNlLWViZjE0OWFlZTY1YiI="
         }, {
           "metadata": {
-            "encoding": "anNvbg=="
+            "encoding": "anNvbi9wbGFpbg=="
           },
           "data": "MA=="
         }]
