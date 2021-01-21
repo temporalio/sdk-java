@@ -24,7 +24,7 @@ import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public final class LambdaUtils {
+public final class JavaLambdaUtils {
 
   /**
    * Get target of the method reference that was converted to a lambda.
@@ -69,5 +69,5 @@ public final class LambdaUtils {
   }
 
   /** Prohibits instantiation. */
-  private LambdaUtils() {}
+  private JavaLambdaUtils() {}
 }
