@@ -381,7 +381,7 @@ public class WorkflowServiceStubsOptions {
      * that require additional customization may use {@link #setSslContext(SslContext)} directly.
      *
      * @param keyCertChainFile - an X.509 client certificate chain file in PEM format.
-     * @param keyPassword - the password of the keyFile, or null if it's not password-protected.
+     * @param keyPassword - the password of the key, or null if it's not password-protected.
      * @param keyFile - a PKCS#8 client private key file in PEM format.
      * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
      *     certificate.
@@ -419,7 +419,7 @@ public class WorkflowServiceStubsOptions {
      * customization may use {@link #setSslContext(SslContext)} directly.
      *
      * @param keyCertChainFile - an X.509 client certificate chain file in PEM format.
-     * @param keyPassword - the password of the keyFile, or null if it's not password-protected.
+     * @param keyPassword - the password of the key, or null if it's not password-protected.
      * @param keyFile - a PKCS#8 client private key file in PEM format.
      */
     public Builder setInsecureSslContextWith(
