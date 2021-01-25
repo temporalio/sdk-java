@@ -311,7 +311,6 @@ public class WorkflowServiceStubsOptions {
         InputStream keyInputStream,
         String... fingerprints)
         throws SSLException {
-      // TODO consider using default fingerprints from the root CA if user didn't pass any.
       this.sslContext =
           SslContextBuilder.forClient()
               .trustManager(new FingerprintTrustManagerFactory(fingerprints))
@@ -390,7 +389,6 @@ public class WorkflowServiceStubsOptions {
     public Builder setSslContextWith(
         File keyCertChainFile, String keyPassword, File keyFile, String... fingerprints)
         throws IOException {
-      // TODO consider using default fingerprints from the root CA if user didn't pass any.
       this.sslContext =
           SslContextBuilder.forClient()
               .trustManager(new FingerprintTrustManagerFactory(fingerprints))
