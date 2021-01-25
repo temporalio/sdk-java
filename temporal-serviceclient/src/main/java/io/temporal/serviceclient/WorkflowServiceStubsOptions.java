@@ -296,11 +296,12 @@ public class WorkflowServiceStubsOptions {
      * Sets default SSL context parameters that can be used with the temporal cloud service. Users
      * that require additional customization may use {@link #setSslContext(SslContext)} directly.
      *
-     * @param keyCertChainInputStream - an input stream for an X.509 certificate chain in PEM
+     * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
      *     format.
      * @param keyPassword - the password of the keyFile, or null if it's not password-protected.
-     * @param keyInputStream - an input stream for a PKCS#8 private key in PEM format.
-     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form.
+     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
+     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
+     *     certificate.
      * @throws SSLException - when it was unable to build the context.
      */
     public Builder setCloudSslContext(
@@ -323,10 +324,11 @@ public class WorkflowServiceStubsOptions {
      * Convenience method that overloads {@link #setCloudSslContext(InputStream, String,
      * InputStream, String...)} and uses no key password.
      *
-     * @param keyCertChainInputStream - an input stream for an X.509 certificate chain in PEM
+     * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
      *     format.
-     * @param keyInputStream - an input stream for a PKCS#8 private key in PEM format.
-     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form.
+     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
+     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
+     *     certificate.
      */
     public Builder setCloudSslContext(
         InputStream keyCertChainInputStream, InputStream keyInputStream, String... fingerprints)
@@ -338,10 +340,11 @@ public class WorkflowServiceStubsOptions {
      * Sets default SSL context parameters that can be used with the temporal cloud service. Users
      * that require additional customization may use {@link #setSslContext(SslContext)} directly.
      *
-     * @param keyCertChainFile - an X.509 certificate chain file in PEM format.
+     * @param keyCertChainFile - an X.509 client certificate chain file in PEM format.
      * @param keyPassword - the password of the keyFile, or null if it's not password-protected.
-     * @param keyFile - a PKCS#8 private key file in PEM format.
-     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form.
+     * @param keyFile - a PKCS#8 client private key file in PEM format.
+     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
+     *     certificate.
      */
     public Builder setCloudSslContext(
         File keyCertChainFile, String keyPassword, File keyFile, String... fingerprints)
@@ -360,9 +363,10 @@ public class WorkflowServiceStubsOptions {
      * Convenience method that overloads {@link #setCloudSslContext(File, String, File, String...)}
      * and uses no key password.
      *
-     * @param keyCertChainFile - an X.509 certificate chain file in PEM format.
-     * @param keyFile - a PKCS#8 private key file in PEM format.
-     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form.
+     * @param keyCertChainFile - an X.509 client certificate chain file in PEM format.
+     * @param keyFile - a PKCS#8 client private key file in PEM format.
+     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
+     *     certificate.
      */
     public Builder setCloudSslContext(File keyCertChainFile, File keyFile, String... fingerprints)
         throws IOException {
