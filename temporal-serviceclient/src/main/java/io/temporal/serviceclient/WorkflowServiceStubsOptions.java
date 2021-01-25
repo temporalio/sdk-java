@@ -31,16 +31,14 @@ import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-
-import javax.net.ssl.SSLException;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import javax.net.ssl.SSLException;
 
 public class WorkflowServiceStubsOptions {
 
@@ -232,9 +230,10 @@ public class WorkflowServiceStubsOptions {
    */
   public static class Builder {
 
+    // Default TLS protocol config that is used to communicate with temporal backend in the cloud.
     private static final ApplicationProtocolConfig DEFAULT_APPLICATION_PROTOCOL_CONFIG =
         new ApplicationProtocolConfig(
-            // HTTP/2 over TLS mandates the use of ALPN to negotiate the use of the http2.
+            // HTTP/2 over TLS mandates the use of ALPN to negotiate the use of the protocol.
             ApplicationProtocolConfig.Protocol.ALPN,
             // NO_ADVERTISE is the only mode supported by both OpenSsl and JDK providers.
             ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
@@ -299,15 +298,15 @@ public class WorkflowServiceStubsOptions {
      *
      * @param keyCertChainInputStream - an input stream for an X.509 certificate chain in PEM
      *     format.
-     * @param keyInputStream - an input stream for a PKCS#8 private key in PEM format.
      * @param keyPassword - the password of the keyFile, or null if it's not password-protected.
+     * @param keyInputStream - an input stream for a PKCS#8 private key in PEM format.
      * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form.
      * @throws SSLException - when it was unable to build the context.
      */
     public Builder setCloudSslContext(
         InputStream keyCertChainInputStream,
-        InputStream keyInputStream,
         String keyPassword,
+        InputStream keyInputStream,
         String... fingerprints)
         throws SSLException {
       // TODO consider using default fingerprints from the root CA if user didn't pass any.
@@ -321,8 +320,8 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Convenience method that overloads {@link #setCloudSslContext(InputStream, InputStream,
-     * String, String...)} and uses no key password.
+     * Convenience method that overloads {@link #setCloudSslContext(InputStream, String,
+     * InputStream, String...)} and uses no key password.
      *
      * @param keyCertChainInputStream - an input stream for an X.509 certificate chain in PEM
      *     format.
@@ -332,7 +331,7 @@ public class WorkflowServiceStubsOptions {
     public Builder setCloudSslContext(
         InputStream keyCertChainInputStream, InputStream keyInputStream, String... fingerprints)
         throws IOException {
-      return setCloudSslContext(keyCertChainInputStream, keyInputStream, null, fingerprints);
+      return setCloudSslContext(keyCertChainInputStream, null, keyInputStream, fingerprints);
     }
 
     /**
@@ -340,12 +339,12 @@ public class WorkflowServiceStubsOptions {
      * that require additional customization may use {@link #setSslContext(SslContext)} directly.
      *
      * @param keyCertChainFile - an X.509 certificate chain file in PEM format.
-     * @param keyFile - a PKCS#8 private key file in PEM format.
      * @param keyPassword - the password of the keyFile, or null if it's not password-protected.
+     * @param keyFile - a PKCS#8 private key file in PEM format.
      * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form.
      */
     public Builder setCloudSslContext(
-        File keyCertChainFile, File keyFile, String keyPassword, String... fingerprints)
+        File keyCertChainFile, String keyPassword, File keyFile, String... fingerprints)
         throws IOException {
       // TODO consider using default fingerprints from the root CA if user didn't pass any.
       this.sslContext =
@@ -358,7 +357,7 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Convenience method that overloads {@link #setCloudSslContext(File, File, String, String...)}
+     * Convenience method that overloads {@link #setCloudSslContext(File, String, File, String...)}
      * and uses no key password.
      *
      * @param keyCertChainFile - an X.509 certificate chain file in PEM format.
@@ -367,7 +366,7 @@ public class WorkflowServiceStubsOptions {
      */
     public Builder setCloudSslContext(File keyCertChainFile, File keyFile, String... fingerprints)
         throws IOException {
-      return setCloudSslContext(keyCertChainFile, keyFile, null, fingerprints);
+      return setCloudSslContext(keyCertChainFile, null, keyFile, fingerprints);
     }
 
     /**
