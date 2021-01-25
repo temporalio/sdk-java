@@ -230,7 +230,7 @@ public class WorkflowServiceStubsOptions {
    */
   public static class Builder {
 
-    // Default TLS protocol config that is used to communicate with temporal backend in the cloud.
+    // Default TLS protocol config that is used to communicate with TLS enabled temporal backend.
     private static final ApplicationProtocolConfig DEFAULT_APPLICATION_PROTOCOL_CONFIG =
         new ApplicationProtocolConfig(
             // HTTP/2 over TLS mandates the use of ALPN to negotiate the use of the protocol.
