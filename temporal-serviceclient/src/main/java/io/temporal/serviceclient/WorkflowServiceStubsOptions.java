@@ -25,24 +25,12 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
 import io.grpc.NameResolver;
-import io.grpc.netty.shaded.io.netty.handler.ssl.ApplicationProtocolConfig;
-import io.grpc.netty.shaded.io.netty.handler.ssl.ApplicationProtocolNames;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
-import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
-import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import java.io.InputStream;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
 
 public class WorkflowServiceStubsOptions {
 
@@ -234,17 +222,6 @@ public class WorkflowServiceStubsOptions {
    */
   public static class Builder {
 
-    // Default TLS protocol config that is used to communicate with TLS enabled temporal backend.
-    private static final ApplicationProtocolConfig DEFAULT_APPLICATION_PROTOCOL_CONFIG =
-        new ApplicationProtocolConfig(
-            // HTTP/2 over TLS mandates the use of ALPN to negotiate the use of the protocol.
-            ApplicationProtocolConfig.Protocol.ALPN,
-            // NO_ADVERTISE is the only mode supported by both OpenSsl and JDK providers.
-            ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
-            // ACCEPT is the only mode supported by both OpenSsl and JDK providers.
-            ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
-            // gRPC requires http2 protocol.
-            ApplicationProtocolNames.HTTP_2);
     private ManagedChannel channel;
     private SslContext sslContext;
     private boolean enableHttps;
@@ -289,137 +266,13 @@ public class WorkflowServiceStubsOptions {
 
     /**
      * Sets gRPC SSL Context to use, used for more advanced scenarios such as mTLS. Supersedes
-     * enableHttps; Exclusive with channel.
+     * enableHttps; Exclusive with channel. Consider using {@link TemporalSslContextBuilder} which
+     * greatly simplifies creation of the TLS enabled SslContext with client and server key
+     * validation.
      */
     public Builder setSslContext(SslContext sslContext) {
       this.sslContext = sslContext;
       return this;
-    }
-
-    /**
-     * Sets default SSL context parameters that can be used with TLS enabled temporal service. Users
-     * that require additional customization may use {@link #setSslContext(SslContext)} directly.
-     *
-     * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
-     *     format.
-     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
-     * @param keyPassword - the password of the key, or null if it's not password-protected.
-     * @param trustManager - {@link TrustManager} that can verify server CA authority.
-     * @throws SSLException - when it was unable to build the context.
-     */
-    public Builder setSslContextWith(
-        InputStream keyCertChainInputStream,
-        InputStream keyInputStream,
-        String keyPassword,
-        TrustManager trustManager)
-        throws SSLException {
-      this.sslContext =
-          SslContextBuilder.forClient()
-              .trustManager(trustManager)
-              .keyManager(keyCertChainInputStream, keyInputStream, keyPassword)
-              .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG)
-              .build();
-      return this;
-    }
-
-    /**
-     * Convenience method that overloads and uses default trust manager.
-     *
-     * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
-     *     format.
-     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
-     * @param keyPassword - the password of the key, or null if it's not password-protected.
-     */
-    public Builder setSslContextWith(
-        InputStream keyCertChainInputStream, InputStream keyInputStream, String keyPassword)
-        throws Exception {
-      return setSslContextWith(
-          keyCertChainInputStream, keyInputStream, keyPassword, getDefaultTrustManager());
-    }
-
-    /**
-     * Convenience method that overloads and uses no key password and default trust manager.
-     *
-     * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
-     *     format.
-     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
-     */
-    public Builder setSslContextWith(
-        InputStream keyCertChainInputStream, InputStream keyInputStream) throws Exception {
-      return setSslContextWith(
-          keyCertChainInputStream, keyInputStream, null, getDefaultTrustManager());
-    }
-
-    public static final class UnknownDefaultTrustManagerException extends RuntimeException {
-      public UnknownDefaultTrustManagerException(Throwable cause) {
-        super(cause);
-      }
-
-      public UnknownDefaultTrustManagerException(String message) {
-        super(message);
-      }
-    }
-
-    /**
-     * @return system default trust manager.
-     * @throws UnknownDefaultTrustManagerException, which can be caused by {@link
-     *     NoSuchAlgorithmException} if {@link TrustManagerFactory#getInstance(String)} doesn't
-     *     support default algorithm, {@link KeyStoreException} in case if {@link KeyStore}
-     *     initialization failed or if no {@link X509TrustManager} has been found.
-     */
-    private X509TrustManager getDefaultTrustManager() {
-      TrustManagerFactory tmf;
-      try {
-        tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-        // Using null here initialises the TMF with the default trust store.
-        tmf.init((KeyStore) null);
-      } catch (KeyStoreException | NoSuchAlgorithmException e) {
-        throw new UnknownDefaultTrustManagerException(e);
-      }
-
-      for (TrustManager tm : tmf.getTrustManagers()) {
-        if (tm instanceof X509TrustManager) {
-          return (X509TrustManager) tm;
-        }
-      }
-      throw new UnknownDefaultTrustManagerException(
-          "Unable to find X509TrustManager in the list of default trust managers");
-    }
-
-    /**
-     * Sets default SSL context parameters that can be used with TLS enabled temporal service.
-     * Unlike its secure counterparts this method doesn't use trust store to validate server
-     * authority, which makes it vulnerable to the man in the middle attack. Use with caution.
-     *
-     * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
-     *     format.
-     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
-     * @param keyPassword - the password of the key, or null if it's not password-protected.
-     * @throws SSLException - when it was unable to build the context.
-     */
-    public Builder setSslContextWithInsecureTrustManager(
-        InputStream keyCertChainInputStream, InputStream keyInputStream, String keyPassword)
-        throws SSLException {
-      return setSslContextWith(
-          keyCertChainInputStream,
-          keyInputStream,
-          keyPassword,
-          InsecureTrustManagerFactory.INSTANCE.getTrustManagers()[0]);
-    }
-
-    /**
-     * Sets default SSL context parameters that can be used with TLS enabled temporal service.
-     * Unlike its secure counterparts this method doesn't use trust store to validate server
-     * authority, which makes it vulnerable to the man in the middle attack. Use with caution.
-     *
-     * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
-     *     format.
-     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
-     * @throws SSLException - when it was unable to build the context.
-     */
-    public Builder setSslContextWithInsecureTrustManager(
-        InputStream keyCertChainInputStream, InputStream keyInputStream) throws SSLException {
-      return setSslContextWithInsecureTrustManager(keyCertChainInputStream, keyInputStream, null);
     }
 
     /**
