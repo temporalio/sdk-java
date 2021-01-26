@@ -74,6 +74,9 @@ public class TemporalSslContextBuilder {
    * @throws SSLException - when it was unable to build the context.
    */
   public SslContext build() throws SSLException {
+    if (trustManager != null && useInsecureTrustManager)
+      throw new IllegalArgumentException(
+          "Can not use insecure trust manager if custom trust manager is set.");
     return SslContextBuilder.forClient()
         .trustManager(
             trustManager != null
@@ -88,7 +91,7 @@ public class TemporalSslContextBuilder {
 
   /**
    * @param trustManager - custom trust manager that should be used with the SSLContext for
-   *     verifying server CA * authority.
+   *     verifying server CA authority.
    */
   public void setTrustManager(TrustManager trustManager) {
     this.trustManager = trustManager;
@@ -131,7 +134,7 @@ public class TemporalSslContextBuilder {
       }
     }
     throw new UnknownDefaultTrustManagerException(
-        "Unable to find X509TrustManager in the list of default trust managers");
+        "Unable to find X509TrustManager in the list of default trust managers.");
   }
 
   /**
