@@ -47,8 +47,8 @@ public class SimpleSslContextBuilder {
           // gRPC requires http2 protocol.
           ApplicationProtocolNames.HTTP_2);
 
-  private InputStream keyCertChain;
-  private InputStream key;
+  private final InputStream keyCertChain;
+  private final InputStream key;
   private TrustManager trustManager;
   private boolean useInsecureTrustManager;
   private String keyPassword;
