@@ -266,7 +266,7 @@ public class WorkflowServiceStubsOptions {
 
     /**
      * Sets gRPC SSL Context to use, used for more advanced scenarios such as mTLS. Supersedes
-     * enableHttps; Exclusive with channel. Consider using {@link TemporalSslContextBuilder} which
+     * enableHttps; Exclusive with channel. Consider using {@link SimpleSslContextBuilder} which
      * greatly simplifies creation of the TLS enabled SslContext with client and server key
      * validation.
      */

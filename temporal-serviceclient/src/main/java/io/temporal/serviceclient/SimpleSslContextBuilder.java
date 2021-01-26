@@ -33,7 +33,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
-public class TemporalSslContextBuilder {
+public class SimpleSslContextBuilder {
 
   // Default TLS protocol config that is used to communicate with TLS enabled temporal backend.
   private static final ApplicationProtocolConfig DEFAULT_APPLICATION_PROTOCOL_CONFIG =
@@ -47,21 +47,23 @@ public class TemporalSslContextBuilder {
           // gRPC requires http2 protocol.
           ApplicationProtocolNames.HTTP_2);
 
-  private final InputStream keyCertChainInputStream;
-  private final InputStream keyInputStream;
+  private InputStream keyCertChain;
+  private InputStream key;
   private TrustManager trustManager;
   private boolean useInsecureTrustManager;
   private String keyPassword;
 
   /**
-   * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
-   *     format.
-   * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
+   * @param keyCertChain - an input stream for an X.509 client certificate chain in PEM format.
+   * @param key - an input stream for a PKCS#8 client private key in PEM format.
    */
-  public TemporalSslContextBuilder(
-      InputStream keyCertChainInputStream, InputStream keyInputStream) {
-    this.keyCertChainInputStream = keyCertChainInputStream;
-    this.keyInputStream = keyInputStream;
+  public static SimpleSslContextBuilder newBuilder(InputStream keyCertChain, InputStream key) {
+    return new SimpleSslContextBuilder(keyCertChain, key);
+  }
+
+  private SimpleSslContextBuilder(InputStream keyCertChain, InputStream key) {
+    this.keyCertChain = keyCertChain;
+    this.key = key;
   }
 
   /**
@@ -84,7 +86,7 @@ public class TemporalSslContextBuilder {
                 : useInsecureTrustManager
                     ? InsecureTrustManagerFactory.INSTANCE.getTrustManagers()[0]
                     : getDefaultTrustManager())
-        .keyManager(keyCertChainInputStream, keyInputStream, keyPassword)
+        .keyManager(keyCertChain, key, keyPassword)
         .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG)
         .build();
   }
