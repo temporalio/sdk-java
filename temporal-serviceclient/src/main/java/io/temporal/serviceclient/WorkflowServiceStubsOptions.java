@@ -29,17 +29,20 @@ import io.grpc.netty.shaded.io.netty.handler.ssl.ApplicationProtocolConfig;
 import io.grpc.netty.shaded.io.netty.handler.ssl.ApplicationProtocolNames;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
-import io.grpc.netty.shaded.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
 import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
 public class WorkflowServiceStubsOptions {
 
@@ -285,7 +288,7 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Sets gRPC SSL Context to use, used for more advanced scenarios such as mTLS. Supercedes
+     * Sets gRPC SSL Context to use, used for more advanced scenarios such as mTLS. Supersedes
      * enableHttps; Exclusive with channel.
      */
     public Builder setSslContext(SslContext sslContext) {
@@ -294,26 +297,25 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Sets default SSL context parameters that can be used with the temporal cloud service. Users
+     * Sets default SSL context parameters that can be used with TLS enabled temporal service. Users
      * that require additional customization may use {@link #setSslContext(SslContext)} directly.
      *
      * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
      *     format.
-     * @param keyPassword - the password of the key, or null if it's not password-protected.
      * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
-     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
-     *     certificate.
+     * @param keyPassword - the password of the key, or null if it's not password-protected.
+     * @param trustManager - {@link TrustManager} that can verify server CA authority.
      * @throws SSLException - when it was unable to build the context.
      */
     public Builder setSslContextWith(
         InputStream keyCertChainInputStream,
-        String keyPassword,
         InputStream keyInputStream,
-        String... fingerprints)
+        String keyPassword,
+        TrustManager trustManager)
         throws SSLException {
       this.sslContext =
           SslContextBuilder.forClient()
-              .trustManager(new FingerprintTrustManagerFactory(fingerprints))
+              .trustManager(trustManager)
               .keyManager(keyCertChainInputStream, keyInputStream, keyPassword)
               .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG)
               .build();
@@ -321,130 +323,103 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Convenience method that overloads {@link #setSslContextWith(InputStream, String, InputStream,
-     * String...)} and uses no key password.
+     * Convenience method that overloads and uses default trust manager.
      *
      * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
      *     format.
      * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
-     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
-     *     certificate.
+     * @param keyPassword - the password of the key, or null if it's not password-protected.
      */
     public Builder setSslContextWith(
-        InputStream keyCertChainInputStream, InputStream keyInputStream, String... fingerprints)
-        throws IOException {
-      return setSslContextWith(keyCertChainInputStream, null, keyInputStream, fingerprints);
+        InputStream keyCertChainInputStream, InputStream keyInputStream, String keyPassword)
+        throws Exception {
+      return setSslContextWith(
+          keyCertChainInputStream, keyInputStream, keyPassword, getDefaultTrustManager());
     }
 
     /**
-     * Sets default SSL context parameters that can be used with the temporal cloud service. Unlike
-     * it's counterpart doesn't use fingerprints to validate server authority, which makes it
-     * vulnerable to the man in the middle attack. Use with caution. Users that require additional
-     * customization may use {@link #setSslContext(SslContext)} directly.
+     * Convenience method that overloads and uses no key password and default trust manager.
      *
      * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
      *     format.
+     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
+     */
+    public Builder setSslContextWith(
+        InputStream keyCertChainInputStream, InputStream keyInputStream) throws Exception {
+      return setSslContextWith(
+          keyCertChainInputStream, keyInputStream, null, getDefaultTrustManager());
+    }
+
+    public static final class UnknownDefaultTrustManagerException extends RuntimeException {
+      public UnknownDefaultTrustManagerException(Throwable cause) {
+        super(cause);
+      }
+
+      public UnknownDefaultTrustManagerException(String message) {
+        super(message);
+      }
+    }
+
+    /**
+     * @return system default trust manager.
+     * @throws UnknownDefaultTrustManagerException, which can be caused by {@link
+     *     NoSuchAlgorithmException} if {@link TrustManagerFactory#getInstance(String)} doesn't
+     *     support default algorithm, {@link KeyStoreException} in case if {@link KeyStore}
+     *     initialization failed or if no {@link X509TrustManager} has been found.
+     */
+    private X509TrustManager getDefaultTrustManager() {
+      TrustManagerFactory tmf;
+      try {
+        tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        // Using null here initialises the TMF with the default trust store.
+        tmf.init((KeyStore) null);
+      } catch (KeyStoreException | NoSuchAlgorithmException e) {
+        throw new UnknownDefaultTrustManagerException(e);
+      }
+
+      for (TrustManager tm : tmf.getTrustManagers()) {
+        if (tm instanceof X509TrustManager) {
+          return (X509TrustManager) tm;
+        }
+      }
+      throw new UnknownDefaultTrustManagerException(
+          "Unable to find X509TrustManager in the list of default trust managers");
+    }
+
+    /**
+     * Sets default SSL context parameters that can be used with TLS enabled temporal service.
+     * Unlike its secure counterparts this method doesn't use trust store to validate server
+     * authority, which makes it vulnerable to the man in the middle attack. Use with caution.
+     *
+     * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
+     *     format.
+     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
      * @param keyPassword - the password of the key, or null if it's not password-protected.
-     * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
      * @throws SSLException - when it was unable to build the context.
      */
-    public Builder setInsecureSslContextWith(
-        InputStream keyCertChainInputStream, String keyPassword, InputStream keyInputStream)
+    public Builder setSslContextWithInsecureTrustManager(
+        InputStream keyCertChainInputStream, InputStream keyInputStream, String keyPassword)
         throws SSLException {
-      this.sslContext =
-          SslContextBuilder.forClient()
-              .trustManager(InsecureTrustManagerFactory.INSTANCE)
-              .keyManager(keyCertChainInputStream, keyInputStream, keyPassword)
-              .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG)
-              .build();
-      return this;
+      return setSslContextWith(
+          keyCertChainInputStream,
+          keyInputStream,
+          keyPassword,
+          InsecureTrustManagerFactory.INSTANCE.getTrustManagers()[0]);
     }
 
     /**
-     * Sets default SSL context parameters that can be used with the temporal cloud service. Unlike
-     * it's counterpart doesn't use fingerprints to validate server authority, which makes it
-     * vulnerable to the man in the middle attack. Use with caution. Users that require additional
-     * customization may use {@link #setSslContext(SslContext)} directly.
+     * Sets default SSL context parameters that can be used with TLS enabled temporal service.
+     * Unlike its secure counterparts this method doesn't use trust store to validate server
+     * authority, which makes it vulnerable to the man in the middle attack. Use with caution.
      *
      * @param keyCertChainInputStream - an input stream for an X.509 client certificate chain in PEM
      *     format.
      * @param keyInputStream - an input stream for a PKCS#8 client private key in PEM format.
      * @throws SSLException - when it was unable to build the context.
      */
-    public Builder setInsecureSslContextWith(
+    public Builder setSslContextWithInsecureTrustManager(
         InputStream keyCertChainInputStream, InputStream keyInputStream) throws SSLException {
-      return setInsecureSslContextWith(keyCertChainInputStream, null, keyInputStream);
-    }
-
-    /**
-     * Sets default SSL context parameters that can be used with the temporal cloud service. Users
-     * that require additional customization may use {@link #setSslContext(SslContext)} directly.
-     *
-     * @param keyCertChainFile - an X.509 client certificate chain file in PEM format.
-     * @param keyPassword - the password of the key, or null if it's not password-protected.
-     * @param keyFile - a PKCS#8 client private key file in PEM format.
-     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
-     *     certificate.
-     */
-    public Builder setSslContextWith(
-        File keyCertChainFile, String keyPassword, File keyFile, String... fingerprints)
-        throws IOException {
-      this.sslContext =
-          SslContextBuilder.forClient()
-              .trustManager(new FingerprintTrustManagerFactory(fingerprints))
-              .keyManager(keyCertChainFile, keyFile, keyPassword)
-              .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG)
-              .build();
-      return this;
-    }
-
-    /**
-     * Convenience method that overloads {@link #setSslContextWith(File, String, File, String...)}
-     * and uses no key password.
-     *
-     * @param keyCertChainFile - an X.509 client certificate chain file in PEM format.
-     * @param keyFile - a PKCS#8 client private key file in PEM format.
-     * @param fingerprints - a list of SHA1 fingerprints in hexadecimal form of the server's root
-     *     certificate.
-     */
-    public Builder setSslContextWith(File keyCertChainFile, File keyFile, String... fingerprints)
-        throws IOException {
-      return setSslContextWith(keyCertChainFile, null, keyFile, fingerprints);
-    }
-
-    /**
-     * Sets default SSL context parameters that can be used with the temporal cloud service. Unlike
-     * it's counterpart doesn't use fingerprints to validate server authority, which makes it
-     * vulnerable to the man in the middle attack. Use with caution. Users that require additional
-     * customization may use {@link #setSslContext(SslContext)} directly.
-     *
-     * @param keyCertChainFile - an X.509 client certificate chain file in PEM format.
-     * @param keyPassword - the password of the key, or null if it's not password-protected.
-     * @param keyFile - a PKCS#8 client private key file in PEM format.
-     */
-    public Builder setInsecureSslContextWith(
-        File keyCertChainFile, String keyPassword, File keyFile) throws IOException {
-      this.sslContext =
-          SslContextBuilder.forClient()
-              .trustManager(InsecureTrustManagerFactory.INSTANCE)
-              .keyManager(keyCertChainFile, keyFile, keyPassword)
-              .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG)
-              .build();
-      return this;
-    }
-
-    /**
-     * Sets default SSL context parameters that can be used with the temporal cloud service. Unlike
-     * it's counterpart doesn't use fingerprints to validate server authority, which makes it
-     * vulnerable to the man in the middle attack. Use with caution. Users that require additional
-     * customization may use {@link #setSslContext(SslContext)} directly.
-     *
-     * @param keyCertChainFile - an X.509 client certificate chain file in PEM format.
-     * @param keyFile - a PKCS#8 client private key file in PEM format.
-     */
-    public Builder setInsecureSslContextWith(File keyCertChainFile, File keyFile)
-        throws IOException {
-      return setInsecureSslContextWith(keyCertChainFile, null, keyFile);
+      return setSslContextWithInsecureTrustManager(keyCertChainInputStream, keyInputStream, null);
     }
 
     /**
