@@ -17,16 +17,28 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.interceptors;
 
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.common.interceptors.Header;
-import java.util.Optional;
+import io.temporal.api.common.v1.Payload;
+import java.util.HashMap;
+import java.util.Map;
 
-interface SyncWorkflowDefinition {
+public class Header {
+  private final Map<String, Payload> values;
 
-  /** Always called first. */
-  void initialize();
+  public Header(io.temporal.api.common.v1.Header header) {
+    values = header.getFieldsMap();
+  }
 
-  Optional<Payloads> execute(Header header, Optional<Payloads> input);
+  public static Header empty() {
+    return new Header(new HashMap<>());
+  }
+
+  public Header(Map<String, Payload> values) {
+    this.values = values;
+  }
+
+  public Map<String, Payload> getValues() {
+    return values;
+  }
 }

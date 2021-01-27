@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ChildWorkflowOutput;
 import io.temporal.failure.TemporalFailure;
@@ -31,7 +32,6 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.util.Objects;
 
 class ChildWorkflowStubImpl implements ChildWorkflowStub {
@@ -98,7 +98,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
     ChildWorkflowOutput<R> result =
         outboundCallsInterceptor.executeChildWorkflow(
             new WorkflowOutboundCallsInterceptor.ChildWorkflowInput<>(
-                workflowType, resultClass, resultType, args, options, new HashMap<>()));
+                workflowType, resultClass, resultType, args, options, Header.empty()));
     execution.completeFrom(result.getWorkflowExecution());
     return result.getResult();
   }

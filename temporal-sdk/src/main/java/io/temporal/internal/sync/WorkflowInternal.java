@@ -27,6 +27,7 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -54,7 +55,6 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -281,7 +281,7 @@ public final class WorkflowInternal {
         getWorkflowInterceptor()
             .executeActivity(
                 new WorkflowOutboundCallsInterceptor.ActivityInput<>(
-                    name, resultClass, resultType, args, options, new HashMap<>()))
+                    name, resultClass, resultType, args, options, Header.empty()))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
@@ -384,7 +384,7 @@ public final class WorkflowInternal {
     getWorkflowInterceptor()
         .continueAsNew(
             new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
-                workflowType, options, args, new HashMap<>()));
+                workflowType, options, args, Header.empty()));
   }
 
   public static void continueAsNew(
@@ -394,7 +394,7 @@ public final class WorkflowInternal {
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     outboundCallsInterceptor.continueAsNew(
         new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
-            workflowType, options, args, new HashMap<>()));
+            workflowType, options, args, Header.empty()));
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {

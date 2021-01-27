@@ -28,10 +28,12 @@ import java.util.Map;
 
 public class HeaderUtils {
 
-  public static Header toHeaderGrpc(Map<String, Payload> header, Map<String, Payload> headers) {
-    Header.Builder builder = Header.newBuilder().putAllFields(header);
-    if (headers != null) {
-      for (Map.Entry<String, Payload> item : headers.entrySet()) {
+  public static Header toHeaderGrpc(
+      io.temporal.common.interceptors.Header header,
+      io.temporal.common.interceptors.Header overrides) {
+    Header.Builder builder = Header.newBuilder().putAllFields(header.getValues());
+    if (overrides != null) {
+      for (Map.Entry<String, Payload> item : overrides.getValues().entrySet()) {
         builder.putFields(item.getKey(), item.getValue());
       }
     }

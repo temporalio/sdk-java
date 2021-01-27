@@ -23,12 +23,12 @@ import static io.temporal.internal.common.CheckedExceptionWrapper.wrap;
 import static io.temporal.internal.sync.WorkflowInternal.unwrap;
 
 import com.google.common.base.Preconditions;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
@@ -264,7 +264,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
 
     @Override
-    public Optional<Payloads> execute(Map<String, Payload> header, Optional<Payloads> input)
+    public Optional<Payloads> execute(Header header, Optional<Payloads> input)
         throws CanceledFailure, WorkflowExecutionException {
       Object[] args =
           DataConverter.arrayFromPayloads(

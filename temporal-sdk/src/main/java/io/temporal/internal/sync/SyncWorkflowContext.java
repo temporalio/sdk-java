@@ -30,7 +30,6 @@ import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
-import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
@@ -46,6 +45,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
@@ -148,7 +148,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private Promise<Optional<Payloads>> executeActivityOnce(
-      String name, ActivityOptions options, Map<String, Payload> header, Optional<Payloads> input) {
+      String name, ActivityOptions options, Header header, Optional<Payloads> input) {
     ActivityCallback callback = new ActivityCallback();
     ExecuteActivityParameters params =
         constructExecuteActivityParameters(name, options, header, input);
@@ -231,7 +231,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private Promise<Optional<Payloads>> executeLocalActivityOnce(
       String name,
       LocalActivityOptions options,
-      Map<String, Payload> header,
+      Header header,
       Optional<Payloads> input,
       int attempt) {
     ActivityCallback callback = new ActivityCallback();
@@ -250,7 +250,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private ExecuteActivityParameters constructExecuteActivityParameters(
-      String name, ActivityOptions options, Map<String, Payload> header, Optional<Payloads> input) {
+      String name, ActivityOptions options, Header header, Optional<Payloads> input) {
     String taskQueue = options.getTaskQueue();
     if (taskQueue == null) {
       taskQueue = context.getTaskQueue();
@@ -281,7 +281,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (propagators == null) {
       propagators = this.contextPropagators;
     }
-    Header grpcHeader = toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
+    io.temporal.api.common.v1.Header grpcHeader =
+        toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
     if (grpcHeader != null) {
       attributes.setHeader(grpcHeader);
     }
@@ -308,7 +309,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
       String name,
       LocalActivityOptions options,
-      Map<String, Payload> header,
+      Header header,
       Optional<Payloads> input,
       int attempt) {
     options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
@@ -326,7 +327,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
-    Header grpcHeader = toHeaderGrpc(header, extractContextsAndConvertToBytes(contextPropagators));
+    io.temporal.api.common.v1.Header grpcHeader =
+        toHeaderGrpc(header, extractContextsAndConvertToBytes(contextPropagators));
     if (grpcHeader != null) {
       activityTask.setHeader(grpcHeader);
     }
@@ -359,7 +361,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private Promise<Optional<Payloads>> executeChildWorkflow(
       String name,
       ChildWorkflowOptions options,
-      Map<String, Payload> header,
+      Header header,
       Optional<Payloads> input,
       CompletablePromise<WorkflowExecution> executionResult) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
@@ -405,7 +407,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
-    Header grpcHeader = toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
+    io.temporal.api.common.v1.Header grpcHeader =
+        toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
     if (grpcHeader != null) {
       attributes.setHeader(grpcHeader);
     }
@@ -448,8 +451,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return result;
   }
 
-  private Map<String, Payload> extractContextsAndConvertToBytes(
-      List<ContextPropagator> contextPropagators) {
+  private Header extractContextsAndConvertToBytes(List<ContextPropagator> contextPropagators) {
     if (contextPropagators == null) {
       return null;
     }
@@ -457,7 +459,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     for (ContextPropagator propagator : contextPropagators) {
       result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
     }
-    return result;
+    return new Header(result);
   }
 
   private RuntimeException mapChildWorkflowException(Exception failure) {
