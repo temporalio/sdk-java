@@ -104,25 +104,25 @@ class SignalDispatcher {
   public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
     WorkflowOutboundCallsInterceptor.SignalRegistrationRequest handler =
         signalCallbacks.get(signalName);
+    Object[] args;
     if (handler == null) {
-      if (dynamicSignalHandler != null) {
-        inboundCallsInterceptor.handleSignal(
-            new WorkflowInboundCallsInterceptor.SignalInput(
-                signalName, new Object[] {new EncodedValues(input, converter)}, eventId));
-      } else {
+      if (dynamicSignalHandler == null) {
         signalBuffer.add(new SignalData(signalName, input, eventId));
+        return;
       }
+      args = new Object[] {new EncodedValues(input, converter)};
     } else {
       try {
-        Object[] args =
+        args =
             DataConverter.arrayFromPayloads(
                 converter, input, handler.getArgTypes(), handler.getGenericArgTypes());
-        inboundCallsInterceptor.handleSignal(
-            new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId));
       } catch (DataConverterException e) {
         logSerializationException(signalName, eventId, e);
+        return;
       }
     }
+    inboundCallsInterceptor.handleSignal(
+        new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId));
   }
 
   public void registerSignalHandlers(

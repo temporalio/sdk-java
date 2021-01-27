@@ -72,27 +72,21 @@ class QueryDispatcher {
 
   public Optional<Payloads> handleQuery(String queryName, Optional<Payloads> input) {
     WorkflowOutboundCallsInterceptor.RegisterQueryInput handler = queryCallbacks.get(queryName);
-    Object result;
+    Object[] args;
     if (handler == null) {
-      if (dynamicQueryHandler != null) {
-        result =
-            inboundCallsInterceptor
-                .handleQuery(
-                    new WorkflowInboundCallsInterceptor.QueryInput(
-                        queryName, new Object[] {new EncodedValues(input, converter)}))
-                .getResult();
-      } else {
+      if (dynamicQueryHandler == null) {
         throw new IllegalStateException("Unknown query type: " + queryName);
       }
+      args = new Object[] {new EncodedValues(input, converter)};
     } else {
-      Object[] args =
+      args =
           DataConverter.arrayFromPayloads(
               converter, input, handler.getArgTypes(), handler.getGenericArgTypes());
-      result =
-          inboundCallsInterceptor
-              .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, args))
-              .getResult();
     }
+    Object result =
+        inboundCallsInterceptor
+            .handleQuery(new WorkflowInboundCallsInterceptor.QueryInput(queryName, args))
+            .getResult();
     return converter.toPayloads(result);
   }
 
