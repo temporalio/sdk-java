@@ -23,8 +23,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.interceptors.ActivityInterceptor;
-import io.temporal.common.interceptors.WorkflowInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
@@ -62,8 +61,7 @@ public class SyncWorkflowWorker
       WorkflowServiceStubs service,
       String namespace,
       String taskQueue,
-      WorkflowInterceptor[] workflowInterceptors,
-      ActivityInterceptor[] activityInterceptors,
+      WorkerInterceptor[] workerInterceptors,
       SingleWorkerOptions workflowOptions,
       SingleWorkerOptions localActivityOptions,
       WorkflowExecutorCache cache,
@@ -77,7 +75,7 @@ public class SyncWorkflowWorker
         new POJOWorkflowImplementationFactory(
             workflowOptions.getDataConverter(),
             workflowThreadPool,
-            workflowInterceptors,
+            workerInterceptors,
             cache,
             workflowOptions.getContextPropagators());
 
@@ -87,7 +85,7 @@ public class SyncWorkflowWorker
             namespace,
             localActivityOptions.getDataConverter(),
             heartbeatExecutor,
-            activityInterceptors);
+            workerInterceptors);
     laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
 
     WorkflowTaskHandler taskHandler =

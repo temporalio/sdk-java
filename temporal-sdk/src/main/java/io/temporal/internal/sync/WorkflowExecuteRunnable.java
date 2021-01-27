@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.common.interceptors.Header;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -49,7 +50,7 @@ class WorkflowExecuteRunnable implements Runnable {
     try {
       Optional<Payloads> input =
           attributes.hasInput() ? Optional.of(attributes.getInput()) : Optional.empty();
-      output = workflow.execute(input);
+      output = workflow.execute(new Header(attributes.getHeader()), input);
     } finally {
       done = true;
     }
@@ -67,11 +68,11 @@ class WorkflowExecuteRunnable implements Runnable {
 
   public void close() {}
 
-  public void processSignal(String signalName, Optional<Payloads> input, long eventId) {
-    context.signal(signalName, input, eventId);
+  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
+    context.handleSignal(signalName, input, eventId);
   }
 
-  public Optional<Payloads> query(String type, Optional<Payloads> args) {
-    return context.query(type, args);
+  public Optional<Payloads> handleQuery(String type, Optional<Payloads> args) {
+    return context.handleQuery(type, args);
   }
 }

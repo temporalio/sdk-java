@@ -42,9 +42,10 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
-import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
@@ -341,10 +342,22 @@ public class MetricsTest {
   public void testCorruptedSignalMetrics() throws InterruptedException {
     setUp(
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptors(
-                new CorruptedSignalWorkflowInterceptor(),
+            .setWorkerInterceptors(
+                new CorruptedSignalWorkerInterceptor(),
                 // Add noop just to test that list of interceptors is working.
-                next -> new WorkflowInboundCallsInterceptorBase(next))
+                new WorkerInterceptor() {
+                  @Override
+                  public WorkflowInboundCallsInterceptor interceptWorkflow(
+                      WorkflowInboundCallsInterceptor next) {
+                    return next;
+                  }
+
+                  @Override
+                  public ActivityInboundCallsInterceptor interceptActivity(
+                      ActivityInboundCallsInterceptor next) {
+                    return next;
+                  }
+                })
             .build());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
@@ -376,7 +389,7 @@ public class MetricsTest {
     reporter.assertCounter(CORRUPTED_SIGNALS_COUNTER, tags, 1);
   }
 
-  private static class CorruptedSignalWorkflowInterceptor implements WorkflowInterceptor {
+  private static class CorruptedSignalWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
@@ -396,13 +409,18 @@ public class MetricsTest {
         }
       };
     }
+
+    @Override
+    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
+      return next;
+    }
   }
 
   @Test
   public void testTemporalFailureMetric() throws InterruptedException {
     setUp(
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptors(new CorruptedSignalWorkflowInterceptor())
+            .setWorkerInterceptors(new CorruptedSignalWorkerInterceptor())
             .build());
 
     try {
@@ -437,7 +455,7 @@ public class MetricsTest {
   public void testTemporalInvalidRequestMetric() throws InterruptedException {
     setUp(
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptors(new CorruptedSignalWorkflowInterceptor())
+            .setWorkerInterceptors(new CorruptedSignalWorkerInterceptor())
             .build());
 
     try {

@@ -59,11 +59,10 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
 import io.temporal.common.interceptors.ActivityExecutionContextBase;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
-import io.temporal.common.interceptors.ActivityInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
-import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
@@ -87,7 +86,6 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Functions.Func1;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -131,7 +129,7 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
   public static final String BINARY_CHECKSUM = "testChecksum";
 
-  private TracingWorkflowInterceptor tracer;
+  private TracingWorkerInterceptor tracer;
   private static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
@@ -259,8 +257,7 @@ public class WorkflowTest {
       taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
     }
     FilteredTrace trace = new FilteredTrace();
-    tracer = new TracingWorkflowInterceptor(trace);
-    ActivityInterceptor activityInterceptor = new TracingActivityInterceptor(trace);
+    tracer = new TracingWorkerInterceptor(trace);
     // TODO: Create a version of TestWorkflowEnvironment that runs against a real service.
     lastStartedWorkflowType.set(null);
     WorkflowClientOptions workflowClientOptions =
@@ -280,8 +277,7 @@ public class WorkflowTest {
     boolean versionTest = testMethod.contains("GetVersion") || testMethod.contains("Deterministic");
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptors(tracer)
-            .setActivityInterceptors(activityInterceptor)
+            .setWorkerInterceptors(tracer)
             .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
             .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(
                 versionTest ? Duration.ZERO : Duration.ofSeconds(10))
@@ -3786,7 +3782,8 @@ public class WorkflowTest {
         "executeChildWorkflow SignalingChild",
         "interceptExecuteWorkflow " + UUID_REGEXP, // child
         "newThread workflow-method",
-        "signalExternalWorkflow " + UUID_REGEXP + " testSignal");
+        "signalExternalWorkflow " + UUID_REGEXP + " testSignal",
+        "handleSignal testSignal");
   }
 
   public static class TestUntypedSignalExternalWorkflow implements TestWorkflowSignaled {
@@ -6830,14 +6827,26 @@ public class WorkflowTest {
         assertTrue(e.getMessage().contains("Unknown query type: getSignal"));
       }
     }
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "registerSignalHandlers register",
+        "newThread workflow-method",
+        "await await",
+        "handleSignal register",
+        "registerQuery getSignal",
+        "registerSignalHandlers signal",
+        "handleSignal signal",
+        "handleSignal signal",
+        "handleQuery getSignal",
+        "query getSignal");
   }
 
-  private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
+  private static class TracingWorkerInterceptor implements WorkerInterceptor {
 
     private final FilteredTrace trace;
     private List<String> expected;
 
-    private TracingWorkflowInterceptor(FilteredTrace trace) {
+    private TracingWorkerInterceptor(FilteredTrace trace) {
       this.trace = trace;
     }
 
@@ -6846,7 +6855,6 @@ public class WorkflowTest {
     }
 
     public void setExpected(String... expected) {
-
       this.expected = Arrays.asList(expected);
     }
 
@@ -6885,7 +6893,59 @@ public class WorkflowTest {
         public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
           next.init(new TracingWorkflowOutboundCallsInterceptor(trace, outboundCalls));
         }
+
+        @Override
+        public void handleSignal(SignalInput input) {
+          trace.add("handleSignal " + input.getSignalName());
+          super.handleSignal(input);
+        }
+
+        @Override
+        public QueryOutput handleQuery(QueryInput input) {
+          trace.add("handleQuery " + input.getQueryName());
+          return super.handleQuery(input);
+        }
       };
+    }
+
+    @Override
+    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
+      return new TracingActivityInboundCallsInterceptor(trace, next);
+    }
+  }
+
+  private static class TracingActivityInboundCallsInterceptor
+      implements ActivityInboundCallsInterceptor {
+
+    private final FilteredTrace trace;
+    private final ActivityInboundCallsInterceptor next;
+    private String type;
+    private boolean local;
+
+    public TracingActivityInboundCallsInterceptor(
+        FilteredTrace trace, ActivityInboundCallsInterceptor next) {
+      this.trace = trace;
+      this.next = next;
+    }
+
+    @Override
+    public void init(ActivityExecutionContext context) {
+      this.type = context.getInfo().getActivityType();
+      this.local = context.getInfo().isLocal();
+      next.init(
+          new ActivityExecutionContextBase(context) {
+            @Override
+            public <V> void heartbeat(V details) throws ActivityCompletionException {
+              trace.add("heartbeat " + details);
+              super.heartbeat(details);
+            }
+          });
+    }
+
+    @Override
+    public Object execute(Object[] arguments) {
+      trace.add((local ? "local " : "") + "activity " + type);
+      return next.execute(arguments);
     }
   }
 
@@ -6899,47 +6959,33 @@ public class WorkflowTest {
         FilteredTrace trace, WorkflowOutboundCallsInterceptor next) {
       WorkflowInfo workflowInfo =
           Workflow.getInfo(); // checks that info is available in the constructor
+      assertNotNull(workflowInfo);
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
     }
 
     @Override
-    public <R> Promise<R> executeActivity(
-        String activityName,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        ActivityOptions options) {
+    public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {
       if (!Workflow.isReplaying()) {
-        trace.add("executeActivity " + activityName);
+        trace.add("executeActivity " + input.getActivityName());
       }
-      return next.executeActivity(activityName, resultClass, resultType, args, options);
+      return next.executeActivity(input);
     }
 
     @Override
-    public <R> Promise<R> executeLocalActivity(
-        String activityName,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        LocalActivityOptions options) {
+    public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
       if (!Workflow.isReplaying()) {
-        trace.add("executeLocalActivity " + activityName);
+        trace.add("executeLocalActivity " + input.getActivityName());
       }
-      return next.executeLocalActivity(activityName, resultClass, resultType, args, options);
+      return next.executeLocalActivity(input);
     }
 
     @Override
-    public <R> WorkflowResult<R> executeChildWorkflow(
-        String workflowType,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        ChildWorkflowOptions options) {
+    public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
       if (!Workflow.isReplaying()) {
-        trace.add("executeChildWorkflow " + workflowType);
+        trace.add("executeChildWorkflow " + input.getWorkflowType());
       }
-      return next.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
+      return next.executeChildWorkflow(input);
     }
 
     @Override
@@ -6951,20 +6997,23 @@ public class WorkflowTest {
     }
 
     @Override
-    public Promise<Void> signalExternalWorkflow(
-        WorkflowExecution execution, String signalName, Object[] args) {
+    public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
       if (!Workflow.isReplaying()) {
-        trace.add("signalExternalWorkflow " + execution.getWorkflowId() + " " + signalName);
+        trace.add(
+            "signalExternalWorkflow "
+                + input.getExecution().getWorkflowId()
+                + " "
+                + input.getSignalName());
       }
-      return next.signalExternalWorkflow(execution, signalName, args);
+      return next.signalExternalWorkflow(input);
     }
 
     @Override
-    public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+    public CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input) {
       if (!Workflow.isReplaying()) {
-        trace.add("cancelWorkflow " + execution.getWorkflowId());
+        trace.add("cancelWorkflow " + input.getExecution().getWorkflowId());
       }
-      return next.cancelWorkflow(execution);
+      return next.cancelWorkflow(input);
     }
 
     @Override
@@ -7025,44 +7074,41 @@ public class WorkflowTest {
     }
 
     @Override
-    public void continueAsNew(
-        Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+    public void continueAsNew(ContinueAsNewInput input) {
       if (!Workflow.isReplaying()) {
         trace.add("continueAsNew");
       }
-      next.continueAsNew(workflowType, options, args);
+      next.continueAsNew(input);
     }
 
     @Override
-    public void registerQuery(
-        String queryType,
-        Class<?>[] argTypes,
-        Type[] genericArgTypes,
-        Func1<Object[], Object> callback) {
+    public void registerQuery(RegisterQueryInput input) {
+      String queryType = input.getQueryType();
       if (!Workflow.isReplaying()) {
         trace.add("registerQuery " + queryType);
       }
       next.registerQuery(
-          queryType,
-          argTypes,
-          genericArgTypes,
-          (args) -> {
-            Object result = callback.apply(args);
-            if (!Workflow.isReplaying()) {
-              if (queryType.equals("query")) {
-                log.trace("query", new Throwable());
-              }
-              trace.add("query " + queryType);
-            }
-            return result;
-          });
+          new RegisterQueryInput(
+              queryType,
+              input.getArgTypes(),
+              input.getGenericArgTypes(),
+              (args) -> {
+                Object result = input.getCallback().apply(args);
+                if (!Workflow.isReplaying()) {
+                  if (queryType.equals("query")) {
+                    log.trace("query", new Throwable());
+                  }
+                  trace.add("query " + queryType);
+                }
+                return result;
+              }));
     }
 
     @Override
-    public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
+    public void registerSignalHandlers(RegisterSignalHandlersInput input) {
       if (!Workflow.isReplaying()) {
         StringBuilder signals = new StringBuilder();
-        for (SignalRegistrationRequest request : requests) {
+        for (SignalRegistrationRequest request : input.getRequests()) {
           if (signals.length() > 0) {
             signals.append(", ");
           }
@@ -7070,23 +7116,23 @@ public class WorkflowTest {
         }
         trace.add("registerSignalHandlers " + signals);
       }
-      next.registerSignalHandlers(requests);
+      next.registerSignalHandlers(input);
     }
 
     @Override
-    public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
+    public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
       if (!Workflow.isReplaying()) {
         trace.add("registerDynamicSignalHandler");
       }
-      next.registerDynamicSignalHandler(handler);
+      next.registerDynamicSignalHandler(input);
     }
 
     @Override
-    public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
+    public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
       if (!Workflow.isReplaying()) {
         trace.add("registerDynamicQueryHandler");
       }
-      next.registerDynamicQueryHandler(handler);
+      next.registerDynamicQueryHandler(input);
     }
 
     @Override
@@ -7119,55 +7165,6 @@ public class WorkflowTest {
         trace.add("currentTimeMillis");
       }
       return next.currentTimeMillis();
-    }
-  }
-
-  private static class TracingActivityInterceptor implements ActivityInterceptor {
-
-    private final FilteredTrace trace;
-
-    private TracingActivityInterceptor(FilteredTrace trace) {
-      this.trace = trace;
-    }
-
-    @Override
-    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
-      return new TracingActivityInboundCallsInterceptor(trace, next);
-    }
-  }
-
-  private static class TracingActivityInboundCallsInterceptor
-      implements ActivityInboundCallsInterceptor {
-
-    private final FilteredTrace trace;
-    private final ActivityInboundCallsInterceptor next;
-    private String type;
-    private boolean local;
-
-    public TracingActivityInboundCallsInterceptor(
-        FilteredTrace trace, ActivityInboundCallsInterceptor next) {
-      this.trace = trace;
-      this.next = next;
-    }
-
-    @Override
-    public void init(ActivityExecutionContext context) {
-      this.type = context.getInfo().getActivityType();
-      this.local = context.getInfo().isLocal();
-      next.init(
-          new ActivityExecutionContextBase(context) {
-            @Override
-            public <V> void heartbeat(V details) throws ActivityCompletionException {
-              trace.add("heartbeat " + details);
-              super.heartbeat(details);
-            }
-          });
-    }
-
-    @Override
-    public Object execute(Object[] arguments) {
-      trace.add((local ? "local " : "") + "activity " + type);
-      return next.execute(arguments);
     }
   }
 }

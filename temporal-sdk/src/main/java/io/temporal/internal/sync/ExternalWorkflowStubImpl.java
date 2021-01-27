@@ -47,7 +47,11 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
   @Override
   public void signal(String signalName, Object... args) {
     Promise<Void> signaled =
-        outboundCallsInterceptor.signalExternalWorkflow(execution, signalName, args);
+        outboundCallsInterceptor
+            .signalExternalWorkflow(
+                new WorkflowOutboundCallsInterceptor.SignalExternalInput(
+                    execution, signalName, args))
+            .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);
       return;
@@ -64,7 +68,10 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
-    Promise<Void> cancelRequested = outboundCallsInterceptor.cancelWorkflow(execution);
+    Promise<Void> cancelRequested =
+        outboundCallsInterceptor
+            .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))
+            .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(cancelRequested);
       return;

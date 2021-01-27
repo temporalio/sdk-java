@@ -24,6 +24,91 @@ package io.temporal.common.interceptors;
  * restrictions on the workflow code should be obeyed.
  */
 public interface WorkflowInboundCallsInterceptor {
+
+  final class WorkflowInput {
+    private final Header header;
+    private final Object[] arguments;
+
+    public WorkflowInput(Header header, Object[] arguments) {
+      this.header = header;
+      this.arguments = arguments;
+    }
+
+    public Header getHeader() {
+      return header;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+  }
+
+  final class WorkflowOutput {
+    private final Object result;
+
+    public WorkflowOutput(Object result) {
+      this.result = result;
+    }
+
+    public Object getResult() {
+      return result;
+    }
+  }
+
+  final class SignalInput {
+    private final String signalName;
+    private final Object[] arguments;
+    private final long EventId;
+
+    public SignalInput(String signalName, Object[] arguments, long eventId) {
+      this.signalName = signalName;
+      this.arguments = arguments;
+      EventId = eventId;
+    }
+
+    public String getSignalName() {
+      return signalName;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+
+    public long getEventId() {
+      return EventId;
+    }
+  }
+
+  final class QueryInput {
+    private final String queryName;
+    private final Object[] arguments;
+
+    public QueryInput(String signalName, Object[] arguments) {
+      this.queryName = signalName;
+      this.arguments = arguments;
+    }
+
+    public String getQueryName() {
+      return queryName;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+  }
+
+  final class QueryOutput {
+    private final Object result;
+
+    public QueryOutput(Object result) {
+      this.result = result;
+    }
+
+    public Object getResult() {
+      return result;
+    }
+  }
+
   /**
    * Called when workflow class is instantiated.
    *
@@ -36,8 +121,11 @@ public interface WorkflowInboundCallsInterceptor {
    *
    * @return result of the workflow execution.
    */
-  Object execute(Object[] arguments);
+  WorkflowOutput execute(WorkflowInput input);
 
-  /** Called when signal is delivered to the workflow instance. */
-  void processSignal(String signalName, Object[] arguments, long EventId);
+  /** Called when signal is delivered to a workflow execution. */
+  void handleSignal(SignalInput input);
+
+  /** Called when a workflow is queried. */
+  QueryOutput handleQuery(QueryInput input);
 }

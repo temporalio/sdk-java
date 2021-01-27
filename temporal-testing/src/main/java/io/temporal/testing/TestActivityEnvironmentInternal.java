@@ -29,7 +29,6 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -56,13 +55,8 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ContinueAsNewOptions;
-import io.temporal.workflow.DynamicQueryHandler;
-import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.io.IOException;
@@ -70,7 +64,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -128,7 +121,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor,
-            testEnvironmentOptions.getWorkerFactoryOptions().getActivityInterceptors());
+            testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors());
   }
 
   private class HeartbeatInterceptingService extends WorkflowServiceGrpc.WorkflowServiceImplBase {
@@ -232,14 +225,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private class TestActivityExecutor implements WorkflowOutboundCallsInterceptor {
 
     @Override
-    public <T> Promise<T> executeActivity(
-        String activityType,
-        Class<T> resultClass,
-        Type resultType,
-        Object[] args,
-        ActivityOptions options) {
-      Optional<Payloads> input =
-          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toPayloads(args);
+    public <T> ActivityOutput<T> executeActivity(ActivityInput<T> i) {
+      Optional<Payloads> payloads =
+          testEnvironmentOptions
+              .getWorkflowClientOptions()
+              .getDataConverter()
+              .toPayloads(i.getArgs());
+      ActivityOptions options = i.getOptions();
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
               .setScheduleToCloseTimeout(
@@ -256,34 +248,25 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       .setWorkflowId("test-workflow-id")
                       .setRunId(UUID.randomUUID().toString())
                       .build())
-              .setActivityType(ActivityType.newBuilder().setName(activityType).build());
-      if (input.isPresent()) {
-        taskBuilder.setInput(input.get());
+              .setActivityType(ActivityType.newBuilder().setName(i.getActivityName()).build());
+      if (payloads.isPresent()) {
+        taskBuilder.setInput(payloads.get());
       }
       PollActivityTaskQueueResponse task = taskBuilder.build();
       Result taskResult =
           activityTaskHandler.handle(
               new ActivityTask(task, () -> {}), testEnvironmentOptions.getMetricsScope(), false);
-      return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
+      return new ActivityOutput<>(
+          Workflow.newPromise(getReply(task, taskResult, i.getResultClass(), i.getResultType())));
     }
 
     @Override
-    public <R> Promise<R> executeLocalActivity(
-        String activityName,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        LocalActivityOptions options) {
+    public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public <R> WorkflowResult<R> executeChildWorkflow(
-        String workflowType,
-        Class<R> resultClass,
-        Type resultType,
-        Object[] args,
-        ChildWorkflowOptions options) {
+    public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -293,13 +276,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public Promise<Void> signalExternalWorkflow(
-        WorkflowExecution execution, String signalName, Object[] args) {
+    public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+    public CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -340,32 +322,27 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void continueAsNew(
-        Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+    public void continueAsNew(ContinueAsNewInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerQuery(
-        String queryType,
-        Class<?>[] argTypes,
-        Type[] genericArgTypes,
-        Func1<Object[], Object> callback) {
+    public void registerQuery(RegisterQueryInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
+    public void registerSignalHandlers(RegisterSignalHandlersInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
+    public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
+    public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
 

@@ -21,8 +21,9 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.WorkflowResult;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ChildWorkflowOutput;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
@@ -94,9 +95,10 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public <R> Promise<R> executeAsync(Class<R> resultClass, Type resultType, Object... args) {
-    WorkflowResult<R> result =
+    ChildWorkflowOutput<R> result =
         outboundCallsInterceptor.executeChildWorkflow(
-            workflowType, resultClass, resultType, args, options);
+            new WorkflowOutboundCallsInterceptor.ChildWorkflowInput<>(
+                workflowType, resultClass, resultType, args, options, Header.empty()));
     execution.completeFrom(result.getWorkflowExecution());
     return result.getResult();
   }
@@ -104,7 +106,11 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   @Override
   public void signal(String signalName, Object... args) {
     Promise<Void> signaled =
-        outboundCallsInterceptor.signalExternalWorkflow(execution.get(), signalName, args);
+        outboundCallsInterceptor
+            .signalExternalWorkflow(
+                new WorkflowOutboundCallsInterceptor.SignalExternalInput(
+                    execution.get(), signalName, args))
+            .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);
       return;

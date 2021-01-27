@@ -28,14 +28,13 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.interceptors.Header;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
@@ -63,7 +62,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
-  private final WorkflowInterceptor[] workflowInterceptors;
+  private final WorkerInterceptor[] workerInterceptors;
 
   private DataConverter dataConverter;
   private final List<ContextPropagator> contextPropagators;
@@ -87,12 +86,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
-      WorkflowInterceptor[] workflowInterceptors,
+      WorkerInterceptor[] workerInterceptors,
       WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
-    this.workflowInterceptors = Objects.requireNonNull(workflowInterceptors);
+    this.workerInterceptors = Objects.requireNonNull(workerInterceptors);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
   }
@@ -132,7 +131,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           "Workflow interface doesn't contain a method annotated with @WorkflowMethod: " + clazz);
     }
     List<POJOWorkflowMethodMetadata> methodsMetadata = workflowMetadata.getMethodsMetadata();
-    Map<String, Method> signalHandlers = new HashMap<>();
     for (POJOWorkflowMethodMetadata methodMetadata : methodsMetadata) {
       switch (methodMetadata.getType()) {
         case WORKFLOW:
@@ -143,13 +141,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           }
           workflowDefinitions.put(
               workflowName,
-              () ->
-                  new POJOWorkflowImplementation(
-                      clazz, methodMetadata.getWorkflowMethod(), signalHandlers));
+              () -> new POJOWorkflowImplementation(clazz, methodMetadata.getWorkflowMethod()));
           implementationOptions.put(workflowName, options);
           break;
         case SIGNAL:
-          signalHandlers.put(methodMetadata.getName(), methodMetadata.getWorkflowMethod());
+          // Signals are registered through Workflow.registerListener
           break;
       }
     }
@@ -180,15 +176,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);
     Set<String> workflowMethodTypes = workflowMetadata.getWorkflowTypes();
-    Set<String> signalTypes = workflowMetadata.getSignalTypes();
-    Map<String, Method> signalHandlers = new HashMap<>();
     boolean hasWorkflowMethod = false;
     for (String workflowType : workflowMethodTypes) {
       POJOWorkflowMethodMetadata methodMetadata =
           workflowMetadata.getWorkflowMethodMetadata(workflowType);
       Method method = methodMetadata.getWorkflowMethod();
       Functions.Func<SyncWorkflowDefinition> factory =
-          () -> new POJOWorkflowImplementation(workflowImplementationClass, method, signalHandlers);
+          () -> new POJOWorkflowImplementation(workflowImplementationClass, method);
 
       String workflowName = methodMetadata.getName();
       if (workflowDefinitions.containsKey(workflowName)) {
@@ -198,11 +192,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       workflowDefinitions.put(workflowName, factory);
       implementationOptions.put(workflowName, options);
       hasWorkflowMethod = true;
-    }
-    for (String signalType : signalTypes) {
-      POJOWorkflowMethodMetadata methodMetadata =
-          workflowMetadata.getSignalMethodMetadata(signalType);
-      signalHandlers.put(methodMetadata.getName(), methodMetadata.getWorkflowMethod());
     }
     if (!hasWorkflowMethod) {
       throw new IllegalArgumentException(
@@ -218,7 +207,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     if (factory == null) {
       if (dynamicWorkflowImplementationFactory != null) {
         return new DynamicSyncWorkflowDefinition(
-            dynamicWorkflowImplementationFactory, workflowInterceptors, dataConverter);
+            dynamicWorkflowImplementationFactory, workerInterceptors, dataConverter);
       }
       // throw Error to abort the workflow task task, not fail the workflow
       throw new Error(
@@ -255,30 +244,27 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     private final Method workflowMethod;
     private final Class<?> workflowImplementationClass;
-    private final Map<String, Method> signalHandlers;
     private Object workflow;
     private WorkflowInboundCallsInterceptor workflowInvoker;
 
-    public POJOWorkflowImplementation(
-        Class<?> workflowImplementationClass,
-        Method workflowMethod,
-        Map<String, Method> signalHandlers) {
+    public POJOWorkflowImplementation(Class<?> workflowImplementationClass, Method workflowMethod) {
       this.workflowMethod = workflowMethod;
       this.workflowImplementationClass = workflowImplementationClass;
-      this.signalHandlers = signalHandlers;
     }
 
     @Override
     public void initialize() {
-      workflowInvoker = new RootWorkflowInboundCallsInterceptor();
-      for (WorkflowInterceptor workflowInterceptor : workflowInterceptors) {
-        workflowInvoker = workflowInterceptor.interceptWorkflow(workflowInvoker);
+      SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
+      workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext);
+      for (WorkerInterceptor workerInterceptor : workerInterceptors) {
+        workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
       }
-      workflowInvoker.init(WorkflowInternal.getRootWorkflowContext());
+      workflowContext.setHeadInboundCallsInterceptor(workflowInvoker);
+      workflowInvoker.init(workflowContext);
     }
 
     @Override
-    public Optional<Payloads> execute(Optional<Payloads> input)
+    public Optional<Payloads> execute(Header header, Optional<Payloads> input)
         throws CanceledFailure, WorkflowExecutionException {
       Object[] args =
           DataConverter.arrayFromPayloads(
@@ -287,11 +273,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
               workflowMethod.getParameterTypes(),
               workflowMethod.getGenericParameterTypes());
       Preconditions.checkNotNull(workflowInvoker, "initialize not called");
-      Object result = workflowInvoker.execute(args);
+      WorkflowInboundCallsInterceptor.WorkflowOutput result =
+          workflowInvoker.execute(new WorkflowInboundCallsInterceptor.WorkflowInput(header, args));
       if (workflowMethod.getReturnType() == Void.TYPE) {
         return Optional.empty();
       }
-      return dataConverter.toPayloads(result);
+      return dataConverter.toPayloads(result.getResult());
     }
 
     private void newInstance() {
@@ -319,11 +306,18 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     private class RootWorkflowInboundCallsInterceptor implements WorkflowInboundCallsInterceptor {
 
+      private final SyncWorkflowContext workflowContext;
+
+      public RootWorkflowInboundCallsInterceptor(SyncWorkflowContext workflowContext) {
+        this.workflowContext = workflowContext;
+      }
+
       @Override
-      public Object execute(Object[] arguments) {
+      public WorkflowOutput execute(WorkflowInput input) {
         WorkflowInfo info = Workflow.getInfo();
         try {
-          return workflowMethod.invoke(workflow, arguments);
+          Object result = workflowMethod.invoke(workflow, input.getArguments());
+          return new WorkflowOutput(result);
         } catch (IllegalAccessException e) {
           throw new Error(mapToWorkflowExecutionException(e, dataConverter));
         } catch (InvocationTargetException e) {
@@ -376,38 +370,15 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       }
 
       @Override
-      public void processSignal(String signalName, Object[] arguments, long eventId) {
-        Method signalMethod = signalHandlers.get(signalName);
-        try {
-          signalMethod.invoke(workflow, arguments);
-        } catch (IllegalAccessException e) {
-          throw new Error("Failure processing \"" + signalName + "\" at eventId " + eventId, e);
-        } catch (InvocationTargetException e) {
-          Throwable targetException = e.getTargetException();
-          if (targetException instanceof DataConverterException) {
-            logSerializationException(
-                signalName, eventId, (DataConverterException) targetException);
-          } else if (targetException instanceof Error) {
-            throw (Error) targetException;
-          } else {
-            throw new Error(
-                "Failure processing \"" + signalName + "\" at eventId " + eventId, targetException);
-          }
-        }
+      public void handleSignal(SignalInput input) {
+        workflowContext.handleInterceptedSignal(input);
+      }
+
+      @Override
+      public QueryOutput handleQuery(QueryInput input) {
+        return workflowContext.handleInterceptedQuery(input);
       }
     }
-  }
-
-  void logSerializationException(
-      String signalName, Long eventId, DataConverterException exception) {
-    log.error(
-        "Failure deserializing signal input for \""
-            + signalName
-            + "\" at eventId "
-            + eventId
-            + ". Dropping it.",
-        exception);
-    Workflow.getMetricsScope().counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
   }
 
   static WorkflowExecutionException mapToWorkflowExecutionException(

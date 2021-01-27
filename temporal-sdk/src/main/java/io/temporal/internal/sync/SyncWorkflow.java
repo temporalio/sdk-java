@@ -133,7 +133,7 @@ class SyncWorkflow implements ReplayWorkflow {
   @Override
   public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
     runner.executeInWorkflowThread(
-        "signal " + signalName, () -> workflowProc.processSignal(signalName, input, eventId));
+        "signal " + signalName, () -> workflowProc.handleSignal(signalName, input, eventId));
   }
 
   @Override
@@ -172,7 +172,7 @@ class SyncWorkflow implements ReplayWorkflow {
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();
-    return workflowProc.query(query.getQueryType(), args);
+    return workflowProc.handleQuery(query.getQueryType(), args);
   }
 
   @Override

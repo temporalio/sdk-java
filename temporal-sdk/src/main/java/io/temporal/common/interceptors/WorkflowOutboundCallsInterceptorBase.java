@@ -19,21 +19,11 @@
 
 package io.temporal.common.interceptors;
 
-import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.LocalActivityOptions;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ContinueAsNewOptions;
-import io.temporal.workflow.DynamicQueryHandler;
-import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.function.BiPredicate;
@@ -49,33 +39,18 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public <R> Promise<R> executeActivity(
-      String activityName,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      ActivityOptions options) {
-    return next.executeActivity(activityName, resultClass, resultType, args, options);
+  public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {
+    return next.executeActivity(input);
   }
 
   @Override
-  public <R> Promise<R> executeLocalActivity(
-      String activityName,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      LocalActivityOptions options) {
-    return next.executeLocalActivity(activityName, resultClass, resultType, args, options);
+  public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
+    return next.executeLocalActivity(input);
   }
 
   @Override
-  public <R> WorkflowResult<R> executeChildWorkflow(
-      String workflowType,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args,
-      ChildWorkflowOptions options) {
-    return next.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
+  public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
+    return next.executeChildWorkflow(input);
   }
 
   @Override
@@ -84,14 +59,13 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public Promise<Void> signalExternalWorkflow(
-      WorkflowExecution execution, String signalName, Object[] args) {
-    return next.signalExternalWorkflow(execution, signalName, args);
+  public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
+    return next.signalExternalWorkflow(input);
   }
 
   @Override
-  public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
-    return next.cancelWorkflow(execution);
+  public CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input) {
+    return next.cancelWorkflow(input);
   }
 
   @Override
@@ -131,33 +105,28 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public void continueAsNew(
-      Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
-    next.continueAsNew(workflowType, options, args);
+  public void continueAsNew(ContinueAsNewInput input) {
+    next.continueAsNew(input);
   }
 
   @Override
-  public void registerQuery(
-      String queryType,
-      Class<?>[] argTypes,
-      Type[] genericArgTypes,
-      Func1<Object[], Object> callback) {
-    next.registerQuery(queryType, argTypes, genericArgTypes, callback);
+  public void registerQuery(RegisterQueryInput input) {
+    next.registerQuery(input);
   }
 
   @Override
-  public void registerSignalHandlers(List<SignalRegistrationRequest> requests) {
-    next.registerSignalHandlers(requests);
+  public void registerSignalHandlers(RegisterSignalHandlersInput input) {
+    next.registerSignalHandlers(input);
   }
 
   @Override
-  public void registerDynamicSignalHandler(DynamicSignalHandler handler) {
-    next.registerDynamicSignalHandler(handler);
+  public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
+    next.registerDynamicSignalHandler(input);
   }
 
   @Override
-  public void registerDynamicQueryHandler(DynamicQueryHandler handler) {
-    next.registerDynamicQueryHandler(handler);
+  public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
+    next.registerDynamicQueryHandler(input);
   }
 
   @Override

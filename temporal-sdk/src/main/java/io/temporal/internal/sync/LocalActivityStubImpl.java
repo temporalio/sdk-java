@@ -20,6 +20,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Promise;
@@ -45,7 +46,10 @@ public class LocalActivityStubImpl extends ActivityStubBase {
   @Override
   public <R> Promise<R> executeAsync(
       String activityName, Class<R> resultClass, Type resultType, Object... args) {
-    return activityExecutor.executeLocalActivity(
-        activityName, resultClass, resultType, args, options);
+    return activityExecutor
+        .executeLocalActivity(
+            new WorkflowOutboundCallsInterceptor.LocalActivityInput<>(
+                activityName, resultClass, resultType, args, options, Header.empty()))
+        .getResult();
   }
 }

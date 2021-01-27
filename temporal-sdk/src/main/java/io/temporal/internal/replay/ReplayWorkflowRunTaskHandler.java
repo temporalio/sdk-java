@@ -229,8 +229,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
             entry.getKey(),
             WorkflowQueryResult.newBuilder()
                 .setResultType(QueryResultType.QUERY_RESULT_TYPE_FAILED)
-                .setErrorMessage(e.getMessage())
-                .setAnswer(converter.toPayloads(stackTrace).get())
+                .setErrorMessage(e.toString() + "\n" + stackTrace)
                 .build());
       }
     }

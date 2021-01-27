@@ -33,12 +33,17 @@ public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCalls
   }
 
   @Override
-  public Object execute(Object[] arguments) {
-    return next.execute(arguments);
+  public WorkflowOutput execute(WorkflowInput input) {
+    return next.execute(input);
   }
 
   @Override
-  public void processSignal(String signalName, Object[] arguments, long eventId) {
-    next.processSignal(signalName, arguments, eventId);
+  public void handleSignal(SignalInput input) {
+    next.handleSignal(input);
+  }
+
+  @Override
+  public QueryOutput handleQuery(QueryInput input) {
+    return next.handleQuery(input);
   }
 }

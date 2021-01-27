@@ -145,6 +145,10 @@ final class WorkflowContext {
     return currentRunId;
   }
 
+  public Map<String, Payload> getHeader() {
+    return startedAttributes.getHeader().getFieldsMap();
+  }
+
   SearchAttributes getSearchAttributes() {
     return searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0
         ? null
