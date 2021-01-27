@@ -94,23 +94,31 @@ public class SimpleSslContextBuilder {
   /**
    * @param trustManager - custom trust manager that should be used with the SSLContext for
    *     verifying server CA authority.
+   * @return builder instance.
    */
-  public void setTrustManager(TrustManager trustManager) {
+  public SimpleSslContextBuilder setTrustManager(TrustManager trustManager) {
     this.trustManager = trustManager;
+    return this;
   }
 
   /**
    * @param useInsecureTrustManager - if set to true then insecure trust manager is going to be used
    *     instead of the system default one. Note that this makes client vulnerable to man in the
    *     middle attack. Use with caution.
+   * @return builder instance.
    */
-  public void setUseInsecureTrustManager(boolean useInsecureTrustManager) {
+  public SimpleSslContextBuilder setUseInsecureTrustManager(boolean useInsecureTrustManager) {
     this.useInsecureTrustManager = useInsecureTrustManager;
+    return this;
   }
 
-  /** @param keyPassword - the password of the key, or null if it's not password-protected. */
-  public void setKeyPassword(String keyPassword) {
+  /**
+   * @param keyPassword - the password of the key, or null if it's not password-protected.
+   * @return builder instance.
+   */
+  public SimpleSslContextBuilder setKeyPassword(String keyPassword) {
     this.keyPassword = keyPassword;
+    return this;
   }
 
   /**
