@@ -22,7 +22,7 @@ package io.temporal.internal.external;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Functions;
 
-public class CompletionAwareManualCompletionClient implements ManualActivityCompletionClient {
+public final class CompletionAwareManualCompletionClient implements ManualActivityCompletionClient {
   private final ManualActivityCompletionClientFactory factory;
   private final Functions.Proc completionHandle;
   private final byte[] taskToken;
