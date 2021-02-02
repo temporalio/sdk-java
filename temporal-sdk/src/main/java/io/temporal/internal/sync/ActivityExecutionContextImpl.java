@@ -29,12 +29,7 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.client.ActivityCanceledException;
-import io.temporal.client.ActivityCompletionClient;
-import io.temporal.client.ActivityCompletionException;
-import io.temporal.client.ActivityCompletionFailureException;
-import io.temporal.client.ActivityNotExistsException;
-import io.temporal.client.ActivityWorkerShutdownException;
+import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
@@ -260,12 +255,13 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public ActivityCompletionClient useLocalManualCompletion() {
+  public ActivityLocalCompletionClient useLocalManualCompletion() {
     lock.lock();
     try {
       doNotCompleteOnReturn();
       useLocalManualCompletion = true;
-      return new ActivityCompletionClientImpl(manualCompletionClientFactory, completionHandle);
+      return new ActivityLocalCompletionClientImpl(
+          manualCompletionClientFactory, completionHandle, info.getTaskToken());
     } finally {
       lock.unlock();
     }

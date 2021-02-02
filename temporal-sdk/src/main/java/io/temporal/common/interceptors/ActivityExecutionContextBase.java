@@ -22,8 +22,8 @@ package io.temporal.common.interceptors;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
-import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.client.ActivityLocalCompletionClient;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -76,7 +76,7 @@ public class ActivityExecutionContextBase implements ActivityExecutionContext {
   }
 
   @Override
-  public ActivityCompletionClient useLocalManualCompletion() {
+  public ActivityLocalCompletionClient useLocalManualCompletion() {
     return next.useLocalManualCompletion();
   }
 

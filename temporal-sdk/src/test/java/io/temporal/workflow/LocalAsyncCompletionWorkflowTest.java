@@ -24,7 +24,7 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
-import io.temporal.client.ActivityCompletionClient;
+import io.temporal.client.ActivityLocalCompletionClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.testing.TestWorkflowRule;
@@ -113,22 +113,21 @@ public class LocalAsyncCompletionWorkflowTest {
       }
       ActivityExecutionContext context = Activity.getExecutionContext();
       context.heartbeat(value);
-      ActivityCompletionClient completionClient = context.useLocalManualCompletion();
-      ForkJoinPool.commonPool().execute(() -> asyncActivityFn(value, context, completionClient));
+      ActivityLocalCompletionClient completionClient = context.useLocalManualCompletion();
+      ForkJoinPool.commonPool().execute(() -> asyncActivityFn(value, completionClient));
       return 0;
     }
 
-    private void asyncActivityFn(
-        int value, ActivityExecutionContext context, ActivityCompletionClient completionClient) {
+    private void asyncActivityFn(int value, ActivityLocalCompletionClient completionClient) {
       try {
         Thread.sleep(500);
         concurrentActivitiesCount.decrementAndGet();
-        completionClient.complete(context.getTaskToken(), value * 2);
+        completionClient.complete(value * 2);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         e.printStackTrace();
         concurrentActivitiesCount.decrementAndGet();
-        completionClient.completeExceptionally(context.getTaskToken(), e);
+        completionClient.completeExceptionally(e);
       }
     }
   }
