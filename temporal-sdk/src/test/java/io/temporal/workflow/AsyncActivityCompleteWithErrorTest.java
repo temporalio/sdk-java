@@ -20,10 +20,10 @@
 package io.temporal.workflow;
 
 import io.temporal.activity.*;
-import io.temporal.client.ActivityLocalCompletionClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.external.ManualActivityCompletionClient;
 import io.temporal.testing.TestWorkflowRule;
 import java.time.Duration;
 import java.util.concurrent.ForkJoinPool;
@@ -84,13 +84,13 @@ public class AsyncActivityCompleteWithErrorTest {
     @Override
     public int execute() {
       ActivityExecutionContext context = Activity.getExecutionContext();
-      ActivityLocalCompletionClient completionClient = context.useLocalManualCompletion();
+      ManualActivityCompletionClient completionClient = context.useLocalManualCompletion();
       ForkJoinPool.commonPool().execute(() -> asyncActivityFn(completionClient));
       return 0;
     }
 
-    private void asyncActivityFn(ActivityLocalCompletionClient completionClient) {
-      completionClient.completeExceptionally(
+    private void asyncActivityFn(ManualActivityCompletionClient completionClient) {
+      completionClient.fail(
           ApplicationFailure.newFailure("simulated failure", "test", "some details"));
     }
   }

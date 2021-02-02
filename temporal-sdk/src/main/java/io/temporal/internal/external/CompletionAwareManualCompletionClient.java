@@ -17,17 +17,17 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.client;
+package io.temporal.internal.external;
 
-import io.temporal.internal.external.ManualActivityCompletionClientFactory;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Functions;
 
-public class ActivityLocalCompletionClientImpl implements ActivityLocalCompletionClient {
+public class CompletionAwareManualCompletionClient implements ManualActivityCompletionClient {
   private final ManualActivityCompletionClientFactory factory;
   private final Functions.Proc completionHandle;
-  private byte[] taskToken;
+  private final byte[] taskToken;
 
-  public ActivityLocalCompletionClientImpl(
+  public CompletionAwareManualCompletionClient(
       ManualActivityCompletionClientFactory manualActivityCompletionClientFactory,
       Functions.Proc completionHandle,
       byte[] taskToken) {
@@ -37,7 +37,7 @@ public class ActivityLocalCompletionClientImpl implements ActivityLocalCompletio
   }
 
   @Override
-  public <R> void complete(R result) {
+  public void complete(Object result) {
     try {
       factory.getClient(taskToken).complete(result);
     } finally {
@@ -46,25 +46,25 @@ public class ActivityLocalCompletionClientImpl implements ActivityLocalCompletio
   }
 
   @Override
-  public void completeExceptionally(Exception result) {
+  public void fail(Throwable failure) {
     try {
-      factory.getClient(taskToken).fail(result);
+      factory.getClient(taskToken).fail(failure);
     } finally {
       completionHandle.apply();
     }
   }
 
   @Override
-  public <V> void reportCancellation(V details) {
+  public void recordHeartbeat(Object details) throws CanceledFailure {
+    factory.getClient(taskToken).recordHeartbeat(details);
+  }
+
+  @Override
+  public void reportCancellation(Object details) {
     try {
       factory.getClient(taskToken).reportCancellation(details);
     } finally {
       completionHandle.apply();
     }
-  }
-
-  @Override
-  public <V> void heartbeat(V details) throws ActivityCompletionException {
-    factory.getClient(taskToken).recordHeartbeat(details);
   }
 }

@@ -23,7 +23,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.client.ActivityLocalCompletionClient;
+import io.temporal.internal.external.ManualActivityCompletionClient;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -80,7 +80,7 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public ActivityLocalCompletionClient useLocalManualCompletion() {
+  public ManualActivityCompletionClient useLocalManualCompletion() {
     throw new UnsupportedOperationException(
         "getManualCompletionClient is not supported for local activities");
   }

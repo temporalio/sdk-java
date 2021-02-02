@@ -32,6 +32,8 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.external.CompletionAwareManualCompletionClient;
+import io.temporal.internal.external.ManualActivityCompletionClient;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -255,12 +257,12 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public ActivityLocalCompletionClient useLocalManualCompletion() {
+  public ManualActivityCompletionClient useLocalManualCompletion() {
     lock.lock();
     try {
       doNotCompleteOnReturn();
       useLocalManualCompletion = true;
-      return new ActivityLocalCompletionClientImpl(
+      return new CompletionAwareManualCompletionClient(
           manualCompletionClientFactory, completionHandle, info.getTaskToken());
     } finally {
       lock.unlock();
