@@ -21,6 +21,7 @@ package io.temporal.internal.external;
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.MetricsTag;
