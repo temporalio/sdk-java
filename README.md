@@ -14,6 +14,7 @@ For samples, see [Samples for the Temporal Java SDK](https://github.com/temporal
 ## Run Temporal Server
 
 Follow the [Quick install guide](https://docs.temporal.io/docs/server-quick-install) to run the Temporal Server locally.
+Additional information is available in the [Temporal Server docker-compose](https://github.com/temporalio/docker-compose) repo.
 
 ## Get CLI
 
