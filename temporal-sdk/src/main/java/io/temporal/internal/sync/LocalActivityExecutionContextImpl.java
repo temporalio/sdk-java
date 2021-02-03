@@ -22,8 +22,8 @@ package io.temporal.internal.sync;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
+import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.internal.external.ManualActivityCompletionClient;
 import java.lang.reflect.Type;
 import java.util.Optional;
 

@@ -25,6 +25,7 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;

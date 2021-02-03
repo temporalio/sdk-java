@@ -21,7 +21,6 @@ package io.temporal.activity;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.internal.external.ManualActivityCompletionClient;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
 import java.util.Optional;

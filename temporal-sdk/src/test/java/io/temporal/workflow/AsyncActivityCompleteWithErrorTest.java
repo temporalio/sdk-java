@@ -20,10 +20,10 @@
 package io.temporal.workflow;
 
 import io.temporal.activity.*;
+import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.internal.external.ManualActivityCompletionClient;
 import io.temporal.testing.TestWorkflowRule;
 import java.time.Duration;
 import java.util.concurrent.ForkJoinPool;
