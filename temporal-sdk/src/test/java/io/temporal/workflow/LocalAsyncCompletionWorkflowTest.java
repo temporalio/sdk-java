@@ -19,7 +19,11 @@
 
 package io.temporal.workflow;
 
-import io.temporal.activity.*;
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.external.ManualActivityCompletionClient;

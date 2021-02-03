@@ -23,23 +23,19 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Functions;
 
 public final class CompletionAwareManualCompletionClient implements ManualActivityCompletionClient {
-  private final ManualActivityCompletionClientFactory factory;
+  private final ManualActivityCompletionClient client;
   private final Functions.Proc completionHandle;
-  private final byte[] taskToken;
 
   public CompletionAwareManualCompletionClient(
-      ManualActivityCompletionClientFactory manualActivityCompletionClientFactory,
-      Functions.Proc completionHandle,
-      byte[] taskToken) {
-    this.factory = manualActivityCompletionClientFactory;
+      ManualActivityCompletionClient client, Functions.Proc completionHandle) {
+    this.client = client;
     this.completionHandle = completionHandle;
-    this.taskToken = taskToken;
   }
 
   @Override
   public void complete(Object result) {
     try {
-      factory.getClient(taskToken).complete(result);
+      client.complete(result);
     } finally {
       completionHandle.apply();
     }
@@ -48,7 +44,7 @@ public final class CompletionAwareManualCompletionClient implements ManualActivi
   @Override
   public void fail(Throwable failure) {
     try {
-      factory.getClient(taskToken).fail(failure);
+      client.fail(failure);
     } finally {
       completionHandle.apply();
     }
@@ -56,13 +52,13 @@ public final class CompletionAwareManualCompletionClient implements ManualActivi
 
   @Override
   public void recordHeartbeat(Object details) throws CanceledFailure {
-    factory.getClient(taskToken).recordHeartbeat(details);
+    client.recordHeartbeat(details);
   }
 
   @Override
   public void reportCancellation(Object details) {
     try {
-      factory.getClient(taskToken).reportCancellation(details);
+      client.reportCancellation(details);
     } finally {
       completionHandle.apply();
     }

@@ -267,7 +267,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       doNotCompleteOnReturn();
       useLocalManualCompletion = true;
       return new CompletionAwareManualCompletionClient(
-          manualCompletionClientFactory, completionHandle, info.getTaskToken());
+          manualCompletionClientFactory.getClient(info.getTaskToken()), completionHandle);
     } finally {
       lock.unlock();
     }
