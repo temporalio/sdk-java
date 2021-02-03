@@ -37,7 +37,6 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.external.CompletionAwareManualCompletionClient;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
