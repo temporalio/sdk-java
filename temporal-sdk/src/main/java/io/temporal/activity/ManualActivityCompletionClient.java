@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.external;
+package io.temporal.activity;
 
 import io.temporal.failure.CanceledFailure;
 
