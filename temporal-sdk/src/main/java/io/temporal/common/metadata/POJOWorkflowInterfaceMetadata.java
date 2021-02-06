@@ -76,6 +76,7 @@ public final class POJOWorkflowInterfaceMetadata {
   }
 
   private POJOWorkflowMethodMetadata workflowMethod;
+  private final Class<?> interfaceClass;
   private final Map<Method, POJOWorkflowMethodMetadata> methods = new HashMap<>();
 
   /**
@@ -132,12 +133,18 @@ public final class POJOWorkflowInterfaceMetadata {
 
   /** @param implementation if the metadata is for a workflow implementation class vs stub. */
   private POJOWorkflowInterfaceMetadata(Class<?> anInterface, boolean implementation) {
+    this.interfaceClass = anInterface;
     Map<EqualsByMethodName, Method> dedupeMap = new HashMap<>();
     getWorkflowInterfaceMethods(anInterface, !implementation, dedupeMap);
   }
 
   public Optional<POJOWorkflowMethodMetadata> getWorkflowMethod() {
     return Optional.ofNullable(workflowMethod);
+  }
+
+  /** Java interface {@code Class} that backs this workflow interface. */
+  public Class<?> getInterfaceClass() {
+    return interfaceClass;
   }
 
   /**
