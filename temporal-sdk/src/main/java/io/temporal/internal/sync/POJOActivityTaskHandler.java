@@ -37,6 +37,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.SimulatedTimeoutFailure;
 import io.temporal.failure.TemporalFailure;

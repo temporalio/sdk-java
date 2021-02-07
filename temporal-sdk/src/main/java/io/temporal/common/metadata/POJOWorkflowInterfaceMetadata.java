@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import io.temporal.workflow.WorkflowInterface;
 import java.lang.reflect.Method;
@@ -45,10 +45,10 @@ import java.util.Set;
  *       B extends A it cannot also declare foo() even with a different signature.
  * </ul>
  */
-class POJOWorkflowInterfaceMetadata {
+public final class POJOWorkflowInterfaceMetadata {
 
   /** Used to override equals and hashCode of Method to ensure deduping by method name in a set. */
-  static class EqualsByMethodName {
+  private static class EqualsByMethodName {
     private final Method method;
 
     EqualsByMethodName(Method method) {
@@ -70,29 +70,6 @@ class POJOWorkflowInterfaceMetadata {
     @Override
     public int hashCode() {
       return com.google.common.base.Objects.hashCode(method.getName());
-    }
-  }
-
-  static class EqualsByNameType {
-    private final String name;
-    private final WorkflowMethodType type;
-
-    EqualsByNameType(String name, WorkflowMethodType type) {
-      this.name = name;
-      this.type = type;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      EqualsByNameType that = (EqualsByNameType) o;
-      return com.google.common.base.Objects.equal(name, that.name) && type == that.type;
-    }
-
-    @Override
-    public int hashCode() {
-      return com.google.common.base.Objects.hashCode(name, type);
     }
   }
 

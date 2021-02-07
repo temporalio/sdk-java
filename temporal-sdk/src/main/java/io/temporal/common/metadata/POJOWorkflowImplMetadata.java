@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +38,7 @@ import java.util.Set;
  *       B extends A it cannot also declare foo() even with a different signature.
  * </ul>
  */
-class POJOWorkflowImplMetadata {
+public final class POJOWorkflowImplMetadata {
 
   static class EqualsByNameType {
     private final String name;

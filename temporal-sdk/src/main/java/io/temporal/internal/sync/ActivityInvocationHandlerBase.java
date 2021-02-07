@@ -23,6 +23,8 @@ import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
+import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;

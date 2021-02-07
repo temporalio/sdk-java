@@ -23,6 +23,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import io.temporal.common.metadata.POJOWorkflowImplMetadata;
+import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
+import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;

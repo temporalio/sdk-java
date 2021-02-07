@@ -25,6 +25,9 @@ import static org.junit.Assert.fail;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
+import io.temporal.common.metadata.POJOActivityImplMetadata;
+import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
+import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;

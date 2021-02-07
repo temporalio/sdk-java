@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.workflow.ContinueAsNewOptions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;

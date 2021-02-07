@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import com.google.common.base.Strings;
 import io.temporal.activity.ActivityInterface;
@@ -25,7 +25,7 @@ import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
 import java.util.Objects;
 
-public class POJOActivityMethodMetadata {
+public final class POJOActivityMethodMetadata {
   private final boolean hasActivityMethodAnnotation;
   private final String name;
   private final Method method;

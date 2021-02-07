@@ -17,19 +17,19 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
 
-class POJOWorkflowMethodMetadata {
+public final class POJOWorkflowMethodMetadata {
 
   private final POJOWorkflowMethod workflowMethod;
   private final String name;
   private final Class<?> interfaceType;
 
-  public POJOWorkflowMethodMetadata(POJOWorkflowMethod methodMetadata, Class<?> interfaceType) {
+  POJOWorkflowMethodMetadata(POJOWorkflowMethod methodMetadata, Class<?> interfaceType) {
     this.workflowMethod = Objects.requireNonNull(methodMetadata);
     if (workflowMethod.getType() == WorkflowMethodType.NONE) {
       throw new IllegalArgumentException(

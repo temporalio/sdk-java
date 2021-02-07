@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import io.temporal.activity.ActivityMethod;
 import io.temporal.common.MethodRetry;
@@ -41,7 +41,7 @@ import java.util.Set;
  *       B extends A it cannot also declare foo() even with a different signature.
  * </ul>
  */
-class POJOActivityImplMetadata {
+public final class POJOActivityImplMetadata {
 
   private final Map<String, POJOActivityMethodMetadata> byName = new HashMap<>();
 

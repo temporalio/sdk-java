@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -45,7 +45,7 @@ import java.util.Set;
  *       B extends A it cannot also declare foo() even with a different signature.
  * </ul>
  */
-class POJOActivityInterfaceMetadata {
+public final class POJOActivityInterfaceMetadata {
 
   /** Used to override equals and hashCode of Method to ensure deduping by method name in a set. */
   static class EqualsByMethodName {
