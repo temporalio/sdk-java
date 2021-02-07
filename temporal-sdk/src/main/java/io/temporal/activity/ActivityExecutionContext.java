@@ -20,7 +20,6 @@
 package io.temporal.activity;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
@@ -110,10 +109,10 @@ public interface ActivityExecutionContext {
    * #doNotCompleteOnReturn()} directly is that by using this method maximum number of concurrent
    * activities defined by {@link WorkerOptions#getMaxConcurrentActivityExecutionSize()} will be
    * respected. Users must be careful and always call completion method on the {@link
-   * ActivityCompletionClient} otherwise activity worker could stop polling new work as it will
-   * consider all activities that didn't explicitly finish as still running.
+   * ManualActivityCompletionClient} otherwise activity worker could stop polling new work as it
+   * will consider all activities that didn't explicitly finish as still running.
    */
-  ActivityCompletionClient useLocalManualCompletion();
+  ManualActivityCompletionClient useLocalManualCompletion();
 
   Scope getMetricsScope();
 }
