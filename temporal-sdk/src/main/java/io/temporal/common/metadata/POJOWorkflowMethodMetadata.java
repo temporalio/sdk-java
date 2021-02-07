@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
 
+/** Metadata of a single workflow method. */
 public final class POJOWorkflowMethodMetadata {
 
   private final POJOWorkflowMethod workflowMethod;
@@ -51,6 +52,11 @@ public final class POJOWorkflowMethodMetadata {
     return workflowMethod.getType();
   }
 
+  /**
+   * The semantic of the name depends on the value of {@link #getType()}. It is signal name for
+   * {@link WorkflowMethodType#SIGNAL}, query type for {@link WorkflowMethodType#QUERY} and workflow
+   * type for {@link WorkflowMethodType#WORKFLOW}.
+   */
   public String getName() {
     return name;
   }

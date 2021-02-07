@@ -25,7 +25,7 @@ import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
 import java.util.Objects;
 
-/** Metadata about a single activity method. */
+/** Metadata of a single activity method. */
 public final class POJOActivityMethodMetadata {
   private final String name;
   private final Method method;
@@ -62,7 +62,7 @@ public final class POJOActivityMethodMetadata {
     return method;
   }
 
-  /** Activity interface that this method implements. */
+  /** Activity interface that this method belongs to. */
   Class<?> getInterfaceType() {
     return interfaceType;
   }

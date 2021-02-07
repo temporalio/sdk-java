@@ -32,7 +32,9 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Rules:
+ * Metadata of a workflow interface.
+ *
+ * <p>Rules:
  *
  * <ul>
  *   <li>A workflow implementation must implement at least one non empty interface annotated with

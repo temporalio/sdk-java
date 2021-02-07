@@ -27,7 +27,7 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
 
-public final class POJOWorkflowMethod {
+final class POJOWorkflowMethod {
 
   private final WorkflowMethodType type;
   private final Method method;
