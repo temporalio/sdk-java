@@ -21,7 +21,9 @@ package io.temporal.internal.testing;
 
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -57,11 +59,7 @@ public class WorkflowCachingTest {
   @After
   public void tearDown() {
     service.shutdownNow();
-    try {
-      service.awaitTermination(1, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
+    service.awaitTermination(1, TimeUnit.SECONDS);
     testService.close();
   }
 

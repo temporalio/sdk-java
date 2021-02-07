@@ -119,12 +119,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
         workflowRunTaskHandler2,
         cache.getOrCreate(workflowTask2, metricsScope, () -> createFakeExecutor(workflowTask2)));
     assertSame(workflowRunTaskHandler2, workflowRunTaskHandler);
-    service.shutdownNow();
-    try {
-      service.awaitTermination(1, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
+    testService.close();
   }
 
   @Test(timeout = 2000)

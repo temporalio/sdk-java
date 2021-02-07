@@ -112,11 +112,7 @@ public class StickyWorkerTest {
   public void tearDown() {
     if (service != null) {
       service.shutdownNow();
-      try {
-        service.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
+      service.awaitTermination(10, TimeUnit.SECONDS);
     }
   }
 
