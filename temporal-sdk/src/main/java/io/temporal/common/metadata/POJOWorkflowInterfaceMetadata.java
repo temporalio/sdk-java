@@ -76,10 +76,19 @@ public final class POJOWorkflowInterfaceMetadata {
   private POJOWorkflowMethodMetadata workflowMethod;
   private final Map<Method, POJOWorkflowMethodMetadata> methods = new HashMap<>();
 
+  /**
+   * Returns POJOWorkflowInterfaceMetadata for an interface annotated with {@link
+   * WorkflowInterface}.
+   */
   public static POJOWorkflowInterfaceMetadata newInstance(Class<?> anInterface) {
     return newInstance(anInterface, true);
   }
 
+  /**
+   * Returns POJOWorkflowInterfaceMetadata for an interface that may be annotated with {@link
+   * WorkflowInterface}. This to support invoking workflow signal and query methods through a base
+   * interface without such annotation.
+   */
   public static POJOWorkflowInterfaceMetadata newInstanceSkipWorkflowAnnotationCheck(
       Class<?> anInterface) {
     return newInstance(anInterface, false);

@@ -19,10 +19,11 @@
 
 package io.temporal.common.metadata;
 
+import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Rules:
@@ -40,7 +41,7 @@ import java.util.Set;
  */
 public final class POJOWorkflowImplMetadata {
 
-  static class EqualsByNameType {
+  private static class EqualsByNameType {
     private final String name;
     private final WorkflowMethodType type;
 
@@ -63,14 +64,24 @@ public final class POJOWorkflowImplMetadata {
     }
   }
 
-  private final Map<String, POJOWorkflowMethodMetadata> workflowMethods = new HashMap<>();
-  private final Map<String, POJOWorkflowMethodMetadata> signalMethods = new HashMap<>();
-  private final Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
+  private final List<POJOWorkflowInterfaceMetadata> workflowInterfaces;
+  private final List<POJOWorkflowMethodMetadata> workflowMethods;
+  private final List<POJOWorkflowMethodMetadata> signalMethods;
+  private final List<POJOWorkflowMethodMetadata> queryMethods;
 
+  /**
+   * Create POJOWorkflowImplMetadata for a workflow implementation class. The object must implement
+   * at least one workflow method.
+   */
   public static POJOWorkflowImplMetadata newInstance(Class<?> implClass) {
     return new POJOWorkflowImplMetadata(implClass, false);
   }
 
+  /**
+   * Create POJOWorkflowImplMetadata for a workflow implementation class. The class may not
+   * implement any workflow method. This is to be used for classes that implement only query and
+   * signal methods.
+   */
   public static POJOWorkflowImplMetadata newListenerInstance(Class<?> implClass) {
     return new POJOWorkflowImplMetadata(implClass, true);
   }
@@ -83,6 +94,10 @@ public final class POJOWorkflowImplMetadata {
         || implClass.isEnum()) {
       throw new IllegalArgumentException("concrete class expected: " + implClass);
     }
+    Map<String, POJOWorkflowMethodMetadata> workflowMethods = new HashMap<>();
+    Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
+    Map<String, POJOWorkflowMethodMetadata> signalMethods = new HashMap<>();
+    List<POJOWorkflowInterfaceMetadata> workflowInterfaces = new ArrayList<>();
     Map<EqualsByNameType, POJOWorkflowMethodMetadata> byNameType = new HashMap<>();
     Class<?>[] interfaces = implClass.getInterfaces();
     for (int i = 0; i < interfaces.length; i++) {
@@ -95,6 +110,7 @@ public final class POJOWorkflowImplMetadata {
       } else {
         interfaceMetadata = POJOWorkflowInterfaceMetadata.newImplementationInterface(anInterface);
       }
+      workflowInterfaces.add(interfaceMetadata);
       List<POJOWorkflowMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
       for (POJOWorkflowMethodMetadata methodMetadata : methods) {
         EqualsByNameType key =
@@ -131,46 +147,29 @@ public final class POJOWorkflowImplMetadata {
           "Class doesn't implement any non empty public interface annotated with @WorkflowInterface: "
               + implClass.getName());
     }
+    this.workflowInterfaces = ImmutableList.copyOf(workflowInterfaces);
+    this.workflowMethods = ImmutableList.copyOf(workflowMethods.values());
+    this.signalMethods = ImmutableList.copyOf(signalMethods.values());
+    this.queryMethods = ImmutableList.copyOf(queryMethods.values());
   }
 
-  public Set<String> getWorkflowTypes() {
-    return workflowMethods.keySet();
+  /** List of workflow interfaces an object implements. */
+  public List<POJOWorkflowInterfaceMetadata> getWorkflowInterfaces() {
+    return workflowInterfaces;
   }
 
-  public POJOWorkflowMethodMetadata getWorkflowMethodMetadata(String workflowType) {
-    POJOWorkflowMethodMetadata result = workflowMethods.get(workflowType);
-    if (result == null) {
-      throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
-    }
-    return result;
+  /** List of workflow methods an object implements across all the workflow interfaces. */
+  public List<POJOWorkflowMethodMetadata> getWorkflowMethods() {
+    return workflowMethods;
   }
 
-  public Set<String> getSignalTypes() {
-    return signalMethods.keySet();
+  /** List of signal methods an object implements across all the workflow interfaces. */
+  public List<POJOWorkflowMethodMetadata> getSignalMethods() {
+    return signalMethods;
   }
 
-  public POJOWorkflowMethodMetadata getSignalMethodMetadata(String signalType) {
-    POJOWorkflowMethodMetadata result = signalMethods.get(signalType);
-    if (result == null) {
-      throw new IllegalArgumentException(
-          "Unknown signal type \""
-              + signalType
-              + "\", registeredSignals are: \""
-              + String.join(", ", signalMethods.keySet())
-              + "\"");
-    }
-    return result;
-  }
-
-  public Set<String> getQueryTypes() {
-    return queryMethods.keySet();
-  }
-
-  public POJOWorkflowMethodMetadata getQueryMethodMetadata(String queryType) {
-    POJOWorkflowMethodMetadata result = queryMethods.get(queryType);
-    if (result == null) {
-      throw new IllegalArgumentException("Unknown query type: " + queryType);
-    }
-    return result;
+  /** List of query methods an object implements across all the workflow interfaces. */
+  public List<POJOWorkflowMethodMetadata> getQueryMethods() {
+    return queryMethods;
   }
 }

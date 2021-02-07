@@ -132,9 +132,7 @@ public final class WorkflowInternal {
     }
     Class<?> cls = implementation.getClass();
     POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newListenerInstance(cls);
-    for (String queryType : workflowMetadata.getQueryTypes()) {
-      POJOWorkflowMethodMetadata methodMetadata =
-          workflowMetadata.getQueryMethodMetadata(queryType);
+    for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getQueryMethods()) {
       Method method = methodMetadata.getWorkflowMethod();
       getWorkflowInterceptor()
           .registerQuery(
@@ -151,9 +149,7 @@ public final class WorkflowInternal {
                   }));
     }
     List<WorkflowOutboundCallsInterceptor.SignalRegistrationRequest> requests = new ArrayList<>();
-    for (String signalType : workflowMetadata.getSignalTypes()) {
-      POJOWorkflowMethodMetadata methodMetadata =
-          workflowMetadata.getSignalMethodMetadata(signalType);
+    for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getSignalMethods()) {
       Method method = methodMetadata.getWorkflowMethod();
       requests.add(
           new WorkflowOutboundCallsInterceptor.SignalRegistrationRequest(

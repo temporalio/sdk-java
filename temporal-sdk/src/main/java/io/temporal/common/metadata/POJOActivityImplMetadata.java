@@ -48,6 +48,7 @@ public final class POJOActivityImplMetadata {
 
   private final List<POJOActivityInterfaceMetadata> activityInterfaces;
 
+  /** Creates POJOActivityImplMetadata for an activity implementation class. */
   public static POJOActivityImplMetadata newInstance(Class<?> implementationClass) {
     return new POJOActivityImplMetadata(implementationClass);
   }

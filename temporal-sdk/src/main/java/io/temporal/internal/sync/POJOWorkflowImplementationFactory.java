@@ -56,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,13 +175,16 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           });
       return;
     }
+    boolean hasWorkflowMethod = false;
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);
-    Set<String> workflowMethodTypes = workflowMetadata.getWorkflowTypes();
-    boolean hasWorkflowMethod = false;
-    for (String workflowType : workflowMethodTypes) {
-      POJOWorkflowMethodMetadata methodMetadata =
-          workflowMetadata.getWorkflowMethodMetadata(workflowType);
+    for (POJOWorkflowInterfaceMetadata workflowInterface :
+        workflowMetadata.getWorkflowInterfaces()) {
+      Optional<POJOWorkflowMethodMetadata> workflowMethod = workflowInterface.getWorkflowMethod();
+      if (!workflowMethod.isPresent()) {
+        continue;
+      }
+      POJOWorkflowMethodMetadata methodMetadata = workflowMethod.get();
       Method method = methodMetadata.getWorkflowMethod();
       Functions.Func<SyncWorkflowDefinition> factory =
           () -> new POJOWorkflowImplementation(workflowImplementationClass, method);
