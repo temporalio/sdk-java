@@ -32,7 +32,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Rules:
+ * Metadata of an activity interface.
+ *
+ * <p>Rules:
  *
  * <ul>
  *   <li>An activity implementation must implement at least one non empty interface annotated with
@@ -48,7 +50,7 @@ import java.util.Set;
 public final class POJOActivityInterfaceMetadata {
 
   /** Used to override equals and hashCode of Method to ensure deduping by method name in a set. */
-  static class EqualsByMethodName {
+  private static class EqualsByMethodName {
     private final Method method;
 
     EqualsByMethodName(Method method) {

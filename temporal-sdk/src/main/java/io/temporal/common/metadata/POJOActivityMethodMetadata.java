@@ -25,6 +25,7 @@ import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
 import java.util.Objects;
 
+/** Metadata about a single activity method. */
 public final class POJOActivityMethodMetadata {
   private final boolean hasActivityMethodAnnotation;
   private final String name;
@@ -54,17 +55,15 @@ public final class POJOActivityMethodMetadata {
     return name.substring(0, 1).toUpperCase() + name.substring(1);
   }
 
-  public boolean isHasActivityMethodAnnotation() {
-    return hasActivityMethodAnnotation;
-  }
-
-  public String getName() {
+  /** Name of activity type that this method implements */
+  public String getActivityTypeName() {
     if (Strings.isNullOrEmpty(name)) {
       throw new IllegalStateException("Not annotated: " + method);
     }
     return name;
   }
 
+  /** Method that implements the activity. */
   public Method getMethod() {
     return method;
   }

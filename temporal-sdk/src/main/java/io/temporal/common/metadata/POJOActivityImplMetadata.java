@@ -22,13 +22,15 @@ package io.temporal.common.metadata;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.common.MethodRetry;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Rules:
+ * Metadata of an activity implementation object.
+ *
+ * <p>Rules:
  *
  * <ul>
  *   <li>An activity implementation must implement at least one non empty interface annotated with
@@ -79,11 +81,11 @@ public final class POJOActivityImplMetadata {
       List<POJOActivityMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
       for (POJOActivityMethodMetadata methodMetadata : methods) {
         POJOActivityMethodMetadata registeredMM =
-            byName.put(methodMetadata.getName(), methodMetadata);
+            byName.put(methodMetadata.getActivityTypeName(), methodMetadata);
         if (registeredMM != null && !registeredMM.equals(methodMetadata)) {
           throw new IllegalArgumentException(
               "Duplicated name: \""
-                  + methodMetadata.getName()
+                  + methodMetadata.getActivityTypeName()
                   + "\" declared at \""
                   + registeredMM.getMethod()
                   + "\" registered through \""
@@ -103,15 +105,8 @@ public final class POJOActivityImplMetadata {
     }
   }
 
-  public Set<String> getActivityTypes() {
-    return byName.keySet();
-  }
-
-  public POJOActivityMethodMetadata getMethodMetadata(String activityType) {
-    POJOActivityMethodMetadata result = byName.get(activityType);
-    if (result == null) {
-      throw new IllegalArgumentException("Unknown activity type: " + activityType);
-    }
-    return result;
+  /** Activity types implemented by the object. */
+  public List<POJOActivityMethodMetadata> getActivityTypes() {
+    return new ArrayList<>(byName.values());
   }
 }

@@ -30,6 +30,7 @@ import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import java.lang.reflect.Method;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.junit.Test;
 
@@ -178,8 +179,12 @@ public class POJOActivityMetadataTest {
     expected.add("B");
 
     POJOActivityImplMetadata dMetadata = POJOActivityImplMetadata.newInstance(DImpl.class);
-    Set<String> dTypes = dMetadata.getActivityTypes();
-    assertEquals(expected, dTypes);
+    List<POJOActivityMethodMetadata> activityMethods = dMetadata.getActivityTypes();
+    Set<String> activityTypes = new HashSet<>();
+    for (POJOActivityMethodMetadata activityMethod : activityMethods) {
+      activityTypes.add(activityMethod.getActivityTypeName());
+    }
+    assertEquals(expected, activityTypes);
   }
 
   @Test
@@ -230,6 +235,6 @@ public class POJOActivityMetadataTest {
     Method c = C.class.getDeclaredMethod("c");
     POJOActivityMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
     assertEquals(c, cMethod.getMethod());
-    assertEquals("C_C", cMethod.getName());
+    assertEquals("C_C", cMethod.getActivityTypeName());
   }
 }
