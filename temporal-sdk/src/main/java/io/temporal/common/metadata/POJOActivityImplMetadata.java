@@ -19,6 +19,7 @@
 
 package io.temporal.common.metadata;
 
+import com.google.common.collect.ImmutableList;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.common.MethodRetry;
 import java.lang.reflect.Method;
@@ -45,7 +46,7 @@ import java.util.Map;
  */
 public final class POJOActivityImplMetadata {
 
-  private final Map<String, POJOActivityMethodMetadata> byName = new HashMap<>();
+  private final List<POJOActivityInterfaceMetadata> activityInterfaces;
 
   public static POJOActivityImplMetadata newInstance(Class<?> implementationClass) {
     return new POJOActivityImplMetadata(implementationClass);
@@ -74,10 +75,13 @@ public final class POJOActivityImplMetadata {
       }
     }
     Class<?>[] interfaces = implClass.getInterfaces();
+    List<POJOActivityInterfaceMetadata> activityInterfaces = new ArrayList<>();
+    Map<String, POJOActivityMethodMetadata> byName = new HashMap<>();
     for (int i = 0; i < interfaces.length; i++) {
       Class<?> anInterface = interfaces[i];
       POJOActivityInterfaceMetadata interfaceMetadata =
           POJOActivityInterfaceMetadata.newImplementationInterface(anInterface);
+      activityInterfaces.add(interfaceMetadata);
       List<POJOActivityMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
       for (POJOActivityMethodMetadata methodMetadata : methods) {
         POJOActivityMethodMetadata registeredMM =
@@ -98,15 +102,16 @@ public final class POJOActivityImplMetadata {
         }
       }
     }
-    if (this.byName.isEmpty()) {
+    if (byName.isEmpty()) {
       throw new IllegalArgumentException(
           "Class doesn't implement any non empty interface annotated with @ActivityInterface: "
               + implClass.getName());
     }
+    this.activityInterfaces = ImmutableList.copyOf(activityInterfaces);
   }
 
-  /** Activity types implemented by the object. */
-  public List<POJOActivityMethodMetadata> getActivityTypes() {
-    return new ArrayList<>(byName.values());
+  /** Activity interfaces implemented by the object. */
+  public List<POJOActivityInterfaceMetadata> getActivityInterfaces() {
+    return activityInterfaces;
   }
 }

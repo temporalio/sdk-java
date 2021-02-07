@@ -27,7 +27,6 @@ import java.util.Objects;
 
 /** Metadata about a single activity method. */
 public final class POJOActivityMethodMetadata {
-  private final boolean hasActivityMethodAnnotation;
   private final String name;
   private final Method method;
   private final Class<?> interfaceType;
@@ -37,15 +36,10 @@ public final class POJOActivityMethodMetadata {
     this.method = Objects.requireNonNull(method);
     this.interfaceType = Objects.requireNonNull(interfaceType);
     ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
-    String name;
-    if (activityMethod != null && !activityMethod.name().isEmpty()) {
-      hasActivityMethodAnnotation = true;
-      name = activityMethod.name();
-    } else {
-      hasActivityMethodAnnotation = false;
-      name = activityAnnotation.namePrefix() + getActivityNameFromMethod(method);
-    }
-    this.name = name;
+    this.name =
+        activityMethod != null && !activityMethod.name().isEmpty()
+            ? activityMethod.name()
+            : activityAnnotation.namePrefix() + getActivityNameFromMethod(method);
   }
 
   // Capitalize the first letter
@@ -63,12 +57,13 @@ public final class POJOActivityMethodMetadata {
     return name;
   }
 
-  /** Method that implements the activity. */
+  /** Interface method that defines the activity. */
   public Method getMethod() {
     return method;
   }
 
-  public Class<?> getInterfaceType() {
+  /** Activity interface that this method implements. */
+  Class<?> getInterfaceType() {
     return interfaceType;
   }
 

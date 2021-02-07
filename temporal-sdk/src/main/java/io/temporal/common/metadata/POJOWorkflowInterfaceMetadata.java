@@ -129,6 +129,10 @@ public final class POJOWorkflowInterfaceMetadata {
     return Optional.ofNullable(workflowMethod);
   }
 
+  /**
+   * Workflow type the workflow interface defines. It is empty for interfaces that contain only
+   * signal and query methods.
+   */
   public Optional<String> getWorkflowType() {
     if (workflowMethod == null) {
       return Optional.empty();
@@ -136,20 +140,15 @@ public final class POJOWorkflowInterfaceMetadata {
     return Optional.of(workflowMethod.getName());
   }
 
+  /**
+   * Return metadata for a method of a workflow interface.
+   *
+   * @throws IllegalArgumentException if method doesn't belong to the workflow interface.
+   */
   public POJOWorkflowMethodMetadata getMethodMetadata(Method method) {
     POJOWorkflowMethodMetadata result = methods.get(method);
     if (result == null) {
       throw new IllegalArgumentException("Unknown method: " + method);
-    }
-    return result;
-  }
-
-  public List<POJOWorkflowMethodMetadata> getMethodsMetadata(WorkflowMethodType type) {
-    List<POJOWorkflowMethodMetadata> result = new ArrayList<>();
-    for (POJOWorkflowMethodMetadata methodMetadata : this.methods.values()) {
-      if (methodMetadata.getType() == type) {
-        result.add(methodMetadata);
-      }
     }
     return result;
   }

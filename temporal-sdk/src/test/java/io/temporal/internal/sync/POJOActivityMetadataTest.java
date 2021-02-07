@@ -29,6 +29,7 @@ import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -178,8 +179,13 @@ public class POJOActivityMetadataTest {
     expected.add("A");
     expected.add("B");
 
-    POJOActivityImplMetadata dMetadata = POJOActivityImplMetadata.newInstance(DImpl.class);
-    List<POJOActivityMethodMetadata> activityMethods = dMetadata.getActivityTypes();
+    POJOActivityImplMetadata activityImplMetadata =
+        POJOActivityImplMetadata.newInstance(DImpl.class);
+    List<POJOActivityMethodMetadata> activityMethods = new ArrayList<>();
+    for (POJOActivityInterfaceMetadata activityInterface :
+        activityImplMetadata.getActivityInterfaces()) {
+      activityMethods.addAll(activityInterface.getMethodsMetadata());
+    }
     Set<String> activityTypes = new HashSet<>();
     for (POJOActivityMethodMetadata activityMethod : activityMethods) {
       activityTypes.add(activityMethod.getActivityTypeName());

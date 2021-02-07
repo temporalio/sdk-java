@@ -38,6 +38,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
+import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.SimulatedTimeoutFailure;
@@ -106,15 +107,18 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
     Class<?> cls = activity.getClass();
     POJOActivityImplMetadata activityImplMetadata = POJOActivityImplMetadata.newInstance(cls);
-    for (POJOActivityMethodMetadata activityMetadata : activityImplMetadata.getActivityTypes()) {
-      String typeName = activityMetadata.getActivityTypeName();
-      if (activities.containsKey(typeName)) {
-        throw new IllegalArgumentException(
-            "\"" + typeName + "\" activity type is already registered with the worker");
+    for (POJOActivityInterfaceMetadata activityInterface :
+        activityImplMetadata.getActivityInterfaces()) {
+      for (POJOActivityMethodMetadata activityMetadata : activityInterface.getMethodsMetadata()) {
+        String typeName = activityMetadata.getActivityTypeName();
+        if (activities.containsKey(typeName)) {
+          throw new IllegalArgumentException(
+              "\"" + typeName + "\" activity type is already registered with the worker");
+        }
+        Method method = activityMetadata.getMethod();
+        ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
+        activities.put(typeName, implementation);
       }
-      Method method = activityMetadata.getMethod();
-      ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
-      activities.put(typeName, implementation);
     }
   }
 
