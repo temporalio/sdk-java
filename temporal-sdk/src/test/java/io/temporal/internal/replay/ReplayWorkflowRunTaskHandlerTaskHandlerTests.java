@@ -57,11 +57,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
   @After
   public void tearDown() {
     service.shutdownNow();
-    try {
-      service.awaitTermination(1, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
+    service.awaitTermination(1, TimeUnit.SECONDS);
     testService.close();
   }
 

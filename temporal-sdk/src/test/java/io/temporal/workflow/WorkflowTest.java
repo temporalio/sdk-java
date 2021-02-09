@@ -190,11 +190,7 @@ public class WorkflowTest {
   public static void closeService() {
     if (useExternalService) {
       service.shutdownNow();
-      try {
-        service.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
+      service.awaitTermination(10, TimeUnit.SECONDS);
     }
   }
 

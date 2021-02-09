@@ -232,20 +232,24 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   }
 
   @Override
-  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    long start = System.currentTimeMillis();
-    if (channelNeedsShutdown) {
-      return channel.awaitTermination(timeout, unit);
+  public boolean awaitTermination(long timeout, TimeUnit unit) {
+    try {
+      long start = System.currentTimeMillis();
+      if (channelNeedsShutdown) {
+        return channel.awaitTermination(timeout, unit);
+      }
+      long left = System.currentTimeMillis() - unit.toMillis(start);
+      if (inProcessServer != null) {
+        inProcessServer.awaitTermination(left, TimeUnit.MILLISECONDS);
+      }
+      left = System.currentTimeMillis() - unit.toMillis(start);
+      if (scheduledBackoffResetter != null) {
+        scheduledBackoffResetter.awaitTermination(left, TimeUnit.MILLISECONDS);
+      }
+      return true;
+    } catch (InterruptedException e) {
+      return false;
     }
-    long left = System.currentTimeMillis() - unit.toMillis(start);
-    if (inProcessServer != null) {
-      inProcessServer.awaitTermination(left, TimeUnit.MILLISECONDS);
-    }
-    left = System.currentTimeMillis() - unit.toMillis(start);
-    if (scheduledBackoffResetter != null) {
-      scheduledBackoffResetter.awaitTermination(left, TimeUnit.MILLISECONDS);
-    }
-    return true;
   }
 
   @Override

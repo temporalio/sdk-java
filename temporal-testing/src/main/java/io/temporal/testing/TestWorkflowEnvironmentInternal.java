@@ -151,10 +151,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     workerFactory.awaitTermination(10, TimeUnit.SECONDS);
     service.close();
     workflowServiceStubs.shutdown();
-    try {
-      workflowServiceStubs.awaitTermination(10, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-    }
+    workflowServiceStubs.awaitTermination(10, TimeUnit.SECONDS);
   }
 
   @Override

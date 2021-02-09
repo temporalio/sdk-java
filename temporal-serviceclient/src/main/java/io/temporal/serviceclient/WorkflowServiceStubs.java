@@ -20,6 +20,7 @@
 package io.temporal.serviceclient;
 
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+
 import java.util.concurrent.TimeUnit;
 
 /** Initializes and holds gRPC blocking and future stubs. */
@@ -61,7 +62,13 @@ public interface WorkflowServiceStubs {
 
   boolean isTerminated();
 
-  boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
+  /**
+   * Awaits for gRPC stubs shutdown up to the specified timeout. The shutdown has to be initiated
+   * through {@link #shutdown()} or {@link #shutdownNow()}.
+   *
+   * @return false if timed out or the thread was interrupted.
+   */
+  boolean awaitTermination(long timeout, TimeUnit unit);
 
   WorkflowServiceStubsOptions getOptions();
 }
