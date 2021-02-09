@@ -37,6 +37,9 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.metadata.POJOActivityImplMetadata;
+import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
+import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.SimulatedTimeoutFailure;
 import io.temporal.failure.TemporalFailure;
@@ -103,15 +106,19 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
       return;
     }
     Class<?> cls = activity.getClass();
-    POJOActivityImplMetadata activityMetadata = POJOActivityImplMetadata.newInstance(cls);
-    for (String activityType : activityMetadata.getActivityTypes()) {
-      if (activities.containsKey(activityType)) {
-        throw new IllegalArgumentException(
-            "\"" + activityType + "\" activity type is already registered with the worker");
+    POJOActivityImplMetadata activityImplMetadata = POJOActivityImplMetadata.newInstance(cls);
+    for (POJOActivityInterfaceMetadata activityInterface :
+        activityImplMetadata.getActivityInterfaces()) {
+      for (POJOActivityMethodMetadata activityMetadata : activityInterface.getMethodsMetadata()) {
+        String typeName = activityMetadata.getActivityTypeName();
+        if (activities.containsKey(typeName)) {
+          throw new IllegalArgumentException(
+              "\"" + typeName + "\" activity type is already registered with the worker");
+        }
+        Method method = activityMetadata.getMethod();
+        ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
+        activities.put(typeName, implementation);
       }
-      Method method = activityMetadata.getMethodMetadata(activityType).getMethod();
-      ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
-      activities.put(activityType, implementation);
     }
   }
 

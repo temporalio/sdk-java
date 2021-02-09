@@ -23,6 +23,8 @@ import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
+import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -52,7 +54,7 @@ public abstract class ActivityInvocationHandlerBase implements InvocationHandler
         POJOActivityInterfaceMetadata.newInstance(activityInterface);
     for (POJOActivityMethodMetadata methodMetadata : activityMetadata.getMethodsMetadata()) {
       Method method = methodMetadata.getMethod();
-      String activityType = methodMetadata.getName();
+      String activityType = methodMetadata.getActivityTypeName();
       MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);
       Function<Object[], Object> function = getActivityFunc(method, methodRetry, activityType);
       methodFunctions.put(method, function);

@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import io.temporal.workflow.WorkflowInterface;
 import java.lang.reflect.Method;
@@ -32,7 +32,9 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Rules:
+ * Metadata of a workflow interface.
+ *
+ * <p>Rules:
  *
  * <ul>
  *   <li>A workflow implementation must implement at least one non empty interface annotated with
@@ -45,10 +47,10 @@ import java.util.Set;
  *       B extends A it cannot also declare foo() even with a different signature.
  * </ul>
  */
-class POJOWorkflowInterfaceMetadata {
+public final class POJOWorkflowInterfaceMetadata {
 
   /** Used to override equals and hashCode of Method to ensure deduping by method name in a set. */
-  static class EqualsByMethodName {
+  private static class EqualsByMethodName {
     private final Method method;
 
     EqualsByMethodName(Method method) {
@@ -73,36 +75,22 @@ class POJOWorkflowInterfaceMetadata {
     }
   }
 
-  static class EqualsByNameType {
-    private final String name;
-    private final WorkflowMethodType type;
-
-    EqualsByNameType(String name, WorkflowMethodType type) {
-      this.name = name;
-      this.type = type;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      EqualsByNameType that = (EqualsByNameType) o;
-      return com.google.common.base.Objects.equal(name, that.name) && type == that.type;
-    }
-
-    @Override
-    public int hashCode() {
-      return com.google.common.base.Objects.hashCode(name, type);
-    }
-  }
-
   private POJOWorkflowMethodMetadata workflowMethod;
   private final Map<Method, POJOWorkflowMethodMetadata> methods = new HashMap<>();
 
+  /**
+   * Returns POJOWorkflowInterfaceMetadata for an interface annotated with {@link
+   * WorkflowInterface}.
+   */
   public static POJOWorkflowInterfaceMetadata newInstance(Class<?> anInterface) {
     return newInstance(anInterface, true);
   }
 
+  /**
+   * Returns POJOWorkflowInterfaceMetadata for an interface that may be annotated with {@link
+   * WorkflowInterface}. This to support invoking workflow signal and query methods through a base
+   * interface without such annotation.
+   */
   public static POJOWorkflowInterfaceMetadata newInstanceSkipWorkflowAnnotationCheck(
       Class<?> anInterface) {
     return newInstance(anInterface, false);
@@ -152,6 +140,10 @@ class POJOWorkflowInterfaceMetadata {
     return Optional.ofNullable(workflowMethod);
   }
 
+  /**
+   * Workflow type the workflow interface defines. It is empty for interfaces that contain only
+   * signal and query methods.
+   */
   public Optional<String> getWorkflowType() {
     if (workflowMethod == null) {
       return Optional.empty();
@@ -159,20 +151,15 @@ class POJOWorkflowInterfaceMetadata {
     return Optional.of(workflowMethod.getName());
   }
 
+  /**
+   * Return metadata for a method of a workflow interface.
+   *
+   * @throws IllegalArgumentException if method doesn't belong to the workflow interface.
+   */
   public POJOWorkflowMethodMetadata getMethodMetadata(Method method) {
     POJOWorkflowMethodMetadata result = methods.get(method);
     if (result == null) {
       throw new IllegalArgumentException("Unknown method: " + method);
-    }
-    return result;
-  }
-
-  public List<POJOWorkflowMethodMetadata> getMethodsMetadata(WorkflowMethodType type) {
-    List<POJOWorkflowMethodMetadata> result = new ArrayList<>();
-    for (POJOWorkflowMethodMetadata methodMetadata : this.methods.values()) {
-      if (methodMetadata.getType() == type) {
-        result.add(methodMetadata);
-      }
     }
     return result;
   }
