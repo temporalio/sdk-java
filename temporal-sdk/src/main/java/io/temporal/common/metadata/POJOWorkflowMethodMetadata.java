@@ -17,19 +17,20 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
 
-class POJOWorkflowMethodMetadata {
+/** Metadata of a single workflow method. */
+public final class POJOWorkflowMethodMetadata {
 
   private final POJOWorkflowMethod workflowMethod;
   private final String name;
   private final Class<?> interfaceType;
 
-  public POJOWorkflowMethodMetadata(POJOWorkflowMethod methodMetadata, Class<?> interfaceType) {
+  POJOWorkflowMethodMetadata(POJOWorkflowMethod methodMetadata, Class<?> interfaceType) {
     this.workflowMethod = Objects.requireNonNull(methodMetadata);
     if (workflowMethod.getType() == WorkflowMethodType.NONE) {
       throw new IllegalArgumentException(
@@ -51,6 +52,11 @@ class POJOWorkflowMethodMetadata {
     return workflowMethod.getType();
   }
 
+  /**
+   * The semantics of the name depends on the value of {@link #getType()}. It is signal name for
+   * {@link WorkflowMethodType#SIGNAL}, query type for {@link WorkflowMethodType#QUERY} and workflow
+   * type for {@link WorkflowMethodType#WORKFLOW}.
+   */
   public String getName() {
     return name;
   }

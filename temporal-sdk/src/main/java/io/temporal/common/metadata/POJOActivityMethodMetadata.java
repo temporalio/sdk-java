@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import com.google.common.base.Strings;
 import io.temporal.activity.ActivityInterface;
@@ -25,8 +25,8 @@ import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
 import java.util.Objects;
 
-public class POJOActivityMethodMetadata {
-  private final boolean hasActivityMethodAnnotation;
+/** Metadata of a single activity method. */
+public final class POJOActivityMethodMetadata {
   private final String name;
   private final Method method;
   private final Class<?> interfaceType;
@@ -36,15 +36,10 @@ public class POJOActivityMethodMetadata {
     this.method = Objects.requireNonNull(method);
     this.interfaceType = Objects.requireNonNull(interfaceType);
     ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
-    String name;
-    if (activityMethod != null && !activityMethod.name().isEmpty()) {
-      hasActivityMethodAnnotation = true;
-      name = activityMethod.name();
-    } else {
-      hasActivityMethodAnnotation = false;
-      name = activityAnnotation.namePrefix() + getActivityNameFromMethod(method);
-    }
-    this.name = name;
+    this.name =
+        activityMethod != null && !activityMethod.name().isEmpty()
+            ? activityMethod.name()
+            : activityAnnotation.namePrefix() + getActivityNameFromMethod(method);
   }
 
   // Capitalize the first letter
@@ -54,22 +49,21 @@ public class POJOActivityMethodMetadata {
     return name.substring(0, 1).toUpperCase() + name.substring(1);
   }
 
-  public boolean isHasActivityMethodAnnotation() {
-    return hasActivityMethodAnnotation;
-  }
-
-  public String getName() {
+  /** Name of activity type that this method implements */
+  public String getActivityTypeName() {
     if (Strings.isNullOrEmpty(name)) {
       throw new IllegalStateException("Not annotated: " + method);
     }
     return name;
   }
 
+  /** Interface method that defines the activity. */
   public Method getMethod() {
     return method;
   }
 
-  public Class<?> getInterfaceType() {
+  /** Activity interface that this method belongs to. */
+  Class<?> getInterfaceType() {
     return interfaceType;
   }
 

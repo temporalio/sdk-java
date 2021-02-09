@@ -23,6 +23,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import io.temporal.common.metadata.POJOWorkflowImplMetadata;
+import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
+import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
+import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
@@ -189,10 +193,30 @@ public class POJOWorkflowMetadataTest {
     sExpected.add("c");
     sExpected.add("d");
 
-    POJOWorkflowImplMetadata dMetadata = POJOWorkflowImplMetadata.newInstance(DImpl.class);
-    Set<String> wTypes = dMetadata.getWorkflowTypes();
-    Set<String> qTypes = dMetadata.getQueryTypes();
-    Set<String> sTypes = dMetadata.getSignalTypes();
+    Set<String> wTypes = new HashSet<>();
+    Set<String> qTypes = new HashSet<>();
+    Set<String> sTypes = new HashSet<>();
+    POJOWorkflowImplMetadata implMetadata = POJOWorkflowImplMetadata.newInstance(DImpl.class);
+    for (POJOWorkflowInterfaceMetadata workflowInterface : implMetadata.getWorkflowInterfaces()) {
+      for (POJOWorkflowMethodMetadata methodMetadata : workflowInterface.getMethodsMetadata()) {
+        String name = methodMetadata.getName();
+        WorkflowMethodType type = methodMetadata.getType();
+        switch (type) {
+          case WORKFLOW:
+            wTypes.add(name);
+            break;
+          case QUERY:
+            qTypes.add(name);
+            break;
+          case SIGNAL:
+            sTypes.add(name);
+            break;
+          default:
+            throw new IllegalArgumentException("Unknown type: " + type);
+        }
+      }
+    }
+
     assertEquals(wExpected, wTypes);
     assertEquals(sExpected, sTypes);
     assertEquals(qExpected, qTypes);

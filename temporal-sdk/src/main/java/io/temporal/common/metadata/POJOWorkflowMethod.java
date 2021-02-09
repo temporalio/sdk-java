@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import com.google.common.base.Strings;
 import io.temporal.workflow.QueryMethod;
@@ -27,7 +27,7 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
 
-class POJOWorkflowMethod {
+final class POJOWorkflowMethod {
 
   private final WorkflowMethodType type;
   private final Method method;

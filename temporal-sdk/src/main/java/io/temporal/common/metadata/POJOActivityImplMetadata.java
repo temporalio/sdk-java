@@ -17,18 +17,21 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
+import com.google.common.collect.ImmutableList;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.common.MethodRetry;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Rules:
+ * Metadata of an activity implementation object.
+ *
+ * <p>Rules:
  *
  * <ul>
  *   <li>An activity implementation must implement at least one non empty interface annotated with
@@ -41,10 +44,11 @@ import java.util.Set;
  *       B extends A it cannot also declare foo() even with a different signature.
  * </ul>
  */
-class POJOActivityImplMetadata {
+public final class POJOActivityImplMetadata {
 
-  private final Map<String, POJOActivityMethodMetadata> byName = new HashMap<>();
+  private final List<POJOActivityInterfaceMetadata> activityInterfaces;
 
+  /** Creates POJOActivityImplMetadata for an activity implementation class. */
   public static POJOActivityImplMetadata newInstance(Class<?> implementationClass) {
     return new POJOActivityImplMetadata(implementationClass);
   }
@@ -72,18 +76,21 @@ class POJOActivityImplMetadata {
       }
     }
     Class<?>[] interfaces = implClass.getInterfaces();
+    List<POJOActivityInterfaceMetadata> activityInterfaces = new ArrayList<>();
+    Map<String, POJOActivityMethodMetadata> byName = new HashMap<>();
     for (int i = 0; i < interfaces.length; i++) {
       Class<?> anInterface = interfaces[i];
       POJOActivityInterfaceMetadata interfaceMetadata =
           POJOActivityInterfaceMetadata.newImplementationInterface(anInterface);
+      activityInterfaces.add(interfaceMetadata);
       List<POJOActivityMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
       for (POJOActivityMethodMetadata methodMetadata : methods) {
         POJOActivityMethodMetadata registeredMM =
-            byName.put(methodMetadata.getName(), methodMetadata);
+            byName.put(methodMetadata.getActivityTypeName(), methodMetadata);
         if (registeredMM != null && !registeredMM.equals(methodMetadata)) {
           throw new IllegalArgumentException(
               "Duplicated name: \""
-                  + methodMetadata.getName()
+                  + methodMetadata.getActivityTypeName()
                   + "\" declared at \""
                   + registeredMM.getMethod()
                   + "\" registered through \""
@@ -96,22 +103,16 @@ class POJOActivityImplMetadata {
         }
       }
     }
-    if (this.byName.isEmpty()) {
+    if (byName.isEmpty()) {
       throw new IllegalArgumentException(
           "Class doesn't implement any non empty interface annotated with @ActivityInterface: "
               + implClass.getName());
     }
+    this.activityInterfaces = ImmutableList.copyOf(activityInterfaces);
   }
 
-  public Set<String> getActivityTypes() {
-    return byName.keySet();
-  }
-
-  public POJOActivityMethodMetadata getMethodMetadata(String activityType) {
-    POJOActivityMethodMetadata result = byName.get(activityType);
-    if (result == null) {
-      throw new IllegalArgumentException("Unknown activity type: " + activityType);
-    }
-    return result;
+  /** Activity interfaces implemented by the object. */
+  public List<POJOActivityInterfaceMetadata> getActivityInterfaces() {
+    return activityInterfaces;
   }
 }
