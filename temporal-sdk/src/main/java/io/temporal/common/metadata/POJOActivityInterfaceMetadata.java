@@ -75,6 +75,7 @@ public final class POJOActivityInterfaceMetadata {
     }
   }
 
+  private final Class<?> interfaceClass;
   private final Map<Method, POJOActivityMethodMetadata> methods = new HashMap<>();
 
   public static POJOActivityInterfaceMetadata newInstance(Class<?> anInterface) {
@@ -111,8 +112,14 @@ public final class POJOActivityInterfaceMetadata {
     if (!anInterface.isInterface()) {
       throw new IllegalArgumentException("not an interface: " + anInterface);
     }
+    this.interfaceClass = anInterface;
     Map<EqualsByMethodName, POJOActivityMethodMetadata> dedupeMap = new HashMap<>();
     getActivityInterfaceMethods(anInterface, dedupeMap);
+  }
+
+  /** Java interface {@code Class} that backs this activity interface. */
+  public Class<?> getInterfaceClass() {
+    return interfaceClass;
   }
 
   public List<POJOActivityMethodMetadata> getMethodsMetadata() {
