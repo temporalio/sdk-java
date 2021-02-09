@@ -53,7 +53,7 @@ public final class POJOWorkflowMethodMetadata {
   }
 
   /**
-   * The semantic of the name depends on the value of {@link #getType()}. It is signal name for
+   * The semantics of the name depends on the value of {@link #getType()}. It is signal name for
    * {@link WorkflowMethodType#SIGNAL}, query type for {@link WorkflowMethodType#QUERY} and workflow
    * type for {@link WorkflowMethodType#WORKFLOW}.
    */
