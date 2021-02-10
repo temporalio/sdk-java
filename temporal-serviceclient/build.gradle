@@ -81,7 +81,7 @@ dependencies {
     api 'io.grpc:grpc-stub:1.35.0'
     api 'io.grpc:grpc-core:1.35.0'
     api group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.14.0'
-    api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
+    api group: 'com.uber.m3', name: 'tally-core', version: '0.10.0'
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
     api 'io.grpc:grpc-netty-shaded:1.35.0'
     if (!JavaVersion.current().isJava8()) {
