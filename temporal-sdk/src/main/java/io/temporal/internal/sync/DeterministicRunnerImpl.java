@@ -311,11 +311,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       throw e;
     } finally {
       inRunUntilAllBlocked = false;
+      lock.unlock();
       // Close was requested while running
       if (closeRequested) {
         close();
       }
-      lock.unlock();
     }
   }
 
