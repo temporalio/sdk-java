@@ -300,7 +300,13 @@ public final class WorkflowWorker
       Lock runLock = null;
       if (!Strings.isNullOrEmpty(stickyTaskQueueName)) {
         runLock = runLocks.getLockForLocking(task.getWorkflowExecution().getRunId());
-        runLock.lock();
+        // Acquiring a lock with a timeout to avoid having lots of workflow tasks for the same run
+        // id waiting for a lock and consuming threads in case if lock is unavailable.
+        if (!runLock.tryLock(1, TimeUnit.SECONDS)) {
+          throw new UnableToAcquireLockException(
+              "Workflow lock for the run id hasn't been released by one of previous execution attempts, "
+                  + "consider increasing workflow task timeout.");
+        }
       }
 
       Stopwatch swTotal =
@@ -339,7 +345,9 @@ public final class WorkflowWorker
           "Failure processing workflow task. WorkflowId="
               + execution.getWorkflowId()
               + ", RunId="
-              + execution.getRunId(),
+              + execution.getRunId()
+              + ", Attempt="
+              + task.getAttempt(),
           failure);
     }
 
@@ -354,8 +362,7 @@ public final class WorkflowWorker
         ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
         RespondWorkflowTaskCompletedRequest request =
-            taskCompleted
-                .toBuilder()
+            taskCompleted.toBuilder()
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
                 .setBinaryChecksum(options.getBinaryChecksum())
@@ -386,8 +393,7 @@ public final class WorkflowWorker
                   .validateBuildWithDefaults();
 
           RespondWorkflowTaskFailedRequest request =
-              taskFailed
-                  .toBuilder()
+              taskFailed.toBuilder()
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
                   .setTaskToken(taskToken)
