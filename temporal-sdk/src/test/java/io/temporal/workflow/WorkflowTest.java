@@ -194,7 +194,7 @@ public class WorkflowTest {
     }
   }
 
-  private static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskQueue) {
+  public static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskQueue) {
     if (DEBUGGER_TIMEOUTS) {
       return WorkflowOptions.newBuilder()
           .setWorkflowRunTimeout(Duration.ofSeconds(1000))
@@ -4444,7 +4444,7 @@ public class WorkflowTest {
     List<UUID> activityUUIDList(List<UUID> arg);
   }
 
-  private static class TestActivitiesImpl implements TestActivities {
+  public static class TestActivitiesImpl implements TestActivities {
 
     final ActivityCompletionClient completionClient;
     final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
@@ -4455,7 +4455,7 @@ public class WorkflowTest {
     int lastAttempt;
     final AtomicInteger applicationFailureCounter = new AtomicInteger();
 
-    private TestActivitiesImpl(ActivityCompletionClient completionClient) {
+    public TestActivitiesImpl(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
     }
 
