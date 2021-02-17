@@ -77,7 +77,7 @@ public class TestWorkflowExtension
   private static final String TASK_QUEUE_KEY = "taskQueue";
 
   private final WorkerOptions workerOptions;
-  private final String namespace;
+  private final WorkflowClientOptions workflowClientOptions;
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
   private final boolean useExternalService;
@@ -88,7 +88,12 @@ public class TestWorkflowExtension
 
   private TestWorkflowExtension(Builder builder) {
     workerOptions = builder.workerOptions;
-    namespace = builder.namespace;
+    if (builder.workflowClientOptions != null) {
+      workflowClientOptions = builder.workflowClientOptions;
+    } else {
+      workflowClientOptions =
+          WorkflowClientOptions.newBuilder().setNamespace(builder.namespace).build();
+    }
     workflowTypes = builder.workflowTypes;
     activityImplementations = builder.activityImplementations;
     useExternalService = builder.useExternalService;
@@ -154,11 +159,9 @@ public class TestWorkflowExtension
 
   @Override
   public void beforeEach(ExtensionContext context) throws Exception {
-    WorkflowClientOptions clientOptions =
-        WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
-            .setWorkflowClientOptions(clientOptions)
+            .setWorkflowClientOptions(workflowClientOptions)
             .setUseExternalService(useExternalService)
             .setTarget(target)
             .build();
@@ -227,6 +230,7 @@ public class TestWorkflowExtension
     private static final Object[] NO_ACTIVITIES = new Object[0];
 
     private WorkerOptions workerOptions = WorkerOptions.getDefaultInstance();
+    private WorkflowClientOptions workflowClientOptions;
     private String namespace = "UnitTest";
     private Class<?>[] workflowTypes = NO_WORKFLOWS;
     private Object[] activityImplementations = NO_ACTIVITIES;
@@ -239,6 +243,15 @@ public class TestWorkflowExtension
     /** @see TestWorkflowEnvironment#newWorker(String, WorkerOptions) */
     public Builder setWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
+      return this;
+    }
+
+    /**
+     * Override {@link WorkflowClientOptions} for test environment. If set, takes precedence over
+     * {@link #setNamespace(String) namespace}.
+     */
+    public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
+      this.workflowClientOptions = workflowClientOptions;
       return this;
     }
 
