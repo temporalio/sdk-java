@@ -44,6 +44,10 @@ public class WorkflowServiceStubsOptions {
   private static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
   /** Default timeout that will be used to reset connection backoff. */
   private static final Duration DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY = Duration.ofSeconds(10);
+  /**
+   * Default timeout that will be used to enter idle channel state and reconnect to temporal server.
+   */
+  private static final Duration DEFAULT_GRPC_RECONNECT_FREQUENCY = Duration.ofMinutes(1);
 
   private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE;
 
@@ -85,6 +89,12 @@ public class WorkflowServiceStubsOptions {
   /** Frequency at which connection backoff is going to be reset */
   private final Duration connectionBackoffResetFrequency;
 
+  /**
+   * Frequency at which grpc connection channel will be moved into an idle state, triggering a new
+   * connection to the temporal frontend host.
+   */
+  private final Duration grpcReconnectFrequency;
+
   /** Optional gRPC headers */
   private final Metadata headers;
 
@@ -109,6 +119,7 @@ public class WorkflowServiceStubsOptions {
     this.rpcQueryTimeout = builder.rpcQueryTimeout;
     this.rpcTimeout = builder.rpcTimeout;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
+    this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
@@ -140,6 +151,7 @@ public class WorkflowServiceStubsOptions {
     this.rpcQueryTimeout = builder.rpcQueryTimeout;
     this.rpcTimeout = builder.rpcTimeout;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
+    this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     if (builder.headers != null) {
@@ -191,6 +203,11 @@ public class WorkflowServiceStubsOptions {
     return connectionBackoffResetFrequency;
   }
 
+  /** @return frequency at which grpc channel should be moved into an idle state. */
+  public Duration getGrpcReconnectFrequency() {
+    return grpcReconnectFrequency;
+  }
+
   public Metadata getHeaders() {
     return headers;
   }
@@ -230,6 +247,7 @@ public class WorkflowServiceStubsOptions {
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
+    private Duration grpcReconnectFrequency = DEFAULT_GRPC_RECONNECT_FREQUENCY;
     private Metadata headers;
     private Function<
             WorkflowServiceGrpc.WorkflowServiceBlockingStub,
@@ -252,6 +270,7 @@ public class WorkflowServiceStubsOptions {
       this.rpcQueryTimeout = options.rpcQueryTimeout;
       this.rpcTimeout = options.rpcTimeout;
       this.connectionBackoffResetFrequency = options.connectionBackoffResetFrequency;
+      this.grpcReconnectFrequency = options.grpcReconnectFrequency;
       this.blockingStubInterceptor = options.blockingStubInterceptor;
       this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
@@ -318,11 +337,26 @@ public class WorkflowServiceStubsOptions {
      * performed and we'll rely on default gRPC backoff behavior defined in
      * ExponentialBackoffPolicy.
      *
-     * @param connectionBackoffResetFrequency frequency.
+     * @param connectionBackoffResetFrequency frequency, defaults to once every 10 seconds. Set to
+     *     null in order to disable this feature.
      */
     public Builder setConnectionBackoffResetFrequency(Duration connectionBackoffResetFrequency) {
       this.connectionBackoffResetFrequency = connectionBackoffResetFrequency;
       return this;
+    }
+
+    /**
+     * Sets frequency at which gRPC channel will be moved into an idle state and triggers tear-down
+     * of the channel's name resolver and load balancer, while still allowing on-going RPCs on the
+     * channel to continue. New RPCs on the channel will trigger creation of a new connection. This
+     * allows worker to connect to a new temporal backend host periodically avoiding hot spots and
+     * resulting in a more even connection distribution.
+     *
+     * @param grpcReconnectFrequency frequency, defaults to once every 1 minute. Set to null in
+     *     order to disable this feature.
+     */
+    public void setGrpcReconnectFrequency(Duration grpcReconnectFrequency) {
+      this.grpcReconnectFrequency = grpcReconnectFrequency;
     }
 
     /**
