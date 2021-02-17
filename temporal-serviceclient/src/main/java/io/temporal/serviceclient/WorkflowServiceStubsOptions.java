@@ -47,7 +47,7 @@ public class WorkflowServiceStubsOptions {
   /**
    * Default timeout that will be used to enter idle channel state and reconnect to temporal server.
    */
-  private static final Duration DEFAULT_ENTER_IDLE_CHANNEL_STATE_FREQUENCY = Duration.ofMinutes(5);
+  private static final Duration DEFAULT_GRPC_RECONNECT_FREQUENCY = Duration.ofMinutes(1);
 
   private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE;
 
@@ -93,7 +93,7 @@ public class WorkflowServiceStubsOptions {
    * Frequency at which grpc connection channel will be moved into an idle state, triggering a new
    * connection to the temporal frontend host.
    */
-  private final Duration enterIdleChannelStateFrequency;
+  private final Duration grpcReconnectFrequency;
 
   /** Optional gRPC headers */
   private final Metadata headers;
@@ -119,7 +119,7 @@ public class WorkflowServiceStubsOptions {
     this.rpcQueryTimeout = builder.rpcQueryTimeout;
     this.rpcTimeout = builder.rpcTimeout;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
-    this.enterIdleChannelStateFrequency = builder.enterIdleChannelStateFrequency;
+    this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
@@ -151,7 +151,7 @@ public class WorkflowServiceStubsOptions {
     this.rpcQueryTimeout = builder.rpcQueryTimeout;
     this.rpcTimeout = builder.rpcTimeout;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
-    this.enterIdleChannelStateFrequency = builder.enterIdleChannelStateFrequency;
+    this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     if (builder.headers != null) {
@@ -204,8 +204,8 @@ public class WorkflowServiceStubsOptions {
   }
 
   /** @return frequency at which grpc channel should be moved into an idle state. */
-  public Duration getEnterIdleChannelStateFrequency() {
-    return enterIdleChannelStateFrequency;
+  public Duration getGrpcReconnectFrequency() {
+    return grpcReconnectFrequency;
   }
 
   public Metadata getHeaders() {
@@ -247,7 +247,7 @@ public class WorkflowServiceStubsOptions {
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
-    private Duration enterIdleChannelStateFrequency = DEFAULT_ENTER_IDLE_CHANNEL_STATE_FREQUENCY;
+    private Duration grpcReconnectFrequency = DEFAULT_GRPC_RECONNECT_FREQUENCY;
     private Metadata headers;
     private Function<
             WorkflowServiceGrpc.WorkflowServiceBlockingStub,
@@ -270,7 +270,7 @@ public class WorkflowServiceStubsOptions {
       this.rpcQueryTimeout = options.rpcQueryTimeout;
       this.rpcTimeout = options.rpcTimeout;
       this.connectionBackoffResetFrequency = options.connectionBackoffResetFrequency;
-      this.enterIdleChannelStateFrequency = options.enterIdleChannelStateFrequency;
+      this.grpcReconnectFrequency = options.grpcReconnectFrequency;
       this.blockingStubInterceptor = options.blockingStubInterceptor;
       this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
@@ -352,11 +352,11 @@ public class WorkflowServiceStubsOptions {
      * allows worker to connect to a new temporal backend host periodically avoiding hot spots and
      * resulting in a more even connection distribution.
      *
-     * @param enterIdleChannelStateFrequency frequency, defaults to once every 5 minutes. Set to
-     *     null in order to disable this feature.
+     * @param grpcReconnectFrequency frequency, defaults to once every 1 minute. Set to null in
+     *     order to disable this feature.
      */
-    public void setEnterIdleChannelStateFrequency(Duration enterIdleChannelStateFrequency) {
-      this.enterIdleChannelStateFrequency = enterIdleChannelStateFrequency;
+    public void setGrpcReconnectFrequency(Duration grpcReconnectFrequency) {
+      this.grpcReconnectFrequency = grpcReconnectFrequency;
     }
 
     /**

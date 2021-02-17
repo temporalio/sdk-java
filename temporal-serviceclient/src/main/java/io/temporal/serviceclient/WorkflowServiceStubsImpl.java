@@ -134,11 +134,11 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
             options.getConnectionBackoffResetFrequency().getSeconds(),
             TimeUnit.SECONDS);
       }
-      if (options.getEnterIdleChannelStateFrequency() != null) {
+      if (options.getGrpcReconnectFrequency() != null) {
         grpcConnectionManager.scheduleWithFixedDelay(
             enterGrpcIdleChannelStateTask(),
-            options.getEnterIdleChannelStateFrequency().getSeconds(),
-            options.getEnterIdleChannelStateFrequency().getSeconds(),
+            options.getGrpcReconnectFrequency().getSeconds(),
+            options.getGrpcReconnectFrequency().getSeconds(),
             TimeUnit.SECONDS);
       }
       channelNeedsShutdown = true;
