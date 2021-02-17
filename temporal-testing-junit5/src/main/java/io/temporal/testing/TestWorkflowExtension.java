@@ -67,6 +67,7 @@ import org.junit.jupiter.api.extension.TestWatcher;
  *   public void testMyWorkflow(MyWorkflow workflow) {
  *     // Test code that calls MyWorkflow methods
  *   }
+ * }
  * </code></pre>
  */
 public class TestWorkflowExtension
