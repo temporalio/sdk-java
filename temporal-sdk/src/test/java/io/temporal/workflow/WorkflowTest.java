@@ -30,23 +30,12 @@ import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
-import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityCancellationType;
-import io.temporal.activity.ActivityExecutionContext;
-import io.temporal.activity.ActivityInfo;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.LocalActivityOptions;
+import io.temporal.activity.*;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.QueryRejectCondition;
-import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.enums.v1.*;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
@@ -56,19 +45,8 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
-import io.temporal.common.interceptors.ActivityExecutionContextBase;
-import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
-import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
-import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.failure.ActivityFailure;
-import io.temporal.failure.ApplicationFailure;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.failure.TerminatedFailure;
-import io.temporal.failure.TimeoutFailure;
+import io.temporal.common.interceptors.*;
+import io.temporal.failure.*;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -79,17 +57,9 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.worker.*;
 import io.temporal.workflow.Functions.Func;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.reflect.Type;
@@ -102,14 +72,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
@@ -127,31 +90,28 @@ public class WorkflowTest {
 
   public static final String BINARY_CHECKSUM = "testChecksum";
 
-  static WorkflowServiceStubs service;
   static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-
-  private static final boolean DEBUGGER_TIMEOUTS = false;
   private static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   // Enable to regenerate JsonFiles used for replay testing.
   // Only enable when USE_DOCKER_SERVICE is true
-  private static final boolean regenerateJsonFiles = false;
   private static final Logger log = LoggerFactory.getLogger(WorkflowTest.class);
+  private static final boolean regenerateJsonFiles = false;
+  private static final boolean DEBUGGER_TIMEOUTS = false;
   private static final String UUID_REGEXP =
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-
-  protected String taskQueue;
-  protected Worker worker;
-  protected TestActivitiesImpl activitiesImpl;
-  protected WorkflowClient workflowClient;
-  protected TracingWorkerInterceptor tracer;
-
-  private WorkerFactory workerFactory;
-  private TestWorkflowEnvironment testEnvironment;
-  private ScheduledExecutorService scheduledExecutor;
+  private static WorkflowServiceStubs service;
+  private static TestWorkflowEnvironment testEnvironment;
   private final List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
   private final AtomicReference<String> lastStartedWorkflowType = new AtomicReference<>();
+  private String taskQueue;
+  private Worker worker;
+  private TestActivitiesImpl activitiesImpl;
+  private WorkflowClient workflowClient;
+  private TracingWorkerInterceptor tracer;
+  private WorkerFactory workerFactory;
+  private ScheduledExecutorService scheduledExecutor;
 
   @Rule public TestName testName = new TestName();
 
@@ -206,7 +166,7 @@ public class WorkflowTest {
     }
   }
 
-  private static ActivityOptions newActivityOptions1(String taskQueue) {
+  protected static ActivityOptions newActivityOptions1(String taskQueue) {
     if (DEBUGGER_TIMEOUTS) {
       return ActivityOptions.newBuilder()
           .setTaskQueue(taskQueue)
@@ -226,7 +186,7 @@ public class WorkflowTest {
     }
   }
 
-  private static LocalActivityOptions newLocalActivityOptions1() {
+  protected static LocalActivityOptions newLocalActivityOptions1() {
     if (DEBUGGER_TIMEOUTS) {
       return LocalActivityOptions.newBuilder()
           .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
@@ -238,7 +198,7 @@ public class WorkflowTest {
     }
   }
 
-  private static ActivityOptions newActivityOptions2() {
+  protected static ActivityOptions newActivityOptions2() {
     return ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(20)).build();
   }
 
@@ -342,7 +302,7 @@ public class WorkflowTest {
     }
   }
 
-  protected void startWorkerFor(Class<?>... workflowTypes) {
+  private void startWorkerFor(Class<?>... workflowTypes) {
     worker.registerWorkflowImplementationTypes(workflowTypes);
     if (useExternalService) {
       workerFactory.start();
@@ -473,317 +433,13 @@ public class WorkflowTest {
     assertTrue("should be around 1 second: " + result, result < 2000);
   }
 
-  public static class TestActivityRetryWithMaxAttempts implements TestWorkflow1 {
-
-    @Override
-    @SuppressWarnings("Finally")
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofSeconds(3))
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setMaximumAttempts(3)
-                      .setDoNotRetry(AssertionError.class.getName())
-                      .build())
-              .build();
-      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
-      long start = Workflow.currentTimeMillis();
-      try {
-        activities.heartbeatAndThrowIO();
-      } finally {
-        if (Workflow.currentTimeMillis() - start < 2000) {
-          fail("Activity retried without delay");
-        }
-      }
-      return "ignored";
-    }
-  }
-
   interface EmptyInterface {}
 
   interface UnrelatedInterface {
     void unrelatedMethod();
   }
 
-  public static class TestActivityRetryWithExpiration
-      implements TestWorkflow1, EmptyInterface, UnrelatedInterface {
-
-    @Override
-    @SuppressWarnings("Finally")
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofSeconds(3))
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setDoNotRetry(AssertionError.class.getName())
-                      .build())
-              .build();
-      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
-      long start = Workflow.currentTimeMillis();
-      try {
-        activities.heartbeatAndThrowIO();
-      } finally {
-        if (Workflow.currentTimeMillis() - start < 2000) {
-          fail("Activity retried without delay");
-        }
-      }
-      return "ignored";
-    }
-
-    @Override
-    public void unrelatedMethod() {}
-  }
-
-  public static class TestLocalActivityRetry implements TestWorkflow1 {
-
-    @Override
-    @SuppressWarnings("Finally")
-    public String execute(String taskQueue) {
-      LocalActivityOptions options =
-          LocalActivityOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
-              .setStartToCloseTimeout(Duration.ofSeconds(1))
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setMaximumAttempts(5)
-                      .setDoNotRetry(AssertionError.class.getName())
-                      .build())
-              .build();
-      TestActivities activities = Workflow.newLocalActivityStub(TestActivities.class, options);
-      activities.throwIO();
-
-      return "ignored";
-    }
-  }
-
-  public static class TestActivityRetryOnTimeout implements TestWorkflow1 {
-
-    @Override
-    @SuppressWarnings("Finally")
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
-              .setStartToCloseTimeout(Duration.ofSeconds(1))
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setMaximumAttempts(3)
-                      .setDoNotRetry(AssertionError.class.getName())
-                      .build())
-              .build();
-      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
-      long start = Workflow.currentTimeMillis();
-      try {
-        activities.neverComplete(); // should timeout as scheduleToClose is 1 second
-        throw new IllegalStateException("unreachable");
-      } catch (ActivityFailure e) {
-        long elapsed = Workflow.currentTimeMillis() - start;
-        if (elapsed < 5000) {
-          throw new RuntimeException("Activity retried without delay: " + elapsed);
-        }
-        throw e;
-      }
-    }
-  }
-
-  public static class TestActivityRetryOptionsChange implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityOptions.Builder options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofDays(5))
-              .setScheduleToStartTimeout(Duration.ofSeconds(1))
-              .setStartToCloseTimeout(Duration.ofSeconds(1))
-              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build());
-      RetryOptions retryOptions;
-      if (Workflow.isReplaying()) {
-        retryOptions =
-            RetryOptions.newBuilder()
-                .setMaximumInterval(Duration.ofSeconds(1))
-                .setInitialInterval(Duration.ofSeconds(1))
-                .setMaximumAttempts(3)
-                .build();
-      } else {
-        retryOptions = RetryOptions.newBuilder().setMaximumAttempts(2).build();
-      }
-      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options.build());
-      Workflow.retry(retryOptions, Optional.of(Duration.ofDays(1)), () -> activities.throwIO());
-      return "ignored";
-    }
-  }
-
-  public static class TestUntypedActivityRetry implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-              .setScheduleToStartTimeout(Duration.ofSeconds(5))
-              .setStartToCloseTimeout(Duration.ofSeconds(10))
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(20))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setMaximumAttempts(3)
-                      .build())
-              .build();
-      ActivityStub activities = Workflow.newUntypedActivityStub(options);
-      activities.execute("ThrowIO", Void.class);
-      return "ignored";
-    }
-  }
-
-  public static class TestActivityRetryAnnotated implements TestWorkflow1 {
-
-    private final TestActivities activities;
-
-    public TestActivityRetryAnnotated() {
-      this.activities =
-          Workflow.newActivityStub(
-              TestActivities.class,
-              ActivityOptions.newBuilder()
-                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-                  .setScheduleToStartTimeout(Duration.ofSeconds(5))
-                  .setHeartbeatTimeout(Duration.ofSeconds(5))
-                  .setStartToCloseTimeout(Duration.ofSeconds(10))
-                  .build());
-    }
-
-    @Override
-    public String execute(String taskQueue) {
-      activities.throwIOAnnotated();
-      return "ignored";
-    }
-  }
-
-  public static class TestActivityApplicationFailureRetry implements TestWorkflow1 {
-
-    private TestActivities activities;
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
-              .setStartToCloseTimeout(Duration.ofSeconds(1))
-              .setRetryOptions(
-                  RetryOptions.newBuilder().setMaximumInterval(Duration.ofSeconds(1)).build())
-              .build();
-      activities = Workflow.newActivityStub(TestActivities.class, options);
-      activities.throwApplicationFailureThreeTimes();
-      return "ignored";
-    }
-  }
-
-  public static class TestActivityApplicationFailureNonRetryable implements TestWorkflow1 {
-
-    private TestActivities activities;
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
-              .setStartToCloseTimeout(Duration.ofSeconds(1))
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setDoNotRetry(IOException.class.getName())
-                      .build())
-              .build();
-      activities = Workflow.newActivityStub(TestActivities.class, options);
-      activities.throwIO();
-      return "ignored";
-    }
-  }
-
-  public static class TestActivityApplicationNoSpecifiedRetry implements TestWorkflow1 {
-
-    private TestActivities activities;
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
-              .setStartToCloseTimeout(Duration.ofSeconds(1))
-              .build();
-      activities = Workflow.newActivityStub(TestActivities.class, options);
-      activities.throwApplicationFailureThreeTimes();
-      return "ignored";
-    }
-  }
-
-  public static class TestActivityApplicationOptOutOfRetry implements TestWorkflow1 {
-
-    private TestActivities activities;
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
-              .setStartToCloseTimeout(Duration.ofSeconds(1))
-              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
-              .build();
-      activities = Workflow.newActivityStub(TestActivities.class, options);
-      activities.throwApplicationFailureThreeTimes();
-      return "ignored";
-    }
-  }
-
-  public static class TestAsyncActivityRetry implements TestWorkflow1 {
-
-    private TestActivities activities;
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-              .setScheduleToStartTimeout(Duration.ofSeconds(5))
-              .setStartToCloseTimeout(Duration.ofSeconds(10))
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setMaximumAttempts(3)
-                      .build())
-              .build();
-      this.activities = Workflow.newActivityStub(TestActivities.class, options);
-      Async.procedure(activities::heartbeatAndThrowIO).get();
-      return "ignored";
-    }
-  }
-
-  protected void regenerateHistoryForReplay(WorkflowExecution execution, String fileName) {
+  protected static void regenerateHistoryForReplay(WorkflowExecution execution, String fileName) {
     if (regenerateJsonFiles) {
       GetWorkflowExecutionHistoryRequest request =
           GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -804,42 +460,6 @@ public class WorkflowTest {
         Throwables.propagateIfPossible(e, RuntimeException.class);
       }
       log.info("Regenerated history file: " + resourceFile);
-    }
-  }
-
-  public static class TestAsyncActivityRetryOptionsChange implements TestWorkflow1 {
-
-    private TestActivities activities;
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityOptions.Builder options =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(taskQueue)
-              .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-              .setScheduleToStartTimeout(Duration.ofSeconds(5))
-              .setStartToCloseTimeout(Duration.ofSeconds(10));
-      if (Workflow.isReplaying()) {
-        options.setRetryOptions(
-            RetryOptions.newBuilder()
-                .setMaximumInterval(Duration.ofSeconds(1))
-                .setInitialInterval(Duration.ofSeconds(1))
-                .setDoNotRetry(NullPointerException.class.getName())
-                .setMaximumAttempts(3)
-                .build());
-      } else {
-        options.setRetryOptions(
-            RetryOptions.newBuilder()
-                .setMaximumInterval(Duration.ofSeconds(1))
-                .setInitialInterval(Duration.ofSeconds(1))
-                .setMaximumAttempts(2)
-                .setDoNotRetry(NullPointerException.class.getName())
-                .build());
-      }
-      this.activities = Workflow.newActivityStub(TestActivities.class, options.build());
-      Async.procedure(activities::throwIO).get();
-      return "ignored";
     }
   }
 
@@ -1129,22 +749,6 @@ public class WorkflowTest {
     }
   }
 
-  public static class TestTryCancelActivity implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      TestActivities testActivities =
-          Workflow.newActivityStub(
-              TestActivities.class,
-              ActivityOptions.newBuilder(newActivityOptions1(taskQueue))
-                  .setHeartbeatTimeout(Duration.ofSeconds(1))
-                  .setCancellationType(ActivityCancellationType.TRY_CANCEL)
-                  .build());
-      testActivities.activityWithDelay(100000, true);
-      return "foo";
-    }
-  }
-
   public static class SimpleTestWorkflow implements TestWorkflow1 {
 
     @Override
@@ -1186,24 +790,8 @@ public class WorkflowTest {
     assertTrue(foundCompletedTask);
   }
 
-  public static class TestAbandonOnCancelActivity implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      TestActivities testActivities =
-          Workflow.newActivityStub(
-              TestActivities.class,
-              ActivityOptions.newBuilder(newActivityOptions1(taskQueue))
-                  .setHeartbeatTimeout(Duration.ofSeconds(10))
-                  .setCancellationType(ActivityCancellationType.ABANDON)
-                  .build());
-      testActivities.activityWithDelay(100000, true);
-      return "foo";
-    }
-  }
-
   /** Used to ensure that workflow first workflow task is executed. */
-  protected void waitForOKQuery(WorkflowStub stub) {
+  protected static void waitForOKQuery(WorkflowStub stub) {
     while (true) {
       try {
         String stackTrace = stub.query(QUERY_TYPE_STACK_TRACE, String.class);
@@ -1461,112 +1049,6 @@ public class WorkflowTest {
         "continueAsNew",
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "newThread workflow-method");
-  }
-
-  public static class TestAsyncActivityWorkflowImpl implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      TestActivities testActivities =
-          Workflow.newActivityStub(TestActivities.class, newActivityOptions2());
-      Promise<String> a = Async.function(testActivities::activity);
-      Promise<Integer> a1 = Async.function(testActivities::activity1, 1);
-      Promise<String> a2 = Async.function(testActivities::activity2, "1", 2);
-      Promise<String> a3 = Async.function(testActivities::activity3, "1", 2, 3);
-      Promise<String> a4 = Async.function(testActivities::activity4, "1", 2, 3, 4);
-      Promise<String> a5 = Async.function(testActivities::activity5, "1", 2, 3, 4, 5);
-      Promise<String> a6 = Async.function(testActivities::activity6, "1", 2, 3, 4, 5, 6);
-      assertEquals("activity", a.get());
-      assertEquals(1, (int) a1.get());
-      assertEquals("12", a2.get());
-      assertEquals("123", a3.get());
-      assertEquals("1234", a4.get());
-      assertEquals("12345", a5.get());
-      assertEquals("123456", a6.get());
-
-      Async.procedure(testActivities::proc).get();
-      Async.procedure(testActivities::proc1, "1").get();
-      Async.procedure(testActivities::proc2, "1", 2).get();
-      Async.procedure(testActivities::proc3, "1", 2, 3).get();
-      Async.procedure(testActivities::proc4, "1", 2, 3, 4).get();
-      Async.procedure(testActivities::proc5, "1", 2, 3, 4, 5).get();
-      Async.procedure(testActivities::proc6, "1", 2, 3, 4, 5, 6).get();
-
-      // Test serialization of generic data structure
-      List<UUID> uuids = new ArrayList<>();
-      uuids.add(Workflow.randomUUID());
-      uuids.add(Workflow.randomUUID());
-      List<UUID> uuidsResult = Async.function(testActivities::activityUUIDList, uuids).get();
-      assertEquals(uuids, uuidsResult);
-      return "workflow";
-    }
-  }
-
-  public static class TestAsyncUtypedActivityWorkflowImpl implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
-      Promise<String> a = Async.function(testActivities::<String>execute, "Activity", String.class);
-      Promise<String> a1 =
-          Async.function(
-              testActivities::<String>execute,
-              "customActivity1",
-              String.class,
-              "1"); // name overridden in annotation
-      Promise<String> a2 =
-          Async.function(testActivities::<String>execute, "Activity2", String.class, "1", 2);
-      Promise<String> a3 =
-          Async.function(testActivities::<String>execute, "Activity3", String.class, "1", 2, 3);
-      Promise<String> a4 =
-          Async.function(testActivities::<String>execute, "Activity4", String.class, "1", 2, 3, 4);
-      assertEquals("activity", a.get());
-      assertEquals("1", a1.get());
-      assertEquals("12", a2.get());
-      assertEquals("123", a3.get());
-      assertEquals("1234", a4.get());
-
-      Async.procedure(testActivities::<Void>execute, "Proc", Void.class).get();
-      Async.procedure(testActivities::<Void>execute, "Proc1", Void.class, "1").get();
-      Async.procedure(testActivities::<Void>execute, "Proc2", Void.class, "1", 2).get();
-      Async.procedure(testActivities::<Void>execute, "Proc3", Void.class, "1", 2, 3).get();
-      Async.procedure(testActivities::<Void>execute, "Proc4", Void.class, "1", 2, 3, 4).get();
-      return "workflow";
-    }
-  }
-
-  public static class TestAsyncUtypedActivity2WorkflowImpl implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
-      Promise<String> a = testActivities.executeAsync("Activity", String.class);
-      Promise<String> a1 =
-          testActivities.executeAsync(
-              "customActivity1", String.class, "1"); // name overridden in annotation
-      Promise<String> a2 = testActivities.executeAsync("Activity2", String.class, "1", 2);
-      Promise<String> a3 = testActivities.executeAsync("Activity3", String.class, "1", 2, 3);
-      Promise<String> a4 = testActivities.executeAsync("Activity4", String.class, "1", 2, 3, 4);
-      Promise<String> a5 = testActivities.executeAsync("Activity5", String.class, "1", 2, 3, 4, 5);
-      Promise<String> a6 =
-          testActivities.executeAsync("Activity6", String.class, "1", 2, 3, 4, 5, 6);
-      assertEquals("activity", a.get());
-      assertEquals("1", a1.get());
-      assertEquals("12", a2.get());
-      assertEquals("123", a3.get());
-      assertEquals("1234", a4.get());
-      assertEquals("12345", a5.get());
-      assertEquals("123456", a6.get());
-
-      testActivities.executeAsync("Proc", Void.class).get();
-      testActivities.executeAsync("Proc1", Void.class, "1").get();
-      testActivities.executeAsync("Proc2", Void.class, "1", 2).get();
-      testActivities.executeAsync("Proc3", Void.class, "1", 2, 3).get();
-      testActivities.executeAsync("Proc4", Void.class, "1", 2, 3, 4).get();
-      testActivities.executeAsync("Proc5", Void.class, "1", 2, 3, 4, 5).get();
-      testActivities.executeAsync("Proc6", Void.class, "1", 2, 3, 4, 5, 6).get();
-      return "workflow";
-    }
   }
 
   private void assertResult(String expected, WorkflowExecution execution) {
@@ -4076,7 +3558,7 @@ public class WorkflowTest {
     int lastAttempt;
     final AtomicInteger applicationFailureCounter = new AtomicInteger();
 
-    private TestActivitiesImpl(ActivityCompletionClient completionClient) {
+    protected TestActivitiesImpl(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
     }
 
@@ -5352,25 +4834,6 @@ public class WorkflowTest {
     }
   }
 
-  public static class TestNonSerializableExceptionInActivityWorkflow implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      NonSerializableExceptionActivity activity =
-          Workflow.newActivityStub(
-              NonSerializableExceptionActivity.class,
-              ActivityOptions.newBuilder()
-                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-                  .build());
-      try {
-        activity.execute();
-      } catch (ActivityFailure e) {
-        return e.getCause().getMessage();
-      }
-      return "done";
-    }
-  }
-
   @ActivityInterface
   public interface NonDeserializableArgumentsActivity {
     void execute(int arg);
@@ -5381,37 +4844,6 @@ public class WorkflowTest {
 
     @Override
     public void execute(int arg) {}
-  }
-
-  public static class TestNonSerializableArgumentsInActivityWorkflow implements TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      StringBuilder result = new StringBuilder();
-      ActivityStub activity =
-          Workflow.newUntypedActivityStub(
-              ActivityOptions.newBuilder()
-                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-                  .build());
-      ActivityStub localActivity =
-          Workflow.newUntypedLocalActivityStub(
-              LocalActivityOptions.newBuilder()
-                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-                  .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
-                  .build());
-      try {
-        activity.execute("Execute", Void.class, "boo");
-      } catch (ActivityFailure e) {
-        result.append(e.getCause().getClass().getSimpleName());
-      }
-      result.append("-");
-      try {
-        localActivity.execute("Execute", Void.class, "boo");
-      } catch (ActivityFailure e) {
-        result.append(((ApplicationFailure) e.getCause()).getType());
-      }
-      return result.toString();
-    }
   }
 
   @WorkflowInterface
@@ -5550,35 +4982,6 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(WorkflowTaskTimeoutWorkflow.class, options);
     String result = stub.execute(testName.getMethodName());
     assertEquals("some result", result);
-  }
-
-  public static class TestLocalActivityWorkflowImpl implements TestWorkflow1 {
-    @Override
-    public String execute(String taskQueue) {
-      TestActivities localActivities =
-          Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
-      try {
-        localActivities.throwIO();
-      } catch (ActivityFailure e) {
-        try {
-          assertTrue(e.getMessage().contains("ThrowIO"));
-          assertTrue(e.getCause() instanceof ApplicationFailure);
-          assertEquals(IOException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
-          assertEquals(
-              "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
-              e.getCause().getMessage());
-        } catch (AssertionError ae) {
-          // Errors cause workflow task to fail. But we want workflow to fail in this case.
-          throw new RuntimeException(ae);
-        }
-      }
-
-      String laResult = localActivities.activity2("test", 123);
-      TestActivities normalActivities =
-          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskQueue));
-      laResult = normalActivities.activity2(laResult, 123);
-      return laResult;
-    }
   }
 
   public static class TestParallelLocalActivitiesWorkflowImpl implements TestWorkflow1 {
@@ -5750,27 +5153,6 @@ public class WorkflowTest {
 
     @QueryMethod()
     String query();
-  }
-
-  public static final class TestLocalActivityAndQueryWorkflow implements TestWorkflowQuery {
-
-    String message = "initial value";
-
-    @Override
-    public String execute(String taskQueue) {
-      TestActivities localActivities =
-          Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
-      for (int i = 0; i < 5; i++) {
-        localActivities.sleepActivity(1000, i);
-        message = "run" + i;
-      }
-      return "done";
-    }
-
-    @Override
-    public String query() {
-      return message;
-    }
   }
 
   @WorkflowInterface
@@ -6343,7 +5725,7 @@ public class WorkflowTest {
         "query getSignal");
   }
 
-  static class TracingWorkerInterceptor implements WorkerInterceptor {
+  private static class TracingWorkerInterceptor implements WorkerInterceptor {
 
     private final FilteredTrace trace;
     private List<String> expected;
