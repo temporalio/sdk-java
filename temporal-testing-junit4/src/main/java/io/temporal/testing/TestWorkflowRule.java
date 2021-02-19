@@ -21,6 +21,7 @@ package io.temporal.testing;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
@@ -74,7 +75,7 @@ public class TestWorkflowRule implements TestRule {
   private final WorkerOptions workerOptions;
   private final boolean useExternalService;
   private final boolean doNotStart;
-  private final TracingWorkerInterceptor tracer;
+  private final WorkerInterceptor[] interceptors;
 
   private String taskQueue;
 
@@ -86,7 +87,7 @@ public class TestWorkflowRule implements TestRule {
       WorkerOptions workerOptions,
       long testTimeoutSeconds,
       boolean doNotStart,
-      TracingWorkerInterceptor tracer) {
+      WorkerInterceptor[] interceptors) {
     this.testEnvironment = testEnvironment;
     this.useExternalService = useExternalService;
     this.workflowTypes = workflowTypes;
@@ -94,7 +95,7 @@ public class TestWorkflowRule implements TestRule {
     this.workerOptions = workerOptions;
     this.globalTimeout = Timeout.seconds(testTimeoutSeconds);
     this.doNotStart = doNotStart;
-    this.tracer = tracer;
+    this.interceptors = interceptors;
   }
 
   public static Builder newBuilder() {
@@ -113,6 +114,7 @@ public class TestWorkflowRule implements TestRule {
     private String target;
     private long testTimeoutSeconds;
     private boolean doNotStart;
+    private WorkerInterceptor[] workerInterceptors;
 
     private Builder() {}
 
@@ -132,6 +134,11 @@ public class TestWorkflowRule implements TestRule {
 
     public Builder setNamespace(String namespace) {
       this.namespace = namespace;
+      return this;
+    }
+
+    public Builder setWorkerInterceptors(WorkerInterceptor... workerInterceptors) {
+      this.workerInterceptors = workerInterceptors;
       return this;
     }
 
@@ -187,14 +194,12 @@ public class TestWorkflowRule implements TestRule {
     public TestWorkflowRule build() {
       namespace = namespace == null ? "UnitTest" : namespace;
 
-      TracingWorkerInterceptor.FilteredTrace trace = new TracingWorkerInterceptor.FilteredTrace();
-      TracingWorkerInterceptor tracer = new TracingWorkerInterceptor(trace);
       if (workflowClientOptions == null) {
         namespace = namespace == null ? "UnitTest" : namespace;
         workflowClientOptions = WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
       }
       WorkerFactoryOptions factoryOptions =
-          WorkerFactoryOptions.newBuilder().setWorkerInterceptors(tracer).build();
+          WorkerFactoryOptions.newBuilder().setWorkerInterceptors(workerInterceptors).build();
       TestEnvironmentOptions testOptions =
           TestEnvironmentOptions.newBuilder()
               .setWorkflowClientOptions(workflowClientOptions)
@@ -212,7 +217,7 @@ public class TestWorkflowRule implements TestRule {
           workerOptions,
           testTimeoutSeconds == 0 ? DEFAULT_TEST_TIMEOUT_SECONDS : testTimeoutSeconds,
           doNotStart,
-          tracer);
+          workerInterceptors);
     }
   }
 
@@ -233,8 +238,11 @@ public class TestWorkflowRule implements TestRule {
 
   private void shutdown() {
     testEnvironment.close();
-    if (tracer != null) {
-      tracer.assertExpected();
+    if (interceptors != null) {
+      TracingWorkerInterceptor tracer = getInterceptor(TracingWorkerInterceptor.class);
+      if (tracer != null) {
+        tracer.assertExpected();
+      }
     }
   }
 
@@ -259,8 +267,15 @@ public class TestWorkflowRule implements TestRule {
   }
 
   /** Returns tracer. */
-  public TracingWorkerInterceptor getTracer() {
-    return tracer;
+  public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
+    if (interceptors != null) {
+      for (WorkerInterceptor interceptor : interceptors) {
+        if (type.isInstance(interceptor)) {
+          return (T) interceptor;
+        }
+      }
+    }
+    return null;
   }
 
   /** Returns client to the Temporal service used to start and query workflows. */

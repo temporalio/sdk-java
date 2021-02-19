@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.TracingWorkerInterceptor;
 import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -42,6 +43,8 @@ public class LocalActivityTest {
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLocalActivityWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
+          .setWorkerInterceptors(
+              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
           .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
@@ -58,7 +61,7 @@ public class LocalActivityTest {
     Assert.assertEquals("test123123", result);
     Assert.assertEquals(activitiesImpl.toString(), 5, activitiesImpl.invocations.size());
     testWorkflowRule
-        .getTracer()
+        .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
             "interceptExecuteWorkflow " + UUID_REGEXP,
             "newThread workflow-method",

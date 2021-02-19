@@ -27,6 +27,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.TracingWorkerInterceptor;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Rule;
@@ -43,6 +44,8 @@ public class ActivityRetryWithMaxAttemptsTest {
   public TestWorkflowRule testWorkflowRule =
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestActivityRetryWithMaxAttempts.class)
+          .setWorkerInterceptors(
+              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .setActivityImplementations(activitiesImpl)
           .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
           .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
@@ -67,7 +70,7 @@ public class ActivityRetryWithMaxAttemptsTest {
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     testWorkflowRule
-        .getTracer()
+        .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
             "interceptExecuteWorkflow " + UUID_REGEXP,
             "newThread workflow-method",

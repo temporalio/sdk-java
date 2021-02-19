@@ -21,6 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.client.*;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.TracingWorkerInterceptor;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,8 @@ public class ParallelLocalActivitiesTest {
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParallelLocalActivitiesWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
+          .setWorkerInterceptors(
+              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
           .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
@@ -72,7 +75,9 @@ public class ParallelLocalActivitiesTest {
     for (int i = 0; i < WorkflowTest.TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("local activity SleepActivity");
     }
-    testWorkflowRule.getTracer().setExpected(expected.toArray(new String[0]));
+    testWorkflowRule
+        .getInterceptor(TracingWorkerInterceptor.class)
+        .setExpected(expected.toArray(new String[0]));
   }
 
   public static class TestParallelLocalActivitiesWorkflowImpl
