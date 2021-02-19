@@ -79,6 +79,7 @@ public class LocalActivityRetryTest {
                   RetryOptions.newBuilder()
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
+                      .setBackoffCoefficient(1)
                       .setMaximumAttempts(5)
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())

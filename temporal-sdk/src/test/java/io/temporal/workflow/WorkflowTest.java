@@ -3549,7 +3549,7 @@ public class WorkflowTest {
 
   static class TestActivitiesImpl implements TestActivities {
 
-    final ActivityCompletionClient completionClient;
+    ActivityCompletionClient completionClient;
     final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
     final List<String> procResult = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger heartbeatCounter = new AtomicInteger();
