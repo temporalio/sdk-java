@@ -105,6 +105,7 @@ public class TestWorkflowRule implements TestRule {
     private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
 
     private WorkerOptions workerOptions;
+    private WorkflowClientOptions workflowClientOptions;
     private String namespace;
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
@@ -117,6 +118,15 @@ public class TestWorkflowRule implements TestRule {
 
     public Builder setWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
+      return this;
+    }
+
+    /**
+     * Override {@link WorkflowClientOptions} for test environment. If set, takes precedence over
+     * {@link #setNamespace(String) namespace}.
+     */
+    public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
+      this.workflowClientOptions = workflowClientOptions;
       return this;
     }
 
@@ -179,14 +189,15 @@ public class TestWorkflowRule implements TestRule {
 
       TracingWorkerInterceptor.FilteredTrace trace = new TracingWorkerInterceptor.FilteredTrace();
       TracingWorkerInterceptor tracer = new TracingWorkerInterceptor(trace);
-
-      WorkflowClientOptions clientOptions =
-          WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
+      if (workflowClientOptions == null) {
+        namespace = namespace == null ? "UnitTest" : namespace;
+        workflowClientOptions = WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
+      }
       WorkerFactoryOptions factoryOptions =
           WorkerFactoryOptions.newBuilder().setWorkerInterceptors(tracer).build();
       TestEnvironmentOptions testOptions =
           TestEnvironmentOptions.newBuilder()
-              .setWorkflowClientOptions(clientOptions)
+              .setWorkflowClientOptions(workflowClientOptions)
               .setWorkerFactoryOptions(factoryOptions)
               .setUseExternalService(useExternalService)
               .setTarget(target)
