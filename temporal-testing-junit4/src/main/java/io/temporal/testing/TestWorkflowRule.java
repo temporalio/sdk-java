@@ -74,6 +74,7 @@ public class TestWorkflowRule implements TestRule {
   private final WorkerOptions workerOptions;
   private final boolean useExternalService;
   private final boolean doNotStart;
+  private final TracingWorkerInterceptor tracer;
 
   private String taskQueue;
 
@@ -84,7 +85,8 @@ public class TestWorkflowRule implements TestRule {
       Object[] activityImplementations,
       WorkerOptions workerOptions,
       long testTimeoutSeconds,
-      boolean doNotStart) {
+      boolean doNotStart,
+      TracingWorkerInterceptor tracer) {
     this.testEnvironment = testEnvironment;
     this.useExternalService = useExternalService;
     this.workflowTypes = workflowTypes;
@@ -92,6 +94,7 @@ public class TestWorkflowRule implements TestRule {
     this.workerOptions = workerOptions;
     this.globalTimeout = Timeout.seconds(testTimeoutSeconds);
     this.doNotStart = doNotStart;
+    this.tracer = tracer;
   }
 
   public static Builder newBuilder() {
@@ -173,9 +176,14 @@ public class TestWorkflowRule implements TestRule {
 
     public TestWorkflowRule build() {
       namespace = namespace == null ? "UnitTest" : namespace;
+
+      TracingWorkerInterceptor.FilteredTrace trace = new TracingWorkerInterceptor.FilteredTrace();
+      TracingWorkerInterceptor tracer = new TracingWorkerInterceptor(trace);
+
       WorkflowClientOptions clientOptions =
           WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
-      WorkerFactoryOptions factoryOptions = WorkerFactoryOptions.newBuilder().build();
+      WorkerFactoryOptions factoryOptions =
+          WorkerFactoryOptions.newBuilder().setWorkerInterceptors(tracer).build();
       TestEnvironmentOptions testOptions =
           TestEnvironmentOptions.newBuilder()
               .setWorkflowClientOptions(clientOptions)
@@ -192,7 +200,8 @@ public class TestWorkflowRule implements TestRule {
           activityImplementations == null ? new Object[0] : activityImplementations,
           workerOptions,
           testTimeoutSeconds == 0 ? DEFAULT_TEST_TIMEOUT_SECONDS : testTimeoutSeconds,
-          doNotStart);
+          doNotStart,
+          tracer);
     }
   }
 
@@ -213,6 +222,9 @@ public class TestWorkflowRule implements TestRule {
 
   private void shutdown() {
     testEnvironment.close();
+    if (tracer != null) {
+      tracer.assertExpected();
+    }
   }
 
   private void start() {
@@ -233,6 +245,11 @@ public class TestWorkflowRule implements TestRule {
   /** Returns name of the task queue that test worker is polling. */
   public String getTaskQueue() {
     return taskQueue;
+  }
+
+  /** Returns tracer. */
+  public TracingWorkerInterceptor getTracer() {
+    return tracer;
   }
 
   /** Returns client to the Temporal service used to start and query workflows. */

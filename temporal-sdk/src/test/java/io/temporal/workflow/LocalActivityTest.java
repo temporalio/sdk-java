@@ -32,6 +32,8 @@ import org.junit.Test;
 
 public class LocalActivityTest {
 
+  private static final String UUID_REGEXP =
+      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   private final WorkflowTest.TestActivitiesImpl activitiesImpl =
       new WorkflowTest.TestActivitiesImpl(null);
 
@@ -55,20 +57,21 @@ public class LocalActivityTest {
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("test123123", result);
     Assert.assertEquals(activitiesImpl.toString(), 5, activitiesImpl.invocations.size());
-    // TODO: (vkoby) Add tracer:
-    //        tracer.setExpected(
-    //                "interceptExecuteWorkflow " + UUID_REGEXP,
-    //                "newThread workflow-method",
-    //                "executeLocalActivity ThrowIO",
-    //                "currentTimeMillis",
-    //                "local activity ThrowIO",
-    //                "local activity ThrowIO",
-    //                "local activity ThrowIO",
-    //                "executeLocalActivity Activity2",
-    //                "currentTimeMillis",
-    //                "local activity Activity2",
-    //                "executeActivity Activity2",
-    //                "activity Activity2");
+    testWorkflowRule
+        .getTracer()
+        .setExpected(
+            "interceptExecuteWorkflow " + UUID_REGEXP,
+            "newThread workflow-method",
+            "executeLocalActivity ThrowIO",
+            "currentTimeMillis",
+            "local activity ThrowIO",
+            "local activity ThrowIO",
+            "local activity ThrowIO",
+            "executeLocalActivity Activity2",
+            "currentTimeMillis",
+            "local activity Activity2",
+            "executeActivity Activity2",
+            "activity Activity2");
   }
 
   public static class TestLocalActivityWorkflowImpl implements WorkflowTest.TestWorkflow1 {

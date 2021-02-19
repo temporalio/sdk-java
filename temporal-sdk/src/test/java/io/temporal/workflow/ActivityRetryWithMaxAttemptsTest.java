@@ -33,6 +33,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class ActivityRetryWithMaxAttemptsTest {
+
+  private static final String UUID_REGEXP =
+      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   private final WorkflowTest.TestActivitiesImpl activitiesImpl =
       new WorkflowTest.TestActivitiesImpl(null);
 
@@ -63,20 +66,20 @@ public class ActivityRetryWithMaxAttemptsTest {
           IOException.class.getName(), ((ApplicationFailure) e.getCause().getCause()).getType());
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
-
-    // TODO: (vkoby) Add tracer:
-    //    tracer.setExpected(
-    //            "interceptExecuteWorkflow " + UUID_REGEXP,
-    //            "newThread workflow-method",
-    //            "currentTimeMillis",
-    //            "executeActivity HeartbeatAndThrowIO",
-    //            "activity HeartbeatAndThrowIO",
-    //            "heartbeat 1",
-    //            "activity HeartbeatAndThrowIO",
-    //            "heartbeat 2",
-    //            "activity HeartbeatAndThrowIO",
-    //            "heartbeat 3",
-    //            "currentTimeMillis");
+    testWorkflowRule
+        .getTracer()
+        .setExpected(
+            "interceptExecuteWorkflow " + UUID_REGEXP,
+            "newThread workflow-method",
+            "currentTimeMillis",
+            "executeActivity HeartbeatAndThrowIO",
+            "activity HeartbeatAndThrowIO",
+            "heartbeat 1",
+            "activity HeartbeatAndThrowIO",
+            "heartbeat 2",
+            "activity HeartbeatAndThrowIO",
+            "heartbeat 3",
+            "currentTimeMillis");
   }
 
   public static class TestActivityRetryWithMaxAttempts implements WorkflowTest.TestWorkflow1 {

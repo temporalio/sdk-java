@@ -72,8 +72,7 @@ public class ParallelLocalActivitiesTest {
     for (int i = 0; i < WorkflowTest.TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("local activity SleepActivity");
     }
-    // TODO: (vkoby) Add tracer:
-    // tracer.setExpected(expected.toArray(new String[0]));
+    testWorkflowRule.getTracer().setExpected(expected.toArray(new String[0]));
   }
 
   public static class TestParallelLocalActivitiesWorkflowImpl
