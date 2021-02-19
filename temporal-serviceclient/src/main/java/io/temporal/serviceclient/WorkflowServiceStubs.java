@@ -20,7 +20,6 @@
 package io.temporal.serviceclient;
 
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-
 import java.util.concurrent.TimeUnit;
 
 /** Initializes and holds gRPC blocking and future stubs. */

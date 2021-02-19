@@ -54,6 +54,7 @@ import org.junit.jupiter.api.extension.ParameterResolver;
  *   public void testMyActivities(MyActivities activities) {
  *     // Test code that calls MyActivities methods
  *   }
+ * }
  * </code></pre>
  */
 public class TestActivityExtension
