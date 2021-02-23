@@ -86,6 +86,9 @@ public class WorkflowServiceStubsOptions {
   /** The gRPC timeout for query workflow call */
   private final Duration rpcQueryTimeout;
 
+  /** Retry options for outgoing RPC calls */
+  private RpcRetryOptions rpcRetryOptions;
+
   /** Frequency at which connection backoff is going to be reset */
   private final Duration connectionBackoffResetFrequency;
 
@@ -118,6 +121,7 @@ public class WorkflowServiceStubsOptions {
     this.rpcLongPollTimeout = builder.rpcLongPollTimeout;
     this.rpcQueryTimeout = builder.rpcQueryTimeout;
     this.rpcTimeout = builder.rpcTimeout;
+    this.rpcRetryOptions = builder.rpcRetryOptions;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
@@ -195,6 +199,11 @@ public class WorkflowServiceStubsOptions {
     return rpcQueryTimeout;
   }
 
+  /** @return Returns rpc retry options for outgoing requests to the temporal server. */
+  public RpcRetryOptions getRpcRetryOptions() {
+    return rpcRetryOptions;
+  }
+
   /**
    * @return frequency at which connection backoff should be reset or null if backoff reset is
    *     disabled.
@@ -246,6 +255,8 @@ public class WorkflowServiceStubsOptions {
     private Duration rpcTimeout = DEFAULT_RPC_TIMEOUT;
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
+    private RpcRetryOptions rpcRetryOptions =
+        RpcRetryOptions.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
     private Duration grpcReconnectFrequency = DEFAULT_GRPC_RECONNECT_FREQUENCY;
     private Metadata headers;
@@ -269,6 +280,7 @@ public class WorkflowServiceStubsOptions {
       this.rpcLongPollTimeout = options.rpcLongPollTimeout;
       this.rpcQueryTimeout = options.rpcQueryTimeout;
       this.rpcTimeout = options.rpcTimeout;
+      this.rpcRetryOptions = options.rpcRetryOptions;
       this.connectionBackoffResetFrequency = options.connectionBackoffResetFrequency;
       this.grpcReconnectFrequency = options.grpcReconnectFrequency;
       this.blockingStubInterceptor = options.blockingStubInterceptor;
@@ -315,7 +327,7 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    /** Sets the rpc timeout value for non query and non long poll calls. Default is 1000. */
+    /** Sets the rpc timeout value for non query and non long poll calls. Default is 10 seconds. */
     public Builder setRpcTimeout(Duration timeout) {
       this.rpcTimeout = Objects.requireNonNull(timeout);
       return this;
@@ -324,11 +336,25 @@ public class WorkflowServiceStubsOptions {
     /**
      * Sets the rpc timeout value for the following long poll based operations:
      * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory. Should never be
-     * below 60000 as this is server side timeout for the long poll. Default is 61000.
+     * below 60000 as this is server side timeout for the long poll. Default is 121 seconds.
      */
     public Builder setRpcLongPollTimeout(Duration timeout) {
       this.rpcLongPollTimeout = Objects.requireNonNull(timeout);
       return this;
+    }
+
+    /** Sets the rpc timeout for queries. Defaults to 10 seconds. */
+    public void setRpcQueryTimeout(Duration rpcQueryTimeout) {
+      this.rpcQueryTimeout = rpcQueryTimeout;
+    }
+
+    /**
+     * Allows customization of retry options for the outgoing RPC calls to temporal service. Note
+     * that default values should be reasonable for most users, be cautious when changing these
+     * values as it may result in non-trivial issues.
+     */
+    public void setRpcRetryOptions(RpcRetryOptions rpcRetryOptions) {
+      this.rpcRetryOptions = rpcRetryOptions;
     }
 
     /**

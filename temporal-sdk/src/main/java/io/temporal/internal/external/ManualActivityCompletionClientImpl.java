@@ -38,6 +38,7 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -103,7 +104,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       try {
         GrpcRetryer.retry(
-            GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+            RpcRetryOptions.newBuilder()
+                .setRetryOptions(service.getOptions().getRpcRetryOptions())
+                .validateBuildWithDefaults(),
             () ->
                 service
                     .blockingStub()
@@ -164,7 +167,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .build();
       try {
         GrpcRetryer.retry(
-            GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+            RpcRetryOptions.newBuilder()
+                .setRetryOptions(service.getOptions().getRpcRetryOptions())
+                .validateBuildWithDefaults(),
             () ->
                 service
                     .blockingStub()
@@ -192,7 +197,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .build();
       try {
         GrpcRetryer.retry(
-            GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+            RpcRetryOptions.newBuilder()
+                .setRetryOptions(service.getOptions().getRpcRetryOptions())
+                .validateBuildWithDefaults(),
             () ->
                 service
                     .blockingStub()
@@ -283,7 +290,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       try {
         GrpcRetryer.retry(
-            GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+            RpcRetryOptions.newBuilder()
+                .setRetryOptions(service.getOptions().getRpcRetryOptions())
+                .validateBuildWithDefaults(),
             () ->
                 service
                     .blockingStub()
@@ -309,7 +318,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       try {
         GrpcRetryer.retry(
-            GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+            RpcRetryOptions.newBuilder()
+                .setRetryOptions(service.getOptions().getRpcRetryOptions())
+                .validateBuildWithDefaults(),
             () ->
                 service
                     .blockingStub()

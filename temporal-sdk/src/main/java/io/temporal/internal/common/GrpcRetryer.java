@@ -23,7 +23,7 @@ import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.api.errordetails.v1.QueryFailedFailure;
+import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -34,36 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class GrpcRetryer {
-  public static final RpcRetryOptions DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
-
-  private static final Duration RETRY_SERVICE_OPERATION_INITIAL_INTERVAL = Duration.ofMillis(20);
-  private static final Duration RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL = Duration.ofMinutes(1);
-  private static final double RETRY_SERVICE_OPERATION_BACKOFF = 1.2;
-
-  static {
-    RpcRetryOptions.Builder roBuilder =
-        RpcRetryOptions.newBuilder()
-            .setInitialInterval(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL)
-            .setExpiration(RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL)
-            .setBackoffCoefficient(RETRY_SERVICE_OPERATION_BACKOFF);
-
-    Duration maxInterval = RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL.dividedBy(10);
-    if (maxInterval.compareTo(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL) < 0) {
-      maxInterval = RETRY_SERVICE_OPERATION_INITIAL_INTERVAL;
-    }
-    roBuilder.setMaximumInterval(maxInterval);
-    roBuilder
-        .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
-        .addDoNotRetry(Status.Code.NOT_FOUND, null)
-        .addDoNotRetry(Status.Code.ALREADY_EXISTS, null)
-        .addDoNotRetry(Status.Code.FAILED_PRECONDITION, null)
-        .addDoNotRetry(Status.Code.PERMISSION_DENIED, null)
-        .addDoNotRetry(Status.Code.UNAUTHENTICATED, null)
-        .addDoNotRetry(Status.Code.UNIMPLEMENTED, null)
-        .addDoNotRetry(Status.Code.CANCELLED, null)
-        .addDoNotRetry(Status.Code.INTERNAL, QueryFailedFailure.class);
-    DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS = roBuilder.validateBuildWithDefaults();
-  }
 
   public interface RetryableProc<E extends Throwable> {
 
