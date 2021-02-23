@@ -336,7 +336,7 @@ public class WorkflowServiceStubsOptions {
     /**
      * Sets the rpc timeout value for the following long poll based operations:
      * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory. Should never be
-     * below 60000 as this is server side timeout for the long poll. Default is 121 seconds.
+     * below 60 seconds as this is server side timeout for the long poll. Default is 121 seconds.
      */
     public Builder setRpcLongPollTimeout(Duration timeout) {
       this.rpcLongPollTimeout = Objects.requireNonNull(timeout);
@@ -386,7 +386,7 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Sets the rpc timeout value for query calls. Default is 10000.
+     * Sets the rpc timeout value for query calls. Default is 10 seconds.
      *
      * @param timeout timeout.
      */
