@@ -267,7 +267,7 @@ public final class ActivityWorker implements SuspendableWorker {
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
+        ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
         RespondActivityTaskCompletedRequest request =
             taskCompleted
                 .toBuilder()
@@ -294,7 +294,7 @@ public final class ActivityWorker implements SuspendableWorker {
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
                   .build();
-          ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
+          ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
 
           GrpcRetryer.retry(
               ro,
@@ -313,7 +313,7 @@ public final class ActivityWorker implements SuspendableWorker {
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)
                     .build();
-            ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
+            ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
 
             GrpcRetryer.retry(
                 ro,

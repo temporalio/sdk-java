@@ -351,7 +351,8 @@ public class WorkflowServiceStubsOptions {
     /**
      * Allows customization of retry options for the outgoing RPC calls to temporal service. Note
      * that default values should be reasonable for most users, be cautious when changing these
-     * values as it may result in non-trivial issues.
+     * values as it may result in increased load to the temporal backend or bad network instability
+     * tolerance.
      */
     public void setRpcRetryOptions(RpcRetryOptions rpcRetryOptions) {
       this.rpcRetryOptions = rpcRetryOptions;

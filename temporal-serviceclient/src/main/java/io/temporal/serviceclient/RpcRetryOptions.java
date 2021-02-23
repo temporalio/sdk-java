@@ -249,6 +249,12 @@ public final class RpcRetryOptions {
           doNotRetry);
     }
 
+    public RpcRetryOptions buildWithDefaultsFrom(RpcRetryOptions rpcRetryOptions) {
+      return RpcRetryOptions.newBuilder()
+          .setRetryOptions(rpcRetryOptions)
+          .validateBuildWithDefaults();
+    }
+
     /** Validates property values and builds RetryOptions with default values. */
     public RpcRetryOptions validateBuildWithDefaults() {
       double backoff = backoffCoefficient;

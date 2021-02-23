@@ -80,8 +80,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     result =
         GrpcRetryer.retryWithResult(
             RpcRetryOptions.newBuilder()
-                .setRetryOptions(service.getOptions().getRpcRetryOptions())
-                .validateBuildWithDefaults(),
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
@@ -103,8 +102,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     Scope scope = metricsScope.tagged(tags);
     GrpcRetryer.retry(
         RpcRetryOptions.newBuilder()
-            .setRetryOptions(service.getOptions().getRpcRetryOptions())
-            .validateBuildWithDefaults(),
+            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
         () ->
             service
                 .blockingStub()
@@ -164,8 +162,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     result =
         GrpcRetryer.retryWithResult(
             RpcRetryOptions.newBuilder()
-                .setRetryOptions(service.getOptions().getRpcRetryOptions())
-                .validateBuildWithDefaults(),
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
@@ -181,8 +178,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public void requestCancel(RequestCancelWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
         RpcRetryOptions.newBuilder()
-            .setRetryOptions(service.getOptions().getRpcRetryOptions())
-            .validateBuildWithDefaults(),
+            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
         () ->
             service
                 .blockingStub()
@@ -194,8 +190,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public void terminate(TerminateWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
         RpcRetryOptions.newBuilder()
-            .setRetryOptions(service.getOptions().getRpcRetryOptions())
-            .validateBuildWithDefaults(),
+            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
         () ->
             service
                 .blockingStub()
@@ -213,8 +208,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
     return GrpcRetryer.retryWithResult(
         RpcRetryOptions.newBuilder()
-            .setRetryOptions(service.getOptions().getRpcRetryOptions())
-            .validateBuildWithDefaults(),
+            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
         () ->
             service
                 .blockingStub()

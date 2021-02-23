@@ -105,8 +105,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
-                .setRetryOptions(service.getOptions().getRpcRetryOptions())
-                .validateBuildWithDefaults(),
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
@@ -168,8 +167,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
-                .setRetryOptions(service.getOptions().getRpcRetryOptions())
-                .validateBuildWithDefaults(),
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
@@ -198,8 +196,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
-                .setRetryOptions(service.getOptions().getRpcRetryOptions())
-                .validateBuildWithDefaults(),
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
@@ -291,8 +288,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
-                .setRetryOptions(service.getOptions().getRpcRetryOptions())
-                .validateBuildWithDefaults(),
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
@@ -319,8 +315,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
-                .setRetryOptions(service.getOptions().getRpcRetryOptions())
-                .validateBuildWithDefaults(),
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
