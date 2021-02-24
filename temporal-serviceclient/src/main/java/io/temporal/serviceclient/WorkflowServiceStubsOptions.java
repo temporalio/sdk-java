@@ -39,7 +39,7 @@ public class WorkflowServiceStubsOptions {
   /** Default RPC timeout used for all non long poll calls. */
   private static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofSeconds(10);
   /** Default RPC timeout used for all long poll calls. */
-  private static final Duration DEFAULT_POLL_RPC_TIMEOUT = Duration.ofSeconds(121);
+  private static final Duration DEFAULT_POLL_RPC_TIMEOUT = Duration.ofSeconds(70);
   /** Default RPC timeout for QueryWorkflow */
   private static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
   /** Default timeout that will be used to reset connection backoff. */
@@ -336,7 +336,7 @@ public class WorkflowServiceStubsOptions {
     /**
      * Sets the rpc timeout value for the following long poll based operations:
      * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory. Should never be
-     * below 60 seconds as this is server side timeout for the long poll. Default is 121 seconds.
+     * below 60 seconds as this is server side timeout for the long poll. Default is 70 seconds.
      */
     public Builder setRpcLongPollTimeout(Duration timeout) {
       this.rpcLongPollTimeout = Objects.requireNonNull(timeout);
