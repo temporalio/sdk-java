@@ -30,7 +30,7 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.common.GrpcRetryer;
-import io.temporal.internal.common.RpcRetryOptions;
+import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.Iterator;

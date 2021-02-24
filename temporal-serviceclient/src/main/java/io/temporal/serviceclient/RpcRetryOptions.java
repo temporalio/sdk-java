@@ -17,14 +17,12 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.common;
-
-import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+package io.temporal.serviceclient;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
-import io.temporal.common.MethodRetry;
+import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,6 +30,37 @@ import java.util.List;
 import java.util.Objects;
 
 public final class RpcRetryOptions {
+
+  public static final RpcRetryOptions DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+
+  private static final Duration RETRY_SERVICE_OPERATION_INITIAL_INTERVAL = Duration.ofMillis(20);
+  private static final Duration RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL = Duration.ofMinutes(1);
+  private static final double RETRY_SERVICE_OPERATION_BACKOFF = 1.2;
+
+  static {
+    RpcRetryOptions.Builder roBuilder =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL)
+            .setExpiration(RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL)
+            .setBackoffCoefficient(RETRY_SERVICE_OPERATION_BACKOFF);
+
+    Duration maxInterval = RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL.dividedBy(10);
+    if (maxInterval.compareTo(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL) < 0) {
+      maxInterval = RETRY_SERVICE_OPERATION_INITIAL_INTERVAL;
+    }
+    roBuilder.setMaximumInterval(maxInterval);
+    roBuilder
+        .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
+        .addDoNotRetry(Status.Code.NOT_FOUND, null)
+        .addDoNotRetry(Status.Code.ALREADY_EXISTS, null)
+        .addDoNotRetry(Status.Code.FAILED_PRECONDITION, null)
+        .addDoNotRetry(Status.Code.PERMISSION_DENIED, null)
+        .addDoNotRetry(Status.Code.UNAUTHENTICATED, null)
+        .addDoNotRetry(Status.Code.UNIMPLEMENTED, null)
+        .addDoNotRetry(Status.Code.CANCELLED, null)
+        .addDoNotRetry(Status.Code.INTERNAL, QueryFailedFailure.class);
+    DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS = roBuilder.validateBuildWithDefaults();
+  }
 
   public static Builder newBuilder() {
     return new Builder();
@@ -208,7 +237,7 @@ public final class RpcRetryOptions {
 
     /**
      * Build RetryOptions without performing validation as validation should be done after merging
-     * with {@link MethodRetry}.
+     * with MethodRetry.
      */
     public RpcRetryOptions build() {
       return new RpcRetryOptions(
@@ -218,6 +247,12 @@ public final class RpcRetryOptions {
           maximumAttempts,
           maximumInterval,
           doNotRetry);
+    }
+
+    public RpcRetryOptions buildWithDefaultsFrom(RpcRetryOptions rpcRetryOptions) {
+      return RpcRetryOptions.newBuilder()
+          .setRetryOptions(rpcRetryOptions)
+          .validateBuildWithDefaults();
     }
 
     /** Validates property values and builds RetryOptions with default values. */
