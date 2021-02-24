@@ -19,7 +19,6 @@
 
 package io.temporal.internal.worker;
 
-import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.google.common.base.Strings;
@@ -41,12 +40,12 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.internal.common.GrpcRetryer;
-import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.util.List;
@@ -359,7 +358,7 @@ public final class WorkflowWorker
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
+        ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
 
         RespondWorkflowTaskCompletedRequest request =
             taskCompleted
@@ -388,10 +387,7 @@ public final class WorkflowWorker
       } else {
         RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          ro =
-              RpcRetryOptions.newBuilder(DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS)
-                  .setRetryOptions(ro)
-                  .validateBuildWithDefaults();
+          ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
 
           RespondWorkflowTaskFailedRequest request =
               taskFailed

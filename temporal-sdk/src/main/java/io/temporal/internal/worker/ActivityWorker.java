@@ -36,12 +36,12 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.HashMap;
 import java.util.Map;
@@ -267,7 +267,7 @@ public final class ActivityWorker implements SuspendableWorker {
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
+        ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
         RespondActivityTaskCompletedRequest request =
             taskCompleted
                 .toBuilder()
@@ -294,7 +294,7 @@ public final class ActivityWorker implements SuspendableWorker {
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
                   .build();
-          ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
+          ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
 
           GrpcRetryer.retry(
               ro,
@@ -313,7 +313,7 @@ public final class ActivityWorker implements SuspendableWorker {
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)
                     .build();
-            ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
+            ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
 
             GrpcRetryer.retry(
                 ro,
