@@ -123,11 +123,11 @@ jar {
 
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.15.2'
+        artifact = 'com.google.protobuf:protoc:3.14.0'
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.36.0'
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.35.0'
         }
     }
     generateProtoTasks {
