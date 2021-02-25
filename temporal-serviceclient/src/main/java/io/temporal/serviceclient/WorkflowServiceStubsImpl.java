@@ -111,6 +111,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       NettyChannelBuilder builder =
           NettyChannelBuilder.forTarget(options.getTarget())
               .defaultLoadBalancingPolicy("round_robin")
+              .keepAliveTime(30, TimeUnit.SECONDS)
+              .keepAliveTimeout(15, TimeUnit.SECONDS)
+              .keepAliveWithoutCalls(true)
               .maxInboundMessageSize(MAX_INBOUND_MESSAGE_SIZE);
 
       if (options.getSslContext() == null && !options.getEnableHttps()) {
