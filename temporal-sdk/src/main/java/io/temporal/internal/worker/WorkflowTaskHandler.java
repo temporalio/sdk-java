@@ -23,7 +23,7 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
-import io.temporal.internal.common.RpcRetryOptions;
+import io.temporal.serviceclient.RpcRetryOptions;
 
 /**
  * Interface of workflow task handlers.
