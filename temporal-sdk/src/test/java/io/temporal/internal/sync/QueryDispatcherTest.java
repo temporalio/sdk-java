@@ -30,29 +30,32 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import java.lang.reflect.Type;
 import java.util.Optional;
+import org.junit.Before;
 import org.junit.Test;
 
 public class QueryDispatcherTest {
 
-  private QueryDispatcher initializeDispatcher() {
-    // Initialize the dispatcher.
-    QueryDispatcher dispatcher = new QueryDispatcher(DataConverter.getDefaultInstance());
-    WorkflowOutboundCallsInterceptor.RegisterQueryInput requestA =
-        new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
-            "QueryA", new Class[] {}, new Type[] {}, null);
-    WorkflowOutboundCallsInterceptor.RegisterQueryInput requestB =
-        new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
-            "QueryB", new Class[] {}, new Type[] {}, null);
-    dispatcher.registerQueryHandlers(requestA);
-    dispatcher.registerQueryHandlers(requestB);
+  private QueryDispatcher dispatcher;
 
+  @Before
+  public void init() {
+    initializeDispatcher("QueryA", "QueryB");
+  }
+
+  private QueryDispatcher initializeDispatcher(String... queries) {
+    // Initialize the dispatcher.
+    dispatcher = new QueryDispatcher(DataConverter.getDefaultInstance());
+    for (String query : queries) {
+      WorkflowOutboundCallsInterceptor.RegisterQueryInput request =
+          new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
+              query, new Class[] {}, new Type[] {}, null);
+      dispatcher.registerQueryHandlers(request);
+    }
     return dispatcher;
   }
 
   @Test
   public void testQuerySuccess() {
-    QueryDispatcher dispatcher = initializeDispatcher();
-
     // Set up a mock interceptor.
     WorkflowInboundCallsInterceptor.QueryOutput queryOutput =
         new WorkflowInboundCallsInterceptor.QueryOutput("dummy");
@@ -69,7 +72,6 @@ public class QueryDispatcherTest {
 
   @Test
   public void testQueryDispatcherException() {
-    QueryDispatcher dispatcher = initializeDispatcher();
     // Invoke functionality under test, expect an exception with the correct output for a
     // non-existing query.
     Throwable exception =
