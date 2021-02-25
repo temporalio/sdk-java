@@ -23,7 +23,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.internal.common.RpcRetryOptions;
+import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 
 /**
