@@ -697,7 +697,7 @@ public class DeterministicRunnerTest {
     // Wait for reporter
     Thread.sleep(600);
     verify(reporter, atLeastOnce())
-        .reportCounter(eq(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION), eq(tags), anyInt());
+        .reportCounter(eq(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION), eq(tags), anyLong());
   }
 
   @Test

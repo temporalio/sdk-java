@@ -75,7 +75,8 @@ class QueryDispatcher {
     Object[] args;
     if (handler == null) {
       if (dynamicQueryHandler == null) {
-        throw new IllegalStateException("Unknown query type: " + queryName);
+        throw new IllegalArgumentException(
+            "Unknown query type: " + queryName + ", knownTypes=" + queryCallbacks.keySet());
       }
       args = new Object[] {new EncodedValues(input, converter)};
     } else {
