@@ -77,6 +77,25 @@ public class WorkflowServiceStubsOptions {
   /** Indicates whether basic HTTPS/SSL/TLS should be enabled * */
   private final boolean enableHttps;
 
+  /**
+   * Enables keep alive ping from client to the server, which can help drop abruptly closed
+   * connections faster.
+   */
+  private final boolean enableKeepAlive;
+
+  /**
+   * Interval at which server will be pinged in order to determine if connections are still alive.
+   */
+  private final Duration keepAliveTime;
+  /**
+   * Amount of time that client would wait for the keep alive ping response from the server before
+   * closing the connection.
+   */
+  private final Duration keepAliveTimeout;
+
+  /** If true, keep alive ping will be allowed when there are no active RPCs. */
+  private final boolean keepAlivePermitWithoutStream;
+
   /** The gRPC timeout */
   private final Duration rpcTimeout;
 
@@ -128,6 +147,10 @@ public class WorkflowServiceStubsOptions {
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
     this.metricsScope = builder.metricsScope;
+    this.enableKeepAlive = builder.enableKeepAlive;
+    this.keepAliveTime = builder.keepAliveTime;
+    this.keepAliveTimeout = builder.keepAliveTimeout;
+    this.keepAlivePermitWithoutStream = builder.keepAlivePermitWithoutStream;
   }
 
   private WorkflowServiceStubsOptions(Builder builder, boolean ignore) {
@@ -164,6 +187,10 @@ public class WorkflowServiceStubsOptions {
       this.headers = new Metadata();
     }
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
+    this.enableKeepAlive = builder.enableKeepAlive;
+    this.keepAliveTime = builder.keepAliveTime;
+    this.keepAliveTimeout = builder.keepAliveTimeout;
+    this.keepAlivePermitWithoutStream = builder.keepAlivePermitWithoutStream;
   }
 
   public ManagedChannel getChannel() {
@@ -182,6 +209,35 @@ public class WorkflowServiceStubsOptions {
   /** @return Returns a boolean indicating whether gRPC should use SSL/TLS. * */
   public boolean getEnableHttps() {
     return enableHttps;
+  }
+
+  /**
+   * @return true if ping from client to the server is enabled, which can help detect and drop
+   *     abruptly closed connections faster.
+   */
+  public boolean getEnableKeepAlive() {
+    return enableKeepAlive;
+  }
+
+  /**
+   * @return Interval at which server will be pinged in order to determine if connections are still
+   *     alive.
+   */
+  public Duration getKeepAliveTime() {
+    return keepAliveTime;
+  }
+
+  /**
+   * @return Amount of time that client would wait for the keep alive ping response from the server
+   *     before closing the connection.
+   */
+  public Duration getKeepAliveTimeout() {
+    return keepAliveTimeout;
+  }
+
+  /** @return If true, keep alive ping will be allowed when there are no active RPCs. */
+  public boolean getKeepAlivePermitWithoutStream() {
+    return keepAlivePermitWithoutStream;
   }
 
   /** @return Returns the rpc timeout value. */
@@ -252,6 +308,11 @@ public class WorkflowServiceStubsOptions {
     private SslContext sslContext;
     private boolean enableHttps;
     private String target;
+    private boolean enableKeepAlive;
+    private Duration keepAliveTime;
+    private Duration keepAliveTimeout;
+    private boolean keepAlivePermitWithoutStream;
+
     private Duration rpcTimeout = DEFAULT_RPC_TIMEOUT;
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
@@ -287,6 +348,10 @@ public class WorkflowServiceStubsOptions {
       this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
       this.metricsScope = options.metricsScope;
+      this.enableKeepAlive = options.enableKeepAlive;
+      this.keepAliveTime = options.keepAliveTime;
+      this.keepAliveTimeout = options.keepAliveTimeout;
+      this.keepAlivePermitWithoutStream = options.keepAlivePermitWithoutStream;
     }
 
     /** Sets gRPC channel to use. Exclusive with target and sslContext. */
@@ -424,6 +489,43 @@ public class WorkflowServiceStubsOptions {
      */
     public Builder setMetricsScope(Scope metricsScope) {
       this.metricsScope = metricsScope;
+      return this;
+    }
+
+    /**
+     * Enables keep alive ping from client to the server, which can help drop abruptly closed
+     * connections faster.
+     */
+    public Builder setEnableKeepAlive(boolean enableKeepAlive) {
+      this.enableKeepAlive = enableKeepAlive;
+      return this;
+    }
+
+    /**
+     * After a duration of this time if the client doesn't see any activity it pings the server to
+     * see if the transport is still alive. If set below 10s, a minimum value of 10s will be used
+     * instead.
+     */
+    public Builder setKeepAliveTime(Duration keepAliveTime) {
+      this.keepAliveTime = keepAliveTime;
+      return this;
+    }
+
+    /**
+     * After having pinged for keepalive check, the client waits for a duration of Timeout and if no
+     * activity is seen even after that the connection is closed.
+     */
+    public Builder setKeepAliveTimeout(Duration keepAliveTimeout) {
+      this.keepAliveTimeout = keepAliveTimeout;
+      return this;
+    }
+
+    /**
+     * If true, client sends keepalive pings even with no active RPCs. If false, when there are no
+     * active RPCs, Time and Timeout will be ignored and no keepalive pings will be sent.
+     */
+    public Builder setKeepAlivePermitWithoutStream(boolean keepAlivePermitWithoutStream) {
+      this.keepAlivePermitWithoutStream = keepAlivePermitWithoutStream;
       return this;
     }
 
