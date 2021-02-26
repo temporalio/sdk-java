@@ -1,7 +1,7 @@
 Highlights
 
 * Moved TestWorkflowRule into temporal-testing-junit4 module, if you use it please consume this package instead of temporal-testing.
-* Added abitlity to do async completion without having to specify task token.
+* Added abitlity to do async completion, which obeys parallelism constraints, without having to specify task token.
 * Fixed bug with supported query types not being returned for unregistered queries.
 * Fixed a deadlock issue resulting in worker running out of threads in case if signal with start was throwing an exception.
 * [opt-in] gRPC retry options can now be configured in the WorkflowServiceStubsOptions.
