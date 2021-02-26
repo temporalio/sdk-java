@@ -50,7 +50,9 @@ public class ActivityApplicationNoSpecifiedRetryTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+                testWorkflowRule
+                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
+                    .build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");

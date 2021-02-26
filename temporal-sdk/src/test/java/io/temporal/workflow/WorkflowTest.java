@@ -20,6 +20,7 @@
 package io.temporal.workflow;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
+import static io.temporal.testing.TestWorkflowRule.waitForOKQuery;
 import static org.junit.Assert.*;
 
 import com.google.common.base.Charsets;
@@ -54,10 +55,7 @@ import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.testing.TracingWorkerInterceptor;
-import io.temporal.testing.WorkflowReplayer;
+import io.temporal.testing.*;
 import io.temporal.worker.*;
 import java.io.*;
 import java.lang.management.ManagementFactory;
@@ -146,20 +144,6 @@ public class WorkflowTest {
     if (useExternalService) {
       service.shutdownNow();
       service.awaitTermination(10, TimeUnit.SECONDS);
-    }
-  }
-
-  static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskQueue) {
-    if (DEBUGGER_TIMEOUTS) {
-      return WorkflowOptions.newBuilder()
-          .setWorkflowRunTimeout(Duration.ofSeconds(1000))
-          .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-          .setTaskQueue(taskQueue);
-    } else {
-      return WorkflowOptions.newBuilder()
-          .setWorkflowRunTimeout(Duration.ofHours(30))
-          .setWorkflowTaskTimeout(Duration.ofSeconds(5))
-          .setTaskQueue(taskQueue);
     }
   }
 
@@ -257,7 +241,7 @@ public class WorkflowTest {
     activitiesImpl = new TestActivitiesImpl(completionClient);
     worker.registerActivitiesImplementations(activitiesImpl);
 
-    newWorkflowOptionsBuilder(taskQueue);
+    TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue);
 
     newActivityOptions1(taskQueue);
     activitiesImpl.invocations.clear();
@@ -387,7 +371,7 @@ public class WorkflowTest {
     startWorkerFor(TestSyncWorkflowImpl.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity10", result);
     tracer.setExpected(
@@ -425,7 +409,8 @@ public class WorkflowTest {
     startWorkerFor(TestMultipleTimersImpl.class);
     TestMultipleTimers workflowStub =
         workflowClient.newWorkflowStub(
-            TestMultipleTimers.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestMultipleTimers.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     long result = workflowStub.execute();
     assertTrue("should be around 1 second: " + result, result < 2000);
   }
@@ -493,7 +478,7 @@ public class WorkflowTest {
     startWorkerFor(TestHeartbeatTimeoutDetails.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("heartbeatValue", result);
   }
@@ -503,7 +488,7 @@ public class WorkflowTest {
     startWorkerFor(TestSyncWorkflowImpl.class);
     WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow1", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution = workflowStub.start(taskQueue);
     sleep(Duration.ofMillis(500));
     String stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
@@ -541,7 +526,7 @@ public class WorkflowTest {
     startWorkerFor(TestCancellationForWorkflowsWithFailedPromises.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow1", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     client.start(taskQueue);
     client.cancel();
 
@@ -558,7 +543,7 @@ public class WorkflowTest {
     startWorkerFor(TestSyncWorkflowImpl.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow1", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     client.start(taskQueue);
     client.cancel();
     try {
@@ -574,7 +559,7 @@ public class WorkflowTest {
     startWorkerFor(TestSyncWorkflowImpl.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow1", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     client.start(taskQueue);
     Thread.sleep(1000);
     client.terminate("boo", "detail1", "detail2");
@@ -622,7 +607,7 @@ public class WorkflowTest {
     startWorkerFor(ParentThatStartsChildInCancellationScope.class, SleepyChild.class);
     WorkflowStub workflow =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     workflow.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
     workflow.cancel();
     try {
@@ -648,7 +633,7 @@ public class WorkflowTest {
     startWorkerFor(TestCancellationScopePromise.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow1", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     client.start(taskQueue);
     client.cancel();
     try {
@@ -698,7 +683,7 @@ public class WorkflowTest {
     startWorkerFor(TestDetachedCancellationScope.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow1", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     client.start(taskQueue);
     sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
     client.cancel();
@@ -764,7 +749,7 @@ public class WorkflowTest {
     startWorkerFor(SimpleTestWorkflow.class);
     TestWorkflow1 client =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution = WorkflowClient.start(client::execute, taskQueue);
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     waitForOKQuery(stub);
@@ -787,25 +772,12 @@ public class WorkflowTest {
     assertTrue(foundCompletedTask);
   }
 
-  /** Used to ensure that workflow first workflow task is executed. */
-  protected static void waitForOKQuery(WorkflowStub stub) {
-    while (true) {
-      try {
-        String stackTrace = stub.query(QUERY_TYPE_STACK_TRACE, String.class);
-        if (!stackTrace.isEmpty()) {
-          break;
-        }
-      } catch (WorkflowQueryException e) {
-      }
-    }
-  }
-
   @Test
   public void testChildWorkflowWaitCancellationRequested() {
     startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution =
         client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
     waitForOKQuery(client);
@@ -844,7 +816,7 @@ public class WorkflowTest {
     startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution =
         client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
     waitForOKQuery(client);
@@ -877,7 +849,7 @@ public class WorkflowTest {
     startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution = client.start(ChildWorkflowCancellationType.ABANDON);
     waitForOKQuery(client);
     client.cancel();
@@ -910,7 +882,7 @@ public class WorkflowTest {
     startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", newWorkflowOptionsBuilder(taskQueue).build());
+            "TestWorkflow", TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution = client.start(ChildWorkflowCancellationType.TRY_CANCEL);
     waitForOKQuery(client);
     client.cancel();
@@ -990,7 +962,8 @@ public class WorkflowTest {
 
     TestContinueAsNew client =
         workflowClient.newWorkflowStub(
-            TestContinueAsNew.class, newWorkflowOptionsBuilder(this.taskQueue).build());
+            TestContinueAsNew.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(this.taskQueue).build());
     int result = client.execute(4, continuedTaskQueue);
     assertEquals(111, result);
     tracer.setExpected(
@@ -1037,7 +1010,8 @@ public class WorkflowTest {
 
     NoArgsWorkflow client =
         workflowClient.newWorkflowStub(
-            NoArgsWorkflow.class, newWorkflowOptionsBuilder(this.taskQueue).build());
+            NoArgsWorkflow.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(this.taskQueue).build());
     String result = client.execute();
     assertEquals("done", result);
     tracer.setExpected(
@@ -1068,7 +1042,7 @@ public class WorkflowTest {
   public void testStart() {
     startWorkerFor(TestMultiargsWorkflowsImpl.class);
     WorkflowOptions workflowOptions =
-        newWorkflowOptionsBuilder(taskQueue)
+        TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
             .setWorkflowIdReusePolicy(
                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .build();
@@ -1090,7 +1064,7 @@ public class WorkflowTest {
     TestMultiargsWorkflowsFunc2 stubF2 =
         workflowClient.newWorkflowStub(
             TestMultiargsWorkflowsFunc2.class,
-            newWorkflowOptionsBuilder(taskQueue)
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
                 .setWorkflowIdReusePolicy(
                     WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)
                 .build());
@@ -1154,7 +1128,8 @@ public class WorkflowTest {
       memo.put(testMemoKey, testMemoValue);
 
       startWorkerFor(TestMultiargsWorkflowsImpl.class);
-      WorkflowOptions workflowOptions = newWorkflowOptionsBuilder(taskQueue).setMemo(memo).build();
+      WorkflowOptions workflowOptions =
+          TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).setMemo(memo).build();
       TestMultiargsWorkflowsFunc stubF =
           workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
       WorkflowExecution executionF = WorkflowClient.start(stubF::func);
@@ -1199,7 +1174,9 @@ public class WorkflowTest {
 
       startWorkerFor(TestMultiargsWorkflowsImpl.class);
       WorkflowOptions workflowOptions =
-          newWorkflowOptionsBuilder(taskQueue).setSearchAttributes(searchAttr).build();
+          TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
+              .setSearchAttributes(searchAttr)
+              .build();
       TestMultiargsWorkflowsFunc stubF =
           workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
       WorkflowExecution executionF = WorkflowClient.start(stubF::func);
@@ -1243,7 +1220,7 @@ public class WorkflowTest {
   @Test
   public void testExecute() throws ExecutionException, InterruptedException {
     startWorkerFor(TestMultiargsWorkflowsImpl.class);
-    WorkflowOptions workflowOptions = newWorkflowOptionsBuilder(taskQueue).build();
+    WorkflowOptions workflowOptions = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build();
     TestMultiargsWorkflowsFunc stubF =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
     assertEquals("func", WorkflowClient.execute(stubF::func).get());
@@ -1306,7 +1283,7 @@ public class WorkflowTest {
     // previous run.
     String workflowId = UUID.randomUUID().toString();
     WorkflowOptions workflowOptions =
-        newWorkflowOptionsBuilder(taskQueue)
+        TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
             .setWorkflowIdReusePolicy(
                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY)
             .setWorkflowId(workflowId)
@@ -1320,7 +1297,7 @@ public class WorkflowTest {
 
     // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
     workflowOptions =
-        newWorkflowOptionsBuilder(taskQueue)
+        TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
             .setWorkflowIdReusePolicy(
                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)
             .setWorkflowId(workflowId)
@@ -1704,10 +1681,12 @@ public class WorkflowTest {
     startWorkerFor(TestTimerWorkflowImpl.class);
     WorkflowOptions options;
     if (useExternalService) {
-      options = newWorkflowOptionsBuilder(taskQueue).build();
+      options = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build();
     } else {
       options =
-          newWorkflowOptionsBuilder(taskQueue).setWorkflowRunTimeout(Duration.ofDays(1)).build();
+          TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
+              .setWorkflowRunTimeout(Duration.ofDays(1))
+              .build();
     }
     TestWorkflow2 client = workflowClient.newWorkflowStub(TestWorkflow2.class, options);
     String result = client.execute(useExternalService);
@@ -1781,7 +1760,7 @@ public class WorkflowTest {
     startWorkerFor(TestAsyncRetryWorkflowImpl.class);
     TestWorkflow2 client =
         workflowClient.newWorkflowStub(
-            TestWorkflow2.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow2.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = null;
     try {
       result = client.execute(useExternalService);
@@ -1855,7 +1834,7 @@ public class WorkflowTest {
         TestAsyncRetryOptionsChangeWorkflow.class);
     TestWorkflow2 client =
         workflowClient.newWorkflowStub(
-            TestWorkflow2.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow2.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = null;
     try {
       result = client.execute(useExternalService);
@@ -1992,7 +1971,8 @@ public class WorkflowTest {
         TestExceptionPropagationImpl.class);
     TestExceptionPropagation client =
         workflowClient.newWorkflowStub(
-            TestExceptionPropagation.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestExceptionPropagation.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     try {
       client.execute(taskQueue);
       fail("Unreachable");
@@ -2080,7 +2060,7 @@ public class WorkflowTest {
     }
     queryWorker.registerWorkflowImplementationTypes(TestSignalWorkflowImpl.class);
     startWorkerFor(TestSignalWorkflowImpl.class);
-    WorkflowOptions.Builder optionsBuilder = newWorkflowOptionsBuilder(taskQueue);
+    WorkflowOptions.Builder optionsBuilder = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue);
     String workflowId = UUID.randomUUID().toString();
     optionsBuilder.setWorkflowId(workflowId);
     QueryableWorkflow client =
@@ -2153,7 +2133,7 @@ public class WorkflowTest {
     }
     queryWorker.registerWorkflowImplementationTypes(TestSignalWithStartWorkflowImpl.class);
     startWorkerFor(TestSignalWorkflowImpl.class);
-    WorkflowOptions.Builder optionsBuilder = newWorkflowOptionsBuilder(taskQueue);
+    WorkflowOptions.Builder optionsBuilder = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue);
     String workflowId = UUID.randomUUID().toString();
     optionsBuilder.setWorkflowId(workflowId);
     QueryableWorkflow client =
@@ -2239,7 +2219,7 @@ public class WorkflowTest {
   public void testNoQueryThreadLeak() throws InterruptedException {
     startWorkerFor(TestNoQueryWorkflowImpl.class);
     int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
-    WorkflowOptions.Builder optionsBuilder = newWorkflowOptionsBuilder(taskQueue);
+    WorkflowOptions.Builder optionsBuilder = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue);
     QueryableWorkflow client =
         workflowClient.newWorkflowStub(QueryableWorkflow.class, optionsBuilder.build());
     WorkflowClient.start(client::execute);
@@ -2267,7 +2247,7 @@ public class WorkflowTest {
     AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
     WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
-            workflowType, newWorkflowOptionsBuilder(taskQueue).build());
+            workflowType, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     // To execute workflow client.execute() would do. But we want to start workflow and immediately
     // return.
     registerDelayedCallback(
@@ -2342,7 +2322,7 @@ public class WorkflowTest {
     workflowTaskCount.set(0);
     sendSignal = new CompletableFuture<>();
     startWorkerFor(TestSignalDuringLastWorkflowTaskWorkflowImpl.class);
-    WorkflowOptions.Builder options = newWorkflowOptionsBuilder(taskQueue);
+    WorkflowOptions.Builder options = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue);
     options.setWorkflowId("testSignalDuringLastWorkflowTask-" + UUID.randomUUID().toString());
     TestWorkflowSignaled client =
         workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options.build());
@@ -3176,7 +3156,7 @@ public class WorkflowTest {
     startWorkerFor(TestAwait.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals(" awoken i=1 loop i=1 awoken i=2 loop i=2 awoken i=3", result);
   }
@@ -3217,7 +3197,9 @@ public class WorkflowTest {
     TestWorkflowRetry workflowStub =
         workflowClient.newWorkflowStub(
             TestWorkflowRetry.class,
-            newWorkflowOptionsBuilder(taskQueue).setRetryOptions(workflowRetryOptions).build());
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
+                .setRetryOptions(workflowRetryOptions)
+                .build());
     long start = currentTimeMillis();
     try {
       workflowStub.execute(testName.getMethodName());
@@ -3264,7 +3246,9 @@ public class WorkflowTest {
     TestWorkflowRetry workflowStub =
         workflowClient.newWorkflowStub(
             TestWorkflowRetry.class,
-            newWorkflowOptionsBuilder(taskQueue).setRetryOptions(workflowRetryOptions).build());
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
+                .setRetryOptions(workflowRetryOptions)
+                .build());
     try {
       workflowStub.execute(testName.getMethodName());
       fail("unreachable");
@@ -3308,7 +3292,9 @@ public class WorkflowTest {
     TestWorkflowRetry workflowStub =
         workflowClient.newWorkflowStub(
             TestWorkflowRetry.class,
-            newWorkflowOptionsBuilder(taskQueue).setRetryOptions(workflowRetryOptions).build());
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
+                .setRetryOptions(workflowRetryOptions)
+                .build());
     try {
       workflowStub.execute(testName.getMethodName());
       fail("unreachable");
@@ -3366,7 +3352,8 @@ public class WorkflowTest {
         TestWorkflowRetryWithMethodRetryImpl.class);
     TestWorkflowRetryWithMethodRetry workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflowRetryWithMethodRetry.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflowRetryWithMethodRetry.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     try {
       workflowStub.execute(testName.getMethodName());
       fail("unreachable");
@@ -3433,7 +3420,7 @@ public class WorkflowTest {
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflowWithCronSchedule",
-            newWorkflowOptionsBuilder(taskQueue)
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
                 .setWorkflowRunTimeout(Duration.ofHours(1))
                 .setCronSchedule("0 * * * *")
                 .build());
@@ -3476,7 +3463,7 @@ public class WorkflowTest {
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1",
-            newWorkflowOptionsBuilder(taskQueue)
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
                 .setWorkflowRunTimeout(Duration.ofHours(10))
                 .build());
     client.start(testName.getMethodName());
@@ -4021,7 +4008,7 @@ public class WorkflowTest {
     startWorkerFor(TestWorkflowLocals.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("result=2, 100", result);
   }
@@ -4053,7 +4040,7 @@ public class WorkflowTest {
     startWorkerFor(TestSideEffectWorkflowImpl.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity1", result);
     tracer.setExpected(
@@ -4102,7 +4089,7 @@ public class WorkflowTest {
     startWorkerFor(TestMutableSideEffectWorkflowImpl.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     ArrayDeque<Long> values = new ArrayDeque<>();
     values.add(1234L);
     values.add(1234L);
@@ -4160,7 +4147,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionWorkflowImpl.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity22activity1activity1activity1", result);
     tracer.setExpected(
@@ -4207,7 +4194,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionSameIdOnReplay.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     workflowStub.execute(taskQueue);
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
     GetWorkflowExecutionHistoryRequest request =
@@ -4252,7 +4239,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionSameId.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     workflowStub.execute(taskQueue);
   }
 
@@ -4291,7 +4278,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionWorkflowAddNewBefore.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     workflowStub.execute(taskQueue);
   }
 
@@ -4334,7 +4321,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionWorkflowReplaceGetVersionId.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     workflowStub.execute(taskQueue);
   }
 
@@ -4372,7 +4359,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionWorkflowReplaceCompletely.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     workflowStub.execute(taskQueue);
   }
 
@@ -4407,7 +4394,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionWorkflowRemove.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     assertEquals("foo10", workflowStub.execute(taskQueue));
   }
 
@@ -4455,7 +4442,8 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionWithoutCommandEventWorkflowImpl.class);
     TestWorkflowSignaled workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflowSignaled.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflowSignaled.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowClient.start(workflowStub::execute);
     executionStarted.get();
     workflowStub.signal1("test signal");
@@ -4490,7 +4478,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionRemovedInReplay.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity22activity", result);
     tracer.setExpected(
@@ -4530,7 +4518,7 @@ public class WorkflowTest {
     startWorkerFor(TestGetVersionRemovedBefore.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity", result);
     tracer.setExpected(
@@ -4576,7 +4564,7 @@ public class WorkflowTest {
     startWorkerFor(TestVersionNotSupportedWorkflowImpl.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
 
     try {
       workflowStub.execute(taskQueue);
@@ -4695,7 +4683,7 @@ public class WorkflowTest {
     startWorkerFor(TestUUIDAndRandom.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     String result = workflowStub.execute(taskQueue);
     assertEquals("foo10", result);
     tracer.setExpected(
@@ -4770,7 +4758,8 @@ public class WorkflowTest {
     startWorkerFor(GenericParametersWorkflowImpl.class);
     GenericParametersWorkflow workflowStub =
         workflowClient.newWorkflowStub(
-            GenericParametersWorkflow.class, newWorkflowOptionsBuilder(taskQueue).build());
+            GenericParametersWorkflow.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     List<UUID> uuidList = new ArrayList<>();
     uuidList.add(UUID.randomUUID());
     uuidList.add(UUID.randomUUID());
@@ -4884,7 +4873,7 @@ public class WorkflowTest {
         NonSerializableExceptionChildWorkflowImpl.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
-            TestWorkflow1.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflow1.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
 
     String result = workflowStub.execute(taskQueue);
     assertTrue(result.contains("NonSerializableException"));
@@ -4933,7 +4922,7 @@ public class WorkflowTest {
     TestLargeWorkflow workflowStub =
         workflowClient.newWorkflowStub(
             TestLargeWorkflow.class,
-            newWorkflowOptionsBuilder(taskQueue)
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue)
                 .setWorkflowTaskTimeout(Duration.ofSeconds(30))
                 .build());
     long start = System.currentTimeMillis();
@@ -5312,7 +5301,7 @@ public class WorkflowTest {
         TestCompensationWorkflowImpl.class);
     TestSagaWorkflow sagaWorkflow =
         workflowClient.newWorkflowStub(
-            TestSagaWorkflow.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestSagaWorkflow.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     sagaWorkflow.execute(taskQueue, false);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
@@ -5339,7 +5328,7 @@ public class WorkflowTest {
         TestCompensationWorkflowImpl.class);
     TestSagaWorkflow sagaWorkflow =
         workflowClient.newWorkflowStub(
-            TestSagaWorkflow.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestSagaWorkflow.class, TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     sagaWorkflow.execute(taskQueue, true);
     String trace = tracer.getTrace();
     assertTrue(trace, trace.contains("executeChildWorkflow TestCompensationWorkflow"));
@@ -5370,7 +5359,8 @@ public class WorkflowTest {
     startWorkerFor(TestSignalExceptionWorkflowImpl.class);
     TestWorkflowSignaled signalWorkflow =
         workflowClient.newWorkflowStub(
-            TestWorkflowSignaled.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestWorkflowSignaled.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     CompletableFuture<String> result = WorkflowClient.execute(signalWorkflow::execute);
     signalWorkflow.signal1("test");
     try {
@@ -5443,7 +5433,8 @@ public class WorkflowTest {
     startWorkerFor(TestUpsertSearchAttributesImpl.class);
     TestUpsertSearchAttributes testWorkflow =
         workflowClient.newWorkflowStub(
-            TestUpsertSearchAttributes.class, newWorkflowOptionsBuilder(taskQueue).build());
+            TestUpsertSearchAttributes.class,
+            TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution = WorkflowClient.start(testWorkflow::execute, taskQueue, "testKey");
     String result = testWorkflow.execute(taskQueue, "testKey");
     assertEquals("done", result);
@@ -5514,7 +5505,7 @@ public class WorkflowTest {
 
     String workflowId = "testParentWorkflowInfoInChildWorkflows";
     WorkflowOptions workflowOptions =
-        newWorkflowOptionsBuilder(taskQueue).setWorkflowId(workflowId).build();
+        TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).setWorkflowId(workflowId).build();
     TestMultiargsWorkflowsFunc parent =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
 
@@ -5528,7 +5519,7 @@ public class WorkflowTest {
     startWorkerFor(TestMultiargsWorkflowsFuncParent.class, TestAttemptReturningWorkflowFunc.class);
     String workflowId = "testGetAttemptWorkflow";
     WorkflowOptions workflowOptions =
-        newWorkflowOptionsBuilder(taskQueue).setWorkflowId(workflowId).build();
+        TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).setWorkflowId(workflowId).build();
     TestGetAttemptWorkflowsFunc workflow =
         workflowClient.newWorkflowStub(TestGetAttemptWorkflowsFunc.class, workflowOptions);
     int attempt = workflow.func();
@@ -5563,7 +5554,7 @@ public class WorkflowTest {
   @Test
   public void testPolymorphicStart() {
     startWorkerFor(WorkflowBImpl.class, WorkflowAImpl.class);
-    WorkflowOptions options = newWorkflowOptionsBuilder(taskQueue).build();
+    WorkflowOptions options = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build();
     WorkflowBase[] stubs =
         new WorkflowBase[] {
           workflowClient.newWorkflowStub(WorkflowA.class, options),
@@ -5611,7 +5602,7 @@ public class WorkflowTest {
   @Test
   public void testSignalAndQueryInterface() {
     startWorkerFor(SignalQueryWorkflowAImpl.class);
-    WorkflowOptions options = newWorkflowOptionsBuilder(taskQueue).build();
+    WorkflowOptions options = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build();
     SignalQueryWorkflowA stub = workflowClient.newWorkflowStub(SignalQueryWorkflowA.class, options);
     WorkflowExecution execution = WorkflowClient.start(stub::execute);
 
@@ -5666,7 +5657,7 @@ public class WorkflowTest {
   @Test
   public void testSignalAndQueryListener() {
     startWorkerFor(TestSignalAndQueryListenerWorkflowImpl.class);
-    WorkflowOptions options = newWorkflowOptionsBuilder(taskQueue).build();
+    WorkflowOptions options = TestWorkflowRule.newWorkflowOptionsBuilder(taskQueue).build();
     TestSignalAndQueryListenerWorkflow stub =
         workflowClient.newWorkflowStub(TestSignalAndQueryListenerWorkflow.class, options);
     WorkflowExecution execution = WorkflowClient.start(stub::execute);

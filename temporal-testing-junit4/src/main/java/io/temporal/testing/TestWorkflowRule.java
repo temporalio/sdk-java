@@ -19,12 +19,14 @@
 
 package io.temporal.testing;
 
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
+
+import io.temporal.client.*;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import java.time.Duration;
 import java.util.UUID;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
@@ -59,7 +61,16 @@ import org.junit.runners.model.Statement;
  */
 public class TestWorkflowRule implements TestRule {
 
-  public Timeout globalTimeout;
+  public static final String NAMESPACE = "UnitTest";
+  public static final String UUID_REGEXP =
+      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  // When set to true increases test, activity and workflow timeouts to large values to support
+  // stepping through code in a debugger without timing out.
+  public static final boolean DEBUGGER_TIMEOUTS = false;
+  // Enable to regenerate JsonFiles used for replay testing.
+  // Only enable when USE_DOCKER_SERVICE is true
+  public static final boolean USE_EXTERNAL_SERVICE =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
   private final TestWatcher watchman =
       new TestWatcher() {
@@ -69,15 +80,15 @@ public class TestWorkflowRule implements TestRule {
         }
       };
 
+  public Timeout globalTimeout;
+  private String taskQueue;
+  private final boolean doNotStart;
+  private final boolean useExternalService;
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
-  private final TestWorkflowEnvironment testEnvironment;
-  private final WorkerOptions workerOptions;
-  private final boolean useExternalService;
-  private final boolean doNotStart;
   private final WorkerInterceptor[] interceptors;
-
-  private String taskQueue;
+  private final WorkerOptions workerOptions;
+  private final TestWorkflowEnvironment testEnvironment;
 
   private TestWorkflowRule(
       TestWorkflowEnvironment testEnvironment,
@@ -280,7 +291,13 @@ public class TestWorkflowRule implements TestRule {
 
   /** Returns client to the Temporal service used to start and query workflows. */
   public WorkflowClient getWorkflowClient() {
-    return testEnvironment.getWorkflowClient();
+    if (useExternalService) {
+      return WorkflowClient.newInstance(
+          testEnvironment.getWorkflowClient().getWorkflowServiceStubs(),
+          WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build());
+    } else {
+      return testEnvironment.getWorkflowClient();
+    }
   }
 
   /**
@@ -294,5 +311,32 @@ public class TestWorkflowRule implements TestRule {
 
   public TestWorkflowEnvironment getTestEnvironment() {
     return testEnvironment;
+  }
+
+  /** Used to ensure that workflow first workflow task is executed. */
+  public static void waitForOKQuery(WorkflowStub stub) {
+    while (true) {
+      try {
+        String stackTrace = stub.query(QUERY_TYPE_STACK_TRACE, String.class);
+        if (!stackTrace.isEmpty()) {
+          break;
+        }
+      } catch (WorkflowQueryException e) {
+      }
+    }
+  }
+
+  public static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskQueue) {
+    if (DEBUGGER_TIMEOUTS) {
+      return WorkflowOptions.newBuilder()
+          .setWorkflowRunTimeout(Duration.ofSeconds(1000))
+          .setWorkflowTaskTimeout(Duration.ofSeconds(60))
+          .setTaskQueue(taskQueue);
+    } else {
+      return WorkflowOptions.newBuilder()
+          .setWorkflowRunTimeout(Duration.ofHours(30))
+          .setWorkflowTaskTimeout(Duration.ofSeconds(5))
+          .setTaskQueue(taskQueue);
+    }
   }
 }

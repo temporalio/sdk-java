@@ -32,9 +32,6 @@ import org.junit.Test;
 
 public class ParallelLocalActivitiesTest {
 
-  private static final String UUID_REGEXP =
-      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-
   private final WorkflowTest.TestActivitiesImpl activitiesImpl =
       new WorkflowTest.TestActivitiesImpl(null);
 
@@ -66,7 +63,7 @@ public class ParallelLocalActivitiesTest {
     Assert.assertEquals("done", result);
     Assert.assertEquals(activitiesImpl.toString(), 100, activitiesImpl.invocations.size());
     List<String> expected = new ArrayList<String>();
-    expected.add("interceptExecuteWorkflow " + UUID_REGEXP);
+    expected.add("interceptExecuteWorkflow " + testWorkflowRule.UUID_REGEXP);
     expected.add("newThread workflow-method");
     for (int i = 0; i < WorkflowTest.TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("executeLocalActivity SleepActivity");

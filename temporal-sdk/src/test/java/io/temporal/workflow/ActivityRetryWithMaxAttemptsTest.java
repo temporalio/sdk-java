@@ -35,8 +35,6 @@ import org.junit.Test;
 
 public class ActivityRetryWithMaxAttemptsTest {
 
-  private static final String UUID_REGEXP =
-      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   private final WorkflowTest.TestActivitiesImpl activitiesImpl =
       new WorkflowTest.TestActivitiesImpl(null);
 
@@ -58,7 +56,9 @@ public class ActivityRetryWithMaxAttemptsTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+                testWorkflowRule
+                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
+                    .build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       fail("unreachable");
@@ -72,7 +72,7 @@ public class ActivityRetryWithMaxAttemptsTest {
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
-            "interceptExecuteWorkflow " + UUID_REGEXP,
+            "interceptExecuteWorkflow " + testWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
             "currentTimeMillis",
             "executeActivity HeartbeatAndThrowIO",

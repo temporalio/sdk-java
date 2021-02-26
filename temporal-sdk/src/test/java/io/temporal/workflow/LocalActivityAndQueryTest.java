@@ -56,10 +56,8 @@ public class LocalActivityAndQueryTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    WorkflowTest.TestWorkflowQuery workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.TestWorkflowQuery.class, options);
+    TestWorkflowQuery workflowStub =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflowQuery.class, options);
     WorkflowClient.start(workflowStub::execute, testWorkflowRule.getTaskQueue());
 
     // Ensure that query doesn't see intermediate results of the local activities execution
@@ -87,8 +85,16 @@ public class LocalActivityAndQueryTest {
         "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity");
   }
 
-  public static final class TestLocalActivityAndQueryWorkflow
-      implements WorkflowTest.TestWorkflowQuery {
+  @WorkflowInterface
+  public interface TestWorkflowQuery {
+    @WorkflowMethod()
+    String execute(String taskQueue);
+
+    @QueryMethod()
+    String query();
+  }
+
+  public static final class TestLocalActivityAndQueryWorkflow implements TestWorkflowQuery {
 
     String message = "initial value";
 

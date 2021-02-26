@@ -53,7 +53,9 @@ public class AsyncActivityTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+                testWorkflowRule
+                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
+                    .build());
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
     Assert.assertEquals("proc", activitiesImpl.procResult.get(0));

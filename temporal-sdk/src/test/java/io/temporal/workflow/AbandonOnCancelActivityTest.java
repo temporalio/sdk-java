@@ -38,7 +38,6 @@ import org.junit.Test;
 
 public class AbandonOnCancelActivityTest {
 
-  public static final String NAMESPACE = "UnitTest";
   private final WorkflowTest.TestActivitiesImpl activitiesImpl =
       new WorkflowTest.TestActivitiesImpl(null);
 
@@ -58,14 +57,16 @@ public class AbandonOnCancelActivityTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+                testWorkflowRule
+                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
+                    .build());
     WorkflowExecution execution =
         WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
         .getTestEnvironment()
         .sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
     WorkflowStub stub = WorkflowStub.fromTyped(client);
-    WorkflowTest.waitForOKQuery(stub);
+    testWorkflowRule.waitForOKQuery(stub);
     stub.cancel();
     long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     try {
@@ -79,7 +80,7 @@ public class AbandonOnCancelActivityTest {
     activitiesImpl.assertInvocations("activityWithDelay");
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(testWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =

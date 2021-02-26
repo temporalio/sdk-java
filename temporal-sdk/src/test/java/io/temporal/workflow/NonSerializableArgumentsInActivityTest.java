@@ -51,7 +51,9 @@ public class NonSerializableArgumentsInActivityTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+                testWorkflowRule
+                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
+                    .build());
 
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals(

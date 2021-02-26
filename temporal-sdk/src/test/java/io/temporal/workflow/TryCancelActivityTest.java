@@ -48,17 +48,20 @@ public class TryCancelActivityTest {
   @Test
   public void testTryCancelActivity() {
     WorkflowTest.TestWorkflow1 client =
+        // TODO (vkoby) refactor newWorkflowStub into the rule
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+                testWorkflowRule
+                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
+                    .build());
     WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
         .getTestEnvironment()
         .sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
     WorkflowStub stub = WorkflowStub.fromTyped(client);
-    WorkflowTest.waitForOKQuery(stub);
+    testWorkflowRule.waitForOKQuery(stub);
     stub.cancel();
     long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     try {
