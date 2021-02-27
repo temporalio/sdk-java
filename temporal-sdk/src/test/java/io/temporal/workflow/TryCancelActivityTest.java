@@ -53,9 +53,7 @@ public class TryCancelActivityTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                testWorkflowRule
-                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
-                    .build());
+                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
         .getTestEnvironment()
@@ -82,7 +80,7 @@ public class TryCancelActivityTest {
       WorkflowTest.TestActivities testActivities =
           Workflow.newActivityStub(
               WorkflowTest.TestActivities.class,
-              ActivityOptions.newBuilder(WorkflowTest.newActivityOptions1(taskQueue))
+              ActivityOptions.newBuilder(TestOptions.newActivityOptions1(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(1))
                   .setCancellationType(ActivityCancellationType.TRY_CANCEL)
                   .build());

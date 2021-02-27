@@ -54,9 +54,7 @@ public class LocalActivityTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                testWorkflowRule
-                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
-                    .build());
+                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("test123123", result);
     Assert.assertEquals(activitiesImpl.toString(), 5, activitiesImpl.invocations.size());
@@ -82,7 +80,7 @@ public class LocalActivityTest {
     public String execute(String taskQueue) {
       WorkflowTest.TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newLocalActivityOptions1());
+              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions1());
       try {
         localActivities.throwIO();
       } catch (ActivityFailure e) {
@@ -102,7 +100,7 @@ public class LocalActivityTest {
       String laResult = localActivities.activity2("test", 123);
       WorkflowTest.TestActivities normalActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newActivityOptions1(taskQueue));
+              WorkflowTest.TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
       laResult = normalActivities.activity2(laResult, 123);
       return laResult;
     }

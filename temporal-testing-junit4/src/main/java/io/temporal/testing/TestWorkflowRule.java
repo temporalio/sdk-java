@@ -19,20 +19,35 @@
 
 package io.temporal.testing;
 
-import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-
-import io.temporal.client.*;
+import com.google.common.base.Charsets;
+import com.google.common.base.Throwables;
+import com.google.common.io.CharSink;
+import com.google.common.io.Files;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowQueryException;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
-import java.time.Duration;
-import java.util.UUID;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
+
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 
 /**
  * Test rule that sets up test environment, simplifying workflow worker creation and shutdown. Can
@@ -62,15 +77,17 @@ import org.junit.runners.model.Statement;
 public class TestWorkflowRule implements TestRule {
 
   public static final String NAMESPACE = "UnitTest";
+  public static final String BINARY_CHECKSUM = "testChecksum";
+  public static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
+  public static final String SERVICE_ADDRESS = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   public static final String UUID_REGEXP =
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  // When set to true increases test, activity and workflow timeouts to large values to support
-  // stepping through code in a debugger without timing out.
-  public static final boolean DEBUGGER_TIMEOUTS = false;
   // Enable to regenerate JsonFiles used for replay testing.
   // Only enable when USE_DOCKER_SERVICE is true
   public static final boolean USE_EXTERNAL_SERVICE =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  public static final boolean REGENERATE_JSON_FILES = false;
+  private static final Logger log = LoggerFactory.getLogger(TestWorkflowRule.class);
 
   private final TestWatcher watchman =
       new TestWatcher() {
@@ -326,17 +343,30 @@ public class TestWorkflowRule implements TestRule {
     }
   }
 
-  public static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskQueue) {
-    if (DEBUGGER_TIMEOUTS) {
-      return WorkflowOptions.newBuilder()
-          .setWorkflowRunTimeout(Duration.ofSeconds(1000))
-          .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-          .setTaskQueue(taskQueue);
-    } else {
-      return WorkflowOptions.newBuilder()
-          .setWorkflowRunTimeout(Duration.ofHours(30))
-          .setWorkflowTaskTimeout(Duration.ofSeconds(5))
-          .setTaskQueue(taskQueue);
+  public void regenerateHistoryForReplay(WorkflowExecution execution, String fileName) {
+    if (REGENERATE_JSON_FILES) {
+      GetWorkflowExecutionHistoryRequest request =
+          GetWorkflowExecutionHistoryRequest.newBuilder()
+              .setNamespace(NAMESPACE)
+              .setExecution(execution)
+              .build();
+      GetWorkflowExecutionHistoryResponse response =
+          this.getTestEnvironment()
+              .getWorkflowService()
+              .blockingStub()
+              .getWorkflowExecutionHistory(request);
+      WorkflowExecutionHistory history = new WorkflowExecutionHistory(response.getHistory());
+      String json = history.toPrettyPrintedJson();
+      String projectPath = System.getProperty("user.dir");
+      String resourceFile = projectPath + "/src/test/resources/" + fileName + ".json";
+      File file = new File(resourceFile);
+      CharSink sink = Files.asCharSink(file, Charsets.UTF_8);
+      try {
+        sink.write(json);
+      } catch (IOException e) {
+        Throwables.propagateIfPossible(e, RuntimeException.class);
+      }
+      log.info("Regenerated history file: " + resourceFile);
     }
   }
 }

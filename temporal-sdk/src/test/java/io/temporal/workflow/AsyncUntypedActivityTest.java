@@ -51,9 +51,7 @@ public class AsyncUntypedActivityTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                testWorkflowRule
-                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
-                    .build());
+                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
     Assert.assertEquals("proc", activitiesImpl.procResult.get(0));
@@ -68,7 +66,7 @@ public class AsyncUntypedActivityTest {
     @Override
     public String execute(String taskQueue) {
       ActivityStub testActivities =
-          Workflow.newUntypedActivityStub(WorkflowTest.newActivityOptions2());
+          Workflow.newUntypedActivityStub(TestOptions.newActivityOptions2());
       Promise<String> a = Async.function(testActivities::<String>execute, "Activity", String.class);
       Promise<String> a1 =
           Async.function(

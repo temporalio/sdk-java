@@ -53,9 +53,7 @@ public class ActivityRetryOnTimeoutTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                testWorkflowRule
-                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
-                    .build());
+                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     // Wall time on purpose
     long start = System.currentTimeMillis();
     try {

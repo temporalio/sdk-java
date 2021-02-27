@@ -48,9 +48,7 @@ public class NonSerializableExceptionInActivityWorkflowTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                testWorkflowRule
-                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
-                    .build());
+                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
 
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertTrue(result.contains("NonSerializableException"));

@@ -27,12 +27,13 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.WorkflowReplayer;
-import java.io.IOException;
-import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.time.Duration;
 
 public class AsyncActivityRetry {
   private final WorkflowTest.TestActivitiesImpl activitiesImpl =
@@ -54,9 +55,7 @@ public class AsyncActivityRetry {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                testWorkflowRule
-                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
-                    .build());
+                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -69,7 +68,7 @@ public class AsyncActivityRetry {
     }
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-    WorkflowTest.regenerateHistoryForReplay(execution, "testAsyncActivityRetryHistory");
+    testWorkflowRule.regenerateHistoryForReplay(execution, "testAsyncActivityRetryHistory");
   }
 
   @Test
@@ -81,7 +80,6 @@ public class AsyncActivityRetry {
   }
 
   public static class TestAsyncActivityRetry implements WorkflowTest.TestWorkflow1 {
-
     private WorkflowTest.TestActivities activities;
 
     @Override

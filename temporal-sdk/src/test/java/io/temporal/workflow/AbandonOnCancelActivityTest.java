@@ -57,9 +57,7 @@ public class AbandonOnCancelActivityTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 WorkflowTest.TestWorkflow1.class,
-                testWorkflowRule
-                    .newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue())
-                    .build());
+                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     WorkflowExecution execution =
         WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
@@ -102,7 +100,7 @@ public class AbandonOnCancelActivityTest {
       WorkflowTest.TestActivities testActivities =
           Workflow.newActivityStub(
               WorkflowTest.TestActivities.class,
-              ActivityOptions.newBuilder(WorkflowTest.newActivityOptions1(taskQueue))
+              ActivityOptions.newBuilder(TestOptions.newActivityOptions1(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(10))
                   .setCancellationType(ActivityCancellationType.ABANDON)
                   .build());

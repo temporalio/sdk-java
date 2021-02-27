@@ -102,7 +102,7 @@ public class LocalActivityAndQueryTest {
     public String execute(String taskQueue) {
       WorkflowTest.TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newLocalActivityOptions1());
+              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions1());
       for (int i = 0; i < 5; i++) {
         localActivities.sleepActivity(1000, i);
         message = "run" + i;

@@ -85,7 +85,7 @@ public class ParallelLocalActivitiesTest {
     public String execute(String taskQueue) {
       WorkflowTest.TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newLocalActivityOptions1());
+              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions1());
       List<Promise<String>> laResults = new ArrayList<>();
       Random r = Workflow.newRandom();
       for (int i = 0; i < COUNT; i++) {
