@@ -1,0 +1,22 @@
+Highlights
+
+* Moved TestWorkflowRule into temporal-testing-junit4 module, if you use it please consume this package instead of temporal-testing.
+* Added abitlity to do async completion, which obeys parallelism constraints, without having to specify task token.
+* Fixed bug with supported query types not being returned for unregistered queries.
+* Fixed a deadlock issue resulting in worker running out of threads in case if signal with start was throwing an exception.
+* [opt-in] gRPC retry options can now be configured in the WorkflowServiceStubsOptions.
+* [opt-in] Users can now specify keep alive configuration for gRPC connections to the server in order to detect dead connections if server closes them abruptly.
+
+All changes
+2021-02-01 - 61396a9 - Move TestWorkflowRule to a dedicated module (#303)
+2021-02-03 - 86189b2 - Add abitlity to do async completion without having to specify task token (#329)
+2021-02-04 - 51f4ee6 - Updating README instructions for running locally (#331)
+2021-02-09 - 609ba6c - Release lock before running close and use tryLock in the WorkflowWorker (#339)
+2021-02-09 - b9aeebf - Refactored and opened up POJO Workflow and Activity metadata (#337)
+2021-02-09 - ddeaa5f - Removed InterruptedException from awaitTermination (#336)
+2021-02-16 - 3ef9d6c - Expose WorkflowClientOptions via test extensions (#347)
+2021-02-16 - 6b286eb - Move gRPC connections to idle periodically in order to trigger LB (#351)
+2021-02-17 - ea3667a - Updating dependencies (#352)
+2021-02-24 - ad8831d - Make rpc retry options configurable (#359)
+2021-02-25 - 611de11 - Return supported query types for unsupported queries (#360)
+2021-02-25 - e637ead - Add keep alive to gRPC connection (#363)
