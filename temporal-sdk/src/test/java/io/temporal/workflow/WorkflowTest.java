@@ -20,7 +20,7 @@
 package io.temporal.workflow;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static io.temporal.testing.TestWorkflowRule.waitForOKQuery;
+import static io.temporal.testing.SDKTestWorkflowRule.waitForOKQuery;
 import static org.junit.Assert.*;
 
 import com.google.common.base.Throwables;
@@ -43,7 +43,7 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
-import io.temporal.common.interceptors.*;
+import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.*;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -51,7 +51,10 @@ import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.testing.*;
+import io.temporal.testing.TestEnvironmentOptions;
+import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.*;
 import java.io.*;
 import java.lang.management.ManagementFactory;
@@ -198,7 +201,7 @@ public class WorkflowTest {
 
     TestOptions.newWorkflowOptionsBuilder(taskQueue);
 
-    TestOptions.newActivityOptions1(taskQueue);
+    TestOptions.newActivityOptionsForTaskQueue(taskQueue);
     activitiesImpl.invocations.clear();
     activitiesImpl.procResult.clear();
   }
@@ -312,7 +315,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities activities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       // Invoke synchronously in a separate thread for testing purposes only.
       // In real workflows use
       // Async.procedure(activities::activityWithDelay, 1000, true)
@@ -581,7 +584,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       try {
         testActivities.activityWithDelay(100000, true);
         fail("unreachable");
@@ -670,7 +673,8 @@ public class WorkflowTest {
       TestActivities testActivities =
           Workflow.newActivityStub(
               TestActivities.class,
-              ActivityOptions.newBuilder(TestOptions.newActivityOptions1(taskQueue)).build());
+              ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
+                  .build());
       testActivities.activity();
       return "done";
     }
@@ -1798,7 +1802,7 @@ public class WorkflowTest {
       TestActivities testActivities =
           Workflow.newActivityStub(
               TestActivities.class,
-              TestOptions.newActivityOptions2()
+              TestOptions.newActivityOptions20sScheduleToClose()
                   .toBuilder()
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());
@@ -2656,7 +2660,8 @@ public class WorkflowTest {
     assertEquals("TestWorkflow1", lastStartedWorkflowType.get());
     assertEquals(3, angryChildActivity.getInvocationCount());
     WorkflowExecution execution = WorkflowStub.fromTyped(client).getExecution();
-    // TestWorkflowRule.regenerateHistoryForReplay(execution, "testChildWorkflowRetryHistory");
+    SDKTestWorkflowRule.regenerateHistoryForReplay(
+        service, execution, "testChildWorkflowRetryHistory");
   }
 
   /**
@@ -3947,7 +3952,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
 
       long workflowTime = Workflow.currentTimeMillis();
       long time1 = Workflow.sideEffect(long.class, () -> workflowTime);
@@ -4039,7 +4044,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
 
       // Test adding a version check in non-replay code.
       int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
@@ -4299,7 +4304,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities activities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       String result;
       // Test adding a version check in replay code.
       if (!Workflow.isReplaying()) {
@@ -4389,7 +4394,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       String result;
       // Test removing a version check in replay code.
       if (!Workflow.isReplaying()) {
@@ -4430,7 +4435,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       // Test removing a version check in replay code.
       if (!Workflow.isReplaying()) {
         Workflow.getVersion("test_change1", Workflow.DEFAULT_VERSION, 11);
@@ -4470,7 +4475,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
 
       // Test adding a version check in non-replay code.
       int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
@@ -4521,7 +4526,7 @@ public class WorkflowTest {
     public void execute(String taskQueue) {
       TestActivities activities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       if (!Workflow.isReplaying()) {
         activities.activity1(1);
       }
@@ -4597,7 +4602,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities activities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       Random rand1 = Workflow.newRandom();
       int r11 = rand1.nextInt();
       int r12 = r11 + rand1.nextInt();
@@ -4670,7 +4675,8 @@ public class WorkflowTest {
       Workflow.await(() -> signaled != null && signaled.size() == 0);
       activity =
           Workflow.newActivityStub(
-              GenericParametersActivity.class, TestOptions.newActivityOptions1(taskQueue));
+              GenericParametersActivity.class,
+              TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       return activity.execute(arg1, arg2);
     }
 
@@ -4839,7 +4845,8 @@ public class WorkflowTest {
     public String execute(int activityCount, String taskQueue) {
       TestLargeWorkflowActivity activities =
           Workflow.newActivityStub(
-              TestLargeWorkflowActivity.class, TestOptions.newActivityOptions1(taskQueue));
+              TestLargeWorkflowActivity.class,
+              TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       List<Promise<String>> results = new ArrayList<>();
       for (int i = 0; i < activityCount; i++) {
         Promise<String> result = Async.function(activities::activity);
@@ -4914,7 +4921,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions1());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       List<Promise<String>> laResults = new ArrayList<>();
       Random r = Workflow.newRandom();
       for (int i = 0; i < COUNT; i++) {
@@ -4931,7 +4938,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions1());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       String result = "";
       for (int i = 0; i < 5; i++) {
         result += localActivities.sleepActivity(2000, i);
@@ -4970,7 +4977,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions1());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       return localActivities.sleepActivity(5000, 123);
     }
   }
@@ -4999,7 +5006,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions1());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       String result = localActivities.sleepActivity(5000, 123);
       if (!invoked) {
         invoked = true;
@@ -5033,7 +5040,7 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions1());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       List<Promise<String>> results = new ArrayList<>(4);
       for (int i = 1; i <= 4; i++) {
         results.add(Async.function(localActivities::sleepActivity, (long) 1000 * i, i));
@@ -5200,7 +5207,7 @@ public class WorkflowTest {
       TestActivities testActivities =
           Workflow.newActivityStub(
               TestActivities.class,
-              TestOptions.newActivityOptions1(taskQueue)
+              TestOptions.newActivityOptionsForTaskQueue(taskQueue)
                   .toBuilder()
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());
@@ -5363,7 +5370,7 @@ public class WorkflowTest {
       // UpsertWorkflowSearchAttributes event in history.
       TestActivities activities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       activities.activity();
 
       return "done";

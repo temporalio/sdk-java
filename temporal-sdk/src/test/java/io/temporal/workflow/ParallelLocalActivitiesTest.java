@@ -20,6 +20,7 @@
 package io.temporal.workflow;
 
 import io.temporal.client.*;
+import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
 import java.time.Duration;
@@ -63,7 +64,7 @@ public class ParallelLocalActivitiesTest {
     Assert.assertEquals("done", result);
     Assert.assertEquals(activitiesImpl.toString(), 100, activitiesImpl.invocations.size());
     List<String> expected = new ArrayList<String>();
-    expected.add("interceptExecuteWorkflow " + testWorkflowRule.UUID_REGEXP);
+    expected.add("interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP);
     expected.add("newThread workflow-method");
     for (int i = 0; i < WorkflowTest.TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("executeLocalActivity SleepActivity");
@@ -85,7 +86,7 @@ public class ParallelLocalActivitiesTest {
     public String execute(String taskQueue) {
       WorkflowTest.TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions1());
+              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions());
       List<Promise<String>> laResults = new ArrayList<>();
       Random r = Workflow.newRandom();
       for (int i = 0; i < COUNT; i++) {

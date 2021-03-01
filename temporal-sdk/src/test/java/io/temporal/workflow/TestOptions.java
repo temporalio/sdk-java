@@ -19,6 +19,7 @@
 
 package io.temporal.workflow;
 
+import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowOptions;
 import java.time.Duration;
@@ -26,7 +27,7 @@ import java.time.Duration;
 class TestOptions {
   // When set to true increases test, activity and workflow timeouts to large values to support
   // stepping through code in a debugger without timing out.
-  public static final boolean DEBUGGER_TIMEOUTS = false;
+  private static final boolean DEBUGGER_TIMEOUTS = false;
 
   public static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskQueue) {
     if (DEBUGGER_TIMEOUTS) {
@@ -42,7 +43,7 @@ class TestOptions {
     }
   }
 
-  public static io.temporal.activity.ActivityOptions newActivityOptions1(String taskQueue) {
+  public static ActivityOptions newActivityOptionsForTaskQueue(String taskQueue) {
     if (DEBUGGER_TIMEOUTS) {
       return io.temporal.activity.ActivityOptions.newBuilder()
           .setTaskQueue(taskQueue)
@@ -62,13 +63,13 @@ class TestOptions {
     }
   }
 
-  public static io.temporal.activity.ActivityOptions newActivityOptions2() {
+  public static ActivityOptions newActivityOptions20sScheduleToClose() {
     return io.temporal.activity.ActivityOptions.newBuilder()
         .setScheduleToCloseTimeout(Duration.ofSeconds(20))
         .build();
   }
 
-  public static LocalActivityOptions newLocalActivityOptions1() {
+  public static LocalActivityOptions newLocalActivityOptions() {
     if (DEBUGGER_TIMEOUTS) {
       return LocalActivityOptions.newBuilder()
           .setScheduleToCloseTimeout(Duration.ofSeconds(1000))

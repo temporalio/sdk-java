@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
 import java.io.IOException;
@@ -61,7 +62,7 @@ public class LocalActivityTest {
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
-            "interceptExecuteWorkflow " + testWorkflowRule.UUID_REGEXP,
+            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
             "executeLocalActivity ThrowIO",
             "currentTimeMillis",
@@ -80,7 +81,7 @@ public class LocalActivityTest {
     public String execute(String taskQueue) {
       WorkflowTest.TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions1());
+              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions());
       try {
         localActivities.throwIO();
       } catch (ActivityFailure e) {
@@ -100,7 +101,8 @@ public class LocalActivityTest {
       String laResult = localActivities.activity2("test", 123);
       WorkflowTest.TestActivities normalActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class, TestOptions.newActivityOptions1(taskQueue));
+              WorkflowTest.TestActivities.class,
+              TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       laResult = normalActivities.activity2(laResult, 123);
       return laResult;
     }

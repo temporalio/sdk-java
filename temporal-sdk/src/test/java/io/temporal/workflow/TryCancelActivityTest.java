@@ -25,6 +25,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TestWorkflowRule;
 import java.time.Duration;
 import org.junit.Assert;
@@ -59,7 +60,7 @@ public class TryCancelActivityTest {
         .getTestEnvironment()
         .sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
     WorkflowStub stub = WorkflowStub.fromTyped(client);
-    testWorkflowRule.waitForOKQuery(stub);
+    SDKTestWorkflowRule.waitForOKQuery(stub);
     stub.cancel();
     long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     try {
@@ -80,7 +81,7 @@ public class TryCancelActivityTest {
       WorkflowTest.TestActivities testActivities =
           Workflow.newActivityStub(
               WorkflowTest.TestActivities.class,
-              ActivityOptions.newBuilder(TestOptions.newActivityOptions1(taskQueue))
+              ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(1))
                   .setCancellationType(ActivityCancellationType.TRY_CANCEL)
                   .build());

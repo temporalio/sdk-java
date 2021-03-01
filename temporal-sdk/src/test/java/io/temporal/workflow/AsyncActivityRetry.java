@@ -25,15 +25,15 @@ import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.WorkflowReplayer;
+import java.io.IOException;
+import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
-
-import java.io.IOException;
-import java.time.Duration;
 
 public class AsyncActivityRetry {
   private final WorkflowTest.TestActivitiesImpl activitiesImpl =
@@ -68,13 +68,16 @@ public class AsyncActivityRetry {
     }
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-    testWorkflowRule.regenerateHistoryForReplay(execution, "testAsyncActivityRetryHistory");
+    SDKTestWorkflowRule.regenerateHistoryForReplay(
+        testWorkflowRule.getTestEnvironment().getWorkflowService(),
+        execution,
+        "testAsyncActivityRetryHistory");
   }
 
   @Test
   public void testAsyncActivityRetryReplay() throws Exception {
     // Avoid executing 4 times
-    Assume.assumeFalse("skipping for docker tests", testWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
   }

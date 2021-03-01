@@ -68,7 +68,7 @@ public class AsyncUntyped2ActivityTest {
     @Override
     public String execute(String taskQueue) {
       ActivityStub testActivities =
-          Workflow.newUntypedActivityStub(TestOptions.newActivityOptions2());
+          Workflow.newUntypedActivityStub(TestOptions.newActivityOptions20sScheduleToClose());
       Promise<String> a = testActivities.executeAsync("Activity", String.class);
       Promise<String> a1 =
           testActivities.executeAsync(

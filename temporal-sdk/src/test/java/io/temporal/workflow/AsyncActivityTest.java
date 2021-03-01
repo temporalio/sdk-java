@@ -71,7 +71,8 @@ public class AsyncActivityTest {
     public String execute(String taskQueue) {
       WorkflowTest.TestActivities testActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class, TestOptions.newActivityOptions2());
+              WorkflowTest.TestActivities.class,
+              TestOptions.newActivityOptions20sScheduleToClose());
       Promise<String> a = Async.function(testActivities::activity);
       Promise<Integer> a1 = Async.function(testActivities::activity1, 1);
       Promise<String> a2 = Async.function(testActivities::activity2, "1", 2);

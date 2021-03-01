@@ -30,6 +30,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TestWorkflowRule;
 import java.time.Duration;
 import org.junit.Assert;
@@ -64,7 +65,7 @@ public class AbandonOnCancelActivityTest {
         .getTestEnvironment()
         .sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
     WorkflowStub stub = WorkflowStub.fromTyped(client);
-    testWorkflowRule.waitForOKQuery(stub);
+    SDKTestWorkflowRule.waitForOKQuery(stub);
     stub.cancel();
     long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     try {
@@ -78,7 +79,7 @@ public class AbandonOnCancelActivityTest {
     activitiesImpl.assertInvocations("activityWithDelay");
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(testWorkflowRule.NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -100,7 +101,7 @@ public class AbandonOnCancelActivityTest {
       WorkflowTest.TestActivities testActivities =
           Workflow.newActivityStub(
               WorkflowTest.TestActivities.class,
-              ActivityOptions.newBuilder(TestOptions.newActivityOptions1(taskQueue))
+              ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(10))
                   .setCancellationType(ActivityCancellationType.ABANDON)
                   .build());

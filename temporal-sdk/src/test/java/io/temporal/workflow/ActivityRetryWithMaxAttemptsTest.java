@@ -26,6 +26,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
 import java.io.IOException;
@@ -70,7 +71,7 @@ public class ActivityRetryWithMaxAttemptsTest {
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
-            "interceptExecuteWorkflow " + testWorkflowRule.UUID_REGEXP,
+            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
             "currentTimeMillis",
             "executeActivity HeartbeatAndThrowIO",
