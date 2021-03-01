@@ -17,29 +17,51 @@
  *  permissions and limitations under the License.
  */
 
+/**
+ * @package io.temporal.activity
+ */
 package io.temporal.activity;
 
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.CancellationScope;
 
 /**
- * Defines behaviour of the parent workflow when {@link CancellationScope} that wraps child workflow
- * execution request is canceled. The result of the cancellation independently of the type is a
- * {@link CanceledFailure} thrown from the child workflow method.
+ * @entity ActivityCancellationType
+ * @entity.type Enum
+ * @entity.headline Defines behavior of the cancellation
+ * @entity.description Defines behavior of the parent Workflow when {@link CancellationScope},
+ * that wraps the child Workflow execution request, is canceled.
+ * The result of the cancellation, independent of the type, is {@link CanceledFailure}
+ * which is thrown from the child Workflow method.
  */
 public enum ActivityCancellationType {
+
   /**
-   * Wait for activity cancellation completion. Note that activity must heartbeat to receive a
-   * cancellation notification. This can block the cancellation for a long time if activity doesn't
+   * @feature WAIT_CANCELLATION_COMPLETED
+   * @feature.type Value
+   * @feature.headline Wait for Activity cancellation completion
+   * @feature.description Use this to wait for an Activity cancellation to be completed.
+   * The Activity must heartbeat to receive a cancellation notification.
+   * This can block the cancellation for a long time if the Activity doesn't
    * heartbeat or chooses to ignore the cancellation request.
    */
   WAIT_CANCELLATION_COMPLETED,
 
-  /** Initiate a cancellation request and immediately report cancellation to the workflow. */
-  TRY_CANCEL,
-
   /**
-   * Do not request cancellation of the activity and immediately report cancellation to the workflow
+   * @feature TRY_CANCEL
+   * @feature.type Value
+   * @feature.headline Initiates a cancellation request
+   * @feature.description Initiates a cancellation request
+   * and immediately reports cancellation to the Workflow.
+   */
+  TRY_CANCEL,
+  
+  /**
+   * @feature ABANDON
+   * @feature.type Value
+   * @feature.headline Does not initiate a cancellation
+   * @feature.description  Does not initiate a cancellation of the Activity,
+   * but immediately report cancellation to the Workflow.
    */
   ABANDON,
 }

@@ -17,6 +17,9 @@
  *  permissions and limitations under the License.
  */
 
+/**
+ * @package io.temporal.activity
+ */
 package io.temporal.activity;
 
 import com.google.common.base.Objects;
@@ -27,9 +30,24 @@ import io.temporal.failure.CanceledFailure;
 import java.time.Duration;
 import java.util.List;
 
-/** Options used to configure how an activity is invoked. */
+/**
+ * @entity ActivityOptions
+ * @entity.headline Options to configure how an Activity is invoked.
+ * @entity.description ActivityOptions can be used to configure many aspects of
+ * how an Activity is executed, such as when to time out, how frequently to retry,
+ * context propagation, and more.
+ * @entity.type Class
+ */
 public final class ActivityOptions {
 
+  /**
+   * @feature newBuilder
+   * @feature.headline newBuilder returns an {@link ActivityOptions.Builder}
+   * @feature.description This method returns an ActivityOptions Builder that
+   * can be used to chain together ActivityOption setter methods.
+   * @feature.type Method
+   * @feature.param Optional {@link ActivityOptions}
+   */
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -47,7 +65,12 @@ public final class ActivityOptions {
   static {
     DEFAULT_INSTANCE = ActivityOptions.newBuilder().build();
   }
-
+  /**
+   * @feature Builder
+   * @feature.headline Builder is used to build the ActivityOptions
+   * @feature.description Builder is the subclass where options are set.
+   * @feature.type Class
+   */
   public static final class Builder {
 
     private Duration heartbeatTimeout;
@@ -83,20 +106,28 @@ public final class ActivityOptions {
     }
 
     /**
-     * Overall timeout workflow is willing to wait for activity to complete. It includes time in a
-     * task queue (use {@link #setScheduleToStartTimeout(Duration)} to limit it) plus activity
-     * execution time (use {@link #setStartToCloseTimeout(Duration)} to limit it). Either this
-     * option or both schedule to start and start to close are required.
+     * @feature Builder.setScheduleToCloseTimeout
+     * @feature.type Method
+     * @feature.headline Sets the schedule to close timeout
+     * @feature.description Overall timeout workflow is willing to wait for activity to complete.
+     * It includes time in a Task Queue (use {@link ActivityOptions.Builder.setScheduleToStartTimeout} to limit it)
+     * plus activity execution time (use {@link ActivityOptions.Builder.setStartToCloseTimeout} to limit it).
+     * Either this option or both schedule to start and start to close are required.
+     * @feature.param Duration Amount of time to wait
      */
     public Builder setScheduleToCloseTimeout(Duration scheduleToCloseTimeout) {
       this.scheduleToCloseTimeout = scheduleToCloseTimeout;
       return this;
     }
 
-    /**
-     * Time activity can stay in task queue before it is picked up by a worker. If schedule to close
-     * is not provided then both this and start to close are required.
-     */
+     /**
+      * @feature Builder.setScheduleToStartTimeout
+      * @feature.type Method
+      * @feature.headline Sets the schedule to start timeout
+      * @feature.description Time Activity can stay in Task Queue before it is picked up by a Worker.
+      * If schedule to close is not provided then both this and start to close are required.
+      * @feature.param Duration Amount of time to wait
+      */
     public Builder setScheduleToStartTimeout(Duration scheduleToStartTimeout) {
       this.scheduleToStartTimeout = scheduleToStartTimeout;
       return this;
@@ -105,6 +136,14 @@ public final class ActivityOptions {
     /**
      * Maximum activity execution time after it was sent to a worker. If schedule to close is not
      * provided then both this and schedule to start are required.
+     */
+    /**
+     * @feature Builder.setStartToCloseTimeout
+     * @feature.type Method
+     * @feature.headline Sets the start to close timeout
+     * @feature.description Maximum Activity execution time after it was sent to a Worker.
+     * If schedule to close is not provided then both this and schedule to start are required.
+     * @feature.param Duration Amount of time to wait
      */
     public Builder setStartToCloseTimeout(Duration startToCloseTimeout) {
       this.startToCloseTimeout = startToCloseTimeout;

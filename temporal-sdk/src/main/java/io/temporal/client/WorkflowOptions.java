@@ -17,6 +17,9 @@
  *  permissions and limitations under the License.
  */
 
+/**
+ * @package io.temporal.client
+ */
 package io.temporal.client;
 
 import com.google.common.base.Objects;
@@ -30,6 +33,10 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @entity WorkflowOptions
+ * @entity.type Class
+ */
 public final class WorkflowOptions {
 
   public static Builder newBuilder() {
