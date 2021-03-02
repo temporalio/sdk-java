@@ -26,7 +26,6 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.SDKTestWorkflowRule;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.WorkflowReplayer;
 import java.io.IOException;
 import java.time.Duration;
@@ -40,13 +39,14 @@ public class AsyncActivityRetry {
       new WorkflowTest.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestAsyncActivityRetry.class)
-          .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
-          .build();
+  public SDKTestWorkflowRule testWorkflowRule =
+      (SDKTestWorkflowRule)
+          SDKTestWorkflowRule.newBuilder()
+              .setWorkflowTypes(TestAsyncActivityRetry.class)
+              .setActivityImplementations(activitiesImpl)
+              .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
+              .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
+              .build();
 
   @Test
   public void testAsyncActivityRetry() {
@@ -68,7 +68,7 @@ public class AsyncActivityRetry {
     }
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-    SDKTestWorkflowRule.regenerateHistoryForReplay(
+    testWorkflowRule.regenerateHistoryForReplay(
         testWorkflowRule.getTestEnvironment().getWorkflowService(),
         execution,
         "testAsyncActivityRetryHistory");

@@ -27,7 +27,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.SDKTestWorkflowRule;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
 import java.io.IOException;
 import java.time.Duration;
@@ -40,15 +39,16 @@ public class ActivityRetryWithMaxAttemptsTest {
       new WorkflowTest.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestActivityRetryWithMaxAttempts.class)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-          .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
-          .build();
+  public SDKTestWorkflowRule testWorkflowRule =
+      (SDKTestWorkflowRule)
+          SDKTestWorkflowRule.newBuilder()
+              .setWorkflowTypes(TestActivityRetryWithMaxAttempts.class)
+              .setWorkerInterceptors(
+                  new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+              .setActivityImplementations(activitiesImpl)
+              .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
+              .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
+              .build();
 
   @Test
   public void testActivityRetryWithMaxAttempts() {

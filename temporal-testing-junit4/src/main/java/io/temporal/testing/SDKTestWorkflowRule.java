@@ -51,17 +51,22 @@ public class SDKTestWorkflowRule extends TestWorkflowRule {
   public static final boolean REGENERATE_JSON_FILES = false;
   private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
 
+  protected SDKTestWorkflowRule(Builder builder) {
+    super(builder);
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
   public static class Builder extends TestWorkflowRule.Builder {
 
     public Builder() {}
 
+    @Override
     public SDKTestWorkflowRule build() {
       return new SDKTestWorkflowRule(this);
     }
-  }
-
-  protected SDKTestWorkflowRule(Builder builder) {
-    super(builder);
   }
 
   /** Used to ensure that workflow first workflow task is executed. */
