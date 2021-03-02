@@ -37,7 +37,8 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SDKTestWorkflowRule {
+public class SDKTestWorkflowRule extends TestWorkflowRule {
+
   public static final String NAMESPACE = "UnitTest";
   public static final String BINARY_CHECKSUM = "testChecksum";
   public static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
@@ -49,6 +50,19 @@ public class SDKTestWorkflowRule {
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   public static final boolean REGENERATE_JSON_FILES = false;
   private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
+
+  public static class Builder extends TestWorkflowRule.Builder {
+
+    public Builder() {}
+
+    public SDKTestWorkflowRule build() {
+      return new SDKTestWorkflowRule(this);
+    }
+  }
+
+  protected SDKTestWorkflowRule(Builder builder) {
+    super(builder);
+  }
 
   /** Used to ensure that workflow first workflow task is executed. */
   public static void waitForOKQuery(WorkflowStub stub) {
