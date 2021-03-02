@@ -20,7 +20,6 @@
 package io.temporal.workflow;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static io.temporal.testing.SDKTestWorkflowRule.waitForOKQuery;
 import static org.junit.Assert.*;
 
 import com.google.common.base.Throwables;
@@ -51,10 +50,7 @@ import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.testing.TracingWorkerInterceptor;
-import io.temporal.testing.WorkflowReplayer;
+import io.temporal.testing.*;
 import io.temporal.worker.*;
 import java.io.*;
 import java.lang.management.ManagementFactory;
@@ -74,24 +70,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class WorkflowTest {
-
-  /**
-   * When set to true increases test, activity and workflow timeouts to large values to support
-   * stepping through code in a debugger without timing out.
-   */
-  public static final String NAMESPACE = "UnitTest";
-
-  public static final String BINARY_CHECKSUM = "testChecksum";
-  static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-  private static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
-  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-  // Enable to regenerate JsonFiles used for replay testing.
-  // Only enable when USE_DOCKER_SERVICE is true
   private static final Logger log = LoggerFactory.getLogger(WorkflowTest.class);
-  private static final boolean regenerateJsonFiles = false;
-  private static final String UUID_REGEXP =
-      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   private static WorkflowServiceStubs service;
   private static TestWorkflowEnvironment testEnvironment;
   private final List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
@@ -122,11 +102,11 @@ public class WorkflowTest {
 
   @BeforeClass()
   public static void startService() {
-    if (regenerateJsonFiles && !useExternalService) {
+    if (SDKTestWorkflowRule.REGENERATE_JSON_FILES && !SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       throw new IllegalStateException(
-          "regenerateJsonFiles is true when useExternalService is false");
+          "SDKTestWorkflowRule.REGENERATE_JSON_FILES is true when SDKTestWorkflowRule.USE_EXTERNAL_SERVICE is false");
     }
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       service =
           WorkflowServiceStubs.newInstance(
               WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
@@ -135,7 +115,7 @@ public class WorkflowTest {
 
   @AfterClass
   public static void closeService() {
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       service.shutdownNow();
       service.awaitTermination(10, TimeUnit.SECONDS);
     }
@@ -145,7 +125,7 @@ public class WorkflowTest {
   public void setUp() {
     String testMethod = testName.getMethodName();
     if (testMethod.startsWith("testExecute") || testMethod.startsWith("testStart")) {
-      taskQueue = ANNOTATION_TASK_QUEUE;
+      taskQueue = SDKTestWorkflowRule.ANNOTATION_TASK_QUEUE;
     } else {
       taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
     }
@@ -155,7 +135,7 @@ public class WorkflowTest {
     lastStartedWorkflowType.set(null);
     WorkflowClientOptions workflowClientOptions =
         WorkflowClientOptions.newBuilder()
-            .setBinaryChecksum(BINARY_CHECKSUM)
+            .setBinaryChecksum(SDKTestWorkflowRule.BINARY_CHECKSUM)
             .setInterceptors(
                 new WorkflowClientInterceptorBase() {
                   @Override
@@ -165,7 +145,7 @@ public class WorkflowTest {
                     return next;
                   }
                 })
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .build();
     boolean versionTest = testMethod.contains("GetVersion") || testMethod.contains("Deterministic");
     WorkerFactoryOptions factoryOptions =
@@ -175,7 +155,7 @@ public class WorkflowTest {
             .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(
                 versionTest ? Duration.ZERO : Duration.ofSeconds(10))
             .build();
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       workflowClient = WorkflowClient.newInstance(service, workflowClientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient, factoryOptions);
       WorkerOptions workerOptions =
@@ -234,7 +214,7 @@ public class WorkflowTest {
   private void startWorkerFor(
       WorkflowImplementationOptions implementationOptions, Class<?>... workflowTypes) {
     worker.registerWorkflowImplementationTypes(implementationOptions, workflowTypes);
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       workerFactory.start();
     } else {
       testEnvironment.start();
@@ -243,7 +223,7 @@ public class WorkflowTest {
 
   private void startWorkerFor(Class<?>... workflowTypes) {
     worker.registerWorkflowImplementationTypes(workflowTypes);
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       workerFactory.start();
     } else {
       testEnvironment.start();
@@ -253,7 +233,7 @@ public class WorkflowTest {
   // TODO: Refactor testEnvironment to support testing through real service to avoid this
   // conditional switches
   void registerDelayedCallback(Duration delay, Runnable r) {
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       ScheduledFuture<?> result =
           scheduledExecutor.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
       delayedCallbacks.add(result);
@@ -263,7 +243,7 @@ public class WorkflowTest {
   }
 
   void sleep(Duration d) {
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       try {
         Thread.sleep(d.toMillis());
       } catch (InterruptedException e) {
@@ -275,7 +255,7 @@ public class WorkflowTest {
   }
 
   long currentTimeMillis() {
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       return System.currentTimeMillis();
     } else {
       return testEnvironment.currentTimeMillis();
@@ -334,7 +314,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity10", result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "newThread null",
         "sleep PT2S",
@@ -688,10 +668,10 @@ public class WorkflowTest {
             TestWorkflow1.class, TestOptions.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution = WorkflowClient.start(client::execute, taskQueue);
     WorkflowStub stub = WorkflowStub.fromTyped(client);
-    waitForOKQuery(stub);
+    SDKTestWorkflowRule.waitForOKQuery(stub);
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -701,7 +681,8 @@ public class WorkflowTest {
     for (HistoryEvent event : response.getHistory().getEventsList()) {
       if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
         assertEquals(
-            BINARY_CHECKSUM, event.getWorkflowTaskCompletedEventAttributes().getBinaryChecksum());
+            SDKTestWorkflowRule.BINARY_CHECKSUM,
+            event.getWorkflowTaskCompletedEventAttributes().getBinaryChecksum());
         foundCompletedTask = true;
       }
     }
@@ -716,7 +697,7 @@ public class WorkflowTest {
             "TestWorkflow", TestOptions.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution =
         client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
-    waitForOKQuery(client);
+    SDKTestWorkflowRule.waitForOKQuery(client);
     client.cancel();
     try {
       client.getResult(String.class);
@@ -726,7 +707,7 @@ public class WorkflowTest {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -755,7 +736,7 @@ public class WorkflowTest {
             "TestWorkflow", TestOptions.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution =
         client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
-    waitForOKQuery(client);
+    SDKTestWorkflowRule.waitForOKQuery(client);
     client.cancel();
     try {
       client.getResult(String.class);
@@ -765,7 +746,7 @@ public class WorkflowTest {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -787,7 +768,7 @@ public class WorkflowTest {
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow", TestOptions.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution = client.start(ChildWorkflowCancellationType.ABANDON);
-    waitForOKQuery(client);
+    SDKTestWorkflowRule.waitForOKQuery(client);
     client.cancel();
     try {
       client.getResult(String.class);
@@ -797,7 +778,7 @@ public class WorkflowTest {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -820,7 +801,7 @@ public class WorkflowTest {
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow", TestOptions.newWorkflowOptionsBuilder(taskQueue).build());
     WorkflowExecution execution = client.start(ChildWorkflowCancellationType.TRY_CANCEL);
-    waitForOKQuery(client);
+    SDKTestWorkflowRule.waitForOKQuery(client);
     client.cancel();
     try {
       client.getResult(String.class);
@@ -830,7 +811,7 @@ public class WorkflowTest {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -888,7 +869,7 @@ public class WorkflowTest {
   public void testContinueAsNew() {
     Worker w2;
     String continuedTaskQueue = this.taskQueue + "_continued";
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       w2 = workerFactory.newWorker(continuedTaskQueue);
     } else {
       w2 = testEnvironment.newWorker(continuedTaskQueue);
@@ -902,19 +883,19 @@ public class WorkflowTest {
     int result = client.execute(4, continuedTaskQueue);
     assertEquals(111, result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "continueAsNew",
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "continueAsNew",
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "continueAsNew",
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "continueAsNew",
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method");
   }
 
@@ -949,10 +930,10 @@ public class WorkflowTest {
     String result = client.execute();
     assertEquals("done", result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "continueAsNew",
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method");
   }
 
@@ -988,7 +969,7 @@ public class WorkflowTest {
     TestMultiargsWorkflowsFunc1 stubF1 =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, options);
 
-    if (!useExternalService) {
+    if (!SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       // Use worker that polls on a task queue configured through @WorkflowMethod annotation of
       // func1
       assertResult(1, WorkflowClient.start(stubF1::func1, 1));
@@ -1071,7 +1052,7 @@ public class WorkflowTest {
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
               testEnvironment.getWorkflowService(),
-              NAMESPACE,
+              SDKTestWorkflowRule.NAMESPACE,
               executionF,
               ByteString.EMPTY,
               new NoopScope());
@@ -1116,7 +1097,7 @@ public class WorkflowTest {
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
               testEnvironment.getWorkflowService(),
-              NAMESPACE,
+              SDKTestWorkflowRule.NAMESPACE,
               executionF,
               ByteString.EMPTY,
               new NoopScope());
@@ -1612,7 +1593,7 @@ public class WorkflowTest {
   public void testTimer() {
     startWorkerFor(TestTimerWorkflowImpl.class);
     WorkflowOptions options;
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       options = TestOptions.newWorkflowOptionsBuilder(taskQueue).build();
     } else {
       options =
@@ -1621,11 +1602,11 @@ public class WorkflowTest {
               .build();
     }
     TestWorkflow2 client = workflowClient.newWorkflowStub(TestWorkflow2.class, options);
-    String result = client.execute(useExternalService);
+    String result = client.execute(SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
     assertEquals("testTimer", result);
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       tracer.setExpected(
-          "interceptExecuteWorkflow " + UUID_REGEXP,
+          "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
           "registerQuery getTrace",
           "newThread workflow-method",
           "newTimer PT0.7S",
@@ -1637,7 +1618,7 @@ public class WorkflowTest {
           "currentTimeMillis");
     } else {
       tracer.setExpected(
-          "interceptExecuteWorkflow " + UUID_REGEXP,
+          "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
           "registerQuery getTrace",
           "newThread workflow-method",
           "newTimer PT11M40S",
@@ -1695,7 +1676,7 @@ public class WorkflowTest {
             TestWorkflow2.class, TestOptions.newWorkflowOptionsBuilder(taskQueue).build());
     String result = null;
     try {
-      result = client.execute(useExternalService);
+      result = client.execute(SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
       fail("unreachable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
@@ -1769,7 +1750,7 @@ public class WorkflowTest {
             TestWorkflow2.class, TestOptions.newWorkflowOptionsBuilder(taskQueue).build());
     String result = null;
     try {
-      result = client.execute(useExternalService);
+      result = client.execute(SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
       fail("unreachable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
@@ -1984,7 +1965,7 @@ public class WorkflowTest {
   public void testSignal() {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       WorkerFactory workerFactory = WorkerFactory.newInstance(workflowClient);
       queryWorker = workerFactory.newWorker(taskQueue);
     } else {
@@ -2057,7 +2038,7 @@ public class WorkflowTest {
   public void testSignalWithStart() throws Exception {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       WorkerFactory workerFactory = WorkerFactory.newInstance(workflowClient);
       queryWorker = workerFactory.newWorker(taskQueue);
     } else {
@@ -2160,7 +2141,7 @@ public class WorkflowTest {
     int queryCount = 100;
     for (int i = 0; i < queryCount; i++) {
       assertEquals("some state", client.getState());
-      if (useExternalService) {
+      if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
         // Sleep a little bit to avoid server throttling error.
         Thread.sleep(50);
       }
@@ -2206,7 +2187,7 @@ public class WorkflowTest {
         WorkflowClient.newInstance(
             service,
             WorkflowClientOptions.newBuilder()
-                .setNamespace(NAMESPACE)
+                .setNamespace(SDKTestWorkflowRule.NAMESPACE)
                 .setQueryRejectCondition(QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN)
                 .build());
     WorkflowStub workflowStubNotOptionRejectCondition =
@@ -2670,7 +2651,7 @@ public class WorkflowTest {
    */
   @Test
   public void testChildWorkflowRetryReplay() throws Exception {
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
@@ -2679,7 +2660,7 @@ public class WorkflowTest {
   /** Tests that WorkflowReplayer fails if replay does not match workflow run. */
   @Test(expected = RuntimeException.class)
   public void testAlteredWorkflowReplayFailure() throws Exception {
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", AlteredTestChildWorkflowRetryWorkflow.class);
@@ -2712,10 +2693,13 @@ public class WorkflowTest {
     startWorkerFor(TestChildWorkflowExecutionPromiseHandler.class, TestNamedChild.class);
 
     WorkflowClient wc;
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       wc =
           WorkflowClient.newInstance(
-              service, WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build());
+              service,
+              WorkflowClientOptions.newBuilder()
+                  .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                  .build());
     } else {
       wc = testEnvironment.getWorkflowClient();
     }
@@ -2789,9 +2773,9 @@ public class WorkflowTest {
         "registerSignalHandlers testSignal",
         "newThread workflow-method",
         "executeChildWorkflow SignalingChild",
-        "interceptExecuteWorkflow " + UUID_REGEXP, // child
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP, // child
         "newThread workflow-method",
-        "signalExternalWorkflow " + UUID_REGEXP + " testSignal",
+        "signalExternalWorkflow " + SDKTestWorkflowRule.UUID_REGEXP + " testSignal",
         "handleSignal testSignal");
   }
 
@@ -2998,7 +2982,7 @@ public class WorkflowTest {
     assertEquals("result1", result);
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(WorkflowStub.fromTyped(workflowStub).getExecution())
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -3043,7 +3027,7 @@ public class WorkflowTest {
     assertEquals("result1", result);
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(WorkflowStub.fromTyped(workflowStub).getExecution())
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -3346,7 +3330,7 @@ public class WorkflowTest {
   public void testWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
-    Assume.assumeFalse("skipping as test will timeout", useExternalService);
+    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     startWorkerFor(TestWorkflowWithCronScheduleImpl.class);
 
@@ -3389,7 +3373,7 @@ public class WorkflowTest {
   public void testChildWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
-    Assume.assumeFalse("skipping as test will timeout", useExternalService);
+    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     startWorkerFor(TestCronParentWorkflow.class, TestWorkflowWithCronScheduleImpl.class);
 
@@ -3649,7 +3633,7 @@ public class WorkflowTest {
     @Override
     public void throwIO() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      assertEquals(NAMESPACE, info.getWorkflowNamespace());
+      assertEquals(SDKTestWorkflowRule.NAMESPACE, info.getWorkflowNamespace());
       assertNotNull(info.getWorkflowId());
       assertNotNull(info.getRunId());
       assertFalse(info.getWorkflowId().isEmpty());
@@ -3978,7 +3962,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity1", result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "currentTimeMillis",
         "sideEffect",
@@ -4086,7 +4070,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity22activity1activity1activity1", result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "getVersion",
         "executeActivity Activity2",
@@ -4124,7 +4108,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionSameIdOnReplay() {
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     startWorkerFor(TestGetVersionSameIdOnReplay.class);
     TestWorkflow1 workflowStub =
@@ -4134,7 +4118,7 @@ public class WorkflowTest {
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
 
@@ -4169,7 +4153,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionSameId() {
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     startWorkerFor(TestGetVersionSameId.class);
     TestWorkflow1 workflowStub =
@@ -4208,7 +4192,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionAddNewBefore() {
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     startWorkerFor(TestGetVersionWorkflowAddNewBefore.class);
     TestWorkflow1 workflowStub =
@@ -4251,7 +4235,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionWorkflowReplaceGetVersionId() {
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     startWorkerFor(TestGetVersionWorkflowReplaceGetVersionId.class);
     TestWorkflow1 workflowStub =
@@ -4289,7 +4273,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionWorkflowReplaceCompletely() {
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     startWorkerFor(TestGetVersionWorkflowReplaceCompletely.class);
     TestWorkflow1 workflowStub =
@@ -4325,7 +4309,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionWorkflowRemove() {
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
 
     startWorkerFor(TestGetVersionWorkflowRemove.class);
     TestWorkflow1 workflowStub =
@@ -4418,7 +4402,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity22activity", result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "getVersion",
         "executeActivity Activity2",
@@ -4459,7 +4443,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskQueue);
     assertEquals("activity", result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "getVersion",
         "getVersion",
@@ -4571,7 +4555,7 @@ public class WorkflowTest {
             .build();
     worker.registerWorkflowImplementationTypes(
         implementationOptions, DeterminismFailingWorkflowImpl.class);
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       workerFactory.start();
     } else {
       testEnvironment.start();
@@ -4627,7 +4611,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskQueue);
     assertEquals("foo10", result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "sideEffect",
         "sideEffect",
@@ -5128,7 +5112,7 @@ public class WorkflowTest {
     WorkflowClient.start(workflowStub::run);
 
     // Suspend polling so that all the signals will be received in the same workflow task.
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       workerFactory.suspendPolling();
     } else {
       testEnvironment.getWorkerFactory().suspendPolling();
@@ -5138,7 +5122,7 @@ public class WorkflowTest {
     workflowStub.signal("test2");
     workflowStub.signal("test3");
 
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       workerFactory.resumePolling();
     } else {
       testEnvironment.getWorkerFactory().resumePolling();
@@ -5253,17 +5237,17 @@ public class WorkflowTest {
             TestSagaWorkflow.class, TestOptions.newWorkflowOptionsBuilder(taskQueue).build());
     sagaWorkflow.execute(taskQueue, false);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "executeActivity customActivity1",
         "activity customActivity1",
         "executeChildWorkflow TestMultiargsWorkflowsFunc",
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "executeActivity ThrowIO",
         "activity ThrowIO",
         "executeChildWorkflow TestCompensationWorkflow",
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "executeActivity Activity2",
         "activity Activity2");
@@ -5320,7 +5304,7 @@ public class WorkflowTest {
 
     // Suspend polling so that workflow tasks are not retried. Otherwise it will affect our thread
     // count.
-    if (useExternalService) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
       workerFactory.suspendPolling();
     } else {
       testEnvironment.getWorkerFactory().suspendPolling();
@@ -5388,14 +5372,14 @@ public class WorkflowTest {
     String result = testWorkflow.execute(taskQueue, "testKey");
     assertEquals("done", result);
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "newThread workflow-method",
         "upsertSearchAttributes",
         "executeActivity Activity",
         "activity Activity");
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
+            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
@@ -5632,7 +5616,7 @@ public class WorkflowTest {
       }
     }
     tracer.setExpected(
-        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
         "registerSignalHandlers register",
         "newThread workflow-method",
         "await await",
