@@ -17,14 +17,14 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.shared;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowOptions;
 import java.time.Duration;
 
-class TestOptions {
+public class TestOptions {
   // When set to true increases test, activity and workflow timeouts to large values to support
   // stepping through code in a debugger without timing out.
   private static final boolean DEBUGGER_TIMEOUTS = false;

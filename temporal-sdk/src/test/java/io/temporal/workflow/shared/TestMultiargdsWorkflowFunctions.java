@@ -17,7 +17,11 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.shared;
+
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.WorkflowTest;
 
 public class TestMultiargdsWorkflowFunctions {
 

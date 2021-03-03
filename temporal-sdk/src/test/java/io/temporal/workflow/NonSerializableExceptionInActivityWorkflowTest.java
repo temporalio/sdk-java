@@ -22,6 +22,8 @@ package io.temporal.workflow;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;

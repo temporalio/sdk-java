@@ -22,6 +22,9 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

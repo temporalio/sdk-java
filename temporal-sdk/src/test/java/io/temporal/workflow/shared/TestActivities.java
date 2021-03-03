@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.shared;
 
 import static org.junit.Assert.*;
 
@@ -86,25 +86,25 @@ public interface TestActivities {
 
   class TestActivitiesImpl implements TestActivities {
 
-    final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
-    final List<String> procResult = Collections.synchronizedList(new ArrayList<>());
+    public final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
+    public final List<String> procResult = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger heartbeatCounter = new AtomicInteger();
-    final AtomicInteger applicationFailureCounter = new AtomicInteger();
+    public final AtomicInteger applicationFailureCounter = new AtomicInteger();
     private final ThreadPoolExecutor executor =
         new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-    ActivityCompletionClient completionClient;
+    public ActivityCompletionClient completionClient;
     int lastAttempt;
 
-    protected TestActivitiesImpl(ActivityCompletionClient completionClient) {
+    public TestActivitiesImpl(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
     }
 
-    void close() throws InterruptedException {
+    public void close() throws InterruptedException {
       executor.shutdownNow();
       executor.awaitTermination(1, TimeUnit.MINUTES);
     }
 
-    void assertInvocations(String... expected) {
+    public void assertInvocations(String... expected) {
       assertEquals(Arrays.asList(expected), invocations);
     }
 
