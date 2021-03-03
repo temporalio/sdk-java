@@ -28,8 +28,8 @@ import org.junit.Test;
 
 public class AsyncUntyped2ActivityTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =

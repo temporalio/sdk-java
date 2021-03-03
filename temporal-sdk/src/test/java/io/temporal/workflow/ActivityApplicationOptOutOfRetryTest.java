@@ -32,8 +32,8 @@ import org.junit.Test;
 
 public class ActivityApplicationOptOutOfRetryTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -68,7 +68,7 @@ public class ActivityApplicationOptOutOfRetryTest {
 
   public static class TestActivityApplicationOptOutOfRetry implements WorkflowTest.TestWorkflow1 {
 
-    private WorkflowTest.TestActivities activities;
+    private TestActivities activities;
 
     @Override
     public String execute(String taskQueue) {
@@ -79,7 +79,7 @@ public class ActivityApplicationOptOutOfRetryTest {
               .setStartToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
               .build();
-      activities = Workflow.newActivityStub(WorkflowTest.TestActivities.class, options);
+      activities = Workflow.newActivityStub(TestActivities.class, options);
       activities.throwApplicationFailureThreeTimes();
       return "ignored";
     }

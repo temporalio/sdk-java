@@ -33,8 +33,8 @@ import org.junit.Test;
 
 public class AsyncActivityRetryOptionsChangeTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -67,7 +67,7 @@ public class AsyncActivityRetryOptionsChangeTest {
 
   public static class TestAsyncActivityRetryOptionsChange implements WorkflowTest.TestWorkflow1 {
 
-    private WorkflowTest.TestActivities activities;
+    private TestActivities activities;
 
     @Override
     public String execute(String taskQueue) {
@@ -95,8 +95,7 @@ public class AsyncActivityRetryOptionsChangeTest {
                 .setDoNotRetry(NullPointerException.class.getName())
                 .build());
       }
-      this.activities =
-          Workflow.newActivityStub(WorkflowTest.TestActivities.class, options.build());
+      this.activities = Workflow.newActivityStub(TestActivities.class, options.build());
       Async.procedure(activities::throwIO).get();
       return "ignored";
     }

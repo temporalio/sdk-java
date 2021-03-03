@@ -35,8 +35,8 @@ import org.junit.Test;
 
 public class ActivityRetryWithMaxAttemptsTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -101,8 +101,7 @@ public class ActivityRetryWithMaxAttemptsTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      WorkflowTest.TestActivities activities =
-          Workflow.newActivityStub(WorkflowTest.TestActivities.class, options);
+      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
       long start = Workflow.currentTimeMillis();
       try {
         activities.heartbeatAndThrowIO();

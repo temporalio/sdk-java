@@ -30,8 +30,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class AsyncActivityTest {
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -69,10 +69,9 @@ public class AsyncActivityTest {
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities testActivities =
+      TestActivities testActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class,
-              TestOptions.newActivityOptions20sScheduleToClose());
+              TestActivities.class, TestOptions.newActivityOptions20sScheduleToClose());
       Promise<String> a = Async.function(testActivities::activity);
       Promise<Integer> a1 = Async.function(testActivities::activity1, 1);
       Promise<String> a2 = Async.function(testActivities::activity2, "1", 2);

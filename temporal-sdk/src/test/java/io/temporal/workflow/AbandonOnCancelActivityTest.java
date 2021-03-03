@@ -38,8 +38,8 @@ import org.junit.Test;
 
 public class AbandonOnCancelActivityTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -98,9 +98,9 @@ public class AbandonOnCancelActivityTest {
   public static class TestAbandonOnCancelActivity implements WorkflowTest.TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities testActivities =
+      TestActivities testActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class,
+              TestActivities.class,
               ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(10))
                   .setCancellationType(ActivityCancellationType.ABANDON)

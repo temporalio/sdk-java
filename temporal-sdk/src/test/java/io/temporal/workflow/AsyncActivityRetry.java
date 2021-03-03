@@ -35,8 +35,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class AsyncActivityRetry {
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -83,7 +83,7 @@ public class AsyncActivityRetry {
   }
 
   public static class TestAsyncActivityRetry implements WorkflowTest.TestWorkflow1 {
-    private WorkflowTest.TestActivities activities;
+    private TestActivities activities;
 
     @Override
     public String execute(String taskQueue) {
@@ -101,7 +101,7 @@ public class AsyncActivityRetry {
                       .setMaximumAttempts(3)
                       .build())
               .build();
-      this.activities = Workflow.newActivityStub(WorkflowTest.TestActivities.class, options);
+      this.activities = Workflow.newActivityStub(TestActivities.class, options);
       Async.procedure(activities::heartbeatAndThrowIO).get();
       return "ignored";
     }

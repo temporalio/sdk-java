@@ -34,8 +34,8 @@ import org.junit.Test;
 
 public class LocalActivityTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -79,9 +79,9 @@ public class LocalActivityTest {
   public static class TestLocalActivityWorkflowImpl implements WorkflowTest.TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities localActivities =
+      TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       try {
         localActivities.throwIO();
       } catch (ActivityFailure e) {
@@ -99,10 +99,9 @@ public class LocalActivityTest {
       }
 
       String laResult = localActivities.activity2("test", 123);
-      WorkflowTest.TestActivities normalActivities =
+      TestActivities normalActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class,
-              TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       laResult = normalActivities.activity2(laResult, 123);
       return laResult;
     }

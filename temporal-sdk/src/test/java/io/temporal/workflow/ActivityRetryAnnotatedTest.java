@@ -32,8 +32,8 @@ import org.junit.Test;
 
 public class ActivityRetryAnnotatedTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -66,12 +66,12 @@ public class ActivityRetryAnnotatedTest {
 
   public static class TestActivityRetryAnnotated implements WorkflowTest.TestWorkflow1 {
 
-    private final WorkflowTest.TestActivities activities;
+    private final TestActivities activities;
 
     public TestActivityRetryAnnotated() {
       this.activities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class,
+              TestActivities.class,
               ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .setScheduleToStartTimeout(Duration.ofSeconds(5))

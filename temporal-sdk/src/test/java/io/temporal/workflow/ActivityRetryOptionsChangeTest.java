@@ -33,8 +33,8 @@ import org.junit.Test;
 
 public class ActivityRetryOptionsChangeTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -87,8 +87,7 @@ public class ActivityRetryOptionsChangeTest {
       } else {
         retryOptions = RetryOptions.newBuilder().setMaximumAttempts(2).build();
       }
-      WorkflowTest.TestActivities activities =
-          Workflow.newActivityStub(WorkflowTest.TestActivities.class, options.build());
+      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options.build());
       Workflow.retry(retryOptions, Optional.of(Duration.ofDays(1)), () -> activities.throwIO());
       return "ignored";
     }

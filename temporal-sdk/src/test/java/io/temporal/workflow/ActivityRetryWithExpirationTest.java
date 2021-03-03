@@ -35,8 +35,8 @@ import org.junit.Test;
 
 public class ActivityRetryWithExpirationTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -87,8 +87,7 @@ public class ActivityRetryWithExpirationTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      WorkflowTest.TestActivities activities =
-          Workflow.newActivityStub(WorkflowTest.TestActivities.class, options);
+      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
       long start = Workflow.currentTimeMillis();
       try {
         activities.heartbeatAndThrowIO();

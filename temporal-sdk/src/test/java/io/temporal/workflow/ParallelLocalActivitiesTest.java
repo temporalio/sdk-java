@@ -32,8 +32,8 @@ import org.junit.Test;
 
 public class ParallelLocalActivitiesTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -84,9 +84,9 @@ public class ParallelLocalActivitiesTest {
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities localActivities =
+      TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       List<Promise<String>> laResults = new ArrayList<>();
       Random r = Workflow.newRandom();
       for (int i = 0; i < COUNT; i++) {

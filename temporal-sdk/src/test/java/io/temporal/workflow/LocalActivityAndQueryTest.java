@@ -35,8 +35,8 @@ import org.junit.Test;
 
 public class LocalActivityAndQueryTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -100,9 +100,9 @@ public class LocalActivityAndQueryTest {
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities localActivities =
+      TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, TestOptions.newLocalActivityOptions());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       for (int i = 0; i < 5; i++) {
         localActivities.sleepActivity(1000, i);
         message = "run" + i;

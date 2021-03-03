@@ -32,8 +32,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class LocalActivityRetryTest {
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
@@ -84,8 +84,7 @@ public class LocalActivityRetryTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      WorkflowTest.TestActivities activities =
-          Workflow.newLocalActivityStub(WorkflowTest.TestActivities.class, options);
+      TestActivities activities = Workflow.newLocalActivityStub(TestActivities.class, options);
       activities.throwIO();
 
       return "ignored";
