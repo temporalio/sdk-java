@@ -49,11 +49,11 @@ public class ActivityRetryWithExpirationTest {
 
   @Test
   public void testActivityRetryWithExpiration() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -68,7 +68,7 @@ public class ActivityRetryWithExpirationTest {
   }
 
   public static class TestActivityRetryWithExpiration
-      implements WorkflowTest.TestWorkflow1,
+      implements TestWorkflows.TestWorkflow1,
           WorkflowTest.EmptyInterface,
           WorkflowTest.UnrelatedInterface {
 

@@ -50,11 +50,11 @@ public class LocalActivityTest {
 
   @Test
   public void testLocalActivity() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("test123123", result);
@@ -76,7 +76,7 @@ public class LocalActivityTest {
             "activity Activity2");
   }
 
-  public static class TestLocalActivityWorkflowImpl implements WorkflowTest.TestWorkflow1 {
+  public static class TestLocalActivityWorkflowImpl implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
       TestActivities localActivities =

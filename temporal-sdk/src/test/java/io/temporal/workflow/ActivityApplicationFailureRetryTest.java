@@ -46,11 +46,11 @@ public class ActivityApplicationFailureRetryTest {
 
   @Test
   public void testActivityApplicationFailureRetry() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -67,7 +67,7 @@ public class ActivityApplicationFailureRetryTest {
     Assert.assertEquals(3, activitiesImpl.applicationFailureCounter.get());
   }
 
-  public static class TestActivityApplicationFailureRetry implements WorkflowTest.TestWorkflow1 {
+  public static class TestActivityApplicationFailureRetry implements TestWorkflows.TestWorkflow1 {
 
     private TestActivities activities;
 

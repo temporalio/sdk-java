@@ -56,10 +56,10 @@ public class ParallelLocalActivitiesTest {
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
 
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.TestWorkflow1.class, options);
+            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("done", result);
     Assert.assertEquals(activitiesImpl.toString(), 100, activitiesImpl.invocations.size());
@@ -79,7 +79,7 @@ public class ParallelLocalActivitiesTest {
   }
 
   public static class TestParallelLocalActivitiesWorkflowImpl
-      implements WorkflowTest.TestWorkflow1 {
+      implements TestWorkflows.TestWorkflow1 {
     static final int COUNT = 100;
 
     @Override

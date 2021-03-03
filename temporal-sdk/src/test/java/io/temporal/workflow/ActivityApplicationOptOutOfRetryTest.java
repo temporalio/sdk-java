@@ -46,11 +46,11 @@ public class ActivityApplicationOptOutOfRetryTest {
 
   @Test
   public void testActivityApplicationOptOutOfRetry() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -66,7 +66,7 @@ public class ActivityApplicationOptOutOfRetryTest {
     Assert.assertEquals(1, activitiesImpl.applicationFailureCounter.get());
   }
 
-  public static class TestActivityApplicationOptOutOfRetry implements WorkflowTest.TestWorkflow1 {
+  public static class TestActivityApplicationOptOutOfRetry implements TestWorkflows.TestWorkflow1 {
 
     private TestActivities activities;
 

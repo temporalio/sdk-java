@@ -52,11 +52,11 @@ public class ActivityRetryWithMaxAttemptsTest {
 
   @Test
   public void testActivityRetryWithMaxAttempts() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -84,7 +84,7 @@ public class ActivityRetryWithMaxAttemptsTest {
             "currentTimeMillis");
   }
 
-  public static class TestActivityRetryWithMaxAttempts implements WorkflowTest.TestWorkflow1 {
+  public static class TestActivityRetryWithMaxAttempts implements TestWorkflows.TestWorkflow1 {
     @Override
     @SuppressWarnings("Finally")
     public String execute(String taskQueue) {

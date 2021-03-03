@@ -45,11 +45,11 @@ public class ActivityApplicationNoSpecifiedRetryTest {
 
   @Test
   public void testActivityApplicationNoSpecifiedRetry() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -67,7 +67,7 @@ public class ActivityApplicationNoSpecifiedRetryTest {
   }
 
   public static class TestActivityApplicationNoSpecifiedRetry
-      implements WorkflowTest.TestWorkflow1 {
+      implements TestWorkflows.TestWorkflow1 {
 
     private TestActivities activities;
 

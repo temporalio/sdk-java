@@ -46,11 +46,11 @@ public class LocalActivityRetryTest {
 
   @Test
   public void testLocalActivityRetry() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
 
     try {
@@ -66,7 +66,7 @@ public class LocalActivityRetryTest {
     Assert.assertEquals("last attempt", 5, activitiesImpl.getLastAttempt());
   }
 
-  public static class TestLocalActivityRetry implements WorkflowTest.TestWorkflow1 {
+  public static class TestLocalActivityRetry implements TestWorkflows.TestWorkflow1 {
 
     @Override
     @SuppressWarnings("Finally")

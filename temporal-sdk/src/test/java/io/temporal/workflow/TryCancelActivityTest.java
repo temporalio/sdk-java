@@ -48,11 +48,11 @@ public class TryCancelActivityTest {
 
   @Test
   public void testTryCancelActivity() {
-    WorkflowTest.TestWorkflow1 client =
+    TestWorkflows.TestWorkflow1 client =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
@@ -73,7 +73,7 @@ public class TryCancelActivityTest {
     activitiesImpl.assertInvocations("activityWithDelay");
   }
 
-  public static class TestTryCancelActivity implements WorkflowTest.TestWorkflow1 {
+  public static class TestTryCancelActivity implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

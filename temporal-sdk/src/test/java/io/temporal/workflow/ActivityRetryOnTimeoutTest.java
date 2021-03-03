@@ -48,11 +48,11 @@ public class ActivityRetryOnTimeoutTest {
 
   @Test
   public void testActivityRetryOnTimeout() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     // Wall time on purpose
     long start = System.currentTimeMillis();
@@ -71,7 +71,7 @@ public class ActivityRetryOnTimeoutTest {
     }
   }
 
-  public static class TestActivityRetryOnTimeout implements WorkflowTest.TestWorkflow1 {
+  public static class TestActivityRetryOnTimeout implements TestWorkflows.TestWorkflow1 {
 
     @Override
     @SuppressWarnings("Finally")

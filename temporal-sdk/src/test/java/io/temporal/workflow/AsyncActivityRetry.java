@@ -50,11 +50,11 @@ public class AsyncActivityRetry {
 
   @Test
   public void testAsyncActivityRetry() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -82,7 +82,7 @@ public class AsyncActivityRetry {
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
   }
 
-  public static class TestAsyncActivityRetry implements WorkflowTest.TestWorkflow1 {
+  public static class TestAsyncActivityRetry implements TestWorkflows.TestWorkflow1 {
     private TestActivities activities;
 
     @Override

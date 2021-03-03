@@ -47,11 +47,11 @@ public class UntypedActivityRetryTest {
 
   @Test
   public void testUntypedActivityRetry() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -65,7 +65,7 @@ public class UntypedActivityRetryTest {
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
 
-  public static class TestUntypedActivityRetry implements WorkflowTest.TestWorkflow1 {
+  public static class TestUntypedActivityRetry implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

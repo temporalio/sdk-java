@@ -53,11 +53,11 @@ public class AbandonOnCancelActivityTest {
 
   @Test
   public void testAbandonOnCancelActivity() {
-    WorkflowTest.TestWorkflow1 client =
+    TestWorkflows.TestWorkflow1 client =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     WorkflowExecution execution =
         WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
@@ -95,7 +95,7 @@ public class AbandonOnCancelActivityTest {
     }
   }
 
-  public static class TestAbandonOnCancelActivity implements WorkflowTest.TestWorkflow1 {
+  public static class TestAbandonOnCancelActivity implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
       TestActivities testActivities =

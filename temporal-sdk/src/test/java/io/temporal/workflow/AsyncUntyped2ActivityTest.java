@@ -46,11 +46,11 @@ public class AsyncUntyped2ActivityTest {
     // right completion client.
     activitiesImpl.completionClient =
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
-    WorkflowTest.TestWorkflow1 client =
+    TestWorkflows.TestWorkflow1 client =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
@@ -63,7 +63,7 @@ public class AsyncUntyped2ActivityTest {
     Assert.assertEquals("123456", activitiesImpl.procResult.get(6));
   }
 
-  public static class TestAsyncUtypedActivity2WorkflowImpl implements WorkflowTest.TestWorkflow1 {
+  public static class TestAsyncUtypedActivity2WorkflowImpl implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

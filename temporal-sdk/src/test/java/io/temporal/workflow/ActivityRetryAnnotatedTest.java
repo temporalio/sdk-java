@@ -46,11 +46,11 @@ public class ActivityRetryAnnotatedTest {
 
   @Test
   public void testActivityRetryAnnotated() {
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
+                TestWorkflows.TestWorkflow1.class,
                 TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -64,7 +64,7 @@ public class ActivityRetryAnnotatedTest {
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
 
-  public static class TestActivityRetryAnnotated implements WorkflowTest.TestWorkflow1 {
+  public static class TestActivityRetryAnnotated implements TestWorkflows.TestWorkflow1 {
 
     private final TestActivities activities;
 
