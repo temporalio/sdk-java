@@ -28,20 +28,27 @@ import com.google.common.io.Files;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SDKTestWorkflowRule extends TestWorkflowRule {
+public class SDKTestWorkflowRule {
 
   public static final String NAMESPACE = "UnitTest";
   public static final String BINARY_CHECKSUM = "testChecksum";
@@ -59,22 +66,124 @@ public class SDKTestWorkflowRule extends TestWorkflowRule {
       new ScheduledThreadPoolExecutor(1);
   private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
 
-  protected SDKTestWorkflowRule(Builder builder) {
-    super(builder);
+  private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
+
+  private final TestWorkflowRule testWorkflowRule;
+
+  protected SDKTestWorkflowRule(Builder builder, TestWorkflowRule.Builder testWorkflowRuleBuilder) {
+    testWorkflowRule = testWorkflowRuleBuilder.build();
   }
 
   public static Builder newBuilder() {
     return new Builder();
   }
 
-  public static class Builder extends TestWorkflowRule.Builder {
+  public static class Builder {
+    TestWorkflowRule.Builder testWorkflowRuleBuilder;
 
-    public Builder() {}
-
-    @Override
-    public SDKTestWorkflowRule build() {
-      return new SDKTestWorkflowRule(this);
+    public Builder() {
+      testWorkflowRuleBuilder = TestWorkflowRule.newBuilder();
     }
+
+    public Builder setWorkerOptions(WorkerOptions options) {
+      testWorkflowRuleBuilder.setWorkerOptions(options);
+      return this;
+    }
+
+    public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
+      testWorkflowRuleBuilder.setWorkflowClientOptions(workflowClientOptions);
+      return this;
+    }
+
+    public Builder setNamespace(String namespace) {
+      testWorkflowRuleBuilder.setNamespace(namespace);
+      return this;
+    }
+
+    public Builder setWorkerInterceptors(WorkerInterceptor... workerInterceptors) {
+      testWorkflowRuleBuilder.setWorkerInterceptors(workerInterceptors);
+      return this;
+    }
+
+    public Builder setWorkflowTypes(Class<?>... workflowTypes) {
+      testWorkflowRuleBuilder.setWorkflowTypes(workflowTypes);
+      return this;
+    }
+
+    public Builder setWorkflowTypes(
+        WorkflowImplementationOptions implementationOptions, Class<?>... workflowTypes) {
+      testWorkflowRuleBuilder.setWorkflowTypes(implementationOptions, workflowTypes);
+      return this;
+    }
+
+    public Builder setActivityImplementations(Object... activityImplementations) {
+      testWorkflowRuleBuilder.setActivityImplementations(activityImplementations);
+      return this;
+    }
+
+    public Builder setUseExternalService(boolean useExternalService) {
+      testWorkflowRuleBuilder.setUseExternalService(useExternalService);
+      return this;
+    }
+
+    public Builder setTarget(String target) {
+      testWorkflowRuleBuilder.setTarget(target);
+      return this;
+    }
+
+    public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
+      testWorkflowRuleBuilder.setTestTimeoutSeconds(testTimeoutSeconds);
+      return this;
+    }
+
+    public Builder setDoNotStart(boolean doNotStart) {
+      testWorkflowRuleBuilder.setDoNotStart(doNotStart);
+      return this;
+    }
+
+    public SDKTestWorkflowRule build() {
+      return new SDKTestWorkflowRule(this, testWorkflowRuleBuilder);
+    }
+  }
+
+  public Statement apply(Statement base, Description description) {
+    return testWorkflowRule.apply(base, description);
+  }
+
+  public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
+    return testWorkflowRule.getInterceptor(type);
+  }
+
+  public String getTaskQueue() {
+    return testWorkflowRule.getTaskQueue();
+  }
+
+  public WorkflowClient getWorkflowClient() {
+    return testWorkflowRule.getWorkflowClient();
+  }
+
+  public boolean isUseExternalService() {
+    return testWorkflowRule.isUseExternalService();
+  }
+
+  public TestWorkflowEnvironment getTestEnvironment() {
+    return testWorkflowRule.getTestEnvironment();
+  }
+
+  public <T> T newWorkflowStub(Class<T> workflow) {
+    return testWorkflowRule.newWorkflowStub(workflow);
+  }
+
+  public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow) {
+    return testWorkflowRule.newWorkflowStubTimeoutOptions(workflow);
+  }
+
+  public <T> WorkflowStub newUntypedWorkflowStub(String workflow) {
+    return testWorkflowRule.newUntypedWorkflowStub(workflow);
+  }
+
+  public <T> WorkflowStub newUntypedWorkflowStubTimeoutOptions(String workflow) {
+    return testWorkflowRule.newUntypedWorkflowStubTimeoutOptions(workflow);
   }
 
   /** Used to ensure that workflow first workflow task is executed. */
@@ -123,14 +232,13 @@ public class SDKTestWorkflowRule extends TestWorkflowRule {
           SCHEDULED_EXECUTOR.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
       DELAYED_CALLBACKS.add(result);
     } else {
-      this.getTestEnvironment().registerDelayedCallback(delay, r);
+      testWorkflowRule.getTestEnvironment().registerDelayedCallback(delay, r);
     }
   }
 
   // TODO(vkoby) double check that both super and this shutdown execute
-  @Override
   protected void shutdown() throws Throwable {
-    super.shutdown();
+    testWorkflowRule.shutdown();
     for (ScheduledFuture<?> result : DELAYED_CALLBACKS) {
       if (result.isDone() && !result.isCancelled()) {
         try {
@@ -151,7 +259,7 @@ public class SDKTestWorkflowRule extends TestWorkflowRule {
         throw new RuntimeException("Interrupted", e);
       }
     } else {
-      this.getTestEnvironment().sleep(d);
+      testWorkflowRule.getTestEnvironment().sleep(d);
     }
   }
 }
