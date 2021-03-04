@@ -43,12 +43,13 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SDKTestWorkflowRule {
+public class SDKTestWorkflowRule implements TestRule {
 
   public static final String NAMESPACE = "UnitTest";
   public static final String BINARY_CHECKSUM = "testChecksum";
