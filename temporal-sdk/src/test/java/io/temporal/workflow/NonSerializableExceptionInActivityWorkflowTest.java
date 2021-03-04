@@ -22,7 +22,6 @@ package io.temporal.workflow;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.testing.TestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -39,18 +38,12 @@ public class NonSerializableExceptionInActivityWorkflowTest {
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNonSerializableExceptionInActivityWorkflow.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
   public void testNonSerializableExceptionInActivity() {
     TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflows.TestWorkflow1.class,
-                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
 
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertTrue(result.contains("NonSerializableException"));

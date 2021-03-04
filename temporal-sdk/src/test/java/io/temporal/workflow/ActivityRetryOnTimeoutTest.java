@@ -26,7 +26,6 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -45,18 +44,12 @@ public class ActivityRetryOnTimeoutTest {
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestActivityRetryOnTimeout.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
   public void testActivityRetryOnTimeout() {
     TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflows.TestWorkflow1.class,
-                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     // Wall time on purpose
     long start = System.currentTimeMillis();
     try {

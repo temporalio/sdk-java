@@ -41,10 +41,8 @@ public class DynamicWorkflowTest {
   @Rule
   public TestWorkflowRule testWorkflowRule =
       TestWorkflowRule.newBuilder()
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
-          .setDoNotStart(true)
           .setActivityImplementations(new DynamicActivityImpl())
+          .setDoNotStart(true)
           .build();
 
   public static class DynamicWorkflowImpl implements DynamicWorkflow {
@@ -116,11 +114,7 @@ public class DynamicWorkflowTest {
         .getWorker(testWorkflowRule.getTaskQueue())
         .addWorkflowImplementationFactory(DynamicWorkflowImpl.class, DynamicWorkflowImpl::new);
     testEnvironment.start();
-
-    WorkflowOptions workflowOptions =
-        WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
-    WorkflowStub workflow =
-        testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("workflowFoo", workflowOptions);
+    WorkflowStub workflow = testWorkflowRule.newUntypedWorkflowStub("workflowFoo");
     workflow.signalWithStart("signal1", new Object[] {"signalArg0"}, new Object[] {"startArg0"});
     String queryResult = workflow.query("query1", String.class, "queryArg0");
     assertEquals("query1-queryArg0-signal1-signalArg0", queryResult);

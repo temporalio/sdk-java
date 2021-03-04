@@ -21,9 +21,9 @@ package io.temporal.workflow;
 
 import io.temporal.client.*;
 import io.temporal.testing.SDKTestWorkflowRule;
+import io.temporal.testing.TestOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -46,8 +46,6 @@ public class ParallelLocalActivitiesTest {
               .setActivityImplementations(activitiesImpl)
               .setWorkerInterceptors(
                   new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-              .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-              .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
               .build();
 
   @Test

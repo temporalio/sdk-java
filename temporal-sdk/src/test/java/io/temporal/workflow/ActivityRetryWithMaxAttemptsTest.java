@@ -29,7 +29,6 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
@@ -49,18 +48,12 @@ public class ActivityRetryWithMaxAttemptsTest {
               .setWorkerInterceptors(
                   new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
               .setActivityImplementations(activitiesImpl)
-              .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-              .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
               .build();
 
   @Test
   public void testActivityRetryWithMaxAttempts() {
     TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflows.TestWorkflow1.class,
-                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       fail("unreachable");

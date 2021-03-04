@@ -21,9 +21,9 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.testing.TestOptions;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,8 +41,6 @@ public class AsyncActivityTest {
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestAsyncActivityWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
@@ -52,11 +50,7 @@ public class AsyncActivityTest {
     activitiesImpl.completionClient =
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
     TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflows.TestWorkflow1.class,
-                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
     Assert.assertEquals("proc", activitiesImpl.procResult.get(0));

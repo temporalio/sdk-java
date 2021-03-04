@@ -21,7 +21,6 @@ package io.temporal.workflow;
 
 import io.temporal.activity.*;
 import io.temporal.activity.ManualActivityCompletionClient;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestWorkflowRule;
@@ -38,8 +37,6 @@ public class AsyncActivityCompleteWithErrorTest {
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new AsyncActivityWithManualCompletion())
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @WorkflowInterface
@@ -98,11 +95,7 @@ public class AsyncActivityCompleteWithErrorTest {
   @Test
   public void verifyActivityCompletionClientCompleteExceptionally() {
     String taskQueue = testWorkflowRule.getTaskQueue();
-    TestWorkflow workflow =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    TestWorkflow workflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
     String result = workflow.execute(taskQueue);
     Assert.assertEquals("success", result);
   }

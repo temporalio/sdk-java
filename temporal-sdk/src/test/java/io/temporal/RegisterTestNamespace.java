@@ -19,7 +19,7 @@
 
 package io.temporal;
 
-import static io.temporal.testing.SDKTestWorkflowRule.NAMESPACE;
+import static io.temporal.testing.TestWorkflowRule.NAMESPACE;
 
 import com.google.protobuf.util.Durations;
 import io.grpc.Status;

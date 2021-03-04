@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow.shared;
+package io.temporal.testing;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -29,17 +29,23 @@ public class TestOptions {
   // stepping through code in a debugger without timing out.
   private static final boolean DEBUGGER_TIMEOUTS = false;
 
-  public static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskQueue) {
+  public static WorkflowOptions newWorkflowOptionsForTaskQueue(String taskQueue) {
+    return WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
+  }
+
+  public static WorkflowOptions newWorkflowOptionsWithTimeouts(String taskQueue) {
     if (DEBUGGER_TIMEOUTS) {
       return WorkflowOptions.newBuilder()
           .setWorkflowRunTimeout(Duration.ofSeconds(1000))
           .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-          .setTaskQueue(taskQueue);
+          .setTaskQueue(taskQueue)
+          .build();
     } else {
       return WorkflowOptions.newBuilder()
           .setWorkflowRunTimeout(Duration.ofHours(30))
           .setWorkflowTaskTimeout(Duration.ofSeconds(5))
-          .setTaskQueue(taskQueue);
+          .setTaskQueue(taskQueue)
+          .build();
     }
   }
 

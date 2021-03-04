@@ -31,8 +31,8 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.testing.SDKTestWorkflowRule;
+import io.temporal.testing.TestOptions;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -50,18 +50,12 @@ public class AbandonOnCancelActivityTest {
           SDKTestWorkflowRule.newBuilder()
               .setWorkflowTypes(TestAbandonOnCancelActivity.class)
               .setActivityImplementations(activitiesImpl)
-              .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-              .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
               .build();
 
   @Test
   public void testAbandonOnCancelActivity() {
     TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflows.TestWorkflow1.class,
-                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     WorkflowExecution execution =
         WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
@@ -82,7 +76,7 @@ public class AbandonOnCancelActivityTest {
     activitiesImpl.assertInvocations("activityWithDelay");
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =

@@ -27,7 +27,7 @@ import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.SDKTestWorkflowRule;
+import io.temporal.testing.TestWorkflowRule;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -269,7 +269,7 @@ public interface TestActivities {
     @Override
     public void throwIO() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      assertEquals(SDKTestWorkflowRule.NAMESPACE, info.getWorkflowNamespace());
+      assertEquals(TestWorkflowRule.NAMESPACE, info.getWorkflowNamespace());
       assertNotNull(info.getWorkflowId());
       assertNotNull(info.getRunId());
       assertFalse(info.getWorkflowId().isEmpty());

@@ -34,21 +34,24 @@ import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SDKTestWorkflowRule extends TestWorkflowRule {
 
-  public static final String NAMESPACE = "UnitTest";
   public static final String BINARY_CHECKSUM = "testChecksum";
   public static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
   public static final String UUID_REGEXP =
-      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"; // Enable to regenerate
-  // JsonFiles used for replay testing.
-  // Only enable when USE_DOCKER_SERVICE is true
-  public static final boolean USE_EXTERNAL_SERVICE =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  // Enable to regenerate JsonFiles used for replay testing.
   public static final boolean REGENERATE_JSON_FILES = false;
+  private static final List<ScheduledFuture<?>> DELAYED_CALLBACKS = new ArrayList<>();
+  private static final ScheduledExecutorService SCHEDULED_EXECUTOR =
+      new ScheduledThreadPoolExecutor(1);
   private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
 
   protected SDKTestWorkflowRule(Builder builder) {
@@ -87,7 +90,7 @@ public class SDKTestWorkflowRule extends TestWorkflowRule {
     if (REGENERATE_JSON_FILES) {
       GetWorkflowExecutionHistoryRequest request =
           GetWorkflowExecutionHistoryRequest.newBuilder()
-              .setNamespace(NAMESPACE)
+              .setNamespace(TestWorkflowRule.NAMESPACE)
               .setExecution(execution)
               .build();
       GetWorkflowExecutionHistoryResponse response =
@@ -104,6 +107,46 @@ public class SDKTestWorkflowRule extends TestWorkflowRule {
         Throwables.propagateIfPossible(e, RuntimeException.class);
       }
       log.info("Regenerated history file: " + resourceFile);
+    }
+  }
+
+  // TODO: Refactor testEnvironment to support testing through real service to avoid this
+  // switches
+  public void registerDelayedCallback(Duration delay, Runnable r) {
+    if (TestWorkflowRule.USE_EXTERNAL_SERVICE) {
+      ScheduledFuture<?> result =
+          SCHEDULED_EXECUTOR.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
+      DELAYED_CALLBACKS.add(result);
+    } else {
+      this.getTestEnvironment().registerDelayedCallback(delay, r);
+    }
+  }
+
+  // TODO(vkoby) double check that both super and this shutdown execute
+  @Override
+  protected void shutdown() throws Throwable {
+    super.shutdown();
+    for (ScheduledFuture<?> result : DELAYED_CALLBACKS) {
+      if (result.isDone() && !result.isCancelled()) {
+        try {
+          result.get();
+        } catch (InterruptedException e) {
+        } catch (ExecutionException e) {
+          throw e.getCause();
+        }
+      }
+    }
+  }
+
+  public void sleep(Duration d) {
+    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+      try {
+        Thread.sleep(d.toMillis());
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Interrupted", e);
+      }
+    } else {
+      this.getTestEnvironment().sleep(d);
     }
   }
 }

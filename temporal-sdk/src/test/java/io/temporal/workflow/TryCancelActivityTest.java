@@ -26,8 +26,8 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.testing.SDKTestWorkflowRule;
+import io.temporal.testing.TestOptions;
 import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -45,18 +45,12 @@ public class TryCancelActivityTest {
           SDKTestWorkflowRule.newBuilder()
               .setWorkflowTypes(TestTryCancelActivity.class)
               .setActivityImplementations(activitiesImpl)
-              .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-              .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
               .build();
 
   @Test
   public void testTryCancelActivity() {
     TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflows.TestWorkflow1.class,
-                TestOptions.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
         .getTestEnvironment()

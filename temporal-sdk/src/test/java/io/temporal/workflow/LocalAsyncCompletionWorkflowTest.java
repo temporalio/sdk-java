@@ -25,7 +25,6 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.ManualActivityCompletionClient;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
@@ -52,8 +51,6 @@ public class LocalAsyncCompletionWorkflowTest {
                   .build())
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new AsyncActivityWithManualCompletion())
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @WorkflowInterface
@@ -140,11 +137,7 @@ public class LocalAsyncCompletionWorkflowTest {
   @Test
   public void verifyLocalActivityCompletionRespectsConcurrencySettings() {
     String taskQueue = testWorkflowRule.getTaskQueue();
-    TestWorkflow workflow =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    TestWorkflow workflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
     String result = workflow.execute(taskQueue);
     Assert.assertEquals("success", result);
   }
