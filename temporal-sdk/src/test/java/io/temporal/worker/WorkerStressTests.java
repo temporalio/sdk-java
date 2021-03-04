@@ -19,7 +19,7 @@
 
 package io.temporal.worker;
 
-import static io.temporal.testing.TestWorkflowRule.NAMESPACE;
+import static io.temporal.testing.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertNotNull;
 
 import io.temporal.activity.ActivityInterface;
@@ -30,9 +30,9 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
@@ -55,8 +55,8 @@ import org.slf4j.LoggerFactory;
 @RunWith(Parameterized.class)
 public class WorkerStressTests {
 
-  private static final boolean useDockerService = TestWorkflowRule.USE_EXTERNAL_SERVICE;
-  private static final String serviceAddress = TestWorkflowRule.TEMPORAL_SERVICE_ADDRESS;
+  private static final boolean useDockerService = SDKTestWorkflowRule.USE_EXTERNAL_SERVICE;
+  private static final String serviceAddress = SDKTestWorkflowRule.TEMPORAL_SERVICE_ADDRESS;
 
   @Parameterized.Parameter public boolean useExternalService;
 

@@ -26,7 +26,6 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.SDKTestWorkflowRule;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -74,7 +73,7 @@ public class AsyncActivityRetry {
   @Test
   public void testAsyncActivityRetryReplay() throws Exception {
     // Avoid executing 4 times
-    Assume.assumeFalse("skipping for docker tests", TestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
   }

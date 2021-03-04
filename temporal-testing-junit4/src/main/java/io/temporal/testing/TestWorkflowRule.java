@@ -61,11 +61,6 @@ import org.junit.runners.model.Statement;
  */
 public class TestWorkflowRule implements TestRule {
 
-  public static final String TEMPORAL_SERVICE_ADDRESS = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-  // Only enable when USE_DOCKER_SERVICE is true
-  public static final Boolean USE_EXTERNAL_SERVICE =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-  public static final String NAMESPACE = "UnitTest";
   private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
 
   private final boolean doNotStart;
@@ -88,12 +83,14 @@ public class TestWorkflowRule implements TestRule {
 
   protected TestWorkflowRule(Builder builder) {
 
-    String nameSpace = (builder.namespace == null) ? NAMESPACE : builder.namespace;
+    String nameSpace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
 
     doNotStart = builder.doNotStart;
     interceptors = builder.workerInterceptors;
     useExternalService =
-        (builder.useExternalService == null) ? USE_EXTERNAL_SERVICE : builder.useExternalService;
+        (builder.useExternalService == null)
+            ? SDKTestWorkflowRule.USE_EXTERNAL_SERVICE
+            : builder.useExternalService;
     workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
     activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
@@ -122,7 +119,10 @@ public class TestWorkflowRule implements TestRule {
             .setWorkflowClientOptions(clientOptions)
             .setWorkerFactoryOptions(factoryOptions)
             .setUseExternalService(useExternalService)
-            .setTarget(builder.target == null ? TEMPORAL_SERVICE_ADDRESS : builder.target)
+            .setTarget(
+                builder.target == null
+                    ? SDKTestWorkflowRule.TEMPORAL_SERVICE_ADDRESS
+                    : builder.target)
             .build();
 
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
@@ -295,7 +295,7 @@ public class TestWorkflowRule implements TestRule {
     if (useExternalService) {
       return WorkflowClient.newInstance(
           testEnvironment.getWorkflowClient().getWorkflowServiceStubs(),
-          WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build());
+          WorkflowClientOptions.newBuilder().setNamespace(testEnvironment.getNamespace()).build());
     } else {
       return testEnvironment.getWorkflowClient();
     }
