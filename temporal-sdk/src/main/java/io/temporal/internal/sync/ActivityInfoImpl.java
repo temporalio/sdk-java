@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import com.google.protobuf.util.Timestamps;
 import io.temporal.activity.ActivityInfo;
+import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -133,5 +134,9 @@ final class ActivityInfoImpl implements ActivityInfo {
       return Optional.of(response.getInput());
     }
     return Optional.empty();
+  }
+
+  public Header getHeader() {
+    return response.getHeader();
   }
 }

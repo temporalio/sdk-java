@@ -382,9 +382,9 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
-    public Object execute(Object[] arguments) {
+    public ActivityOutput execute(ActivityInput input) {
       trace.add((local ? "local " : "") + "activity " + type);
-      return next.execute(arguments);
+      return next.execute(input);
     }
   }
 }

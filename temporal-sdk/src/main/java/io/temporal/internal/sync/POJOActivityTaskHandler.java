@@ -36,6 +36,7 @@ import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
+import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
@@ -249,7 +250,10 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
                 input,
                 method.getParameterTypes(),
                 method.getGenericParameterTypes());
-        Object result = inboundCallsInterceptor.execute(args);
+        ActivityInboundCallsInterceptor.ActivityOutput result =
+            inboundCallsInterceptor.execute(
+                new ActivityInboundCallsInterceptor.ActivityInput(
+                    new Header(info.getHeader()), args));
         if (context.isDoNotCompleteOnReturn()) {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, null, context.isUseLocalManualCompletion());
@@ -257,7 +261,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> serialized = dataConverter.toPayloads(result);
+          Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
           if (serialized.isPresent()) {
             request.setResult(serialized.get());
           }
@@ -287,10 +291,11 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public Object execute(Object[] arguments) {
+    public ActivityOutput execute(ActivityInput input) {
       CurrentActivityExecutionContext.set(context);
       try {
-        return method.invoke(activity, arguments);
+        Object result = method.invoke(activity, input.getArguments());
+        return new ActivityOutput(result);
       } catch (InvocationTargetException e) {
         throw Activity.wrap(e.getTargetException());
       } catch (Exception e) {
@@ -328,15 +333,20 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
       }
       inboundCallsInterceptor.init(context);
       try {
-        EncodedValues args = new EncodedValues(input, dataConverter);
-        Object result = inboundCallsInterceptor.execute(new Object[] {args});
+        EncodedValues encodedValues = new EncodedValues(input, dataConverter);
+        Object[] args = new Object[] {encodedValues};
+
+        ActivityInboundCallsInterceptor.ActivityOutput result =
+            inboundCallsInterceptor.execute(
+                new ActivityInboundCallsInterceptor.ActivityInput(
+                    new Header(info.getHeader()), args));
         if (context.isDoNotCompleteOnReturn()) {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, null, context.isUseLocalManualCompletion());
         }
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
-        Optional<Payloads> serialized = dataConverter.toPayloads(result);
+        Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
         if (serialized.isPresent()) {
           request.setResult(serialized.get());
         }
@@ -388,10 +398,11 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public Object execute(Object[] arguments) {
+    public ActivityOutput execute(ActivityInput input) {
       CurrentActivityExecutionContext.set(context);
       try {
-        return activity.execute((EncodedValues) arguments[0]);
+        Object result = activity.execute((EncodedValues) input.getArguments()[0]);
+        return new ActivityOutput(result);
       } catch (Exception e) {
         throw Activity.wrap(e);
       } finally {
@@ -426,11 +437,14 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
                 input,
                 method.getParameterTypes(),
                 method.getGenericParameterTypes());
-        Object result = inboundCallsInterceptor.execute(args);
+        ActivityInboundCallsInterceptor.ActivityOutput result =
+            inboundCallsInterceptor.execute(
+                new ActivityInboundCallsInterceptor.ActivityInput(
+                    new Header(info.getHeader()), args));
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> serialized = dataConverter.toPayloads(result);
+          Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
           if (serialized.isPresent()) {
             request.setResult(serialized.get());
           }
