@@ -60,16 +60,15 @@ public class SDKTestWorkflowRule implements TestRule {
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   // Enable to regenerate JsonFiles used for replay testing.
   public static final boolean REGENERATE_JSON_FILES = false;
-  private static final List<ScheduledFuture<?>> DELAYED_CALLBACKS = new ArrayList<>();
-  private static final ScheduledExecutorService SCHEDULED_EXECUTOR =
-      new ScheduledThreadPoolExecutor(1);
-  private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
-  private final TestWorkflowRule testWorkflowRule;
-
   // Only enable when USE_DOCKER_SERVICE is true
   public static final Boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   public static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+  private static final List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
+  private static final ScheduledExecutorService scheduledExecutor =
+      new ScheduledThreadPoolExecutor(1);
+  private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
+  private final TestWorkflowRule testWorkflowRule;
 
   private SDKTestWorkflowRule(Builder builder, TestWorkflowRule.Builder testWorkflowRuleBuilder) {
     testWorkflowRule = testWorkflowRuleBuilder.build();
@@ -236,8 +235,8 @@ public class SDKTestWorkflowRule implements TestRule {
   public void registerDelayedCallback(Duration delay, Runnable r) {
     if (useExternalService) {
       ScheduledFuture<?> result =
-          SCHEDULED_EXECUTOR.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
-      DELAYED_CALLBACKS.add(result);
+          scheduledExecutor.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
+      delayedCallbacks.add(result);
     } else {
       testWorkflowRule.getTestEnvironment().registerDelayedCallback(delay, r);
     }
@@ -249,7 +248,7 @@ public class SDKTestWorkflowRule implements TestRule {
 
   protected void shutdown() throws Throwable {
     setTestWorkflowRuleShutdown();
-    for (ScheduledFuture<?> result : DELAYED_CALLBACKS) {
+    for (ScheduledFuture<?> result : delayedCallbacks) {
       if (result.isDone() && !result.isCancelled()) {
         try {
           result.get();
