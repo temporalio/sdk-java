@@ -55,8 +55,8 @@ import org.slf4j.LoggerFactory;
 @RunWith(Parameterized.class)
 public class WorkerStressTests {
 
-  private static final boolean useDockerService = SDKTestWorkflowRule.USE_EXTERNAL_SERVICE;
-  private static final String serviceAddress = SDKTestWorkflowRule.TEMPORAL_SERVICE_ADDRESS;
+  private static final boolean useDockerService = SDKTestWorkflowRule.useExternalService;
+  private static final String serviceAddress = SDKTestWorkflowRule.temporalServiceAddress;
 
   @Parameterized.Parameter public boolean useExternalService;
 

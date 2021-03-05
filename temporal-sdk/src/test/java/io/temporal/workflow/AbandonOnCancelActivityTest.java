@@ -46,11 +46,10 @@ public class AbandonOnCancelActivityTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      (SDKTestWorkflowRule)
-          SDKTestWorkflowRule.newBuilder()
-              .setWorkflowTypes(TestAbandonOnCancelActivity.class)
-              .setActivityImplementations(activitiesImpl)
-              .build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(TestAbandonOnCancelActivity.class)
+          .setActivityImplementations(activitiesImpl)
+          .build();
 
   @Test
   public void testAbandonOnCancelActivity() {

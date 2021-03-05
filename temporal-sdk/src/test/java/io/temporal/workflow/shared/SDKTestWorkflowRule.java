@@ -58,22 +58,20 @@ public class SDKTestWorkflowRule implements TestRule {
   public static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
   public static final String UUID_REGEXP =
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  public static final String TEMPORAL_SERVICE_ADDRESS = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-  // Only enable when USE_DOCKER_SERVICE is true
-  public static final Boolean USE_EXTERNAL_SERVICE =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   // Enable to regenerate JsonFiles used for replay testing.
   public static final boolean REGENERATE_JSON_FILES = false;
   private static final List<ScheduledFuture<?>> DELAYED_CALLBACKS = new ArrayList<>();
   private static final ScheduledExecutorService SCHEDULED_EXECUTOR =
       new ScheduledThreadPoolExecutor(1);
   private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
-
-  private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
-
   private final TestWorkflowRule testWorkflowRule;
 
-  protected SDKTestWorkflowRule(Builder builder, TestWorkflowRule.Builder testWorkflowRuleBuilder) {
+  // Only enable when USE_DOCKER_SERVICE is true
+  public static final Boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  public static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+
+  private SDKTestWorkflowRule(Builder builder, TestWorkflowRule.Builder testWorkflowRuleBuilder) {
     testWorkflowRule = testWorkflowRuleBuilder.build();
   }
 
@@ -236,7 +234,7 @@ public class SDKTestWorkflowRule implements TestRule {
   // TODO: Refactor testEnvironment to support testing through real service to avoid this
   // switches
   public void registerDelayedCallback(Duration delay, Runnable r) {
-    if (USE_EXTERNAL_SERVICE) {
+    if (useExternalService) {
       ScheduledFuture<?> result =
           SCHEDULED_EXECUTOR.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
       DELAYED_CALLBACKS.add(result);
@@ -264,7 +262,7 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public void sleep(Duration d) {
-    if (USE_EXTERNAL_SERVICE) {
+    if (useExternalService) {
       try {
         Thread.sleep(d.toMillis());
       } catch (InterruptedException e) {

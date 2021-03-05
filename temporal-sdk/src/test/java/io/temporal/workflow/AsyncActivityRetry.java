@@ -73,7 +73,7 @@ public class AsyncActivityRetry {
   @Test
   public void testAsyncActivityRetryReplay() throws Exception {
     // Avoid executing 4 times
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
   }

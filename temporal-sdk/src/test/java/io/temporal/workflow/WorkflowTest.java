@@ -103,11 +103,11 @@ public class WorkflowTest {
 
   @BeforeClass()
   public static void startService() {
-    if (SDKTestWorkflowRule.REGENERATE_JSON_FILES && !SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.REGENERATE_JSON_FILES && !SDKTestWorkflowRule.useExternalService) {
       throw new IllegalStateException(
-          "SDKTestWorkflowRule.REGENERATE_JSON_FILES is true when SDKTestWorkflowRule.USE_EXTERNAL_SERVICE is false");
+          "SDKTestWorkflowRule.REGENERATE_JSON_FILES is true when SDKTestWorkflowRule.useExternalService is false");
     }
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       service =
           WorkflowServiceStubs.newInstance(
               WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
@@ -116,7 +116,7 @@ public class WorkflowTest {
 
   @AfterClass
   public static void closeService() {
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       service.shutdownNow();
       service.awaitTermination(10, TimeUnit.SECONDS);
     }
@@ -156,7 +156,7 @@ public class WorkflowTest {
             .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(
                 versionTest ? Duration.ZERO : Duration.ofSeconds(10))
             .build();
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, workflowClientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient, factoryOptions);
       WorkerOptions workerOptions =
@@ -215,7 +215,7 @@ public class WorkflowTest {
   private void startWorkerFor(
       WorkflowImplementationOptions implementationOptions, Class<?>... workflowTypes) {
     worker.registerWorkflowImplementationTypes(implementationOptions, workflowTypes);
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       workerFactory.start();
     } else {
       testEnvironment.start();
@@ -224,7 +224,7 @@ public class WorkflowTest {
 
   private void startWorkerFor(Class<?>... workflowTypes) {
     worker.registerWorkflowImplementationTypes(workflowTypes);
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       workerFactory.start();
     } else {
       testEnvironment.start();
@@ -234,7 +234,7 @@ public class WorkflowTest {
   // TODO: Refactor testEnvironment to support testing through real service to avoid this
   // conditional switches
   static void registerDelayedCallback(Duration delay, Runnable r) {
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       ScheduledFuture<?> result =
           scheduledExecutor.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
       delayedCallbacks.add(result);
@@ -244,7 +244,7 @@ public class WorkflowTest {
   }
 
   static void sleep(Duration d) {
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       try {
         Thread.sleep(d.toMillis());
       } catch (InterruptedException e) {
@@ -256,7 +256,7 @@ public class WorkflowTest {
   }
 
   long currentTimeMillis() {
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       return System.currentTimeMillis();
     } else {
       return testEnvironment.currentTimeMillis();
@@ -811,7 +811,7 @@ public class WorkflowTest {
   public void testContinueAsNew() {
     Worker w2;
     String continuedTaskQueue = this.taskQueue + "_continued";
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       w2 = workerFactory.newWorker(continuedTaskQueue);
     } else {
       w2 = testEnvironment.newWorker(continuedTaskQueue);
@@ -914,7 +914,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(
             TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1.class, options);
 
-    if (!SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (!SDKTestWorkflowRule.useExternalService) {
       // Use worker that polls on a task queue configured through @WorkflowMethod annotation of
       // func1
       assertResult(1, WorkflowClient.start(stubF1::func1, 1));
@@ -1602,7 +1602,7 @@ public class WorkflowTest {
   public void testTimer() {
     startWorkerFor(TestTimerWorkflowImpl.class);
     WorkflowOptions options;
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       options = TestOptions.newWorkflowOptionsWithTimeouts(taskQueue);
     } else {
       options =
@@ -1613,9 +1613,9 @@ public class WorkflowTest {
     }
     TestWorkflows.TestWorkflow2 client =
         workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow2.class, options);
-    String result = client.execute(SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    String result = client.execute(SDKTestWorkflowRule.useExternalService);
     assertEquals("testTimer", result);
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       tracer.setExpected(
           "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
           "registerQuery getTrace",
@@ -1688,7 +1688,7 @@ public class WorkflowTest {
             TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
     String result = null;
     try {
-      result = client.execute(SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+      result = client.execute(SDKTestWorkflowRule.useExternalService);
       fail("unreachable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
@@ -1763,7 +1763,7 @@ public class WorkflowTest {
             TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
     String result = null;
     try {
-      result = client.execute(SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+      result = client.execute(SDKTestWorkflowRule.useExternalService);
       fail("unreachable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
@@ -1978,7 +1978,7 @@ public class WorkflowTest {
   public void testSignal() {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       WorkerFactory workerFactory = WorkerFactory.newInstance(workflowClient);
       queryWorker = workerFactory.newWorker(taskQueue);
     } else {
@@ -2053,7 +2053,7 @@ public class WorkflowTest {
   public void testSignalWithStart() throws Exception {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       WorkerFactory workerFactory = WorkerFactory.newInstance(workflowClient);
       queryWorker = workerFactory.newWorker(taskQueue);
     } else {
@@ -2157,7 +2157,7 @@ public class WorkflowTest {
     int queryCount = 100;
     for (int i = 0; i < queryCount; i++) {
       assertEquals("some state", client.getState());
-      if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+      if (SDKTestWorkflowRule.useExternalService) {
         // Sleep a little bit to avoid server throttling error.
         Thread.sleep(50);
       }
@@ -2676,7 +2676,7 @@ public class WorkflowTest {
    */
   @Test
   public void testChildWorkflowRetryReplay() throws Exception {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
@@ -2685,7 +2685,7 @@ public class WorkflowTest {
   /** Tests that WorkflowReplayer fails if replay does not match workflow run. */
   @Test(expected = RuntimeException.class)
   public void testAlteredWorkflowReplayFailure() throws Exception {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", AlteredTestChildWorkflowRetryWorkflow.class);
@@ -2719,7 +2719,7 @@ public class WorkflowTest {
     startWorkerFor(TestChildWorkflowExecutionPromiseHandler.class, TestNamedChild.class);
 
     WorkflowClient wc;
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       wc =
           WorkflowClient.newInstance(
               service,
@@ -3367,7 +3367,7 @@ public class WorkflowTest {
   public void testWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
-    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
 
     startWorkerFor(TestWorkflowWithCronScheduleImpl.class);
 
@@ -3411,7 +3411,7 @@ public class WorkflowTest {
   public void testChildWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
-    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
 
     startWorkerFor(TestCronParentWorkflow.class, TestWorkflowWithCronScheduleImpl.class);
 
@@ -3676,7 +3676,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionSameIdOnReplay() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     startWorkerFor(TestGetVersionSameIdOnReplay.class);
     TestWorkflows.TestWorkflow1 workflowStub =
@@ -3722,7 +3722,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionSameId() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     startWorkerFor(TestGetVersionSameId.class);
     TestWorkflows.TestWorkflow1 workflowStub =
@@ -3762,7 +3762,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionAddNewBefore() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     startWorkerFor(TestGetVersionWorkflowAddNewBefore.class);
     TestWorkflows.TestWorkflow1 workflowStub =
@@ -3807,7 +3807,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionWorkflowReplaceGetVersionId() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     startWorkerFor(TestGetVersionWorkflowReplaceGetVersionId.class);
     TestWorkflows.TestWorkflow1 workflowStub =
@@ -3847,7 +3847,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionWorkflowReplaceCompletely() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     startWorkerFor(TestGetVersionWorkflowReplaceCompletely.class);
     TestWorkflows.TestWorkflow1 workflowStub =
@@ -3884,7 +3884,7 @@ public class WorkflowTest {
 
   @Test
   public void testGetVersionWorkflowRemove() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.USE_EXTERNAL_SERVICE);
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     startWorkerFor(TestGetVersionWorkflowRemove.class);
     TestWorkflows.TestWorkflow1 workflowStub =
@@ -4134,7 +4134,7 @@ public class WorkflowTest {
             .build();
     worker.registerWorkflowImplementationTypes(
         implementationOptions, DeterminismFailingWorkflowImpl.class);
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       workerFactory.start();
     } else {
       testEnvironment.start();
@@ -4700,7 +4700,7 @@ public class WorkflowTest {
     WorkflowClient.start(workflowStub::run);
 
     // Suspend polling so that all the signals will be received in the same workflow task.
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       workerFactory.suspendPolling();
     } else {
       testEnvironment.getWorkerFactory().suspendPolling();
@@ -4710,7 +4710,7 @@ public class WorkflowTest {
     workflowStub.signal("test2");
     workflowStub.signal("test3");
 
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       workerFactory.resumePolling();
     } else {
       testEnvironment.getWorkerFactory().resumePolling();
@@ -4894,7 +4894,7 @@ public class WorkflowTest {
 
     // Suspend polling so that workflow tasks are not retried. Otherwise it will affect our thread
     // count.
-    if (SDKTestWorkflowRule.USE_EXTERNAL_SERVICE) {
+    if (SDKTestWorkflowRule.useExternalService) {
       workerFactory.suspendPolling();
     } else {
       testEnvironment.getWorkerFactory().suspendPolling();

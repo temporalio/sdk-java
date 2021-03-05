@@ -61,12 +61,13 @@ import org.junit.runners.model.Statement;
 public class TestWorkflowRule implements TestRule {
 
   private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
-  private static final String TEMPORAL_SERVICE_ADDRESS = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-  private static final Boolean USE_EXTERNAL_SERVICE =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
+  // Only enable when USE_DOCKER_SERVICE is true
+  private static final Boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   private final boolean doNotStart;
-  private final boolean useExternalService;
+  private final boolean useExtnlService;
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
   private final WorkerInterceptor[] interceptors;
@@ -83,14 +84,14 @@ public class TestWorkflowRule implements TestRule {
   private final Timeout globalTimeout;
   private String taskQueue;
 
-  protected TestWorkflowRule(Builder builder) {
+  private TestWorkflowRule(Builder builder) {
 
     String nameSpace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
 
     doNotStart = builder.doNotStart;
     interceptors = builder.workerInterceptors;
-    useExternalService =
-        (builder.useExternalService == null) ? USE_EXTERNAL_SERVICE : builder.useExternalService;
+    useExtnlService =
+        (builder.useExternalService == null) ? useExternalService : builder.useExternalService;
     workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
     activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
@@ -118,8 +119,8 @@ public class TestWorkflowRule implements TestRule {
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(clientOptions)
             .setWorkerFactoryOptions(factoryOptions)
-            .setUseExternalService(useExternalService)
-            .setTarget(builder.target == null ? TEMPORAL_SERVICE_ADDRESS : builder.target)
+            .setUseExternalService(useExtnlService)
+            .setTarget(builder.target == null ? temporalServiceAddress : builder.target)
             .build();
 
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
@@ -289,7 +290,7 @@ public class TestWorkflowRule implements TestRule {
 
   /** Returns client to the Temporal service used to start and query workflows. */
   public WorkflowClient getWorkflowClient() {
-    if (useExternalService) {
+    if (useExtnlService) {
       return WorkflowClient.newInstance(
           testEnvironment.getWorkflowClient().getWorkflowServiceStubs(),
           WorkflowClientOptions.newBuilder().setNamespace(testEnvironment.getNamespace()).build());
@@ -304,7 +305,7 @@ public class TestWorkflowRule implements TestRule {
    * @return true if the rule is using external temporal service.
    */
   public boolean isUseExternalService() {
-    return useExternalService;
+    return useExtnlService;
   }
 
   public TestWorkflowEnvironment getTestEnvironment() {
