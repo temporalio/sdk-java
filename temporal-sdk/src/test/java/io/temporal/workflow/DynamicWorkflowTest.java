@@ -29,7 +29,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,8 +39,8 @@ import org.junit.Test;
 public class DynamicWorkflowTest {
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setActivityImplementations(new DynamicActivityImpl())
           .setDoNotStart(true)
           .build();

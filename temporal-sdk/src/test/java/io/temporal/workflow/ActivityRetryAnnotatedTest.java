@@ -23,7 +23,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
@@ -38,8 +38,8 @@ public class ActivityRetryAnnotatedTest {
       new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestActivityRetryAnnotated.class)
           .setActivityImplementations(activitiesImpl)
           .build();

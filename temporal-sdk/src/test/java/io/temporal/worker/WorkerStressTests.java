@@ -19,7 +19,7 @@
 
 package io.temporal.worker;
 
-import static io.temporal.testing.SDKTestWorkflowRule.NAMESPACE;
+import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertNotNull;
 
 import io.temporal.activity.ActivityInterface;
@@ -30,7 +30,6 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.testing.SDKTestWorkflowRule;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
@@ -38,6 +37,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;

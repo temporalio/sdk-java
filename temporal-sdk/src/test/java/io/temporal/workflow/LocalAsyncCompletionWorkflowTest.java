@@ -26,8 +26,8 @@ import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.common.RetryOptions;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,8 +42,8 @@ public class LocalAsyncCompletionWorkflowTest {
   public static final int MAX_CONCURRENT_ACTIVITIES = 1;
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setMaxConcurrentActivityExecutionSize(MAX_CONCURRENT_ACTIVITIES)

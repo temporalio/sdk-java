@@ -19,7 +19,7 @@
 
 package io.temporal.worker;
 
-import static io.temporal.testing.SDKTestWorkflowRule.NAMESPACE;
+import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 

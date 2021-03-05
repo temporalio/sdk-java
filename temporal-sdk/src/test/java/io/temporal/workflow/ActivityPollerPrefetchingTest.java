@@ -24,8 +24,8 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,8 +36,8 @@ import org.junit.Test;
 public class ActivityPollerPrefetchingTest {
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setMaxConcurrentActivityExecutionSize(1)

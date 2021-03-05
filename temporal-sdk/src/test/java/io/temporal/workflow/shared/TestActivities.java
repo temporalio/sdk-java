@@ -27,7 +27,6 @@ import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.SDKTestWorkflowRule;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;

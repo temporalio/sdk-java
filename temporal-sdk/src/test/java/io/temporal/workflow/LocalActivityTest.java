@@ -24,11 +24,10 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.SDKTestWorkflowRule;
-import io.temporal.testing.TestOptions;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import org.junit.Assert;
@@ -41,8 +40,8 @@ public class LocalActivityTest {
       new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLocalActivityWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(

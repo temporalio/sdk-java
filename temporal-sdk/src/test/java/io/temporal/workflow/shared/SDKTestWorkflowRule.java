@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.testing;
+package io.temporal.workflow.shared;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 
@@ -35,6 +35,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.io.File;
@@ -172,19 +174,25 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public <T> T newWorkflowStub(Class<T> workflow) {
-    return testWorkflowRule.newWorkflowStub(workflow);
+    return getWorkflowClient()
+        .newWorkflowStub(workflow, TestOptions.newWorkflowOptionsForTaskQueue(getTaskQueue()));
   }
 
   public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow) {
-    return testWorkflowRule.newWorkflowStubTimeoutOptions(workflow);
+    return getWorkflowClient()
+        .newWorkflowStub(workflow, TestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
   }
 
   public <T> WorkflowStub newUntypedWorkflowStub(String workflow) {
-    return testWorkflowRule.newUntypedWorkflowStub(workflow);
+    return getWorkflowClient()
+        .newUntypedWorkflowStub(
+            workflow, TestOptions.newWorkflowOptionsForTaskQueue(getTaskQueue()));
   }
 
   public <T> WorkflowStub newUntypedWorkflowStubTimeoutOptions(String workflow) {
-    return testWorkflowRule.newUntypedWorkflowStubTimeoutOptions(workflow);
+    return getWorkflowClient()
+        .newUntypedWorkflowStub(
+            workflow, TestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
   }
 
   /** Used to ensure that workflow first workflow task is executed. */
@@ -237,9 +245,12 @@ public class SDKTestWorkflowRule implements TestRule {
     }
   }
 
-  // TODO(vkoby) double check that both super and this shutdown execute
+  private void setTestWorkflowRuleShutdown() {
+    getTestEnvironment().shutdown();
+  }
+
   protected void shutdown() throws Throwable {
-    testWorkflowRule.shutdown();
+    setTestWorkflowRuleShutdown();
     for (ScheduledFuture<?> result : DELAYED_CALLBACKS) {
       if (result.isDone() && !result.isCancelled()) {
         try {

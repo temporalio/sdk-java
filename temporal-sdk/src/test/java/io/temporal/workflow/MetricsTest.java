@@ -24,7 +24,7 @@ import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
-import static io.temporal.testing.SDKTestWorkflowRule.NAMESPACE;
+import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 

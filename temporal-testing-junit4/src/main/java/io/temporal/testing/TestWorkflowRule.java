@@ -21,7 +21,6 @@ package io.temporal.testing;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -62,6 +61,9 @@ import org.junit.runners.model.Statement;
 public class TestWorkflowRule implements TestRule {
 
   private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
+  private static final String TEMPORAL_SERVICE_ADDRESS = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+  private static final Boolean USE_EXTERNAL_SERVICE =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
   private final boolean doNotStart;
   private final boolean useExternalService;
@@ -88,9 +90,7 @@ public class TestWorkflowRule implements TestRule {
     doNotStart = builder.doNotStart;
     interceptors = builder.workerInterceptors;
     useExternalService =
-        (builder.useExternalService == null)
-            ? SDKTestWorkflowRule.USE_EXTERNAL_SERVICE
-            : builder.useExternalService;
+        (builder.useExternalService == null) ? USE_EXTERNAL_SERVICE : builder.useExternalService;
     workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
     activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
@@ -119,10 +119,7 @@ public class TestWorkflowRule implements TestRule {
             .setWorkflowClientOptions(clientOptions)
             .setWorkerFactoryOptions(factoryOptions)
             .setUseExternalService(useExternalService)
-            .setTarget(
-                builder.target == null
-                    ? SDKTestWorkflowRule.TEMPORAL_SERVICE_ADDRESS
-                    : builder.target)
+            .setTarget(builder.target == null ? TEMPORAL_SERVICE_ADDRESS : builder.target)
             .build();
 
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
@@ -312,25 +309,5 @@ public class TestWorkflowRule implements TestRule {
 
   public TestWorkflowEnvironment getTestEnvironment() {
     return testEnvironment;
-  }
-
-  public <T> T newWorkflowStub(Class<T> workflow) {
-    return getWorkflowClient()
-        .newWorkflowStub(workflow, TestOptions.newWorkflowOptionsForTaskQueue(taskQueue));
-  }
-
-  public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow) {
-    return getWorkflowClient()
-        .newWorkflowStub(workflow, TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-  }
-
-  public <T> WorkflowStub newUntypedWorkflowStub(String workflow) {
-    return getWorkflowClient()
-        .newUntypedWorkflowStub(workflow, TestOptions.newWorkflowOptionsForTaskQueue(taskQueue));
-  }
-
-  public <T> WorkflowStub newUntypedWorkflowStubTimeoutOptions(String workflow) {
-    return getWorkflowClient()
-        .newUntypedWorkflowStub(workflow, TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
   }
 }

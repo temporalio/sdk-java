@@ -20,10 +20,10 @@
 package io.temporal.workflow;
 
 import io.temporal.client.*;
-import io.temporal.testing.SDKTestWorkflowRule;
-import io.temporal.testing.TestOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.ArrayList;

@@ -24,7 +24,7 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -37,8 +37,8 @@ public class NonSerializableArgumentsInActivityTest {
       new WorkflowTest.NonDeserializableExceptionActivityImpl();
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNonSerializableArgumentsInActivityWorkflow.class)
           .setActivityImplementations(activitiesImpl)
           .build();
