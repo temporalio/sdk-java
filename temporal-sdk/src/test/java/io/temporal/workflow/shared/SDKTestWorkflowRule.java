@@ -71,6 +71,9 @@ public class SDKTestWorkflowRule implements TestRule {
   private final TestWorkflowRule testWorkflowRule;
 
   private SDKTestWorkflowRule(Builder builder, TestWorkflowRule.Builder testWorkflowRuleBuilder) {
+    if (testWorkflowRuleBuilder.getTarget() == null) {
+      testWorkflowRuleBuilder.setTarget(temporalServiceAddress);
+    }
     testWorkflowRule = testWorkflowRuleBuilder.build();
   }
 
@@ -128,11 +131,6 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder setTarget(String target) {
       testWorkflowRuleBuilder.setTarget(target);
-      return this;
-    }
-
-    public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
-      testWorkflowRuleBuilder.setTestTimeoutSeconds(testTimeoutSeconds);
       return this;
     }
 

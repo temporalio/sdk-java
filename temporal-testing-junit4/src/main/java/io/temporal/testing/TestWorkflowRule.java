@@ -82,7 +82,7 @@ public class TestWorkflowRule implements TestRule {
 
   private TestWorkflowRule(Builder builder) {
 
-    String nameSpace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
+    String namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
 
     doNotStart = builder.doNotStart;
     interceptors = builder.workerInterceptors;
@@ -106,7 +106,7 @@ public class TestWorkflowRule implements TestRule {
 
     WorkflowClientOptions clientOptions =
         (builder.workflowClientOptions == null)
-            ? WorkflowClientOptions.newBuilder().setNamespace(nameSpace).build()
+            ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
             : builder.workflowClientOptions;
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder().setWorkerInterceptors(interceptors).build();
@@ -115,8 +115,7 @@ public class TestWorkflowRule implements TestRule {
             .setWorkflowClientOptions(clientOptions)
             .setWorkerFactoryOptions(factoryOptions)
             .setUseExternalService(useExternalService)
-            .setTarget(
-                builder.target == null ? System.getenv("TEMPORAL_SERVICE_ADDRESS") : builder.target)
+            .setTarget(builder.target)
             .build();
 
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
@@ -201,6 +200,10 @@ public class TestWorkflowRule implements TestRule {
      *
      * <p>Default is to use 127.0.0.1:7233
      */
+    public String getTarget() {
+      return this.target;
+    }
+
     public Builder setTarget(String target) {
       this.target = target;
       return this;
@@ -223,7 +226,7 @@ public class TestWorkflowRule implements TestRule {
     }
 
     public TestWorkflowRule build() {
-      return new TestWorkflowRule((this));
+      return new TestWorkflowRule(this);
     }
   }
 
@@ -286,13 +289,7 @@ public class TestWorkflowRule implements TestRule {
 
   /** Returns client to the Temporal service used to start and query workflows. */
   public WorkflowClient getWorkflowClient() {
-    if (useExternalService) {
-      return WorkflowClient.newInstance(
-          testEnvironment.getWorkflowClient().getWorkflowServiceStubs(),
-          WorkflowClientOptions.newBuilder().setNamespace(testEnvironment.getNamespace()).build());
-    } else {
-      return testEnvironment.getWorkflowClient();
-    }
+    return testEnvironment.getWorkflowClient();
   }
 
   /**
