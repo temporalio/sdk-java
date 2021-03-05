@@ -115,7 +115,8 @@ public class TestWorkflowRule implements TestRule {
             .setWorkflowClientOptions(clientOptions)
             .setWorkerFactoryOptions(factoryOptions)
             .setUseExternalService(useExternalService)
-            .setTarget(builder.target == null ? System.getenv("TEMPORAL_SERVICE_ADDRESS") : builder.target)
+            .setTarget(
+                builder.target == null ? System.getenv("TEMPORAL_SERVICE_ADDRESS") : builder.target)
             .build();
 
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
@@ -133,7 +134,7 @@ public class TestWorkflowRule implements TestRule {
     private String namespace;
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
-    private Boolean useExternalService;
+    private boolean useExternalService;
     private String target;
     private long testTimeoutSeconds;
     private boolean doNotStart;
