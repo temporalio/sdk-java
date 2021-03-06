@@ -190,7 +190,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   public Result handle(ActivityTask activityTask, Scope metricsScope, boolean localActivity) {
     PollActivityTaskQueueResponse pollResponse = activityTask.getResponse();
     String activityType = pollResponse.getActivityType().getName();
-    ActivityInfoImpl activityInfo =
+    ActivityInfoInternal activityInfo =
         new ActivityInfoImpl(
             pollResponse, this.namespace, localActivity, activityTask.getCompletionHandle());
     ActivityTaskExecutor activity = activities.get(activityType);
@@ -213,7 +213,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   private interface ActivityTaskExecutor {
-    ActivityTaskHandler.Result execute(ActivityInfoImpl task, Scope metricsScope);
+    ActivityTaskHandler.Result execute(ActivityInfoInternal task, Scope metricsScope);
   }
 
   private class POJOActivityImplementation implements ActivityTaskExecutor {
@@ -226,7 +226,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
+    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
               service,
@@ -315,7 +315,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
+    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
               service,
@@ -358,7 +358,8 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
   }
 
-  private Result activityFailureToResult(ActivityInfoImpl info, Scope metricsScope, Throwable e) {
+  private Result activityFailureToResult(
+      ActivityInfoInternal info, Scope metricsScope, Throwable e) {
     e = CheckedExceptionWrapper.unwrap(e);
     if (e instanceof ActivityCanceledException) {
       if (log.isInfoEnabled()) {
@@ -421,7 +422,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
+    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
