@@ -22,7 +22,6 @@ package io.temporal.workflow;
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 import static org.junit.Assert.*;
 
-import com.google.common.base.Throwables;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
@@ -47,12 +46,14 @@ import io.temporal.failure.*;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.InternalWorkflowTaskException;
-import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.*;
 import io.temporal.worker.*;
 import io.temporal.workflow.shared.*;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -558,33 +559,10 @@ public class WorkflowTest {
     void execute(ChildWorkflowCancellationType cancellationType);
   }
 
-  public static class TestParentWorkflowImpl implements TestWorkflow {
-
-    @Override
-    public void execute(ChildWorkflowCancellationType cancellationType) {
-      TestChildWorkflow child =
-          Workflow.newChildWorkflowStub(
-              TestChildWorkflow.class,
-              ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
-      child.execute();
-    }
-  }
-
   @WorkflowInterface
   public interface TestChildWorkflow {
     @WorkflowMethod
     void execute();
-  }
-
-  public static class TestChildWorkflowImpl implements TestChildWorkflow {
-    @Override
-    public void execute() {
-      try {
-        Workflow.sleep(Duration.ofHours(1));
-      } catch (CanceledFailure e) {
-        Workflow.newDetachedCancellationScope(() -> Workflow.sleep(Duration.ofSeconds(1))).run();
-      }
-    }
   }
 
   public static class SimpleTestWorkflow implements TestWorkflows.TestWorkflow1 {
@@ -629,150 +607,6 @@ public class WorkflowTest {
       }
     }
     assertTrue(foundCompletedTask);
-  }
-
-  @Test
-  public void testChildWorkflowWaitCancellationRequested() {
-    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
-    WorkflowStub client =
-        workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-    WorkflowExecution execution =
-        client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
-    SDKTestWorkflowRule.waitForOKQuery(client);
-    client.cancel();
-    try {
-      client.getResult(String.class);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof CanceledFailure);
-    }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        service.blockingStub().getWorkflowExecutionHistory(request);
-
-    boolean hasChildCanceled = false;
-    boolean hasChildCancelRequested = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
-        hasChildCanceled = true;
-      }
-      if (event.getEventType()
-          == EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED) {
-        hasChildCancelRequested = true;
-      }
-    }
-    assertTrue(hasChildCancelRequested);
-    assertFalse(hasChildCanceled);
-  }
-
-  @Test
-  public void testChildWorkflowWaitCancellationCompleted() {
-    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
-    WorkflowStub client =
-        workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-    WorkflowExecution execution =
-        client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
-    SDKTestWorkflowRule.waitForOKQuery(client);
-    client.cancel();
-    try {
-      client.getResult(String.class);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof CanceledFailure);
-    }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        service.blockingStub().getWorkflowExecutionHistory(request);
-
-    boolean hasChildCanceled = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
-        hasChildCanceled = true;
-      }
-    }
-    assertTrue(hasChildCanceled);
-  }
-
-  @Test
-  public void testChildWorkflowCancellationAbandon() {
-    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
-    WorkflowStub client =
-        workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-    WorkflowExecution execution = client.start(ChildWorkflowCancellationType.ABANDON);
-    SDKTestWorkflowRule.waitForOKQuery(client);
-    client.cancel();
-    try {
-      client.getResult(String.class);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof CanceledFailure);
-    }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        service.blockingStub().getWorkflowExecutionHistory(request);
-
-    boolean hasChildCancelInitiated = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType()
-          == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED) {
-        hasChildCancelInitiated = true;
-      }
-    }
-    assertFalse(hasChildCancelInitiated);
-  }
-
-  @Test
-  public void testChildWorkflowCancellationTryCancel() {
-    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
-    WorkflowStub client =
-        workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow", TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-    WorkflowExecution execution = client.start(ChildWorkflowCancellationType.TRY_CANCEL);
-    SDKTestWorkflowRule.waitForOKQuery(client);
-    client.cancel();
-    try {
-      client.getResult(String.class);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof CanceledFailure);
-    }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        service.blockingStub().getWorkflowExecutionHistory(request);
-
-    boolean hasChildCancelInitiated = false;
-    boolean hasChildCancelRequested = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType()
-          == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED) {
-        hasChildCancelInitiated = true;
-      }
-      if (event.getEventType()
-          == EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED) {
-        hasChildCancelRequested = true;
-      }
-    }
-    assertTrue(hasChildCancelInitiated);
-    assertFalse(hasChildCancelRequested);
   }
 
   @WorkflowInterface
@@ -1204,88 +1038,6 @@ public class WorkflowTest {
     // expected. See https://github.com/uber/cadence-java-client/issues/295.
   }
 
-  public static class TestChildAsyncWorkflow implements TestWorkflows.TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      ChildWorkflowOptions workflowOptions =
-          ChildWorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class, workflowOptions);
-      assertEquals("func", Async.function(stubF::func).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1 stubF1 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1.class, workflowOptions);
-      assertEquals(1, (int) Async.function(stubF1::func1, 1).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2 stubF2 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2.class, workflowOptions);
-      assertEquals("12", Async.function(stubF2::func2, "1", 2).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc3 stubF3 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc3.class, workflowOptions);
-      assertEquals("123", Async.function(stubF3::func3, "1", 2, 3).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc4 stubF4 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc4.class, workflowOptions);
-      assertEquals("1234", Async.function(stubF4::func4, "1", 2, 3, 4).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc5 stubF5 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc5.class, workflowOptions);
-      assertEquals("12345", Async.function(stubF5::func5, "1", 2, 3, 4, 5).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc6 stubF6 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc6.class, workflowOptions);
-      assertEquals("123456", Async.function(stubF6::func6, "1", 2, 3, 4, 5, 6).get());
-
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc stubP =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc.class, workflowOptions);
-      Async.procedure(stubP::proc).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc1 stubP1 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc1.class, workflowOptions);
-      Async.procedure(stubP1::proc1, "1").get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc2 stubP2 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc2.class, workflowOptions);
-      Async.procedure(stubP2::proc2, "1", 2).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc3 stubP3 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc3.class, workflowOptions);
-      Async.procedure(stubP3::proc3, "1", 2, 3).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc4 stubP4 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc4.class, workflowOptions);
-      Async.procedure(stubP4::proc4, "1", 2, 3, 4).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc5 stubP5 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc5.class, workflowOptions);
-      Async.procedure(stubP5::proc5, "1", 2, 3, 4, 5).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc6 stubP6 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc6.class, workflowOptions);
-      Async.procedure(stubP6::proc6, "1", 2, 3, 4, 5, 6).get();
-      return null;
-    }
-  }
-
-  @Test
-  public void testChildAsyncWorkflow() {
-    startWorkerFor(
-        TestChildAsyncWorkflow.class,
-        TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class);
-
-    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
-    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
-    options.setTaskQueue(taskQueue);
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options.build());
-    assertEquals(null, client.execute(taskQueue));
-  }
-
   // This workflow is designed specifically for testing some internal logic in Async.procedure
   // and ChildWorkflowStubImpl. See comments on testChildAsyncLambdaWorkflow for more details.
   @WorkflowInterface
@@ -1296,65 +1048,6 @@ public class WorkflowTest {
 
     @SignalMethod
     void signal(String value);
-  }
-
-  public static class TestWaitOnSignalWorkflowImpl implements WaitOnSignalWorkflow {
-
-    private final CompletablePromise<String> signal = Workflow.newPromise();
-
-    @Override
-    public void execute() {
-      signal.get();
-    }
-
-    @Override
-    public void signal(String value) {
-      Workflow.sleep(Duration.ofSeconds(1));
-      signal.complete(value);
-    }
-  }
-
-  public static class TestChildAsyncLambdaWorkflow implements TestWorkflows.TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      ChildWorkflowOptions workflowOptions =
-          ChildWorkflowOptions.newBuilder()
-              .setWorkflowRunTimeout(Duration.ofSeconds(100))
-              .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-              .setTaskQueue(taskQueue)
-              .build();
-
-      WaitOnSignalWorkflow child =
-          Workflow.newChildWorkflowStub(WaitOnSignalWorkflow.class, workflowOptions);
-      Promise<Void> promise = Async.procedure(child::execute);
-      Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
-      assertNotNull(executionPromise);
-      WorkflowExecution execution = executionPromise.get();
-      assertNotEquals("", execution.getWorkflowId());
-      assertNotEquals("", execution.getRunId());
-      child.signal("test");
-
-      promise.get();
-      return null;
-    }
-  }
-
-  // The purpose of this test is to exercise the lambda execution logic inside Async.procedure(),
-  // which executes on a different thread than workflow-main. This is different than executing
-  // classes that implements the workflow method interface, which executes on the workflow main
-  // thread.
-  @Test
-  public void testChildAsyncLambdaWorkflow() {
-    startWorkerFor(TestChildAsyncLambdaWorkflow.class, TestWaitOnSignalWorkflowImpl.class);
-
-    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
-    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
-    options.setTaskQueue(taskQueue);
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options.build());
-    assertEquals(null, client.execute(taskQueue));
   }
 
   public static class TestUntypedChildStubWorkflow implements TestWorkflows.TestWorkflow1 {
@@ -1408,154 +1101,6 @@ public class WorkflowTest {
       stubP6.execute(Void.class, "1", 2, 3, 4, 5, 6);
       return null;
     }
-  }
-
-  @Test
-  public void testUntypedChildStubWorkflow() {
-    startWorkerFor(
-        TestUntypedChildStubWorkflow.class,
-        TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class);
-
-    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
-    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
-    options.setTaskQueue(taskQueue);
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options.build());
-    assertEquals(null, client.execute(taskQueue));
-  }
-
-  public static class TestUntypedChildStubWorkflowAsync implements TestWorkflows.TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      ChildWorkflowOptions workflowOptions =
-          ChildWorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-      ChildWorkflowStub stubF =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc", workflowOptions);
-      assertEquals("func", stubF.executeAsync(String.class).get());
-      // Workflow type overridden through the @WorkflowMethod.name
-      ChildWorkflowStub stubF1 = Workflow.newUntypedChildWorkflowStub("func1", workflowOptions);
-      assertEquals("1", stubF1.executeAsync(String.class, "1").get());
-      ChildWorkflowStub stubF2 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc2", workflowOptions);
-      assertEquals("12", stubF2.executeAsync(String.class, "1", 2).get());
-      ChildWorkflowStub stubF3 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc3", workflowOptions);
-      assertEquals("123", stubF3.executeAsync(String.class, "1", 2, 3).get());
-      ChildWorkflowStub stubF4 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc4", workflowOptions);
-      assertEquals("1234", stubF4.executeAsync(String.class, "1", 2, 3, 4).get());
-      ChildWorkflowStub stubF5 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc5", workflowOptions);
-      assertEquals("12345", stubF5.executeAsync(String.class, "1", 2, 3, 4, 5).get());
-      ChildWorkflowStub stubF6 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc6", workflowOptions);
-      assertEquals("123456", stubF6.executeAsync(String.class, "1", 2, 3, 4, 5, 6).get());
-
-      ChildWorkflowStub stubP =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc", workflowOptions);
-      stubP.executeAsync(Void.class).get();
-      ChildWorkflowStub stubP1 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc1", workflowOptions);
-      stubP1.executeAsync(Void.class, "1").get();
-      ChildWorkflowStub stubP2 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc2", workflowOptions);
-      stubP2.executeAsync(Void.class, "1", 2).get();
-      ChildWorkflowStub stubP3 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc3", workflowOptions);
-      stubP3.executeAsync(Void.class, "1", 2, 3).get();
-      ChildWorkflowStub stubP4 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc4", workflowOptions);
-      stubP4.executeAsync(Void.class, "1", 2, 3, 4).get();
-      ChildWorkflowStub stubP5 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc5", workflowOptions);
-      stubP5.executeAsync(Void.class, "1", 2, 3, 4, 5).get();
-      ChildWorkflowStub stubP6 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc6", workflowOptions);
-      stubP6.executeAsync(Void.class, "1", 2, 3, 4, 5, 6).get();
-      return null;
-    }
-  }
-
-  @Test
-  public void testUntypedChildStubWorkflowAsync() {
-    startWorkerFor(
-        TestUntypedChildStubWorkflowAsync.class,
-        TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class);
-
-    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
-    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
-    options.setTaskQueue(taskQueue);
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options.build());
-    assertEquals(null, client.execute(taskQueue));
-  }
-
-  public static class TestUntypedChildStubWorkflowAsyncInvoke
-      implements TestWorkflows.TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      ChildWorkflowOptions workflowOptions =
-          ChildWorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-      ChildWorkflowStub stubF =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc", workflowOptions);
-      assertEquals("func", Async.function(stubF::<String>execute, String.class).get());
-      // Workflow type overridden through the @WorkflowMethod.name
-      ChildWorkflowStub stubF1 = Workflow.newUntypedChildWorkflowStub("func1", workflowOptions);
-      assertEquals("1", Async.function(stubF1::<String>execute, String.class, "1").get());
-      ChildWorkflowStub stubF2 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc2", workflowOptions);
-      assertEquals("12", Async.function(stubF2::<String>execute, String.class, "1", 2).get());
-      ChildWorkflowStub stubF3 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc3", workflowOptions);
-      assertEquals("123", Async.function(stubF3::<String>execute, String.class, "1", 2, 3).get());
-      ChildWorkflowStub stubF4 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc4", workflowOptions);
-      assertEquals(
-          "1234", Async.function(stubF4::<String>execute, String.class, "1", 2, 3, 4).get());
-      ChildWorkflowStub stubF5 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc5", workflowOptions);
-      assertEquals(
-          "12345", Async.function(stubF5::<String>execute, String.class, "1", 2, 3, 4, 5).get());
-
-      ChildWorkflowStub stubP =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc", workflowOptions);
-      Async.procedure(stubP::<Void>execute, Void.class).get();
-      ChildWorkflowStub stubP1 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc1", workflowOptions);
-      Async.procedure(stubP1::<Void>execute, Void.class, "1").get();
-      ChildWorkflowStub stubP2 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc2", workflowOptions);
-      Async.procedure(stubP2::<Void>execute, Void.class, "1", 2).get();
-      ChildWorkflowStub stubP3 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc3", workflowOptions);
-      Async.procedure(stubP3::<Void>execute, Void.class, "1", 2, 3).get();
-      ChildWorkflowStub stubP4 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc4", workflowOptions);
-      Async.procedure(stubP4::<Void>execute, Void.class, "1", 2, 3, 4).get();
-      ChildWorkflowStub stubP5 =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc5", workflowOptions);
-      Async.procedure(stubP5::<Void>execute, Void.class, "1", 2, 3, 4, 5).get();
-      return null;
-    }
-  }
-
-  @Test
-  public void testUntypedChildStubWorkflowAsyncInvoke() {
-    startWorkerFor(
-        TestUntypedChildStubWorkflowAsyncInvoke.class,
-        TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class);
-
-    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
-    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
-    options.setTaskQueue(taskQueue);
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options.build());
-    assertEquals(null, client.execute(taskQueue));
   }
 
   public static class TestTimerWorkflowImpl implements TestWorkflows.TestWorkflow2 {
@@ -1640,146 +1185,6 @@ public class WorkflowTest {
           "currentTimeMillis",
           "currentTimeMillis");
     }
-  }
-
-  private static final RetryOptions retryOptions =
-      RetryOptions.newBuilder()
-          .setInitialInterval(Duration.ofSeconds(1))
-          .setMaximumInterval(Duration.ofSeconds(1))
-          .setBackoffCoefficient(1)
-          .build();
-
-  public static class TestAsyncRetryWorkflowImpl implements TestWorkflows.TestWorkflow2 {
-
-    private final List<String> trace = new ArrayList<>();
-
-    @Override
-    public String execute(boolean useExternalService) {
-      trace.clear(); // clear because of replay
-      trace.add("started");
-      Async.retry(
-              retryOptions,
-              Optional.of(Duration.ofSeconds(2)),
-              () -> {
-                trace.add("retry at " + Workflow.currentTimeMillis());
-                return Workflow.newFailedPromise(
-                    ApplicationFailure.newFailure("simulated", "test"));
-              })
-          .get();
-      trace.add("beforeSleep");
-      Workflow.sleep(60000);
-      trace.add("done");
-      return "";
-    }
-
-    @Override
-    public List<String> getTrace() {
-      return trace;
-    }
-  }
-
-  /** @see DeterministicRunnerTest#testRetry() */
-  @Test
-  public void testAsyncRetry() {
-    startWorkerFor(TestAsyncRetryWorkflowImpl.class);
-    TestWorkflows.TestWorkflow2 client =
-        workflowClient.newWorkflowStub(
-            TestWorkflows.TestWorkflow2.class,
-            TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-    String result = null;
-    try {
-      result = client.execute(SDKTestWorkflowRule.useExternalService);
-      fail("unreachable");
-    } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ApplicationFailure);
-      assertEquals("test", ((ApplicationFailure) e.getCause()).getType());
-      assertEquals(
-          "message='simulated', type='test', nonRetryable=false", e.getCause().getMessage());
-    }
-    assertNull(result);
-    List<String> trace = client.getTrace();
-    assertEquals(trace.toString(), 3, trace.size());
-    assertEquals("started", trace.get(0));
-    assertTrue(trace.get(1).startsWith("retry at "));
-    assertTrue(trace.get(2).startsWith("retry at "));
-  }
-
-  public static class TestAsyncRetryOptionsChangeWorkflow implements TestWorkflows.TestWorkflow2 {
-
-    private final List<String> trace = new ArrayList<>();
-
-    @Override
-    public String execute(boolean useExternalService) {
-      RetryOptions retryOptions;
-      if (Workflow.isReplaying()) {
-        retryOptions =
-            RetryOptions.newBuilder()
-                .setMaximumInterval(Duration.ofSeconds(1))
-                .setInitialInterval(Duration.ofSeconds(1))
-                .setMaximumAttempts(3)
-                .build();
-      } else {
-        retryOptions =
-            RetryOptions.newBuilder()
-                .setMaximumInterval(Duration.ofSeconds(1))
-                .setInitialInterval(Duration.ofSeconds(1))
-                .setMaximumAttempts(2)
-                .build();
-      }
-
-      trace.clear(); // clear because of replay
-      trace.add("started");
-      Async.retry(
-              retryOptions,
-              Optional.of(Duration.ofSeconds(2)),
-              () -> {
-                trace.add("retry at " + Workflow.currentTimeMillis());
-                return Workflow.newFailedPromise(new IllegalThreadStateException("simulated"));
-              })
-          .get();
-      trace.add("beforeSleep");
-      Workflow.sleep(60000);
-      trace.add("done");
-      return "";
-    }
-
-    @Override
-    public List<String> getTrace() {
-      return trace;
-    }
-  }
-
-  /** @see DeterministicRunnerTest#testRetry() */
-  @Test
-  public void testAsyncRetryOptionsChange() {
-    startWorkerFor(
-        WorkflowImplementationOptions.newBuilder()
-            .setFailWorkflowExceptionTypes(IllegalThreadStateException.class)
-            .build(),
-        TestAsyncRetryOptionsChangeWorkflow.class);
-    TestWorkflows.TestWorkflow2 client =
-        workflowClient.newWorkflowStub(
-            TestWorkflows.TestWorkflow2.class,
-            TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-    String result = null;
-    try {
-      result = client.execute(SDKTestWorkflowRule.useExternalService);
-      fail("unreachable");
-    } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ApplicationFailure);
-      assertEquals(
-          IllegalThreadStateException.class.getName(),
-          ((ApplicationFailure) e.getCause()).getType());
-      assertEquals(
-          "message='simulated', type='java.lang.IllegalThreadStateException', nonRetryable=false",
-          e.getCause().getMessage());
-    }
-    assertNull(result);
-    List<String> trace = client.getTrace();
-    assertEquals(trace.toString(), 3, trace.size());
-    assertEquals("started", trace.get(0));
-    assertTrue(trace.get(1).startsWith("retry at "));
-    assertTrue(trace.get(2).startsWith("retry at "));
   }
 
   @WorkflowInterface
@@ -2328,49 +1733,6 @@ public class WorkflowTest {
     String execute(String arg);
   }
 
-  private static String child2Id;
-
-  public static class TestParentWorkflow implements TestWorkflows.TestWorkflow1 {
-
-    private final ITestChild child1 = Workflow.newChildWorkflowStub(ITestChild.class);
-    private final ITestNamedChild child2;
-
-    public TestParentWorkflow() {
-      ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder().setWorkflowId(child2Id).build();
-      child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
-    }
-
-    @Override
-    public String execute(String taskQueue) {
-      Promise<String> r1 = Async.function(child1::execute, "Hello ", 0);
-      String r2 = child2.execute("World!");
-      assertEquals(child2Id, Workflow.getWorkflowExecution(child2).get().getWorkflowId());
-      return r1.get() + r2;
-    }
-  }
-
-  public static class TestParentWorkflowWithChildTimeout implements TestWorkflows.TestWorkflow1 {
-
-    private final ITestChild child;
-
-    public TestParentWorkflowWithChildTimeout() {
-      ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder().setWorkflowRunTimeout(Duration.ofSeconds(1)).build();
-      child = Workflow.newChildWorkflowStub(ITestChild.class, options);
-    }
-
-    @Override
-    public String execute(String taskQueue) {
-      try {
-        child.execute("Hello ", (int) Duration.ofDays(1).toMillis());
-      } catch (Exception e) {
-        return Throwables.getStackTraceAsString(e);
-      }
-      throw new RuntimeException("not reachable");
-    }
-  }
-
   public static class TestChild implements ITestChild {
 
     @Override
@@ -2378,48 +1740,6 @@ public class WorkflowTest {
       Workflow.sleep(delay);
       return arg.toUpperCase();
     }
-  }
-
-  public static class TestNamedChild implements ITestNamedChild {
-
-    @Override
-    public String execute(String arg) {
-      return arg.toUpperCase();
-    }
-  }
-
-  @Test
-  public void testChildWorkflow() {
-    child2Id = UUID.randomUUID().toString();
-    startWorkerFor(TestParentWorkflow.class, TestNamedChild.class, TestChild.class);
-
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(taskQueue)
-            .build();
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
-    assertEquals("HELLO WORLD!", client.execute(taskQueue));
-  }
-
-  @Test
-  public void testChildWorkflowTimeout() {
-    child2Id = UUID.randomUUID().toString();
-    startWorkerFor(TestParentWorkflowWithChildTimeout.class, TestChild.class);
-
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(taskQueue)
-            .build();
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
-    String result = client.execute(taskQueue);
-    assertTrue(result, result.contains("ChildWorkflowFailure"));
-    assertTrue(result, result.contains("TimeoutFailure"));
   }
 
   public static class TestParentWorkflowContinueAsNew implements TestWorkflows.TestWorkflow1 {
@@ -2447,7 +1767,6 @@ public class WorkflowTest {
   /** Reproduction of a bug when a child of continued as new workflow has the same UUID ID. */
   @Test
   public void testParentContinueAsNew() {
-    child2Id = UUID.randomUUID().toString();
     startWorkerFor(TestParentWorkflowContinueAsNew.class, TestChild.class);
 
     WorkflowOptions options =
@@ -2459,141 +1778,6 @@ public class WorkflowTest {
     TestWorkflows.TestWorkflow1 client =
         workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
     assertEquals("foo", client.execute("not empty"));
-  }
-
-  private static final String childReexecuteId = UUID.randomUUID().toString();
-
-  @WorkflowInterface
-  public interface WorkflowIdReusePolicyParent {
-
-    @WorkflowMethod
-    String execute(boolean parallel, WorkflowIdReusePolicy policy);
-  }
-
-  public static class TestChildReexecuteWorkflow implements WorkflowIdReusePolicyParent {
-
-    public TestChildReexecuteWorkflow() {}
-
-    @Override
-    public String execute(boolean parallel, WorkflowIdReusePolicy policy) {
-      ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder()
-              .setWorkflowId(childReexecuteId)
-              .setWorkflowIdReusePolicy(policy)
-              .build();
-
-      ITestNamedChild child1 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
-      Promise<String> r1P = Async.function(child1::execute, "Hello ");
-      String r1 = null;
-      if (!parallel) {
-        r1 = r1P.get();
-      }
-      ITestNamedChild child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
-      ChildWorkflowStub child2Stub = ChildWorkflowStub.fromTyped(child2);
-      // Same as String r2 = child2.execute("World!");
-      String r2 = child2Stub.execute(String.class, "World!");
-      if (parallel) {
-        r1 = r1P.get();
-      }
-      assertEquals(childReexecuteId, Workflow.getWorkflowExecution(child1).get().getWorkflowId());
-      assertEquals(childReexecuteId, Workflow.getWorkflowExecution(child2).get().getWorkflowId());
-      return r1 + r2;
-    }
-  }
-
-  @Test
-  public void testChildAlreadyRunning() {
-    startWorkerFor(TestChildReexecuteWorkflow.class, TestNamedChild.class);
-
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(taskQueue)
-            .build();
-    WorkflowIdReusePolicyParent client =
-        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
-    try {
-      client.execute(false, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ChildWorkflowFailure);
-    }
-  }
-
-  @Test
-  public void testChildStartTwice() {
-    startWorkerFor(TestChildReexecuteWorkflow.class, TestNamedChild.class);
-
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(taskQueue)
-            .build();
-    WorkflowIdReusePolicyParent client =
-        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
-    try {
-      client.execute(true, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ChildWorkflowFailure);
-    }
-  }
-
-  @Test
-  public void testChildReexecute() {
-    startWorkerFor(TestChildReexecuteWorkflow.class, TestNamedChild.class);
-
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(taskQueue)
-            .build();
-    WorkflowIdReusePolicyParent client =
-        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
-    assertEquals(
-        "HELLO WORLD!",
-        client.execute(false, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE));
-  }
-
-  public static class TestChildWorkflowRetryWorkflow implements TestWorkflows.TestWorkflow1 {
-
-    private ITestChild child;
-
-    public TestChildWorkflowRetryWorkflow() {}
-
-    @Override
-    public String execute(String taskQueue) {
-      ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder()
-              .setWorkflowRunTimeout(Duration.ofSeconds(500))
-              .setWorkflowTaskTimeout(Duration.ofSeconds(2))
-              .setTaskQueue(taskQueue)
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setMaximumAttempts(3)
-                      .build())
-              .build();
-      child = Workflow.newChildWorkflowStub(ITestChild.class, options);
-
-      return child.execute(taskQueue, 0);
-    }
-  }
-
-  public static class AlteredTestChildWorkflowRetryWorkflow
-      extends TestChildWorkflowAsyncRetryWorkflow {
-
-    public AlteredTestChildWorkflowRetryWorkflow() {}
-
-    @Override
-    public String execute(String taskQueue) {
-      Workflow.sleep(Duration.ofMinutes(1));
-      return super.execute(taskQueue);
-    }
   }
 
   @ActivityInterface
@@ -2631,114 +1815,6 @@ public class WorkflowTest {
       activity.execute();
       throw ApplicationFailure.newFailure("simulated failure", "test");
     }
-  }
-
-  @Test
-  public void testChildWorkflowRetry() {
-    AngryChildActivityImpl angryChildActivity = new AngryChildActivityImpl();
-    worker.registerActivitiesImplementations(angryChildActivity);
-    startWorkerFor(
-        WorkflowImplementationOptions.newBuilder()
-            .setFailWorkflowExceptionTypes(UnsupportedOperationException.class)
-            .build(),
-        TestChildWorkflowRetryWorkflow.class,
-        AngryChild.class);
-
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(20))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
-            .setTaskQueue(taskQueue)
-            .build();
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
-    try {
-      client.execute(taskQueue);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.toString(), e.getCause() instanceof ChildWorkflowFailure);
-      assertTrue(e.toString(), e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("test", ((ApplicationFailure) e.getCause().getCause()).getType());
-      assertEquals(
-          "message='simulated failure', type='test', nonRetryable=false",
-          e.getCause().getCause().getMessage());
-    }
-    assertEquals("TestWorkflow1", lastStartedWorkflowType.get());
-    assertEquals(3, angryChildActivity.getInvocationCount());
-    WorkflowExecution execution = WorkflowStub.fromTyped(client).getExecution();
-    SDKTestWorkflowRule.regenerateHistoryForReplay(
-        service, execution, "testChildWorkflowRetryHistory");
-  }
-
-  /**
-   * Tests that history that was created before server side retry was supported is backwards
-   * compatible with the client that supports the server side retry.
-   */
-  @Test
-  public void testChildWorkflowRetryReplay() throws Exception {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
-
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
-  }
-
-  /** Tests that WorkflowReplayer fails if replay does not match workflow run. */
-  @Test(expected = RuntimeException.class)
-  public void testAlteredWorkflowReplayFailure() throws Exception {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
-
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "testChildWorkflowRetryHistory.json", AlteredTestChildWorkflowRetryWorkflow.class);
-  }
-
-  public static class TestChildWorkflowExecutionPromiseHandler
-      implements TestWorkflows.TestWorkflow1 {
-
-    private ITestNamedChild child;
-
-    @Override
-    public String execute(String taskQueue) {
-      child = Workflow.newChildWorkflowStub(ITestNamedChild.class);
-      Promise<String> childResult = Async.function(child::execute, "foo");
-      Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
-      CompletablePromise<String> result = Workflow.newPromise();
-      // Ensure that the callback can execute Workflow.* functions.
-      executionPromise.thenApply(
-          (we) -> {
-            Workflow.sleep(Duration.ofSeconds(1));
-            result.complete(childResult.get());
-            return null;
-          });
-      return result.get();
-    }
-  }
-
-  /** Tests that handler of the WorkflowExecution promise is executed in a workflow thread. */
-  @Test
-  public void testChildWorkflowExecutionPromiseHandler() {
-    startWorkerFor(TestChildWorkflowExecutionPromiseHandler.class, TestNamedChild.class);
-
-    WorkflowClient wc;
-    if (SDKTestWorkflowRule.useExternalService) {
-      wc =
-          WorkflowClient.newInstance(
-              service,
-              WorkflowClientOptions.newBuilder()
-                  .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-                  .build());
-    } else {
-      wc = testEnvironment.getWorkflowClient();
-    }
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(20))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
-            .setTaskQueue(taskQueue)
-            .build();
-    TestWorkflows.TestWorkflow1 client =
-        wc.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
-    String result = client.execute(taskQueue);
-    assertEquals("FOO", result);
   }
 
   public static class TestSignalExternalWorkflow implements TestWorkflowSignaled {
@@ -2928,59 +2004,6 @@ public class WorkflowTest {
     }
   }
 
-  public static class TestChildWorkflowAsyncRetryWorkflow implements TestWorkflows.TestWorkflow1 {
-
-    private ITestChild child;
-
-    public TestChildWorkflowAsyncRetryWorkflow() {}
-
-    @Override
-    public String execute(String taskQueue) {
-      ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder()
-              .setWorkflowRunTimeout(Duration.ofSeconds(5))
-              .setWorkflowTaskTimeout(Duration.ofSeconds(2))
-              .setTaskQueue(taskQueue)
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setMaximumAttempts(3)
-                      .build())
-              .build();
-      child = Workflow.newChildWorkflowStub(ITestChild.class, options);
-      return Async.function(child::execute, taskQueue, 0).get();
-    }
-  }
-
-  @Test
-  public void testChildWorkflowAsyncRetry() {
-    AngryChildActivityImpl angryChildActivity = new AngryChildActivityImpl();
-    worker.registerActivitiesImplementations(angryChildActivity);
-    startWorkerFor(TestChildWorkflowAsyncRetryWorkflow.class, AngryChild.class);
-
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(20))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
-            .setTaskQueue(taskQueue)
-            .build();
-    TestWorkflows.TestWorkflow1 client =
-        workflowClient.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
-    try {
-      client.execute(taskQueue);
-      fail("unreachable");
-    } catch (WorkflowException e) {
-      assertTrue(String.valueOf(e.getCause()), e.getCause() instanceof ChildWorkflowFailure);
-      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("test", ((ApplicationFailure) e.getCause().getCause()).getType());
-      assertEquals(
-          "message='simulated failure', type='test', nonRetryable=false",
-          e.getCause().getCause().getMessage());
-    }
-    assertEquals(3, angryChildActivity.getInvocationCount());
-  }
-
   private static int testWorkflowTaskFailureBackoffReplayCount;
 
   public static class TestWorkflowTaskFailureBackoff implements TestWorkflows.TestWorkflow1 {
@@ -3073,43 +2096,6 @@ public class WorkflowTest {
       }
     }
     assertEquals(1, failedTaskCount);
-  }
-
-  public static class TestAwait implements TestWorkflows.TestWorkflow1 {
-
-    private int i;
-    private int j;
-
-    @Override
-    public String execute(String taskQueue) {
-      StringBuilder result = new StringBuilder();
-      Async.procedure(
-          () -> {
-            while (true) {
-              Workflow.await(() -> i > j);
-              result.append(" awoken i=" + i);
-              j++;
-            }
-          });
-
-      for (i = 1; i < 3; i++) {
-        Workflow.await(() -> j >= i);
-        result.append(" loop i=" + i);
-      }
-      assertFalse(Workflow.await(Duration.ZERO, () -> false));
-      return result.toString();
-    }
-  }
-
-  @Test
-  public void testAwait() {
-    startWorkerFor(TestAwait.class);
-    TestWorkflows.TestWorkflow1 workflowStub =
-        workflowClient.newWorkflowStub(
-            TestWorkflows.TestWorkflow1.class,
-            TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-    String result = workflowStub.execute(taskQueue);
-    assertEquals(" awoken i=1 loop i=1 awoken i=2 loop i=2 awoken i=3", result);
   }
 
   private static final Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
@@ -3363,39 +2349,6 @@ public class WorkflowTest {
     }
   }
 
-  @Test
-  public void testWorkflowWithCronSchedule() {
-    // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
-    // Feel free to uncomment the line below and test in local.
-    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
-
-    startWorkerFor(TestWorkflowWithCronScheduleImpl.class);
-
-    WorkflowStub client =
-        workflowClient.newUntypedWorkflowStub(
-            "TestWorkflowWithCronSchedule",
-            TestOptions.newWorkflowOptionsWithTimeouts(taskQueue)
-                .toBuilder()
-                .setWorkflowRunTimeout(Duration.ofHours(1))
-                .setCronSchedule("0 * * * *")
-                .build());
-    registerDelayedCallback(Duration.ofHours(3), client::cancel);
-    client.start(testName.getMethodName());
-
-    try {
-      client.getResult(String.class);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof CanceledFailure);
-    }
-
-    // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    assertEquals("run 2", lastCompletionResult);
-    // The last failure ought to be the one from run 3
-    assertTrue(lastFail.isPresent());
-    assertTrue(lastFail.get().getMessage().contains("simulated error"));
-  }
-
   public static class TestCronParentWorkflow implements TestWorkflows.TestWorkflow1 {
 
     private final TestWorkflowWithCronSchedule cronChild =
@@ -3405,36 +2358,6 @@ public class WorkflowTest {
     public String execute(String taskQueue) {
       return cronChild.execute(taskQueue);
     }
-  }
-
-  @Test
-  public void testChildWorkflowWithCronSchedule() {
-    // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
-    // Feel free to uncomment the line below and test in local.
-    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
-
-    startWorkerFor(TestCronParentWorkflow.class, TestWorkflowWithCronScheduleImpl.class);
-
-    WorkflowStub client =
-        workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1",
-            TestOptions.newWorkflowOptionsWithTimeouts(taskQueue)
-                .toBuilder()
-                .setWorkflowRunTimeout(Duration.ofHours(10))
-                .build());
-    client.start(testName.getMethodName());
-    testEnvironment.sleep(Duration.ofHours(3));
-    client.cancel();
-
-    try {
-      client.getResult(String.class);
-      fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof CanceledFailure);
-    }
-
-    // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    assertEquals("run 2", lastCompletionResult);
   }
 
   public interface ProcInvocationQueryable {
@@ -4342,48 +3265,6 @@ public class WorkflowTest {
 
     @WorkflowMethod
     String execute(String taskQueue);
-  }
-
-  public static class NonSerializableExceptionChildWorkflowImpl
-      implements NonSerializableExceptionChildWorkflow {
-
-    @Override
-    public String execute(String taskQueue) {
-      throw new NonSerializableException();
-    }
-  }
-
-  public static class TestNonSerializableExceptionInChildWorkflow
-      implements TestWorkflows.TestWorkflow1 {
-
-    @Override
-    public String execute(String taskQueue) {
-      NonSerializableExceptionChildWorkflow child =
-          Workflow.newChildWorkflowStub(NonSerializableExceptionChildWorkflow.class);
-      try {
-        child.execute(taskQueue);
-      } catch (ChildWorkflowFailure e) {
-        return e.getMessage();
-      }
-      return "done";
-    }
-  }
-
-  @Test
-  public void testNonSerializableExceptionInChildWorkflow() {
-    startWorkerFor(
-        WorkflowImplementationOptions.newBuilder()
-            .setFailWorkflowExceptionTypes(NonSerializableException.class)
-            .build(),
-        TestNonSerializableExceptionInChildWorkflow.class,
-        NonSerializableExceptionChildWorkflowImpl.class);
-    TestWorkflows.TestWorkflow1 workflowStub =
-        workflowClient.newWorkflowStub(
-            TestWorkflows.TestWorkflow1.class,
-            TestOptions.newWorkflowOptionsWithTimeouts(taskQueue));
-
-    String result = workflowStub.execute(taskQueue);
-    assertTrue(result.contains("NonSerializableException"));
   }
 
   @WorkflowInterface
