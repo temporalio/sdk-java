@@ -25,7 +25,10 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -33,32 +36,27 @@ import org.junit.Test;
 
 public class TryCancelActivityTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestTryCancelActivity.class)
-          .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
-          .build();
+  public SDKTestWorkflowRule testWorkflowRule =
+      (SDKTestWorkflowRule)
+          SDKTestWorkflowRule.newBuilder()
+              .setWorkflowTypes(TestTryCancelActivity.class)
+              .setActivityImplementations(activitiesImpl)
+              .build();
 
   @Test
   public void testTryCancelActivity() {
-    WorkflowTest.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+    TestWorkflows.TestWorkflow1 client =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
         .getTestEnvironment()
         .sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
     WorkflowStub stub = WorkflowStub.fromTyped(client);
-    WorkflowTest.waitForOKQuery(stub);
+    testWorkflowRule.waitForOKQuery(stub);
     stub.cancel();
     long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     try {
@@ -72,14 +70,14 @@ public class TryCancelActivityTest {
     activitiesImpl.assertInvocations("activityWithDelay");
   }
 
-  public static class TestTryCancelActivity implements WorkflowTest.TestWorkflow1 {
+  public static class TestTryCancelActivity implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities testActivities =
+      TestActivities testActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class,
-              ActivityOptions.newBuilder(WorkflowTest.newActivityOptions1(taskQueue))
+              TestActivities.class,
+              ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(1))
                   .setCancellationType(ActivityCancellationType.TRY_CANCEL)
                   .build());

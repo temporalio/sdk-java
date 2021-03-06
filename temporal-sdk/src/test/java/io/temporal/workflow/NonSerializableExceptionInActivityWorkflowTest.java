@@ -21,7 +21,8 @@ package io.temporal.workflow;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.failure.ActivityFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -33,29 +34,23 @@ public class NonSerializableExceptionInActivityWorkflowTest {
       new WorkflowTest.NonSerializableExceptionActivityImpl();
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNonSerializableExceptionInActivityWorkflow.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
   public void testNonSerializableExceptionInActivity() {
-    WorkflowTest.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
 
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertTrue(result.contains("NonSerializableException"));
   }
 
   public static class TestNonSerializableExceptionInActivityWorkflow
-      implements WorkflowTest.TestWorkflow1 {
+      implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

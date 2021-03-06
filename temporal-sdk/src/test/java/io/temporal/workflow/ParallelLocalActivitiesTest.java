@@ -20,8 +20,11 @@
 package io.temporal.workflow;
 
 import io.temporal.client.*;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,22 +35,18 @@ import org.junit.Test;
 
 public class ParallelLocalActivitiesTest {
 
-  private static final String UUID_REGEXP =
-      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestParallelLocalActivitiesWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
-          .build();
+  public SDKTestWorkflowRule testWorkflowRule =
+      (SDKTestWorkflowRule)
+          SDKTestWorkflowRule.newBuilder()
+              .setWorkflowTypes(TestParallelLocalActivitiesWorkflowImpl.class)
+              .setActivityImplementations(activitiesImpl)
+              .setWorkerInterceptors(
+                  new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+              .build();
 
   @Test
   public void testParallelLocalActivities() {
@@ -58,15 +57,15 @@ public class ParallelLocalActivitiesTest {
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
 
-    WorkflowTest.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.TestWorkflow1.class, options);
+            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("done", result);
     Assert.assertEquals(activitiesImpl.toString(), 100, activitiesImpl.invocations.size());
     List<String> expected = new ArrayList<String>();
-    expected.add("interceptExecuteWorkflow " + UUID_REGEXP);
+    expected.add("interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP);
     expected.add("newThread workflow-method");
     for (int i = 0; i < WorkflowTest.TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("executeLocalActivity SleepActivity");
@@ -81,14 +80,14 @@ public class ParallelLocalActivitiesTest {
   }
 
   public static class TestParallelLocalActivitiesWorkflowImpl
-      implements WorkflowTest.TestWorkflow1 {
+      implements TestWorkflows.TestWorkflow1 {
     static final int COUNT = 100;
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities localActivities =
+      TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newLocalActivityOptions1());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       List<Promise<String>> laResults = new ArrayList<>();
       Random r = Workflow.newRandom();
       for (int i = 0; i < COUNT; i++) {

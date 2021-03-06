@@ -23,6 +23,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,16 +37,14 @@ import org.junit.Test;
 
 public class LocalActivityAndQueryTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLocalActivityAndQueryWorkflow.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
@@ -56,10 +56,8 @@ public class LocalActivityAndQueryTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    WorkflowTest.TestWorkflowQuery workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.TestWorkflowQuery.class, options);
+    TestWorkflowQuery workflowStub =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflowQuery.class, options);
     WorkflowClient.start(workflowStub::execute, testWorkflowRule.getTaskQueue());
 
     // Ensure that query doesn't see intermediate results of the local activities execution
@@ -87,16 +85,24 @@ public class LocalActivityAndQueryTest {
         "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity");
   }
 
-  public static final class TestLocalActivityAndQueryWorkflow
-      implements WorkflowTest.TestWorkflowQuery {
+  @WorkflowInterface
+  public interface TestWorkflowQuery {
+    @WorkflowMethod()
+    String execute(String taskQueue);
+
+    @QueryMethod()
+    String query();
+  }
+
+  public static final class TestLocalActivityAndQueryWorkflow implements TestWorkflowQuery {
 
     String message = "initial value";
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities localActivities =
+      TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newLocalActivityOptions1());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       for (int i = 0; i < 5; i++) {
         localActivities.sleepActivity(1000, i);
         message = "run" + i;

@@ -19,7 +19,7 @@
 
 package io.temporal.worker;
 
-import static io.temporal.workflow.WorkflowTest.NAMESPACE;
+import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertNotNull;
 
 import io.temporal.activity.ActivityInterface;
@@ -37,6 +37,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,9 +55,8 @@ import org.slf4j.LoggerFactory;
 @RunWith(Parameterized.class)
 public class WorkerStressTests {
 
-  private static final boolean useDockerService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+  private static final boolean useDockerService = SDKTestWorkflowRule.useExternalService;
+  private static final String serviceAddress = SDKTestWorkflowRule.temporalServiceAddress;
 
   @Parameterized.Parameter public boolean useExternalService;
 

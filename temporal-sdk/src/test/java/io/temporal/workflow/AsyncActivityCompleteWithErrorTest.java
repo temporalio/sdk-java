@@ -21,10 +21,9 @@ package io.temporal.workflow;
 
 import io.temporal.activity.*;
 import io.temporal.activity.ManualActivityCompletionClient;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.concurrent.ForkJoinPool;
 import org.junit.Assert;
@@ -34,12 +33,10 @@ import org.junit.Test;
 public class AsyncActivityCompleteWithErrorTest {
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new AsyncActivityWithManualCompletion())
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @WorkflowInterface
@@ -98,11 +95,7 @@ public class AsyncActivityCompleteWithErrorTest {
   @Test
   public void verifyActivityCompletionClientCompleteExceptionally() {
     String taskQueue = testWorkflowRule.getTaskQueue();
-    TestWorkflow workflow =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    TestWorkflow workflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
     String result = workflow.execute(taskQueue);
     Assert.assertEquals("success", result);
   }

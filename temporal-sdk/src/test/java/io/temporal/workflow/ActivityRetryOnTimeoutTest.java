@@ -24,7 +24,9 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.TimeoutFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -32,28 +34,22 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 public class ActivityRetryOnTimeoutTest {
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule public TestName testName = new TestName();
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestActivityRetryOnTimeout.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
   public void testActivityRetryOnTimeout() {
-    WorkflowTest.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     // Wall time on purpose
     long start = System.currentTimeMillis();
     try {
@@ -71,7 +67,7 @@ public class ActivityRetryOnTimeoutTest {
     }
   }
 
-  public static class TestActivityRetryOnTimeout implements WorkflowTest.TestWorkflow1 {
+  public static class TestActivityRetryOnTimeout implements TestWorkflows.TestWorkflow1 {
 
     @Override
     @SuppressWarnings("Finally")
@@ -89,8 +85,7 @@ public class ActivityRetryOnTimeoutTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      WorkflowTest.TestActivities activities =
-          Workflow.newActivityStub(WorkflowTest.TestActivities.class, options);
+      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
       long start = Workflow.currentTimeMillis();
       try {
         activities.neverComplete(); // should timeout as scheduleToClose is 1 second
