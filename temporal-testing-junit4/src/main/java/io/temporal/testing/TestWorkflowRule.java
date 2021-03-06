@@ -200,10 +200,6 @@ public class TestWorkflowRule implements TestRule {
      *
      * <p>Default is to use 127.0.0.1:7233
      */
-    public String getTarget() {
-      return this.target;
-    }
-
     public Builder setTarget(String target) {
       this.target = target;
       return this;

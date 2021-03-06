@@ -70,10 +70,7 @@ public class SDKTestWorkflowRule implements TestRule {
   private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
   private final TestWorkflowRule testWorkflowRule;
 
-  private SDKTestWorkflowRule(Builder builder, TestWorkflowRule.Builder testWorkflowRuleBuilder) {
-    if (testWorkflowRuleBuilder.getTarget() == null) {
-      testWorkflowRuleBuilder.setTarget(temporalServiceAddress);
-    }
+  private SDKTestWorkflowRule(TestWorkflowRule.Builder testWorkflowRuleBuilder) {
     testWorkflowRule = testWorkflowRuleBuilder.build();
   }
 
@@ -140,7 +137,7 @@ public class SDKTestWorkflowRule implements TestRule {
     }
 
     public SDKTestWorkflowRule build() {
-      return new SDKTestWorkflowRule(this, testWorkflowRuleBuilder);
+      return new SDKTestWorkflowRule(testWorkflowRuleBuilder);
     }
   }
 
