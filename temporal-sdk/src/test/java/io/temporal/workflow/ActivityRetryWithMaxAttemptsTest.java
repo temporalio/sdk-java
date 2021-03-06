@@ -42,7 +42,6 @@ public class ActivityRetryWithMaxAttemptsTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      (SDKTestWorkflowRule)
           SDKTestWorkflowRule.newBuilder()
               .setWorkflowTypes(TestActivityRetryWithMaxAttempts.class)
               .setWorkerInterceptors(
