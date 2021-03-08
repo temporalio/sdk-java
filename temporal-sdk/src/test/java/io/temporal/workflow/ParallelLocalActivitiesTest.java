@@ -40,7 +40,6 @@ public class ParallelLocalActivitiesTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      (SDKTestWorkflowRule)
           SDKTestWorkflowRule.newBuilder()
               .setWorkflowTypes(TestParallelLocalActivitiesWorkflowImpl.class)
               .setActivityImplementations(activitiesImpl)
