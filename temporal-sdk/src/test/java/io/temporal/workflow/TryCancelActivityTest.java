@@ -41,7 +41,6 @@ public class TryCancelActivityTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      (SDKTestWorkflowRule)
           SDKTestWorkflowRule.newBuilder()
               .setWorkflowTypes(TestTryCancelActivity.class)
               .setActivityImplementations(activitiesImpl)

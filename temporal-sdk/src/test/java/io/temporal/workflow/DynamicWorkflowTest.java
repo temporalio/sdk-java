@@ -108,11 +108,9 @@ public class DynamicWorkflowTest {
 
   @Test
   public void testDynamicWorkflowFactory() {
+    testWorkflowRule.addWorkflowImplementationFactory(
+        DynamicWorkflowImpl.class, DynamicWorkflowImpl::new);
     TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
-    testEnvironment
-        .getWorkerFactory()
-        .getWorker(testWorkflowRule.getTaskQueue())
-        .addWorkflowImplementationFactory(DynamicWorkflowImpl.class, DynamicWorkflowImpl::new);
     testEnvironment.start();
     WorkflowStub workflow = testWorkflowRule.newUntypedWorkflowStub("workflowFoo");
     workflow.signalWithStart("signal1", new Object[] {"signalArg0"}, new Object[] {"startArg0"});
