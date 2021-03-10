@@ -24,8 +24,11 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -33,37 +36,29 @@ import org.junit.Test;
 
 public class LocalActivityTest {
 
-  private static final String UUID_REGEXP =
-      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLocalActivityWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
   public void testLocalActivity() {
-    WorkflowTest.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("test123123", result);
     Assert.assertEquals(activitiesImpl.toString(), 5, activitiesImpl.invocations.size());
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
-            "interceptExecuteWorkflow " + UUID_REGEXP,
+            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
             "executeLocalActivity ThrowIO",
             "currentTimeMillis",
@@ -77,12 +72,12 @@ public class LocalActivityTest {
             "activity Activity2");
   }
 
-  public static class TestLocalActivityWorkflowImpl implements WorkflowTest.TestWorkflow1 {
+  public static class TestLocalActivityWorkflowImpl implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities localActivities =
+      TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newLocalActivityOptions1());
+              TestActivities.class, TestOptions.newLocalActivityOptions());
       try {
         localActivities.throwIO();
       } catch (ActivityFailure e) {
@@ -100,9 +95,9 @@ public class LocalActivityTest {
       }
 
       String laResult = localActivities.activity2("test", 123);
-      WorkflowTest.TestActivities normalActivities =
+      TestActivities normalActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newActivityOptions1(taskQueue));
+              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       laResult = normalActivities.activity2(laResult, 123);
       return laResult;
     }

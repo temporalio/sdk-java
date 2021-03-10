@@ -24,7 +24,9 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -33,26 +35,20 @@ import org.junit.Test;
 
 public class UntypedActivityRetryTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestUntypedActivityRetry.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
   public void testUntypedActivityRetry() {
-    WorkflowTest.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -65,7 +61,7 @@ public class UntypedActivityRetryTest {
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
 
-  public static class TestUntypedActivityRetry implements WorkflowTest.TestWorkflow1 {
+  public static class TestUntypedActivityRetry implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

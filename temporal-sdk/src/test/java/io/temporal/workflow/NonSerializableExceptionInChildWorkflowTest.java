@@ -19,51 +19,60 @@
 
 package io.temporal.workflow;
 
-import io.temporal.activity.ActivityOptions;
-import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
-import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class NonSerializableExceptionInActivityWorkflowTest {
+public class NonSerializableExceptionInChildWorkflowTest {
 
-  private final WorkflowTest.NonSerializableExceptionActivityImpl activitiesImpl =
-      new WorkflowTest.NonSerializableExceptionActivityImpl();
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestNonSerializableExceptionInActivityWorkflow.class)
+          .setWorkflowTypes(
+              WorkflowImplementationOptions.newBuilder()
+                  .setFailWorkflowExceptionTypes(WorkflowTest.NonSerializableException.class)
+                  .build(),
+              TestNonSerializableExceptionInChildWorkflow.class,
+              NonSerializableExceptionChildWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test
-  public void testNonSerializableExceptionInActivity() {
+  public void testNonSerializableExceptionInChildWorkflow() {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
-
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertTrue(result.contains("NonSerializableException"));
   }
 
-  public static class TestNonSerializableExceptionInActivityWorkflow
+  public static class NonSerializableExceptionChildWorkflowImpl
+      implements WorkflowTest.NonSerializableExceptionChildWorkflow {
+
+    @Override
+    public String execute(String taskQueue) {
+      throw new WorkflowTest.NonSerializableException();
+    }
+  }
+
+  public static class TestNonSerializableExceptionInChildWorkflow
       implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.NonSerializableExceptionActivity activity =
-          Workflow.newActivityStub(
-              WorkflowTest.NonSerializableExceptionActivity.class,
-              ActivityOptions.newBuilder()
-                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-                  .build());
+      WorkflowTest.NonSerializableExceptionChildWorkflow child =
+          Workflow.newChildWorkflowStub(WorkflowTest.NonSerializableExceptionChildWorkflow.class);
       try {
-        activity.execute();
-      } catch (ActivityFailure e) {
-        return e.getCause().getMessage();
+        child.execute(taskQueue);
+      } catch (ChildWorkflowFailure e) {
+        return e.getMessage();
       }
       return "done";
     }

@@ -24,7 +24,9 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -32,27 +34,20 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class LocalActivityRetryTest {
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLocalActivityRetry.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
   public void testLocalActivityRetry() {
-    WorkflowTest.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
-
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -66,7 +61,7 @@ public class LocalActivityRetryTest {
     Assert.assertEquals("last attempt", 5, activitiesImpl.getLastAttempt());
   }
 
-  public static class TestLocalActivityRetry implements WorkflowTest.TestWorkflow1 {
+  public static class TestLocalActivityRetry implements TestWorkflows.TestWorkflow1 {
 
     @Override
     @SuppressWarnings("Finally")
@@ -84,8 +79,7 @@ public class LocalActivityRetryTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      WorkflowTest.TestActivities activities =
-          Workflow.newLocalActivityStub(WorkflowTest.TestActivities.class, options);
+      TestActivities activities = Workflow.newLocalActivityStub(TestActivities.class, options);
       activities.throwIO();
 
       return "ignored";

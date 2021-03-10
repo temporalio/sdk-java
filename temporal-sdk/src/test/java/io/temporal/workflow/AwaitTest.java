@@ -19,53 +19,59 @@
 
 package io.temporal.workflow;
 
-import io.temporal.activity.ActivityOptions;
-import io.temporal.failure.ActivityFailure;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class NonSerializableExceptionInActivityWorkflowTest {
+public class AwaitTest {
 
-  private final WorkflowTest.NonSerializableExceptionActivityImpl activitiesImpl =
-      new WorkflowTest.NonSerializableExceptionActivityImpl();
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestNonSerializableExceptionInActivityWorkflow.class)
+          .setWorkflowTypes(TestAwait.class)
           .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test
-  public void testNonSerializableExceptionInActivity() {
+  public void testAwait() {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
-
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertTrue(result.contains("NonSerializableException"));
+    assertEquals(" awoken i=1 loop i=1 awoken i=2 loop i=2 awoken i=3", result);
   }
 
-  public static class TestNonSerializableExceptionInActivityWorkflow
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestAwait implements TestWorkflows.TestWorkflow1 {
+
+    private int i;
+    private int j;
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.NonSerializableExceptionActivity activity =
-          Workflow.newActivityStub(
-              WorkflowTest.NonSerializableExceptionActivity.class,
-              ActivityOptions.newBuilder()
-                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-                  .build());
-      try {
-        activity.execute();
-      } catch (ActivityFailure e) {
-        return e.getCause().getMessage();
+      StringBuilder result = new StringBuilder();
+      Async.procedure(
+          () -> {
+            while (true) {
+              Workflow.await(() -> i > j);
+              result.append(" awoken i=" + i);
+              j++;
+            }
+          });
+
+      for (i = 1; i < 3; i++) {
+        Workflow.await(() -> j >= i);
+        result.append(" loop i=" + i);
       }
-      return "done";
+      assertFalse(Workflow.await(Duration.ZERO, () -> false));
+      return result.toString();
     }
   }
 }

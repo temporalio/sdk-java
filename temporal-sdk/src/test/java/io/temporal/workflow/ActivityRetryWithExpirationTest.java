@@ -26,7 +26,9 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -35,26 +37,20 @@ import org.junit.Test;
 
 public class ActivityRetryWithExpirationTest {
 
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestActivityRetryWithExpiration.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
   public void testActivityRetryWithExpiration() {
-    WorkflowTest.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -68,7 +64,7 @@ public class ActivityRetryWithExpirationTest {
   }
 
   public static class TestActivityRetryWithExpiration
-      implements WorkflowTest.TestWorkflow1,
+      implements TestWorkflows.TestWorkflow1,
           WorkflowTest.EmptyInterface,
           WorkflowTest.UnrelatedInterface {
 
@@ -87,8 +83,7 @@ public class ActivityRetryWithExpirationTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      WorkflowTest.TestActivities activities =
-          Workflow.newActivityStub(WorkflowTest.TestActivities.class, options);
+      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
       long start = Workflow.currentTimeMillis();
       try {
         activities.heartbeatAndThrowIO();

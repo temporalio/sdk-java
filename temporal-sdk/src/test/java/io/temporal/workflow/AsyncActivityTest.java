@@ -21,7 +21,10 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -30,16 +33,14 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class AsyncActivityTest {
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestAsyncActivityWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
           .build();
 
   @Test
@@ -48,12 +49,8 @@ public class AsyncActivityTest {
     // right completion client.
     activitiesImpl.completionClient =
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
-    WorkflowTest.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+    TestWorkflows.TestWorkflow1 client =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
     Assert.assertEquals("proc", activitiesImpl.procResult.get(0));
@@ -65,13 +62,13 @@ public class AsyncActivityTest {
     Assert.assertEquals("123456", activitiesImpl.procResult.get(6));
   }
 
-  public static class TestAsyncActivityWorkflowImpl implements WorkflowTest.TestWorkflow1 {
+  public static class TestAsyncActivityWorkflowImpl implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.TestActivities testActivities =
+      TestActivities testActivities =
           Workflow.newActivityStub(
-              WorkflowTest.TestActivities.class, WorkflowTest.newActivityOptions2());
+              TestActivities.class, TestOptions.newActivityOptions20sScheduleToClose());
       Promise<String> a = Async.function(testActivities::activity);
       Promise<Integer> a1 = Async.function(testActivities::activity1, 1);
       Promise<String> a2 = Async.function(testActivities::activity2, "1", 2);

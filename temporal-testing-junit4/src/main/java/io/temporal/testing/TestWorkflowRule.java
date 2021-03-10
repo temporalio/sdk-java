@@ -25,6 +25,7 @@ import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.UUID;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
@@ -59,8 +60,16 @@ import org.junit.runners.model.Statement;
  */
 public class TestWorkflowRule implements TestRule {
 
-  public Timeout globalTimeout;
+  private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
 
+  private final boolean doNotStart;
+  private final boolean useExternalService;
+  private final Class<?>[] workflowTypes;
+  private final Object[] activityImplementations;
+  private final WorkerInterceptor[] interceptors;
+  private final WorkflowImplementationOptions workflowImplementationOptions;
+  private final WorkerOptions workerOptions;
+  private final TestWorkflowEnvironment testEnvironment;
   private final TestWatcher watchman =
       new TestWatcher() {
         @Override
@@ -68,34 +77,48 @@ public class TestWorkflowRule implements TestRule {
           System.err.println("WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
         }
       };
-
-  private final Class<?>[] workflowTypes;
-  private final Object[] activityImplementations;
-  private final TestWorkflowEnvironment testEnvironment;
-  private final WorkerOptions workerOptions;
-  private final boolean useExternalService;
-  private final boolean doNotStart;
-  private final WorkerInterceptor[] interceptors;
-
+  private final Timeout globalTimeout;
   private String taskQueue;
 
-  private TestWorkflowRule(
-      TestWorkflowEnvironment testEnvironment,
-      boolean useExternalService,
-      Class<?>[] workflowTypes,
-      Object[] activityImplementations,
-      WorkerOptions workerOptions,
-      long testTimeoutSeconds,
-      boolean doNotStart,
-      WorkerInterceptor[] interceptors) {
-    this.testEnvironment = testEnvironment;
-    this.useExternalService = useExternalService;
-    this.workflowTypes = workflowTypes;
-    this.activityImplementations = activityImplementations;
-    this.workerOptions = workerOptions;
-    this.globalTimeout = Timeout.seconds(testTimeoutSeconds);
-    this.doNotStart = doNotStart;
-    this.interceptors = interceptors;
+  private TestWorkflowRule(Builder builder) {
+
+    String namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
+
+    doNotStart = builder.doNotStart;
+    interceptors = builder.workerInterceptors;
+    useExternalService = builder.useExternalService;
+    workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
+    activityImplementations =
+        (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
+    workerOptions =
+        (builder.workerOptions == null)
+            ? WorkerOptions.newBuilder().build()
+            : builder.workerOptions;
+    workflowImplementationOptions =
+        (builder.workflowImplementationOptions == null)
+            ? WorkflowImplementationOptions.newBuilder().build()
+            : builder.workflowImplementationOptions;
+    globalTimeout =
+        Timeout.seconds(
+            builder.testTimeoutSeconds == 0
+                ? DEFAULT_TEST_TIMEOUT_SECONDS
+                : builder.testTimeoutSeconds);
+
+    WorkflowClientOptions clientOptions =
+        (builder.workflowClientOptions == null)
+            ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
+            : builder.workflowClientOptions;
+    WorkerFactoryOptions factoryOptions =
+        WorkerFactoryOptions.newBuilder().setWorkerInterceptors(interceptors).build();
+    TestEnvironmentOptions testOptions =
+        TestEnvironmentOptions.newBuilder()
+            .setWorkflowClientOptions(clientOptions)
+            .setWorkerFactoryOptions(factoryOptions)
+            .setUseExternalService(useExternalService)
+            .setTarget(builder.target)
+            .build();
+
+    testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
   }
 
   public static Builder newBuilder() {
@@ -103,8 +126,8 @@ public class TestWorkflowRule implements TestRule {
   }
 
   public static class Builder {
-    private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
 
+    private WorkflowImplementationOptions workflowImplementationOptions;
     private WorkerOptions workerOptions;
     private WorkflowClientOptions workflowClientOptions;
     private String namespace;
@@ -116,7 +139,7 @@ public class TestWorkflowRule implements TestRule {
     private boolean doNotStart;
     private WorkerInterceptor[] workerInterceptors;
 
-    private Builder() {}
+    protected Builder() {}
 
     public Builder setWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
@@ -143,6 +166,13 @@ public class TestWorkflowRule implements TestRule {
     }
 
     public Builder setWorkflowTypes(Class<?>... workflowTypes) {
+      this.workflowTypes = workflowTypes;
+      return this;
+    }
+
+    public Builder setWorkflowTypes(
+        WorkflowImplementationOptions implementationOptions, Class<?>... workflowTypes) {
+      this.workflowImplementationOptions = implementationOptions;
       this.workflowTypes = workflowTypes;
       return this;
     }
@@ -192,32 +222,7 @@ public class TestWorkflowRule implements TestRule {
     }
 
     public TestWorkflowRule build() {
-      namespace = namespace == null ? "UnitTest" : namespace;
-
-      if (workflowClientOptions == null) {
-        namespace = namespace == null ? "UnitTest" : namespace;
-        workflowClientOptions = WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
-      }
-      WorkerFactoryOptions factoryOptions =
-          WorkerFactoryOptions.newBuilder().setWorkerInterceptors(workerInterceptors).build();
-      TestEnvironmentOptions testOptions =
-          TestEnvironmentOptions.newBuilder()
-              .setWorkflowClientOptions(workflowClientOptions)
-              .setWorkerFactoryOptions(factoryOptions)
-              .setUseExternalService(useExternalService)
-              .setTarget(target)
-              .build();
-      TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
-      workerOptions = workerOptions == null ? WorkerOptions.newBuilder().build() : workerOptions;
-      return new TestWorkflowRule(
-          testEnvironment,
-          useExternalService,
-          workflowTypes == null ? new Class[0] : workflowTypes,
-          activityImplementations == null ? new Object[0] : activityImplementations,
-          workerOptions,
-          testTimeoutSeconds == 0 ? DEFAULT_TEST_TIMEOUT_SECONDS : testTimeoutSeconds,
-          doNotStart,
-          workerInterceptors);
+      return new TestWorkflowRule(this);
     }
   }
 
@@ -236,14 +241,13 @@ public class TestWorkflowRule implements TestRule {
     return watchman.apply(globalTimeout.apply(testWorkflowStatement, description), description);
   }
 
-  private void shutdown() {
-    testEnvironment.close();
-    if (interceptors != null) {
-      TracingWorkerInterceptor tracer = getInterceptor(TracingWorkerInterceptor.class);
-      if (tracer != null) {
-        tracer.assertExpected();
-      }
-    }
+  private String init(Description description) {
+    String testMethod = description.getMethodName();
+    String taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
+    Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
+    worker.registerWorkflowImplementationTypes(workflowImplementationOptions, workflowTypes);
+    worker.registerActivitiesImplementations(activityImplementations);
+    return taskQueue;
   }
 
   private void start() {
@@ -252,18 +256,14 @@ public class TestWorkflowRule implements TestRule {
     }
   }
 
-  private String init(Description description) {
-    String testMethod = description.getMethodName();
-    String taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
-    Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
-    worker.registerWorkflowImplementationTypes(workflowTypes);
-    worker.registerActivitiesImplementations(activityImplementations);
-    return taskQueue;
-  }
-
-  /** Returns name of the task queue that test worker is polling. */
-  public String getTaskQueue() {
-    return taskQueue;
+  protected void shutdown() throws Throwable {
+    testEnvironment.close();
+    if (interceptors != null) {
+      TracingWorkerInterceptor tracer = getInterceptor(TracingWorkerInterceptor.class);
+      if (tracer != null) {
+        tracer.assertExpected();
+      }
+    }
   }
 
   /** Returns tracer. */
@@ -276,6 +276,11 @@ public class TestWorkflowRule implements TestRule {
       }
     }
     return null;
+  }
+
+  /** Returns name of the task queue that test worker is polling. */
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   /** Returns client to the Temporal service used to start and query workflows. */

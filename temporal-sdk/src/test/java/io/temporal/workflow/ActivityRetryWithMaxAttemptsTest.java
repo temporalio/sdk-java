@@ -26,8 +26,10 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Rule;
@@ -35,30 +37,22 @@ import org.junit.Test;
 
 public class ActivityRetryWithMaxAttemptsTest {
 
-  private static final String UUID_REGEXP =
-      "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  private final WorkflowTest.TestActivitiesImpl activitiesImpl =
-      new WorkflowTest.TestActivitiesImpl(null);
+  private final TestActivities.TestActivitiesImpl activitiesImpl =
+      new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestActivityRetryWithMaxAttempts.class)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-          .setActivityImplementations(activitiesImpl)
-          .setUseExternalService(Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE")))
-          .setTarget(System.getenv("TEMPORAL_SERVICE_ADDRESS"))
-          .build();
+  public SDKTestWorkflowRule testWorkflowRule =
+          SDKTestWorkflowRule.newBuilder()
+              .setWorkflowTypes(TestActivityRetryWithMaxAttempts.class)
+              .setWorkerInterceptors(
+                  new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+              .setActivityImplementations(activitiesImpl)
+              .build();
 
   @Test
   public void testActivityRetryWithMaxAttempts() {
-    WorkflowTest.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowTest.TestWorkflow1.class,
-                WorkflowTest.newWorkflowOptionsBuilder(testWorkflowRule.getTaskQueue()).build());
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       fail("unreachable");
@@ -72,7 +66,7 @@ public class ActivityRetryWithMaxAttemptsTest {
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
-            "interceptExecuteWorkflow " + UUID_REGEXP,
+            "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
             "currentTimeMillis",
             "executeActivity HeartbeatAndThrowIO",
@@ -85,7 +79,7 @@ public class ActivityRetryWithMaxAttemptsTest {
             "currentTimeMillis");
   }
 
-  public static class TestActivityRetryWithMaxAttempts implements WorkflowTest.TestWorkflow1 {
+  public static class TestActivityRetryWithMaxAttempts implements TestWorkflows.TestWorkflow1 {
     @Override
     @SuppressWarnings("Finally")
     public String execute(String taskQueue) {
@@ -102,8 +96,7 @@ public class ActivityRetryWithMaxAttemptsTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      WorkflowTest.TestActivities activities =
-          Workflow.newActivityStub(WorkflowTest.TestActivities.class, options);
+      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
       long start = Workflow.currentTimeMillis();
       try {
         activities.heartbeatAndThrowIO();
