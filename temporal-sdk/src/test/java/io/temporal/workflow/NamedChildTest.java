@@ -23,12 +23,10 @@ import static org.junit.Assert.*;
 
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
-import java.time.Duration;
 import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,8 +38,8 @@ public class NamedChildTest {
       new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNamedChild.class, TestChildReexecuteWorkflow.class)
           .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
@@ -50,16 +48,8 @@ public class NamedChildTest {
 
   @Test
   public void testChildAlreadyRunning() {
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .build();
     WorkflowIdReusePolicyParent client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
+        testWorkflowRule.newWorkflowStub200sTimeoutOptions(WorkflowIdReusePolicyParent.class);
     try {
       client.execute(false, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE);
       fail("unreachable");
@@ -70,16 +60,8 @@ public class NamedChildTest {
 
   @Test
   public void testChildStartTwice() {
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .build();
     WorkflowIdReusePolicyParent client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
+        testWorkflowRule.newWorkflowStub200sTimeoutOptions(WorkflowIdReusePolicyParent.class);
     try {
       client.execute(true, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE);
       fail("unreachable");
@@ -90,16 +72,8 @@ public class NamedChildTest {
 
   @Test
   public void testChildReexecute() {
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .build();
     WorkflowIdReusePolicyParent client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
+        testWorkflowRule.newWorkflowStub200sTimeoutOptions(WorkflowIdReusePolicyParent.class);
     assertEquals(
         "HELLO WORLD!",
         client.execute(false, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE));

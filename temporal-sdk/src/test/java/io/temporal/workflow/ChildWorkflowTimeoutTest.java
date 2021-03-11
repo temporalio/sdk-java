@@ -22,9 +22,8 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Throwables;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -37,8 +36,8 @@ public class ChildWorkflowTimeoutTest {
       new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParentWorkflowWithChildTimeout.class, WorkflowTest.TestChild.class)
           .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
@@ -47,16 +46,8 @@ public class ChildWorkflowTimeoutTest {
 
   @Test
   public void testChildWorkflowTimeout() {
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .build();
     TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+        testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     assertTrue(result, result.contains("ChildWorkflowFailure"));
     assertTrue(result, result.contains("TimeoutFailure"));

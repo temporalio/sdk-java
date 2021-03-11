@@ -176,6 +176,12 @@ public class SDKTestWorkflowRule implements TestRule {
         .newWorkflowStub(workflow, TestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
   }
 
+  public <T> T newWorkflowStub200sTimeoutOptions(Class<T> workflow) {
+    return getWorkflowClient()
+        .newWorkflowStub(
+            workflow, TestOptions.newWorkflowOptionsForTaskQueue200sTimeout(getTaskQueue()));
+  }
+
   public <T> WorkflowStub newUntypedWorkflowStub(String workflow) {
     return getWorkflowClient()
         .newUntypedWorkflowStub(

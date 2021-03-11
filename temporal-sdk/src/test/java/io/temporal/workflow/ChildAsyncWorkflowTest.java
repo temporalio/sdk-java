@@ -21,13 +21,11 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
-import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
 import io.temporal.workflow.shared.TestWorkflows;
-import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,8 +36,8 @@ public class ChildAsyncWorkflowTest {
       new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
               TestChildAsyncWorkflow.class,
               TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
@@ -50,14 +48,8 @@ public class ChildAsyncWorkflowTest {
 
   @Test
   public void testChildAsyncWorkflow() {
-    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
-    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
-    options.setTaskQueue(testWorkflowRule.getTaskQueue());
     TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options.build());
+        testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     Assert.assertEquals(null, client.execute(testWorkflowRule.getTaskQueue()));
   }
 
