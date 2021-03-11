@@ -26,12 +26,23 @@ import io.temporal.client.WorkflowStub;
 import java.util.Optional;
 
 public interface WorkflowClientInterceptor {
-
+  /**
+   * Called when workflow stub is created during creation of new workflow.
+   *
+   * @return decorated stub
+   */
   WorkflowStub newUntypedWorkflowStub(
       String workflowType, WorkflowOptions options, WorkflowStub next);
 
+  /**
+   * Called when workflow stub is created for a known existing execution
+   *
+   * @return decorated stub
+   */
   WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next);
 
   ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next);
+
+  WorkflowStubOutboundCallsInterceptor interceptStub(WorkflowStubOutboundCallsInterceptor next);
 }

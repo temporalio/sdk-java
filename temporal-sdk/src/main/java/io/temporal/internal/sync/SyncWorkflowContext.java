@@ -409,9 +409,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
-    if (grpcHeader != null) {
-      attributes.setHeader(grpcHeader);
-    }
+    attributes.setHeader(grpcHeader);
     ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
     if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);

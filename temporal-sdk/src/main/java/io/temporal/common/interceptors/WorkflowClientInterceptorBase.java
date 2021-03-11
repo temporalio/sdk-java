@@ -44,4 +44,9 @@ public class WorkflowClientInterceptorBase implements WorkflowClientInterceptor 
   public ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next) {
     return next;
   }
+
+  @Override
+  public WorkflowStubOutboundCallsInterceptor interceptStub(WorkflowStubOutboundCallsInterceptor next) {
+    return next;
+  }
 }

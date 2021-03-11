@@ -20,13 +20,13 @@
 package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
+import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.sync.SyncWorkflowContext.toRetryPolicy;
 
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
@@ -55,6 +55,9 @@ import io.temporal.client.WorkflowServiceException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.interceptors.Header;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.common.interceptors.WorkflowStubOutboundCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -84,6 +87,7 @@ class WorkflowStubImpl implements WorkflowStub {
   private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
   private final Optional<WorkflowOptions> options;
   private final WorkflowClientOptions clientOptions;
+  private final WorkflowStubOutboundCallsInterceptor workflowClientInvoker;
 
   WorkflowStubImpl(
       WorkflowClientOptions clientOptions,
@@ -102,6 +106,7 @@ class WorkflowStubImpl implements WorkflowStub {
     }
     this.execution.set(execution);
     this.options = Optional.empty();
+    this.workflowClientInvoker = initializeClientInvoker();
   }
 
   WorkflowStubImpl(
@@ -115,6 +120,16 @@ class WorkflowStubImpl implements WorkflowStub {
     this.workflowType = Optional.of(workflowType);
     this.metricsScope = metricsScope;
     this.options = Optional.of(options);
+    this.workflowClientInvoker = initializeClientInvoker();
+  }
+
+  private WorkflowStubOutboundCallsInterceptor initializeClientInvoker() {
+    WorkflowStubOutboundCallsInterceptor workflowClientInvoker =
+        new RootWorkflowClientInvoker(genericClient, clientOptions, workflowType);
+    for (WorkflowClientInterceptor clientInterceptor : clientOptions.getInterceptors()) {
+      workflowClientInvoker = clientInterceptor.interceptStub(workflowClientInvoker);
+    }
+    return workflowClientInvoker;
   }
 
   @Override
@@ -149,115 +164,23 @@ class WorkflowStubImpl implements WorkflowStub {
     }
   }
 
-  private WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
-    StartWorkflowExecutionRequest request = newStartWorkflowExecutionRequest(o, args);
+  private WorkflowExecution startWithOptions(WorkflowOptions options, Object... args) {
+    checkExecutionIsNotStarted();
     try {
-      execution.set(genericClient.start(request));
+      WorkflowStubOutboundCallsInterceptor.WorkflowOutput workflowOutput =
+          workflowClientInvoker.start(
+              new WorkflowStubOutboundCallsInterceptor.WorkflowInput(Header.empty(), args, options));
+      WorkflowExecution workflowExecution = workflowOutput.getWorkflowExecution();
+      execution.set(workflowExecution);
+      return workflowExecution;
+    } catch (WorkflowExecutionAlreadyStarted e) {
+      execution.set(e.getExecution());
+      throw e;
     } catch (StatusRuntimeException e) {
-      WorkflowExecutionAlreadyStartedFailure f =
-          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
-      if (f != null) {
-        WorkflowExecution exe =
-            WorkflowExecution.newBuilder()
-                .setWorkflowId(request.getWorkflowId())
-                .setRunId(f.getRunId())
-                .build();
-        execution.set(exe);
-        throw new WorkflowExecutionAlreadyStarted(exe, workflowType.get(), e);
-      } else {
-        throw e;
-      }
+      throw e;
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
-    return execution.get();
-  }
-
-  private StartWorkflowExecutionRequest newStartWorkflowExecutionRequest(
-      WorkflowOptions o, Object[] args) {
-    if (execution.get() != null) {
-      throw new IllegalStateException(
-          "Cannot reuse a stub instance to start more than one workflow execution. The stub "
-              + "points to already started execution. If you are trying to wait for a workflow completion either "
-              + "change WorkflowIdReusePolicy from AllowDuplicate or use WorkflowStub.getResult");
-    }
-
-    StartWorkflowExecutionRequest.Builder request =
-        StartWorkflowExecutionRequest.newBuilder()
-            .setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()))
-            .setRequestId(UUID.randomUUID().toString())
-            .setWorkflowRunTimeout(ProtobufTimeUtils.toProtoDuration(o.getWorkflowRunTimeout()))
-            .setWorkflowExecutionTimeout(
-                ProtobufTimeUtils.toProtoDuration(o.getWorkflowExecutionTimeout()))
-            .setWorkflowTaskTimeout(ProtobufTimeUtils.toProtoDuration(o.getWorkflowTaskTimeout()));
-
-    if (clientOptions.getIdentity() != null) {
-      request.setIdentity(clientOptions.getIdentity());
-    }
-    if (clientOptions.getNamespace() != null) {
-      request.setNamespace(clientOptions.getNamespace());
-    }
-    if (o.getWorkflowId() == null) {
-      request.setWorkflowId(UUID.randomUUID().toString());
-    } else {
-      request.setWorkflowId(o.getWorkflowId());
-    }
-    Optional<Payloads> input = clientOptions.getDataConverter().toPayloads(args);
-    if (input.isPresent()) {
-      request.setInput(input.get());
-    }
-    if (o.getWorkflowIdReusePolicy() != null) {
-      request.setWorkflowIdReusePolicy(o.getWorkflowIdReusePolicy());
-    }
-    String taskQueue = o.getTaskQueue();
-    if (taskQueue != null && !taskQueue.isEmpty()) {
-      request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
-    }
-    String workflowId = o.getWorkflowId();
-    if (workflowId == null) {
-      workflowId = UUID.randomUUID().toString();
-    }
-    request.setWorkflowId(workflowId);
-    RetryOptions retryOptions = o.getRetryOptions();
-    if (retryOptions != null) {
-      request.setRetryPolicy(toRetryPolicy(retryOptions));
-    }
-    if (!Strings.isNullOrEmpty(o.getCronSchedule())) {
-      request.setCronSchedule(o.getCronSchedule());
-    }
-    if (o.getMemo() != null) {
-      request.setMemo(Memo.newBuilder().putAllFields(convertMemoFromObjectToBytes(o.getMemo())));
-    }
-    if (o.getSearchAttributes() != null) {
-      request.setSearchAttributes(
-          SearchAttributes.newBuilder()
-              .putAllIndexedFields(convertMemoFromObjectToBytes(o.getSearchAttributes())));
-    }
-    if (o.getContextPropagators() != null && !o.getContextPropagators().isEmpty()) {
-      Map<String, Payload> context = extractContextsAndConvertToBytes(o.getContextPropagators());
-      request.setHeader(Header.newBuilder().putAllFields(context));
-    }
-    return request.build();
-  }
-
-  private Map<String, Payload> convertMemoFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, clientOptions.getDataConverter());
-  }
-
-  private Map<String, Payload> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, clientOptions.getDataConverter());
-  }
-
-  private Map<String, Payload> extractContextsAndConvertToBytes(
-      List<ContextPropagator> contextPropagators) {
-    if (contextPropagators == null) {
-      return null;
-    }
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : contextPropagators) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return result;
   }
 
   @Override
@@ -270,30 +193,35 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private WorkflowExecution signalWithStartWithOptions(
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
-    StartWorkflowExecutionRequest request = newStartWorkflowExecutionRequest(options, startArgs);
-    Optional<Payloads> signalInput = clientOptions.getDataConverter().toPayloads(signalArgs);
-    SignalWithStartWorkflowExecutionParameters p =
-        new SignalWithStartWorkflowExecutionParameters(request, signalName, signalInput);
+    checkExecutionIsNotStarted();
     try {
-      execution.set(genericClient.signalWithStart(p));
+      WorkflowStubOutboundCallsInterceptor.WorkflowOutput workflowOutput =
+          workflowClientInvoker.signalWithStart(
+              new WorkflowStubOutboundCallsInterceptor.WorkflowInputWithSignal(
+                  new WorkflowStubOutboundCallsInterceptor.WorkflowInput(
+                      Header.empty(), startArgs, options),
+                  signalName,
+                  signalArgs));
+      WorkflowExecution workflowExecution = workflowOutput.getWorkflowExecution();
+      execution.set(workflowExecution);
+      return workflowExecution;
+    } catch (WorkflowExecutionAlreadyStarted e) {
+      execution.set(e.getExecution());
+      throw e;
     } catch (StatusRuntimeException e) {
-      WorkflowExecutionAlreadyStartedFailure f =
-          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
-      if (f != null) {
-        WorkflowExecution exe =
-            WorkflowExecution.newBuilder()
-                .setWorkflowId(request.getWorkflowId())
-                .setRunId(f.getRunId())
-                .build();
-        execution.set(exe);
-        throw new WorkflowExecutionAlreadyStarted(exe, workflowType.get(), e);
-      } else {
-        throw e;
-      }
+      throw e;
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
-    return execution.get();
+  }
+
+  private void checkExecutionIsNotStarted() {
+    if (execution.get() != null) {
+      throw new IllegalStateException(
+          "Cannot reuse a stub instance to start more than one workflow execution. The stub "
+              + "points to already started execution. If you are trying to wait for a workflow completion either "
+              + "change WorkflowIdReusePolicy from AllowDuplicate or use WorkflowStub.getResult");
+    }
   }
 
   @Override
@@ -539,6 +467,142 @@ class WorkflowStubImpl implements WorkflowStub {
   private void checkStarted() {
     if (execution.get() == null || execution.get().getWorkflowId() == null) {
       throw new IllegalStateException("Null workflowId. Was workflow started?");
+    }
+  }
+
+  private static class RootWorkflowClientInvoker implements WorkflowStubOutboundCallsInterceptor {
+    private final GenericWorkflowClientExternal genericClient;
+    private final WorkflowClientOptions clientOptions;
+    private final Optional<String> workflowType;
+
+    public RootWorkflowClientInvoker(
+        GenericWorkflowClientExternal genericClient,
+        WorkflowClientOptions clientOptions,
+        Optional<String> workflowType) {
+      this.genericClient = genericClient;
+      this.clientOptions = clientOptions;
+      this.workflowType = workflowType;
+    }
+
+    @Override
+    public WorkflowOutput start(WorkflowInput input) {
+      StartWorkflowExecutionRequest request = newStartWorkflowExecutionRequest(input);
+      try {
+        return new WorkflowOutput(genericClient.start(request));
+      } catch (StatusRuntimeException e) {
+        throw wrapExecutionAlreadyStarted(request.getWorkflowId(), e);
+      }
+    }
+
+    @Override
+    public WorkflowOutput signalWithStart(WorkflowInputWithSignal input) {
+      StartWorkflowExecutionRequest request =
+          newStartWorkflowExecutionRequest(input.getWorkflowInput());
+      Optional<Payloads> signalInput =
+          clientOptions.getDataConverter().toPayloads(input.getSignalArguments());
+      SignalWithStartWorkflowExecutionParameters p =
+          new SignalWithStartWorkflowExecutionParameters(
+              request, input.getSignalName(), signalInput);
+      try {
+        return new WorkflowOutput(genericClient.signalWithStart(p));
+      } catch (StatusRuntimeException e) {
+        throw wrapExecutionAlreadyStarted(request.getWorkflowId(), e);
+      }
+    }
+
+    private RuntimeException wrapExecutionAlreadyStarted(
+        String workflowId, StatusRuntimeException e) {
+      WorkflowExecutionAlreadyStartedFailure f =
+          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
+      if (f != null) {
+        WorkflowExecution exe =
+            WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(f.getRunId()).build();
+        return new WorkflowExecutionAlreadyStarted(exe, workflowType.get(), e);
+      } else {
+        return e;
+      }
+    }
+
+    private StartWorkflowExecutionRequest newStartWorkflowExecutionRequest(WorkflowInput input) {
+      WorkflowOptions options = input.getOptions();
+
+      StartWorkflowExecutionRequest.Builder request =
+          StartWorkflowExecutionRequest.newBuilder()
+              .setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()))
+              .setRequestId(UUID.randomUUID().toString())
+              .setWorkflowRunTimeout(
+                  ProtobufTimeUtils.toProtoDuration(options.getWorkflowRunTimeout()))
+              .setWorkflowExecutionTimeout(
+                  ProtobufTimeUtils.toProtoDuration(options.getWorkflowExecutionTimeout()))
+              .setWorkflowTaskTimeout(
+                  ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
+
+      if (clientOptions.getIdentity() != null) {
+        request.setIdentity(clientOptions.getIdentity());
+      }
+      if (clientOptions.getNamespace() != null) {
+        request.setNamespace(clientOptions.getNamespace());
+      }
+      if (options.getWorkflowId() == null) {
+        request.setWorkflowId(UUID.randomUUID().toString());
+      } else {
+        request.setWorkflowId(options.getWorkflowId());
+      }
+      Optional<Payloads> inputArgs =
+          clientOptions.getDataConverter().toPayloads(input.getArguments());
+      if (inputArgs.isPresent()) {
+        request.setInput(inputArgs.get());
+      }
+      if (options.getWorkflowIdReusePolicy() != null) {
+        request.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
+      }
+      String taskQueue = options.getTaskQueue();
+      if (taskQueue != null && !taskQueue.isEmpty()) {
+        request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
+      }
+      String workflowId = options.getWorkflowId();
+      if (workflowId == null) {
+        workflowId = UUID.randomUUID().toString();
+      }
+      request.setWorkflowId(workflowId);
+      RetryOptions retryOptions = options.getRetryOptions();
+      if (retryOptions != null) {
+        request.setRetryPolicy(toRetryPolicy(retryOptions));
+      }
+      if (!Strings.isNullOrEmpty(options.getCronSchedule())) {
+        request.setCronSchedule(options.getCronSchedule());
+      }
+      if (options.getMemo() != null) {
+        request.setMemo(
+            Memo.newBuilder().putAllFields(convertFromObjectToBytes(options.getMemo())));
+      }
+      if (options.getSearchAttributes() != null) {
+        request.setSearchAttributes(
+            SearchAttributes.newBuilder()
+                .putAllIndexedFields(convertFromObjectToBytes(options.getSearchAttributes())));
+      }
+
+      io.temporal.api.common.v1.Header grpcHeader =
+          toHeaderGrpc(
+              input.getHeader(), extractContextsAndConvertToBytes(options.getContextPropagators()));
+      request.setHeader(grpcHeader);
+
+      return request.build();
+    }
+
+    private Map<String, Payload> convertFromObjectToBytes(Map<String, Object> map) {
+      return convertMapFromObjectToBytes(map, clientOptions.getDataConverter());
+    }
+
+    private Header extractContextsAndConvertToBytes(List<ContextPropagator> contextPropagators) {
+      if (contextPropagators == null) {
+        return null;
+      }
+      Map<String, Payload> result = new HashMap<>();
+      for (ContextPropagator propagator : contextPropagators) {
+        result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+      }
+      return new Header(result);
     }
   }
 }
