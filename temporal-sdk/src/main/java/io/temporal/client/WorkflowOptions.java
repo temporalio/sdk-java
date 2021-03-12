@@ -67,6 +67,7 @@ public final class WorkflowOptions {
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .setMemo(o.getMemo())
         .setSearchAttributes(o.getSearchAttributes())
+        .setHeaders(o.getHeaders())
         .setContextPropagators(o.getContextPropagators())
         .validateBuildWithDefaults();
   }
@@ -93,6 +94,8 @@ public final class WorkflowOptions {
 
     private Map<String, Object> searchAttributes;
 
+    private Map<String, Object> headers;
+
     private List<ContextPropagator> contextPropagators;
 
     private Builder() {}
@@ -111,6 +114,7 @@ public final class WorkflowOptions {
       this.cronSchedule = options.cronSchedule;
       this.memo = options.memo;
       this.searchAttributes = options.searchAttributes;
+      this.headers = options.headers;
       this.contextPropagators = options.contextPropagators;
     }
 
@@ -217,6 +221,11 @@ public final class WorkflowOptions {
       return this;
     }
 
+    public Builder setHeaders(Map<String, Object> headers) {
+      this.headers = headers;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -229,6 +238,7 @@ public final class WorkflowOptions {
           cronSchedule,
           memo,
           searchAttributes,
+          headers,
           contextPropagators);
     }
 
@@ -247,6 +257,7 @@ public final class WorkflowOptions {
           cronSchedule,
           memo,
           searchAttributes,
+          headers,
           contextPropagators);
     }
   }
@@ -271,6 +282,8 @@ public final class WorkflowOptions {
 
   private final Map<String, Object> searchAttributes;
 
+  private final Map<String, Object> headers;
+
   private final List<ContextPropagator> contextPropagators;
 
   private WorkflowOptions(
@@ -284,6 +297,7 @@ public final class WorkflowOptions {
       String cronSchedule,
       Map<String, Object> memo,
       Map<String, Object> searchAttributes,
+      Map<String, Object> headers,
       List<ContextPropagator> contextPropagators) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -295,6 +309,7 @@ public final class WorkflowOptions {
     this.cronSchedule = cronSchedule;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
+    this.headers = headers;
     this.contextPropagators = contextPropagators;
   }
 
@@ -336,6 +351,10 @@ public final class WorkflowOptions {
 
   public Map<String, Object> getSearchAttributes() {
     return searchAttributes;
+  }
+
+  public Map<String, Object> getHeaders() {
+    return headers;
   }
 
   public List<ContextPropagator> getContextPropagators() {

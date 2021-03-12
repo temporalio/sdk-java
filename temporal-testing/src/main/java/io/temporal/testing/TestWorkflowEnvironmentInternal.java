@@ -371,6 +371,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         return next.getOptions();
       }
 
+      @Override
+      public void setOptions(WorkflowOptions options) {
+        next.setOptions(options);
+      }
+
       /** Unlocks time skipping before blocking calls and locks back after completion. */
       private class TimeLockingFuture<R> extends CompletableFuture<R> {
 

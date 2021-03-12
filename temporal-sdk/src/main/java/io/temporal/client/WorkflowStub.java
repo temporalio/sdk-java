@@ -160,4 +160,6 @@ public interface WorkflowStub {
   void terminate(String reason, Object... details);
 
   Optional<WorkflowOptions> getOptions();
+
+  void setOptions(WorkflowOptions options);
 }

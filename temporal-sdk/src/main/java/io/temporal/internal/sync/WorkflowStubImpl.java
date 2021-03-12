@@ -82,7 +82,7 @@ class WorkflowStubImpl implements WorkflowStub {
   private final Optional<String> workflowType;
   private final Scope metricsScope;
   private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
-  private final Optional<WorkflowOptions> options;
+  private Optional<WorkflowOptions> options;
   private final WorkflowClientOptions clientOptions;
 
   WorkflowStubImpl(
@@ -235,7 +235,10 @@ class WorkflowStubImpl implements WorkflowStub {
     }
     if (o.getContextPropagators() != null && !o.getContextPropagators().isEmpty()) {
       Map<String, Payload> context = extractContextsAndConvertToBytes(o.getContextPropagators());
-      request.setHeader(Header.newBuilder().putAllFields(context));
+      request.setHeader(
+          Header.newBuilder()
+              .putAllFields(context)
+              .putAllFields(convertMemoFromObjectToBytes(o.getHeaders())));
     }
     return request.build();
   }
@@ -534,6 +537,11 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public Optional<WorkflowOptions> getOptions() {
     return options;
+  }
+
+  @Override
+  public void setOptions(WorkflowOptions options) {
+    this.options = Optional.of(options);
   }
 
   private void checkStarted() {
