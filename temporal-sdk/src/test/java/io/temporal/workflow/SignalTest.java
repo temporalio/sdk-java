@@ -55,6 +55,7 @@ public class SignalTest {
           .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+          .setTestTimeoutSeconds(15)
           .build();
 
   @Test

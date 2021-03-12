@@ -45,6 +45,7 @@ public class ExceptionInSignalTest {
           .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+          .setTestTimeoutSeconds(20)
           .build();
 
   @Test

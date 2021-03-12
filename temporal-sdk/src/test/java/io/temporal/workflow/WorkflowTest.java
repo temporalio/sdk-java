@@ -1466,34 +1466,13 @@ public class WorkflowTest {
     assertEquals("foo", client.execute("not empty"));
   }
 
-  @ActivityInterface
-  public interface AngryChildActivity {
-
-    @ActivityMethod
-    void execute();
-  }
-
-  public static class AngryChildActivityImpl implements AngryChildActivity {
-
-    private long invocationCount;
-
-    @Override
-    public void execute() {
-      invocationCount++;
-    }
-
-    public long getInvocationCount() {
-      return invocationCount;
-    }
-  }
-
   public static class AngryChild implements ITestChild {
 
     @Override
     public String execute(String taskQueue, int delay) {
-      AngryChildActivity activity =
+      TestActivities.AngryChildActivity activity =
           Workflow.newActivityStub(
-              AngryChildActivity.class,
+              TestActivities.AngryChildActivity.class,
               ActivityOptions.newBuilder()
                   .setTaskQueue(taskQueue)
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))

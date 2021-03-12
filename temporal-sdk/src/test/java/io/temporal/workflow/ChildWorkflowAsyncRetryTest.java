@@ -29,6 +29,7 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assume;
@@ -37,8 +38,8 @@ import org.junit.Test;
 
 public class ChildWorkflowAsyncRetryTest {
 
-  private final WorkflowTest.AngryChildActivityImpl angryChildActivity =
-      new WorkflowTest.AngryChildActivityImpl();
+  private final TestActivities.AngryChildActivityImpl angryChildActivity =
+      new TestActivities.AngryChildActivityImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

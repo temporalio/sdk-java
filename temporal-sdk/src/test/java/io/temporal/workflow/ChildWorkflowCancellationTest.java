@@ -41,12 +41,12 @@ public class ChildWorkflowCancellationTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-          SDKTestWorkflowRule.newBuilder()
-              .setWorkflowTypes(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class)
-              .setActivityImplementations(activitiesImpl)
-              .setWorkerInterceptors(
-                  new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-              .build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class)
+          .setActivityImplementations(activitiesImpl)
+          .setWorkerInterceptors(
+              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+          .build();
 
   @Test
   public void testChildWorkflowWaitCancellationRequested() {

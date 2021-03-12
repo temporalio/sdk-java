@@ -46,13 +46,13 @@ public class ChildWorkflowWithCronScheduleTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-          SDKTestWorkflowRule.newBuilder()
-              .setWorkflowTypes(
-                  TestCronParentWorkflow.class, WorkflowTest.TestWorkflowWithCronScheduleImpl.class)
-              .setActivityImplementations(activitiesImpl)
-              .setWorkerInterceptors(
-                  new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-              .build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(
+              TestCronParentWorkflow.class, WorkflowTest.TestWorkflowWithCronScheduleImpl.class)
+          .setActivityImplementations(activitiesImpl)
+          .setWorkerInterceptors(
+              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+          .build();
 
   @Test
   public void testChildWorkflowWithCronSchedule() {

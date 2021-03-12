@@ -83,6 +83,13 @@ public interface TestActivities {
 
   List<UUID> activityUUIDList(List<UUID> arg);
 
+  @ActivityInterface
+  interface AngryChildActivity {
+
+    @ActivityMethod
+    void execute();
+  }
+
   class TestActivitiesImpl implements TestActivities {
 
     public final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
@@ -313,6 +320,20 @@ public interface TestActivities {
 
     public int getLastAttempt() {
       return lastAttempt;
+    }
+  }
+
+  class AngryChildActivityImpl implements AngryChildActivity {
+
+    private long invocationCount;
+
+    @Override
+    public void execute() {
+      invocationCount++;
+    }
+
+    public long getInvocationCount() {
+      return invocationCount;
     }
   }
 }

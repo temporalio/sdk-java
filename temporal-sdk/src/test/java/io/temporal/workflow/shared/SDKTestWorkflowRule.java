@@ -132,6 +132,11 @@ public class SDKTestWorkflowRule implements TestRule {
       return this;
     }
 
+    public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
+      testWorkflowRuleBuilder.setTestTimeoutSeconds(testTimeoutSeconds);
+      return this;
+    }
+
     public Builder setDoNotStart(boolean doNotStart) {
       testWorkflowRuleBuilder.setDoNotStart(doNotStart);
       return this;
