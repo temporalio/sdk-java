@@ -20,7 +20,7 @@
 package io.temporal.internal.sync;
 
 import com.google.protobuf.util.Timestamps;
-import io.temporal.activity.ActivityInfo;
+import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -29,7 +29,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
-final class ActivityInfoImpl implements ActivityInfo {
+final class ActivityInfoImpl implements ActivityInfoInternal {
   private final PollActivityTaskQueueResponse response;
   private final String activityNamespace;
   private final boolean local;
@@ -46,6 +46,7 @@ final class ActivityInfoImpl implements ActivityInfo {
     this.completionHandle = completionHandle;
   }
 
+  @Override
   public byte[] getTaskToken() {
     return response.getTaskToken().toByteArray();
   }
@@ -124,14 +125,21 @@ final class ActivityInfoImpl implements ActivityInfo {
     return local;
   }
 
+  @Override
   public Functions.Proc getCompletionHandle() {
     return completionHandle;
   }
 
+  @Override
   public Optional<Payloads> getInput() {
     if (response.hasInput()) {
       return Optional.of(response.getInput());
     }
     return Optional.empty();
+  }
+
+  @Override
+  public Header getHeader() {
+    return response.getHeader();
   }
 }

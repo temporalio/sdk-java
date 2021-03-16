@@ -39,6 +39,7 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.Functions;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -198,6 +199,14 @@ public class SDKTestWorkflowRule implements TestRule {
       } catch (WorkflowQueryException e) {
       }
     }
+  }
+
+  public <R> void addWorkflowImplementationFactory(
+      Class<R> factoryImpl, Functions.Func<R> factoryFunc) {
+    this.getTestEnvironment()
+        .getWorkerFactory()
+        .getWorker(this.getTaskQueue())
+        .addWorkflowImplementationFactory(factoryImpl, factoryFunc);
   }
 
   public static void regenerateHistoryForReplay(
