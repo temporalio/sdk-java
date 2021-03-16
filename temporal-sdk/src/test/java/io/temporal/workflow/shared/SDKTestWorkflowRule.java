@@ -74,6 +74,9 @@ public class SDKTestWorkflowRule implements TestRule {
   private SDKTestWorkflowRule(TestWorkflowRule.Builder testWorkflowRuleBuilder) {
     if (useExternalService) {
       testWorkflowRuleBuilder.setUseExternalService(true);
+      if (temporalServiceAddress != null) {
+        testWorkflowRuleBuilder.setTarget(temporalServiceAddress);
+      }
     }
     testWorkflowRule = testWorkflowRuleBuilder.build();
   }
