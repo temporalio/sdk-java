@@ -46,7 +46,8 @@ public class WorkflowClientInterceptorBase implements WorkflowClientInterceptor 
   }
 
   @Override
-  public WorkflowStubOutboundCallsInterceptor interceptStub(WorkflowStubOutboundCallsInterceptor next) {
+  public WorkflowClientCallsInterceptor initWorkflowClientInterceptor(
+      WorkflowClientCallsInterceptor next) {
     return next;
   }
 }

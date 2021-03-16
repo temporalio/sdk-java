@@ -22,16 +22,23 @@ package io.temporal.common.interceptors;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowOptions;
 
-public interface WorkflowStubOutboundCallsInterceptor {
-  final class WorkflowInput {
+public interface WorkflowClientCallsInterceptor {
+  final class WorkflowStartInput {
+    private final String workflowType;
     private final Header header;
     private final Object[] arguments;
     private final WorkflowOptions options;
 
-    public WorkflowInput(Header header, Object[] arguments, WorkflowOptions options) {
+    public WorkflowStartInput(
+        String workflowType, Header header, Object[] arguments, WorkflowOptions options) {
+      this.workflowType = workflowType;
       this.header = header;
       this.arguments = arguments;
       this.options = options;
+    }
+
+    public String getWorkflowType() {
+      return workflowType;
     }
 
     public Header getHeader() {
@@ -47,20 +54,20 @@ public interface WorkflowStubOutboundCallsInterceptor {
     }
   }
 
-  final class WorkflowInputWithSignal {
-    private final WorkflowInput workflowInput;
+  final class WorkflowStartWithSignalInput {
+    private final WorkflowStartInput workflowStartInput;
     private final String signalName;
     private final Object[] signalArguments;
 
-    public WorkflowInputWithSignal(
-        WorkflowInput workflowInput, String signalName, Object[] signalArguments) {
-      this.workflowInput = workflowInput;
+    public WorkflowStartWithSignalInput(
+        WorkflowStartInput workflowStartInput, String signalName, Object[] signalArguments) {
+      this.workflowStartInput = workflowStartInput;
       this.signalName = signalName;
       this.signalArguments = signalArguments;
     }
 
-    public WorkflowInput getWorkflowInput() {
-      return workflowInput;
+    public WorkflowStartInput getWorkflowStartInput() {
+      return workflowStartInput;
     }
 
     public String getSignalName() {
@@ -72,10 +79,10 @@ public interface WorkflowStubOutboundCallsInterceptor {
     }
   }
 
-  final class WorkflowOutput {
+  final class WorkflowStartOutput {
     private final WorkflowExecution workflowExecution;
 
-    public WorkflowOutput(WorkflowExecution workflowExecution) {
+    public WorkflowStartOutput(WorkflowExecution workflowExecution) {
       this.workflowExecution = workflowExecution;
     }
 
@@ -84,7 +91,7 @@ public interface WorkflowStubOutboundCallsInterceptor {
     }
   }
 
-  WorkflowOutput start(WorkflowInput input);
+  WorkflowStartOutput start(WorkflowStartInput input);
 
-  WorkflowOutput signalWithStart(WorkflowInputWithSignal input);
+  WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input);
 }

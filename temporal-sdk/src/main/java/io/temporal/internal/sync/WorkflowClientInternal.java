@@ -30,6 +30,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
@@ -55,6 +56,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
   private final DataConverter dataConverter;
   private final WorkflowClientInterceptor[] interceptors;
+  private final WorkflowClientCallsInterceptor workflowClientCallsInvoker;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final Scope metricsScope;
 
@@ -87,9 +89,20 @@ public final class WorkflowClientInternal implements WorkflowClient {
             workflowServiceStubs, options.getNamespace(), options.getIdentity(), metricsScope);
     this.dataConverter = options.getDataConverter();
     this.interceptors = options.getInterceptors();
+    this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
         new ManualActivityCompletionClientFactoryImpl(
             workflowServiceStubs, options.getNamespace(), dataConverter, metricsScope);
+  }
+
+  private WorkflowClientCallsInterceptor initializeClientInvoker() {
+    WorkflowClientCallsInterceptor workflowClientInvoker =
+        new RootWorkflowClientInvoker(genericClient, options);
+    for (WorkflowClientInterceptor clientInterceptor : interceptors) {
+      workflowClientInvoker =
+          clientInterceptor.initWorkflowClientInterceptor(workflowClientInvoker);
+    }
+    return workflowClientInvoker;
   }
 
   @Override
@@ -108,7 +121,12 @@ public final class WorkflowClientInternal implements WorkflowClient {
     checkAnnotation(workflowInterface, WorkflowMethod.class);
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
-            workflowInterface, this.getOptions(), genericClient, options, metricsScope);
+            workflowInterface,
+            this.getOptions(),
+            workflowClientCallsInvoker,
+            genericClient,
+            options,
+            metricsScope);
     return (T)
         Proxy.newProxyInstance(
             workflowInterface.getClassLoader(),
@@ -157,7 +175,12 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
-            workflowInterface, this.getOptions(), genericClient, execution, metricsScope);
+            workflowInterface,
+            this.getOptions(),
+            workflowClientCallsInvoker,
+            genericClient,
+            execution,
+            metricsScope);
     @SuppressWarnings("unchecked")
     T result =
         (T)
@@ -171,7 +194,13 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions workflowOptions) {
     WorkflowStub result =
-        new WorkflowStubImpl(options, genericClient, workflowType, workflowOptions, metricsScope);
+        new WorkflowStubImpl(
+            options,
+            workflowClientCallsInvoker,
+            genericClient,
+            workflowType,
+            workflowOptions,
+            metricsScope);
     for (WorkflowClientInterceptor i : interceptors) {
       result = i.newUntypedWorkflowStub(workflowType, workflowOptions, result);
     }
@@ -189,7 +218,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
-    return new WorkflowStubImpl(options, genericClient, workflowType, execution, metricsScope);
+    return new WorkflowStubImpl(
+        options, workflowClientCallsInvoker, genericClient, workflowType, execution, metricsScope);
   }
 
   @Override

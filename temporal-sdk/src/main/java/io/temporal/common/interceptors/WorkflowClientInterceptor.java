@@ -44,5 +44,11 @@ public interface WorkflowClientInterceptor {
 
   ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next);
 
-  WorkflowStubOutboundCallsInterceptor interceptStub(WorkflowStubOutboundCallsInterceptor next);
+  /**
+   * Called once during creation of WorkflowClient to create a chain of Client Interceptors
+   *
+   * @param next next workflow client interceptor in the chain of interceptors
+   * @return new interceptor that should decorate calls to {@param next}
+   */
+  WorkflowClientCallsInterceptor initWorkflowClientInterceptor(WorkflowClientCallsInterceptor next);
 }

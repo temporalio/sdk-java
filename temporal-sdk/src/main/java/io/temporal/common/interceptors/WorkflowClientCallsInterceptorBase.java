@@ -19,22 +19,22 @@
 
 package io.temporal.common.interceptors;
 
-/** Convenience base class for {@link WorkflowStubOutboundCallsInterceptor} implementations. */
-public class WorkflowStubOutboundCallsInterceptorBase implements WorkflowStubOutboundCallsInterceptor {
+/** Convenience base class for {@link WorkflowClientCallsInterceptor} implementations. */
+public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsInterceptor {
 
-  private final WorkflowStubOutboundCallsInterceptor next;
+  private final WorkflowClientCallsInterceptor next;
 
-  public WorkflowStubOutboundCallsInterceptorBase(WorkflowStubOutboundCallsInterceptor next) {
+  public WorkflowClientCallsInterceptorBase(WorkflowClientCallsInterceptor next) {
     this.next = next;
   }
 
   @Override
-  public WorkflowOutput start(WorkflowInput input) {
+  public WorkflowStartOutput start(WorkflowStartInput input) {
     return next.start(input);
   }
 
   @Override
-  public WorkflowOutput signalWithStart(WorkflowInputWithSignal input) {
+  public WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input) {
     return next.signalWithStart(input);
   }
 }

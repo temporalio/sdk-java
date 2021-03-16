@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
@@ -114,6 +115,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,
+      WorkflowClientCallsInterceptor workflowClientCallsInvoker,
       GenericWorkflowClientExternal genericClient,
       WorkflowExecution execution,
       Scope metricsScope) {
@@ -121,7 +123,13 @@ class WorkflowInvocationHandler implements InvocationHandler {
         POJOWorkflowInterfaceMetadata.newInstanceSkipWorkflowAnnotationCheck(workflowInterface);
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
     WorkflowStub stub =
-        new WorkflowStubImpl(clientOptions, genericClient, workflowType, execution, metricsScope);
+        new WorkflowStubImpl(
+            clientOptions,
+            workflowClientCallsInvoker,
+            genericClient,
+            workflowType,
+            execution,
+            metricsScope);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(execution, workflowType, stub);
     }
@@ -131,6 +139,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,
+      WorkflowClientCallsInterceptor workflowClientCallsInvoker,
       GenericWorkflowClientExternal genericClient,
       WorkflowOptions options,
       Scope metricsScope) {
@@ -149,7 +158,12 @@ class WorkflowInvocationHandler implements InvocationHandler {
     String workflowType = workflowMethodMetadata.get().getName();
     WorkflowStub stub =
         new WorkflowStubImpl(
-            clientOptions, genericClient, workflowType, mergedOptions, metricsScope);
+            clientOptions,
+            workflowClientCallsInvoker,
+            genericClient,
+            workflowType,
+            mergedOptions,
+            metricsScope);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(workflowType, mergedOptions, stub);
     }
