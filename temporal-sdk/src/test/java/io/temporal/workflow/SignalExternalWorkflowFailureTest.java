@@ -25,7 +25,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -42,8 +41,6 @@ public class SignalExternalWorkflowFailureTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalExternalWorkflowFailure.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

@@ -21,7 +21,6 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -41,8 +40,6 @@ public class ChildWorkflowTest {
           .setWorkflowTypes(
               TestParentWorkflow.class, TestNamedChild.class, WorkflowTest.TestChild.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

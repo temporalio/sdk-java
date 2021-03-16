@@ -23,7 +23,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -42,8 +41,6 @@ public class ChildAsyncLambdaWorkflowTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWaitOnSignalWorkflowImpl.class, TestChildAsyncLambdaWorkflow.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   /**

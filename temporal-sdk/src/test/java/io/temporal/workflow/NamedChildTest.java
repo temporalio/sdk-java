@@ -24,7 +24,6 @@ import static org.junit.Assert.*;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import java.util.UUID;
@@ -42,8 +41,6 @@ public class NamedChildTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNamedChild.class, TestChildReexecuteWorkflow.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

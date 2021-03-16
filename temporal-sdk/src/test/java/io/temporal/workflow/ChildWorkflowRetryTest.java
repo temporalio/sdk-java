@@ -32,7 +32,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
@@ -60,8 +59,6 @@ public class ChildWorkflowRetryTest {
               TestChildWorkflowRetryWorkflow.class,
               WorkflowTest.AngryChild.class)
           .setActivityImplementations(angryChildActivity)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
                   .setBinaryChecksum(SDKTestWorkflowRule.BINARY_CHECKSUM)

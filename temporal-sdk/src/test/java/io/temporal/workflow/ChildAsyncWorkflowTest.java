@@ -21,7 +21,6 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
@@ -42,8 +41,6 @@ public class ChildAsyncWorkflowTest {
               TestChildAsyncWorkflow.class,
               TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

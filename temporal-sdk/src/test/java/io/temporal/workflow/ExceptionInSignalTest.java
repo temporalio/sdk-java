@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import io.temporal.client.WorkflowClient;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import java.lang.management.ManagementFactory;
@@ -43,8 +42,6 @@ public class ExceptionInSignalTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalExceptionWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .setTestTimeoutSeconds(20)
           .build();
 

@@ -22,7 +22,6 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Throwables;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -40,8 +39,6 @@ public class ChildWorkflowTimeoutTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParentWorkflowWithChildTimeout.class, WorkflowTest.TestChild.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

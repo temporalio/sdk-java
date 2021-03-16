@@ -22,7 +22,6 @@ package io.temporal.workflow;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
@@ -50,8 +49,6 @@ public class SignalDuringLastWorkflowTaskTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalDuringLastWorkflowTaskWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

@@ -25,7 +25,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowRule;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -42,8 +41,6 @@ public class ChildWorkflowExecutionPromiseHandlerTest {
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNamedChild.class, TestChildWorkflowExecutionPromiseHandler.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   /** Tests that handler of the WorkflowExecution promise is executed in a workflow thread. */

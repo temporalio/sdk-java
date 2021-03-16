@@ -23,7 +23,6 @@ import com.google.common.reflect.TypeToken;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
@@ -43,8 +42,6 @@ public class SignalOrderingWorkflowTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(SignalOrderingWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

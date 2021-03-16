@@ -22,7 +22,6 @@ package io.temporal.workflow;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import org.junit.Assert;
@@ -38,8 +37,6 @@ public class SignalAndQueryInterfaceTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(SignalQueryWorkflowAImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

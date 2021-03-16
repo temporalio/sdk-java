@@ -27,7 +27,6 @@ import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.*;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
@@ -53,8 +52,6 @@ public class SignalTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .setTestTimeoutSeconds(15)
           .build();
 
