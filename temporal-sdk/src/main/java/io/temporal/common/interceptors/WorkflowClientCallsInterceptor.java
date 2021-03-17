@@ -108,6 +108,10 @@ public interface WorkflowClientCallsInterceptor {
 
   final class WorkflowStartWithSignalInput {
     private final WorkflowStartInput workflowStartInput;
+    // TODO Spikhalskiy I'm not sure about this structure.
+    // SignalWithStartWorkflowExecutionParameters is
+    // StartWorkflowExecutionRequest + signalName + signalInput,
+    // not StartWorkflowExecutionRequest + SignalWorkflowExecutionRequest
     private final WorkflowSignalInput workflowSignalInput;
 
     public WorkflowStartWithSignalInput(
