@@ -24,17 +24,37 @@ import io.temporal.client.WorkflowOptions;
 
 public interface WorkflowClientCallsInterceptor {
   final class WorkflowStartInput {
+    private final String workflowId;
     private final String workflowType;
     private final Header header;
     private final Object[] arguments;
     private final WorkflowOptions options;
 
     public WorkflowStartInput(
-        String workflowType, Header header, Object[] arguments, WorkflowOptions options) {
+        String workflowId,
+        String workflowType,
+        Header header,
+        Object[] arguments,
+        WorkflowOptions options) {
+      if (workflowId == null) {
+        throw new IllegalArgumentException("workflowId should be specified for start call");
+      }
+      this.workflowId = workflowId;
+      if (workflowType == null) {
+        throw new IllegalArgumentException("workflowType should be specified for start call");
+      }
       this.workflowType = workflowType;
       this.header = header;
       this.arguments = arguments;
+      if (options == null) {
+        throw new IllegalArgumentException(
+            "options should be specified and not be null for start call");
+      }
       this.options = options;
+    }
+
+    public String getWorkflowId() {
+      return workflowId;
     }
 
     public String getWorkflowType() {

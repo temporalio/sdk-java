@@ -24,20 +24,16 @@ import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.sync.SyncWorkflowContext.toRetryPolicy;
 
 import com.google.common.base.Strings;
-import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.*;
-import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
-import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import java.util.*;
 
@@ -54,11 +50,7 @@ class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
   @Override
   public WorkflowStartOutput start(WorkflowStartInput input) {
     StartWorkflowExecutionRequest request = newStartWorkflowExecutionRequest(input);
-    try {
-      return new WorkflowStartOutput(genericClient.start(request));
-    } catch (StatusRuntimeException e) {
-      throw wrapExecutionAlreadyStarted(request.getWorkflowId(), input.getWorkflowType(), e);
-    }
+    return new WorkflowStartOutput(genericClient.start(request));
   }
 
   @Override
@@ -69,25 +61,7 @@ class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
         clientOptions.getDataConverter().toPayloads(input.getSignalArguments());
     SignalWithStartWorkflowExecutionParameters p =
         new SignalWithStartWorkflowExecutionParameters(request, input.getSignalName(), signalInput);
-    try {
-      return new WorkflowStartOutput(genericClient.signalWithStart(p));
-    } catch (StatusRuntimeException e) {
-      throw wrapExecutionAlreadyStarted(
-          request.getWorkflowId(), input.getWorkflowStartInput().getWorkflowType(), e);
-    }
-  }
-
-  private RuntimeException wrapExecutionAlreadyStarted(
-      String workflowId, String workflowType, StatusRuntimeException e) {
-    WorkflowExecutionAlreadyStartedFailure f =
-        StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
-    if (f != null) {
-      WorkflowExecution exe =
-          WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(f.getRunId()).build();
-      return new WorkflowExecutionAlreadyStarted(exe, workflowType, e);
-    } else {
-      return e;
-    }
+    return new WorkflowStartOutput(genericClient.signalWithStart(p));
   }
 
   private StartWorkflowExecutionRequest newStartWorkflowExecutionRequest(WorkflowStartInput input) {
@@ -95,6 +69,7 @@ class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
 
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
+            .setWorkflowId(input.getWorkflowId())
             .setWorkflowType(WorkflowType.newBuilder().setName(input.getWorkflowType()))
             .setRequestId(UUID.randomUUID().toString())
             .setWorkflowRunTimeout(
@@ -110,11 +85,6 @@ class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
     if (clientOptions.getNamespace() != null) {
       request.setNamespace(clientOptions.getNamespace());
     }
-    if (options.getWorkflowId() == null) {
-      request.setWorkflowId(UUID.randomUUID().toString());
-    } else {
-      request.setWorkflowId(options.getWorkflowId());
-    }
     Optional<Payloads> inputArgs =
         clientOptions.getDataConverter().toPayloads(input.getArguments());
     if (inputArgs.isPresent()) {
@@ -127,11 +97,6 @@ class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
     if (taskQueue != null && !taskQueue.isEmpty()) {
       request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
     }
-    String workflowId = options.getWorkflowId();
-    if (workflowId == null) {
-      workflowId = UUID.randomUUID().toString();
-    }
-    request.setWorkflowId(workflowId);
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       request.setRetryPolicy(toRetryPolicy(retryOptions));

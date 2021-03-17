@@ -25,6 +25,7 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
+import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
@@ -60,14 +61,15 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 class WorkflowStubImpl implements WorkflowStub {
-
+  private final WorkflowClientOptions clientOptions;
+  private final WorkflowClientCallsInterceptor workflowClientInvoker;
+  // TODO most direct usage of genericClient should be refactored and workflowClientInvoker methods
+  // should be used instead
   private final GenericWorkflowClientExternal genericClient;
   private final Optional<String> workflowType;
   private final Scope metricsScope;
   private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
   private final Optional<WorkflowOptions> options;
-  private final WorkflowClientOptions clientOptions;
-  private final WorkflowClientCallsInterceptor workflowClientInvoker;
 
   WorkflowStubImpl(
       WorkflowClientOptions clientOptions,
@@ -139,19 +141,17 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private WorkflowExecution startWithOptions(WorkflowOptions options, Object... args) {
     checkExecutionIsNotStarted();
+    String workflowId = getWorkflowIdForStart(options);
     try {
       WorkflowClientCallsInterceptor.WorkflowStartOutput workflowStartOutput =
           workflowClientInvoker.start(
               new WorkflowClientCallsInterceptor.WorkflowStartInput(
-                  workflowType.get(), Header.empty(), args, options));
+                  workflowId, workflowType.get(), Header.empty(), args, options));
       WorkflowExecution workflowExecution = workflowStartOutput.getWorkflowExecution();
       execution.set(workflowExecution);
       return workflowExecution;
-    } catch (WorkflowExecutionAlreadyStarted e) {
-      execution.set(e.getExecution());
-      throw e;
     } catch (StatusRuntimeException e) {
-      throw e;
+      throw wrapExecutionAlreadyStarted(workflowId, workflowType.orElse(null), e);
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
@@ -168,25 +168,45 @@ class WorkflowStubImpl implements WorkflowStub {
   private WorkflowExecution signalWithStartWithOptions(
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
     checkExecutionIsNotStarted();
+    String workflowId = getWorkflowIdForStart(options);
     try {
       WorkflowClientCallsInterceptor.WorkflowStartOutput workflowStartOutput =
           workflowClientInvoker.signalWithStart(
               new WorkflowClientCallsInterceptor.WorkflowStartWithSignalInput(
                   new WorkflowClientCallsInterceptor.WorkflowStartInput(
-                      workflowType.get(), Header.empty(), startArgs, options),
+                      workflowId, workflowType.get(), Header.empty(), startArgs, options),
                   signalName,
                   signalArgs));
       WorkflowExecution workflowExecution = workflowStartOutput.getWorkflowExecution();
       execution.set(workflowExecution);
       return workflowExecution;
-    } catch (WorkflowExecutionAlreadyStarted e) {
-      execution.set(e.getExecution());
-      throw e;
     } catch (StatusRuntimeException e) {
-      throw e;
+      throw wrapExecutionAlreadyStarted(workflowId, workflowType.orElse(null), e);
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
+  }
+
+  private RuntimeException wrapExecutionAlreadyStarted(
+      String workflowId, String workflowType, StatusRuntimeException e) {
+    WorkflowExecutionAlreadyStartedFailure f =
+        StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
+    if (f != null) {
+      WorkflowExecution exe =
+          WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(f.getRunId()).build();
+      execution.set(exe);
+      return new WorkflowExecutionAlreadyStarted(exe, workflowType, e);
+    } else {
+      return e;
+    }
+  }
+
+  private static String getWorkflowIdForStart(WorkflowOptions options) {
+    String workflowId = options.getWorkflowId();
+    if (workflowId == null) {
+      workflowId = UUID.randomUUID().toString();
+    }
+    return workflowId;
   }
 
   private void checkExecutionIsNotStarted() {

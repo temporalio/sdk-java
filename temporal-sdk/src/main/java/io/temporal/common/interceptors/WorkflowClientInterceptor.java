@@ -48,7 +48,7 @@ public interface WorkflowClientInterceptor {
    * Called once during creation of WorkflowClient to create a chain of Client Interceptors
    *
    * @param next next workflow client interceptor in the chain of interceptors
-   * @return new interceptor that should decorate calls to {@param next}
+   * @return new interceptor that should decorate calls to {@code next}
    */
   WorkflowClientCallsInterceptor initWorkflowClientInterceptor(WorkflowClientCallsInterceptor next);
 }
