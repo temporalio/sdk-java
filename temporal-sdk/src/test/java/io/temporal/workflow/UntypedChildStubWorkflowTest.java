@@ -19,12 +19,10 @@
 
 package io.temporal.workflow;
 
-import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
 import io.temporal.workflow.shared.TestWorkflows;
-import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,16 +43,8 @@ public class UntypedChildStubWorkflowTest {
 
   @Test
   public void testUntypedChildStubWorkflow() {
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(200))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .build();
     TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+        testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     Assert.assertEquals(null, client.execute(testWorkflowRule.getTaskQueue()));
   }
 }

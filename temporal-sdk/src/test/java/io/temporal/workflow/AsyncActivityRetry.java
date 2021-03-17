@@ -42,10 +42,10 @@ public class AsyncActivityRetry {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-          SDKTestWorkflowRule.newBuilder()
-              .setWorkflowTypes(TestAsyncActivityRetry.class)
-              .setActivityImplementations(activitiesImpl)
-              .build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(TestAsyncActivityRetry.class)
+          .setActivityImplementations(activitiesImpl)
+          .build();
 
   @Test
   public void testAsyncActivityRetry() {

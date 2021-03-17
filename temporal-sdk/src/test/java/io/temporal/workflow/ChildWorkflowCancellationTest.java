@@ -27,7 +27,6 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
@@ -41,12 +40,10 @@ public class ChildWorkflowCancellationTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-          SDKTestWorkflowRule.newBuilder()
-              .setWorkflowTypes(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class)
-              .setActivityImplementations(activitiesImpl)
-              .setWorkerInterceptors(
-                  new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-              .build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class)
+          .setActivityImplementations(activitiesImpl)
+          .build();
 
   @Test
   public void testChildWorkflowWaitCancellationRequested() {

@@ -32,10 +32,10 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,36 +46,34 @@ import org.junit.Test;
 public class ChildWorkflowRetryTest {
 
   private final AtomicReference<String> lastStartedWorkflowType = new AtomicReference<>();
-  private final WorkflowTest.AngryChildActivityImpl angryChildActivity =
-      new WorkflowTest.AngryChildActivityImpl();
+  private final TestActivities.AngryChildActivityImpl angryChildActivity =
+      new TestActivities.AngryChildActivityImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-          SDKTestWorkflowRule.newBuilder()
-              .setWorkflowTypes(
-                  WorkflowImplementationOptions.newBuilder()
-                      .setFailWorkflowExceptionTypes(UnsupportedOperationException.class)
-                      .build(),
-                  TestChildWorkflowRetryWorkflow.class,
-                  WorkflowTest.AngryChild.class)
-              .setActivityImplementations(angryChildActivity)
-              .setWorkerInterceptors(
-                  new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-              .setWorkflowClientOptions(
-                  WorkflowClientOptions.newBuilder()
-                      .setBinaryChecksum(SDKTestWorkflowRule.BINARY_CHECKSUM)
-                      .setInterceptors(
-                          new WorkflowClientInterceptorBase() {
-                            @Override
-                            public WorkflowStub newUntypedWorkflowStub(
-                                String workflowType, WorkflowOptions options, WorkflowStub next) {
-                              lastStartedWorkflowType.set(workflowType);
-                              return next;
-                            }
-                          })
-                      .setNamespace(NAMESPACE)
-                      .build())
-              .build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(
+              WorkflowImplementationOptions.newBuilder()
+                  .setFailWorkflowExceptionTypes(UnsupportedOperationException.class)
+                  .build(),
+              TestChildWorkflowRetryWorkflow.class,
+              WorkflowTest.AngryChild.class)
+          .setActivityImplementations(angryChildActivity)
+          .setWorkflowClientOptions(
+              WorkflowClientOptions.newBuilder()
+                  .setBinaryChecksum(SDKTestWorkflowRule.BINARY_CHECKSUM)
+                  .setInterceptors(
+                      new WorkflowClientInterceptorBase() {
+                        @Override
+                        public WorkflowStub newUntypedWorkflowStub(
+                            String workflowType, WorkflowOptions options, WorkflowStub next) {
+                          lastStartedWorkflowType.set(workflowType);
+                          return next;
+                        }
+                      })
+                  .setNamespace(NAMESPACE)
+                  .build())
+          .build();
 
   @Test
   public void testChildWorkflowRetry() {
