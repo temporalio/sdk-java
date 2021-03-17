@@ -1417,7 +1417,8 @@ class StateMachines {
         WorkflowTaskFailedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId)
-            .setScheduledEventId(data.scheduledEventId);
+            .setScheduledEventId(data.scheduledEventId)
+            .setCause(request.getCause());
     if (request.hasFailure()) {
       a.setFailure(request.getFailure());
     }
