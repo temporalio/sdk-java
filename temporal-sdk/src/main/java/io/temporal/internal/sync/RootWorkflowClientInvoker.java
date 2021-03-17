@@ -26,6 +26,7 @@ import static io.temporal.internal.sync.SyncWorkflowContext.toRetryPolicy;
 import com.google.common.base.Strings;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
@@ -54,13 +55,36 @@ class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
   }
 
   @Override
+  public void signal(WorkflowSignalInput input) {
+    SignalWorkflowExecutionRequest.Builder request =
+        SignalWorkflowExecutionRequest.newBuilder()
+            .setSignalName(input.getSignalName())
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder().setWorkflowId(input.getWorkflowId()));
+
+    if (clientOptions.getIdentity() != null) {
+      request.setIdentity(clientOptions.getIdentity());
+    }
+    if (clientOptions.getNamespace() != null) {
+      request.setNamespace(clientOptions.getNamespace());
+    }
+    Optional<Payloads> inputArgs =
+        clientOptions.getDataConverter().toPayloads(input.getArguments());
+    if (inputArgs.isPresent()) {
+      request.setInput(inputArgs.get());
+    }
+    genericClient.signal(request.build());
+  }
+
+  @Override
   public WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input) {
     StartWorkflowExecutionRequest request =
         newStartWorkflowExecutionRequest(input.getWorkflowStartInput());
     Optional<Payloads> signalInput =
-        clientOptions.getDataConverter().toPayloads(input.getSignalArguments());
+        clientOptions.getDataConverter().toPayloads(input.getWorkflowSignalInput().getArguments());
     SignalWithStartWorkflowExecutionParameters p =
-        new SignalWithStartWorkflowExecutionParameters(request, input.getSignalName(), signalInput);
+        new SignalWithStartWorkflowExecutionParameters(
+            request, input.getWorkflowSignalInput().getSignalName(), signalInput);
     return new WorkflowStartOutput(genericClient.signalWithStart(p));
   }
 

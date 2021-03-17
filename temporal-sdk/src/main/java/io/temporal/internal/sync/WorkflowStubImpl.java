@@ -30,7 +30,6 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
@@ -110,24 +109,10 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public void signal(String signalName, Object... args) {
     checkStarted();
-    SignalWorkflowExecutionRequest.Builder request =
-        SignalWorkflowExecutionRequest.newBuilder()
-            .setSignalName(signalName)
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()));
-
-    if (clientOptions.getIdentity() != null) {
-      request.setIdentity(clientOptions.getIdentity());
-    }
-    if (clientOptions.getNamespace() != null) {
-      request.setNamespace(clientOptions.getNamespace());
-    }
-    Optional<Payloads> input = clientOptions.getDataConverter().toPayloads(args);
-    if (input.isPresent()) {
-      request.setInput(input.get());
-    }
     try {
-      genericClient.signal(request.build());
+      workflowClientInvoker.signal(
+          new WorkflowClientCallsInterceptor.WorkflowSignalInput(
+              execution.get().getWorkflowId(), signalName, args));
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
@@ -175,8 +160,8 @@ class WorkflowStubImpl implements WorkflowStub {
               new WorkflowClientCallsInterceptor.WorkflowStartWithSignalInput(
                   new WorkflowClientCallsInterceptor.WorkflowStartInput(
                       workflowId, workflowType.get(), Header.empty(), startArgs, options),
-                  signalName,
-                  signalArgs));
+                  new WorkflowClientCallsInterceptor.WorkflowSignalInput(
+                      workflowId, signalName, signalArgs)));
       WorkflowExecution workflowExecution = workflowStartOutput.getWorkflowExecution();
       execution.set(workflowExecution);
       return workflowExecution;
@@ -197,6 +182,7 @@ class WorkflowStubImpl implements WorkflowStub {
       execution.set(exe);
       return new WorkflowExecutionAlreadyStarted(exe, workflowType, e);
     } else {
+      // TODO should it be wrapped into WorkflowExecutionAlreadyStarted?
       return e;
     }
   }

@@ -74,28 +74,52 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
-  final class WorkflowStartWithSignalInput {
-    private final WorkflowStartInput workflowStartInput;
+  final class WorkflowSignalInput {
+    private final String workflowId;
     private final String signalName;
-    private final Object[] signalArguments;
+    private final Object[] arguments;
 
-    public WorkflowStartWithSignalInput(
-        WorkflowStartInput workflowStartInput, String signalName, Object[] signalArguments) {
-      this.workflowStartInput = workflowStartInput;
+    public WorkflowSignalInput(String workflowId, String signalName, Object[] signalArguments) {
+      if (workflowId == null) {
+        throw new IllegalArgumentException("workflowId should be specified for signal call");
+      }
+      this.workflowId = workflowId;
+      if (signalName == null) {
+        throw new IllegalArgumentException("signalName should be specified for signal call");
+      }
       this.signalName = signalName;
-      this.signalArguments = signalArguments;
+      this.arguments = signalArguments;
     }
 
-    public WorkflowStartInput getWorkflowStartInput() {
-      return workflowStartInput;
+    public String getWorkflowId() {
+      return workflowId;
     }
 
     public String getSignalName() {
       return signalName;
     }
 
-    public Object[] getSignalArguments() {
-      return signalArguments;
+    public Object[] getArguments() {
+      return arguments;
+    }
+  }
+
+  final class WorkflowStartWithSignalInput {
+    private final WorkflowStartInput workflowStartInput;
+    private final WorkflowSignalInput workflowSignalInput;
+
+    public WorkflowStartWithSignalInput(
+        WorkflowStartInput workflowStartInput, WorkflowSignalInput workflowSignalInput) {
+      this.workflowStartInput = workflowStartInput;
+      this.workflowSignalInput = workflowSignalInput;
+    }
+
+    public WorkflowStartInput getWorkflowStartInput() {
+      return workflowStartInput;
+    }
+
+    public WorkflowSignalInput getWorkflowSignalInput() {
+      return workflowSignalInput;
     }
   }
 
@@ -112,6 +136,8 @@ public interface WorkflowClientCallsInterceptor {
   }
 
   WorkflowStartOutput start(WorkflowStartInput input);
+
+  void signal(WorkflowSignalInput input);
 
   WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input);
 }
