@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
@@ -48,7 +47,6 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
-import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -66,7 +64,6 @@ class WorkflowStubImpl implements WorkflowStub {
   // should be used instead
   private final GenericWorkflowClientExternal genericClient;
   private final Optional<String> workflowType;
-  private final Scope metricsScope;
   private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
   private final Optional<WorkflowOptions> options;
 
@@ -75,13 +72,11 @@ class WorkflowStubImpl implements WorkflowStub {
       WorkflowClientCallsInterceptor workflowClientInvoker,
       GenericWorkflowClientExternal genericClient,
       Optional<String> workflowType,
-      WorkflowExecution execution,
-      Scope metricsScope) {
+      WorkflowExecution execution) {
     this.clientOptions = clientOptions;
     this.workflowClientInvoker = workflowClientInvoker;
     this.genericClient = genericClient;
     this.workflowType = workflowType;
-    this.metricsScope = metricsScope;
     if (execution == null
         || execution.getWorkflowId() == null
         || execution.getWorkflowId().isEmpty()) {
@@ -96,13 +91,11 @@ class WorkflowStubImpl implements WorkflowStub {
       WorkflowClientCallsInterceptor workflowClientInvoker,
       GenericWorkflowClientExternal genericClient,
       String workflowType,
-      WorkflowOptions options,
-      Scope metricsScope) {
+      WorkflowOptions options) {
     this.clientOptions = clientOptions;
     this.workflowClientInvoker = workflowClientInvoker;
     this.genericClient = genericClient;
     this.workflowType = Optional.of(workflowType);
-    this.metricsScope = metricsScope;
     this.options = Optional.of(options);
   }
 
@@ -250,17 +243,11 @@ class WorkflowStubImpl implements WorkflowStub {
       throws TimeoutException {
     checkStarted();
     try {
-      Optional<Payloads> resultValue =
-          WorkflowExecutionUtils.getWorkflowExecutionResult(
-              genericClient.getService(),
-              genericClient.getNamespace(),
-              execution.get(),
-              workflowType,
-              metricsScope,
-              clientOptions.getDataConverter(),
-              timeout,
-              unit);
-      return clientOptions.getDataConverter().fromPayloads(0, resultValue, resultClass, resultType);
+      WorkflowClientCallsInterceptor.GetResultOutput<R> result =
+          workflowClientInvoker.getResult(
+              new WorkflowClientCallsInterceptor.GetResultInput<>(
+                  execution.get(), workflowType, timeout, unit, resultClass, resultType));
+      return result.getResult();
     } catch (TimeoutException e) {
       throw e;
     } catch (Exception e) {
@@ -288,14 +275,13 @@ class WorkflowStubImpl implements WorkflowStub {
   public <R> CompletableFuture<R> getResultAsync(
       long timeout, TimeUnit unit, Class<R> resultClass, Type resultType) {
     checkStarted();
-    return WorkflowExecutionUtils.getWorkflowExecutionResultAsync(
-            genericClient.getService(),
-            genericClient.getNamespace(),
-            execution.get(),
-            workflowType,
-            timeout,
-            unit,
-            clientOptions.getDataConverter())
+
+    WorkflowClientCallsInterceptor.GetResultAsyncOutput<R> result =
+        workflowClientInvoker.getResultAsync(
+            new WorkflowClientCallsInterceptor.GetResultInput<>(
+                execution.get(), workflowType, timeout, unit, resultClass, resultType));
+    return result
+        .getResult()
         .handle(
             (r, e) -> {
               if (e instanceof CompletionException) {
@@ -308,10 +294,7 @@ class WorkflowStubImpl implements WorkflowStub {
               if (e != null) {
                 throw CheckedExceptionWrapper.wrap(e);
               }
-              if (r == null) {
-                return null;
-              }
-              return clientOptions.getDataConverter().fromPayloads(0, r, resultClass, resultType);
+              return r;
             });
   }
 

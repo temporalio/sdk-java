@@ -22,9 +22,26 @@ package io.temporal.common.interceptors;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.Experimental;
+import java.lang.reflect.Type;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Experimental
 public interface WorkflowClientCallsInterceptor {
+
+  WorkflowStartOutput start(WorkflowStartInput input);
+
+  // TODO Spikhalskiy return SignalOutput?
+  void signal(WorkflowSignalInput input);
+
+  WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input);
+
+  <R> GetResultOutput<R> getResult(GetResultInput<R> input) throws TimeoutException;
+
+  <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input);
+
   final class WorkflowStartInput {
     private final String workflowId;
     private final String workflowType;
@@ -141,9 +158,75 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
-  WorkflowStartOutput start(WorkflowStartInput input);
+  final class GetResultInput<R> {
+    private final WorkflowExecution workflowExecution;
+    private final Optional<String> workflowType;
+    private final long timeout;
+    private final TimeUnit timeoutUnit;
+    private final Class<R> resultClass;
+    private final Type resultType;
 
-  void signal(WorkflowSignalInput input);
+    public GetResultInput(
+        WorkflowExecution workflowExecution,
+        Optional<String> workflowType,
+        long timeout,
+        TimeUnit timeoutUnit,
+        Class<R> resultClass,
+        Type resultType) {
+      this.workflowExecution = workflowExecution;
+      this.workflowType = workflowType;
+      this.timeout = timeout;
+      this.timeoutUnit = timeoutUnit;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+    }
 
-  WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input);
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+
+    public Optional<String> getWorkflowType() {
+      return workflowType;
+    }
+
+    public long getTimeout() {
+      return timeout;
+    }
+
+    public TimeUnit getTimeoutUnit() {
+      return timeoutUnit;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+  }
+
+  final class GetResultOutput<R> {
+    private final R result;
+
+    public GetResultOutput(R result) {
+      this.result = result;
+    }
+
+    public R getResult() {
+      return result;
+    }
+  }
+
+  final class GetResultAsyncOutput<R> {
+    private final CompletableFuture<R> result;
+
+    public GetResultAsyncOutput(CompletableFuture<R> result) {
+      this.result = result;
+    }
+
+    public CompletableFuture<R> getResult() {
+      return result;
+    }
+  }
 }

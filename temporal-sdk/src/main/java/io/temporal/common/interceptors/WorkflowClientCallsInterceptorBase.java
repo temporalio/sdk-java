@@ -19,6 +19,8 @@
 
 package io.temporal.common.interceptors;
 
+import java.util.concurrent.TimeoutException;
+
 /** Convenience base class for {@link WorkflowClientCallsInterceptor} implementations. */
 public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsInterceptor {
 
@@ -41,5 +43,15 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   @Override
   public WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input) {
     return next.signalWithStart(input);
+  }
+
+  @Override
+  public <R> GetResultOutput<R> getResult(GetResultInput<R> input) throws TimeoutException {
+    return next.getResult(input);
+  }
+
+  @Override
+  public <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input) {
+    return next.getResultAsync(input);
   }
 }

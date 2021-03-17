@@ -124,12 +124,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
     WorkflowStub stub =
         new WorkflowStubImpl(
-            clientOptions,
-            workflowClientCallsInvoker,
-            genericClient,
-            workflowType,
-            execution,
-            metricsScope);
+            clientOptions, workflowClientCallsInvoker, genericClient, workflowType, execution);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(execution, workflowType, stub);
     }
@@ -158,12 +153,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     String workflowType = workflowMethodMetadata.get().getName();
     WorkflowStub stub =
         new WorkflowStubImpl(
-            clientOptions,
-            workflowClientCallsInvoker,
-            genericClient,
-            workflowType,
-            mergedOptions,
-            metricsScope);
+            clientOptions, workflowClientCallsInvoker, genericClient, workflowType, mergedOptions);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(workflowType, mergedOptions, stub);
     }
