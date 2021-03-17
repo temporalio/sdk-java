@@ -23,8 +23,10 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.Experimental;
 import java.util.Optional;
 
+@Experimental
 public interface WorkflowClientInterceptor {
   /**
    * Called when workflow stub is created during creation of new workflow.

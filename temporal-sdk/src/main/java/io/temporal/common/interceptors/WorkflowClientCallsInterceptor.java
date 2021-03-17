@@ -21,7 +21,9 @@ package io.temporal.common.interceptors;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.Experimental;
 
+@Experimental
 public interface WorkflowClientCallsInterceptor {
   final class WorkflowStartInput {
     private final String workflowId;
