@@ -19,34 +19,31 @@
 
 package io.temporal.workflow;
 
-import static org.junit.Assert.assertEquals;
-
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class ChildWorkflowExecutionPromiseHandlerTest {
-
+public class SignalExternalWorkflowImmediateCancellationTest {
   private final TestActivities.TestActivitiesImpl activitiesImpl =
       new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestNamedChild.class, TestChildWorkflowExecutionPromiseHandler.class)
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(TestSignalExternalWorkflowImmediateCancellation.class)
           .setActivityImplementations(activitiesImpl)
           .build();
 
-  /** Tests that handler of the WorkflowExecution promise is executed in a workflow thread. */
   @Test
-  public void testChildWorkflowExecutionPromiseHandler() {
-    WorkflowClient workflowStub = testWorkflowRule.getWorkflowClient();
+  public void testSignalExternalWorkflowImmediateCancellation() {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofSeconds(20))
@@ -54,38 +51,39 @@ public class ChildWorkflowExecutionPromiseHandlerTest {
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
     TestWorkflows.TestWorkflow1 client =
-        workflowStub.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
-    String result = client.execute(testWorkflowRule.getTaskQueue());
-    assertEquals("FOO", result);
-  }
-
-  public static class TestNamedChild implements WorkflowTest.ITestNamedChild {
-
-    @Override
-    public String execute(String arg) {
-      return arg.toUpperCase();
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    try {
+      client.execute(testWorkflowRule.getTaskQueue());
+      Assert.fail("unreachable");
+    } catch (WorkflowFailedException e) {
+      Assert.assertTrue(e.getCause() instanceof CanceledFailure);
     }
   }
 
-  public static class TestChildWorkflowExecutionPromiseHandler
+  public static class TestSignalExternalWorkflowImmediateCancellation
       implements TestWorkflows.TestWorkflow1 {
-
-    private WorkflowTest.ITestNamedChild child;
 
     @Override
     public String execute(String taskQueue) {
-      child = Workflow.newChildWorkflowStub(WorkflowTest.ITestNamedChild.class);
-      Promise<String> childResult = Async.function(child::execute, "foo");
-      Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
-      CompletablePromise<String> result = Workflow.newPromise();
-      // Ensure that the callback can execute Workflow.* functions.
-      executionPromise.thenApply(
-          (we) -> {
-            Workflow.sleep(Duration.ofSeconds(1));
-            result.complete(childResult.get());
-            return null;
-          });
-      return result.get();
+      WorkflowExecution parentExecution =
+          WorkflowExecution.newBuilder().setWorkflowId("invalid id").build();
+      WorkflowTest.TestWorkflowSignaled workflow =
+          Workflow.newExternalWorkflowStub(
+              WorkflowTest.TestWorkflowSignaled.class, parentExecution);
+      CompletablePromise<Void> signal = Workflow.newPromise();
+      CancellationScope scope =
+          Workflow.newCancellationScope(
+              () -> signal.completeFrom(Async.procedure(workflow::signal1, "World")));
+      scope.run();
+      scope.cancel();
+      try {
+        signal.get();
+      } catch (IllegalArgumentException e) {
+        // expected
+      }
+      return "result";
     }
   }
 }

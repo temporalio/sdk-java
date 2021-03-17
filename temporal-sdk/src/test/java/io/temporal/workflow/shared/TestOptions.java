@@ -33,6 +33,14 @@ public class TestOptions {
     return WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
   }
 
+  public static WorkflowOptions newWorkflowOptionsForTaskQueue200sTimeout(String taskQueue) {
+    return WorkflowOptions.newBuilder()
+        .setWorkflowRunTimeout(Duration.ofSeconds(200))
+        .setWorkflowTaskTimeout(Duration.ofSeconds(60))
+        .setTaskQueue(taskQueue)
+        .build();
+  }
+
   public static WorkflowOptions newWorkflowOptionsWithTimeouts(String taskQueue) {
     if (DEBUGGER_TIMEOUTS) {
       return WorkflowOptions.newBuilder()

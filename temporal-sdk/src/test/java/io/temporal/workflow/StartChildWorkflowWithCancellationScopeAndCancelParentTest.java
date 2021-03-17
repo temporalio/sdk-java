@@ -25,7 +25,6 @@ import static org.junit.Assert.fail;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import java.util.ArrayList;
@@ -43,8 +42,6 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(ParentThatStartsChildInCancellationScope.class, SleepyChild.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

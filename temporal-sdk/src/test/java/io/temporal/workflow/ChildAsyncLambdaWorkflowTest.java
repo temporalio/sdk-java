@@ -23,9 +23,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TestWorkflowRule;
-import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -39,12 +37,10 @@ public class ChildAsyncLambdaWorkflowTest {
       new TestActivities.TestActivitiesImpl(null);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWaitOnSignalWorkflowImpl.class, TestChildAsyncLambdaWorkflow.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   /**
@@ -55,18 +51,12 @@ public class ChildAsyncLambdaWorkflowTest {
    */
   @Test
   public void testChildAsyncLambdaWorkflow() {
-    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
-    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
-    options.setTaskQueue(testWorkflowRule.getTaskQueue());
     TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options.build());
+        testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     Assert.assertEquals(null, client.execute(testWorkflowRule.getTaskQueue()));
   }
 
-  public static class TestWaitOnSignalWorkflowImpl implements WorkflowTest.WaitOnSignalWorkflow {
+  public static class TestWaitOnSignalWorkflowImpl implements WaitOnSignalWorkflow {
 
     private final CompletablePromise<String> signal = Workflow.newPromise();
 
@@ -93,8 +83,8 @@ public class ChildAsyncLambdaWorkflowTest {
               .setTaskQueue(taskQueue)
               .build();
 
-      WorkflowTest.WaitOnSignalWorkflow child =
-          Workflow.newChildWorkflowStub(WorkflowTest.WaitOnSignalWorkflow.class, workflowOptions);
+      WaitOnSignalWorkflow child =
+          Workflow.newChildWorkflowStub(WaitOnSignalWorkflow.class, workflowOptions);
       Promise<Void> promise = Async.procedure(child::execute);
       Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
       assertNotNull(executionPromise);
@@ -106,5 +96,17 @@ public class ChildAsyncLambdaWorkflowTest {
       promise.get();
       return null;
     }
+  }
+
+  // This workflow is designed specifically for testing some internal logic in Async.procedure
+  // and ChildWorkflowStubImpl. See comments on testChildAsyncLambdaWorkflow for more details.
+  @WorkflowInterface
+  public interface WaitOnSignalWorkflow {
+
+    @WorkflowMethod()
+    void execute();
+
+    @SignalMethod
+    void signal(String value);
   }
 }

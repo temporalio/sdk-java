@@ -72,6 +72,12 @@ public class SDKTestWorkflowRule implements TestRule {
   private final TestWorkflowRule testWorkflowRule;
 
   private SDKTestWorkflowRule(TestWorkflowRule.Builder testWorkflowRuleBuilder) {
+    if (useExternalService) {
+      testWorkflowRuleBuilder.setUseExternalService(true);
+      if (temporalServiceAddress != null) {
+        testWorkflowRuleBuilder.setTarget(temporalServiceAddress);
+      }
+    }
     testWorkflowRule = testWorkflowRuleBuilder.build();
   }
 
@@ -132,6 +138,11 @@ public class SDKTestWorkflowRule implements TestRule {
       return this;
     }
 
+    public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
+      testWorkflowRuleBuilder.setTestTimeoutSeconds(testTimeoutSeconds);
+      return this;
+    }
+
     public Builder setDoNotStart(boolean doNotStart) {
       testWorkflowRuleBuilder.setDoNotStart(doNotStart);
       return this;
@@ -174,6 +185,12 @@ public class SDKTestWorkflowRule implements TestRule {
   public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow) {
     return getWorkflowClient()
         .newWorkflowStub(workflow, TestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
+  }
+
+  public <T> T newWorkflowStub200sTimeoutOptions(Class<T> workflow) {
+    return getWorkflowClient()
+        .newWorkflowStub(
+            workflow, TestOptions.newWorkflowOptionsForTaskQueue200sTimeout(getTaskQueue()));
   }
 
   public <T> WorkflowStub newUntypedWorkflowStub(String workflow) {

@@ -26,7 +26,6 @@ import static org.junit.Assert.*;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
@@ -47,8 +46,6 @@ public class WorkflowWithCronScheduleTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowTest.TestWorkflowWithCronScheduleImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test
