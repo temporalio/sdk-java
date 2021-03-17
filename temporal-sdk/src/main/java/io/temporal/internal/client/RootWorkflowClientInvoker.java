@@ -17,11 +17,11 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.client;
 
 import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
-import static io.temporal.internal.sync.SyncWorkflowContext.toRetryPolicy;
+import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
 import com.google.common.base.Strings;
 import io.temporal.api.common.v1.*;
@@ -38,7 +38,7 @@ import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import java.util.*;
 
-class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
+public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
   private final GenericWorkflowClientExternal genericClient;
   private final WorkflowClientOptions clientOptions;
 
