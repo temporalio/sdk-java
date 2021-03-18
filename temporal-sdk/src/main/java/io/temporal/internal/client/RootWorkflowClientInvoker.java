@@ -21,6 +21,10 @@ package io.temporal.internal.client;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.*;
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
+import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClientOptions;
@@ -28,6 +32,7 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
@@ -100,7 +105,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             clientOptions.getDataConverter(),
             input.getTimeout(),
             input.getTimeoutUnit());
-    return new GetResultOutput<>(convertResultPayloads(resultValue, input));
+    return new GetResultOutput<>(
+        convertResultPayloads(resultValue, input.getResultClass(), input.getResultType()));
   }
 
   @Override
@@ -115,12 +121,43 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             input.getTimeoutUnit(),
             clientOptions.getDataConverter());
     return new GetResultAsyncOutput<>(
-        resultValue.thenApply(payloads -> convertResultPayloads(payloads, input)));
+        resultValue.thenApply(
+            payloads ->
+                convertResultPayloads(payloads, input.getResultClass(), input.getResultType())));
   }
 
-  private <R> R convertResultPayloads(Optional<Payloads> resultValue, GetResultInput<R> input) {
-    return clientOptions
-        .getDataConverter()
-        .fromPayloads(0, resultValue, input.getResultClass(), input.getResultType());
+  @Override
+  public <R> QueryOutput<R> query(QueryInput<R> input) {
+    WorkflowQuery.Builder query = WorkflowQuery.newBuilder().setQueryType(input.getQueryType());
+    Optional<Payloads> inputArgs =
+        clientOptions.getDataConverter().toPayloads(input.getArguments());
+    inputArgs.ifPresent(query::setQueryArgs);
+    QueryWorkflowRequest request =
+        QueryWorkflowRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(input.getWorkflowExecution().getWorkflowId())
+                    .setRunId(input.getWorkflowExecution().getRunId()))
+            .setQuery(query)
+            .setQueryRejectCondition(clientOptions.getQueryRejectCondition())
+            .build();
+
+    QueryWorkflowResponse result;
+    result = genericClient.query(request);
+
+    boolean queryRejected = result.hasQueryRejected();
+    WorkflowExecutionStatus rejectStatus =
+        queryRejected ? result.getQueryRejected().getStatus() : null;
+    Optional<Payloads> queryResult =
+        result.hasQueryResult() ? Optional.of(result.getQueryResult()) : Optional.empty();
+    R resultValue =
+        convertResultPayloads(queryResult, input.getResultClass(), input.getResultType());
+    return new QueryOutput<>(rejectStatus, resultValue);
+  }
+
+  private <R> R convertResultPayloads(
+      Optional<Payloads> resultValue, Class<R> resultClass, Type resultType) {
+    return clientOptions.getDataConverter().fromPayloads(0, resultValue, resultClass, resultType);
   }
 }

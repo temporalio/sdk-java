@@ -20,6 +20,7 @@
 package io.temporal.common.interceptors;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
@@ -41,6 +42,8 @@ public interface WorkflowClientCallsInterceptor {
   <R> GetResultOutput<R> getResult(GetResultInput<R> input) throws TimeoutException;
 
   <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input);
+
+  <R> QueryOutput<R> query(QueryInput<R> input);
 
   final class WorkflowStartInput {
     private final String workflowId;
@@ -226,6 +229,73 @@ public interface WorkflowClientCallsInterceptor {
     }
 
     public CompletableFuture<R> getResult() {
+      return result;
+    }
+  }
+
+  final class QueryInput<R> {
+    private final WorkflowExecution workflowExecution;
+    private final String queryType;
+    private final Object[] arguments;
+    private final Class<R> resultClass;
+    private final Type resultType;
+
+    public QueryInput(
+        WorkflowExecution workflowExecution,
+        String queryType,
+        Object[] arguments,
+        Class<R> resultClass,
+        Type resultType) {
+      this.workflowExecution = workflowExecution;
+      this.queryType = queryType;
+      this.arguments = arguments;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
+    }
+
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+
+    public String getQueryType() {
+      return queryType;
+    }
+
+    public Object[] getArguments() {
+      return arguments;
+    }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+  }
+
+  final class QueryOutput<R> {
+    private final WorkflowExecutionStatus queryRejectedStatus;
+    private final R result;
+
+    /**
+     * @param queryRejectedStatus should be null if query is not rejected
+     * @param result converted result value
+     */
+    public QueryOutput(WorkflowExecutionStatus queryRejectedStatus, R result) {
+      this.queryRejectedStatus = queryRejectedStatus;
+      this.result = result;
+    }
+
+    public boolean isQueryRejected() {
+      return queryRejectedStatus != null;
+    }
+
+    public WorkflowExecutionStatus getQueryRejectedStatus() {
+      return queryRejectedStatus;
+    }
+
+    public R getResult() {
       return result;
     }
   }

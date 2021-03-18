@@ -54,4 +54,9 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   public <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input) {
     return next.getResultAsync(input);
   }
+
+  @Override
+  public <R> QueryOutput<R> query(QueryInput<R> input) {
+    return next.query(input);
+  }
 }

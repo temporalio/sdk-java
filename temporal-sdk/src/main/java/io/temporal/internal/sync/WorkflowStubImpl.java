@@ -25,9 +25,6 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
-import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClientOptions;
@@ -275,7 +272,6 @@ class WorkflowStubImpl implements WorkflowStub {
   public <R> CompletableFuture<R> getResultAsync(
       long timeout, TimeUnit unit, Class<R> resultClass, Type resultType) {
     checkStarted();
-
     WorkflowClientCallsInterceptor.GetResultAsyncOutput<R> result =
         workflowClientInvoker.getResultAsync(
             new WorkflowClientCallsInterceptor.GetResultInput<>(
@@ -340,47 +336,32 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
     checkStarted();
-    WorkflowQuery.Builder query = WorkflowQuery.newBuilder().setQueryType(queryType);
-    Optional<Payloads> input = clientOptions.getDataConverter().toPayloads(args);
-    if (input.isPresent()) {
-      query.setQueryArgs(input.get());
-    }
-    QueryWorkflowRequest request =
-        QueryWorkflowRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setExecution(
-                WorkflowExecution.newBuilder()
-                    .setWorkflowId(execution.get().getWorkflowId())
-                    .setRunId(execution.get().getRunId()))
-            .setQuery(query)
-            .setQueryRejectCondition(clientOptions.getQueryRejectCondition())
-            .build();
-
-    QueryWorkflowResponse result;
+    WorkflowClientCallsInterceptor.QueryOutput<R> result;
+    WorkflowExecution workflowExecution = execution.get();
     try {
-      result = genericClient.query(request);
+      result =
+          workflowClientInvoker.query(
+              new WorkflowClientCallsInterceptor.QueryInput<>(
+                  workflowExecution, queryType, args, resultClass, resultType));
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
+        throw new WorkflowNotFoundException(workflowExecution, workflowType.orElse(null));
       } else if (StatusUtils.hasFailure(e, QueryFailedFailure.class)) {
-        throw new WorkflowQueryException(execution.get(), workflowType.orElse(null), e);
+        throw new WorkflowQueryException(workflowExecution, workflowType.orElse(null), e);
       }
-      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
+      throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
+      throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
     }
-    if (!result.hasQueryRejected()) {
-      Optional<Payloads> queryResult =
-          result.hasQueryResult() ? Optional.of(result.getQueryResult()) : Optional.empty();
-      return clientOptions.getDataConverter().fromPayloads(0, queryResult, resultClass, resultType);
-    } else {
+    if (result.isQueryRejected()) {
       throw new WorkflowQueryRejectedException(
-          execution.get(),
+          workflowExecution,
           workflowType.orElse(null),
           clientOptions.getQueryRejectCondition(),
-          result.getQueryRejected().getStatus(),
+          result.getQueryRejectedStatus(),
           null);
     }
+    return result.getResult();
   }
 
   @Override
