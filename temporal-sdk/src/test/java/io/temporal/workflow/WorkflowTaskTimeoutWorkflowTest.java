@@ -55,16 +55,21 @@ public class WorkflowTaskTimeoutWorkflowTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .build();
 
-    WorkflowTest.WorkflowTaskTimeoutWorkflow stub =
+    WorkflowTaskTimeoutWorkflow stub =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.WorkflowTaskTimeoutWorkflow.class, options);
+            .newWorkflowStub(WorkflowTaskTimeoutWorkflow.class, options);
     String result = stub.execute(testName.getMethodName());
     Assert.assertEquals("some result", result);
   }
 
-  public static class WorkflowTaskTimeoutWorkflowImpl
-      implements WorkflowTest.WorkflowTaskTimeoutWorkflow {
+  @WorkflowInterface
+  public interface WorkflowTaskTimeoutWorkflow {
+    @WorkflowMethod
+    String execute(String testName) throws InterruptedException;
+  }
+
+  public static class WorkflowTaskTimeoutWorkflowImpl implements WorkflowTaskTimeoutWorkflow {
 
     @Override
     public String execute(String testName) throws InterruptedException {

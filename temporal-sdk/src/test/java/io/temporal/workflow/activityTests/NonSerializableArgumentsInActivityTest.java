@@ -19,6 +19,7 @@
 
 package io.temporal.workflow.activityTests;
 
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
@@ -26,7 +27,6 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -36,8 +36,8 @@ import org.junit.Test;
 
 public class NonSerializableArgumentsInActivityTest {
 
-  private final WorkflowTest.NonDeserializableExceptionActivityImpl activitiesImpl =
-      new WorkflowTest.NonDeserializableExceptionActivityImpl();
+  private final NonDeserializableExceptionActivityImpl activitiesImpl =
+      new NonDeserializableExceptionActivityImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -54,6 +54,11 @@ public class NonSerializableArgumentsInActivityTest {
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals(
         "ApplicationFailure-io.temporal.common.converter.DataConverterException", result);
+  }
+
+  @ActivityInterface
+  public interface NonDeserializableArgumentsActivity {
+    void execute(int arg);
   }
 
   public static class TestNonSerializableArgumentsInActivityWorkflow
@@ -89,7 +94,7 @@ public class NonSerializableArgumentsInActivityTest {
   }
 
   public class NonDeserializableExceptionActivityImpl
-      implements WorkflowTest.NonDeserializableArgumentsActivity {
+      implements NonDeserializableArgumentsActivity {
 
     @Override
     public void execute(int arg) {}

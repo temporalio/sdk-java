@@ -19,9 +19,9 @@
 
 package io.temporal.workflow.shared;
 
+import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.WorkflowTest;
 
 public class TestMultiargdsWorkflowFunctions {
 
@@ -74,50 +74,56 @@ public class TestMultiargdsWorkflowFunctions {
     String func6(String a1, int a2, int a3, int a4, int a5, int a6);
   }
 
+  public interface ProcInvocationQueryable {
+
+    @QueryMethod(name = "getTrace")
+    String query();
+  }
+
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc extends WorkflowTest.ProcInvocationQueryable {
+  public interface TestMultiargsWorkflowsProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc();
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc1 extends WorkflowTest.ProcInvocationQueryable {
+  public interface TestMultiargsWorkflowsProc1 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc1(String input);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc2 extends WorkflowTest.ProcInvocationQueryable {
+  public interface TestMultiargsWorkflowsProc2 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc2(String a1, int a2);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc3 extends WorkflowTest.ProcInvocationQueryable {
+  public interface TestMultiargsWorkflowsProc3 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc3(String a1, int a2, int a3);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc4 extends WorkflowTest.ProcInvocationQueryable {
+  public interface TestMultiargsWorkflowsProc4 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc4(String a1, int a2, int a3, int a4);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc5 extends WorkflowTest.ProcInvocationQueryable {
+  public interface TestMultiargsWorkflowsProc5 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc5(String a1, int a2, int a3, int a4, int a5);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc6 extends WorkflowTest.ProcInvocationQueryable {
+  public interface TestMultiargsWorkflowsProc6 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc6(String a1, int a2, int a3, int a4, int a5, int a6);

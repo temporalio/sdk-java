@@ -22,7 +22,6 @@ package io.temporal.workflow.childWorkflowTests;
 import static io.temporal.workflow.WorkflowTest.lastCompletionResult;
 import static io.temporal.workflow.shared.TestOptions.newWorkflowOptionsWithTimeouts;
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertTrue;
 
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;

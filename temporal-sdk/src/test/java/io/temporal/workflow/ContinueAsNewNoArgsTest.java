@@ -43,8 +43,7 @@ public class ContinueAsNewNoArgsTest {
   @Test
   public void testContinueAsNewNoArgs() {
 
-    WorkflowTest.NoArgsWorkflow client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(WorkflowTest.NoArgsWorkflow.class);
+    NoArgsWorkflow client = testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
     String result = client.execute();
     Assert.assertEquals("done", result);
     testWorkflowRule
@@ -57,12 +56,17 @@ public class ContinueAsNewNoArgsTest {
             "newThread workflow-method");
   }
 
-  public static class TestContinueAsNewNoArgsImpl implements WorkflowTest.NoArgsWorkflow {
+  @WorkflowInterface
+  public interface NoArgsWorkflow {
+    @WorkflowMethod
+    String execute();
+  }
+
+  public static class TestContinueAsNewNoArgsImpl implements NoArgsWorkflow {
 
     @Override
     public String execute() {
-      WorkflowTest.NoArgsWorkflow next =
-          Workflow.newContinueAsNewStub(WorkflowTest.NoArgsWorkflow.class);
+      NoArgsWorkflow next = Workflow.newContinueAsNewStub(NoArgsWorkflow.class);
       WorkflowInfo info = Workflow.getInfo();
       if (!info.getContinuedExecutionRunId().isPresent()) {
         next.execute();

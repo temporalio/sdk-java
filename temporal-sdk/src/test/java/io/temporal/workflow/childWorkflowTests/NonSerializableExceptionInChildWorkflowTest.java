@@ -22,6 +22,8 @@ package io.temporal.workflow.childWorkflowTests;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
@@ -55,8 +57,15 @@ public class NonSerializableExceptionInChildWorkflowTest {
     Assert.assertTrue(result.contains("NonSerializableException"));
   }
 
+  @WorkflowInterface
+  public interface NonSerializableExceptionChildWorkflow {
+
+    @WorkflowMethod
+    String execute(String taskQueue);
+  }
+
   public static class NonSerializableExceptionChildWorkflowImpl
-      implements WorkflowTest.NonSerializableExceptionChildWorkflow {
+      implements NonSerializableExceptionChildWorkflow {
 
     @Override
     public String execute(String taskQueue) {
@@ -69,8 +78,8 @@ public class NonSerializableExceptionInChildWorkflowTest {
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.NonSerializableExceptionChildWorkflow child =
-          Workflow.newChildWorkflowStub(WorkflowTest.NonSerializableExceptionChildWorkflow.class);
+      NonSerializableExceptionChildWorkflow child =
+          Workflow.newChildWorkflowStub(NonSerializableExceptionChildWorkflow.class);
       try {
         child.execute(taskQueue);
       } catch (ChildWorkflowFailure e) {

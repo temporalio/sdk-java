@@ -21,9 +21,10 @@ package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.WorkflowTest;
+import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
@@ -40,7 +41,7 @@ public class LocalActivitiesWorkflowTaskHeartbeatTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(WorkflowTest.TestLocalActivitiesWorkflowTaskHeartbeatWorkflowImpl.class)
+          .setWorkflowTypes(TestLocalActivitiesWorkflowTaskHeartbeatWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .setTestTimeoutSeconds(15)
           .build();
@@ -69,5 +70,20 @@ public class LocalActivitiesWorkflowTaskHeartbeatTest {
           result[i].get());
     }
     Assert.assertEquals(activitiesImpl.toString(), 5 * count, activitiesImpl.invocations.size());
+  }
+
+  public static class TestLocalActivitiesWorkflowTaskHeartbeatWorkflowImpl
+      implements TestWorkflows.TestWorkflow1 {
+    @Override
+    public String execute(String taskQueue) {
+      TestActivities localActivities =
+          Workflow.newLocalActivityStub(
+              TestActivities.class, TestOptions.newLocalActivityOptions());
+      String result = "";
+      for (int i = 0; i < 5; i++) {
+        result += localActivities.sleepActivity(2000, i);
+      }
+      return result;
+    }
   }
 }

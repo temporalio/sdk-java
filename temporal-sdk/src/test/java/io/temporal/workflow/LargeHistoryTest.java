@@ -19,6 +19,7 @@
 
 package io.temporal.workflow;
 
+import io.temporal.activity.ActivityInterface;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
@@ -47,11 +48,11 @@ public class LargeHistoryTest {
   @Ignore // Requires DEBUG_TIMEOUTS=true
   public void testLargeHistory() {
     final int activityCount = 1000;
-    WorkflowTest.TestLargeWorkflow workflowStub =
+    TestLargeWorkflow workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestLargeWorkflow.class,
+                TestLargeWorkflow.class,
                 TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
                     .setWorkflowTaskTimeout(Duration.ofSeconds(30))
@@ -63,21 +64,31 @@ public class LargeHistoryTest {
     Assert.assertEquals("done", result);
   }
 
-  public static class TestLargeWorkflowActivityImpl
-      implements WorkflowTest.TestLargeWorkflowActivity {
+  @WorkflowInterface
+  public interface TestLargeWorkflow {
+    @WorkflowMethod
+    String execute(int activityCount, String taskQueue);
+  }
+
+  @ActivityInterface
+  public interface TestLargeWorkflowActivity {
+    String activity();
+  }
+
+  public static class TestLargeWorkflowActivityImpl implements TestLargeWorkflowActivity {
     @Override
     public String activity() {
       return "done";
     }
   }
 
-  public static class TestLargeHistory implements WorkflowTest.TestLargeWorkflow {
+  public static class TestLargeHistory implements TestLargeWorkflow {
 
     @Override
     public String execute(int activityCount, String taskQueue) {
-      WorkflowTest.TestLargeWorkflowActivity activities =
+      TestLargeWorkflowActivity activities =
           Workflow.newActivityStub(
-              WorkflowTest.TestLargeWorkflowActivity.class,
+              TestLargeWorkflowActivity.class,
               TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       List<Promise<String>> results = new ArrayList<>();
       for (int i = 0; i < activityCount; i++) {

@@ -48,8 +48,6 @@ public class AsyncActivityTest {
 
   @Test
   public void testAsyncActivity() {
-    // TODO: (vkoby) See if this activityImpl could be constructed from within the rule with the
-    // right completion client.
     activitiesImpl.completionClient =
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
     TestWorkflows.TestWorkflow1 client =

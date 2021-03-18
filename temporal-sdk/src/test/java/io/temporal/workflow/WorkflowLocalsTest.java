@@ -19,16 +19,15 @@
 
 package io.temporal.workflow;
 
+import static org.junit.Assert.assertEquals;
+
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-
-import java.time.Duration;
-
-import static org.junit.Assert.assertEquals;
 
 public class WorkflowLocalsTest {
 

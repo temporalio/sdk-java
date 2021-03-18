@@ -20,6 +20,7 @@
 package io.temporal.workflow;
 
 import io.temporal.client.WorkflowException;
+import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
@@ -54,9 +55,8 @@ public class WorkflowRetryWithMethodRetryDoNotRetryExceptionTest {
 
   @Test
   public void testWorkflowRetryWithMethodRetryDoNotRetryException() {
-    WorkflowTest.TestWorkflowRetryWithMethodRetry workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            WorkflowTest.TestWorkflowRetryWithMethodRetry.class);
+    TestWorkflowRetryWithMethodRetry workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowRetryWithMethodRetry.class);
     try {
       workflowStub.execute(testName.getMethodName());
       Assert.fail("unreachable");
@@ -70,8 +70,20 @@ public class WorkflowRetryWithMethodRetryDoNotRetryExceptionTest {
     }
   }
 
+  @WorkflowInterface
+  public interface TestWorkflowRetryWithMethodRetry {
+
+    @WorkflowMethod
+    @MethodRetry(
+        initialIntervalSeconds = 1,
+        maximumIntervalSeconds = 1,
+        maximumAttempts = 30,
+        doNotRetry = "java.lang.IllegalArgumentException")
+    String execute(String testName);
+  }
+
   public static class TestWorkflowRetryWithMethodRetryImpl
-      implements WorkflowTest.TestWorkflowRetryWithMethodRetry {
+      implements TestWorkflowRetryWithMethodRetry {
 
     @Override
     public String execute(String testName) {

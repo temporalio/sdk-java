@@ -19,6 +19,7 @@
 
 package io.temporal.workflow.activityTests;
 
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.workflow.Workflow;
@@ -32,8 +33,8 @@ import org.junit.Test;
 
 public class NonSerializableExceptionInActivityWorkflowTest {
 
-  private final WorkflowTest.NonSerializableExceptionActivityImpl activitiesImpl =
-      new WorkflowTest.NonSerializableExceptionActivityImpl();
+  private final NonSerializableExceptionActivityImpl activitiesImpl =
+      new NonSerializableExceptionActivityImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -51,14 +52,28 @@ public class NonSerializableExceptionInActivityWorkflowTest {
     Assert.assertTrue(result.contains("NonSerializableException"));
   }
 
+  @ActivityInterface
+  public interface NonSerializableExceptionActivity {
+    void execute();
+  }
+
+  public static class NonSerializableExceptionActivityImpl
+      implements NonSerializableExceptionActivity {
+
+    @Override
+    public void execute() {
+      throw new WorkflowTest.NonSerializableException();
+    }
+  }
+
   public static class TestNonSerializableExceptionInActivityWorkflow
       implements TestWorkflows.TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      WorkflowTest.NonSerializableExceptionActivity activity =
+      NonSerializableExceptionActivity activity =
           Workflow.newActivityStub(
-              WorkflowTest.NonSerializableExceptionActivity.class,
+              NonSerializableExceptionActivity.class,
               ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .build());

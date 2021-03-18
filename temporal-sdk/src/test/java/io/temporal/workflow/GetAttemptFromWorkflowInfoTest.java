@@ -49,16 +49,22 @@ public class GetAttemptFromWorkflowInfoTest {
             .toBuilder()
             .setWorkflowId(workflowId)
             .build();
-    WorkflowTest.TestGetAttemptWorkflowsFunc workflow =
+    TestGetAttemptWorkflowsFunc workflow =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.TestGetAttemptWorkflowsFunc.class, workflowOptions);
+            .newWorkflowStub(TestGetAttemptWorkflowsFunc.class, workflowOptions);
     int attempt = workflow.func();
     Assert.assertEquals(1, attempt);
   }
 
-  public static class TestAttemptReturningWorkflowFunc
-      implements WorkflowTest.TestGetAttemptWorkflowsFunc {
+  @WorkflowInterface
+  public interface TestGetAttemptWorkflowsFunc {
+
+    @WorkflowMethod
+    int func();
+  }
+
+  public static class TestAttemptReturningWorkflowFunc implements TestGetAttemptWorkflowsFunc {
     @Override
     public int func() {
       WorkflowInfo wi = Workflow.getInfo();

@@ -20,9 +20,10 @@
 package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.WorkflowTest;
+import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -37,8 +38,7 @@ public class LongLocalActivityWorkflowTaskHeartbeatTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(
-              WorkflowTest.TestLongLocalActivityWorkflowTaskHeartbeatWorkflowImpl.class)
+          .setWorkflowTypes(TestLongLocalActivityWorkflowTaskHeartbeatWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .build();
 
@@ -57,5 +57,16 @@ public class LongLocalActivityWorkflowTaskHeartbeatTest {
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("sleepActivity123", result);
     Assert.assertEquals(activitiesImpl.toString(), 1, activitiesImpl.invocations.size());
+  }
+
+  public static class TestLongLocalActivityWorkflowTaskHeartbeatWorkflowImpl
+      implements TestWorkflows.TestWorkflow1 {
+    @Override
+    public String execute(String taskQueue) {
+      TestActivities localActivities =
+          Workflow.newLocalActivityStub(
+              TestActivities.class, TestOptions.newLocalActivityOptions());
+      return localActivities.sleepActivity(5000, 123);
+    }
   }
 }

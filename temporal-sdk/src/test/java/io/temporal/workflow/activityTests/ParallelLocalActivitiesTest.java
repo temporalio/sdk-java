@@ -19,12 +19,11 @@
 
 package io.temporal.workflow.activityTests;
 
-import io.temporal.client.*;
+import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
@@ -70,11 +69,11 @@ public class ParallelLocalActivitiesTest {
     List<String> expected = new ArrayList<String>();
     expected.add("interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP);
     expected.add("newThread workflow-method");
-    for (int i = 0; i < WorkflowTest.TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
+    for (int i = 0; i < TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("executeLocalActivity SleepActivity");
       expected.add("currentTimeMillis");
     }
-    for (int i = 0; i < WorkflowTest.TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
+    for (int i = 0; i < TestParallelLocalActivitiesWorkflowImpl.COUNT; i++) {
       expected.add("local activity SleepActivity");
     }
     testWorkflowRule

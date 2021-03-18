@@ -27,7 +27,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -65,10 +64,14 @@ public class ActivityRetryWithExpirationTest {
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
 
+  public interface EmptyInterface {}
+
+  public interface UnrelatedInterface {
+    void unrelatedMethod();
+  }
+
   public static class TestActivityRetryWithExpiration
-      implements TestWorkflows.TestWorkflow1,
-          WorkflowTest.EmptyInterface,
-          WorkflowTest.UnrelatedInterface {
+      implements TestWorkflows.TestWorkflow1, EmptyInterface, UnrelatedInterface {
 
     @Override
     @SuppressWarnings("Finally")

@@ -39,8 +39,8 @@ public class PolymorphicStartTest {
 
   @Test
   public void testPolymorphicStart() {
-    WorkflowTest.WorkflowBase[] stubs =
-        new WorkflowTest.WorkflowBase[] {
+    WorkflowBase[] stubs =
+        new WorkflowBase[] {
           testWorkflowRule.newWorkflowStubTimeoutOptions(WorkflowA.class),
           testWorkflowRule.newWorkflowStubTimeoutOptions(WorkflowB.class)
         };
@@ -48,11 +48,16 @@ public class PolymorphicStartTest {
     Assert.assertEquals("WorkflowAImpl0, WorkflowBImpl1", results);
   }
 
-  @WorkflowInterface
-  public interface WorkflowA extends WorkflowTest.WorkflowBase {}
+  public interface WorkflowBase {
+    @WorkflowMethod
+    String execute(String arg);
+  }
 
   @WorkflowInterface
-  public interface WorkflowB extends WorkflowTest.WorkflowBase {}
+  public interface WorkflowA extends WorkflowBase {}
+
+  @WorkflowInterface
+  public interface WorkflowB extends WorkflowBase {}
 
   public static class WorkflowBImpl implements WorkflowB {
     @Override
