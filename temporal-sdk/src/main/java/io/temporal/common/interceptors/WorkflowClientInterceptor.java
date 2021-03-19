@@ -29,18 +29,30 @@ import java.util.Optional;
 @Experimental
 public interface WorkflowClientInterceptor {
   /**
-   * Called when workflow stub is created during creation of new workflow.
+   * Called when workflow stub is instantiated during creation of new workflow. It allows to
+   * decorate calls to {@link WorkflowStub} instance which is an entry point for client code.
    *
    * @return decorated stub
+   * @deprecated consider implementing all intercepting functionality using {@link
+   *     WorkflowClientCallsInterceptor} that is produced in {@link
+   *     #workflowClientClassInterceptor}. This method has to stay temporary because
+   *     TimeLockingInterceptor has to intercept top level {@link WorkflowStub} methods.
    */
+  @Deprecated
   WorkflowStub newUntypedWorkflowStub(
       String workflowType, WorkflowOptions options, WorkflowStub next);
 
   /**
-   * Called when workflow stub is created for a known existing execution
+   * Called when workflow stub is instantiated for a known existing workflow execution. It allows to
+   * decorate calls to {@link WorkflowStub} instance which is an entry point for client code.
    *
    * @return decorated stub
+   * @deprecated consider implementing all intercepting functionality using {@link
+   *     WorkflowClientCallsInterceptor} that is produced in {@link
+   *     #workflowClientClassInterceptor}. This method has to stay temporary because
+   *     TimeLockingInterceptor has to intercept top level {@link WorkflowStub} methods.
    */
+  @Deprecated
   WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next);
 
@@ -52,5 +64,6 @@ public interface WorkflowClientInterceptor {
    * @param next next workflow client interceptor in the chain of interceptors
    * @return new interceptor that should decorate calls to {@code next}
    */
-  WorkflowClientCallsInterceptor initWorkflowClientInterceptor(WorkflowClientCallsInterceptor next);
+  WorkflowClientCallsInterceptor workflowClientClassInterceptor(
+      WorkflowClientCallsInterceptor next);
 }

@@ -101,7 +101,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
         new RootWorkflowClientInvoker(genericClient, options, metricsScope);
     for (WorkflowClientInterceptor clientInterceptor : interceptors) {
       workflowClientInvoker =
-          clientInterceptor.initWorkflowClientInterceptor(workflowClientInvoker);
+          clientInterceptor.workflowClientClassInterceptor(workflowClientInvoker);
     }
     return workflowClientInvoker;
   }
@@ -183,6 +183,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions workflowOptions) {
     WorkflowStub result =
         new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, workflowOptions);
