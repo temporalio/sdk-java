@@ -34,8 +34,7 @@ public interface WorkflowClientCallsInterceptor {
 
   WorkflowStartOutput start(WorkflowStartInput input);
 
-  // TODO Spikhalskiy return SignalOutput?
-  void signal(WorkflowSignalInput input);
+  WorkflowSignalOutput signal(WorkflowSignalInput input);
 
   WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input);
 
@@ -44,6 +43,10 @@ public interface WorkflowClientCallsInterceptor {
   <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input);
 
   <R> QueryOutput<R> query(QueryInput<R> input);
+
+  CancelOutput cancel(CancelInput input);
+
+  TerminateOutput terminate(TerminateInput input);
 
   final class WorkflowStartInput {
     private final String workflowId;
@@ -58,20 +61,10 @@ public interface WorkflowClientCallsInterceptor {
         Header header,
         Object[] arguments,
         WorkflowOptions options) {
-      if (workflowId == null) {
-        throw new IllegalArgumentException("workflowId should be specified for start call");
-      }
       this.workflowId = workflowId;
-      if (workflowType == null) {
-        throw new IllegalArgumentException("workflowType should be specified for start call");
-      }
       this.workflowType = workflowType;
       this.header = header;
       this.arguments = arguments;
-      if (options == null) {
-        throw new IllegalArgumentException(
-            "options should be specified and not be null for start call");
-      }
       this.options = options;
     }
 
@@ -126,26 +119,30 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
+  final class WorkflowSignalOutput {}
+
   final class WorkflowStartWithSignalInput {
     private final WorkflowStartInput workflowStartInput;
-    // TODO Spikhalskiy I'm not sure about this structure.
-    // SignalWithStartWorkflowExecutionParameters is
-    // StartWorkflowExecutionRequest + signalName + signalInput,
-    // not StartWorkflowExecutionRequest + SignalWorkflowExecutionRequest
-    private final WorkflowSignalInput workflowSignalInput;
+    private final String signalName;
+    private final Object[] signalArguments;
 
     public WorkflowStartWithSignalInput(
-        WorkflowStartInput workflowStartInput, WorkflowSignalInput workflowSignalInput) {
+        WorkflowStartInput workflowStartInput, String signalName, Object[] signalArguments) {
       this.workflowStartInput = workflowStartInput;
-      this.workflowSignalInput = workflowSignalInput;
+      this.signalName = signalName;
+      this.signalArguments = signalArguments;
     }
 
     public WorkflowStartInput getWorkflowStartInput() {
       return workflowStartInput;
     }
 
-    public WorkflowSignalInput getWorkflowSignalInput() {
-      return workflowSignalInput;
+    public String getSignalName() {
+      return signalName;
+    }
+
+    public Object[] getSignalArguments() {
+      return signalArguments;
     }
   }
 
@@ -299,4 +296,44 @@ public interface WorkflowClientCallsInterceptor {
       return result;
     }
   }
+
+  final class CancelInput {
+    private final WorkflowExecution workflowExecution;
+
+    public CancelInput(WorkflowExecution workflowExecution) {
+      this.workflowExecution = workflowExecution;
+    }
+
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+  }
+
+  final class CancelOutput {}
+
+  final class TerminateInput {
+    private final WorkflowExecution workflowExecution;
+    private final String reason;
+    private final Object[] details;
+
+    public TerminateInput(WorkflowExecution workflowExecution, String reason, Object[] details) {
+      this.workflowExecution = workflowExecution;
+      this.reason = reason;
+      this.details = details;
+    }
+
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+
+    public String getReason() {
+      return reason;
+    }
+
+    public Object[] getDetails() {
+      return details;
+    }
+  }
+
+  final class TerminateOutput {}
 }

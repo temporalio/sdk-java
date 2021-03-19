@@ -21,12 +21,9 @@ package io.temporal.internal.sync;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
@@ -44,7 +41,6 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
-import io.temporal.internal.external.GenericWorkflowClientExternal;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,9 +53,6 @@ import java.util.concurrent.atomic.AtomicReference;
 class WorkflowStubImpl implements WorkflowStub {
   private final WorkflowClientOptions clientOptions;
   private final WorkflowClientCallsInterceptor workflowClientInvoker;
-  // TODO most direct usage of genericClient should be refactored and workflowClientInvoker methods
-  // should be used instead
-  private final GenericWorkflowClientExternal genericClient;
   private final Optional<String> workflowType;
   private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
   private final Optional<WorkflowOptions> options;
@@ -67,12 +60,10 @@ class WorkflowStubImpl implements WorkflowStub {
   WorkflowStubImpl(
       WorkflowClientOptions clientOptions,
       WorkflowClientCallsInterceptor workflowClientInvoker,
-      GenericWorkflowClientExternal genericClient,
       Optional<String> workflowType,
       WorkflowExecution execution) {
     this.clientOptions = clientOptions;
     this.workflowClientInvoker = workflowClientInvoker;
-    this.genericClient = genericClient;
     this.workflowType = workflowType;
     if (execution == null
         || execution.getWorkflowId() == null
@@ -86,12 +77,10 @@ class WorkflowStubImpl implements WorkflowStub {
   WorkflowStubImpl(
       WorkflowClientOptions clientOptions,
       WorkflowClientCallsInterceptor workflowClientInvoker,
-      GenericWorkflowClientExternal genericClient,
       String workflowType,
       WorkflowOptions options) {
     this.clientOptions = clientOptions;
     this.workflowClientInvoker = workflowClientInvoker;
-    this.genericClient = genericClient;
     this.workflowType = Optional.of(workflowType);
     this.options = Optional.of(options);
   }
@@ -150,8 +139,8 @@ class WorkflowStubImpl implements WorkflowStub {
               new WorkflowClientCallsInterceptor.WorkflowStartWithSignalInput(
                   new WorkflowClientCallsInterceptor.WorkflowStartInput(
                       workflowId, workflowType.get(), Header.empty(), startArgs, options),
-                  new WorkflowClientCallsInterceptor.WorkflowSignalInput(
-                      workflowId, signalName, signalArgs)));
+                  signalName,
+                  signalArgs));
       WorkflowExecution workflowExecution = workflowStartOutput.getWorkflowExecution();
       execution.set(workflowExecution);
       return workflowExecution;
@@ -183,15 +172,6 @@ class WorkflowStubImpl implements WorkflowStub {
       workflowId = UUID.randomUUID().toString();
     }
     return workflowId;
-  }
-
-  private void checkExecutionIsNotStarted() {
-    if (execution.get() != null) {
-      throw new IllegalStateException(
-          "Cannot reuse a stub instance to start more than one workflow execution. The stub "
-              + "points to already started execution. If you are trying to wait for a workflow completion either "
-              + "change WorkflowIdReusePolicy from AllowDuplicate or use WorkflowStub.getResult");
-    }
   }
 
   @Override
@@ -366,41 +346,15 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public void cancel() {
-    if (execution.get() == null || execution.get().getWorkflowId() == null) {
-      throw new IllegalStateException("Not started");
-    }
-
-    // RunId can change if workflow does ContinueAsNew. So we do not set it here and
-    // let the server figure out the current run.
-    RequestCancelWorkflowExecutionRequest.Builder request =
-        RequestCancelWorkflowExecutionRequest.newBuilder()
-            .setRequestId(UUID.randomUUID().toString())
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()))
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity());
-    genericClient.requestCancel(request.build());
+    checkStarted();
+    workflowClientInvoker.cancel(new WorkflowClientCallsInterceptor.CancelInput(execution.get()));
   }
 
   @Override
   public void terminate(String reason, Object... details) {
-    if (execution.get() == null || execution.get().getWorkflowId() == null) {
-      throw new IllegalStateException("Not started");
-    }
-
-    // RunId can change if workflow does ContinueAsNew. So we do not set it here and
-    // let the server figure out the current run.
-    TerminateWorkflowExecutionRequest.Builder request =
-        TerminateWorkflowExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()))
-            .setReason(reason);
-    Optional<Payloads> payloads = clientOptions.getDataConverter().toPayloads(details);
-    if (payloads.isPresent()) {
-      request.setDetails(payloads.get());
-    }
-    genericClient.terminate(request.build());
+    checkStarted();
+    workflowClientInvoker.terminate(
+        new WorkflowClientCallsInterceptor.TerminateInput(execution.get(), reason, details));
   }
 
   @Override
@@ -411,6 +365,15 @@ class WorkflowStubImpl implements WorkflowStub {
   private void checkStarted() {
     if (execution.get() == null || execution.get().getWorkflowId() == null) {
       throw new IllegalStateException("Null workflowId. Was workflow started?");
+    }
+  }
+
+  private void checkExecutionIsNotStarted() {
+    if (execution.get() != null) {
+      throw new IllegalStateException(
+          "Cannot reuse a stub instance to start more than one workflow execution. The stub "
+              + "points to already started execution. If you are trying to wait for a workflow completion either "
+              + "change WorkflowIdReusePolicy from AllowDuplicate or use WorkflowStub.getResult");
     }
   }
 }

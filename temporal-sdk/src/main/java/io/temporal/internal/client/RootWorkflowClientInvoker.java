@@ -23,10 +23,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
@@ -60,7 +57,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   }
 
   @Override
-  public void signal(WorkflowSignalInput input) {
+  public WorkflowSignalOutput signal(WorkflowSignalInput input) {
     SignalWorkflowExecutionRequest.Builder request =
         SignalWorkflowExecutionRequest.newBuilder()
             .setSignalName(input.getSignalName())
@@ -75,10 +72,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     }
     Optional<Payloads> inputArgs =
         clientOptions.getDataConverter().toPayloads(input.getArguments());
-    if (inputArgs.isPresent()) {
-      request.setInput(inputArgs.get());
-    }
+    inputArgs.ifPresent(request::setInput);
     genericClient.signal(request.build());
+    return new WorkflowSignalOutput();
   }
 
   @Override
@@ -86,10 +82,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     StartWorkflowExecutionRequest request =
         requestsHelper.newStartWorkflowExecutionRequest(input.getWorkflowStartInput());
     Optional<Payloads> signalInput =
-        clientOptions.getDataConverter().toPayloads(input.getWorkflowSignalInput().getArguments());
+        clientOptions.getDataConverter().toPayloads(input.getSignalArguments());
     SignalWithStartWorkflowExecutionParameters p =
-        new SignalWithStartWorkflowExecutionParameters(
-            request, input.getWorkflowSignalInput().getSignalName(), signalInput);
+        new SignalWithStartWorkflowExecutionParameters(request, input.getSignalName(), signalInput);
     return new WorkflowStartOutput(genericClient.signalWithStart(p));
   }
 
@@ -154,6 +149,39 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     R resultValue =
         convertResultPayloads(queryResult, input.getResultClass(), input.getResultType());
     return new QueryOutput<>(rejectStatus, resultValue);
+  }
+
+  @Override
+  public CancelOutput cancel(CancelInput input) {
+    // RunId can change if workflow does ContinueAsNew. So we do not set it here and
+    // let the server figure out the current run.
+    RequestCancelWorkflowExecutionRequest.Builder request =
+        RequestCancelWorkflowExecutionRequest.newBuilder()
+            .setRequestId(UUID.randomUUID().toString())
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(input.getWorkflowExecution().getWorkflowId()))
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity());
+    genericClient.requestCancel(request.build());
+    return new CancelOutput();
+  }
+
+  @Override
+  public TerminateOutput terminate(TerminateInput input) {
+    // RunId can change if workflow does ContinueAsNew. So we do not set it here and
+    // let the server figure out the current run.
+    TerminateWorkflowExecutionRequest.Builder request =
+        TerminateWorkflowExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(input.getWorkflowExecution().getWorkflowId()))
+            .setReason(input.getReason());
+    Optional<Payloads> payloads = clientOptions.getDataConverter().toPayloads(input.getDetails());
+    payloads.ifPresent(request::setDetails);
+    genericClient.terminate(request.build());
+    return new TerminateOutput();
   }
 
   private <R> R convertResultPayloads(

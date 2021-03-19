@@ -36,8 +36,8 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   }
 
   @Override
-  public void signal(WorkflowSignalInput input) {
-    next.signal(input);
+  public WorkflowSignalOutput signal(WorkflowSignalInput input) {
+    return next.signal(input);
   }
 
   @Override
@@ -58,5 +58,15 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   @Override
   public <R> QueryOutput<R> query(QueryInput<R> input) {
     return next.query(input);
+  }
+
+  @Override
+  public CancelOutput cancel(CancelInput input) {
+    return next.cancel(input);
+  }
+
+  @Override
+  public TerminateOutput terminate(TerminateInput input) {
+    return next.terminate(input);
   }
 }
