@@ -28,12 +28,14 @@ import java.util.Optional;
 /** Convenience base class for WorkflowClientInterceptor implementations. */
 public class WorkflowClientInterceptorBase implements WorkflowClientInterceptor {
 
+  @Deprecated
   @Override
   public WorkflowStub newUntypedWorkflowStub(
       String workflowType, WorkflowOptions options, WorkflowStub next) {
     return next;
   }
 
+  @Deprecated
   @Override
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next) {

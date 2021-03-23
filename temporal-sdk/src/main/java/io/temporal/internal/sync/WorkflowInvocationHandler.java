@@ -108,6 +108,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
   private final WorkflowStub untyped;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
+  @SuppressWarnings("deprecation")
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,
@@ -124,6 +125,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     this.untyped = stub;
   }
 
+  @SuppressWarnings("deprecation")
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,

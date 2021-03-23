@@ -206,12 +206,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       this.locker = new IdempotentLocker(service);
     }
 
+    @Deprecated
     @Override
     public WorkflowStub newUntypedWorkflowStub(
         String workflowType, WorkflowOptions options, WorkflowStub next) {
       return new TimeLockingWorkflowStub(locker, next);
     }
 
+    @Deprecated
     @Override
     public WorkflowStub newUntypedWorkflowStub(
         WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next) {
