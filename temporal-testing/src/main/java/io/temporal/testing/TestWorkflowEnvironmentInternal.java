@@ -26,7 +26,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.internal.sync.WorkflowClientInternal;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -198,7 +198,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     return workerFactory;
   }
 
-  private static class TimeLockingInterceptor implements WorkflowClientInterceptor {
+  private static class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
 
     private final IdempotentLocker locker;
 
@@ -206,12 +206,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       this.locker = new IdempotentLocker(service);
     }
 
+    @Deprecated
     @Override
     public WorkflowStub newUntypedWorkflowStub(
         String workflowType, WorkflowOptions options, WorkflowStub next) {
       return new TimeLockingWorkflowStub(locker, next);
     }
 
+    @Deprecated
     @Override
     public WorkflowStub newUntypedWorkflowStub(
         WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next) {
