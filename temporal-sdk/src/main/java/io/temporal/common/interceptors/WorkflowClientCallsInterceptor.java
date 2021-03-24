@@ -43,7 +43,7 @@ public interface WorkflowClientCallsInterceptor {
    */
   WorkflowSignalOutput signal(WorkflowSignalInput input);
 
-  WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input);
+  WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input);
 
   /**
    * @see #getResultAsync if you implement this method, {@link #getResultAsync} most likely needs to
@@ -104,19 +104,32 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
+  final class WorkflowStartOutput {
+    private final WorkflowExecution workflowExecution;
+
+    public WorkflowStartOutput(WorkflowExecution workflowExecution) {
+      this.workflowExecution = workflowExecution;
+    }
+
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
+    }
+  }
+
   final class WorkflowSignalInput {
-    private final String workflowId;
+    private final WorkflowExecution workflowExecution;
     private final String signalName;
     private final Object[] arguments;
 
-    public WorkflowSignalInput(String workflowId, String signalName, Object[] signalArguments) {
-      this.workflowId = workflowId;
+    public WorkflowSignalInput(
+        WorkflowExecution workflowExecution, String signalName, Object[] signalArguments) {
+      this.workflowExecution = workflowExecution;
       this.signalName = signalName;
       this.arguments = signalArguments;
     }
 
-    public String getWorkflowId() {
-      return workflowId;
+    public WorkflowExecution getWorkflowExecution() {
+      return workflowExecution;
     }
 
     public String getSignalName() {
@@ -130,12 +143,12 @@ public interface WorkflowClientCallsInterceptor {
 
   final class WorkflowSignalOutput {}
 
-  final class WorkflowStartWithSignalInput {
+  final class WorkflowSignalWithStartInput {
     private final WorkflowStartInput workflowStartInput;
     private final String signalName;
     private final Object[] signalArguments;
 
-    public WorkflowStartWithSignalInput(
+    public WorkflowSignalWithStartInput(
         WorkflowStartInput workflowStartInput, String signalName, Object[] signalArguments) {
       this.workflowStartInput = workflowStartInput;
       this.signalName = signalName;
@@ -155,15 +168,15 @@ public interface WorkflowClientCallsInterceptor {
     }
   }
 
-  final class WorkflowStartOutput {
-    private final WorkflowExecution workflowExecution;
+  final class WorkflowSignalWithStartOutput {
+    private final WorkflowStartOutput workflowStartOutput;
 
-    public WorkflowStartOutput(WorkflowExecution workflowExecution) {
-      this.workflowExecution = workflowExecution;
+    public WorkflowSignalWithStartOutput(WorkflowStartOutput workflowStartOutput) {
+      this.workflowStartOutput = workflowStartOutput;
     }
 
-    public WorkflowExecution getWorkflowExecution() {
-      return workflowExecution;
+    public WorkflowStartOutput getWorkflowStartOutput() {
+      return workflowStartOutput;
     }
   }
 

@@ -49,6 +49,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.commons.lang3.StringUtils;
 
 class WorkflowStubImpl implements WorkflowStub {
   private final WorkflowClientOptions clientOptions;
@@ -91,7 +92,7 @@ class WorkflowStubImpl implements WorkflowStub {
     try {
       workflowClientInvoker.signal(
           new WorkflowClientCallsInterceptor.WorkflowSignalInput(
-              execution.get().getWorkflowId(), signalName, args));
+              currentExecutionWithoutRunId(), signalName, args));
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
@@ -115,7 +116,7 @@ class WorkflowStubImpl implements WorkflowStub {
       execution.set(workflowExecution);
       return workflowExecution;
     } catch (StatusRuntimeException e) {
-      throw wrapExecutionAlreadyStarted(workflowId, workflowType.orElse(null), e);
+      throw wrapStartException(workflowId, workflowType.orElse(null), e);
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
@@ -134,35 +135,38 @@ class WorkflowStubImpl implements WorkflowStub {
     checkExecutionIsNotStarted();
     String workflowId = getWorkflowIdForStart(options);
     try {
-      WorkflowClientCallsInterceptor.WorkflowStartOutput workflowStartOutput =
+      WorkflowClientCallsInterceptor.WorkflowSignalWithStartOutput workflowStartOutput =
           workflowClientInvoker.signalWithStart(
-              new WorkflowClientCallsInterceptor.WorkflowStartWithSignalInput(
+              new WorkflowClientCallsInterceptor.WorkflowSignalWithStartInput(
                   new WorkflowClientCallsInterceptor.WorkflowStartInput(
                       workflowId, workflowType.get(), Header.empty(), startArgs, options),
                   signalName,
                   signalArgs));
-      WorkflowExecution workflowExecution = workflowStartOutput.getWorkflowExecution();
+      WorkflowExecution workflowExecution =
+          workflowStartOutput.getWorkflowStartOutput().getWorkflowExecution();
       execution.set(workflowExecution);
       return workflowExecution;
     } catch (StatusRuntimeException e) {
-      throw wrapExecutionAlreadyStarted(workflowId, workflowType.orElse(null), e);
+      throw wrapStartException(workflowId, workflowType.orElse(null), e);
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
   }
 
-  private RuntimeException wrapExecutionAlreadyStarted(
+  private RuntimeException wrapStartException(
       String workflowId, String workflowType, StatusRuntimeException e) {
+    WorkflowExecution.Builder executionBuilder =
+        WorkflowExecution.newBuilder().setWorkflowId(workflowId);
+
     WorkflowExecutionAlreadyStartedFailure f =
         StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
     if (f != null) {
-      WorkflowExecution exe =
-          WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(f.getRunId()).build();
+      WorkflowExecution exe = executionBuilder.setRunId(f.getRunId()).build();
       execution.set(exe);
       return new WorkflowExecutionAlreadyStarted(exe, workflowType, e);
     } else {
-      // TODO should it be wrapped into WorkflowExecutionAlreadyStarted?
-      return e;
+      WorkflowExecution exe = executionBuilder.build();
+      return new WorkflowServiceException(exe, workflowType, e);
     }
   }
 
@@ -347,14 +351,16 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public void cancel() {
     checkStarted();
-    workflowClientInvoker.cancel(new WorkflowClientCallsInterceptor.CancelInput(execution.get()));
+    workflowClientInvoker.cancel(
+        new WorkflowClientCallsInterceptor.CancelInput(currentExecutionWithoutRunId()));
   }
 
   @Override
   public void terminate(String reason, Object... details) {
     checkStarted();
     workflowClientInvoker.terminate(
-        new WorkflowClientCallsInterceptor.TerminateInput(execution.get(), reason, details));
+        new WorkflowClientCallsInterceptor.TerminateInput(
+            currentExecutionWithoutRunId(), reason, details));
   }
 
   @Override
@@ -374,6 +380,19 @@ class WorkflowStubImpl implements WorkflowStub {
           "Cannot reuse a stub instance to start more than one workflow execution. The stub "
               + "points to already started execution. If you are trying to wait for a workflow completion either "
               + "change WorkflowIdReusePolicy from AllowDuplicate or use WorkflowStub.getResult");
+    }
+  }
+
+  /**
+   * RunId can change e.g. workflow does ContinueAsNew.
+   * Emptying runId in workflowExecution allows Temporal server figure out the current run id dynamically.
+   */
+  private WorkflowExecution currentExecutionWithoutRunId() {
+    WorkflowExecution workflowExecution = execution.get();
+    if (StringUtils.isEmpty(workflowExecution.getRunId())) {
+      return workflowExecution;
+    } else {
+      return WorkflowExecution.newBuilder(workflowExecution).setRunId("").build();
     }
   }
 }

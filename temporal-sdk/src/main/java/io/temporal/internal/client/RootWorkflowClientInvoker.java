@@ -61,8 +61,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     SignalWorkflowExecutionRequest.Builder request =
         SignalWorkflowExecutionRequest.newBuilder()
             .setSignalName(input.getSignalName())
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder().setWorkflowId(input.getWorkflowId()));
+            .setWorkflowExecution(input.getWorkflowExecution());
 
     if (clientOptions.getIdentity() != null) {
       request.setIdentity(clientOptions.getIdentity());
@@ -78,14 +77,15 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   }
 
   @Override
-  public WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input) {
+  public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
     StartWorkflowExecutionRequest request =
         requestsHelper.newStartWorkflowExecutionRequest(input.getWorkflowStartInput());
     Optional<Payloads> signalInput =
         clientOptions.getDataConverter().toPayloads(input.getSignalArguments());
     SignalWithStartWorkflowExecutionParameters p =
         new SignalWithStartWorkflowExecutionParameters(request, input.getSignalName(), signalInput);
-    return new WorkflowStartOutput(genericClient.signalWithStart(p));
+    return new WorkflowSignalWithStartOutput(
+        new WorkflowStartOutput(genericClient.signalWithStart(p)));
   }
 
   @Override
@@ -153,14 +153,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public CancelOutput cancel(CancelInput input) {
-    // RunId can change if workflow does ContinueAsNew. So we do not set it here and
-    // let the server figure out the current run.
     RequestCancelWorkflowExecutionRequest.Builder request =
         RequestCancelWorkflowExecutionRequest.newBuilder()
             .setRequestId(UUID.randomUUID().toString())
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder()
-                    .setWorkflowId(input.getWorkflowExecution().getWorkflowId()))
+            .setWorkflowExecution(input.getWorkflowExecution())
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity());
     genericClient.requestCancel(request.build());
@@ -169,14 +165,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public TerminateOutput terminate(TerminateInput input) {
-    // RunId can change if workflow does ContinueAsNew. So we do not set it here and
-    // let the server figure out the current run.
     TerminateWorkflowExecutionRequest.Builder request =
         TerminateWorkflowExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder()
-                    .setWorkflowId(input.getWorkflowExecution().getWorkflowId()))
+            .setWorkflowExecution(input.getWorkflowExecution())
             .setReason(input.getReason());
     Optional<Payloads> payloads = clientOptions.getDataConverter().toPayloads(input.getDetails());
     payloads.ifPresent(request::setDetails);

@@ -41,7 +41,7 @@ public class WorkflowClientCallsInterceptorBase implements WorkflowClientCallsIn
   }
 
   @Override
-  public WorkflowStartOutput signalWithStart(WorkflowStartWithSignalInput input) {
+  public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
     return next.signalWithStart(input);
   }
 

@@ -152,8 +152,8 @@ public class WorkflowTest {
                       }
 
                       @Override
-                      public WorkflowStartOutput signalWithStart(
-                          WorkflowStartWithSignalInput input) {
+                      public WorkflowSignalWithStartOutput signalWithStart(
+                          WorkflowSignalWithStartInput input) {
                         lastStartedWorkflowType.set(
                             input.getWorkflowStartInput().getWorkflowType());
                         return super.signalWithStart(input);
