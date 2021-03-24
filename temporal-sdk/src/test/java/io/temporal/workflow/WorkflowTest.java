@@ -40,6 +40,8 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.*;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -140,10 +142,23 @@ public class WorkflowTest {
             .setInterceptors(
                 new WorkflowClientInterceptorBase() {
                   @Override
-                  public WorkflowStub newUntypedWorkflowStub(
-                      String workflowType, WorkflowOptions options, WorkflowStub next) {
-                    lastStartedWorkflowType.set(workflowType);
-                    return next;
+                  public WorkflowClientCallsInterceptor workflowClientClassInterceptor(
+                      WorkflowClientCallsInterceptor next) {
+                    return new WorkflowClientCallsInterceptorBase(next) {
+                      @Override
+                      public WorkflowStartOutput start(WorkflowStartInput input) {
+                        lastStartedWorkflowType.set(input.getWorkflowType());
+                        return super.start(input);
+                      }
+
+                      @Override
+                      public WorkflowSignalWithStartOutput signalWithStart(
+                          WorkflowSignalWithStartInput input) {
+                        lastStartedWorkflowType.set(
+                            input.getWorkflowStartInput().getWorkflowType());
+                        return super.signalWithStart(input);
+                      }
+                    };
                   }
                 })
             .setNamespace(SDKTestWorkflowRule.NAMESPACE)
