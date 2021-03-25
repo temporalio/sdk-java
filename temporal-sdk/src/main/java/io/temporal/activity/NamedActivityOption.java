@@ -25,7 +25,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This annotation applies only to activity interface & interface methods. Not required. Use it to
+ * This annotation may be applied to activity interface & interface methods. Use it to
  * override default activity options.
  */
 @Retention(RetentionPolicy.RUNTIME)
