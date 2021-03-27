@@ -42,18 +42,13 @@ public class ContinueAsNewTest {
           .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-          .setDoNotStart(true)
           .build();
 
   @Test
   public void testContinueAsNew() {
-    String continuedTaskQueue = testWorkflowRule.getTaskQueue() + "_continued";
-    testWorkflowRule.getTestEnvironment().newWorker(continuedTaskQueue);
-    testWorkflowRule.getTestEnvironment().start();
-
     TestContinueAsNew client =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestContinueAsNew.class);
-    int result = client.execute(4, continuedTaskQueue);
+    int result = client.execute(4, testWorkflowRule.getTaskQueue());
     Assert.assertEquals(111, result);
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
