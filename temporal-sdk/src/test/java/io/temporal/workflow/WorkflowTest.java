@@ -142,7 +142,7 @@ public class WorkflowTest {
             .setInterceptors(
                 new WorkflowClientInterceptorBase() {
                   @Override
-                  public WorkflowClientCallsInterceptor workflowClientClassInterceptor(
+                  public WorkflowClientCallsInterceptor workflowClientCallsInterceptor(
                       WorkflowClientCallsInterceptor next) {
                     return new WorkflowClientCallsInterceptorBase(next) {
                       @Override
