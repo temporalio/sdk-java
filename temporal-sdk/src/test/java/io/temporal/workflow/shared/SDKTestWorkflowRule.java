@@ -37,6 +37,7 @@ import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -94,6 +95,11 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder setWorkerOptions(WorkerOptions options) {
       testWorkflowRuleBuilder.setWorkerOptions(options);
+      return this;
+    }
+
+    public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
+      testWorkflowRuleBuilder.setWorkerFactoryOptions(options);
       return this;
     }
 

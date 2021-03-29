@@ -29,6 +29,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
@@ -45,6 +46,11 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setWorkflowClientOptions(
+              WorkflowClientOptions.newBuilder()
+                  .setBinaryChecksum(SDKTestWorkflowRule.BINARY_CHECKSUM)
+                  .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                  .build())
           .setWorkflowTypes(SimpleTestWorkflow.class)
           .setActivityImplementations(activitiesImpl)
           .build();

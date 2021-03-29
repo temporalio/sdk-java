@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import java.lang.management.ManagementFactory;
@@ -41,6 +42,10 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowTest.DeterminismFailingWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+                  .build())
           .build();
 
   @Test

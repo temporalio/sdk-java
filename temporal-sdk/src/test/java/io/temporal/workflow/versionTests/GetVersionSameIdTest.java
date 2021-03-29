@@ -21,6 +21,7 @@ package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
@@ -40,6 +41,10 @@ public class GetVersionSameIdTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionSameId.class)
           .setActivityImplementations(activitiesImpl)
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+                  .build())
           .build();
 
   @Test

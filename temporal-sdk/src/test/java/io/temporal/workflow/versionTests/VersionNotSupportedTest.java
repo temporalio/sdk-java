@@ -21,11 +21,13 @@ package io.temporal.workflow.versionTests;
 
 import io.temporal.client.WorkflowException;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,6 +42,10 @@ public class VersionNotSupportedTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestVersionNotSupportedWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+                  .build())
           .build();
 
   @Test

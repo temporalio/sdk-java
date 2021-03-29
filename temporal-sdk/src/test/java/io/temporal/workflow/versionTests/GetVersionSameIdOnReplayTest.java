@@ -27,6 +27,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowStub;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
@@ -47,6 +48,10 @@ public class GetVersionSameIdOnReplayTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionSameIdOnReplay.class)
           .setActivityImplementations(activitiesImpl)
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+                  .build())
           .build();
 
   @Test

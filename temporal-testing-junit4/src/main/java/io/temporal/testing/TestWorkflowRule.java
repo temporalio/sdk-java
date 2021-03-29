@@ -69,6 +69,7 @@ public class TestWorkflowRule implements TestRule {
   private final WorkerInterceptor[] interceptors;
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkerOptions workerOptions;
+  private final WorkerFactoryOptions workerFactoryOptions;
   private final TestWorkflowEnvironment testEnvironment;
   private final TestWatcher watchman =
       new TestWatcher() {
@@ -94,6 +95,11 @@ public class TestWorkflowRule implements TestRule {
         (builder.workerOptions == null)
             ? WorkerOptions.newBuilder().build()
             : builder.workerOptions;
+    workerFactoryOptions =
+        (builder.workerFactoryOptions == null)
+            ? WorkerFactoryOptions.newBuilder().build()
+            : builder.workerFactoryOptions;
+    workerFactoryOptions.toBuilder().setWorkerInterceptors(interceptors).build();
     workflowImplementationOptions =
         (builder.workflowImplementationOptions == null)
             ? WorkflowImplementationOptions.newBuilder().build()
@@ -108,12 +114,10 @@ public class TestWorkflowRule implements TestRule {
         (builder.workflowClientOptions == null)
             ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
             : builder.workflowClientOptions;
-    WorkerFactoryOptions factoryOptions =
-        WorkerFactoryOptions.newBuilder().setWorkerInterceptors(interceptors).build();
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(clientOptions)
-            .setWorkerFactoryOptions(factoryOptions)
+            .setWorkerFactoryOptions(workerFactoryOptions)
             .setUseExternalService(useExternalService)
             .setTarget(builder.target)
             .build();
@@ -129,6 +133,7 @@ public class TestWorkflowRule implements TestRule {
 
     private WorkflowImplementationOptions workflowImplementationOptions;
     private WorkerOptions workerOptions;
+    private WorkerFactoryOptions workerFactoryOptions;
     private WorkflowClientOptions workflowClientOptions;
     private String namespace;
     private Class<?>[] workflowTypes;
@@ -144,6 +149,10 @@ public class TestWorkflowRule implements TestRule {
     public Builder setWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
       return this;
+    }
+
+    public void setWorkerFactoryOptions(WorkerFactoryOptions options) {
+      this.workerFactoryOptions = options;
     }
 
     /**

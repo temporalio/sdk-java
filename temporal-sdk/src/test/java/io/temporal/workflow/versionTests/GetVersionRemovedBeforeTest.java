@@ -22,11 +22,13 @@ package io.temporal.workflow.versionTests;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,6 +43,10 @@ public class GetVersionRemovedBeforeTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionRemovedBefore.class)
           .setActivityImplementations(activitiesImpl)
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+                  .build())
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

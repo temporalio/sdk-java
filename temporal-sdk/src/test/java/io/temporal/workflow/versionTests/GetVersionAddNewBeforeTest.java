@@ -19,10 +19,12 @@
 
 package io.temporal.workflow.versionTests;
 
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,6 +42,10 @@ public class GetVersionAddNewBeforeTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionWorkflowAddNewBefore.class)
           .setActivityImplementations(activitiesImpl)
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+                  .build())
           .build();
 
   @Test
