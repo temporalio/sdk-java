@@ -77,7 +77,7 @@ dependencies {
     errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
     errorprone('com.google.errorprone:error_prone_core:2.5.1')
 
-    api 'io.grpc:grpc-protobuf:1.36.0'
+    api 'io.grpc:grpc-protobuf:1.36.1'
     api 'io.grpc:grpc-stub:1.36.0'
     api 'io.grpc:grpc-core:1.36.0'
     api group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.15.6'
