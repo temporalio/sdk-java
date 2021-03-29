@@ -20,7 +20,6 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClientOptions;
@@ -29,11 +28,11 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
-import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;
@@ -86,7 +85,6 @@ class WorkflowInvocationHandler implements InvocationHandler {
     } else if (type == InvocationType.EXECUTE) {
       invocationContext.set(new ExecuteWorkflowInvocationHandler());
     } else if (type == InvocationType.SIGNAL_WITH_START) {
-      @SuppressWarnings("unchecked")
       SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) value;
       invocationContext.set(new SignalWithStartWorkflowInvocationHandler(batch));
     } else {
@@ -94,7 +92,6 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
   }
 
-  @SuppressWarnings("unchecked")
   static <R> R getAsyncInvocationResult(Class<R> resultClass) {
     SpecificInvocationHandler invocation = invocationContext.get();
     if (invocation == null) {
@@ -111,29 +108,29 @@ class WorkflowInvocationHandler implements InvocationHandler {
   private final WorkflowStub untyped;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
+  @SuppressWarnings("deprecation")
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,
-      GenericWorkflowClientExternal genericClient,
-      WorkflowExecution execution,
-      Scope metricsScope) {
+      WorkflowClientCallsInterceptor workflowClientCallsInvoker,
+      WorkflowExecution execution) {
     workflowMetadata =
         POJOWorkflowInterfaceMetadata.newInstanceSkipWorkflowAnnotationCheck(workflowInterface);
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
     WorkflowStub stub =
-        new WorkflowStubImpl(clientOptions, genericClient, workflowType, execution, metricsScope);
+        new WorkflowStubImpl(clientOptions, workflowClientCallsInvoker, workflowType, execution);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(execution, workflowType, stub);
     }
     this.untyped = stub;
   }
 
+  @SuppressWarnings("deprecation")
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowClientOptions clientOptions,
-      GenericWorkflowClientExternal genericClient,
-      WorkflowOptions options,
-      Scope metricsScope) {
+      WorkflowClientCallsInterceptor workflowClientCallsInvoker,
+      WorkflowOptions options) {
     Objects.requireNonNull(options, "options");
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
@@ -149,7 +146,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     String workflowType = workflowMethodMetadata.get().getName();
     WorkflowStub stub =
         new WorkflowStubImpl(
-            clientOptions, genericClient, workflowType, mergedOptions, metricsScope);
+            clientOptions, workflowClientCallsInvoker, workflowType, mergedOptions);
     for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(workflowType, mergedOptions, stub);
     }
