@@ -384,8 +384,8 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   /**
-   * RunId can change e.g. workflow does ContinueAsNew.
-   * Emptying runId in workflowExecution allows Temporal server figure out the current run id dynamically.
+   * RunId can change e.g. workflow does ContinueAsNew. Emptying runId in workflowExecution allows
+   * Temporal server figure out the current run id dynamically.
    */
   private WorkflowExecution currentExecutionWithoutRunId() {
     WorkflowExecution workflowExecution = execution.get();

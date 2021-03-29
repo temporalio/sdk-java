@@ -35,7 +35,7 @@ public interface WorkflowClientInterceptor {
    * @return decorated stub
    * @deprecated consider implementing all intercepting functionality using {@link
    *     WorkflowClientCallsInterceptor} that is produced in {@link
-   *     #workflowClientClassInterceptor}. This method has to stay temporary because
+   *     #workflowClientCallsInterceptor}. This method has to stay temporary because
    *     TimeLockingInterceptor has to intercept top level {@link WorkflowStub} methods.
    */
   @Deprecated
@@ -49,7 +49,7 @@ public interface WorkflowClientInterceptor {
    * @return decorated stub
    * @deprecated consider implementing all intercepting functionality using {@link
    *     WorkflowClientCallsInterceptor} that is produced in {@link
-   *     #workflowClientClassInterceptor}. This method has to stay temporary because
+   *     #workflowClientCallsInterceptor}. This method has to stay temporary because
    *     TimeLockingInterceptor has to intercept top level {@link WorkflowStub} methods.
    */
   @Deprecated
@@ -59,11 +59,11 @@ public interface WorkflowClientInterceptor {
   ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next);
 
   /**
-   * Called once during creation of WorkflowClient to create a chain of Client Interceptors
+   * Called once during creation of WorkflowClient to create a chain of Client Workflow Interceptors
    *
    * @param next next workflow client interceptor in the chain of interceptors
    * @return new interceptor that should decorate calls to {@code next}
    */
-  WorkflowClientCallsInterceptor workflowClientClassInterceptor(
+  WorkflowClientCallsInterceptor workflowClientCallsInterceptor(
       WorkflowClientCallsInterceptor next);
 }

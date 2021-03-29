@@ -101,7 +101,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
         new RootWorkflowClientInvoker(genericClient, options, metricsScope);
     for (WorkflowClientInterceptor clientInterceptor : interceptors) {
       workflowClientInvoker =
-          clientInterceptor.workflowClientClassInterceptor(workflowClientInvoker);
+          clientInterceptor.workflowClientCallsInterceptor(workflowClientInvoker);
     }
     return workflowClientInvoker;
   }
