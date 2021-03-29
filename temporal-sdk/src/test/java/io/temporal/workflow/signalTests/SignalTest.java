@@ -48,7 +48,7 @@ public class SignalTest {
 
   private static final Logger log = LoggerFactory.getLogger(SignalTest.class);
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

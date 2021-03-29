@@ -43,7 +43,7 @@ public class SignalDuringLastWorkflowTaskTest {
   private static final AtomicInteger workflowTaskCount = new AtomicInteger();
   private static CompletableFuture<Boolean> sendSignal;
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

@@ -35,7 +35,7 @@ public class NamedChildTest {
 
   private static final String childReexecuteId = UUID.randomUUID().toString();
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

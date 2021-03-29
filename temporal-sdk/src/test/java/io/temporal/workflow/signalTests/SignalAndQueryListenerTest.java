@@ -36,7 +36,7 @@ import org.junit.Test;
 
 public class SignalAndQueryListenerTest {
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

@@ -43,7 +43,7 @@ import org.junit.Test;
 public class UpsertSearchAttributesTest {
 
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

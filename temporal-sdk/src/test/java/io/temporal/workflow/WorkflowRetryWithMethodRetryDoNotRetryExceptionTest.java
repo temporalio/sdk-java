@@ -37,7 +37,7 @@ public class WorkflowRetryWithMethodRetryDoNotRetryExceptionTest {
 
   private static final Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule public TestName testName = new TestName();
 

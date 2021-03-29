@@ -33,7 +33,7 @@ public class MutableSideEffectTest {
   private static final Map<String, Queue<Long>> mutableSideEffectValue =
       Collections.synchronizedMap(new HashMap<>());
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

@@ -42,7 +42,7 @@ import org.junit.Test;
 public class LocalActivityAndQueryTest {
 
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public TestWorkflowRule testWorkflowRule =

@@ -40,7 +40,7 @@ import org.junit.rules.TestName;
 public class ChildWorkflowWithCronScheduleTest {
 
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule public TestName testName = new TestName();
 

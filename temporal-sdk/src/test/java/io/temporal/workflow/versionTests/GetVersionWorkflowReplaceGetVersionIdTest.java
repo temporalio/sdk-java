@@ -34,7 +34,7 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
   private static final Logger log =
       LoggerFactory.getLogger(GetVersionWorkflowReplaceGetVersionIdTest.class);
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

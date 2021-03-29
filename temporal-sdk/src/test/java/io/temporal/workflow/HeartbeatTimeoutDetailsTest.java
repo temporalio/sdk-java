@@ -40,7 +40,7 @@ public class HeartbeatTimeoutDetailsTest {
 
   private static final Logger log = LoggerFactory.getLogger(HeartbeatTimeoutDetailsTest.class);
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -51,6 +51,8 @@ public class HeartbeatTimeoutDetailsTest {
 
   @Test
   public void testHeartbeatTimeoutDetails() {
+    activitiesImpl.setCompletionClient(
+        testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());

@@ -35,7 +35,7 @@ public class GetVersionWithoutCommandEventTest {
 
   private static CompletableFuture<Boolean> executionStarted = new CompletableFuture<>();
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

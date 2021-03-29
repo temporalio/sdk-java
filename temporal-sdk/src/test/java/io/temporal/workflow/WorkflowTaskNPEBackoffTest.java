@@ -37,7 +37,7 @@ public class WorkflowTaskNPEBackoffTest {
 
   private static int testWorkflowTaskFailureBackoffReplayCount;
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

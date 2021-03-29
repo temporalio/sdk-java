@@ -33,7 +33,7 @@ public class GetVersionAddNewBeforeTest {
 
   private static final Logger log = LoggerFactory.getLogger(GetVersionAddNewBeforeTest.class);
   private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
+      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
