@@ -51,6 +51,7 @@ public class LocalAsyncCompletionWorkflowTest {
                   .build())
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new AsyncActivityWithManualCompletion())
+          .setTestTimeoutSeconds(15)
           .build();
 
   @WorkflowInterface

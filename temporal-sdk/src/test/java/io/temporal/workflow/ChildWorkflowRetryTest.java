@@ -29,6 +29,8 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -65,10 +67,23 @@ public class ChildWorkflowRetryTest {
                   .setInterceptors(
                       new WorkflowClientInterceptorBase() {
                         @Override
-                        public WorkflowStub newUntypedWorkflowStub(
-                            String workflowType, WorkflowOptions options, WorkflowStub next) {
-                          lastStartedWorkflowType.set(workflowType);
-                          return next;
+                        public WorkflowClientCallsInterceptor workflowClientCallsInterceptor(
+                            WorkflowClientCallsInterceptor next) {
+                          return new WorkflowClientCallsInterceptorBase(next) {
+                            @Override
+                            public WorkflowStartOutput start(WorkflowStartInput input) {
+                              lastStartedWorkflowType.set(input.getWorkflowType());
+                              return super.start(input);
+                            }
+
+                            @Override
+                            public WorkflowSignalWithStartOutput signalWithStart(
+                                WorkflowSignalWithStartInput input) {
+                              lastStartedWorkflowType.set(
+                                  input.getWorkflowStartInput().getWorkflowType());
+                              return super.signalWithStart(input);
+                            }
+                          };
                         }
                       })
                   .setNamespace(NAMESPACE)

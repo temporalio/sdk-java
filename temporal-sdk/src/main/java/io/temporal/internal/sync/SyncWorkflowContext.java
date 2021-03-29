@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
+import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
@@ -33,7 +34,6 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
@@ -70,7 +70,6 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -289,23 +288,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return new ExecuteActivityParameters(attributes, options.getCancellationType());
   }
 
-  static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
-    RetryPolicy.Builder builder =
-        RetryPolicy.newBuilder()
-            .setInitialInterval(
-                ProtobufTimeUtils.toProtoDuration(retryOptions.getInitialInterval()))
-            .setMaximumInterval(
-                ProtobufTimeUtils.toProtoDuration(retryOptions.getMaximumInterval()))
-            .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
-            .setMaximumAttempts(retryOptions.getMaximumAttempts());
-
-    if (retryOptions.getDoNotRetry() != null) {
-      builder = builder.addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
-    }
-
-    return builder;
-  }
-
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
       String name,
       LocalActivityOptions options,
@@ -409,9 +391,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
-    if (grpcHeader != null) {
-      attributes.setHeader(grpcHeader);
-    }
+    attributes.setHeader(grpcHeader);
     ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
     if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);
