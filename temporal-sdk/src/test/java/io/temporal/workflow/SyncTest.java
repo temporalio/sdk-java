@@ -53,6 +53,8 @@ public class SyncTest {
 
   @Test
   public void testSync() {
+    activitiesImpl.setCompletionClient(
+        testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
@@ -72,12 +74,14 @@ public class SyncTest {
 
   @Test
   public void testSyncUntypedAndStackTrace() {
+    activitiesImpl.setCompletionClient(
+        testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
     WorkflowStub workflowStub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow1");
     WorkflowExecution execution = workflowStub.start(testWorkflowRule.getTaskQueue());
     testWorkflowRule.sleep(Duration.ofMillis(500));
     String stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
-    assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
+    assertTrue(stackTrace, stackTrace.contains("TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     // Test stub created from workflow execution.
     workflowStub =
@@ -85,7 +89,7 @@ public class SyncTest {
             .getWorkflowClient()
             .newUntypedWorkflowStub(execution, workflowStub.getWorkflowType());
     stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
-    assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
+    assertTrue(stackTrace, stackTrace.contains("TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     String result = workflowStub.getResult(String.class);
     assertEquals("activity10", result);
