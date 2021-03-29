@@ -1,7 +1,7 @@
 // Run 'gradle checkUpdates' to find out which dependencies have newer versions
 plugins {
     id 'java-library'
-    id 'net.ltgt.errorprone' version '2.0.0'
+    id 'net.ltgt.errorprone' version '2.0.1'
     id 'net.minecrell.licenser' version '0.4.1'
     id 'com.palantir.git-version' version '0.12.3'
     id 'maven-publish'
