@@ -19,6 +19,8 @@
 
 package io.temporal.workflow;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
 import io.temporal.api.common.v1.Payload;
@@ -37,7 +39,6 @@ import io.temporal.workflow.shared.TestOptions;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -55,72 +56,72 @@ public class SearchAttributesTest {
 
   @Test
   public void testSearchAttributes() {
-    if (testWorkflowRule.getTestEnvironment() != null) {
-      String testKeyString = "CustomKeywordField";
-      String testValueString = "testKeyword";
-      String testKeyInteger = "CustomIntField";
-      Integer testValueInteger = 1;
-      String testKeyDateTime = "CustomDateTimeField";
-      LocalDateTime testValueDateTime = LocalDateTime.now();
-      String testKeyBool = "CustomBoolField";
-      Boolean testValueBool = true;
-      String testKeyDouble = "CustomDoubleField";
-      Double testValueDouble = 1.23;
-
-      // add more type to test
-      Map<String, Object> searchAttr = new HashMap<String, Object>();
-      searchAttr.put(testKeyString, testValueString);
-      searchAttr.put(testKeyInteger, testValueInteger);
-      searchAttr.put(testKeyDateTime, testValueDateTime);
-      searchAttr.put(testKeyBool, testValueBool);
-      searchAttr.put(testKeyDouble, testValueDouble);
-
-      WorkflowOptions workflowOptions =
-          TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-              .toBuilder()
-              .setSearchAttributes(searchAttr)
-              .build();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
-          testWorkflowRule
-              .getWorkflowClient()
-              .newWorkflowStub(
-                  TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class,
-                  workflowOptions);
-      WorkflowExecution executionF = WorkflowClient.start(stubF::func);
-
-      GetWorkflowExecutionHistoryResponse historyResp =
-          WorkflowExecutionUtils.getHistoryPage(
-              testWorkflowRule.getTestEnvironment().getWorkflowService(),
-              SDKTestWorkflowRule.NAMESPACE,
-              executionF,
-              ByteString.EMPTY,
-              new NoopScope());
-      HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
-      SearchAttributes searchAttrFromEvent =
-          startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
-
-      Map<String, Payload> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
-      Payload searchAttrStringBytes = fieldsMap.get(testKeyString);
-      DataConverter converter = DataConverter.getDefaultInstance();
-      String retrievedString =
-          converter.fromPayload(searchAttrStringBytes, String.class, String.class);
-      Assert.assertEquals(testValueString, retrievedString);
-      Payload searchAttrIntegerBytes = fieldsMap.get(testKeyInteger);
-      Integer retrievedInteger =
-          converter.fromPayload(searchAttrIntegerBytes, Integer.class, Integer.class);
-      Assert.assertEquals(testValueInteger, retrievedInteger);
-      Payload searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime);
-      LocalDateTime retrievedDateTime =
-          converter.fromPayload(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
-      Assert.assertEquals(testValueDateTime, retrievedDateTime);
-      Payload searchAttrBoolBytes = fieldsMap.get(testKeyBool);
-      Boolean retrievedBool =
-          converter.fromPayload(searchAttrBoolBytes, Boolean.class, Boolean.class);
-      Assert.assertEquals(testValueBool, retrievedBool);
-      Payload searchAttrDoubleBytes = fieldsMap.get(testKeyDouble);
-      Double retrievedDouble =
-          converter.fromPayload(searchAttrDoubleBytes, Double.class, Double.class);
-      Assert.assertEquals(testValueDouble, retrievedDouble);
+    if (SDKTestWorkflowRule.useExternalService) {
+      return;
     }
+    String testKeyString = "CustomKeywordField";
+    String testValueString = "testKeyword";
+    String testKeyInteger = "CustomIntField";
+    Integer testValueInteger = 1;
+    String testKeyDateTime = "CustomDateTimeField";
+    LocalDateTime testValueDateTime = LocalDateTime.now();
+    String testKeyBool = "CustomBoolField";
+    Boolean testValueBool = true;
+    String testKeyDouble = "CustomDoubleField";
+    Double testValueDouble = 1.23;
+
+    // add more type to test
+    Map<String, Object> searchAttr = new HashMap<>();
+    searchAttr.put(testKeyString, testValueString);
+    searchAttr.put(testKeyInteger, testValueInteger);
+    searchAttr.put(testKeyDateTime, testValueDateTime);
+    searchAttr.put(testKeyBool, testValueBool);
+    searchAttr.put(testKeyDouble, testValueDouble);
+
+    WorkflowOptions workflowOptions =
+        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+            .toBuilder()
+            .setSearchAttributes(searchAttr)
+            .build();
+    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class, workflowOptions);
+    WorkflowExecution executionF = WorkflowClient.start(stubF::func);
+
+    GetWorkflowExecutionHistoryResponse historyResp =
+        WorkflowExecutionUtils.getHistoryPage(
+            testWorkflowRule.getTestEnvironment().getWorkflowService(),
+            SDKTestWorkflowRule.NAMESPACE,
+            executionF,
+            ByteString.EMPTY,
+            new NoopScope());
+    HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
+    SearchAttributes searchAttrFromEvent =
+        startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
+
+    Map<String, Payload> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
+    Payload searchAttrStringBytes = fieldsMap.get(testKeyString);
+    DataConverter converter = DataConverter.getDefaultInstance();
+    String retrievedString =
+        converter.fromPayload(searchAttrStringBytes, String.class, String.class);
+    assertEquals(testValueString, retrievedString);
+    Payload searchAttrIntegerBytes = fieldsMap.get(testKeyInteger);
+    Integer retrievedInteger =
+        converter.fromPayload(searchAttrIntegerBytes, Integer.class, Integer.class);
+    assertEquals(testValueInteger, retrievedInteger);
+    Payload searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime);
+    LocalDateTime retrievedDateTime =
+        converter.fromPayload(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
+    assertEquals(testValueDateTime, retrievedDateTime);
+    Payload searchAttrBoolBytes = fieldsMap.get(testKeyBool);
+    Boolean retrievedBool =
+        converter.fromPayload(searchAttrBoolBytes, Boolean.class, Boolean.class);
+    assertEquals(testValueBool, retrievedBool);
+    Payload searchAttrDoubleBytes = fieldsMap.get(testKeyDouble);
+    Double retrievedDouble =
+        converter.fromPayload(searchAttrDoubleBytes, Double.class, Double.class);
+    assertEquals(testValueDouble, retrievedDouble);
   }
 }
