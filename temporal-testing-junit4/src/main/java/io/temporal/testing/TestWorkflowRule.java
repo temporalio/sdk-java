@@ -97,9 +97,8 @@ public class TestWorkflowRule implements TestRule {
             : builder.workerOptions;
     workerFactoryOptions =
         (builder.workerFactoryOptions == null)
-            ? WorkerFactoryOptions.newBuilder().build()
-            : builder.workerFactoryOptions;
-    workerFactoryOptions.toBuilder().setWorkerInterceptors(interceptors).build();
+            ? WorkerFactoryOptions.newBuilder().setWorkerInterceptors(interceptors).build()
+            : builder.workerFactoryOptions.toBuilder().setWorkerInterceptors(interceptors).build();
     workflowImplementationOptions =
         (builder.workflowImplementationOptions == null)
             ? WorkflowImplementationOptions.newBuilder().build()
