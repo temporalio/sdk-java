@@ -76,11 +76,7 @@ public class UpsertSearchAttributesTest {
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
 
     boolean found = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {

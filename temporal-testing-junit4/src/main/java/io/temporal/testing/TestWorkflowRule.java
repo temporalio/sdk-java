@@ -19,6 +19,9 @@
 
 package io.temporal.testing;
 
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -112,7 +115,7 @@ public class TestWorkflowRule implements TestRule {
     WorkflowClientOptions clientOptions =
         (builder.workflowClientOptions == null)
             ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
-            : builder.workflowClientOptions;
+            : builder.workflowClientOptions.toBuilder().setNamespace(namespace).build();
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(clientOptions)
@@ -274,6 +277,11 @@ public class TestWorkflowRule implements TestRule {
     }
   }
 
+  /** Returns blockingStub */
+  public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
+    return testEnvironment.getWorkflowService().blockingStub();
+  }
+
   /** Returns tracer. */
   public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
     if (interceptors != null) {
@@ -289,6 +297,16 @@ public class TestWorkflowRule implements TestRule {
   /** Returns name of the task queue that test worker is polling. */
   public String getTaskQueue() {
     return taskQueue;
+  }
+
+  /**
+   * Returns name of the task queue that test worker is polling.
+   *
+   * @return
+   */
+  public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
+      GetWorkflowExecutionHistoryRequest request) {
+    return this.blockingStub().getWorkflowExecutionHistory(request);
   }
 
   /** Returns client to the Temporal service used to start and query workflows. */

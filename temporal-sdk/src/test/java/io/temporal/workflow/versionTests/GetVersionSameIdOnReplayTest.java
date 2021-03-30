@@ -30,7 +30,6 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -40,14 +39,10 @@ import org.junit.Test;
 
 public class GetVersionSameIdOnReplayTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionSameIdOnReplay.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
@@ -70,11 +65,7 @@ public class GetVersionSameIdOnReplayTest {
 
     // Validate that no marker is recorded
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
     for (HistoryEvent event : response.getHistory().getEventsList()) {
       Assert.assertFalse(EventType.EVENT_TYPE_MARKER_RECORDED == event.getEventType());
     }

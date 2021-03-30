@@ -68,11 +68,7 @@ public class ChildWorkflowCancellationTest {
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
 
     boolean hasChildCanceled = false;
     boolean hasChildCancelRequested = false;
@@ -108,11 +104,7 @@ public class ChildWorkflowCancellationTest {
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
 
     boolean hasChildCanceled = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
@@ -141,11 +133,7 @@ public class ChildWorkflowCancellationTest {
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
 
     boolean hasChildCancelInitiated = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
@@ -175,11 +163,7 @@ public class ChildWorkflowCancellationTest {
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
 
     boolean hasChildCancelInitiated = false;
     boolean hasChildCancelRequested = false;

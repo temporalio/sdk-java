@@ -28,6 +28,7 @@ import com.google.common.io.Files;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -163,12 +164,21 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.apply(base, description);
   }
 
+  public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
+    return testWorkflowRule.blockingStub();
+  }
+
   public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
     return testWorkflowRule.getInterceptor(type);
   }
 
   public String getTaskQueue() {
     return testWorkflowRule.getTaskQueue();
+  }
+
+  public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
+      GetWorkflowExecutionHistoryRequest request) {
+    return testWorkflowRule.getWorkflowExecutionHistory(request);
   }
 
   public WorkflowClient getWorkflowClient() {
@@ -257,8 +267,7 @@ public class SDKTestWorkflowRule implements TestRule {
     }
   }
 
-  // TODO: Refactor testEnvironment to support testing through real service to avoid this
-  // switches
+  // TODO: Refactor testEnv to support testing through real service to avoid these switches.
   public void registerDelayedCallback(Duration delay, Runnable r) {
     if (useExternalService) {
       ScheduledFuture<?> result =

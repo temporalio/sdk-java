@@ -71,11 +71,7 @@ public class WorkflowTaskFailureBackoffTest {
             .setExecution(WorkflowStub.fromTyped(workflowStub).getExecution())
             .build();
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
 
     int failedTaskCount = 0;
     for (HistoryEvent event : response.getHistory().getEventsList()) {

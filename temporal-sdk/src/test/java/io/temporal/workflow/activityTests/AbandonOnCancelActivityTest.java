@@ -80,11 +80,7 @@ public class AbandonOnCancelActivityTest {
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getWorkflowClient()
-            .getWorkflowServiceStubs()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
 
     for (HistoryEvent event : response.getHistory().getEventsList()) {
       Assert.assertNotEquals(
