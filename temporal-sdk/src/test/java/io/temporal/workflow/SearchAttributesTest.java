@@ -56,14 +56,11 @@ public class SearchAttributesTest {
 
   @Test
   public void testSearchAttributes() {
-    if (SDKTestWorkflowRule.useExternalService) {
-      return;
-    }
     String testKeyString = "CustomKeywordField";
     String testValueString = "testKeyword";
     String testKeyInteger = "CustomIntField";
     Integer testValueInteger = 1;
-    String testKeyDateTime = "CustomDateTimeField";
+    String testKeyDateTime = "CustomDatetimeField";
     LocalDateTime testValueDateTime = LocalDateTime.now();
     String testKeyBool = "CustomBoolField";
     Boolean testValueBool = true;
