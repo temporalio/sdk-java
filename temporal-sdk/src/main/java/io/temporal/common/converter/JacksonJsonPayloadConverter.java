@@ -37,14 +37,11 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
   private final ObjectMapper mapper;
 
   public JacksonJsonPayloadConverter() {
-    mapper = new ObjectMapper();
-    mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-    mapper.registerModule(new JavaTimeModule());
-    mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+    this(null);
   }
 
   public JacksonJsonPayloadConverter(ObjectMapper mapper) {
-    this.mapper = mapper;
+    this.mapper = mapper != null ? mapper : newDefaultObjectMapper();
   }
 
   @Override
@@ -81,5 +78,12 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
     } catch (IOException e) {
       throw new DataConverterException(e);
     }
+  }
+
+  private ObjectMapper newDefaultObjectMapper() {
+    return new ObjectMapper()
+        .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+        .registerModule(new JavaTimeModule())
+        .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
   }
 }

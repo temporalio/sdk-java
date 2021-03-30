@@ -19,7 +19,9 @@
 
 package io.temporal.common.converter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Defaults;
+import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.Type;
@@ -36,6 +38,14 @@ public interface DataConverter {
 
   static DataConverter getDefaultInstance() {
     return DefaultDataConverter.getDefaultInstance();
+  }
+
+  /**
+   * Creates a builder for customized {@code DataConverter} that behaves similar to the {@link
+   * #getDefaultInstance() default instance}.
+   */
+  static Builder newBuilder() {
+    return new Builder();
   }
 
   <T> Optional<Payload> toPayload(T value);
@@ -105,5 +115,45 @@ public interface DataConverter {
       }
     }
     return result;
+  }
+
+  class Builder {
+
+    private ObjectMapper jacksonObjectMapper;
+    private JsonFormat.Printer protobufJsonPrinter;
+    private JsonFormat.Parser protobufJsonParser;
+
+    private Builder() {}
+
+    /**
+     * Set custom Jackson {@link ObjectMapper} used by the data converter to serialize and
+     * deserialize arbitrary payload types.
+     */
+    public Builder setJacksonObjectMapper(ObjectMapper jacksonObjectMapper) {
+      this.jacksonObjectMapper = jacksonObjectMapper;
+      return this;
+    }
+
+    /**
+     * Set custom Protobuf {@link JsonFormat.Printer} used by the data converter to serialize
+     * Protobuf payload types.
+     */
+    public Builder setProtobufJsonPrinter(JsonFormat.Printer protobufJsonPrinter) {
+      this.protobufJsonPrinter = protobufJsonPrinter;
+      return this;
+    }
+
+    /**
+     * Set custom Protobuf {@link JsonFormat.Parser} used by the data converter to deserialize
+     * Protobuf payload types.
+     */
+    public Builder setProtobufJsonParser(JsonFormat.Parser protobufJsonParser) {
+      this.protobufJsonParser = protobufJsonParser;
+      return this;
+    }
+
+    public DataConverter build() {
+      return new DefaultDataConverter(jacksonObjectMapper, protobufJsonPrinter, protobufJsonParser);
+    }
   }
 }

@@ -29,7 +29,6 @@ import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.Payload;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.Objects;
 import java.util.Optional;
 
 public final class ProtobufJsonPayloadConverter implements PayloadConverter {
@@ -38,13 +37,12 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
   private final JsonFormat.Parser parser;
 
   public ProtobufJsonPayloadConverter() {
-    printer = JsonFormat.printer().preservingProtoFieldNames();
-    parser = JsonFormat.parser().ignoringUnknownFields();
+    this(null, null);
   }
 
   public ProtobufJsonPayloadConverter(JsonFormat.Printer printer, JsonFormat.Parser parser) {
-    this.printer = Objects.requireNonNull(printer);
-    this.parser = Objects.requireNonNull(parser);
+    this.printer = printer != null ? printer : JsonFormat.printer().preservingProtoFieldNames();
+    this.parser = parser != null ? parser : JsonFormat.parser().ignoringUnknownFields();
   }
 
   @Override
@@ -57,7 +55,6 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
     if (!(value instanceof MessageOrBuilder)) {
       return Optional.empty();
     }
-    JsonFormat.Printer printer = JsonFormat.printer();
     try {
       String data = printer.print((MessageOrBuilder) value);
       return Optional.of(

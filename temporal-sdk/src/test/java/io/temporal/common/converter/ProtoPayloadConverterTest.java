@@ -21,8 +21,14 @@ package io.temporal.common.converter;
 
 import static org.junit.Assert.assertEquals;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
+import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.Test;
@@ -44,6 +50,20 @@ public class ProtoPayloadConverterTest {
   }
 
   @Test
+  public void testCustomJson() {
+    ObjectMapper objectMapper =
+        new ObjectMapper()
+            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, true)
+            .registerModule(new JavaTimeModule());
+    DataConverter converter =
+        DataConverter.newBuilder().setJacksonObjectMapper(objectMapper).build();
+    TestPayload payload = new TestPayload(1L, Instant.now(), "myPayload");
+    Optional<Payloads> data = converter.toPayloads(payload);
+    TestPayload converted = converter.fromPayloads(0, data, TestPayload.class, TestPayload.class);
+    assertEquals(payload, converted);
+  }
+
+  @Test
   public void testProto() {
     DataConverter converter = new DefaultDataConverter(new ProtobufPayloadConverter());
     WorkflowExecution execution =
@@ -55,5 +75,93 @@ public class ProtoPayloadConverterTest {
     WorkflowExecution converted =
         converter.fromPayloads(0, data, WorkflowExecution.class, WorkflowExecution.class);
     assertEquals(execution, converted);
+  }
+
+  @Test
+  public void testCustomProto() {
+    DataConverter converter =
+        DataConverter.newBuilder()
+            .setProtobufJsonPrinter(JsonFormat.printer().printingEnumsAsInts())
+            .setProtobufJsonParser(JsonFormat.parser())
+            .build();
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(UUID.randomUUID().toString())
+            .setRunId(UUID.randomUUID().toString())
+            .build();
+    Optional<Payloads> data = converter.toPayloads(execution);
+    WorkflowExecution converted =
+        converter.fromPayloads(0, data, WorkflowExecution.class, WorkflowExecution.class);
+    assertEquals(execution, converted);
+  }
+
+  static class TestPayload {
+    private long id;
+    private Instant timestamp;
+    private String name;
+
+    public TestPayload() {}
+
+    TestPayload(long id, Instant timestamp, String name) {
+      this.id = id;
+      this.timestamp = timestamp;
+      this.name = name;
+    }
+
+    public long getId() {
+      return id;
+    }
+
+    public void setId(long id) {
+      this.id = id;
+    }
+
+    public Instant getTimestamp() {
+      return timestamp;
+    }
+
+    public void setTimestamp(Instant timestamp) {
+      this.timestamp = timestamp;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      TestPayload that = (TestPayload) o;
+      return id == that.id
+          && Objects.equals(timestamp, that.timestamp)
+          && Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(id, timestamp, name);
+    }
+
+    @Override
+    public String toString() {
+      return "TestPayload{"
+          + "id="
+          + id
+          + ", timestamp="
+          + timestamp
+          + ", name='"
+          + name
+          + '\''
+          + '}';
+    }
   }
 }

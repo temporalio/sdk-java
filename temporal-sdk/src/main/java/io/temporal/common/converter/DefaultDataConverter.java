@@ -21,7 +21,9 @@ package io.temporal.common.converter;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Defaults;
+import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.Type;
@@ -39,12 +41,15 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DefaultDataConverter implements DataConverter {
 
+  private static final PayloadConverter NULL_CONVERTER = new NullPayloadConverter();
+  private static final PayloadConverter BYTE_ARRAY_CONVERTER = new ByteArrayPayloadConverter();
+
   private static final AtomicReference<DataConverter> defaultDataConverterInstance =
       new AtomicReference<>(
           // Order is important as the first converter that can convert the payload is used
           new DefaultDataConverter(
-              new NullPayloadConverter(),
-              new ByteArrayPayloadConverter(),
+              NULL_CONVERTER,
+              BYTE_ARRAY_CONVERTER,
               new ProtobufJsonPayloadConverter(),
               new JacksonJsonPayloadConverter()));
 
@@ -80,6 +85,17 @@ public class DefaultDataConverter implements DataConverter {
       this.converters.add(converter);
       this.converterMap.put(converter.getEncodingType(), converter);
     }
+  }
+
+  DefaultDataConverter(
+      ObjectMapper jacksonObjectMapper,
+      JsonFormat.Printer protobufJsonPrinter,
+      JsonFormat.Parser protobufJsonParser) {
+    this(
+        NULL_CONVERTER,
+        BYTE_ARRAY_CONVERTER,
+        new ProtobufJsonPayloadConverter(protobufJsonPrinter, protobufJsonParser),
+        new JacksonJsonPayloadConverter(jacksonObjectMapper));
   }
 
   @Override
