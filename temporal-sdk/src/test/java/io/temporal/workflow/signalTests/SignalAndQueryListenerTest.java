@@ -26,7 +26,6 @@ import io.temporal.client.WorkflowQueryException;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,14 +34,11 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class SignalAndQueryListenerTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalAndQueryListenerWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

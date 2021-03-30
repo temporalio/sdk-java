@@ -22,22 +22,18 @@ package io.temporal.workflow.signalTests;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class UntypedSignalExternalWorkflowTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
               TestUntypedSignalExternalWorkflow.class, UntypedSignalingChildImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

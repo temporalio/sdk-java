@@ -21,7 +21,6 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
 import java.util.concurrent.ExecutionException;
 import org.junit.Assert;
@@ -30,14 +29,10 @@ import org.junit.Test;
 
 public class ExecuteTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

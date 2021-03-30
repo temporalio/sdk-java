@@ -22,7 +22,6 @@ package io.temporal.workflow.versionTests;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assume;
@@ -35,14 +34,11 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
 
   private static final Logger log =
       LoggerFactory.getLogger(GetVersionWorkflowReplaceGetVersionIdTest.class);
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionWorkflowReplaceGetVersionId.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)

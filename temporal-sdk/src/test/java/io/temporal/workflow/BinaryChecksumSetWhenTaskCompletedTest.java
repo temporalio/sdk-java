@@ -40,19 +40,14 @@ import org.junit.Test;
 
 public class BinaryChecksumSetWhenTaskCompletedTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
                   .setBinaryChecksum(SDKTestWorkflowRule.BINARY_CHECKSUM)
-                  .setNamespace(SDKTestWorkflowRule.NAMESPACE)
                   .build())
           .setWorkflowTypes(SimpleTestWorkflow.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test
@@ -69,11 +64,7 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule
-            .getTestEnvironment()
-            .getWorkflowService()
-            .blockingStub()
-            .getWorkflowExecutionHistory(request);
+        testWorkflowRule.getWorkflowExecutionHistory(request);
 
     boolean foundCompletedTask = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {

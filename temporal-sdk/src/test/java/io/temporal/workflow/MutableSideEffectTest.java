@@ -20,7 +20,6 @@
 package io.temporal.workflow;
 
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.*;
@@ -32,14 +31,11 @@ public class MutableSideEffectTest {
 
   private static final Map<String, Queue<Long>> mutableSideEffectValue =
       Collections.synchronizedMap(new HashMap<>());
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestMutableSideEffectWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

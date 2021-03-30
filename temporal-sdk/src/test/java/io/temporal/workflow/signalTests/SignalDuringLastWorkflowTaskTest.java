@@ -24,7 +24,6 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import java.util.Optional;
@@ -42,14 +41,11 @@ public class SignalDuringLastWorkflowTaskTest {
 
   private static final AtomicInteger workflowTaskCount = new AtomicInteger();
   private static CompletableFuture<Boolean> sendSignal;
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalDuringLastWorkflowTaskWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

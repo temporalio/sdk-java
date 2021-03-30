@@ -24,7 +24,6 @@ import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,8 +35,6 @@ import org.junit.rules.TestName;
 public class WorkflowRetryWithMethodRetryDoNotRetryExceptionTest {
 
   private static final Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule public TestName testName = new TestName();
 
@@ -50,7 +47,6 @@ public class WorkflowRetryWithMethodRetryDoNotRetryExceptionTest {
                       IllegalStateException.class, IllegalArgumentException.class)
                   .build(),
               TestWorkflowRetryWithMethodRetryImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

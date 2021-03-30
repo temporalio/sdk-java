@@ -25,7 +25,6 @@ import static org.junit.Assert.assertNotNull;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -34,14 +33,10 @@ import org.junit.Test;
 
 public class ChildAsyncLambdaWorkflowTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWaitOnSignalWorkflowImpl.class, TestChildAsyncLambdaWorkflow.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   /**

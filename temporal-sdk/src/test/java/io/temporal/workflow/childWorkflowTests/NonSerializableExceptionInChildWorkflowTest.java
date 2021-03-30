@@ -26,16 +26,12 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class NonSerializableExceptionInChildWorkflowTest {
-
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -46,7 +42,6 @@ public class NonSerializableExceptionInChildWorkflowTest {
                   .build(),
               TestNonSerializableExceptionInChildWorkflow.class,
               NonSerializableExceptionChildWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

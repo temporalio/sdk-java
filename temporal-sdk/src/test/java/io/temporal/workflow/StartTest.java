@@ -26,7 +26,6 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
 import io.temporal.workflow.shared.TestOptions;
 import java.util.Optional;
@@ -36,14 +35,10 @@ import org.junit.Test;
 
 public class StartTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

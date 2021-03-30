@@ -22,7 +22,6 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -31,15 +30,9 @@ import org.junit.Test;
 
 public class WorkflowLocalsTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestWorkflowLocals.class)
-          .setActivityImplementations(activitiesImpl)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestWorkflowLocals.class).build();
 
   @Test
   public void testWorkflowLocals() {

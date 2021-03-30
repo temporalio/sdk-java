@@ -29,7 +29,6 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assume;
@@ -39,9 +38,6 @@ import org.junit.rules.TestName;
 
 public class ChildWorkflowWithCronScheduleTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule public TestName testName = new TestName();
 
   @Rule
@@ -49,7 +45,6 @@ public class ChildWorkflowWithCronScheduleTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
               TestCronParentWorkflow.class, WorkflowTest.TestWorkflowWithCronScheduleImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

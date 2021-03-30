@@ -20,21 +20,16 @@
 package io.temporal.workflow;
 
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class PolymorphicStartTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowAImpl.class, WorkflowBImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

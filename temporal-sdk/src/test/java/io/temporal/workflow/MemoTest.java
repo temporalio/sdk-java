@@ -31,7 +31,6 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
 import io.temporal.workflow.shared.TestOptions;
 import java.util.HashMap;
@@ -42,14 +41,10 @@ import org.junit.Test;
 
 public class MemoTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

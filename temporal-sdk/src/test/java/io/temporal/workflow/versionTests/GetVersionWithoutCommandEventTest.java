@@ -26,7 +26,6 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import org.junit.Assert;
@@ -36,14 +35,11 @@ import org.junit.Test;
 public class GetVersionWithoutCommandEventTest {
 
   private static CompletableFuture<Boolean> executionStarted = new CompletableFuture<>();
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionWithoutCommandEventWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)

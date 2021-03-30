@@ -33,7 +33,6 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.LocalDateTime;
@@ -44,18 +43,17 @@ import org.junit.Test;
 
 public class SearchAttributesTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test
   public void testSearchAttributes() {
+    if (SDKTestWorkflowRule.useExternalService) {
+      return;
+    }
     String testKeyString = "CustomKeywordField";
     String testValueString = "testKeyword";
     String testKeyInteger = "CustomIntField";

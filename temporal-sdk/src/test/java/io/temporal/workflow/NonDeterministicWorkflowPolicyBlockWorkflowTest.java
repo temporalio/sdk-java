@@ -24,7 +24,6 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.time.Duration;
@@ -34,14 +33,10 @@ import org.junit.Test;
 
 public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowTest.DeterminismFailingWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)

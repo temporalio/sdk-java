@@ -21,7 +21,6 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -30,14 +29,10 @@ import org.junit.Test;
 
 public class TimerCallbackBlockedTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestTimerCallbackBlockedWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   /** Test that it is not allowed to block in the timer callback thread. */

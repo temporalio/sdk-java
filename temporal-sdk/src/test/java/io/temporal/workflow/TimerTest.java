@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -35,14 +34,10 @@ import org.junit.Test;
 
 public class TimerTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestTimerWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

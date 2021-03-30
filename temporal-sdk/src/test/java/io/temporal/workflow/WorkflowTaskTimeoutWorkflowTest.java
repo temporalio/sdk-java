@@ -21,7 +21,6 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,8 +33,6 @@ import org.junit.rules.TestName;
 public class WorkflowTaskTimeoutWorkflowTest {
 
   private static final Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule public TestName testName = new TestName();
 
@@ -43,7 +40,6 @@ public class WorkflowTaskTimeoutWorkflowTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowTaskTimeoutWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

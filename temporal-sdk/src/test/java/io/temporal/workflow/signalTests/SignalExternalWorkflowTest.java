@@ -25,21 +25,17 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class SignalExternalWorkflowTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalExternalWorkflow.class, SignalingChildImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

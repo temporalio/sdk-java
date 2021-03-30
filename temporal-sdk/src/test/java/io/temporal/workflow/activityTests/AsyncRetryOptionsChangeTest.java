@@ -27,7 +27,6 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -39,9 +38,6 @@ import org.junit.Test;
 
 public class AsyncRetryOptionsChangeTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -50,7 +46,6 @@ public class AsyncRetryOptionsChangeTest {
                   .setFailWorkflowExceptionTypes(IllegalThreadStateException.class)
                   .build(),
               TestAsyncRetryOptionsChangeWorkflow.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   /** @see DeterministicRunnerTest#testRetry() */

@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.UUID;
 import org.junit.Rule;
@@ -32,15 +31,12 @@ import org.junit.Test;
 public class ChildWorkflowTest {
 
   private static String child2Id;
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
               TestParentWorkflow.class, TestNamedChild.class, WorkflowTest.TestChild.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

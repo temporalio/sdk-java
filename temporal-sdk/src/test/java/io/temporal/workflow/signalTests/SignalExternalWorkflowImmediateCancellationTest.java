@@ -25,7 +25,6 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -33,14 +32,11 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class SignalExternalWorkflowImmediateCancellationTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalExternalWorkflowImmediateCancellation.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

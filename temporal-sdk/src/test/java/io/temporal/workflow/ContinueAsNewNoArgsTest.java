@@ -21,21 +21,16 @@ package io.temporal.workflow;
 
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class ContinueAsNewNoArgsTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestContinueAsNewNoArgsImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

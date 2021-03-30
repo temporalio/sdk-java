@@ -31,7 +31,6 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -47,14 +46,11 @@ import org.slf4j.LoggerFactory;
 public class SignalTest {
 
   private static final Logger log = LoggerFactory.getLogger(SignalTest.class);
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .setTestTimeoutSeconds(15)
           .build();
 

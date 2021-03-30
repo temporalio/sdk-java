@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
@@ -32,14 +31,10 @@ import org.junit.Test;
 
 public class ContinueAsNewTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestContinueAsNewImpl.class)
-          .setActivityImplementations(activitiesImpl)
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

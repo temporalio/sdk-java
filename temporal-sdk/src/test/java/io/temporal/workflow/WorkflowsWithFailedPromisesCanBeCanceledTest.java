@@ -26,7 +26,6 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -34,14 +33,10 @@ import org.junit.Test;
 
 public class WorkflowsWithFailedPromisesCanBeCanceledTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestCancellationForWorkflowsWithFailedPromises.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

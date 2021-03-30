@@ -26,7 +26,6 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.workflow.*;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Rule;
@@ -34,14 +33,10 @@ import org.junit.Test;
 
 public class ChildWorkflowExecutionPromiseHandlerTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public TestWorkflowRule testWorkflowRule =
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNamedChild.class, TestChildWorkflowExecutionPromiseHandler.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   /** Tests that handler of the WorkflowExecution promise is executed in a workflow thread. */

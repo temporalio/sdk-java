@@ -26,7 +26,6 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,14 +33,11 @@ import org.junit.Test;
 public class NamedChildTest {
 
   private static final String childReexecuteId = UUID.randomUUID().toString();
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNamedChild.class, TestChildReexecuteWorkflow.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

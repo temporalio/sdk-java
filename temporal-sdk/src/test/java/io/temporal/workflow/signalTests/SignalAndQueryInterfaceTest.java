@@ -27,21 +27,15 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class SignalAndQueryInterfaceTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(SignalQueryWorkflowAImpl.class)
-          .setActivityImplementations(activitiesImpl)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(SignalQueryWorkflowAImpl.class).build();
 
   @Test
   public void testSignalAndQueryInterface() {

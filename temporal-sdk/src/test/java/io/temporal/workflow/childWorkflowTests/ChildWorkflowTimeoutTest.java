@@ -26,7 +26,6 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Rule;
@@ -34,14 +33,10 @@ import org.junit.Test;
 
 public class ChildWorkflowTimeoutTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParentWorkflowWithChildTimeout.class, WorkflowTest.TestChild.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

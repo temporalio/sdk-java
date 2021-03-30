@@ -22,7 +22,6 @@ package io.temporal.workflow;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -31,14 +30,10 @@ import org.junit.Test;
 
 public class ParentContinueAsNewTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParentWorkflowContinueAsNew.class, WorkflowTest.TestChild.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   /** Reproduction of a bug when a child of continued as new workflow has the same UUID ID. */

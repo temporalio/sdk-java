@@ -21,7 +21,6 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -29,16 +28,12 @@ import org.junit.Test;
 
 public class GetAttemptFromWorkflowInfoTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
               WorkflowTest.TestMultiargsWorkflowsFuncParent.class,
               TestAttemptReturningWorkflowFunc.class)
-          .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test

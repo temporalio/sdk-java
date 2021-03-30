@@ -25,7 +25,6 @@ import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import java.util.Map;
@@ -39,17 +38,12 @@ import org.junit.rules.TestName;
 public class WorkflowRetryTest {
 
   private static final Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule public TestName testName = new TestName();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestWorkflowRetryImpl.class)
-          .setActivityImplementations(activitiesImpl)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestWorkflowRetryImpl.class).build();
 
   @Test
   public void testWorkflowRetry() {
