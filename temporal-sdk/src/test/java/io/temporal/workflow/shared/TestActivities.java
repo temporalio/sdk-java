@@ -101,7 +101,7 @@ public interface TestActivities {
     public ActivityCompletionClient completionClient;
     int lastAttempt;
 
-    public TestActivitiesImpl(ActivityCompletionClient completionClient) {
+    public void setCompletionClient(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
     }
 

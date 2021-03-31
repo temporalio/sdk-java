@@ -19,6 +19,10 @@
 
 package io.temporal.testing;
 
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.History;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -69,6 +73,8 @@ public class TestWorkflowRule implements TestRule {
   private final WorkerInterceptor[] interceptors;
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkerOptions workerOptions;
+  private final WorkerFactoryOptions workerFactoryOptions;
+  private final String namespace;
   private final TestWorkflowEnvironment testEnvironment;
   private final TestWatcher watchman =
       new TestWatcher() {
@@ -82,11 +88,10 @@ public class TestWorkflowRule implements TestRule {
 
   private TestWorkflowRule(Builder builder) {
 
-    String namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
-
     doNotStart = builder.doNotStart;
     interceptors = builder.workerInterceptors;
     useExternalService = builder.useExternalService;
+    namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
     workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
     activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
@@ -94,6 +99,10 @@ public class TestWorkflowRule implements TestRule {
         (builder.workerOptions == null)
             ? WorkerOptions.newBuilder().build()
             : builder.workerOptions;
+    workerFactoryOptions =
+        (builder.workerFactoryOptions == null)
+            ? WorkerFactoryOptions.newBuilder().setWorkerInterceptors(interceptors).build()
+            : builder.workerFactoryOptions.toBuilder().setWorkerInterceptors(interceptors).build();
     workflowImplementationOptions =
         (builder.workflowImplementationOptions == null)
             ? WorkflowImplementationOptions.newBuilder().build()
@@ -107,13 +116,11 @@ public class TestWorkflowRule implements TestRule {
     WorkflowClientOptions clientOptions =
         (builder.workflowClientOptions == null)
             ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
-            : builder.workflowClientOptions;
-    WorkerFactoryOptions factoryOptions =
-        WorkerFactoryOptions.newBuilder().setWorkerInterceptors(interceptors).build();
+            : builder.workflowClientOptions.toBuilder().setNamespace(namespace).build();
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(clientOptions)
-            .setWorkerFactoryOptions(factoryOptions)
+            .setWorkerFactoryOptions(workerFactoryOptions)
             .setUseExternalService(useExternalService)
             .setTarget(builder.target)
             .build();
@@ -129,6 +136,7 @@ public class TestWorkflowRule implements TestRule {
 
     private WorkflowImplementationOptions workflowImplementationOptions;
     private WorkerOptions workerOptions;
+    private WorkerFactoryOptions workerFactoryOptions;
     private WorkflowClientOptions workflowClientOptions;
     private String namespace;
     private Class<?>[] workflowTypes;
@@ -144,6 +152,10 @@ public class TestWorkflowRule implements TestRule {
     public Builder setWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
       return this;
+    }
+
+    public void setWorkerFactoryOptions(WorkerFactoryOptions options) {
+      this.workerFactoryOptions = options;
     }
 
     /**
@@ -266,6 +278,11 @@ public class TestWorkflowRule implements TestRule {
     }
   }
 
+  /** Returns blockingStub */
+  public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
+    return testEnvironment.getWorkflowService().blockingStub();
+  }
+
   /** Returns tracer. */
   public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
     if (interceptors != null) {
@@ -281,6 +298,20 @@ public class TestWorkflowRule implements TestRule {
   /** Returns name of the task queue that test worker is polling. */
   public String getTaskQueue() {
     return taskQueue;
+  }
+
+  /**
+   * Returns name of the task queue that test worker is polling.
+   *
+   * @return
+   */
+  public History getWorkflowExecutionHistory(WorkflowExecution execution) {
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(namespace)
+            .setExecution(execution)
+            .build();
+    return this.blockingStub().getWorkflowExecutionHistory(request).getHistory();
   }
 
   /** Returns client to the Temporal service used to start and query workflows. */
