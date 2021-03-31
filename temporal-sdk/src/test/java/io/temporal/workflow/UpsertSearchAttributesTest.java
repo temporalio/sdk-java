@@ -25,9 +25,8 @@ import static org.junit.Assert.assertNull;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.testing.TracingWorkerInterceptor;
@@ -70,16 +69,10 @@ public class UpsertSearchAttributesTest {
             "upsertSearchAttributes",
             "executeActivity Activity",
             "activity Activity");
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
     boolean found = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       if (EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES == event.getEventType()) {
         found = true;
         break;

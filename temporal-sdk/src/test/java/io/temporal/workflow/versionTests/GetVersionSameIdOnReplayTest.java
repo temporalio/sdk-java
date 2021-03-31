@@ -23,9 +23,8 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowStub;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
@@ -57,16 +56,10 @@ public class GetVersionSameIdOnReplayTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     workflowStub.execute(testWorkflowRule.getTaskQueue());
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-            .setExecution(execution)
-            .build();
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
     // Validate that no marker is recorded
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       Assert.assertFalse(EventType.EVENT_TYPE_MARKER_RECORDED == event.getEventType());
     }
   }

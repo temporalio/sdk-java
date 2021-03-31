@@ -25,16 +25,12 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.*;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -58,16 +54,10 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
         WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     SDKTestWorkflowRule.waitForOKQuery(stub);
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
     boolean foundCompletedTask = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
         assertEquals(
             SDKTestWorkflowRule.BINARY_CHECKSUM,

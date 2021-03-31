@@ -23,18 +23,14 @@ import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.*;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -74,15 +70,9 @@ public class AbandonOnCancelActivityTest {
     long elapsed = testWorkflowRule.getTestEnvironment().currentTimeMillis() - start;
     Assert.assertTrue(String.valueOf(elapsed), elapsed < 500);
     activitiesImpl.assertInvocations("activityWithDelay");
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       Assert.assertNotEquals(
           EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, event.getEventType());
     }

@@ -19,10 +19,10 @@
 
 package io.temporal.workflow;
 
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
@@ -61,16 +61,11 @@ public class WorkflowTaskFailureBackoffTest {
     long elapsed = testWorkflowRule.getTestEnvironment().currentTimeMillis() - start;
     Assert.assertTrue("spinned on fail workflow task", elapsed > 1000);
     Assert.assertEquals("result1", result);
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
-            .setExecution(WorkflowStub.fromTyped(workflowStub).getExecution())
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
+    WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
     int failedTaskCount = 0;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED) {
         failedTaskCount++;
       }

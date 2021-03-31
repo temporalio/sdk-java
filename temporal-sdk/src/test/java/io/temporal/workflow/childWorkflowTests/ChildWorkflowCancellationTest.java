@@ -21,9 +21,8 @@ package io.temporal.workflow.childWorkflowTests;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
@@ -62,17 +61,11 @@ public class ChildWorkflowCancellationTest {
     } catch (WorkflowFailedException e) {
       Assert.assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
     boolean hasChildCanceled = false;
     boolean hasChildCancelRequested = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
         hasChildCanceled = true;
       }
@@ -98,16 +91,10 @@ public class ChildWorkflowCancellationTest {
     } catch (WorkflowFailedException e) {
       Assert.assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
     boolean hasChildCanceled = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
         hasChildCanceled = true;
       }
@@ -127,16 +114,10 @@ public class ChildWorkflowCancellationTest {
     } catch (WorkflowFailedException e) {
       Assert.assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
     boolean hasChildCancelInitiated = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       if (event.getEventType()
           == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED) {
         hasChildCancelInitiated = true;
@@ -157,17 +138,11 @@ public class ChildWorkflowCancellationTest {
     } catch (WorkflowFailedException e) {
       Assert.assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse response =
-        testWorkflowRule.getWorkflowExecutionHistory(request);
+    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
 
     boolean hasChildCancelInitiated = false;
     boolean hasChildCancelRequested = false;
-    for (HistoryEvent event : response.getHistory().getEventsList()) {
+    for (HistoryEvent event : history.getEventsList()) {
       if (event.getEventType()
           == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED) {
         hasChildCancelInitiated = true;

@@ -26,6 +26,7 @@ import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
@@ -176,9 +177,8 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getTaskQueue();
   }
 
-  public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      GetWorkflowExecutionHistoryRequest request) {
-    return testWorkflowRule.getWorkflowExecutionHistory(request);
+  public History getWorkflowExecutionHistory(WorkflowExecution execution) {
+    return testWorkflowRule.getWorkflowExecutionHistory(execution);
   }
 
   public WorkflowClient getWorkflowClient() {

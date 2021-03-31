@@ -19,8 +19,9 @@
 
 package io.temporal.testing;
 
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -73,6 +74,7 @@ public class TestWorkflowRule implements TestRule {
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkerOptions workerOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
+  private final String namespace;
   private final TestWorkflowEnvironment testEnvironment;
   private final TestWatcher watchman =
       new TestWatcher() {
@@ -86,11 +88,10 @@ public class TestWorkflowRule implements TestRule {
 
   private TestWorkflowRule(Builder builder) {
 
-    String namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
-
     doNotStart = builder.doNotStart;
     interceptors = builder.workerInterceptors;
     useExternalService = builder.useExternalService;
+    namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
     workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
     activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
@@ -304,9 +305,13 @@ public class TestWorkflowRule implements TestRule {
    *
    * @return
    */
-  public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      GetWorkflowExecutionHistoryRequest request) {
-    return this.blockingStub().getWorkflowExecutionHistory(request);
+  public History getWorkflowExecutionHistory(WorkflowExecution execution) {
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(namespace)
+            .setExecution(execution)
+            .build();
+    return this.blockingStub().getWorkflowExecutionHistory(request).getHistory();
   }
 
   /** Returns client to the Temporal service used to start and query workflows. */
