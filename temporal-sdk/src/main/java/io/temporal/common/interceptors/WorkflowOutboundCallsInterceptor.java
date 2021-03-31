@@ -41,7 +41,7 @@ import java.util.function.Supplier;
 
 /**
  * Can be used to intercept workflow code calls to the Temporal APIs. An instance should be created
- * through {@link WorkerInterceptor#interceptWorkflow(WorkflowInboundCallsInterceptor)}. An
+ * through {@link WorkerInterceptor#interceptWorkflowInbound(WorkflowInboundCallsInterceptor)}. An
  * interceptor instance must forward all the calls to the next interceptor passed to the
  * interceptExecuteWorkflow call.
  *
@@ -434,6 +434,9 @@ public interface WorkflowOutboundCallsInterceptor {
       return handler;
     }
   }
+
+  /** Called when workflow class is instantiated. */
+  void init();
 
   <R> ActivityOutput<R> executeActivity(ActivityInput<R> input);
 

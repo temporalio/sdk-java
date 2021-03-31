@@ -25,7 +25,9 @@ package io.temporal.common.interceptors;
  * <p>TODO(maxim): JavaDoc with sample
  */
 public interface WorkerInterceptor {
-  WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next);
+  WorkflowInboundCallsInterceptor interceptWorkflowInbound(WorkflowInboundCallsInterceptor next);
+
+  WorkflowOutboundCallsInterceptor interceptWorkflowOutbound(WorkflowOutboundCallsInterceptor next);
 
   ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next);
 }

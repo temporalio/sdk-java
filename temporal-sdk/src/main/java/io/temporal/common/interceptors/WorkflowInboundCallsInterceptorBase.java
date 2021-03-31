@@ -28,8 +28,8 @@ public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCalls
   }
 
   @Override
-  public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
-    next.init(outboundCalls);
+  public void init() {
+    next.init();
   }
 
   @Override

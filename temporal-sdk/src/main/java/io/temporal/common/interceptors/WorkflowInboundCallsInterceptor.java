@@ -109,12 +109,8 @@ public interface WorkflowInboundCallsInterceptor {
     }
   }
 
-  /**
-   * Called when workflow class is instantiated.
-   *
-   * @param outboundCalls interceptor for calls that workflow makes to the SDK
-   */
-  void init(WorkflowOutboundCallsInterceptor outboundCalls);
+  /** Called when workflow class is instantiated. */
+  void init();
 
   /**
    * Called when workflow main method is called.

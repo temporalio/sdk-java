@@ -225,6 +225,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private class TestActivityExecutor implements WorkflowOutboundCallsInterceptor {
 
     @Override
+    public void init() {}
+
+    @Override
     public <T> ActivityOutput<T> executeActivity(ActivityInput<T> i) {
       Optional<Payloads> payloads =
           testEnvironmentOptions

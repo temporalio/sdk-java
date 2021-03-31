@@ -84,15 +84,18 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
   }
 
   @Override
-  public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
+  public WorkflowOutboundCallsInterceptor interceptWorkflowOutbound(
+      WorkflowOutboundCallsInterceptor next) {
+    return new TracingWorkflowOutboundCallsInterceptor(trace, next);
+  }
+
+  @Override
+  public WorkflowInboundCallsInterceptor interceptWorkflowInbound(
+      WorkflowInboundCallsInterceptor next) {
     if (!Workflow.isReplaying()) {
       trace.add("interceptExecuteWorkflow " + Workflow.getInfo().getWorkflowId());
     }
     return new WorkflowInboundCallsInterceptorBase(next) {
-      @Override
-      public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
-        next.init(new TracingWorkflowOutboundCallsInterceptor(trace, outboundCalls));
-      }
 
       @Override
       public void handleSignal(SignalInput input) {
@@ -143,6 +146,11 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
       assertNotNull(workflowInfo);
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
+    }
+
+    @Override
+    public void init() {
+      next.init();
     }
 
     @Override

@@ -48,6 +48,11 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
   }
 
   @Override
+  public void init() {
+    next.init();
+  }
+
+  @Override
   public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
     return next.executeActivity(input);
   }

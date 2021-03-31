@@ -260,12 +260,22 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     @Override
     public void initialize() {
       SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
+
+      WorkflowOutboundCallsInterceptor headOutboundInterceptor = workflowContext;
+      // reverse iteration
+      for (int index = workerInterceptors.length - 1; index >= 0; index--) {
+        headOutboundInterceptor =
+            workerInterceptors[index].interceptWorkflowOutbound(headOutboundInterceptor);
+      }
+      headOutboundInterceptor.init();
+      workflowContext.setHeadInterceptor(headOutboundInterceptor);
+
       workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext);
       for (WorkerInterceptor workerInterceptor : workerInterceptors) {
-        workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
+        workflowInvoker = workerInterceptor.interceptWorkflowInbound(workflowInvoker);
       }
+      workflowInvoker.init();
       workflowContext.setHeadInboundCallsInterceptor(workflowInvoker);
-      workflowInvoker.init(workflowContext);
     }
 
     @Override
@@ -368,8 +378,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       }
 
       @Override
-      public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
-        WorkflowInternal.getRootWorkflowContext().setHeadInterceptor(outboundCalls);
+      public void init() {
         newInstance();
         WorkflowInternal.registerListener(workflow);
       }

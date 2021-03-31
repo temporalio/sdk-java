@@ -45,7 +45,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
@@ -347,7 +346,7 @@ public class MetricsTest {
                 // Add noop just to test that list of interceptors is working.
                 new WorkerInterceptor() {
                   @Override
-                  public WorkflowInboundCallsInterceptor interceptWorkflow(
+                  public WorkflowInboundCallsInterceptor interceptWorkflowInbound(
                       WorkflowInboundCallsInterceptor next) {
                     return next;
                   }
@@ -355,6 +354,12 @@ public class MetricsTest {
                   @Override
                   public ActivityInboundCallsInterceptor interceptActivity(
                       ActivityInboundCallsInterceptor next) {
+                    return next;
+                  }
+
+                  @Override
+                  public WorkflowOutboundCallsInterceptor interceptWorkflowOutbound(
+                      WorkflowOutboundCallsInterceptor next) {
                     return next;
                   }
                 })
@@ -392,22 +397,23 @@ public class MetricsTest {
   private static class CorruptedSignalWorkerInterceptor implements WorkerInterceptor {
 
     @Override
-    public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
-      return new WorkflowInboundCallsInterceptorBase(next) {
-        @Override
-        public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
-          next.init(
-              new SignalWorkflowOutboundCallsInterceptor(
-                  args -> {
-                    if (args != null && args.length > 0) {
-                      return new Object[] {"Corrupted Signal"};
-                    }
-                    return args;
-                  },
-                  sig -> sig,
-                  outboundCalls));
-        }
-      };
+    public WorkflowInboundCallsInterceptor interceptWorkflowInbound(
+        WorkflowInboundCallsInterceptor next) {
+      return next;
+    }
+
+    @Override
+    public WorkflowOutboundCallsInterceptor interceptWorkflowOutbound(
+        WorkflowOutboundCallsInterceptor next) {
+      return new SignalWorkflowOutboundCallsInterceptor(
+          args -> {
+            if (args != null && args.length > 0) {
+              return new Object[] {"Corrupted Signal"};
+            }
+            return args;
+          },
+          sig -> sig,
+          next);
     }
 
     @Override

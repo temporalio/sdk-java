@@ -39,6 +39,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
+  public void init() {
+    next.init();
+  }
+
+  @Override
   public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {
     return next.executeActivity(input);
   }

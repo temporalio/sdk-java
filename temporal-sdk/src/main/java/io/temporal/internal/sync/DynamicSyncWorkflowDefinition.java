@@ -23,10 +23,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
-import io.temporal.common.interceptors.Header;
-import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.common.interceptors.*;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
@@ -51,12 +48,22 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
   @Override
   public void initialize() {
     SyncWorkflowContext workflowContext = WorkflowInternal.getRootWorkflowContext();
+
+    WorkflowOutboundCallsInterceptor headOutboundInterceptor = workflowContext;
+    // reverse iteration
+    for (int index = workerInterceptors.length - 1; index >= 0; index--) {
+      headOutboundInterceptor =
+          workerInterceptors[index].interceptWorkflowOutbound(headOutboundInterceptor);
+    }
+    headOutboundInterceptor.init();
+    workflowContext.setHeadInterceptor(headOutboundInterceptor);
+
     workflowInvoker = new RootWorkflowInboundCallsInterceptor(workflowContext);
     for (WorkerInterceptor workerInterceptor : workerInterceptors) {
-      workflowInvoker = workerInterceptor.interceptWorkflow(workflowInvoker);
+      workflowInvoker = workerInterceptor.interceptWorkflowInbound(workflowInvoker);
     }
+    workflowInvoker.init();
     workflowContext.setHeadInboundCallsInterceptor(workflowInvoker);
-    workflowInvoker.init(workflowContext);
   }
 
   @Override
@@ -76,8 +83,7 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
     }
 
     @Override
-    public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
-      WorkflowInternal.getRootWorkflowContext().setHeadInterceptor(outboundCalls);
+    public void init() {
       newInstance();
       WorkflowInternal.registerListener(workflow);
     }
