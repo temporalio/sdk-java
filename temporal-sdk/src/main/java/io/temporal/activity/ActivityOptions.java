@@ -114,17 +114,17 @@ public final class ActivityOptions {
     }
 
     /**
-     * Maximum time of a single activity execution attempt.
+     * Maximum time of a single Activity execution attempt.
      *
-     * <p>Note that Temporal doesn't detect worker process failures directly. It relies on this
-     * timeout to detect an activity that didn't complete on time. So this timeout should be as
-     * short as the longest possible execution of the activity body. Potentially long running
-     * activities must specify HeartbeatTimeout and call {@link
+     * <p>Note that the Temporal Server doesn't detect Worker process failures directly. It relies
+     * on this timeout to detect that an Activity that didn't complete on time. So this timeout
+     * should be as short as the longest possible execution of the Activity body. Potentially long
+     * running Activities must specify HeartbeatTimeout and call {@link
      * ActivityExecutionContext#heartbeat(Object)} periodically for timely failure detection.
      *
-     * <p>If schedule to close is not provided then this timeout is required.
+     * <p>If ScheduleToClose is not provided then this timeout is required.
      *
-     * <p>Defaults to ScheduleToCloseTimeout.
+     * <p>Defaults to the ScheduleToCloseTimeout value.
      */
     public Builder setStartToCloseTimeout(Duration startToCloseTimeout) {
       this.startToCloseTimeout = startToCloseTimeout;
@@ -133,7 +133,7 @@ public final class ActivityOptions {
 
     /**
      * Heartbeat interval. Activity must call {@link ActivityExecutionContext#heartbeat(Object)}
-     * before this interval passes after a last heartbeat or activity start.
+     * before this interval passes after the last heartbeat or the Activity starts.
      */
     public Builder setHeartbeatTimeout(Duration heartbeatTimeoutSeconds) {
       this.heartbeatTimeout = heartbeatTimeoutSeconds;
