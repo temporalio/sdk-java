@@ -34,14 +34,11 @@ import org.junit.Test;
 
 public class VersionNotSupportedTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestVersionNotSupportedWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)

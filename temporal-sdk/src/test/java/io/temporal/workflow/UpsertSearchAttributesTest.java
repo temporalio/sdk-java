@@ -41,14 +41,11 @@ import org.junit.Test;
 
 public class UpsertSearchAttributesTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestUpsertSearchAttributesImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

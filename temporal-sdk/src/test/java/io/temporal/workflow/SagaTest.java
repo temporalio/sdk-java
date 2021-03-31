@@ -31,9 +31,6 @@ import org.junit.Test;
 
 public class SagaTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -41,7 +38,7 @@ public class SagaTest {
               TestSagaWorkflowImpl.class,
               TestCompensationWorkflowImpl.class,
               TestMultiargsWorkflowsFuncImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

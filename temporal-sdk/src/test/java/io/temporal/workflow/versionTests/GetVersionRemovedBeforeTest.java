@@ -35,14 +35,11 @@ import org.junit.Test;
 
 public class GetVersionRemovedBeforeTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionRemovedBefore.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)

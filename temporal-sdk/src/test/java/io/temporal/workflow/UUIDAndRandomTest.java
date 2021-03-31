@@ -33,14 +33,11 @@ import org.junit.Test;
 
 public class UUIDAndRandomTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestUUIDAndRandom.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .setWorkerInterceptors(
               new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();

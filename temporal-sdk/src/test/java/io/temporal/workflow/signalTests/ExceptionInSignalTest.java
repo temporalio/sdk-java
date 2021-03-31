@@ -37,14 +37,12 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class ExceptionInSignalTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalExceptionWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .setTestTimeoutSeconds(20)
           .build();
 

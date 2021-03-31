@@ -38,14 +38,12 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class SignalOrderingWorkflowTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(SignalOrderingWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .build();
 
   @Test

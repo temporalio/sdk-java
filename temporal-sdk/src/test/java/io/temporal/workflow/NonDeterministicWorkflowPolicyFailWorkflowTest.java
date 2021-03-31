@@ -34,13 +34,10 @@ import org.junit.Test;
 
 public class NonDeterministicWorkflowPolicyFailWorkflowTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .setWorkflowTypes(
               WorkflowImplementationOptions.newBuilder()
                   .setFailWorkflowExceptionTypes(Throwable.class)
