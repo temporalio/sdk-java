@@ -26,6 +26,7 @@ import io.temporal.client.WorkflowQueryException;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.SignalQueryBase;
 import io.temporal.workflow.shared.TestOptions;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,10 +52,10 @@ public class SignalAndQueryListenerTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestSignalAndQueryListenerWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(stub::execute);
 
-    WorkflowTest.SignalQueryBase signalStub =
+    SignalQueryBase signalStub =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.SignalQueryBase.class, execution.getWorkflowId());
+            .newWorkflowStub(SignalQueryBase.class, execution.getWorkflowId());
     // Send signals before listener is registered to test signal buffering
     signalStub.signal("a");
     signalStub.signal("b");
@@ -108,7 +109,7 @@ public class SignalAndQueryListenerTest {
     public void execute() {
       Workflow.await(() -> register);
       Workflow.registerListener(
-          new WorkflowTest.SignalQueryBase() {
+          new SignalQueryBase() {
 
             @Override
             public void signal(String arg) {

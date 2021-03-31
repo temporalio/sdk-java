@@ -38,10 +38,7 @@ import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.*;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assume;
@@ -62,7 +59,7 @@ public class ChildWorkflowRetryTest {
                   .setFailWorkflowExceptionTypes(UnsupportedOperationException.class)
                   .build(),
               TestChildWorkflowRetryWorkflow.class,
-              WorkflowTest.AngryChild.class)
+              AngryChild.class)
           .setActivityImplementations(angryChildActivity)
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
@@ -139,7 +136,7 @@ public class ChildWorkflowRetryTest {
 
   public static class TestChildWorkflowRetryWorkflow implements TestWorkflows.TestWorkflow1 {
 
-    private WorkflowTest.ITestChild child;
+    private TestWorkflows.ITestChild child;
 
     public TestChildWorkflowRetryWorkflow() {}
 
@@ -157,7 +154,7 @@ public class ChildWorkflowRetryTest {
                       .setMaximumAttempts(3)
                       .build())
               .build();
-      child = Workflow.newChildWorkflowStub(WorkflowTest.ITestChild.class, options);
+      child = Workflow.newChildWorkflowStub(TestWorkflows.ITestChild.class, options);
 
       return child.execute(taskQueue, 0);
     }

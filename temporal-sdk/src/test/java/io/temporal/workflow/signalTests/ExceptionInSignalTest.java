@@ -25,9 +25,9 @@ import static org.junit.Assert.fail;
 import io.temporal.client.WorkflowClient;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.time.Duration;
@@ -48,8 +48,8 @@ public class ExceptionInSignalTest {
 
   @Test
   public void testExceptionInSignal() throws InterruptedException {
-    WorkflowTest.TestWorkflowSignaled signalWorkflow =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(WorkflowTest.TestWorkflowSignaled.class);
+    TestWorkflows.TestWorkflowSignaled signalWorkflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflowSignaled.class);
     CompletableFuture<String> result = WorkflowClient.execute(signalWorkflow::execute);
     signalWorkflow.signal1("test");
     try {
@@ -78,7 +78,8 @@ public class ExceptionInSignalTest {
         "workflow threads might leak, #workflowThreads = " + workflowThreads, workflowThreads < 20);
   }
 
-  public static class TestSignalExceptionWorkflowImpl implements WorkflowTest.TestWorkflowSignaled {
+  public static class TestSignalExceptionWorkflowImpl
+      implements TestWorkflows.TestWorkflowSignaled {
     private final boolean signaled = false;
 
     @Override

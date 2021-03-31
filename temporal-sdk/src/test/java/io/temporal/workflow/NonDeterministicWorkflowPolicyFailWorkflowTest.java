@@ -25,8 +25,10 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.shared.DeterminismFailingWorkflowImpl;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -42,7 +44,7 @@ public class NonDeterministicWorkflowPolicyFailWorkflowTest {
               WorkflowImplementationOptions.newBuilder()
                   .setFailWorkflowExceptionTypes(Throwable.class)
                   .build(),
-              WorkflowTest.DeterminismFailingWorkflowImpl.class)
+              DeterminismFailingWorkflowImpl.class)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
@@ -57,10 +59,10 @@ public class NonDeterministicWorkflowPolicyFailWorkflowTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    WorkflowTest.DeterminismFailingWorkflow workflowStub =
+    TestWorkflows.DeterminismFailingWorkflow workflowStub =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.DeterminismFailingWorkflow.class, options);
+            .newWorkflowStub(TestWorkflows.DeterminismFailingWorkflow.class, options);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");

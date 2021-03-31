@@ -21,10 +21,7 @@ package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.*;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;

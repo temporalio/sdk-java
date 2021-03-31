@@ -25,6 +25,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -48,10 +49,10 @@ public class SignalExternalWorkflowTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    WorkflowTest.TestWorkflowSignaled client =
+    TestWorkflows.TestWorkflowSignaled client =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.TestWorkflowSignaled.class, options);
+            .newWorkflowStub(TestWorkflows.TestWorkflowSignaled.class, options);
     Assert.assertEquals("Hello World!", client.execute());
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     testWorkflowRule
@@ -67,10 +68,10 @@ public class SignalExternalWorkflowTest {
             "handleSignal testSignal");
   }
 
-  public static class TestSignalExternalWorkflow implements WorkflowTest.TestWorkflowSignaled {
+  public static class TestSignalExternalWorkflow implements TestWorkflows.TestWorkflowSignaled {
 
-    private final WorkflowTest.SignalingChild child =
-        Workflow.newChildWorkflowStub(WorkflowTest.SignalingChild.class);
+    private final TestWorkflows.SignalingChild child =
+        Workflow.newChildWorkflowStub(TestWorkflows.SignalingChild.class);
 
     private final CompletablePromise<Object> fromSignal = Workflow.newPromise();
 
@@ -87,15 +88,15 @@ public class SignalExternalWorkflowTest {
     }
   }
 
-  public static class SignalingChildImpl implements WorkflowTest.SignalingChild {
+  public static class SignalingChildImpl implements TestWorkflows.SignalingChild {
 
     @Override
     public String execute(String greeting, String parentWorkflowId) {
       WorkflowExecution parentExecution =
           WorkflowExecution.newBuilder().setWorkflowId(parentWorkflowId).build();
-      WorkflowTest.TestWorkflowSignaled parent =
+      TestWorkflows.TestWorkflowSignaled parent =
           Workflow.newExternalWorkflowStub(
-              WorkflowTest.TestWorkflowSignaled.class, parentExecution);
+              TestWorkflows.TestWorkflowSignaled.class, parentExecution);
       ExternalWorkflowStub untyped = ExternalWorkflowStub.fromTyped(parent);
       //  Same as parent.signal1("World");
       untyped.signal("testSignal", "World");

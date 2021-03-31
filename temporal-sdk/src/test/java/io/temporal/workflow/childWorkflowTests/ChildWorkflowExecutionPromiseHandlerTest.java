@@ -55,7 +55,7 @@ public class ChildWorkflowExecutionPromiseHandlerTest {
     assertEquals("FOO", result);
   }
 
-  public static class TestNamedChild implements WorkflowTest.ITestNamedChild {
+  public static class TestNamedChild implements TestWorkflows.ITestNamedChild {
 
     @Override
     public String execute(String arg) {
@@ -66,11 +66,11 @@ public class ChildWorkflowExecutionPromiseHandlerTest {
   public static class TestChildWorkflowExecutionPromiseHandler
       implements TestWorkflows.TestWorkflow1 {
 
-    private WorkflowTest.ITestNamedChild child;
+    private TestWorkflows.ITestNamedChild child;
 
     @Override
     public String execute(String taskQueue) {
-      child = Workflow.newChildWorkflowStub(WorkflowTest.ITestNamedChild.class);
+      child = Workflow.newChildWorkflowStub(TestWorkflows.ITestNamedChild.class);
       Promise<String> childResult = Async.function(child::execute, "foo");
       Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
       CompletablePromise<String> result = Workflow.newPromise();

@@ -22,9 +22,9 @@ package io.temporal.workflow.signalTests;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,10 +55,10 @@ public class SignalDuringLastWorkflowTaskTest {
             .toBuilder()
             .setWorkflowId("testSignalDuringLastWorkflowTask-" + UUID.randomUUID().toString())
             .build();
-    WorkflowTest.TestWorkflowSignaled client =
+    TestWorkflows.TestWorkflowSignaled client =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.TestWorkflowSignaled.class, options);
+            .newWorkflowStub(TestWorkflows.TestWorkflowSignaled.class, options);
     WorkflowExecution execution = WorkflowClient.start(client::execute);
     testWorkflowRule.registerDelayedCallback(
         Duration.ofSeconds(1),
@@ -84,7 +84,7 @@ public class SignalDuringLastWorkflowTaskTest {
   }
 
   static class TestSignalDuringLastWorkflowTaskWorkflowImpl
-      implements WorkflowTest.TestWorkflowSignaled {
+      implements TestWorkflows.TestWorkflowSignaled {
 
     private String signal;
 

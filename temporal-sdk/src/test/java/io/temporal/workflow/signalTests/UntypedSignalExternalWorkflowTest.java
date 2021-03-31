@@ -22,6 +22,7 @@ package io.temporal.workflow.signalTests;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -44,15 +45,15 @@ public class UntypedSignalExternalWorkflowTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    WorkflowTest.TestWorkflowSignaled client =
+    TestWorkflows.TestWorkflowSignaled client =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(WorkflowTest.TestWorkflowSignaled.class, options);
+            .newWorkflowStub(TestWorkflows.TestWorkflowSignaled.class, options);
     Assert.assertEquals("Hello World!", client.execute());
   }
 
   public static class TestUntypedSignalExternalWorkflow
-      implements WorkflowTest.TestWorkflowSignaled {
+      implements TestWorkflows.TestWorkflowSignaled {
 
     private final ChildWorkflowStub child = Workflow.newUntypedChildWorkflowStub("SignalingChild");
 
@@ -71,7 +72,7 @@ public class UntypedSignalExternalWorkflowTest {
     }
   }
 
-  public static class UntypedSignalingChildImpl implements WorkflowTest.SignalingChild {
+  public static class UntypedSignalingChildImpl implements TestWorkflows.SignalingChild {
 
     @Override
     public String execute(String greeting, String parentWorkflowId) {

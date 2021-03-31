@@ -26,7 +26,6 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -71,9 +70,9 @@ public class SignalExternalWorkflowFailureTest {
     public String execute(String taskQueue) {
       WorkflowExecution parentExecution =
           WorkflowExecution.newBuilder().setWorkflowId("invalid id").build();
-      WorkflowTest.TestWorkflowSignaled workflow =
+      TestWorkflows.TestWorkflowSignaled workflow =
           Workflow.newExternalWorkflowStub(
-              WorkflowTest.TestWorkflowSignaled.class, parentExecution);
+              TestWorkflows.TestWorkflowSignaled.class, parentExecution);
       workflow.signal1("World");
       return "ignored";
     }

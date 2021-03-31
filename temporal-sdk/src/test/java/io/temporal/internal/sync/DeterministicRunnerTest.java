@@ -51,7 +51,6 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -127,7 +126,7 @@ public class DeterministicRunnerTest {
    * Async retry cannot be tested here as it relies on timer that is implemented outside of
    * Dispatcher.
    *
-   * @see WorkflowTest#testAsyncRetry()
+   * @see activityTests.AsyncRetryTest#testAsyncRetry()
    */
   @Test
   @Ignore // timer removed from dispatcher

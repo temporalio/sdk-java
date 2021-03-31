@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.base.Throwables;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
+import io.temporal.workflow.shared.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -36,7 +36,7 @@ public class ChildWorkflowTimeoutTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestParentWorkflowWithChildTimeout.class, WorkflowTest.TestChild.class)
+          .setWorkflowTypes(TestParentWorkflowWithChildTimeout.class, TestChild.class)
           .build();
 
   @Test
@@ -50,12 +50,12 @@ public class ChildWorkflowTimeoutTest {
 
   public static class TestParentWorkflowWithChildTimeout implements TestWorkflows.TestWorkflow1 {
 
-    private final WorkflowTest.ITestChild child;
+    private final TestWorkflows.ITestChild child;
 
     public TestParentWorkflowWithChildTimeout() {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder().setWorkflowRunTimeout(Duration.ofSeconds(1)).build();
-      child = Workflow.newChildWorkflowStub(WorkflowTest.ITestChild.class, options);
+      child = Workflow.newChildWorkflowStub(TestWorkflows.ITestChild.class, options);
     }
 
     @Override

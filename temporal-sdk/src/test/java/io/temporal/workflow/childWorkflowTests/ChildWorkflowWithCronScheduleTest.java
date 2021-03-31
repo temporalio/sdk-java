@@ -19,7 +19,6 @@
 
 package io.temporal.workflow.childWorkflowTests;
 
-import static io.temporal.workflow.WorkflowTest.lastCompletionResult;
 import static io.temporal.workflow.shared.TestOptions.newWorkflowOptionsWithTimeouts;
 import static org.junit.Assert.*;
 
@@ -27,7 +26,7 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
+import io.temporal.workflow.shared.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -43,8 +42,7 @@ public class ChildWorkflowWithCronScheduleTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(
-              TestCronParentWorkflow.class, WorkflowTest.TestWorkflowWithCronScheduleImpl.class)
+          .setWorkflowTypes(TestCronParentWorkflow.class, TestWorkflowWithCronScheduleImpl.class)
           .build();
 
   @Test
@@ -74,12 +72,12 @@ public class ChildWorkflowWithCronScheduleTest {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    assertEquals("run 2", lastCompletionResult);
+    assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResult); 
   }
 
   public static class TestCronParentWorkflow implements TestWorkflows.TestWorkflow1 {
-    private final WorkflowTest.TestWorkflowWithCronSchedule cronChild =
-        Workflow.newChildWorkflowStub(WorkflowTest.TestWorkflowWithCronSchedule.class);
+    private final TestWorkflows.TestWorkflowWithCronSchedule cronChild =
+        Workflow.newChildWorkflowStub(TestWorkflows.TestWorkflowWithCronSchedule.class);
 
     @Override
     public String execute(String taskQueue) {
