@@ -72,7 +72,7 @@ public class ChildWorkflowWithCronScheduleTest {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResult); 
+    assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResult);
   }
 
   public static class TestCronParentWorkflow implements TestWorkflows.TestWorkflow1 {

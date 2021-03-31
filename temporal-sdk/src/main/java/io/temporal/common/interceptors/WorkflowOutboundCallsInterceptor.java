@@ -171,6 +171,7 @@ public interface WorkflowOutboundCallsInterceptor {
   }
 
   final class ChildWorkflowInput<R> {
+    private final String workflowId;
     private final String workflowType;
     private final Class<R> resultClass;
     private final Type resultType;
@@ -179,18 +180,24 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Header header;
 
     public ChildWorkflowInput(
+        String workflowId,
         String workflowType,
         Class<R> resultClass,
         Type resultType,
         Object[] args,
         ChildWorkflowOptions options,
         Header header) {
+      this.workflowId = workflowId;
       this.workflowType = workflowType;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
       this.options = options;
       this.header = header;
+    }
+
+    public String getWorkflowId() {
+      return workflowId;
     }
 
     public String getWorkflowType() {

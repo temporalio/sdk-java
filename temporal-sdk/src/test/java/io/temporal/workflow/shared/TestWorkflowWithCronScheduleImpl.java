@@ -37,7 +37,6 @@ public class TestWorkflowWithCronScheduleImpl
   public static String lastCompletionResult;
   public static Optional<Exception> lastFail;
 
-
   @Override
   public String execute(String testName) {
     Logger log = Workflow.getLogger(TestWorkflowWithCronScheduleImpl.class);
