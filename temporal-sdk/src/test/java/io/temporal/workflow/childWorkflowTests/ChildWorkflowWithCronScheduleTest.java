@@ -17,34 +17,38 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.childWorkflowTests;
 
-import static io.temporal.workflow.WorkflowTest.*;
+import static io.temporal.workflow.WorkflowTest.lastCompletionResult;
 import static io.temporal.workflow.shared.TestOptions.newWorkflowOptionsWithTimeouts;
 import static org.junit.Assert.*;
 
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-public class WorkflowWithCronScheduleTest {
+public class ChildWorkflowWithCronScheduleTest {
 
   @Rule public TestName testName = new TestName();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(WorkflowTest.TestWorkflowWithCronScheduleImpl.class)
+          .setWorkflowTypes(
+              TestCronParentWorkflow.class, WorkflowTest.TestWorkflowWithCronScheduleImpl.class)
           .build();
 
   @Test
-  public void testWorkflowWithCronSchedule() {
+  public void testChildWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
     Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
@@ -53,14 +57,14 @@ public class WorkflowWithCronScheduleTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                "TestWorkflowWithCronSchedule",
+                "TestWorkflow1",
                 newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
-                    .setWorkflowRunTimeout(Duration.ofHours(1))
-                    .setCronSchedule("0 * * * *")
+                    .setWorkflowRunTimeout(Duration.ofHours(10))
                     .build());
-    testWorkflowRule.registerDelayedCallback(Duration.ofHours(3), client::cancel);
     client.start(testName.getMethodName());
+    testWorkflowRule.getTestEnvironment().sleep(Duration.ofHours(3));
+    client.cancel();
 
     try {
       client.getResult(String.class);
@@ -71,8 +75,15 @@ public class WorkflowWithCronScheduleTest {
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
     assertEquals("run 2", lastCompletionResult);
-    // The last failure ought to be the one from run 3
-    assertTrue(lastFail.isPresent());
-    assertTrue(lastFail.get().getMessage().contains("simulated error"));
+  }
+
+  public static class TestCronParentWorkflow implements TestWorkflows.TestWorkflow1 {
+    private final WorkflowTest.TestWorkflowWithCronSchedule cronChild =
+        Workflow.newChildWorkflowStub(WorkflowTest.TestWorkflowWithCronSchedule.class);
+
+    @Override
+    public String execute(String taskQueue) {
+      return cronChild.execute(taskQueue);
+    }
   }
 }

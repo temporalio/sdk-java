@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Rule;
@@ -31,15 +30,9 @@ import org.junit.Test;
 
 public class AwaitTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestAwait.class)
-          .setActivityImplementations(activitiesImpl)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestAwait.class).build();
 
   @Test
   public void testAwait() {
