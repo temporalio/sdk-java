@@ -24,7 +24,7 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.shared.*;
+import io.temporal.workflow.shared.NonSerializableException;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import org.junit.Assert;

@@ -21,7 +21,10 @@ package io.temporal.workflow.childWorkflowTests;
 
 import static org.junit.Assert.assertEquals;
 
-import io.temporal.workflow.*;
+import io.temporal.workflow.Async;
+import io.temporal.workflow.ChildWorkflowOptions;
+import io.temporal.workflow.Promise;
+import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestChild;
 import io.temporal.workflow.shared.TestWorkflows;

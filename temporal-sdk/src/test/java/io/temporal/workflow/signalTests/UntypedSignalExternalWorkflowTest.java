@@ -20,7 +20,11 @@
 package io.temporal.workflow.signalTests;
 
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.*;
+import io.temporal.workflow.ChildWorkflowStub;
+import io.temporal.workflow.CompletablePromise;
+import io.temporal.workflow.ExternalWorkflowStub;
+import io.temporal.workflow.Promise;
+import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;

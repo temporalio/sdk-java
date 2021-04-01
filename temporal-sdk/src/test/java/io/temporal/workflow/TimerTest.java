@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
-import io.temporal.workflow.shared.*;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
