@@ -25,8 +25,14 @@ import static org.junit.Assert.fail;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.workflow.*;
+import io.temporal.workflow.Async;
+import io.temporal.workflow.CancellationScope;
+import io.temporal.workflow.ChildWorkflowCancellationType;
+import io.temporal.workflow.ChildWorkflowOptions;
+import io.temporal.workflow.Promise;
+import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
@@ -54,12 +60,12 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
   }
 
   public static class ParentThatStartsChildInCancellationScope
-      implements WorkflowTest.TestWorkflow {
+      implements TestWorkflows.TestWorkflow {
     @Override
     public void execute(ChildWorkflowCancellationType cancellationType) {
-      WorkflowTest.TestChildWorkflow child =
+      TestWorkflows.TestChildWorkflow child =
           Workflow.newChildWorkflowStub(
-              WorkflowTest.TestChildWorkflow.class,
+              TestWorkflows.TestChildWorkflow.class,
               ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
       List<Promise<Void>> children = new ArrayList<>();
       // This is a non blocking call that returns immediately.
@@ -75,7 +81,7 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
     }
   }
 
-  public static class SleepyChild implements WorkflowTest.TestChildWorkflow {
+  public static class SleepyChild implements TestWorkflows.TestChildWorkflow {
     @Override
     public void execute() {
       Workflow.await(() -> false);

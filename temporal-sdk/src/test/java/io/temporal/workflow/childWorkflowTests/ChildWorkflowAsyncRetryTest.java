@@ -30,7 +30,7 @@ import io.temporal.testing.WorkflowReplayer;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
+import io.temporal.workflow.shared.AngryChild;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -47,8 +47,7 @@ public class ChildWorkflowAsyncRetryTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(
-              TestChildWorkflowAsyncRetryWorkflow.class, WorkflowTest.AngryChild.class)
+          .setWorkflowTypes(TestChildWorkflowAsyncRetryWorkflow.class, AngryChild.class)
           .setActivityImplementations(angryChildActivity)
           .build();
 
@@ -89,7 +88,7 @@ public class ChildWorkflowAsyncRetryTest {
 
   public static class TestChildWorkflowAsyncRetryWorkflow implements TestWorkflows.TestWorkflow1 {
 
-    private WorkflowTest.ITestChild child;
+    private TestWorkflows.ITestChild child;
 
     public TestChildWorkflowAsyncRetryWorkflow() {}
 
@@ -107,7 +106,7 @@ public class ChildWorkflowAsyncRetryTest {
                       .setMaximumAttempts(3)
                       .build())
               .build();
-      child = Workflow.newChildWorkflowStub(WorkflowTest.ITestChild.class, options);
+      child = Workflow.newChildWorkflowStub(TestWorkflows.ITestChild.class, options);
       return Async.function(child::execute, taskQueue, 0).get();
     }
   }

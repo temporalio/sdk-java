@@ -22,9 +22,9 @@ package io.temporal.workflow.childWorkflowTests;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
+import io.temporal.workflow.shared.TestMultiargsWorkflowsFuncParent;
 import io.temporal.workflow.shared.TestOptions;
 import java.util.Optional;
 import org.junit.Assert;
@@ -37,8 +37,7 @@ public class ParentWorkflowInfoInChildWorkflowsTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
-              WorkflowTest.TestMultiargsWorkflowsFuncParent.class,
-              TestMultiargsWorkflowsFuncChild.class)
+              TestMultiargsWorkflowsFuncChild.class, TestMultiargsWorkflowsFuncParent.class)
           .build();
 
   @Test

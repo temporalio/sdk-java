@@ -24,7 +24,7 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.WorkflowTest;
+import io.temporal.workflow.shared.NonSerializableException;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import org.junit.Assert;
@@ -38,7 +38,7 @@ public class NonSerializableExceptionInChildWorkflowTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
               WorkflowImplementationOptions.newBuilder()
-                  .setFailWorkflowExceptionTypes(WorkflowTest.NonSerializableException.class)
+                  .setFailWorkflowExceptionTypes(NonSerializableException.class)
                   .build(),
               TestNonSerializableExceptionInChildWorkflow.class,
               NonSerializableExceptionChildWorkflowImpl.class)
@@ -64,7 +64,7 @@ public class NonSerializableExceptionInChildWorkflowTest {
 
     @Override
     public String execute(String taskQueue) {
-      throw new WorkflowTest.NonSerializableException();
+      throw new NonSerializableException();
     }
   }
 
