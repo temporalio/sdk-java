@@ -154,8 +154,9 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
-    public void setWorkerFactoryOptions(WorkerFactoryOptions options) {
+    public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
       this.workerFactoryOptions = options;
+      return this;
     }
 
     /**

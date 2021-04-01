@@ -26,6 +26,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,11 +54,11 @@ public class WorkflowRetryTest {
             .setMaximumAttempts(3)
             .setBackoffCoefficient(1.0)
             .build();
-    WorkflowTest.TestWorkflowRetry workflowStub =
+    TestWorkflows.TestWorkflowRetry workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                WorkflowTest.TestWorkflowRetry.class,
+                TestWorkflows.TestWorkflowRetry.class,
                 TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
                     .setRetryOptions(workflowRetryOptions)
@@ -78,7 +79,7 @@ public class WorkflowRetryTest {
     }
   }
 
-  public static class TestWorkflowRetryImpl implements WorkflowTest.TestWorkflowRetry {
+  public static class TestWorkflowRetryImpl implements TestWorkflows.TestWorkflowRetry {
 
     @Override
     public String execute(String testName) {

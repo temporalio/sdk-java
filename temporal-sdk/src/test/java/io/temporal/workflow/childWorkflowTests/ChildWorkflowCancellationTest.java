@@ -29,23 +29,21 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class ChildWorkflowCancellationTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
           .build();
 
   @Test
@@ -156,19 +154,19 @@ public class ChildWorkflowCancellationTest {
     Assert.assertFalse(hasChildCancelRequested);
   }
 
-  public static class TestParentWorkflowImpl implements WorkflowTest.TestWorkflow {
+  public static class TestParentWorkflowImpl implements TestWorkflows.TestWorkflow {
 
     @Override
     public void execute(ChildWorkflowCancellationType cancellationType) {
-      WorkflowTest.TestChildWorkflow child =
+      TestWorkflows.TestChildWorkflow child =
           Workflow.newChildWorkflowStub(
-              WorkflowTest.TestChildWorkflow.class,
+              TestWorkflows.TestChildWorkflow.class,
               ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
       child.execute();
     }
   }
 
-  public static class TestChildWorkflowImpl implements WorkflowTest.TestChildWorkflow {
+  public static class TestChildWorkflowImpl implements TestWorkflows.TestChildWorkflow {
     @Override
     public void execute() {
       try {

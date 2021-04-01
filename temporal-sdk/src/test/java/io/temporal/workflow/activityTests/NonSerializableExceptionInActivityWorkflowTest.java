@@ -23,7 +23,7 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
+import io.temporal.workflow.shared.NonSerializableException;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -62,7 +62,7 @@ public class NonSerializableExceptionInActivityWorkflowTest {
 
     @Override
     public void execute() {
-      throw new WorkflowTest.NonSerializableException();
+      throw new NonSerializableException();
     }
   }
 
