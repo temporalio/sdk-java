@@ -64,7 +64,7 @@ public class SDKTestWorkflowRule implements TestRule {
   // Enable to regenerate JsonFiles used for replay testing.
   public static final boolean REGENERATE_JSON_FILES = false;
   // Only enable when USE_DOCKER_SERVICE is true
-  public static final Boolean useExternalService =
+  public static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   public static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   private static final List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
@@ -111,11 +111,6 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder setNamespace(String namespace) {
       testWorkflowRuleBuilder.setNamespace(namespace);
-      return this;
-    }
-
-    public Builder setWorkerInterceptors(WorkerInterceptor... workerInterceptors) {
-      testWorkflowRuleBuilder.setWorkerInterceptors(workerInterceptors);
       return this;
     }
 

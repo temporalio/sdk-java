@@ -36,11 +36,7 @@ public class TimerTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestTimerWorkflowImpl.class)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestTimerWorkflowImpl.class).build();
 
   @Test
   public void testTimer() {

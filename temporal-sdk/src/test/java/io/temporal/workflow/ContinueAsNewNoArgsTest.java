@@ -29,11 +29,7 @@ public class ContinueAsNewNoArgsTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestContinueAsNewNoArgsImpl.class)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestContinueAsNewNoArgsImpl.class).build();
 
   @Test
   public void testContinueAsNewNoArgs() {
