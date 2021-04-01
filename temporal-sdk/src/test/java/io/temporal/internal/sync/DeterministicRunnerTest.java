@@ -126,7 +126,7 @@ public class DeterministicRunnerTest {
    * Async retry cannot be tested here as it relies on timer that is implemented outside of
    * Dispatcher.
    *
-   * @see activityTests.AsyncRetryTest#testAsyncRetry()
+   * @see io.temporal.workflow.activityTests.AsyncRetryTest#testAsyncRetry()
    */
   @Test
   @Ignore // timer removed from dispatcher
