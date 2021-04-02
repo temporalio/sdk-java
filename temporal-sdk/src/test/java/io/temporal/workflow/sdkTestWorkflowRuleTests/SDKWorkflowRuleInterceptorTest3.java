@@ -28,18 +28,21 @@ import org.junit.Test;
 
 public class SDKWorkflowRuleInterceptorTest3 {
 
+  TracingWorkerInterceptor tracingWorkerInterceptor =
+      new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace());
+
   @Rule
-  public SDKTestWorkflowRule testWorkflowRule3 =
+  public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
-                  .setWorkerInterceptors(
-                      new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+                  .setWorkerInterceptors(tracingWorkerInterceptor)
                   .build())
           .build();
 
   @Test
   public void testWorkerInterceptorWorkerFactoryOptionsSetWithInterceptor() {
-    Assert.assertNotNull(testWorkflowRule3.getInterceptor(TracingWorkerInterceptor.class));
+    Assert.assertSame(
+        tracingWorkerInterceptor, testWorkflowRule.getInterceptor(TracingWorkerInterceptor.class));
   }
 }
