@@ -266,9 +266,11 @@ public class TestWorkflowRule implements TestRule {
 
   protected void shutdown() throws Throwable {
     testEnvironment.close();
-    TracingWorkerInterceptor tracer = getInterceptor(TracingWorkerInterceptor.class);
-    if (tracer != null) {
-      tracer.assertExpected();
+    if (getInterceptor(TracingWorkerInterceptor.class) != null) {
+      TracingWorkerInterceptor tracer = getInterceptor(TracingWorkerInterceptor.class);
+      if (tracer != null) {
+        tracer.assertExpected();
+      }
     }
   }
 
