@@ -23,7 +23,6 @@ import com.google.common.base.Charsets;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
 import io.temporal.workflow.Functions;
-import io.temporal.workflow.WorkflowTest;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -35,7 +34,8 @@ import org.slf4j.LoggerFactory;
 
 public class CommandsGeneratePlantUMLStateDiagrams {
 
-  private static final Logger log = LoggerFactory.getLogger(WorkflowTest.class);
+  private static final Logger log =
+      LoggerFactory.getLogger(CommandsGeneratePlantUMLStateDiagrams.class);
 
   @Test
   public void plantUML() {

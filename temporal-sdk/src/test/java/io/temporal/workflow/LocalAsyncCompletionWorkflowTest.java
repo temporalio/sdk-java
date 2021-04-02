@@ -19,12 +19,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityExecutionContext;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.ManualActivityCompletionClient;
+import io.temporal.activity.*;
 import io.temporal.common.RetryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
@@ -54,11 +49,31 @@ public class LocalAsyncCompletionWorkflowTest {
           .setTestTimeoutSeconds(15)
           .build();
 
+  /**
+   * This test runs 10 async activities in parallel. The expectation is that
+   * MAX_CONCURRENT_ACTIVITIES limit is being respected and only 1 activity should be running at the
+   * same time.
+   */
+  @Test
+  public void verifyLocalActivityCompletionRespectsConcurrencySettings() {
+    String taskQueue = testWorkflowRule.getTaskQueue();
+    TestWorkflow workflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
+    String result = workflow.execute(taskQueue);
+    Assert.assertEquals("success", result);
+  }
+
   @WorkflowInterface
   public interface TestWorkflow {
 
     @WorkflowMethod
     String execute(String taskQueue);
+  }
+
+  @ActivityInterface
+  public interface TestActivity {
+
+    @ActivityMethod
+    int execute(int value);
   }
 
   public static class TestWorkflowImpl implements TestWorkflow {
@@ -91,13 +106,6 @@ public class LocalAsyncCompletionWorkflowTest {
     }
   }
 
-  @ActivityInterface
-  public interface TestActivity {
-
-    @ActivityMethod
-    int execute(int value);
-  }
-
   public static class AsyncActivityWithManualCompletion implements TestActivity {
     private final AtomicInteger concurrentActivitiesCount = new AtomicInteger(0);
 
@@ -128,18 +136,5 @@ public class LocalAsyncCompletionWorkflowTest {
         completionClient.fail(e);
       }
     }
-  }
-
-  /**
-   * This test runs 10 async activities in parallel. The expectation is that
-   * MAX_CONCURRENT_ACTIVITIES limit is being respected and only 1 activity should be running at the
-   * same time.
-   */
-  @Test
-  public void verifyLocalActivityCompletionRespectsConcurrencySettings() {
-    String taskQueue = testWorkflowRule.getTaskQueue();
-    TestWorkflow workflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
-    String result = workflow.execute(taskQueue);
-    Assert.assertEquals("success", result);
   }
 }
