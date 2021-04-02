@@ -24,11 +24,11 @@ import static org.junit.Assert.assertEquals;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Rule;
@@ -37,8 +37,8 @@ import org.junit.Test;
 public class ChildWorkflowExecutionPromiseHandlerTest {
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNamedChild.class, TestChildWorkflowExecutionPromiseHandler.class)
           .build();
 

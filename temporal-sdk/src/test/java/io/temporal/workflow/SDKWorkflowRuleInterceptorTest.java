@@ -30,21 +30,11 @@ public class SDKWorkflowRuleInterceptorTest {
 
   @Rule public SDKTestWorkflowRule testWorkflowRule1 = SDKTestWorkflowRule.newBuilder().build();
 
-  @Test
-  public void testWorkerInterceptorWorkerFactoryOptionsNotSet() {
-    Assert.assertNotNull(testWorkflowRule1.getInterceptor(TracingWorkerInterceptor.class));
-  }
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule2 =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerFactoryOptions(WorkerFactoryOptions.getDefaultInstance())
           .build();
-
-  @Test
-  public void testWorkerInterceptorWorkerFactoryOptionsSet() {
-    Assert.assertNotNull(testWorkflowRule1.getInterceptor(TracingWorkerInterceptor.class));
-  }
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule3 =
@@ -57,7 +47,17 @@ public class SDKWorkflowRuleInterceptorTest {
           .build();
 
   @Test
-  public void testWorkerInterceptorWorkerFactoryOptionsSetWithInterceptor() {
+  public void testWorkerInterceptorWorkerFactoryOptionsNotSet() {
     Assert.assertNotNull(testWorkflowRule1.getInterceptor(TracingWorkerInterceptor.class));
+  }
+
+  @Test
+  public void testWorkerInterceptorWorkerFactoryOptionsSet() {
+    Assert.assertNotNull(testWorkflowRule2.getInterceptor(TracingWorkerInterceptor.class));
+  }
+
+  @Test
+  public void testWorkerInterceptorWorkerFactoryOptionsSetWithInterceptor() {
+    Assert.assertNotNull(testWorkflowRule3.getInterceptor(TracingWorkerInterceptor.class));
   }
 }

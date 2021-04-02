@@ -22,11 +22,11 @@ package io.temporal.workflow.activityTests;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.testing.TestWorkflowRule;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
@@ -45,8 +45,8 @@ public class LocalActivityAndQueryTest {
       new TestActivities.TestActivitiesImpl();
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLocalActivityAndQueryWorkflow.class)
           .setActivityImplementations(activitiesImpl)
           .build();
