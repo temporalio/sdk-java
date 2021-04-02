@@ -101,10 +101,7 @@ public class TestWorkflowRule implements TestRule {
             : builder.workerOptions;
     workerFactoryOptions =
         (builder.workerFactoryOptions == null)
-            ? WorkerFactoryOptions.newBuilder()
-                .setWorkerInterceptors(
-                    new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-                .build()
+            ? WorkerFactoryOptions.getDefaultInstance()
             : builder.workerFactoryOptions;
     workflowImplementationOptions =
         (builder.workflowImplementationOptions == null)
@@ -158,13 +155,7 @@ public class TestWorkflowRule implements TestRule {
     }
 
     public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
-      this.workerFactoryOptions =
-          (options.getWorkerInterceptors() == null)
-              ? WorkerFactoryOptions.newBuilder(options)
-                  .setWorkerInterceptors(
-                      new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-                  .build()
-              : options;
+      this.workerFactoryOptions = options;
       return this;
     }
 

@@ -39,6 +39,7 @@ import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -48,7 +49,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -88,6 +93,8 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public static class Builder {
+
+    private boolean workerFactoryOptionsAreSet = false;
     TestWorkflowRule.Builder testWorkflowRuleBuilder;
 
     public Builder() {
@@ -100,7 +107,15 @@ public class SDKTestWorkflowRule implements TestRule {
     }
 
     public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
+      options =
+          (options.getWorkerInterceptors() == null)
+              ? WorkerFactoryOptions.newBuilder(options)
+                  .setWorkerInterceptors(
+                      new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+                  .build()
+              : options;
       testWorkflowRuleBuilder.setWorkerFactoryOptions(options);
+      workerFactoryOptionsAreSet = true;
       return this;
     }
 
@@ -151,6 +166,13 @@ public class SDKTestWorkflowRule implements TestRule {
     }
 
     public SDKTestWorkflowRule build() {
+      if (!workerFactoryOptionsAreSet) {
+        testWorkflowRuleBuilder.setWorkerFactoryOptions(
+            WorkerFactoryOptions.newBuilder()
+                .setWorkerInterceptors(
+                    new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+                .build());
+      }
       return new SDKTestWorkflowRule(testWorkflowRuleBuilder);
     }
   }

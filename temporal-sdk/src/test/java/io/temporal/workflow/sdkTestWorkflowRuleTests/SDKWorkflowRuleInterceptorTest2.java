@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.sdkTestWorkflowRuleTests;
 
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -26,38 +26,16 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SDKWorkflowRuleInterceptorTest {
-
-  @Rule public SDKTestWorkflowRule testWorkflowRule1 = SDKTestWorkflowRule.newBuilder().build();
+public class SDKWorkflowRuleInterceptorTest2 {
 
   @Rule
-  public SDKTestWorkflowRule testWorkflowRule2 =
+  public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkerFactoryOptions(WorkerFactoryOptions.getDefaultInstance())
           .build();
 
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule3 =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkerFactoryOptions(
-              WorkerFactoryOptions.newBuilder()
-                  .setWorkerInterceptors(
-                      new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
-                  .build())
-          .build();
-
-  @Test
-  public void testWorkerInterceptorWorkerFactoryOptionsNotSet() {
-    Assert.assertNotNull(testWorkflowRule1.getInterceptor(TracingWorkerInterceptor.class));
-  }
-
   @Test
   public void testWorkerInterceptorWorkerFactoryOptionsSet() {
-    Assert.assertNotNull(testWorkflowRule2.getInterceptor(TracingWorkerInterceptor.class));
-  }
-
-  @Test
-  public void testWorkerInterceptorWorkerFactoryOptionsSetWithInterceptor() {
-    Assert.assertNotNull(testWorkflowRule3.getInterceptor(TracingWorkerInterceptor.class));
+    Assert.assertNotNull(testWorkflowRule.getInterceptor(TracingWorkerInterceptor.class));
   }
 }
