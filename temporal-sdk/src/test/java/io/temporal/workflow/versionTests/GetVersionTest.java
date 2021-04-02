@@ -45,8 +45,6 @@ public class GetVersionTest {
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test
