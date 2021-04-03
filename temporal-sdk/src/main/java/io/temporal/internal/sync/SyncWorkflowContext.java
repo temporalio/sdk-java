@@ -333,7 +333,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
     Promise<Optional<Payloads>> output =
         executeChildWorkflow(
-            input.getWorkflowType(), input.getOptions(), input.getHeader(), payloads, execution);
+            input.getWorkflowId(),
+            input.getWorkflowType(),
+            input.getOptions(),
+            input.getHeader(),
+            payloads,
+            execution);
     Promise<R> result =
         output.thenApply(
             (b) -> converter.fromPayloads(0, b, input.getResultClass(), input.getResultType()));
@@ -341,6 +346,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private Promise<Optional<Payloads>> executeChildWorkflow(
+      String workflowId,
       String name,
       ChildWorkflowOptions options,
       Header header,
@@ -361,10 +367,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     final StartChildWorkflowExecutionCommandAttributes.Builder attributes =
         StartChildWorkflowExecutionCommandAttributes.newBuilder()
             .setWorkflowType(WorkflowType.newBuilder().setName(name).build());
-    String workflowId = options.getWorkflowId();
-    if (workflowId == null) {
-      workflowId = randomUUID().toString();
-    }
     attributes.setWorkflowId(workflowId);
     attributes.setNamespace(OptionsUtils.safeGet(options.getNamespace()));
     if (input.isPresent()) {

@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestChild;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -33,7 +34,7 @@ public class ParentContinueAsNewTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestParentWorkflowContinueAsNew.class, WorkflowTest.TestChild.class)
+          .setWorkflowTypes(TestParentWorkflowContinueAsNew.class, TestChild.class)
           .build();
 
   /** Reproduction of a bug when a child of continued as new workflow has the same UUID ID. */
@@ -55,9 +56,9 @@ public class ParentContinueAsNewTest {
 
   public static class TestParentWorkflowContinueAsNew implements TestWorkflows.TestWorkflow1 {
 
-    private final WorkflowTest.ITestChild child1 =
+    private final TestWorkflows.ITestChild child1 =
         Workflow.newChildWorkflowStub(
-            WorkflowTest.ITestChild.class,
+            TestWorkflows.ITestChild.class,
             ChildWorkflowOptions.newBuilder()
                 .setWorkflowIdReusePolicy(
                     WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)

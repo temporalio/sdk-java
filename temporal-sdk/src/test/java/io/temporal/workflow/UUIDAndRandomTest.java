@@ -38,8 +38,6 @@ public class UUIDAndRandomTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestUUIDAndRandom.class)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

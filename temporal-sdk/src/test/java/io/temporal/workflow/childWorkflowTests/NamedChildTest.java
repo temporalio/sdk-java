@@ -24,8 +24,15 @@ import static org.junit.Assert.*;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.workflow.*;
+import io.temporal.workflow.Async;
+import io.temporal.workflow.ChildWorkflowOptions;
+import io.temporal.workflow.ChildWorkflowStub;
+import io.temporal.workflow.Promise;
+import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
@@ -80,7 +87,7 @@ public class NamedChildTest {
     String execute(boolean parallel, WorkflowIdReusePolicy policy);
   }
 
-  public static class TestNamedChild implements WorkflowTest.ITestNamedChild {
+  public static class TestNamedChild implements TestWorkflows.ITestNamedChild {
 
     @Override
     public String execute(String arg) {
@@ -100,15 +107,15 @@ public class NamedChildTest {
               .setWorkflowIdReusePolicy(policy)
               .build();
 
-      WorkflowTest.ITestNamedChild child1 =
-          Workflow.newChildWorkflowStub(WorkflowTest.ITestNamedChild.class, options);
+      TestWorkflows.ITestNamedChild child1 =
+          Workflow.newChildWorkflowStub(TestWorkflows.ITestNamedChild.class, options);
       Promise<String> r1P = Async.function(child1::execute, "Hello ");
       String r1 = null;
       if (!parallel) {
         r1 = r1P.get();
       }
-      WorkflowTest.ITestNamedChild child2 =
-          Workflow.newChildWorkflowStub(WorkflowTest.ITestNamedChild.class, options);
+      TestWorkflows.ITestNamedChild child2 =
+          Workflow.newChildWorkflowStub(TestWorkflows.ITestNamedChild.class, options);
       ChildWorkflowStub child2Stub = ChildWorkflowStub.fromTyped(child2);
       // Same as String r2 = child2.execute("World!");
       String r2 = child2Stub.execute(String.class, "World!");

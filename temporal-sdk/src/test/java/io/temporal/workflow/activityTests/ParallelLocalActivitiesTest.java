@@ -46,8 +46,6 @@ public class ParallelLocalActivitiesTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParallelLocalActivitiesWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

@@ -29,9 +29,9 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.*;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowTest;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows.QueryableWorkflow;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,8 +63,7 @@ public class SignalTest {
             .toBuilder()
             .setWorkflowId(workflowId)
             .build();
-    WorkflowTest.QueryableWorkflow client =
-        workflowClient.newWorkflowStub(WorkflowTest.QueryableWorkflow.class, options);
+    QueryableWorkflow client = workflowClient.newWorkflowStub(QueryableWorkflow.class, options);
     // To execute workflow client.execute() would do. But we want to start workflow and immediately
     // return.
     WorkflowExecution execution = WorkflowClient.start(client::execute);
@@ -79,11 +78,9 @@ public class SignalTest {
     testWorkflowRule.sleep(Duration.ofSeconds(1));
 
     // Test client created using WorkflowExecution
-    WorkflowTest.QueryableWorkflow client2 =
+    QueryableWorkflow client2 =
         workflowClient.newWorkflowStub(
-            WorkflowTest.QueryableWorkflow.class,
-            execution.getWorkflowId(),
-            Optional.of(execution.getRunId()));
+            QueryableWorkflow.class, execution.getWorkflowId(), Optional.of(execution.getRunId()));
     assertEquals("Hello ", client2.getState());
 
     testWorkflowRule.sleep(Duration.ofMillis(500));
@@ -105,8 +102,7 @@ public class SignalTest {
             .toBuilder()
             .setWorkflowId(workflowId)
             .build();
-    WorkflowTest.QueryableWorkflow client =
-        workflowClient.newWorkflowStub(WorkflowTest.QueryableWorkflow.class, options);
+    QueryableWorkflow client = workflowClient.newWorkflowStub(QueryableWorkflow.class, options);
 
     // SignalWithStart starts a workflow and delivers the signal to it.
     BatchRequest batch = workflowClient.newSignalWithStartRequest();
@@ -116,8 +112,7 @@ public class SignalTest {
     testWorkflowRule.sleep(Duration.ofSeconds(1));
 
     // Test client created using WorkflowExecution
-    WorkflowTest.QueryableWorkflow client2 =
-        workflowClient.newWorkflowStub(WorkflowTest.QueryableWorkflow.class, options);
+    QueryableWorkflow client2 = workflowClient.newWorkflowStub(QueryableWorkflow.class, options);
     // SignalWithStart delivers the signal to the already running workflow.
     BatchRequest batch2 = workflowClient.newSignalWithStartRequest();
     batch2.add(client2::mySignal, "World!");
@@ -132,8 +127,7 @@ public class SignalTest {
         workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(String.class));
 
     // Check if that it starts closed workflow (AllowDuplicate is default IdReusePolicy)
-    WorkflowTest.QueryableWorkflow client3 =
-        workflowClient.newWorkflowStub(WorkflowTest.QueryableWorkflow.class, options);
+    QueryableWorkflow client3 = workflowClient.newWorkflowStub(QueryableWorkflow.class, options);
     BatchRequest batch3 = workflowClient.newSignalWithStartRequest();
     batch3.add(client3::mySignal, "Hello ");
     batch3.add(client3::execute);
@@ -145,9 +139,9 @@ public class SignalTest {
     assertEquals("Hello World!", result);
 
     // Make sure that cannot start if closed and RejectDuplicate policy
-    WorkflowTest.QueryableWorkflow client4 =
+    QueryableWorkflow client4 =
         workflowClient.newWorkflowStub(
-            WorkflowTest.QueryableWorkflow.class,
+            QueryableWorkflow.class,
             options
                 .toBuilder()
                 .setWorkflowIdReusePolicy(
@@ -167,7 +161,7 @@ public class SignalTest {
   @Test
   public void testSignalUntyped() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
-    String workflowType = WorkflowTest.QueryableWorkflow.class.getSimpleName();
+    String workflowType = QueryableWorkflow.class.getSimpleName();
     AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
     WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
@@ -214,7 +208,7 @@ public class SignalTest {
     }
   }
 
-  public static class TestSignalWorkflowImpl implements WorkflowTest.QueryableWorkflow {
+  public static class TestSignalWorkflowImpl implements QueryableWorkflow {
     String state = "initial";
     List<String> signals = new ArrayList<>();
     CompletablePromise<Void> promise = Workflow.newPromise();
@@ -241,7 +235,7 @@ public class SignalTest {
     }
   }
 
-  public static class TestSignalWithStartWorkflowImpl implements WorkflowTest.QueryableWorkflow {
+  public static class TestSignalWithStartWorkflowImpl implements QueryableWorkflow {
     String state = "initial";
     List<String> signals = new ArrayList<>();
     CompletablePromise<Void> promise = Workflow.newPromise();

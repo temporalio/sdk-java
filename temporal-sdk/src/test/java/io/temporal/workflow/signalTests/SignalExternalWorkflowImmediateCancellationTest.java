@@ -23,7 +23,10 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.workflow.*;
+import io.temporal.workflow.Async;
+import io.temporal.workflow.CancellationScope;
+import io.temporal.workflow.CompletablePromise;
+import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -66,9 +69,9 @@ public class SignalExternalWorkflowImmediateCancellationTest {
     public String execute(String taskQueue) {
       WorkflowExecution parentExecution =
           WorkflowExecution.newBuilder().setWorkflowId("invalid id").build();
-      WorkflowTest.TestWorkflowSignaled workflow =
+      TestWorkflows.TestWorkflowSignaled workflow =
           Workflow.newExternalWorkflowStub(
-              WorkflowTest.TestWorkflowSignaled.class, parentExecution);
+              TestWorkflows.TestWorkflowSignaled.class, parentExecution);
       CompletablePromise<Void> signal = Workflow.newPromise();
       CancellationScope scope =
           Workflow.newCancellationScope(
