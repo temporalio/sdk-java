@@ -46,8 +46,6 @@ public class UpsertSearchAttributesTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestUpsertSearchAttributesImpl.class)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

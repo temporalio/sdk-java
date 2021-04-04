@@ -45,8 +45,6 @@ public class LocalActivityTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLocalActivityWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test
