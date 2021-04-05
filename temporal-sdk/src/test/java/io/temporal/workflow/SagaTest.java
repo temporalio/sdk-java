@@ -39,8 +39,6 @@ public class SagaTest {
               TestCompensationWorkflowImpl.class,
               TestMultiargsWorkflowsFuncImpl.class)
           .setActivityImplementations(new TestActivities.TestActivitiesImpl())
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test

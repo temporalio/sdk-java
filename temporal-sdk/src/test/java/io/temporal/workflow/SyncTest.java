@@ -47,8 +47,6 @@ public class SyncTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSyncWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setWorkerInterceptors(
-              new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
           .build();
 
   @Test
