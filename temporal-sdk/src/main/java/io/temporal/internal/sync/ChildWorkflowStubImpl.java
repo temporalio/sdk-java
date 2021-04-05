@@ -98,7 +98,13 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
     ChildWorkflowOutput<R> result =
         outboundCallsInterceptor.executeChildWorkflow(
             new WorkflowOutboundCallsInterceptor.ChildWorkflowInput<>(
-                workflowType, resultClass, resultType, args, options, Header.empty()));
+                getWorkflowIdForStart(options),
+                workflowType,
+                resultClass,
+                resultType,
+                args,
+                options,
+                Header.empty()));
     execution.completeFrom(result.getWorkflowExecution());
     return result.getResult();
   }
@@ -123,5 +129,13 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
       e.setStackTrace(Thread.currentThread().getStackTrace());
       throw e;
     }
+  }
+
+  private String getWorkflowIdForStart(ChildWorkflowOptions options) {
+    String workflowId = options.getWorkflowId();
+    if (workflowId == null) {
+      workflowId = Workflow.randomUUID().toString();
+    }
+    return workflowId;
   }
 }

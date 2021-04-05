@@ -23,6 +23,16 @@ import java.util.Arrays;
 
 public final class WorkflowImplementationOptions {
 
+  private static final WorkflowImplementationOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = WorkflowImplementationOptions.newBuilder().build();
+  }
+
+  public static WorkflowImplementationOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }

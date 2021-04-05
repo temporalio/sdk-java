@@ -19,7 +19,6 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.workflow.WorkflowTest.*;
 import static io.temporal.workflow.shared.TestOptions.newWorkflowOptionsWithTimeouts;
 import static org.junit.Assert.*;
 
@@ -27,7 +26,7 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
 import java.time.Duration;
 import org.junit.Assume;
 import org.junit.Rule;
@@ -36,16 +35,12 @@ import org.junit.rules.TestName;
 
 public class WorkflowWithCronScheduleTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl(null);
-
   @Rule public TestName testName = new TestName();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(WorkflowTest.TestWorkflowWithCronScheduleImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setWorkflowTypes(TestWorkflowWithCronScheduleImpl.class)
           .build();
 
   @Test
@@ -75,9 +70,10 @@ public class WorkflowWithCronScheduleTest {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    assertEquals("run 2", lastCompletionResult);
+    assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResult);
     // The last failure ought to be the one from run 3
-    assertTrue(lastFail.isPresent());
-    assertTrue(lastFail.get().getMessage().contains("simulated error"));
+    assertTrue(TestWorkflowWithCronScheduleImpl.lastFail.isPresent());
+    assertTrue(
+        TestWorkflowWithCronScheduleImpl.lastFail.get().getMessage().contains("simulated error"));
   }
 }

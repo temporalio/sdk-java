@@ -26,8 +26,10 @@ import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -37,6 +39,8 @@ import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -45,7 +49,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -56,13 +64,12 @@ public class SDKTestWorkflowRule implements TestRule {
 
   public static final String NAMESPACE = "UnitTest";
   public static final String BINARY_CHECKSUM = "testChecksum";
-  public static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
   public static final String UUID_REGEXP =
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   // Enable to regenerate JsonFiles used for replay testing.
   public static final boolean REGENERATE_JSON_FILES = false;
   // Only enable when USE_DOCKER_SERVICE is true
-  public static final Boolean useExternalService =
+  public static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   public static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   private static final List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
@@ -86,6 +93,8 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public static class Builder {
+
+    private boolean workerFactoryOptionsAreSet = false;
     TestWorkflowRule.Builder testWorkflowRuleBuilder;
 
     public Builder() {
@@ -97,6 +106,19 @@ public class SDKTestWorkflowRule implements TestRule {
       return this;
     }
 
+    public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
+      options =
+          (options.getWorkerInterceptors() == null)
+              ? WorkerFactoryOptions.newBuilder(options)
+                  .setWorkerInterceptors(
+                      new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+                  .build()
+              : options;
+      testWorkflowRuleBuilder.setWorkerFactoryOptions(options);
+      workerFactoryOptionsAreSet = true;
+      return this;
+    }
+
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
       testWorkflowRuleBuilder.setWorkflowClientOptions(workflowClientOptions);
       return this;
@@ -104,11 +126,6 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder setNamespace(String namespace) {
       testWorkflowRuleBuilder.setNamespace(namespace);
-      return this;
-    }
-
-    public Builder setWorkerInterceptors(WorkerInterceptor... workerInterceptors) {
-      testWorkflowRuleBuilder.setWorkerInterceptors(workerInterceptors);
       return this;
     }
 
@@ -149,6 +166,13 @@ public class SDKTestWorkflowRule implements TestRule {
     }
 
     public SDKTestWorkflowRule build() {
+      if (!workerFactoryOptionsAreSet) {
+        testWorkflowRuleBuilder.setWorkerFactoryOptions(
+            WorkerFactoryOptions.newBuilder()
+                .setWorkerInterceptors(
+                    new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
+                .build());
+      }
       return new SDKTestWorkflowRule(testWorkflowRuleBuilder);
     }
   }
@@ -157,12 +181,20 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.apply(base, description);
   }
 
+  public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
+    return testWorkflowRule.blockingStub();
+  }
+
   public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
     return testWorkflowRule.getInterceptor(type);
   }
 
   public String getTaskQueue() {
     return testWorkflowRule.getTaskQueue();
+  }
+
+  public History getWorkflowExecutionHistory(WorkflowExecution execution) {
+    return testWorkflowRule.getWorkflowExecutionHistory(execution);
   }
 
   public WorkflowClient getWorkflowClient() {
@@ -251,8 +283,7 @@ public class SDKTestWorkflowRule implements TestRule {
     }
   }
 
-  // TODO: Refactor testEnvironment to support testing through real service to avoid this
-  // switches
+  // TODO: Refactor testEnv to support testing through real service to avoid these switches.
   public void registerDelayedCallback(Duration delay, Runnable r) {
     if (useExternalService) {
       ScheduledFuture<?> result =

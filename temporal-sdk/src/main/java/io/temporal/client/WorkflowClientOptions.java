@@ -47,6 +47,10 @@ public final class WorkflowClientOptions {
     return new Builder(options);
   }
 
+  public WorkflowClientOptions.Builder toBuilder() {
+    return new WorkflowClientOptions.Builder(this);
+  }
+
   public static WorkflowClientOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }

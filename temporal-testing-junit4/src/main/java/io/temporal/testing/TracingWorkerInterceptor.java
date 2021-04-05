@@ -57,7 +57,6 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
   }
 
   public void assertExpected() {
-    // TODO (vkoby): Make sure the logic here is working as intended.
     // As it stands, when the trace is empty but the expected list isn't this still passes.
     if (expected != null) {
       List<String> traceElements = trace.getImpl();
