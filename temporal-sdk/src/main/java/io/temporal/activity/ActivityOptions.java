@@ -83,12 +83,12 @@ public final class ActivityOptions {
     }
 
     /**
-     * Overall timeout workflow is willing to wait for activity to complete.
+     * Total time that a workflow is willing to wait for Activity to complete.
      *
-     * <p>ScheduleToCloseTimeout limits total time of the activity execution including retries (use
-     * StartToCloseTimeout to limit a time of a single attempt).
+     * <p>ScheduleToCloseTimeout limits the total time of an Activity's execution including retries
+     * (use StartToCloseTimeout to limit the time of a single attempt).
      *
-     * <p>Either this option or StartToClose are required.
+     * <p>Either this option or StartToClose is required.
      *
      * <p>Defaults to unlimited.
      */
@@ -98,13 +98,12 @@ public final class ActivityOptions {
     }
 
     /**
-     * Time activity can stay in task queue before it is picked up by a worker.
-     *
-     * <p>Do not specify this timeout unless using host specific task queues for activity task
-     * routing.
+     * Time that the Activity Task can stay in the Task Queue before it is picked up by a Worker. Do
+     * not specify this timeout unless using host specific Task Queues for Activity Tasks are being
+     * used for routing.
      *
      * <p>ScheduleToStartTimeout is always non-retryable. Retrying after this timeout doesn't make
-     * sense as it would just put the activity task back into the same task queue.
+     * sense as it would just put the Activity Task back into the same Task Queue.
      *
      * <p>Defaults to unlimited.
      */
