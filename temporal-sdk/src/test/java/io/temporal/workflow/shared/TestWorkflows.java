@@ -29,6 +29,12 @@ import java.util.List;
 
 public class TestWorkflows {
   @WorkflowInterface
+  public interface NoArgsWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
     void execute(ChildWorkflowCancellationType cancellationType);
