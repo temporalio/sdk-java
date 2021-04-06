@@ -35,6 +35,8 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -46,6 +48,7 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
           .setWorkflowTypes(ParentThatStartsChildInCancellationScope.class, SleepyChild.class)
           .build();
 
+  @Ignore("flaky") // TODO address flakiness and enable
   @Test
   public void testStartChildWorkflowWithCancellationScopeAndCancelParent() {
     WorkflowStub workflow = testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow");
