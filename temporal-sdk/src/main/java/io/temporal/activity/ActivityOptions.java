@@ -83,10 +83,14 @@ public final class ActivityOptions {
     }
 
     /**
-     * Overall timeout workflow is willing to wait for activity to complete. It includes time in a
-     * task queue (use {@link #setScheduleToStartTimeout(Duration)} to limit it) plus activity
-     * execution time (use {@link #setStartToCloseTimeout(Duration)} to limit it). Either this
-     * option or both schedule to start and start to close are required.
+     * Total time that a workflow is willing to wait for Activity to complete.
+     *
+     * <p>ScheduleToCloseTimeout limits the total time of an Activity's execution including retries
+     * (use StartToCloseTimeout to limit the time of a single attempt).
+     *
+     * <p>Either this option or StartToClose is required.
+     *
+     * <p>Defaults to unlimited.
      */
     public Builder setScheduleToCloseTimeout(Duration scheduleToCloseTimeout) {
       this.scheduleToCloseTimeout = scheduleToCloseTimeout;
@@ -94,8 +98,14 @@ public final class ActivityOptions {
     }
 
     /**
-     * Time activity can stay in task queue before it is picked up by a worker. If schedule to close
-     * is not provided then both this and start to close are required.
+     * Time that the Activity Task can stay in the Task Queue before it is picked up by a Worker. Do
+     * not specify this timeout unless using host specific Task Queues for Activity Tasks are being
+     * used for routing.
+     *
+     * <p>ScheduleToStartTimeout is always non-retryable. Retrying after this timeout doesn't make
+     * sense as it would just put the Activity Task back into the same Task Queue.
+     *
+     * <p>Defaults to unlimited.
      */
     public Builder setScheduleToStartTimeout(Duration scheduleToStartTimeout) {
       this.scheduleToStartTimeout = scheduleToStartTimeout;
@@ -103,8 +113,17 @@ public final class ActivityOptions {
     }
 
     /**
-     * Maximum activity execution time after it was sent to a worker. If schedule to close is not
-     * provided then both this and schedule to start are required.
+     * Maximum time of a single Activity execution attempt.
+     *
+     * <p>Note that the Temporal Server doesn't detect Worker process failures directly. It relies
+     * on this timeout to detect that an Activity that didn't complete on time. So this timeout
+     * should be as short as the longest possible execution of the Activity body. Potentially long
+     * running Activities must specify HeartbeatTimeout and call {@link
+     * ActivityExecutionContext#heartbeat(Object)} periodically for timely failure detection.
+     *
+     * <p>If ScheduleToClose is not provided then this timeout is required.
+     *
+     * <p>Defaults to the ScheduleToCloseTimeout value.
      */
     public Builder setStartToCloseTimeout(Duration startToCloseTimeout) {
       this.startToCloseTimeout = startToCloseTimeout;
@@ -112,8 +131,8 @@ public final class ActivityOptions {
     }
 
     /**
-     * Heartbeat interval. Activity must heartbeat before this interval passes after a last
-     * heartbeat or activity start.
+     * Heartbeat interval. Activity must call {@link ActivityExecutionContext#heartbeat(Object)}
+     * before this interval passes after the last heartbeat or the Activity starts.
      */
     public Builder setHeartbeatTimeout(Duration heartbeatTimeoutSeconds) {
       this.heartbeatTimeout = heartbeatTimeoutSeconds;
