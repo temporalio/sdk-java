@@ -168,7 +168,14 @@ public final class WorkflowOptions {
       return this;
     }
 
-    /** Maximum execution time of a single workflow task. Default is 10 seconds. */
+    /**
+     * Maximum execution time of a single Workflow Task. In the majority of cases there is no need
+     * to change this timeout. Note that this timeout is not related to the overall Workflow
+     * duration in any way. It defines for how long the Workflow can get blocked in the case of a
+     * Workflow Worker crash.
+     *
+     * <p>Default is 10 seconds. Maximum value allowed by the Temporal Server is 1 minute.
+     */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
       this.workflowTaskTimeout = workflowTaskTimeout;
       return this;

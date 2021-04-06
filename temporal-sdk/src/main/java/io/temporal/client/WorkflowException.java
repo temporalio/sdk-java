@@ -23,6 +23,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.failure.TemporalException;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 /** Base exception for all workflow failures. */
 public abstract class WorkflowException extends TemporalException {
@@ -30,7 +31,8 @@ public abstract class WorkflowException extends TemporalException {
   private final WorkflowExecution execution;
   private final Optional<String> workflowType;
 
-  protected WorkflowException(WorkflowExecution execution, String workflowType, Throwable cause) {
+  protected WorkflowException(
+      @Nonnull WorkflowExecution execution, String workflowType, Throwable cause) {
     super(getMessage(execution, workflowType), cause);
     this.execution = Objects.requireNonNull(execution);
     this.workflowType = Optional.ofNullable(workflowType);
