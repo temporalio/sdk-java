@@ -19,7 +19,9 @@
 
 package io.temporal.worker;
 
+import io.temporal.activity.ActivityOptions;
 import java.util.Arrays;
+import java.util.Map;
 
 public final class WorkflowImplementationOptions {
 
@@ -40,6 +42,8 @@ public final class WorkflowImplementationOptions {
   public static final class Builder {
 
     private Class<? extends Throwable>[] failWorkflowExceptionTypes;
+    private Map<String, ActivityOptions> activityOptions;
+    private Map<String, Map<String, ActivityOptions>> activityToMethodOptions;
 
     private Builder() {}
 
@@ -61,6 +65,17 @@ public final class WorkflowImplementationOptions {
     public Builder setFailWorkflowExceptionTypes(
         Class<? extends Throwable>... failWorkflowExceptionTypes) {
       this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
+      return this;
+    }
+
+    public Builder setActivityOptions(Map<String, ActivityOptions> activityOptions) {
+      this.activityOptions = activityOptions;
+      return this;
+    }
+
+    public Builder setActivityMethodOptions(
+        Map<String, Map<String, ActivityOptions>> activityToMethodOptions) {
+      this.activityToMethodOptions = activityToMethodOptions;
       return this;
     }
 

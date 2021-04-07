@@ -175,6 +175,44 @@ public final class ActivityOptions {
       return this;
     }
 
+    public Builder mergeMethodOptions(ActivityOptions methodOptions) {
+      if (methodOptions == null) {
+        return this;
+      }
+      if (methodOptions.taskQueue != null) {
+        throw new IllegalArgumentException(
+            "Changing task queue with activityMethodOptions is not supported.");
+      }
+      this.heartbeatTimeout =
+          (methodOptions.heartbeatTimeout == null)
+              ? this.heartbeatTimeout
+              : methodOptions.heartbeatTimeout;
+      this.retryOptions =
+          (methodOptions.retryOptions == null) ? this.retryOptions : methodOptions.retryOptions;
+      this.contextPropagators =
+          (methodOptions.contextPropagators == null)
+              ? this.contextPropagators
+              : methodOptions.contextPropagators;
+      this.scheduleToCloseTimeout =
+          (methodOptions.scheduleToCloseTimeout == null)
+              ? this.scheduleToCloseTimeout
+              : methodOptions.scheduleToCloseTimeout;
+      this.startToCloseTimeout =
+          (methodOptions.startToCloseTimeout == null)
+              ? this.startToCloseTimeout
+              : methodOptions.startToCloseTimeout;
+      this.scheduleToStartTimeout =
+          (methodOptions.scheduleToStartTimeout == null)
+              ? this.scheduleToStartTimeout
+              : methodOptions.scheduleToStartTimeout;
+      this.cancellationType =
+          (methodOptions.cancellationType == null)
+              ? this.cancellationType
+              : methodOptions.cancellationType;
+
+      return this;
+    }
+
     /**
      * Properties that are set on this builder take precedence over ones found in the annotation.
      */

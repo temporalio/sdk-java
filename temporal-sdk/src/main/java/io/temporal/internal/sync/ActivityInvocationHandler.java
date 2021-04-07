@@ -26,26 +26,32 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.function.Function;
 
 @VisibleForTesting
 public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private final ActivityOptions options;
+  private final Map<String, ActivityOptions> activityMethodOptions;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
 
   @VisibleForTesting
   public static InvocationHandler newInstance(
       Class<?> activityInterface,
       ActivityOptions options,
+      Map<String, ActivityOptions> methodOptions,
       WorkflowOutboundCallsInterceptor activityExecutor) {
-    return new ActivityInvocationHandler(activityInterface, activityExecutor, options);
+    return new ActivityInvocationHandler(
+        activityInterface, activityExecutor, options, methodOptions);
   }
 
   private ActivityInvocationHandler(
       Class<?> activityInterface,
       WorkflowOutboundCallsInterceptor activityExecutor,
-      ActivityOptions options) {
+      ActivityOptions options,
+      Map<String, ActivityOptions> methodOptions) {
     this.options = options;
+    this.activityMethodOptions = methodOptions;
     this.activityExecutor = activityExecutor;
     init(activityInterface);
   }
@@ -54,8 +60,13 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
+    ActivityOptions methodOptions =
+        (activityMethodOptions == null) ? null : activityMethodOptions.get(method.getName());
     ActivityOptions mergedOptions =
-        ActivityOptions.newBuilder(options).mergeMethodRetry(methodRetry).build();
+        ActivityOptions.newBuilder(options)
+            .mergeMethodOptions(methodOptions)
+            .mergeMethodRetry(methodRetry)
+            .build();
     ActivityStub stub = ActivityStubImpl.newInstance(mergedOptions, activityExecutor);
 
     function =

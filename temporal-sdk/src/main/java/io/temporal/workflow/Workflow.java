@@ -372,6 +372,15 @@ public final class Workflow {
   public static final int DEFAULT_VERSION = WorkflowInternal.DEFAULT_VERSION;
 
   /**
+   * Creates client stub to activities that implement given interface. `
+   *
+   * @param activityInterface interface type implemented by activities
+   */
+  public static <T> T newActivityStub(Class<T> activityInterface) {
+    return WorkflowInternal.newActivityStub(activityInterface, null, null);
+  }
+
+  /**
    * Creates client stub to activities that implement given interface.
    *
    * @param activityInterface interface type implemented by activities.
@@ -379,16 +388,21 @@ public final class Workflow {
    *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters.
    */
   public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    return WorkflowInternal.newActivityStub(activityInterface, options);
+    return WorkflowInternal.newActivityStub(activityInterface, options, null);
   }
 
   /**
-   * Creates client stub to activities that implement given interface. `
+   * Creates client stub to activities that implement given interface.
    *
-   * @param activityInterface interface type implemented by activities
+   * @param activityInterface interface type implemented by activities.
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters.
    */
-  public static <T> T newActivityStub(Class<T> activityInterface) {
-    return WorkflowInternal.newActivityStub(activityInterface, null);
+  public static <T> T newActivityStub(
+      Class<T> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> perActivityMethodOptions) {
+    return WorkflowInternal.newActivityStub(activityInterface, options, perActivityMethodOptions);
   }
 
   /**
