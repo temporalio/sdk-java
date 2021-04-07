@@ -19,6 +19,7 @@
 
 package io.temporal.opentracing.internal;
 
+import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.temporal.common.interceptors.Header;
@@ -30,24 +31,25 @@ import io.temporal.workflow.WorkflowInfo;
 
 public class OpenTracingWorkflowOutboundCallsInterceptor
     extends WorkflowOutboundCallsInterceptorBase {
-  private final OpenTracingOptions options;
   private final SpanFactory spanFactory;
+  private final Tracer tracer;
 
   public OpenTracingWorkflowOutboundCallsInterceptor(
       WorkflowOutboundCallsInterceptor next, OpenTracingOptions options, SpanFactory spanFactory) {
     super(next);
-    this.options = options;
     this.spanFactory = spanFactory;
+    this.tracer = options.getTracer();
   }
 
   @Override
   public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {
     if (!Workflow.isReplaying()) {
-      Span span = createAndPassActivityStartSpan(input.getActivityName(), input.getHeader());
-      try {
+      Span activityStartSpan =
+          createAndPassActivityStartSpan(input.getActivityName(), input.getHeader());
+      try (Scope scope = tracer.scopeManager().activate(activityStartSpan)) {
         return super.executeActivity(input);
       } finally {
-        span.finish();
+        activityStartSpan.finish();
       }
     } else {
       return super.executeActivity(input);
@@ -57,11 +59,12 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   @Override
   public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
     if (!Workflow.isReplaying()) {
-      Span span = createAndPassActivityStartSpan(input.getActivityName(), input.getHeader());
-      try {
+      Span activityStartSpan =
+          createAndPassActivityStartSpan(input.getActivityName(), input.getHeader());
+      try (Scope scope = tracer.scopeManager().activate(activityStartSpan)) {
         return super.executeLocalActivity(input);
       } finally {
-        span.finish();
+        activityStartSpan.finish();
       }
     } else {
       return super.executeLocalActivity(input);
@@ -71,11 +74,11 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   @Override
   public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
     if (!Workflow.isReplaying()) {
-      Span span = createAndPassChildWorkflowStartSpan(input);
-      try {
+      Span childWorkflowStartSpan = createAndPassChildWorkflowStartSpan(input);
+      try (Scope scope = tracer.scopeManager().activate(childWorkflowStartSpan)) {
         return super.executeChildWorkflow(input);
       } finally {
-        span.finish();
+        childWorkflowStartSpan.finish();
       }
     } else {
       return super.executeChildWorkflow(input);
@@ -83,13 +86,12 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   }
 
   private Span createAndPassActivityStartSpan(String activityName, Header header) {
-    Tracer tracer = options.getTracer();
-    Span span = createActivityStartSpanBuilder(tracer, activityName).start();
+    Span span = createActivityStartSpanBuilder(activityName).start();
     OpenTracingContextAccessor.writeSpanContextToHeader(span.context(), header, tracer);
     return span;
   }
 
-  private Tracer.SpanBuilder createActivityStartSpanBuilder(Tracer tracer, String activityName) {
+  private Tracer.SpanBuilder createActivityStartSpanBuilder(String activityName) {
     WorkflowInfo workflowInfo = Workflow.getInfo();
     return spanFactory.createActivityStartSpan(
         tracer,
@@ -100,7 +102,6 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   }
 
   private <R> Span createAndPassChildWorkflowStartSpan(ChildWorkflowInput<R> input) {
-    Tracer tracer = options.getTracer();
     Span span = createChildWorkflowStartSpanBuilder(tracer, input).start();
     OpenTracingContextAccessor.writeSpanContextToHeader(span.context(), input.getHeader(), tracer);
     return span;
