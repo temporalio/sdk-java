@@ -21,13 +21,12 @@ package io.temporal.common.converter;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Defaults;
-import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,19 +40,16 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DefaultDataConverter implements DataConverter {
 
-  private static final PayloadConverter NULL_CONVERTER = new NullPayloadConverter();
-  private static final PayloadConverter BYTE_ARRAY_CONVERTER = new ByteArrayPayloadConverter();
+  // Order is important as the first converter that can convert the payload is used
+  private static final PayloadConverter[] DEFAULT_PAYLOAD_CONVERTERS = {
+    new NullPayloadConverter(),
+    new ByteArrayPayloadConverter(),
+    new ProtobufJsonPayloadConverter(),
+    new JacksonJsonPayloadConverter()
+  };
 
   private static final AtomicReference<DataConverter> defaultDataConverterInstance =
-      new AtomicReference<>(
-          // Order is important as the first converter that can convert the payload is used
-          new DefaultDataConverter(
-              NULL_CONVERTER,
-              BYTE_ARRAY_CONVERTER,
-              new ProtobufJsonPayloadConverter(),
-              new JacksonJsonPayloadConverter()));
-
-  private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
+      new AtomicReference<>(new DefaultDataConverter(DEFAULT_PAYLOAD_CONVERTERS));
 
   private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
 
@@ -77,25 +73,47 @@ public class DefaultDataConverter implements DataConverter {
 
   /**
    * Creates instance from ordered array of converters. When converting an object to payload the
-   * array of converters is iterated from the beginning until one of the converters succesfully
+   * array of converters is iterated from the beginning until one of the converters successfully
    * converts the value.
    */
   public DefaultDataConverter(PayloadConverter... converters) {
-    for (PayloadConverter converter : converters) {
-      this.converters.add(converter);
-      this.converterMap.put(converter.getEncodingType(), converter);
-    }
+    setPayloadConverters(converters);
   }
 
-  DefaultDataConverter(
-      ObjectMapper jacksonObjectMapper,
-      JsonFormat.Printer protobufJsonPrinter,
-      JsonFormat.Parser protobufJsonParser) {
-    this(
-        NULL_CONVERTER,
-        BYTE_ARRAY_CONVERTER,
-        new ProtobufJsonPayloadConverter(protobufJsonPrinter, protobufJsonParser),
-        new JacksonJsonPayloadConverter(jacksonObjectMapper));
+  /**
+   * Creates instance from ordered array of converters. Provided converters may be merged with the
+   * default list of converters if {@code mergeDefaultConverters} is {@code true}.
+   *
+   * <p>When converting an object to payload the array of converters is iterated from the beginning
+   * until one of the converters successfully converts the value.
+   */
+  public DefaultDataConverter(boolean mergeDefaultConverters, PayloadConverter... converters) {
+    if (!mergeDefaultConverters) {
+      setPayloadConverters(converters);
+    } else if (converters.length == 0) {
+      setPayloadConverters(DEFAULT_PAYLOAD_CONVERTERS);
+    } else {
+      List<PayloadConverter> mergedConverters = new ArrayList<>(DEFAULT_PAYLOAD_CONVERTERS.length);
+      Collections.addAll(mergedConverters, DEFAULT_PAYLOAD_CONVERTERS);
+
+      for (PayloadConverter newConverter : converters) {
+        Class<?> newConverterClass = newConverter.getClass();
+        boolean merged = false;
+        for (int i = 0; i < mergedConverters.size(); i++) {
+          PayloadConverter existingConverter = mergedConverters.get(i);
+          if (existingConverter.getClass().isAssignableFrom(newConverterClass)) {
+            mergedConverters.set(i, newConverter);
+            merged = true;
+            break;
+          }
+        }
+        if (!merged) {
+          mergedConverters.add(newConverter);
+        }
+      }
+
+      setPayloadConverters(mergedConverters.toArray(new PayloadConverter[0]));
+    }
   }
 
   @Override
@@ -169,5 +187,12 @@ public class DefaultDataConverter implements DataConverter {
       return (T) Defaults.defaultValue((Class<?>) parameterType);
     }
     return fromPayload(content.get().getPayloads(index), parameterType, genericParameterType);
+  }
+
+  private void setPayloadConverters(PayloadConverter... converters) {
+    for (PayloadConverter converter : converters) {
+      this.converters.add(converter);
+      this.converterMap.put(converter.getEncodingType(), converter);
+    }
   }
 }

@@ -56,7 +56,9 @@ public class ProtoPayloadConverterTest {
             .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, true)
             .registerModule(new JavaTimeModule());
     DataConverter converter =
-        DataConverter.newBuilder().setJacksonObjectMapper(objectMapper).build();
+        DataConverter.newBuilder()
+            .setPayloadConverterOverrides(new JacksonJsonPayloadConverter(objectMapper))
+            .build();
     TestPayload payload = new TestPayload(1L, Instant.now(), "myPayload");
     Optional<Payloads> data = converter.toPayloads(payload);
     TestPayload converted = converter.fromPayloads(0, data, TestPayload.class, TestPayload.class);
@@ -81,8 +83,9 @@ public class ProtoPayloadConverterTest {
   public void testCustomProto() {
     DataConverter converter =
         DataConverter.newBuilder()
-            .setProtobufJsonPrinter(JsonFormat.printer().printingEnumsAsInts())
-            .setProtobufJsonParser(JsonFormat.parser())
+            .setPayloadConverterOverrides(
+                new ProtobufJsonPayloadConverter(
+                    JsonFormat.printer().printingEnumsAsInts(), JsonFormat.parser()))
             .build();
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
