@@ -185,7 +185,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             .build();
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, options, null, new TestActivityExecutor());
+            activityInterface, options, new TestActivityExecutor());
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
