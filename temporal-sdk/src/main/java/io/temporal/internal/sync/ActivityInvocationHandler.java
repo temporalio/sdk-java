@@ -26,21 +26,30 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 @VisibleForTesting
 public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
-  private final ActivityOptions options;
-  private final Map<String, ActivityOptions> activityMethodOptions;
+  private final Map<Method, ActivityOptions> activityMethodOptions;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
 
   @VisibleForTesting
   public static InvocationHandler newInstance(
-      Class<?> activityInterface,
-      ActivityOptions options,
-      Map<String, ActivityOptions> methodOptions,
-      WorkflowOutboundCallsInterceptor activityExecutor) {
+      @Nonnull Class<?> activityInterface,
+      @Nonnull ActivityOptions options,
+      @Nonnull WorkflowOutboundCallsInterceptor activityExecutor) {
+    return new ActivityInvocationHandler(activityInterface, activityExecutor, options, null);
+  }
+
+  @VisibleForTesting
+  public static InvocationHandler newInstance(
+      @Nonnull Class<?> activityInterface,
+      @Nonnull ActivityOptions options,
+      @Nonnull Map<String, ActivityOptions> methodOptions,
+      @Nonnull WorkflowOutboundCallsInterceptor activityExecutor) {
     return new ActivityInvocationHandler(
         activityInterface, activityExecutor, options, methodOptions);
   }
@@ -50,8 +59,20 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
       WorkflowOutboundCallsInterceptor activityExecutor,
       ActivityOptions options,
       Map<String, ActivityOptions> methodOptions) {
-    this.options = options;
-    this.activityMethodOptions = methodOptions;
+    this.activityMethodOptions = new HashMap<>();
+    if (methodOptions == null) {
+      for (Method method : activityInterface.getMethods()) {
+        this.activityMethodOptions.put(method, options);
+      }
+    } else {
+      for (Method method : activityInterface.getMethods()) {
+        ActivityOptions mergedOptions =
+            ActivityOptions.newBuilder(options)
+                .mergeMethodOptions(methodOptions.get(method.getName()))
+                .build();
+        this.activityMethodOptions.put(method, mergedOptions);
+      }
+    }
     this.activityExecutor = activityExecutor;
     init(activityInterface);
   }
@@ -60,15 +81,10 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
-    ActivityOptions methodOptions =
-        (activityMethodOptions == null) ? null : activityMethodOptions.get(method.getName());
+    ActivityOptions options = this.activityMethodOptions.get(method);
     ActivityOptions mergedOptions =
-        ActivityOptions.newBuilder(options)
-            .mergeMethodOptions(methodOptions)
-            .mergeMethodRetry(methodRetry)
-            .build();
+        ActivityOptions.newBuilder(options).mergeMethodRetry(methodRetry).build();
     ActivityStub stub = ActivityStubImpl.newInstance(mergedOptions, activityExecutor);
-
     function =
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
     return function;

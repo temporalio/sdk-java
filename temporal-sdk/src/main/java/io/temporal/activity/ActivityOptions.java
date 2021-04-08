@@ -175,41 +175,27 @@ public final class ActivityOptions {
       return this;
     }
 
-    public Builder mergeMethodOptions(ActivityOptions methodOptions) {
-      if (methodOptions == null) {
-        return this;
-      }
-      if (methodOptions.taskQueue != null) {
-        throw new IllegalArgumentException(
-            "Changing task queue with activityMethodOptions is not supported.");
-      }
+    public Builder mergeMethodOptions(ActivityOptions override) {
+      this.taskQueue = (override.taskQueue == null) ? this.taskQueue : override.taskQueue;
       this.heartbeatTimeout =
-          (methodOptions.heartbeatTimeout == null)
-              ? this.heartbeatTimeout
-              : methodOptions.heartbeatTimeout;
+          (override.heartbeatTimeout == null) ? this.heartbeatTimeout : override.heartbeatTimeout;
       this.retryOptions =
-          (methodOptions.retryOptions == null) ? this.retryOptions : methodOptions.retryOptions;
-      this.contextPropagators =
-          (methodOptions.contextPropagators == null)
-              ? this.contextPropagators
-              : methodOptions.contextPropagators;
+          (override.retryOptions == null) ? this.retryOptions : override.retryOptions;
+      this.contextPropagators.addAll(override.contextPropagators);
       this.scheduleToCloseTimeout =
-          (methodOptions.scheduleToCloseTimeout == null)
+          (override.scheduleToCloseTimeout == null)
               ? this.scheduleToCloseTimeout
-              : methodOptions.scheduleToCloseTimeout;
+              : override.scheduleToCloseTimeout;
       this.startToCloseTimeout =
-          (methodOptions.startToCloseTimeout == null)
+          (override.startToCloseTimeout == null)
               ? this.startToCloseTimeout
-              : methodOptions.startToCloseTimeout;
+              : override.startToCloseTimeout;
       this.scheduleToStartTimeout =
-          (methodOptions.scheduleToStartTimeout == null)
+          (override.scheduleToStartTimeout == null)
               ? this.scheduleToStartTimeout
-              : methodOptions.scheduleToStartTimeout;
+              : override.scheduleToStartTimeout;
       this.cancellationType =
-          (methodOptions.cancellationType == null)
-              ? this.cancellationType
-              : methodOptions.cancellationType;
-
+          (override.cancellationType == null) ? this.cancellationType : override.cancellationType;
       return this;
     }
 

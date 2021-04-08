@@ -401,8 +401,8 @@ public final class Workflow {
   public static <T> T newActivityStub(
       Class<T> activityInterface,
       ActivityOptions options,
-      Map<String, ActivityOptions> perActivityMethodOptions) {
-    return WorkflowInternal.newActivityStub(activityInterface, options, perActivityMethodOptions);
+      Map<String, ActivityOptions> activityMethodOptions) {
+    return WorkflowInternal.newActivityStub(activityInterface, options, activityMethodOptions);
   }
 
   /**
