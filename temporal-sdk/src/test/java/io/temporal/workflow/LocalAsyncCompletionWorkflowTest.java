@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -54,6 +55,7 @@ public class LocalAsyncCompletionWorkflowTest {
    * MAX_CONCURRENT_ACTIVITIES limit is being respected and only 1 activity should be running at the
    * same time.
    */
+  @Ignore("flaky") // TODO address flakiness and enable
   @Test
   public void verifyLocalActivityCompletionRespectsConcurrencySettings() {
     String taskQueue = testWorkflowRule.getTaskQueue();
