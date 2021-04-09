@@ -415,6 +415,15 @@ public final class Workflow {
   }
 
   /**
+   * Creates client stub to local activities that implement given interface.
+   *
+   * @param activityInterface interface type implemented by activities
+   */
+  public static <T> T newLocalActivityStub(Class<T> activityInterface) {
+    return WorkflowInternal.newLocalActivityStub(activityInterface, null, null);
+  }
+
+  /**
    * Creates client stub to local activities that implement given interface. A local activity is
    * similar to a regular activity, but with some key differences: 1. Local activity is scheduled
    * and run by the workflow worker locally. 2. Local activity does not need Temporal server to
@@ -427,7 +436,7 @@ public final class Workflow {
    */
   public static <T> T newLocalActivityStub(
       Class<T> activityInterface, LocalActivityOptions options) {
-    return WorkflowInternal.newLocalActivityStub(activityInterface, options);
+    return WorkflowInternal.newLocalActivityStub(activityInterface, options, null);
   }
 
   /**
@@ -435,8 +444,11 @@ public final class Workflow {
    *
    * @param activityInterface interface type implemented by activities
    */
-  public static <T> T newLocalActivityStub(Class<T> activityInterface) {
-    return WorkflowInternal.newLocalActivityStub(activityInterface, null);
+  public static <T> T newLocalActivityStub(
+      Class<T> activityInterface,
+      LocalActivityOptions options,
+      Map<String, LocalActivityOptions> activityMethodOptions) {
+    return WorkflowInternal.newLocalActivityStub(activityInterface, options, activityMethodOptions);
   }
 
   /**

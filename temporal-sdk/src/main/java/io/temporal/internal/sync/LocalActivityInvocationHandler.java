@@ -25,24 +25,42 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
-  private final LocalActivityOptions options;
+  private final Map<String, LocalActivityOptions> activityMethodOptions;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
 
   static InvocationHandler newInstance(
       Class<?> activityInterface,
       LocalActivityOptions options,
+      Map<String, LocalActivityOptions> methodOptions,
       WorkflowOutboundCallsInterceptor activityExecutor) {
-    return new LocalActivityInvocationHandler(activityInterface, activityExecutor, options);
+    return new LocalActivityInvocationHandler(
+        activityInterface, activityExecutor, options, methodOptions);
   }
 
   private LocalActivityInvocationHandler(
       Class<?> activityInterface,
       WorkflowOutboundCallsInterceptor activityExecutor,
-      LocalActivityOptions options) {
-    this.options = options;
+      LocalActivityOptions options,
+      Map<String, LocalActivityOptions> methodOptions) {
+    this.activityMethodOptions = new HashMap<>();
+    if (methodOptions == null) {
+      for (Method method : activityInterface.getMethods()) {
+        this.activityMethodOptions.put(method.getName(), options);
+      }
+    } else {
+      for (Method method : activityInterface.getMethods()) {
+        LocalActivityOptions mergedOptions =
+            LocalActivityOptions.newBuilder(options)
+                .mergeActivityOptions(methodOptions.get(method.getName()))
+                .build();
+        this.activityMethodOptions.put(method.getName(), mergedOptions);
+      }
+    }
     this.activityExecutor = activityExecutor;
     init(activityInterface);
   }
@@ -51,6 +69,7 @@ class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
+    LocalActivityOptions options = this.activityMethodOptions.get(method.getName());
     LocalActivityOptions mergedOptions =
         LocalActivityOptions.newBuilder(options)
             .setMethodRetry(methodRetry)

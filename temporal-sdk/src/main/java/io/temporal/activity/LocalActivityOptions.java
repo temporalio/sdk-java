@@ -92,6 +92,27 @@ public final class LocalActivityOptions {
       return this;
     }
 
+    public Builder mergeActivityOptions(LocalActivityOptions override) {
+      if (override == null) {
+        return this;
+      }
+      this.scheduleToCloseTimeout =
+          (override.scheduleToCloseTimeout == null)
+              ? this.scheduleToCloseTimeout
+              : override.scheduleToCloseTimeout;
+      this.localRetryThreshold =
+          (override.localRetryThreshold == null)
+              ? this.localRetryThreshold
+              : override.localRetryThreshold;
+      this.startToCloseTimeout =
+          (override.startToCloseTimeout == null)
+              ? this.startToCloseTimeout
+              : override.startToCloseTimeout;
+      this.retryOptions =
+          (override.retryOptions == null) ? this.retryOptions : override.retryOptions;
+      return this;
+    }
+
     /**
      * RetryOptions that define how activity is retried in case of failure. Default is null which is
      * no retries.
