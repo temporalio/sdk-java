@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -158,6 +160,7 @@ public class SignalTest {
     }
   }
 
+  @Ignore("flaky")
   @Test
   public void testSignalUntyped() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
