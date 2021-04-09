@@ -38,14 +38,6 @@ public interface DataConverter {
     return DefaultDataConverter.getDefaultInstance();
   }
 
-  /**
-   * Creates a builder for customized {@code DataConverter} that behaves similar to the {@link
-   * #getDefaultInstance() default instance}.
-   */
-  static Builder newBuilder() {
-    return new Builder();
-  }
-
   <T> Optional<Payload> toPayload(T value);
 
   <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType);
@@ -113,25 +105,5 @@ public interface DataConverter {
       }
     }
     return result;
-  }
-
-  class Builder {
-
-    private PayloadConverter[] payloadConverterOverrides = {};
-
-    private Builder() {}
-
-    /**
-     * Provide {@link PayloadConverter}s that would be merged with the default list of payload
-     * converters.
-     */
-    public Builder setPayloadConverterOverrides(PayloadConverter... payloadConverterOverrides) {
-      this.payloadConverterOverrides = payloadConverterOverrides;
-      return this;
-    }
-
-    public DataConverter build() {
-      return new DefaultDataConverter(true, payloadConverterOverrides);
-    }
   }
 }
