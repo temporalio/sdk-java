@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -31,6 +32,7 @@ public class MultipleTimersTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestMultipleTimersImpl.class).build();
 
+  @Ignore("flaky") // TODO address flakiness and enable
   @Test
   public void testMultipleTimers() {
     TestMultipleTimers workflowStub =
