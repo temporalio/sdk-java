@@ -126,11 +126,7 @@ class WorkflowStubImpl implements WorkflowStub {
         // an WorkflowExecution instance with just a workflowId
         workflowExecution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
       }
-      throw new WorkflowServiceException(
-          // if start failed with exception - there could be no valid workflow execution.
-          // WorkflowServiceException requires not null workflowExecution, so we have to provide
-          // an empty default WorkflowExecution instance
-          workflowExecution, workflowType.orElse(null), e);
+      throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
     }
   }
 
