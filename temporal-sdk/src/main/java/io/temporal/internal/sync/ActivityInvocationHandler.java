@@ -29,7 +29,6 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import javax.annotation.Nonnull;
 
 @VisibleForTesting
 public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
@@ -38,18 +37,10 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
 
   @VisibleForTesting
   public static InvocationHandler newInstance(
-      @Nonnull Class<?> activityInterface,
-      @Nonnull ActivityOptions options,
-      @Nonnull WorkflowOutboundCallsInterceptor activityExecutor) {
-    return new ActivityInvocationHandler(activityInterface, activityExecutor, options, null);
-  }
-
-  @VisibleForTesting
-  public static InvocationHandler newInstance(
-      @Nonnull Class<?> activityInterface,
-      @Nonnull ActivityOptions options,
-      @Nonnull Map<String, ActivityOptions> methodOptions,
-      @Nonnull WorkflowOutboundCallsInterceptor activityExecutor) {
+      Class<?> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> methodOptions,
+      WorkflowOutboundCallsInterceptor activityExecutor) {
     return new ActivityInvocationHandler(
         activityInterface, activityExecutor, options, methodOptions);
   }

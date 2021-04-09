@@ -176,12 +176,14 @@ public final class ActivityOptions {
     }
 
     public Builder mergeMethodOptions(ActivityOptions override) {
+      if (override == null) {
+        return this;
+      }
       this.taskQueue = (override.taskQueue == null) ? this.taskQueue : override.taskQueue;
       this.heartbeatTimeout =
           (override.heartbeatTimeout == null) ? this.heartbeatTimeout : override.heartbeatTimeout;
       this.retryOptions =
           (override.retryOptions == null) ? this.retryOptions : override.retryOptions;
-      this.contextPropagators.addAll(override.contextPropagators);
       this.scheduleToCloseTimeout =
           (override.scheduleToCloseTimeout == null)
               ? this.scheduleToCloseTimeout
@@ -196,6 +198,11 @@ public final class ActivityOptions {
               : override.scheduleToStartTimeout;
       this.cancellationType =
           (override.cancellationType == null) ? this.cancellationType : override.cancellationType;
+      if (this.contextPropagators == null) {
+        this.contextPropagators = override.contextPropagators;
+      } else if (override.contextPropagators != null) {
+        this.contextPropagators.addAll(override.contextPropagators);
+      }
       return this;
     }
 
