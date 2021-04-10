@@ -49,7 +49,7 @@ public class DefaultDataConverter implements DataConverter {
   };
 
   private static final AtomicReference<DataConverter> defaultDataConverterInstance =
-      new AtomicReference<>(new DefaultDataConverter(DEFAULT_PAYLOAD_CONVERTERS));
+      new AtomicReference<>(newDefaultInstance());
 
   private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
 
@@ -72,48 +72,43 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   /**
+   * Creates a new instance of {@code DefaultDataConverter} populated with the default list of
+   * payload converters.
+   */
+  public static DefaultDataConverter newDefaultInstance() {
+    return new DefaultDataConverter(DEFAULT_PAYLOAD_CONVERTERS);
+  }
+
+  /**
    * Creates instance from ordered array of converters. When converting an object to payload the
    * array of converters is iterated from the beginning until one of the converters successfully
    * converts the value.
    */
   public DefaultDataConverter(PayloadConverter... converters) {
-    setPayloadConverters(converters);
+    Collections.addAll(this.converters, converters);
+    updateConverterMap();
   }
 
   /**
-   * Creates instance from ordered array of converters. Provided converters may be merged with the
-   * default list of converters if {@code mergeDefaultConverters} is {@code true}.
-   *
-   * <p>When converting an object to payload the array of converters is iterated from the beginning
-   * until one of the converters successfully converts the value.
+   * Modifies this {@code DefaultDataConverter} by overriding some of its {@link PayloadConverter}s.
+   * Every payload converter from {@code overrideConverters} either replaces existing payload
+   * converter with the same encoding type, or is added to the end of payload converters list.
    */
-  public DefaultDataConverter(boolean mergeDefaultConverters, PayloadConverter... converters) {
-    if (!mergeDefaultConverters) {
-      setPayloadConverters(converters);
-    } else if (converters.length == 0) {
-      setPayloadConverters(DEFAULT_PAYLOAD_CONVERTERS);
-    } else {
-      List<PayloadConverter> mergedConverters = new ArrayList<>(DEFAULT_PAYLOAD_CONVERTERS.length);
-      Collections.addAll(mergedConverters, DEFAULT_PAYLOAD_CONVERTERS);
-
-      for (PayloadConverter newConverter : converters) {
-        Class<?> newConverterClass = newConverter.getClass();
-        boolean merged = false;
-        for (int i = 0; i < mergedConverters.size(); i++) {
-          PayloadConverter existingConverter = mergedConverters.get(i);
-          if (existingConverter.getClass().isAssignableFrom(newConverterClass)) {
-            mergedConverters.set(i, newConverter);
-            merged = true;
-            break;
-          }
-        }
-        if (!merged) {
-          mergedConverters.add(newConverter);
-        }
+  public DefaultDataConverter withPayloadConverterOverrides(
+      PayloadConverter... overrideConverters) {
+    for (PayloadConverter overrideConverter : overrideConverters) {
+      PayloadConverter existingConverter = converterMap.get(overrideConverter.getEncodingType());
+      if (existingConverter != null) {
+        int existingConverterIndex = converters.indexOf(existingConverter);
+        converters.set(existingConverterIndex, overrideConverter);
+      } else {
+        converters.add(overrideConverter);
       }
-
-      setPayloadConverters(mergedConverters.toArray(new PayloadConverter[0]));
     }
+
+    updateConverterMap();
+
+    return this;
   }
 
   @Override
@@ -189,10 +184,10 @@ public class DefaultDataConverter implements DataConverter {
     return fromPayload(content.get().getPayloads(index), parameterType, genericParameterType);
   }
 
-  private void setPayloadConverters(PayloadConverter... converters) {
+  private void updateConverterMap() {
+    converterMap.clear();
     for (PayloadConverter converter : converters) {
-      this.converters.add(converter);
-      this.converterMap.put(converter.getEncodingType(), converter);
+      converterMap.put(converter.getEncodingType(), converter);
     }
   }
 }
