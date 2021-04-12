@@ -59,7 +59,7 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
       for (Method method : activityInterface.getMethods()) {
         ActivityOptions mergedOptions =
             ActivityOptions.newBuilder(options)
-                .mergeMethodOptions(methodOptions.get(method.getName()))
+                .mergeActivityOptions(methodOptions.get(method.getName()))
                 .build();
         this.activityMethodOptions.put(method, mergedOptions);
       }
@@ -79,5 +79,10 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
     function =
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
     return function;
+  }
+
+  @VisibleForTesting
+  public Map<Method, ActivityOptions> getActivityMethodOptions() {
+    return this.activityMethodOptions;
   }
 }

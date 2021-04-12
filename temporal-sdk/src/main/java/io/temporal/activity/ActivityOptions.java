@@ -175,7 +175,7 @@ public final class ActivityOptions {
       return this;
     }
 
-    public Builder mergeMethodOptions(ActivityOptions override) {
+    public Builder mergeActivityOptions(ActivityOptions override) {
       if (override == null) {
         return this;
       }
