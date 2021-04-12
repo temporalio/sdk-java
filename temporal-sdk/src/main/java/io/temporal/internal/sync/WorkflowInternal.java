@@ -180,6 +180,9 @@ public final class WorkflowInternal {
    * Creates client stub to activities that implement given interface.
    *
    * @param activityInterface interface type implemented by activities
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
    */
   public static <T> T newActivityStub(
       Class<T> activityInterface,
@@ -198,6 +201,9 @@ public final class WorkflowInternal {
    * Creates client stub to local activities that implement given interface.
    *
    * @param activityInterface interface type implemented by activities
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
    */
   public static <T> T newLocalActivityStub(
       Class<T> activityInterface,

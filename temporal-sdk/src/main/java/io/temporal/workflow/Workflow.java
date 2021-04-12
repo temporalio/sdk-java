@@ -381,11 +381,11 @@ public final class Workflow {
   }
 
   /**
-   * Creates client stub to activities that implement given interface.
+   * Creates client stub to activities that implement given interface
    *
    * @param activityInterface interface type implemented by activities.
    * @param options options that together with the properties of {@link
-   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters.
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
    */
   public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
     return WorkflowInternal.newActivityStub(activityInterface, options, null);
@@ -394,9 +394,10 @@ public final class Workflow {
   /**
    * Creates client stub to activities that implement given interface.
    *
-   * @param activityInterface interface type implemented by activities.
+   * @param activityInterface interface type implemented by activities
    * @param options options that together with the properties of {@link
-   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters.
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
    */
   public static <T> T newActivityStub(
       Class<T> activityInterface,
@@ -430,7 +431,7 @@ public final class Workflow {
    * schedule activity task and does not rely on activity worker. 3. Local activity is for short
    * living activities (usually finishes within seconds). 4. Local activity cannot heartbeat.
    *
-   * @param activityInterface interface type implemented by activities.
+   * @param activityInterface interface type implemented by activities
    * @param options options that together with the properties of {@link
    *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters.
    */
@@ -443,6 +444,9 @@ public final class Workflow {
    * Creates client stub to local activities that implement given interface.
    *
    * @param activityInterface interface type implemented by activities
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
    */
   public static <T> T newLocalActivityStub(
       Class<T> activityInterface,

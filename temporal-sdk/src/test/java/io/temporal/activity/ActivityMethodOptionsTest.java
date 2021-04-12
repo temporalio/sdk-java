@@ -32,86 +32,86 @@ import org.junit.Test;
 
 public class ActivityMethodOptionsTest {
 
-    private final ActivityOptions options =
-            ActivityOptions.newBuilder()
-                    .setTaskQueue("ActivityOptions")
-                    .setHeartbeatTimeout(Duration.ofSeconds(5))
-                    .setScheduleToStartTimeout(Duration.ofSeconds(1))
-                    .setScheduleToCloseTimeout(Duration.ofDays(5))
-                    .setStartToCloseTimeout(Duration.ofSeconds(1))
-                    .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
-                    .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
-                    .setContextPropagators(null)
-                    .build();
-    private final ActivityOptions methodOptions =
-            ActivityOptions.newBuilder()
-                    .setTaskQueue("ActivityMethodOptions")
-                    .setHeartbeatTimeout(Duration.ofSeconds(3))
-                    .setScheduleToStartTimeout(Duration.ofSeconds(3))
-                    .setScheduleToCloseTimeout(Duration.ofDays(3))
-                    .setStartToCloseTimeout(Duration.ofSeconds(3))
-                    .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(33).build())
-                    .setCancellationType(ActivityCancellationType.TRY_CANCEL)
-                    .setContextPropagators(null)
-                    .build();
+  private final ActivityOptions options =
+      ActivityOptions.newBuilder()
+          .setTaskQueue("ActivityOptions")
+          .setHeartbeatTimeout(Duration.ofSeconds(5))
+          .setScheduleToStartTimeout(Duration.ofSeconds(1))
+          .setScheduleToCloseTimeout(Duration.ofDays(5))
+          .setStartToCloseTimeout(Duration.ofSeconds(1))
+          .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+          .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
+          .setContextPropagators(null)
+          .build();
+  private final ActivityOptions methodOptions =
+      ActivityOptions.newBuilder()
+          .setTaskQueue("ActivityMethodOptions")
+          .setHeartbeatTimeout(Duration.ofSeconds(3))
+          .setScheduleToStartTimeout(Duration.ofSeconds(3))
+          .setScheduleToCloseTimeout(Duration.ofDays(3))
+          .setStartToCloseTimeout(Duration.ofSeconds(3))
+          .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(33).build())
+          .setCancellationType(ActivityCancellationType.TRY_CANCEL)
+          .setContextPropagators(null)
+          .build();
 
-    @Test
-    public void testActivityOptionsMerge() {
-        // Assert no changes if no per method options
-        ActivityOptions merged = ActivityOptions.newBuilder(options).mergeActivityOptions(null).build();
-        Assert.assertEquals(options, merged);
-        // Assert options were overridden with method options
-        merged = ActivityOptions.newBuilder(options).mergeActivityOptions(methodOptions).build();
-        Assert.assertEquals(methodOptions, merged);
+  @Test
+  public void testActivityOptionsMerge() {
+    // Assert no changes if no per method options
+    ActivityOptions merged = ActivityOptions.newBuilder(options).mergeActivityOptions(null).build();
+    Assert.assertEquals(options, merged);
+    // Assert options were overridden with method options
+    merged = ActivityOptions.newBuilder(options).mergeActivityOptions(methodOptions).build();
+    Assert.assertEquals(methodOptions, merged);
+  }
+
+  @Test
+  public void testActivityRetryOptionsChange() {
+    Map<String, ActivityOptions> activityMethodOptions =
+        new HashMap<String, ActivityOptions>() {
+          {
+            put("method1", methodOptions);
+          }
+        };
+
+    // Test that Map<Method, ActivityOptions> was created
+    ActivityInvocationHandler invocationHandler =
+        (ActivityInvocationHandler)
+            ActivityInvocationHandler.newInstance(
+                TestActivity.class, options, activityMethodOptions, null);
+    Map<Method, ActivityOptions> methodToOptionsMap = invocationHandler.getActivityMethodOptions();
+    POJOActivityInterfaceMetadata activityMetadata =
+        POJOActivityInterfaceMetadata.newInstance(TestActivity.class);
+
+    for (POJOActivityMethodMetadata methodMetadata : activityMetadata.getMethodsMetadata()) {
+      Method method = methodMetadata.getMethod();
+      if (method.getName().equals("method1")) {
+        Assert.assertEquals(methodOptions, methodToOptionsMap.get(method));
+      } else {
+        Assert.assertEquals(options, methodToOptionsMap.get(method));
+      }
+    }
+  }
+
+  @ActivityInterface
+  public interface TestActivity {
+
+    @ActivityMethod
+    void method1();
+
+    @ActivityMethod
+    void method2();
+  }
+
+  class TestActivityImpl implements TestActivity {
+    @Override
+    public void method1() {
+      System.out.printf("Executing method1.");
     }
 
-    @Test
-    public void testActivityRetryOptionsChange() {
-        Map<String, ActivityOptions> activityMethodOptions =
-                new HashMap<String, ActivityOptions>() {
-                    {
-                        put("method1", methodOptions);
-                    }
-                };
-
-        // Test that Map<Method, ActivityOptions> was created
-        ActivityInvocationHandler invocationHandler =
-                (ActivityInvocationHandler)
-                        ActivityInvocationHandler.newInstance(
-                                TestActivity.class, options, activityMethodOptions, null);
-        Map<Method, ActivityOptions> methodToOptionsMap = invocationHandler.getActivityMethodOptions();
-        POJOActivityInterfaceMetadata activityMetadata =
-                POJOActivityInterfaceMetadata.newInstance(TestActivity.class);
-
-        for (POJOActivityMethodMetadata methodMetadata : activityMetadata.getMethodsMetadata()) {
-            Method method = methodMetadata.getMethod();
-            if (method.getName().equals("method1")) {
-                Assert.assertEquals(methodOptions, methodToOptionsMap.get(method));
-            } else {
-                Assert.assertEquals(options, methodToOptionsMap.get(method));
-            }
-        }
+    @Override
+    public void method2() {
+      System.out.printf("Executing method2.");
     }
-
-    @ActivityInterface
-    public interface TestActivity {
-
-        @ActivityMethod
-        void method1();
-
-        @ActivityMethod
-        void method2();
-    }
-
-    class TestActivityImpl implements TestActivity {
-        @Override
-        public void method1() {
-            System.out.printf("Executing method1.");
-        }
-
-        @Override
-        public void method2() {
-            System.out.printf("Executing method2.");
-        }
-    }
+  }
 }
