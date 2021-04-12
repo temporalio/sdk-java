@@ -19,6 +19,7 @@
 
 package io.temporal.opentracing.internal;
 
+import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
@@ -27,15 +28,14 @@ import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.SpanOperationType;
 
 public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCallsInterceptorBase {
-
-  private final OpenTracingOptions options;
   private final SpanFactory spanFactory;
+  private final Tracer tracer;
 
   public OpenTracingWorkflowClientCallsInterceptor(
       WorkflowClientCallsInterceptor next, OpenTracingOptions options, SpanFactory spanFactory) {
     super(next);
-    this.options = options;
     this.spanFactory = spanFactory;
+    this.tracer = options.getTracer();
   }
 
   @Override
@@ -50,26 +50,25 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
 
   @Override
   public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
-    Span span =
+    Span workflowStartSpan =
         createAndPassWorkflowStartSpan(
             input.getWorkflowStartInput(), SpanOperationType.SIGNAL_WITH_START_WORKFLOW);
-    try {
+    try (Scope scope = tracer.scopeManager().activate(workflowStartSpan)) {
       return super.signalWithStart(input);
     } finally {
-      span.finish();
+      workflowStartSpan.finish();
     }
   }
 
   private Span createAndPassWorkflowStartSpan(
       WorkflowStartInput input, SpanOperationType operationType) {
-    Tracer tracer = options.getTracer();
-    Span span = createWorkflowStartSpanBuilder(tracer, input, operationType).start();
+    Span span = createWorkflowStartSpanBuilder(input, operationType).start();
     OpenTracingContextAccessor.writeSpanContextToHeader(span.context(), input.getHeader(), tracer);
     return span;
   }
 
   private Tracer.SpanBuilder createWorkflowStartSpanBuilder(
-      Tracer tracer, WorkflowStartInput input, SpanOperationType operationType) {
+      WorkflowStartInput input, SpanOperationType operationType) {
     return spanFactory.createWorkflowStartSpan(
         tracer,
         operationType,
