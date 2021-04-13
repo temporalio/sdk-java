@@ -19,10 +19,10 @@
 
 package io.temporal.workflow.childWorkflowTests;
 
+import static org.junit.Assert.assertTrue;
+
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.history.v1.History;
-import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
@@ -57,23 +57,12 @@ public class ChildWorkflowCancellationTest {
       client.getResult(String.class);
       Assert.fail("unreachable");
     } catch (WorkflowFailedException e) {
-      Assert.assertTrue(e.getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
-
-    boolean hasChildCanceled = false;
-    boolean hasChildCancelRequested = false;
-    for (HistoryEvent event : history.getEventsList()) {
-      if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
-        hasChildCanceled = true;
-      }
-      if (event.getEventType()
-          == EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED) {
-        hasChildCancelRequested = true;
-      }
-    }
-    Assert.assertTrue(hasChildCancelRequested);
-    Assert.assertFalse(hasChildCanceled);
+    testWorkflowRule.assertWorkflowExecutionHistoryHasEvent(
+        execution, EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
+    testWorkflowRule.assertWorkflowExecutionHistoryHasNoEvent(
+        execution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
   }
 
   @Test
@@ -87,17 +76,10 @@ public class ChildWorkflowCancellationTest {
       client.getResult(String.class);
       Assert.fail("unreachable");
     } catch (WorkflowFailedException e) {
-      Assert.assertTrue(e.getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
-
-    boolean hasChildCanceled = false;
-    for (HistoryEvent event : history.getEventsList()) {
-      if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
-        hasChildCanceled = true;
-      }
-    }
-    Assert.assertTrue(hasChildCanceled);
+    testWorkflowRule.assertWorkflowExecutionHistoryHasEvent(
+        execution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
   }
 
   @Test
@@ -110,18 +92,10 @@ public class ChildWorkflowCancellationTest {
       client.getResult(String.class);
       Assert.fail("unreachable");
     } catch (WorkflowFailedException e) {
-      Assert.assertTrue(e.getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
-
-    boolean hasChildCancelInitiated = false;
-    for (HistoryEvent event : history.getEventsList()) {
-      if (event.getEventType()
-          == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED) {
-        hasChildCancelInitiated = true;
-      }
-    }
-    Assert.assertFalse(hasChildCancelInitiated);
+    testWorkflowRule.assertWorkflowExecutionHistoryHasNoEvent(
+        execution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
   }
 
   @Test
@@ -134,24 +108,12 @@ public class ChildWorkflowCancellationTest {
       client.getResult(String.class);
       Assert.fail("unreachable");
     } catch (WorkflowFailedException e) {
-      Assert.assertTrue(e.getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
-
-    boolean hasChildCancelInitiated = false;
-    boolean hasChildCancelRequested = false;
-    for (HistoryEvent event : history.getEventsList()) {
-      if (event.getEventType()
-          == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED) {
-        hasChildCancelInitiated = true;
-      }
-      if (event.getEventType()
-          == EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED) {
-        hasChildCancelRequested = true;
-      }
-    }
-    Assert.assertTrue(hasChildCancelInitiated);
-    Assert.assertFalse(hasChildCancelRequested);
+    testWorkflowRule.assertWorkflowExecutionHistoryHasEvent(
+        execution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
+    testWorkflowRule.assertWorkflowExecutionHistoryHasNoEvent(
+        execution, EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
   }
 
   public static class TestParentWorkflowImpl implements TestWorkflows.TestWorkflow {

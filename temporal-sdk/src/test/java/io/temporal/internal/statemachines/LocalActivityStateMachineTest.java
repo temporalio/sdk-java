@@ -19,8 +19,13 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.internal.statemachines.LocalActivityStateMachine.*;
-import static org.junit.Assert.*;
+import static io.temporal.internal.statemachines.LocalActivityStateMachine.LOCAL_ACTIVITY_MARKER_NAME;
+import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKER_ACTIVITY_ID_KEY;
+import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKER_DATA_KEY;
+import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKER_TIME_KEY;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.ActivityType;
@@ -86,19 +91,22 @@ public class LocalActivityStateMachineTest {
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id1")
                     .setActivityType(ActivityType.newBuilder().setName("activity1")),
-                null);
+                null,
+                true);
         ExecuteLocalActivityParameters parameters2 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id2")
                     .setActivityType(ActivityType.newBuilder().setName("activity2")),
-                null);
+                null,
+                false);
         ExecuteLocalActivityParameters parameters3 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id3")
                     .setActivityType(ActivityType.newBuilder().setName("activity3")),
-                null);
+                null,
+                true);
 
         builder
             .<Optional<Payloads>, Failure>add2(
@@ -271,7 +279,8 @@ public class LocalActivityStateMachineTest {
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id1")
                     .setActivityType(ActivityType.newBuilder().setName("activity1")),
-                null);
+                null,
+                false);
         builder
             .<Optional<Payloads>, Failure>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))

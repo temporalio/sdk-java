@@ -26,11 +26,15 @@ public class ExecuteLocalActivityParameters {
 
   private final PollActivityTaskQueueResponse.Builder activityTask;
   private final Duration localRetryThreshold;
+  private boolean doNotIncludeArgumentsIntoMarker;
 
   public ExecuteLocalActivityParameters(
-      PollActivityTaskQueueResponse.Builder activityTask, Duration localRetryThreshold) {
+      PollActivityTaskQueueResponse.Builder activityTask,
+      Duration localRetryThreshold,
+      boolean doNotIncludeArgumentsIntoMarker) {
     this.activityTask = activityTask;
     this.localRetryThreshold = localRetryThreshold;
+    this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
   }
 
   public PollActivityTaskQueueResponse.Builder getActivityTask() {
@@ -39,6 +43,10 @@ public class ExecuteLocalActivityParameters {
 
   public Duration getLocalRetryThreshold() {
     return localRetryThreshold;
+  }
+
+  public boolean isDoNotIncludeArgumentsIntoMarker() {
+    return doNotIncludeArgumentsIntoMarker;
   }
 
   @Override
