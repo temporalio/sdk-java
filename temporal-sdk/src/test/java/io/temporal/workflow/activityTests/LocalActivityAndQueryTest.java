@@ -106,7 +106,11 @@ public class LocalActivityAndQueryTest {
     public String execute(String taskQueue) {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions());
+              TestActivities.class,
+              TestOptions.newLocalActivityOptions()
+                  .toBuilder()
+                  .setDoNotIncludeArgumentsIntoMarker(true)
+                  .build());
       for (int i = 0; i < 5; i++) {
         localActivities.sleepActivity(1000, i);
         message = "run" + i;

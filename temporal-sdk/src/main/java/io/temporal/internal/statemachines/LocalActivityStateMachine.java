@@ -50,9 +50,11 @@ final class LocalActivityStateMachine
 
   static final String LOCAL_ACTIVITY_MARKER_NAME = "LocalActivity";
   static final String MARKER_ACTIVITY_ID_KEY = "activityId";
-  static final String MARKER_ACTIVITY_TYPE_KEY = "activityType";
-  static final String MARKER_ACTIVITY_INPUT_KEY = "activityInput";
+  static final String MARKER_ACTIVITY_TYPE_KEY = "type";
+  static final String MARKER_ACTIVITY_INPUT_KEY = "input";
+  static final String MARKER_ACTIVITY_RESULT_KEY = "result";
   static final String MARKER_TIME_KEY = "time";
+  // Deprecated in favor of result. Still present for backwards compatibility.
   static final String MARKER_DATA_KEY = "data";
 
   private final DataConverter dataConverter = DataConverter.getDefaultInstance();
@@ -251,7 +253,7 @@ final class LocalActivityStateMachine
         if (completed.hasResult()) {
           Payloads p = completed.getResult();
           laResult = Optional.of(p);
-          details.put(MARKER_DATA_KEY, p);
+          details.put(MARKER_ACTIVITY_RESULT_KEY, p);
         } else {
           laResult = Optional.empty();
         }
@@ -311,7 +313,12 @@ final class LocalActivityStateMachine
       callback.apply(null, attributes.getFailure());
       return;
     }
-    Optional<Payloads> fromMaker = Optional.ofNullable(map.get(MARKER_DATA_KEY));
+    Payloads result = map.get(MARKER_ACTIVITY_RESULT_KEY);
+    if (result == null) {
+      // Support old histories that used "data" as a key for "result".
+      result = map.get(MARKER_DATA_KEY);
+    }
+    Optional<Payloads> fromMaker = Optional.ofNullable(result);
     callback.apply(fromMaker, null);
   }
 
