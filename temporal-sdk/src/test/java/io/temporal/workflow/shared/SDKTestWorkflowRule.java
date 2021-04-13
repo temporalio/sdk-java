@@ -196,15 +196,14 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getTaskQueue();
   }
 
-  public History getWorkflowExecutionHistory(WorkflowExecution execution) {
+  public History getHistory(WorkflowExecution execution) {
     return testWorkflowRule.getWorkflowExecutionHistory(execution);
   }
 
   /** Returns list of all events of the given EventType found in the history. */
-  public List<HistoryEvent> getWorkflowExecutionHistoryEvents(
-      WorkflowExecution execution, EventType eventType) {
+  public List<HistoryEvent> getHistoryEvents(WorkflowExecution execution, EventType eventType) {
     List<HistoryEvent> result = new ArrayList<>();
-    History history = getWorkflowExecutionHistory(execution);
+    History history = getHistory(execution);
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         result.add(event);
@@ -214,10 +213,9 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /** Returns the first event of the given EventType found in the history. */
-  public HistoryEvent getWorkflowExecutionHistoryEvent(
-      WorkflowExecution execution, EventType eventType) {
+  public HistoryEvent getHistoryEvent(WorkflowExecution execution, EventType eventType) {
     List<HistoryEvent> result = new ArrayList<>();
-    History history = getWorkflowExecutionHistory(execution);
+    History history = getHistory(execution);
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         return event;
@@ -227,9 +225,8 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /** Asserts that an event of the given EventType is found in the history. */
-  public void assertWorkflowExecutionHistoryHasEvent(
-      WorkflowExecution execution, EventType eventType) {
-    History history = getWorkflowExecutionHistory(execution);
+  public void assertHistoryEvent(WorkflowExecution execution, EventType eventType) {
+    History history = getHistory(execution);
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         return;
@@ -239,9 +236,8 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /** Asserts that an event of the given EventType is not found in the history. */
-  public void assertWorkflowExecutionHistoryHasNoEvent(
-      WorkflowExecution execution, EventType eventType) {
-    History history = getWorkflowExecutionHistory(execution);
+  public void assertNoHistoryEvent(WorkflowExecution execution, EventType eventType) {
+    History history = getHistory(execution);
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         fail("Event of " + eventType + " found in the history");

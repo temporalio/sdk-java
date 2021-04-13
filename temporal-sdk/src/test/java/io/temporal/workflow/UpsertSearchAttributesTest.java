@@ -62,7 +62,7 @@ public class UpsertSearchAttributesTest {
             "upsertSearchAttributes",
             "executeActivity Activity",
             "activity Activity");
-    testWorkflowRule.assertWorkflowExecutionHistoryHasEvent(
+    testWorkflowRule.assertHistoryEvent(
         execution, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES);
   }
 

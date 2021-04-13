@@ -53,8 +53,7 @@ public class GetVersionSameIdOnReplayTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     workflowStub.execute(testWorkflowRule.getTaskQueue());
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-    testWorkflowRule.assertWorkflowExecutionHistoryHasNoEvent(
-        execution, EventType.EVENT_TYPE_MARKER_RECORDED);
+    testWorkflowRule.assertNoHistoryEvent(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
   }
 
   public static class TestGetVersionSameIdOnReplay implements TestWorkflows.TestWorkflow1 {

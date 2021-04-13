@@ -53,8 +53,7 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     SDKTestWorkflowRule.waitForOKQuery(stub);
 
-    testWorkflowRule.assertWorkflowExecutionHistoryHasEvent(
-        execution, EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED);
+    testWorkflowRule.assertHistoryEvent(execution, EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED);
   }
 
   public static class SimpleTestWorkflow implements TestWorkflows.TestWorkflow1 {

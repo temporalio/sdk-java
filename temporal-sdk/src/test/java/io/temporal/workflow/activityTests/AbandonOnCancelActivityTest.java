@@ -73,8 +73,7 @@ public class AbandonOnCancelActivityTest {
     activitiesImpl.assertInvocations("activityWithDelay");
     Assert.assertTrue(
         testWorkflowRule
-            .getWorkflowExecutionHistoryEvents(
-                execution, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
+            .getHistoryEvents(execution, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
             .isEmpty());
   }
 

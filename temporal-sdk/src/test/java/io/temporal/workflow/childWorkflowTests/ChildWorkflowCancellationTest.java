@@ -59,9 +59,9 @@ public class ChildWorkflowCancellationTest {
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    testWorkflowRule.assertWorkflowExecutionHistoryHasEvent(
+    testWorkflowRule.assertHistoryEvent(
         execution, EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
-    testWorkflowRule.assertWorkflowExecutionHistoryHasNoEvent(
+    testWorkflowRule.assertNoHistoryEvent(
         execution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
   }
 
@@ -78,7 +78,7 @@ public class ChildWorkflowCancellationTest {
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    testWorkflowRule.assertWorkflowExecutionHistoryHasEvent(
+    testWorkflowRule.assertHistoryEvent(
         execution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
   }
 
@@ -94,7 +94,7 @@ public class ChildWorkflowCancellationTest {
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    testWorkflowRule.assertWorkflowExecutionHistoryHasNoEvent(
+    testWorkflowRule.assertNoHistoryEvent(
         execution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
   }
 
@@ -110,9 +110,9 @@ public class ChildWorkflowCancellationTest {
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    testWorkflowRule.assertWorkflowExecutionHistoryHasEvent(
+    testWorkflowRule.assertHistoryEvent(
         execution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
-    testWorkflowRule.assertWorkflowExecutionHistoryHasNoEvent(
+    testWorkflowRule.assertNoHistoryEvent(
         execution, EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
   }
 
