@@ -19,9 +19,16 @@
 
 package io.temporal.workflow.activityTests;
 
+import static org.junit.Assert.assertEquals;
+
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
@@ -32,6 +39,7 @@ import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
@@ -62,7 +70,8 @@ public class LocalActivityAndQueryTest {
             .build();
     TestWorkflowQuery workflowStub =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflowQuery.class, options);
-    WorkflowClient.start(workflowStub::execute, testWorkflowRule.getTaskQueue());
+    WorkflowExecution execution =
+        WorkflowClient.start(workflowStub::execute, testWorkflowRule.getTaskQueue());
 
     // Ensure that query doesn't see intermediate results of the local activities execution
     // as all these activities are executed in a single workflow task.
@@ -77,16 +86,22 @@ public class LocalActivityAndQueryTest {
           tasks.add(task);
         }
         for (int i = 0; i < threads; i++) {
-          Assert.assertEquals("run4", tasks.get(i).get());
+          assertEquals("run4", tasks.get(i).get());
         }
         break;
       }
     }
     String result = WorkflowStub.fromTyped(workflowStub).getResult(String.class);
-    Assert.assertEquals("done", result);
-    Assert.assertEquals("run4", workflowStub.query());
+    assertEquals("done", result);
+    assertEquals("run4", workflowStub.query());
     activitiesImpl.assertInvocations(
         "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity");
+    HistoryEvent marker =
+        testWorkflowRule.getHistoryEvent(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
+    Optional<Payloads> input =
+        Optional.of(marker.getMarkerRecordedEventAttributes().getDetailsMap().get("input"));
+    long arg0 = DataConverter.getDefaultInstance().fromPayloads(0, input, Long.class, Long.class);
+    assertEquals(1000, arg0);
   }
 
   @WorkflowInterface
@@ -106,11 +121,7 @@ public class LocalActivityAndQueryTest {
     public String execute(String taskQueue) {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class,
-              TestOptions.newLocalActivityOptions()
-                  .toBuilder()
-                  .setDoNotIncludeArgumentsIntoMarker(true)
-                  .build());
+              TestActivities.class, TestOptions.newLocalActivityOptions().toBuilder().build());
       for (int i = 0; i < 5; i++) {
         localActivities.sleepActivity(1000, i);
         message = "run" + i;
