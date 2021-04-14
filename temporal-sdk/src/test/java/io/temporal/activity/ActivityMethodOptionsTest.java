@@ -20,98 +20,135 @@
 package io.temporal.activity;
 
 import io.temporal.common.RetryOptions;
-import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
-import io.temporal.common.metadata.POJOActivityMethodMetadata;
-import io.temporal.internal.sync.ActivityInvocationHandler;
-import java.lang.reflect.Method;
+import io.temporal.testing.TestActivityEnvironment;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Map;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 public class ActivityMethodOptionsTest {
 
-  private final ActivityOptions options =
+  private static final ActivityOptions defaultOps =
       ActivityOptions.newBuilder()
           .setTaskQueue("ActivityOptions")
-          .setHeartbeatTimeout(Duration.ofSeconds(5))
-          .setScheduleToStartTimeout(Duration.ofSeconds(1))
-          .setScheduleToCloseTimeout(Duration.ofDays(5))
-          .setStartToCloseTimeout(Duration.ofSeconds(1))
+          .setHeartbeatTimeout(Duration.ofSeconds(1))
+          .setScheduleToStartTimeout(Duration.ofSeconds(2))
+          .setScheduleToCloseTimeout(Duration.ofDays(1))
+          .setStartToCloseTimeout(Duration.ofSeconds(2))
           .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
           .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
           .setContextPropagators(null)
           .build();
-  private final ActivityOptions methodOptions =
+  private static final ActivityOptions methodOps1 =
       ActivityOptions.newBuilder()
           .setTaskQueue("ActivityMethodOptions")
           .setHeartbeatTimeout(Duration.ofSeconds(3))
           .setScheduleToStartTimeout(Duration.ofSeconds(3))
           .setScheduleToCloseTimeout(Duration.ofDays(3))
           .setStartToCloseTimeout(Duration.ofSeconds(3))
-          .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(33).build())
+          .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
           .setCancellationType(ActivityCancellationType.TRY_CANCEL)
           .setContextPropagators(null)
           .build();
+  private static final ActivityOptions methodOps2 =
+      ActivityOptions.newBuilder()
+          .setHeartbeatTimeout(Duration.ofSeconds(7))
+          .setStartToCloseTimeout(Duration.ofSeconds(7))
+          .build();
+  private static final Map<String, ActivityOptions> perMethodOptionsMap =
+      new HashMap<String, ActivityOptions>() {
+        {
+          put("Method1", methodOps2);
+        }
+      };
+  private TestActivityEnvironment testEnv;
+
+  @Before
+  public void setUp() {
+    testEnv = TestActivityEnvironment.newInstance();
+  }
 
   @Test
   public void testActivityOptionsMerge() {
     // Assert no changes if no per method options
-    ActivityOptions merged = ActivityOptions.newBuilder(options).mergeActivityOptions(null).build();
-    Assert.assertEquals(options, merged);
+    ActivityOptions merged =
+        ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(null).build();
+    Assert.assertEquals(defaultOps, merged);
     // Assert options were overridden with method options
-    merged = ActivityOptions.newBuilder(options).mergeActivityOptions(methodOptions).build();
-    Assert.assertEquals(methodOptions, merged);
+    merged = ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps1).build();
+    Assert.assertEquals(methodOps1, merged);
   }
 
   @Test
-  public void testActivityRetryOptionsChange() {
-    Map<String, ActivityOptions> activityMethodOptions =
-        new HashMap<String, ActivityOptions>() {
-          {
-            put("method1", methodOptions);
-          }
-        };
+  public void testActivityMethodOptions() {
+    testEnv.registerActivitiesImplementations(new ActivityImpl());
+    TestActivity activity =
+        testEnv.newActivityStub(TestActivity.class, defaultOps, perMethodOptionsMap);
 
-    // Test that Map<Method, ActivityOptions> was created
-    ActivityInvocationHandler invocationHandler =
-        (ActivityInvocationHandler)
-            ActivityInvocationHandler.newInstance(
-                TestActivity.class, options, activityMethodOptions, null);
-    Map<Method, ActivityOptions> methodToOptionsMap = invocationHandler.getActivityMethodOptions();
-    POJOActivityInterfaceMetadata activityMetadata =
-        POJOActivityInterfaceMetadata.newInstance(TestActivity.class);
+    // Check that options for method1 were merged.
+    Map<String, String> method1OpsValues = activity.method1();
+    Assert.assertEquals(
+        methodOps2.getHeartbeatTimeout(), Duration.parse(method1OpsValues.get("HeartbeatTimeout")));
+    Assert.assertEquals(
+        defaultOps.getScheduleToCloseTimeout(),
+        Duration.parse(method1OpsValues.get("ScheduleToCloseTimeout")));
+    Assert.assertEquals(
+        methodOps2.getStartToCloseTimeout(),
+        Duration.parse(method1OpsValues.get("StartToCloseTimeout")));
 
-    for (POJOActivityMethodMetadata methodMetadata : activityMetadata.getMethodsMetadata()) {
-      Method method = methodMetadata.getMethod();
-      if (method.getName().equals("method1")) {
-        Assert.assertEquals(methodOptions, methodToOptionsMap.get(method));
-      } else {
-        Assert.assertEquals(options, methodToOptionsMap.get(method));
-      }
-    }
+    // Check that options for method2 were default.
+    Map<String, String> method2OpsValues = activity.method2();
+    Assert.assertEquals(
+        defaultOps.getHeartbeatTimeout(), Duration.parse(method2OpsValues.get("HeartbeatTimeout")));
+    Assert.assertEquals(
+        defaultOps.getScheduleToCloseTimeout(),
+        Duration.parse(method2OpsValues.get("ScheduleToCloseTimeout")));
+    Assert.assertEquals(
+        defaultOps.getStartToCloseTimeout(),
+        Duration.parse(method2OpsValues.get("StartToCloseTimeout")));
   }
 
   @ActivityInterface
   public interface TestActivity {
 
     @ActivityMethod
-    void method1();
+    Map<String, String> method1();
 
     @ActivityMethod
-    void method2();
+    Map<String, String> method2();
   }
 
-  class TestActivityImpl implements TestActivity {
+  private static class ActivityImpl implements TestActivity {
+
     @Override
-    public void method1() {
-      System.out.printf("Executing method1.");
+    public Map<String, String> method1() {
+      ActivityInfo info = Activity.getExecutionContext().getInfo();
+      Hashtable<String, String> result =
+          new Hashtable<String, String>() {
+            {
+              put("HeartbeatTimeout", info.getHeartbeatTimeout().toString());
+              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout().toString());
+              put("StartToCloseTimeout", info.getStartToCloseTimeout().toString());
+            }
+          };
+      return result;
     }
 
     @Override
-    public void method2() {
-      System.out.printf("Executing method2.");
+    public Map<String, String> method2() {
+      ActivityInfo info = Activity.getExecutionContext().getInfo();
+      Hashtable<String, String> result =
+          new Hashtable<String, String>() {
+            {
+              put("HeartbeatTimeout", info.getHeartbeatTimeout().toString());
+              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout().toString());
+              put("StartToCloseTimeout", info.getStartToCloseTimeout().toString());
+            }
+          };
+      return result;
     }
   }
 }

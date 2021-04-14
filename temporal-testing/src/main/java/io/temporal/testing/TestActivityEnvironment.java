@@ -21,8 +21,10 @@ package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
+import java.util.Map;
 
 /**
  * The helper class for unit testing activity implementations. Supports calls to {@link
@@ -77,6 +79,21 @@ public interface TestActivityEnvironment {
    * @return The stub that implements the activity interface.
    */
   <T> T newActivityStub(Class<T> activityInterface);
+
+  /**
+   * Creates a stub that can be used to invoke activities registered through {@link
+   * #registerActivitiesImplementations(Object...)}.
+   *
+   * @param <T> Type of the activity interface.
+   * @param activityInterface activity interface class that the object under test implements
+   * @param options options that specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
+   * @return The stub that implements the activity interface.
+   */
+  <T> T newActivityStub(
+      Class<T> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> activityMethodOptions);
 
   /**
    * Sets a listener that is called every time an activity implementation heartbeats through {@link

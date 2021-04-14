@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
+  private final LocalActivityOptions options;
   private final Map<String, LocalActivityOptions> activityMethodOptions;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
 
@@ -47,20 +48,8 @@ class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
       WorkflowOutboundCallsInterceptor activityExecutor,
       LocalActivityOptions options,
       Map<String, LocalActivityOptions> methodOptions) {
-    this.activityMethodOptions = new HashMap<>();
-    if (methodOptions == null) {
-      for (Method method : activityInterface.getMethods()) {
-        this.activityMethodOptions.put(method.getName(), options);
-      }
-    } else {
-      for (Method method : activityInterface.getMethods()) {
-        LocalActivityOptions mergedOptions =
-            LocalActivityOptions.newBuilder(options)
-                .mergeActivityOptions(methodOptions.get(method.getName()))
-                .build();
-        this.activityMethodOptions.put(method.getName(), mergedOptions);
-      }
-    }
+    this.options = options;
+    this.activityMethodOptions = (methodOptions == null) ? new HashMap<>() : methodOptions;
     this.activityExecutor = activityExecutor;
     init(activityInterface);
   }
@@ -69,11 +58,11 @@ class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
-    LocalActivityOptions options = this.activityMethodOptions.get(method.getName());
     LocalActivityOptions mergedOptions =
         LocalActivityOptions.newBuilder(options)
+            .mergeActivityOptions(activityMethodOptions.get(activityName))
             .setMethodRetry(methodRetry)
-            .validateAndBuildWithDefaults();
+            .build();
     ActivityStub stub = LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor);
     function =
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);

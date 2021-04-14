@@ -190,6 +190,25 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
+  /**
+   * Creates client stub to activities that implement given interface.
+   *
+   * @param activityInterface interface type implemented by activities
+   * @param options options that specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
+   */
+  @Override
+  public <T> T newActivityStub(
+      Class<T> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> activityMethodOptions) {
+    InvocationHandler invocationHandler =
+        ActivityInvocationHandler.newInstance(
+            activityInterface, options, activityMethodOptions, new TestActivityExecutor());
+    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
+  }
+
   @Override
   public void requestCancelActivity() {
     cancellationRequested.set(true);
