@@ -23,8 +23,6 @@ import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.history.v1.History;
-import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
@@ -73,12 +71,10 @@ public class AbandonOnCancelActivityTest {
     long elapsed = testWorkflowRule.getTestEnvironment().currentTimeMillis() - start;
     Assert.assertTrue(String.valueOf(elapsed), elapsed < 500);
     activitiesImpl.assertInvocations("activityWithDelay");
-    History history = testWorkflowRule.getWorkflowExecutionHistory(execution);
-
-    for (HistoryEvent event : history.getEventsList()) {
-      Assert.assertNotEquals(
-          EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, event.getEventType());
-    }
+    Assert.assertTrue(
+        testWorkflowRule
+            .getHistoryEvents(execution, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
+            .isEmpty());
   }
 
   public static class TestAbandonOnCancelActivity implements TestWorkflows.TestWorkflow1 {
