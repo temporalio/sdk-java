@@ -29,37 +29,29 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ActivityMethodOptionsTest {
+public class LocalActivityMethodOptionsTest {
 
-  private static final ActivityOptions defaultOps =
-      ActivityOptions.newBuilder()
-          .setTaskQueue("ActivityOptions")
-          .setHeartbeatTimeout(Duration.ofSeconds(1))
-          .setScheduleToStartTimeout(Duration.ofSeconds(2))
+  private static final LocalActivityOptions defaultOps =
+      LocalActivityOptions.newBuilder()
           .setScheduleToCloseTimeout(Duration.ofDays(1))
           .setStartToCloseTimeout(Duration.ofSeconds(2))
+          .setLocalRetryThreshold(Duration.ofSeconds(2))
           .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
-          .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
-          .setContextPropagators(null)
+          .setDoNotIncludeArgumentsIntoMarker(true)
           .build();
-  private static final ActivityOptions methodOps1 =
-      ActivityOptions.newBuilder()
-          .setTaskQueue("ActivityMethodOptions")
-          .setHeartbeatTimeout(Duration.ofSeconds(3))
-          .setScheduleToStartTimeout(Duration.ofSeconds(3))
-          .setScheduleToCloseTimeout(Duration.ofDays(3))
+
+  private static final LocalActivityOptions methodOps1 =
+      LocalActivityOptions.newBuilder()
+          .setScheduleToCloseTimeout(Duration.ofDays(2))
           .setStartToCloseTimeout(Duration.ofSeconds(3))
+          .setLocalRetryThreshold(Duration.ofSeconds(3))
           .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
-          .setCancellationType(ActivityCancellationType.TRY_CANCEL)
-          .setContextPropagators(null)
+          .setDoNotIncludeArgumentsIntoMarker(false)
           .build();
-  private static final ActivityOptions methodOps2 =
-      ActivityOptions.newBuilder()
-          .setHeartbeatTimeout(Duration.ofSeconds(7))
-          .setStartToCloseTimeout(Duration.ofSeconds(7))
-          .build();
-  private static final Map<String, ActivityOptions> perMethodOptionsMap =
-      new HashMap<String, ActivityOptions>() {
+  private static final LocalActivityOptions methodOps2 =
+      LocalActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(4)).build();
+  private static final Map<String, LocalActivityOptions> perMethodOptionsMap =
+      new HashMap<String, LocalActivityOptions>() {
         {
           put("Method1", methodOps2);
         }
@@ -74,31 +66,36 @@ public class ActivityMethodOptionsTest {
   @Test
   public void testActivityOptionsMerge() {
     // Assert no changes if no per method options
-    ActivityOptions merged =
-        ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(null).build();
+    LocalActivityOptions merged =
+        LocalActivityOptions.newBuilder(defaultOps).mergeActivityOptions(null).build();
     Assert.assertEquals(defaultOps, merged);
     // Assert options were overridden with method options
-    merged = ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps1).build();
+    merged = LocalActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps1).build();
     Assert.assertEquals(methodOps1, merged);
+    // Check that if doNotIncludeArgumentsIntoMarker is not set, it defaults to false.
+    Assert.assertEquals(false, methodOps2.isDoNotIncludeArgumentsIntoMarker());
+    // Check that original value of doNotIncludeArgumentsIntoMarker is not overridden if it's not
+    // set in override.
+    merged = LocalActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps2).build();
+    Assert.assertEquals(
+        defaultOps.isDoNotIncludeArgumentsIntoMarker(), merged.isDoNotIncludeArgumentsIntoMarker());
   }
 
   @Test
-  public void testActivityMethodOptions() {
+  public void testLocalActivityMethodOptions() {
     testEnv.registerActivitiesImplementations(new ActivityImpl());
-    TestActivity activity =
-        testEnv.newActivityStub(TestActivity.class, defaultOps, perMethodOptionsMap);
+    TestActivity localActivity =
+        testEnv.newLocalActivityStub(TestActivity.class, defaultOps, perMethodOptionsMap);
 
     // Check that options for method1 were merged.
-    Map<String, Duration> method1OpsValues = activity.method1();
-    Assert.assertEquals(methodOps2.getHeartbeatTimeout(), method1OpsValues.get("HeartbeatTimeout"));
+    Map<String, Duration> method1OpsValues = localActivity.method1();
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), method1OpsValues.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
         methodOps2.getStartToCloseTimeout(), method1OpsValues.get("StartToCloseTimeout"));
 
     // Check that options for method2 were default.
-    Map<String, Duration> method2OpsValues = activity.method2();
-    Assert.assertEquals(defaultOps.getHeartbeatTimeout(), method2OpsValues.get("HeartbeatTimeout"));
+    Map<String, Duration> method2OpsValues = localActivity.method2();
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), method2OpsValues.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
@@ -123,7 +120,6 @@ public class ActivityMethodOptionsTest {
       Hashtable<String, Duration> result =
           new Hashtable<String, Duration>() {
             {
-              put("HeartbeatTimeout", info.getHeartbeatTimeout());
               put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
               put("StartToCloseTimeout", info.getStartToCloseTimeout());
             }
@@ -137,7 +133,6 @@ public class ActivityMethodOptionsTest {
       Hashtable<String, Duration> result =
           new Hashtable<String, Duration>() {
             {
-              put("HeartbeatTimeout", info.getHeartbeatTimeout());
               put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
               put("StartToCloseTimeout", info.getStartToCloseTimeout());
             }

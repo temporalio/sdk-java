@@ -51,7 +51,7 @@ public final class LocalActivityOptions {
     private Duration localRetryThreshold;
     private Duration startToCloseTimeout;
     private RetryOptions retryOptions;
-    private boolean doNotIncludeArgumentsIntoMarker;
+    private Boolean doNotIncludeArgumentsIntoMarker;
 
     /** Copy Builder fields from the options. */
     private Builder(LocalActivityOptions options) {
@@ -112,6 +112,10 @@ public final class LocalActivityOptions {
               : override.startToCloseTimeout;
       this.retryOptions =
           (override.retryOptions == null) ? this.retryOptions : override.retryOptions;
+      this.doNotIncludeArgumentsIntoMarker =
+          (override.doNotIncludeArgumentsIntoMarker != null)
+              ? override.doNotIncludeArgumentsIntoMarker
+              : this.doNotIncludeArgumentsIntoMarker;
       return this;
     }
 
@@ -177,14 +181,14 @@ public final class LocalActivityOptions {
   private final Duration localRetryThreshold;
   private final Duration startToCloseTimeout;
   private final RetryOptions retryOptions;
-  private boolean doNotIncludeArgumentsIntoMarker;
+  private Boolean doNotIncludeArgumentsIntoMarker;
 
   private LocalActivityOptions(
       Duration startToCloseTimeout,
       Duration localRetryThreshold,
       Duration scheduleToCloseTimeout,
       RetryOptions retryOptions,
-      boolean doNotIncludeArgumentsIntoMarker) {
+      Boolean doNotIncludeArgumentsIntoMarker) {
     this.localRetryThreshold = localRetryThreshold;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     this.startToCloseTimeout = startToCloseTimeout;
@@ -209,7 +213,7 @@ public final class LocalActivityOptions {
   }
 
   public boolean isDoNotIncludeArgumentsIntoMarker() {
-    return doNotIncludeArgumentsIntoMarker;
+    return (doNotIncludeArgumentsIntoMarker == null) ? false : doNotIncludeArgumentsIntoMarker;
   }
 
   public Builder toBuilder() {
@@ -250,7 +254,7 @@ public final class LocalActivityOptions {
         + ", retryOptions="
         + retryOptions
         + ", doNotIncludeArgumentsIntoMarker="
-        + doNotIncludeArgumentsIntoMarker
+        + doNotIncludeArgumentsIntoMarker.booleanValue()
         + '}';
   }
 }

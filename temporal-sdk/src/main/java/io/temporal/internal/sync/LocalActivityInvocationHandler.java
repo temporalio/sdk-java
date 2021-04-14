@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
@@ -29,12 +30,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
+@VisibleForTesting
+public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private final LocalActivityOptions options;
   private final Map<String, LocalActivityOptions> activityMethodOptions;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
 
-  static InvocationHandler newInstance(
+  @VisibleForTesting
+  public static InvocationHandler newInstance(
       Class<?> activityInterface,
       LocalActivityOptions options,
       Map<String, LocalActivityOptions> methodOptions,
@@ -54,8 +57,9 @@ class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
     init(activityInterface);
   }
 
+  @VisibleForTesting
   @Override
-  protected Function<Object[], Object> getActivityFunc(
+  public Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
     LocalActivityOptions mergedOptions =
