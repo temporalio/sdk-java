@@ -254,7 +254,7 @@ public final class LocalActivityOptions {
         + ", retryOptions="
         + retryOptions
         + ", doNotIncludeArgumentsIntoMarker="
-        + doNotIncludeArgumentsIntoMarker.booleanValue()
+        + isDoNotIncludeArgumentsIntoMarker()
         + '}';
   }
 }
