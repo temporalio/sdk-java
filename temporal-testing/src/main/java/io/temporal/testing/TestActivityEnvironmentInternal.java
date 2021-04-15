@@ -29,6 +29,7 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -49,6 +50,7 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.ActivityInvocationHandler;
 import io.temporal.internal.sync.ActivityInvocationHandlerBase;
 import io.temporal.internal.sync.DeterministicRunnerWrapper;
+import io.temporal.internal.sync.LocalActivityInvocationHandler;
 import io.temporal.internal.sync.POJOActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -185,7 +187,45 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             .build();
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, options, new TestActivityExecutor());
+            activityInterface, options, null, new TestActivityExecutor());
+    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
+  }
+
+  /**
+   * Creates client stub to activities that implement given interface.
+   *
+   * @param activityInterface interface type implemented by activities
+   * @param options options that specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
+   */
+  @Override
+  public <T> T newActivityStub(
+      Class<T> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> activityMethodOptions) {
+    InvocationHandler invocationHandler =
+        ActivityInvocationHandler.newInstance(
+            activityInterface, options, activityMethodOptions, new TestActivityExecutor());
+    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
+  }
+
+  /**
+   * Creates client stub to activities that implement given interface.
+   *
+   * @param activityInterface interface type implemented by activities
+   * @param options options that specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
+   */
+  @Override
+  public <T> T newLocalActivityStub(
+      Class<T> activityInterface,
+      LocalActivityOptions options,
+      Map<String, LocalActivityOptions> activityMethodOptions) {
+    InvocationHandler invocationHandler =
+        LocalActivityInvocationHandler.newInstance(
+            activityInterface, options, activityMethodOptions, new TestActivityExecutor());
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
@@ -261,8 +301,38 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
-      throw new UnsupportedOperationException("not implemented");
+    public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> i) {
+      Optional<Payloads> payloads =
+          testEnvironmentOptions
+              .getWorkflowClientOptions()
+              .getDataConverter()
+              .toPayloads(i.getArgs());
+      LocalActivityOptions options = i.getOptions();
+      PollActivityTaskQueueResponse.Builder taskBuilder =
+          PollActivityTaskQueueResponse.newBuilder()
+              .setScheduleToCloseTimeout(
+                  ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
+              .setStartToCloseTimeout(
+                  ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
+              .setScheduledTime(ProtobufTimeUtils.getCurrentProtoTime())
+              .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
+              .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
+              .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
+              .setWorkflowExecution(
+                  WorkflowExecution.newBuilder()
+                      .setWorkflowId("test-workflow-id")
+                      .setRunId(UUID.randomUUID().toString())
+                      .build())
+              .setActivityType(ActivityType.newBuilder().setName(i.getActivityName()).build());
+      if (payloads.isPresent()) {
+        taskBuilder.setInput(payloads.get());
+      }
+      PollActivityTaskQueueResponse task = taskBuilder.build();
+      Result taskResult =
+          activityTaskHandler.handle(
+              new ActivityTask(task, () -> {}), testEnvironmentOptions.getMetricsScope(), false);
+      return new LocalActivityOutput<>(
+          Workflow.newPromise(getReply(task, taskResult, i.getResultClass(), i.getResultType())));
     }
 
     @Override

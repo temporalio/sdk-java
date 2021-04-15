@@ -19,42 +19,54 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
-class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
+@VisibleForTesting
+public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private final LocalActivityOptions options;
+  private final Map<String, LocalActivityOptions> activityMethodOptions;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
 
-  static InvocationHandler newInstance(
+  @VisibleForTesting
+  public static InvocationHandler newInstance(
       Class<?> activityInterface,
       LocalActivityOptions options,
+      Map<String, LocalActivityOptions> methodOptions,
       WorkflowOutboundCallsInterceptor activityExecutor) {
-    return new LocalActivityInvocationHandler(activityInterface, activityExecutor, options);
+    return new LocalActivityInvocationHandler(
+        activityInterface, activityExecutor, options, methodOptions);
   }
 
   private LocalActivityInvocationHandler(
       Class<?> activityInterface,
       WorkflowOutboundCallsInterceptor activityExecutor,
-      LocalActivityOptions options) {
+      LocalActivityOptions options,
+      Map<String, LocalActivityOptions> methodOptions) {
     this.options = options;
+    this.activityMethodOptions = (methodOptions == null) ? new HashMap<>() : methodOptions;
     this.activityExecutor = activityExecutor;
     init(activityInterface);
   }
 
+  @VisibleForTesting
   @Override
-  protected Function<Object[], Object> getActivityFunc(
+  public Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
     LocalActivityOptions mergedOptions =
         LocalActivityOptions.newBuilder(options)
+            .mergeActivityOptions(activityMethodOptions.get(activityName))
             .setMethodRetry(methodRetry)
-            .validateAndBuildWithDefaults();
+            .build();
     ActivityStub stub = LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor);
     function =
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
