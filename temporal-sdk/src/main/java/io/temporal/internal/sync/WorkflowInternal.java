@@ -180,11 +180,20 @@ public final class WorkflowInternal {
    * Creates client stub to activities that implement given interface.
    *
    * @param activityInterface interface type implemented by activities
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
    */
-  public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
+  public static <T> T newActivityStub(
+      Class<T> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> activityMethodOptions) {
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, options, WorkflowInternal.getWorkflowInterceptor());
+            activityInterface,
+            options,
+            activityMethodOptions,
+            WorkflowInternal.getWorkflowInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -192,12 +201,20 @@ public final class WorkflowInternal {
    * Creates client stub to local activities that implement given interface.
    *
    * @param activityInterface interface type implemented by activities
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
    */
   public static <T> T newLocalActivityStub(
-      Class<T> activityInterface, LocalActivityOptions options) {
+      Class<T> activityInterface,
+      LocalActivityOptions options,
+      Map<String, LocalActivityOptions> activityMethodOptions) {
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(
-            activityInterface, options, WorkflowInternal.getWorkflowInterceptor());
+            activityInterface,
+            options,
+            activityMethodOptions,
+            WorkflowInternal.getWorkflowInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
