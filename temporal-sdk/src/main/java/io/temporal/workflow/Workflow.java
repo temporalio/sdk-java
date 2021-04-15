@@ -372,23 +372,38 @@ public final class Workflow {
   public static final int DEFAULT_VERSION = WorkflowInternal.DEFAULT_VERSION;
 
   /**
-   * Creates client stub to activities that implement given interface.
-   *
-   * @param activityInterface interface type implemented by activities.
-   * @param options options that together with the properties of {@link
-   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters.
-   */
-  public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    return WorkflowInternal.newActivityStub(activityInterface, options);
-  }
-
-  /**
    * Creates client stub to activities that implement given interface. `
    *
    * @param activityInterface interface type implemented by activities
    */
   public static <T> T newActivityStub(Class<T> activityInterface) {
-    return WorkflowInternal.newActivityStub(activityInterface, null);
+    return WorkflowInternal.newActivityStub(activityInterface, null, null);
+  }
+
+  /**
+   * Creates client stub to activities that implement given interface
+   *
+   * @param activityInterface interface type implemented by activities.
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   */
+  public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
+    return WorkflowInternal.newActivityStub(activityInterface, options, null);
+  }
+
+  /**
+   * Creates client stub to activities that implement given interface.
+   *
+   * @param activityInterface interface type implemented by activities
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
+   */
+  public static <T> T newActivityStub(
+      Class<T> activityInterface,
+      ActivityOptions options,
+      Map<String, ActivityOptions> activityMethodOptions) {
+    return WorkflowInternal.newActivityStub(activityInterface, options, activityMethodOptions);
   }
 
   /**
@@ -401,28 +416,43 @@ public final class Workflow {
   }
 
   /**
+   * Creates client stub to local activities that implement given interface.
+   *
+   * @param activityInterface interface type implemented by activities
+   */
+  public static <T> T newLocalActivityStub(Class<T> activityInterface) {
+    return WorkflowInternal.newLocalActivityStub(activityInterface, null, null);
+  }
+
+  /**
    * Creates client stub to local activities that implement given interface. A local activity is
    * similar to a regular activity, but with some key differences: 1. Local activity is scheduled
    * and run by the workflow worker locally. 2. Local activity does not need Temporal server to
    * schedule activity task and does not rely on activity worker. 3. Local activity is for short
    * living activities (usually finishes within seconds). 4. Local activity cannot heartbeat.
    *
-   * @param activityInterface interface type implemented by activities.
+   * @param activityInterface interface type implemented by activities
    * @param options options that together with the properties of {@link
    *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters.
    */
   public static <T> T newLocalActivityStub(
       Class<T> activityInterface, LocalActivityOptions options) {
-    return WorkflowInternal.newLocalActivityStub(activityInterface, options);
+    return WorkflowInternal.newLocalActivityStub(activityInterface, options, null);
   }
 
   /**
    * Creates client stub to local activities that implement given interface.
    *
    * @param activityInterface interface type implemented by activities
+   * @param options options that together with the properties of {@link
+   *     io.temporal.activity.ActivityMethod} specify the activity invocation parameters
+   * @param activityMethodOptions activity method-specific invocation parameters
    */
-  public static <T> T newLocalActivityStub(Class<T> activityInterface) {
-    return WorkflowInternal.newLocalActivityStub(activityInterface, null);
+  public static <T> T newLocalActivityStub(
+      Class<T> activityInterface,
+      LocalActivityOptions options,
+      Map<String, LocalActivityOptions> activityMethodOptions) {
+    return WorkflowInternal.newLocalActivityStub(activityInterface, options, activityMethodOptions);
   }
 
   /**

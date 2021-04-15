@@ -26,26 +26,33 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 @VisibleForTesting
 public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private final ActivityOptions options;
+  private final Map<String, ActivityOptions> activityMethodOptions;
   private final WorkflowOutboundCallsInterceptor activityExecutor;
 
   @VisibleForTesting
   public static InvocationHandler newInstance(
       Class<?> activityInterface,
       ActivityOptions options,
+      Map<String, ActivityOptions> methodOptions,
       WorkflowOutboundCallsInterceptor activityExecutor) {
-    return new ActivityInvocationHandler(activityInterface, activityExecutor, options);
+    return new ActivityInvocationHandler(
+        activityInterface, activityExecutor, options, methodOptions);
   }
 
   private ActivityInvocationHandler(
       Class<?> activityInterface,
       WorkflowOutboundCallsInterceptor activityExecutor,
-      ActivityOptions options) {
+      ActivityOptions options,
+      Map<String, ActivityOptions> methodOptions) {
     this.options = options;
+    this.activityMethodOptions = (methodOptions == null) ? new HashMap<>() : methodOptions;
     this.activityExecutor = activityExecutor;
     init(activityInterface);
   }
@@ -54,10 +61,12 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
-    ActivityOptions mergedOptions =
-        ActivityOptions.newBuilder(options).mergeMethodRetry(methodRetry).build();
-    ActivityStub stub = ActivityStubImpl.newInstance(mergedOptions, activityExecutor);
-
+    ActivityOptions merged =
+        ActivityOptions.newBuilder(options)
+            .mergeActivityOptions(this.activityMethodOptions.get(activityName))
+            .mergeMethodRetry(methodRetry)
+            .build();
+    ActivityStub stub = ActivityStubImpl.newInstance(merged, activityExecutor);
     function =
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
     return function;
