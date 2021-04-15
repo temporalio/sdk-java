@@ -50,7 +50,11 @@ final class LocalActivityStateMachine
 
   static final String LOCAL_ACTIVITY_MARKER_NAME = "LocalActivity";
   static final String MARKER_ACTIVITY_ID_KEY = "activityId";
+  static final String MARKER_ACTIVITY_TYPE_KEY = "type";
+  static final String MARKER_ACTIVITY_INPUT_KEY = "input";
+  static final String MARKER_ACTIVITY_RESULT_KEY = "result";
   static final String MARKER_TIME_KEY = "time";
+  // Deprecated in favor of result. Still present for backwards compatibility.
   static final String MARKER_DATA_KEY = "data";
 
   private final DataConverter dataConverter = DataConverter.getDefaultInstance();
@@ -205,8 +209,10 @@ final class LocalActivityStateMachine
 
   public void sendRequest() {
     localActivityRequestSink.apply(localActivityParameters);
-    localActivityParameters =
-        null; // avoid retaining parameters for the duration of activity execution
+    if (localActivityParameters.isDoNotIncludeArgumentsIntoMarker()) {
+      // avoid retaining parameters for the duration of activity execution
+      localActivityParameters = null;
+    }
   }
 
   public void markAsSent() {
@@ -231,16 +237,23 @@ final class LocalActivityStateMachine
       markerAttributes.setMarkerName(LOCAL_ACTIVITY_MARKER_NAME);
       Payloads id = dataConverter.toPayloads(activityId).get();
       details.put(MARKER_ACTIVITY_ID_KEY, id);
+      Payloads type = dataConverter.toPayloads(activityType.getName()).get();
+      details.put(MARKER_ACTIVITY_TYPE_KEY, type);
       // TODO(maxim): Consider using elapsed since start instead of Sytem.currentTimeMillis
       long currentTime = setCurrentTimeCallback.apply(System.currentTimeMillis());
       Payloads t = dataConverter.toPayloads(currentTime).get();
       details.put(MARKER_TIME_KEY, t);
+      if (localActivityParameters != null
+          && !localActivityParameters.isDoNotIncludeArgumentsIntoMarker()) {
+        details.put(
+            MARKER_ACTIVITY_INPUT_KEY, localActivityParameters.getActivityTask().getInput());
+      }
       if (result.getTaskCompleted() != null) {
         RespondActivityTaskCompletedRequest completed = result.getTaskCompleted();
         if (completed.hasResult()) {
           Payloads p = completed.getResult();
           laResult = Optional.of(p);
-          details.put(MARKER_DATA_KEY, p);
+          details.put(MARKER_ACTIVITY_RESULT_KEY, p);
         } else {
           laResult = Optional.empty();
         }
@@ -300,7 +313,12 @@ final class LocalActivityStateMachine
       callback.apply(null, attributes.getFailure());
       return;
     }
-    Optional<Payloads> fromMaker = Optional.ofNullable(map.get(MARKER_DATA_KEY));
+    Payloads result = map.get(MARKER_ACTIVITY_RESULT_KEY);
+    if (result == null) {
+      // Support old histories that used "data" as a key for "result".
+      result = map.get(MARKER_DATA_KEY);
+    }
+    Optional<Payloads> fromMaker = Optional.ofNullable(result);
     callback.apply(fromMaker, null);
   }
 

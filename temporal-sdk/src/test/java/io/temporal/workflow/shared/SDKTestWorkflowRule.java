@@ -20,13 +20,16 @@
 package io.temporal.workflow.shared;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
@@ -193,8 +196,53 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getTaskQueue();
   }
 
-  public History getWorkflowExecutionHistory(WorkflowExecution execution) {
+  public History getHistory(WorkflowExecution execution) {
     return testWorkflowRule.getWorkflowExecutionHistory(execution);
+  }
+
+  /** Returns list of all events of the given EventType found in the history. */
+  public List<HistoryEvent> getHistoryEvents(WorkflowExecution execution, EventType eventType) {
+    List<HistoryEvent> result = new ArrayList<>();
+    History history = getHistory(execution);
+    for (HistoryEvent event : history.getEventsList()) {
+      if (eventType == event.getEventType()) {
+        result.add(event);
+      }
+    }
+    return result;
+  }
+
+  /** Returns the first event of the given EventType found in the history. */
+  public HistoryEvent getHistoryEvent(WorkflowExecution execution, EventType eventType) {
+    List<HistoryEvent> result = new ArrayList<>();
+    History history = getHistory(execution);
+    for (HistoryEvent event : history.getEventsList()) {
+      if (eventType == event.getEventType()) {
+        return event;
+      }
+    }
+    throw new IllegalArgumentException("No event of " + eventType + " found in the history");
+  }
+
+  /** Asserts that an event of the given EventType is found in the history. */
+  public void assertHistoryEvent(WorkflowExecution execution, EventType eventType) {
+    History history = getHistory(execution);
+    for (HistoryEvent event : history.getEventsList()) {
+      if (eventType == event.getEventType()) {
+        return;
+      }
+    }
+    fail("No event of " + eventType + " found in the history");
+  }
+
+  /** Asserts that an event of the given EventType is not found in the history. */
+  public void assertNoHistoryEvent(WorkflowExecution execution, EventType eventType) {
+    History history = getHistory(execution);
+    for (HistoryEvent event : history.getEventsList()) {
+      if (eventType == event.getEventType()) {
+        fail("Event of " + eventType + " found in the history");
+      }
+    }
   }
 
   public WorkflowClient getWorkflowClient() {
