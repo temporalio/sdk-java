@@ -155,6 +155,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private <T> void registerWorkflowImplementationType(
       WorkflowImplementationOptions options, Class<T> workflowImplementationClass) {
+    if (options.getActivityOptions() != null) {
+      Workflow.setDefaultActivityOptions(workflowImplementationClass.getName(), options.getActivityOptions());
+    }
+    if (options.getActivityToMethodOptions() != null) {
+      Workflow.setActivityMethodOptions(workflowImplementationClass.getName(), options.getActivityToMethodOptions());
+    }
     if (DynamicWorkflow.class.isAssignableFrom(workflowImplementationClass)) {
       addWorkflowImplementationFactory(
           options,
