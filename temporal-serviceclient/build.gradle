@@ -10,7 +10,7 @@ plugins {
     id 'com.google.protobuf' version '0.8.15'
     id 'java-library'
     id 'net.ltgt.errorprone' version '2.0.1'
-    id 'net.minecrell.licenser' version '0.4.1'
+    id 'org.cadixdev.licenser' version '0.5.1'
     id 'maven-publish'
     id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
