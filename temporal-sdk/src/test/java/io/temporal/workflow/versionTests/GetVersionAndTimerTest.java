@@ -77,23 +77,16 @@ public class GetVersionAndTimerTest {
   abstract static class TimedWorkflowImpl implements TimedWorkflow {
     @Override
     public Instant startAndWait() {
-      Workflow.newTimer(Duration.ofMinutes(10))
+      getVersion();
+
+      Workflow.newTimer(Duration.ofMinutes(1))
           .thenApply(
               (v) -> {
                 getVersion();
                 return v;
               });
 
-      Workflow.sleep(Duration.ofHours(1));
-
-      Workflow.newTimer(Duration.ofMinutes(10))
-          .thenApply(
-              (v) -> {
-                getVersion();
-                return v;
-              });
-
-      Workflow.sleep(Duration.ofHours(1));
+      Workflow.sleep(Duration.ofHours(2));
 
       return Instant.ofEpochMilli(Workflow.currentTimeMillis());
     }
