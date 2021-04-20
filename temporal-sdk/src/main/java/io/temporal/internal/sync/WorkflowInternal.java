@@ -58,6 +58,7 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -188,11 +189,23 @@ public final class WorkflowInternal {
       Class<T> activityInterface,
       ActivityOptions options,
       Map<String, ActivityOptions> activityMethodOptions) {
+    // Merge the activity options we may have received from the workflow with the options we may
+    // have received in WorkflowImplementationOptions.
+    Map<String, ActivityOptions> mergedActivityOptionsMap = new Hashtable<>();
+    if (getRootWorkflowContext().getActivityOptions() != null) {
+      mergedActivityOptionsMap.putAll(getRootWorkflowContext().getActivityOptions());
+    }
+    if (activityMethodOptions != null) {
+      activityMethodOptions.forEach(
+          (key, value) ->
+              mergedActivityOptionsMap.merge(
+                  key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+    }
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface,
             options,
-            activityMethodOptions,
+            mergedActivityOptionsMap,
             WorkflowInternal.getWorkflowInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
@@ -304,6 +317,10 @@ public final class WorkflowInternal {
       return null; // ignored
     }
     return result.get();
+  }
+
+  public static void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
+    getWorkflowInterceptor().setActivityOptions(activityOptionsMap);
   }
 
   private static WorkflowOutboundCallsInterceptor getWorkflowInterceptor() {

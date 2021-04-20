@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.interceptors.*;
 import io.temporal.workflow.Functions;
@@ -143,6 +144,9 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
     }
+
+    @Override
+    public void setActivityOptions(Map<String, ActivityOptions> activityOptions) {}
 
     @Override
     public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {

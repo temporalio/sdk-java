@@ -32,7 +32,6 @@ import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -371,10 +370,6 @@ import org.slf4j.Logger;
  */
 public final class Workflow {
   public static final int DEFAULT_VERSION = WorkflowInternal.DEFAULT_VERSION;
-  public static Map<String, Map<String, ActivityOptions>> DEFAULT_ACTIVITY_OPTIONS =
-      new HashMap<>();
-  public static Map<String, Map<String, Map<String, ActivityOptions>>> ACTIVITY_METHOD_OPTIONS =
-      new HashMap<>();
 
   /**
    * Creates client stub to activities that implement given interface. `
@@ -468,24 +463,6 @@ public final class Workflow {
    */
   public static ActivityStub newUntypedLocalActivityStub(LocalActivityOptions options) {
     return WorkflowInternal.newUntypedLocalActivityStub(options);
-  }
-
-  /**
-   * Sets default options for all methods per activity
-   * @param workflowImplementationClass workflow type
-   * @param activityOptions map activity type -> default options for that activity
-   */
-  public static void setDefaultActivityOptions(String workflowImplementationClass, Map<String, ActivityOptions> activityOptions) {
-    DEFAULT_ACTIVITY_OPTIONS.put(workflowImplementationClass, activityOptions);
-  }
-
-  /**
-   * Sets per methods per activity options in a workflow
-   * @param workflowImplementationClass workflow type
-   * @param activityMethodOptions map<activity <activityMethod, ActivityOptions> special options per activity method
-   */
-  public static void setActivityMethodOptions(String workflowImplementationClass, Map<String, Map<String, ActivityOptions>> activityMethodOptions) {
-    ACTIVITY_METHOD_OPTIONS.put(workflowImplementationClass, activityMethodOptions);
   }
 
   /**

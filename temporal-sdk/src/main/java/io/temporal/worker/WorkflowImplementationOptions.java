@@ -21,6 +21,7 @@ package io.temporal.worker;
 
 import io.temporal.activity.ActivityOptions;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 public final class WorkflowImplementationOptions {
@@ -43,7 +44,6 @@ public final class WorkflowImplementationOptions {
 
     private Class<? extends Throwable>[] failWorkflowExceptionTypes;
     private Map<String, ActivityOptions> activityOptions;
-    private Map<String, Map<String, ActivityOptions>> activityToMethodOptions;
 
     private Builder() {}
 
@@ -73,31 +73,21 @@ public final class WorkflowImplementationOptions {
       return this;
     }
 
-    public Builder setActivityMethodOptions(
-        Map<String, Map<String, ActivityOptions>> activityMethodOptions) {
-      this.activityToMethodOptions = activityMethodOptions;
-      return this;
-    }
-
     public WorkflowImplementationOptions build() {
       return new WorkflowImplementationOptions(
           failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes,
-          null,
-          null);
+          activityOptions == null ? new HashMap<>() : activityOptions);
     }
   }
 
   private final Class<? extends Throwable>[] failWorkflowExceptionTypes;
-  private final Map<String, ActivityOptions> activityOptions;
-  private final Map<String, Map<String, ActivityOptions>> activityToMethodOptions;
+  private final Map<String, ActivityOptions> activityOptions;;
 
   public WorkflowImplementationOptions(
       Class<? extends Throwable>[] failWorkflowExceptionTypes,
-      Map<String, ActivityOptions> activityOptions,
-      Map<String, Map<String, ActivityOptions>> activityToMethodOptions) {
+      Map<String, ActivityOptions> activityOptions) {
     this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
     this.activityOptions = activityOptions;
-    this.activityToMethodOptions = activityToMethodOptions;
   }
 
   public Class<? extends Throwable>[] getFailWorkflowExceptionTypes() {
@@ -108,20 +98,12 @@ public final class WorkflowImplementationOptions {
     return activityOptions;
   }
 
-  public Map<String, Map<String, ActivityOptions>> getActivityToMethodOptions() {
-    return activityToMethodOptions;
-  }
-
   @Override
   public String toString() {
-    return "WorkflowImplementationOptions{"
-        + "failWorkflowExceptionTypes="
-        + Arrays.toString(failWorkflowExceptionTypes)
-        + "activityOptions="
-        + activityOptions.toString()
-        + "activityToMethodOptions="
-        + activityToMethodOptions.toString()
-        + '}';
+    String activityOpsStr = (activityOptions == null) ? "{}" : activityOptions.toString();
+    return String.format(
+        "WorkflowImplementationOptions{failWorkflowExceptionTypes=%s,activityOptions=%s}",
+        Arrays.toString(failWorkflowExceptionTypes), activityOpsStr);
   }
 
   @Override
@@ -130,8 +112,7 @@ public final class WorkflowImplementationOptions {
     if (o == null || getClass() != o.getClass()) return false;
     WorkflowImplementationOptions that = (WorkflowImplementationOptions) o;
     return Arrays.equals(failWorkflowExceptionTypes, that.failWorkflowExceptionTypes)
-        && activityOptions.equals(that.activityOptions)
-        && activityToMethodOptions.equals(that.getActivityToMethodOptions());
+        && activityOptions.equals(that.activityOptions);
   }
 
   @Override

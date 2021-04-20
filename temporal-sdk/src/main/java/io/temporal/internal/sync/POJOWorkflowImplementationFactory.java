@@ -155,12 +155,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private <T> void registerWorkflowImplementationType(
       WorkflowImplementationOptions options, Class<T> workflowImplementationClass) {
-    if (options.getActivityOptions() != null) {
-      Workflow.setDefaultActivityOptions(workflowImplementationClass.getName(), options.getActivityOptions());
-    }
-    if (options.getActivityToMethodOptions() != null) {
-      Workflow.setActivityMethodOptions(workflowImplementationClass.getName(), options.getActivityToMethodOptions());
-    }
     if (DynamicWorkflow.class.isAssignableFrom(workflowImplementationClass)) {
       addWorkflowImplementationFactory(
           options,
@@ -301,6 +295,19 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         workflow = factory.apply();
       } else {
         try {
+          // Get activity options from WorkflowImplementationOptions and store them in this
+          // thread context before activity stubs are created.
+          Map<String, WorkflowImplementationOptions> workflowImplementationOptionsMap =
+              POJOWorkflowImplementationFactory.this.implementationOptions;
+          // TODO: Is there a better way to get a proper workflow type here?
+          WorkflowImplementationOptions workflowImplementationOptions =
+              workflowImplementationOptionsMap.get(
+                  workflowMethod.getDeclaringClass().getSimpleName());
+          if (workflowImplementationOptions != null) {
+            WorkflowInternal.getRootWorkflowContext()
+                .setActivityOptions(workflowImplementationOptions.getActivityOptions());
+          }
+
           workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
         } catch (NoSuchMethodException
             | InstantiationException

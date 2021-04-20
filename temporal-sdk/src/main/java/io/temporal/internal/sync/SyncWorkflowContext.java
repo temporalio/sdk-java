@@ -71,6 +71,7 @@ import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -93,6 +94,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private final QueryDispatcher queryDispatcher;
   private final Optional<Payloads> lastCompletionResult;
   private final Optional<Failure> lastFailure;
+  private final Map<String, ActivityOptions> activityOptionsMap;
 
   public SyncWorkflowContext(
       ReplayWorkflowContext context,
@@ -107,6 +109,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     this.lastFailure = lastFailure;
     this.signalDispatcher = new SignalDispatcher(converter);
     this.queryDispatcher = new QueryDispatcher(converter);
+    this.activityOptionsMap = new Hashtable<>();
   }
 
   /**
@@ -131,6 +134,15 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       runner.setInterceptorHead(head);
       this.headInterceptor = head;
     }
+  }
+
+  @Override
+  public void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
+    this.activityOptionsMap.putAll(activityOptionsMap);
+  }
+
+  public Map<String, ActivityOptions> getActivityOptions() {
+    return this.activityOptionsMap;
   }
 
   @Override
