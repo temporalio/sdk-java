@@ -58,7 +58,7 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -191,7 +191,8 @@ public final class WorkflowInternal {
       Map<String, ActivityOptions> activityMethodOptions) {
     // Merge the activity options we may have received from the workflow with the options we may
     // have received in WorkflowImplementationOptions.
-    Map<String, ActivityOptions> mergedActivityOptionsMap = new Hashtable<>();
+    options = (options == null) ? getRootWorkflowContext().getDefaultActivityOptions() : options;
+    Map<String, ActivityOptions> mergedActivityOptionsMap = new HashMap<>();
     if (getRootWorkflowContext().getActivityOptions() != null) {
       mergedActivityOptionsMap.putAll(getRootWorkflowContext().getActivityOptions());
     }

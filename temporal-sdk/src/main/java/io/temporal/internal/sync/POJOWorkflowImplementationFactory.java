@@ -143,7 +143,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           }
           workflowDefinitions.put(
               workflowName,
-              () -> new POJOWorkflowImplementation(clazz, methodMetadata.getWorkflowMethod()));
+              () ->
+                  new POJOWorkflowImplementation(
+                      clazz, methodMetadata.getName(), methodMetadata.getWorkflowMethod()));
           implementationOptions.put(workflowName, options);
           break;
         case SIGNAL:
@@ -185,11 +187,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         continue;
       }
       POJOWorkflowMethodMetadata methodMetadata = workflowMethod.get();
+      String workflowName = methodMetadata.getName();
       Method method = methodMetadata.getWorkflowMethod();
       Functions.Func<SyncWorkflowDefinition> factory =
-          () -> new POJOWorkflowImplementation(workflowImplementationClass, method);
+          () -> new POJOWorkflowImplementation(workflowImplementationClass, workflowName, method);
 
-      String workflowName = methodMetadata.getName();
       if (workflowDefinitions.containsKey(workflowName)) {
         throw new IllegalStateException(
             workflowName + " workflow type is already registered with the worker");
@@ -247,12 +249,15 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private class POJOWorkflowImplementation implements SyncWorkflowDefinition {
 
+    private final String workflowName;
     private final Method workflowMethod;
     private final Class<?> workflowImplementationClass;
     private Object workflow;
     private WorkflowInboundCallsInterceptor workflowInvoker;
 
-    public POJOWorkflowImplementation(Class<?> workflowImplementationClass, Method workflowMethod) {
+    public POJOWorkflowImplementation(
+        Class<?> workflowImplementationClass, String workflowName, Method workflowMethod) {
+      this.workflowName = workflowName;
       this.workflowMethod = workflowMethod;
       this.workflowImplementationClass = workflowImplementationClass;
     }
@@ -299,11 +304,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           // thread context before activity stubs are created.
           Map<String, WorkflowImplementationOptions> workflowImplementationOptionsMap =
               POJOWorkflowImplementationFactory.this.implementationOptions;
-          // TODO: Is there a better way to get a proper workflow type here?
           WorkflowImplementationOptions workflowImplementationOptions =
-              workflowImplementationOptionsMap.get(
-                  workflowMethod.getDeclaringClass().getSimpleName());
+              workflowImplementationOptionsMap.get(workflowName);
           if (workflowImplementationOptions != null) {
+            WorkflowInternal.getRootWorkflowContext()
+                .setDefaultActivityOptions(
+                    workflowImplementationOptions.getDefaultActivityOptions());
             WorkflowInternal.getRootWorkflowContext()
                 .setActivityOptions(workflowImplementationOptions.getActivityOptions());
           }

@@ -45,6 +45,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
+  public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
+    next.setDefaultActivityOptions(defaultActivityOptions);
+  }
+
+  @Override
   public void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
     next.setActivityOptions(activityOptionsMap);
   }

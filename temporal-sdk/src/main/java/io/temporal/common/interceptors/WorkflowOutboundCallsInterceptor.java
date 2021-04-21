@@ -442,6 +442,8 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
+  void setDefaultActivityOptions(ActivityOptions defaultActivityOptions);
+
   void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap);
 
   <R> ActivityOutput<R> executeActivity(ActivityInput<R> input);

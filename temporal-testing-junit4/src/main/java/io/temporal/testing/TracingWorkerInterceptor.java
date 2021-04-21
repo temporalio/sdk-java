@@ -146,6 +146,9 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {}
+
+    @Override
     public void setActivityOptions(Map<String, ActivityOptions> activityOptions) {}
 
     @Override

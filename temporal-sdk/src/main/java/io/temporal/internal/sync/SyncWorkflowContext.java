@@ -71,7 +71,6 @@ import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -86,15 +85,16 @@ import java.util.function.Supplier;
 final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   private final ReplayWorkflowContext context;
-  private DeterministicRunner runner;
   private final DataConverter converter;
   private final List<ContextPropagator> contextPropagators;
-  private WorkflowOutboundCallsInterceptor headInterceptor;
   private final SignalDispatcher signalDispatcher;
   private final QueryDispatcher queryDispatcher;
   private final Optional<Payloads> lastCompletionResult;
   private final Optional<Failure> lastFailure;
   private final Map<String, ActivityOptions> activityOptionsMap;
+  private WorkflowOutboundCallsInterceptor headInterceptor;
+  private ActivityOptions defaultActivityOptions;
+  private DeterministicRunner runner;
 
   public SyncWorkflowContext(
       ReplayWorkflowContext context,
@@ -109,7 +109,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     this.lastFailure = lastFailure;
     this.signalDispatcher = new SignalDispatcher(converter);
     this.queryDispatcher = new QueryDispatcher(converter);
-    this.activityOptionsMap = new Hashtable<>();
+    this.defaultActivityOptions = null;
+    this.activityOptionsMap = new HashMap<>();
   }
 
   /**
@@ -134,6 +135,15 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       runner.setInterceptorHead(head);
       this.headInterceptor = head;
     }
+  }
+
+  @Override
+  public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
+    this.defaultActivityOptions = defaultActivityOptions;
+  }
+
+  public ActivityOptions getDefaultActivityOptions() {
+    return this.defaultActivityOptions;
   }
 
   @Override
