@@ -39,6 +39,7 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
   public JacksonJsonPayloadConverter() {
     mapper = new ObjectMapper();
     mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+    mapper.configure(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS, false);
     mapper.registerModule(new JavaTimeModule());
     mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
   }

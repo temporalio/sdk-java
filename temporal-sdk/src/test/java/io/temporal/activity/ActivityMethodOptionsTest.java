@@ -21,9 +21,10 @@ package io.temporal.activity;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.testing.TestActivityEnvironment;
+import io.temporal.workflow.shared.TestActivities.TestActivity;
+import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Map;
 import org.junit.Assert;
 import org.junit.Before;
@@ -61,7 +62,7 @@ public class ActivityMethodOptionsTest {
   private static final Map<String, ActivityOptions> perMethodOptionsMap =
       new HashMap<String, ActivityOptions>() {
         {
-          put("Method1", methodOps2);
+          put("Activity1", methodOps2);
         }
       };
   private TestActivityEnvironment testEnv;
@@ -84,12 +85,12 @@ public class ActivityMethodOptionsTest {
 
   @Test
   public void testActivityMethodOptions() {
-    testEnv.registerActivitiesImplementations(new ActivityImpl());
+    testEnv.registerActivitiesImplementations(new TestActivityImpl());
     TestActivity activity =
         testEnv.newActivityStub(TestActivity.class, defaultOps, perMethodOptionsMap);
 
     // Check that options for method1 were merged.
-    Map<String, Duration> method1OpsValues = activity.method1();
+    Map<String, Duration> method1OpsValues = activity.activity1();
     Assert.assertEquals(methodOps2.getHeartbeatTimeout(), method1OpsValues.get("HeartbeatTimeout"));
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), method1OpsValues.get("ScheduleToCloseTimeout"));
@@ -97,52 +98,11 @@ public class ActivityMethodOptionsTest {
         methodOps2.getStartToCloseTimeout(), method1OpsValues.get("StartToCloseTimeout"));
 
     // Check that options for method2 were default.
-    Map<String, Duration> method2OpsValues = activity.method2();
+    Map<String, Duration> method2OpsValues = activity.activity2();
     Assert.assertEquals(defaultOps.getHeartbeatTimeout(), method2OpsValues.get("HeartbeatTimeout"));
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), method2OpsValues.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
         defaultOps.getStartToCloseTimeout(), method2OpsValues.get("StartToCloseTimeout"));
-  }
-
-  @ActivityInterface
-  public interface TestActivity {
-
-    @ActivityMethod
-    Map<String, Duration> method1();
-
-    @ActivityMethod
-    Map<String, Duration> method2();
-  }
-
-  private static class ActivityImpl implements TestActivity {
-
-    @Override
-    public Map<String, Duration> method1() {
-      ActivityInfo info = Activity.getExecutionContext().getInfo();
-      Hashtable<String, Duration> result =
-          new Hashtable<String, Duration>() {
-            {
-              put("HeartbeatTimeout", info.getHeartbeatTimeout());
-              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-              put("StartToCloseTimeout", info.getStartToCloseTimeout());
-            }
-          };
-      return result;
-    }
-
-    @Override
-    public Map<String, Duration> method2() {
-      ActivityInfo info = Activity.getExecutionContext().getInfo();
-      Hashtable<String, Duration> result =
-          new Hashtable<String, Duration>() {
-            {
-              put("HeartbeatTimeout", info.getHeartbeatTimeout());
-              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-              put("StartToCloseTimeout", info.getStartToCloseTimeout());
-            }
-          };
-      return result;
-    }
   }
 }

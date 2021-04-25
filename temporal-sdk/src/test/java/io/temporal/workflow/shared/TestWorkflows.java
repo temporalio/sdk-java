@@ -26,6 +26,7 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.List;
+import java.util.Map;
 
 public class TestWorkflows {
   @WorkflowInterface
@@ -55,6 +56,13 @@ public class TestWorkflows {
 
     @QueryMethod(name = "getTrace")
     List<String> getTrace();
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflow3 {
+
+    @WorkflowMethod
+    Map execute();
   }
 
   @WorkflowInterface

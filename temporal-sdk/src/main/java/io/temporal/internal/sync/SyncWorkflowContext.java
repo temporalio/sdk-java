@@ -143,7 +143,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   public ActivityOptions getDefaultActivityOptions() {
-    return this.defaultActivityOptions;
+    return defaultActivityOptions;
   }
 
   @Override
@@ -152,7 +152,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   public Map<String, ActivityOptions> getActivityOptions() {
-    return this.activityOptionsMap;
+    return activityOptionsMap;
   }
 
   @Override
