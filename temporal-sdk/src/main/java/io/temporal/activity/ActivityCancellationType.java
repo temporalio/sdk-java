@@ -23,23 +23,23 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.CancellationScope;
 
 /**
- * Defines behaviour of the parent workflow when {@link CancellationScope} that wraps child workflow
- * execution request is canceled. The result of the cancellation independently of the type is a
- * {@link CanceledFailure} thrown from the child workflow method.
+ * Defines behaviour of the parent Workflow when {@link CancellationScope} that wraps child Workflow
+ * execution request is canceled. The result of the cancellation (independently of the type), is a
+ * {@link CanceledFailure} thrown from the child Workflow method.
  */
 public enum ActivityCancellationType {
   /**
-   * Wait for activity cancellation completion. Note that activity must heartbeat to receive a
-   * cancellation notification. This can block the cancellation for a long time if activity doesn't
+   * Wait for Activity cancellation completion. Note that Activity must heartbeat to receive a
+   * cancellation notification. This can block the cancellation for a long time if Activity doesn't
    * heartbeat or chooses to ignore the cancellation request.
    */
   WAIT_CANCELLATION_COMPLETED,
 
-  /** Initiate a cancellation request and immediately report cancellation to the workflow. */
+  /** Initiate a cancellation request and immediately report cancellation to the Workflow. */
   TRY_CANCEL,
 
   /**
-   * Do not request cancellation of the activity and immediately report cancellation to the workflow
+   * Do not request cancellation of the Activity and immediately report cancellation to the Workflow.
    */
   ABANDON,
 }

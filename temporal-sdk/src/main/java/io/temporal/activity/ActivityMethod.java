@@ -25,19 +25,19 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that the method is an activity method. This annotation applies only to activity
- * interface methods. Not required. Use it to override default activity type name.
+ * Indicates that the method is an Activity method. This annotation applies only to Activity
+ * interface methods. Not required. Use it to override default Activity type name.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface ActivityMethod {
 
   /**
-   * Name of the activity type. Default is method name. Also consider using {@link
+   * Name of the Activity type. Default is method name. Also consider using {@link
    * ActivityInterface#namePrefix()}. Note that the prefix is ignored if the name is specified.
    *
    * <p>Be careful about names that contain special characters. These names can be used as metric
-   * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
+   * tags. And systems like Prometheus ignore metrics which have tags with unsupported characters.
    */
   String name() default "";
 }
