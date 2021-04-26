@@ -19,6 +19,8 @@
 
 package io.temporal.internal.worker;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,7 +137,19 @@ public final class PollerOptions {
 
     public PollerOptions build() {
       if (uncaughtExceptionHandler == null) {
-        uncaughtExceptionHandler = (t, e) -> log.error("uncaught exception", e);
+        uncaughtExceptionHandler =
+            (t, e) -> {
+              if (e instanceof RuntimeException
+                  && e.getCause() != null
+                  && e.getCause() instanceof StatusRuntimeException) {
+                StatusRuntimeException sre = (StatusRuntimeException) e.getCause();
+                if (sre.getStatus().getCode() == Status.Code.INVALID_ARGUMENT) {
+                  log.warn("Uncaught exception", e);
+                }
+              } else {
+                log.error("uncaught exception", e);
+              }
+            };
       }
       return new PollerOptions(
           maximumPollRateIntervalMilliseconds,
