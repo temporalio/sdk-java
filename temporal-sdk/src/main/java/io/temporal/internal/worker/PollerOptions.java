@@ -144,7 +144,7 @@ public final class PollerOptions {
                   && e.getCause() instanceof StatusRuntimeException) {
                 StatusRuntimeException sre = (StatusRuntimeException) e.getCause();
                 if (sre.getStatus().getCode() == Status.Code.INVALID_ARGUMENT) {
-                  log.warn("Uncaught exception", e);
+                  log.info("Uncaught exception", e);
                 }
               } else {
                 log.error("uncaught exception", e);
