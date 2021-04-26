@@ -43,7 +43,6 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
               WorkflowImplementationOptions.getDefaultInstance(),
               TestSetNullActivityOptionsWorkflowImpl.class)
           .setActivityImplementations(new TestActivityImpl())
-          .setTestTimeoutSeconds(1000)
           .build();
 
   @Test
