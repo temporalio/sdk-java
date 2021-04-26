@@ -7,7 +7,7 @@ buildscript {
 }
 
 plugins {
-    id 'com.google.protobuf' version '0.8.15'
+    id 'com.google.protobuf' version '0.8.16'
     id 'java-library'
     id 'net.ltgt.errorprone' version '2.0.1'
     id 'org.cadixdev.licenser' version '0.5.1'
