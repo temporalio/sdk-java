@@ -300,20 +300,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         workflow = factory.apply();
       } else {
         try {
-          // Get activity options from WorkflowImplementationOptions and store them in this
-          // thread context before activity stubs are created.
-          Map<String, WorkflowImplementationOptions> workflowImplementationOptionsMap =
-              POJOWorkflowImplementationFactory.this.implementationOptions;
-          WorkflowImplementationOptions workflowImplementationOptions =
-              workflowImplementationOptionsMap.get(workflowName);
-          if (workflowImplementationOptions != null) {
-            WorkflowInternal.getRootWorkflowContext()
-                .setDefaultActivityOptions(
-                    workflowImplementationOptions.getDefaultActivityOptions());
-            WorkflowInternal.getRootWorkflowContext()
-                .setActivityOptions(workflowImplementationOptions.getActivityOptions());
-          }
-
           workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
         } catch (NoSuchMethodException
             | InstantiationException

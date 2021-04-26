@@ -19,7 +19,6 @@
 
 package io.temporal.workflow.interceptors;
 
-import io.temporal.activity.ActivityOptions;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
@@ -46,16 +45,6 @@ public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundC
     this.overrideArgs = overrideArgs;
     this.overrideSignalName = overrideSignalName;
     this.next = Objects.requireNonNull(next);
-  }
-
-  @Override
-  public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
-    next.setDefaultActivityOptions(defaultActivityOptions);
-  }
-
-  @Override
-  public void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
-    next.setActivityOptions(activityOptionsMap);
   }
 
   @Override

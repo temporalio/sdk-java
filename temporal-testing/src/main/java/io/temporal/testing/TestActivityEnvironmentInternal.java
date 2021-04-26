@@ -336,16 +336,6 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public void setActivityOptions(Map<String, ActivityOptions> unused) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
     public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
       throw new UnsupportedOperationException("not implemented");
     }

@@ -320,10 +320,6 @@ public final class WorkflowInternal {
     return result.get();
   }
 
-  public static void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
-    getWorkflowInterceptor().setActivityOptions(activityOptionsMap);
-  }
-
   private static WorkflowOutboundCallsInterceptor getWorkflowInterceptor() {
     return DeterministicRunnerImpl.currentThreadInternal()
         .getWorkflowContext()

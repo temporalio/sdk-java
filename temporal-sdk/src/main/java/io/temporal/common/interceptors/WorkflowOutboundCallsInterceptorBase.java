@@ -19,7 +19,6 @@
 
 package io.temporal.common.interceptors;
 
-import io.temporal.activity.ActivityOptions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
@@ -42,16 +41,6 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   @Override
   public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {
     return next.executeActivity(input);
-  }
-
-  @Override
-  public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
-    next.setDefaultActivityOptions(defaultActivityOptions);
-  }
-
-  @Override
-  public void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
-    next.setActivityOptions(activityOptionsMap);
   }
 
   @Override

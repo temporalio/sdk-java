@@ -25,7 +25,7 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,61 +33,47 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowImplementationOptionsTest {
-
-  public static final ActivityOptions defaultOps = TestOptions.newActivityOptions1();
-  private static final ActivityOptions activityOps2 =
-      TestOptions.newActivityOptions20sScheduleToClose();
-
-  Map<String, ActivityOptions> activity2MethodOptions =
-      new HashMap<String, ActivityOptions>() {
-        {
-          put("Activity2", activityOps2);
-        }
-      };
+public class DefaultActivityOptionsNotSetTest {
+  private final ActivityOptions defaultOps = TestOptions.newActivityOptions20sScheduleToClose();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
-              WorkflowImplementationOptions.newBuilder()
-                  .setDefaultActivityOptions(defaultOps)
-                  .setActivityOptions(activity2MethodOptions)
-                  .build(),
-              TestSetDefaultActivityOptionsWorkflowImpl.class)
+              WorkflowImplementationOptions.getDefaultInstance(),
+              TestSetNullActivityOptionsWorkflowImpl.class)
           .setActivityImplementations(new TestActivityImpl())
+          .setTestTimeoutSeconds(1000)
           .build();
 
   @Test
-  public void testSetWorkflowImplementationOptions() {
-    TestWorkflow3 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow3.class);
+  public void testDefaultActivityOptionsNotSetTest() {
+    TestWorkflows.TestWorkflow3 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow3.class);
     Map<String, Map<String, Duration>> result = workflowStub.execute();
 
-    // Check that activity1 has default options.
+    // Check that both activities have options passed in the stub.
     Map<String, Duration> activity1Values = result.get("Activity1");
-    Assert.assertEquals(defaultOps.getHeartbeatTimeout(), activity1Values.get("HeartbeatTimeout"));
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), activity1Values.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
         defaultOps.getStartToCloseTimeout(), activity1Values.get("StartToCloseTimeout"));
 
-    // Check that default options for activity2 were overwritten.
-    // Note that if scheduleToStartTimeout or startToCloseTimeout are null, they are set to the
-    // scheduleToCloseTimeout value.
     Map<String, Duration> activity2Values = result.get("Activity2");
-    Assert.assertEquals(defaultOps.getHeartbeatTimeout(), activity2Values.get("HeartbeatTimeout"));
     Assert.assertEquals(
-        activityOps2.getScheduleToCloseTimeout(), activity2Values.get("ScheduleToCloseTimeout"));
+        defaultOps.getScheduleToCloseTimeout(), activity2Values.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
-        activityOps2.getStartToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
+        defaultOps.getStartToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
   }
 
-  public static class TestSetDefaultActivityOptionsWorkflowImpl implements TestWorkflow3 {
+  public static class TestSetNullActivityOptionsWorkflowImpl
+      implements TestWorkflows.TestWorkflow3 {
     @Override
     public Map<String, Map<String, Duration>> execute() {
       Map<String, Map<String, Duration>> result = new HashMap<>();
-      TestActivity activities = Workflow.newActivityStub(TestActivity.class);
+      TestActivity activities =
+          Workflow.newActivityStub(
+              TestActivity.class, TestOptions.newActivityOptions20sScheduleToClose());
       result.put("Activity1", activities.activity1());
       result.put("Activity2", activities.activity2());
       return result;

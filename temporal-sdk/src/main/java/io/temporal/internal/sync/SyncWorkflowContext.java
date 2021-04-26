@@ -60,6 +60,7 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.CompletablePromise;
@@ -91,13 +92,24 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private final QueryDispatcher queryDispatcher;
   private final Optional<Payloads> lastCompletionResult;
   private final Optional<Failure> lastFailure;
-  private final Map<String, ActivityOptions> activityOptionsMap;
   private WorkflowOutboundCallsInterceptor headInterceptor;
-  private ActivityOptions defaultActivityOptions;
   private DeterministicRunner runner;
+
+  private ActivityOptions defaultActivityOptions = null;
+  private Map<String, ActivityOptions> activityOptionsMap = new HashMap<>();
 
   public SyncWorkflowContext(
       ReplayWorkflowContext context,
+      DataConverter converter,
+      List<ContextPropagator> contextPropagators,
+      Optional<Payloads> lastCompletionResult,
+      Optional<Failure> lastFailure) {
+    this(context, null, converter, contextPropagators, lastCompletionResult, lastFailure);
+  }
+
+  public SyncWorkflowContext(
+      ReplayWorkflowContext context,
+      WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
       Optional<Payloads> lastCompletionResult,
@@ -109,8 +121,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     this.lastFailure = lastFailure;
     this.signalDispatcher = new SignalDispatcher(converter);
     this.queryDispatcher = new QueryDispatcher(converter);
-    this.defaultActivityOptions = null;
-    this.activityOptionsMap = new HashMap<>();
+    if (workflowImplementationOptions != null) {
+      this.defaultActivityOptions = workflowImplementationOptions.getDefaultActivityOptions();
+      this.activityOptionsMap = workflowImplementationOptions.getActivityOptions();
+    }
   }
 
   /**
@@ -137,7 +151,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     }
   }
 
-  @Override
   public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
     this.defaultActivityOptions = defaultActivityOptions;
   }
@@ -146,7 +159,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return defaultActivityOptions;
   }
 
-  @Override
   public void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
     this.activityOptionsMap.putAll(activityOptionsMap);
   }

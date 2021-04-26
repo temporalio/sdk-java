@@ -70,13 +70,25 @@ public final class WorkflowImplementationOptions {
       return this;
     }
 
+    /**
+     * Set individual activity options per activityType.
+     *
+     * @param activityOptions map from activityType to ActivityOptions
+     * @return
+     */
     public Builder setActivityOptions(Map<String, ActivityOptions> activityOptions) {
-      this.activityOptions = activityOptions;
+      this.activityOptions = Objects.requireNonNull(activityOptions);
       return this;
     }
 
+    /**
+     * These activity options have the lowest precedence across all activity options.
+     *
+     * @param defaultActivityOptions
+     * @return
+     */
     public Builder setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
-      this.defaultActivityOptions = defaultActivityOptions;
+      this.defaultActivityOptions = Objects.requireNonNull(defaultActivityOptions);
       return this;
     }
 
