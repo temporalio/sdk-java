@@ -191,10 +191,12 @@ public final class WorkflowInternal {
       Map<String, ActivityOptions> activityMethodOptions) {
     // Merge the activity options we may have received from the workflow with the options we may
     // have received in WorkflowImplementationOptions.
-    options = (options == null) ? getRootWorkflowContext().getDefaultActivityOptions() : options;
+    SyncWorkflowContext context = getRootWorkflowContext();
+    options = (options == null) ? context.getDefaultActivityOptions() : options;
     Map<String, ActivityOptions> mergedActivityOptionsMap = new HashMap<>();
-    if (getRootWorkflowContext().getActivityOptions() != null) {
-      mergedActivityOptionsMap.putAll(getRootWorkflowContext().getActivityOptions());
+    Map<String, ActivityOptions> activityOptions = context.getActivityOptions();
+    if (activityOptions != null) {
+      mergedActivityOptionsMap.putAll(activityOptions);
     }
     if (activityMethodOptions != null) {
       activityMethodOptions.forEach(
@@ -204,10 +206,7 @@ public final class WorkflowInternal {
     }
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface,
-            options,
-            mergedActivityOptionsMap,
-            WorkflowInternal.getWorkflowInterceptor());
+            activityInterface, options, mergedActivityOptionsMap, context.getWorkflowInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 

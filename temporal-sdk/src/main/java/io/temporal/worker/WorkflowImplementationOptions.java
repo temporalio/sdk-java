@@ -71,10 +71,11 @@ public final class WorkflowImplementationOptions {
     }
 
     /**
-     * Set individual activity options per activityType.
+     * Set individual activity options per activityType. Will be merged with the map from {@link
+     * io.temporal.workflow.Workflow#newActivityStub(Class, ActivityOptions, Map)} which has highest
+     * precedence.
      *
      * @param activityOptions map from activityType to ActivityOptions
-     * @return
      */
     public Builder setActivityOptions(Map<String, ActivityOptions> activityOptions) {
       this.activityOptions = Objects.requireNonNull(activityOptions);
@@ -82,10 +83,12 @@ public final class WorkflowImplementationOptions {
     }
 
     /**
-     * These activity options have the lowest precedence across all activity options.
+     * These activity options have the lowest precedence across all activity options. Will be
+     * overwritten entirely by {@link io.temporal.workflow.Workflow#newActivityStub(Class,
+     * ActivityOptions)} and then by the individual activity options if any are set through {@link
+     * #setActivityOptions(Map)}
      *
-     * @param defaultActivityOptions
-     * @return
+     * @param defaultActivityOptions ActivityOptions for all activities in the workflow.
      */
     public Builder setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
       this.defaultActivityOptions = Objects.requireNonNull(defaultActivityOptions);
