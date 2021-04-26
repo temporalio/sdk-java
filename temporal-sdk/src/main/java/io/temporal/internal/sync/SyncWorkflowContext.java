@@ -151,16 +151,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     }
   }
 
-  public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
-    this.defaultActivityOptions = defaultActivityOptions;
-  }
-
   public ActivityOptions getDefaultActivityOptions() {
     return defaultActivityOptions;
-  }
-
-  public void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
-    this.activityOptionsMap.putAll(activityOptionsMap);
   }
 
   public Map<String, ActivityOptions> getActivityOptions() {

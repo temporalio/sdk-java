@@ -33,7 +33,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowImplementationOptionsTest {
+public class DefaultActivityOptionsSetOnWorkflowTest {
 
   public static final ActivityOptions defaultOps = TestOptions.newActivityOptions1();
   private static final ActivityOptions activityOps2 =

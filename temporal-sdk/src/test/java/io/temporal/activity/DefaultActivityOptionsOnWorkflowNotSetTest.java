@@ -33,7 +33,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class DefaultActivityOptionsNotSetTest {
+public class DefaultActivityOptionsOnWorkflowNotSetTest {
   private final ActivityOptions defaultOps = TestOptions.newActivityOptions20sScheduleToClose();
 
   @Rule
