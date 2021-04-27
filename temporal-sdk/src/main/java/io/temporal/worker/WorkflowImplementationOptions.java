@@ -19,7 +19,11 @@
 
 package io.temporal.worker;
 
+import io.temporal.activity.ActivityOptions;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 public final class WorkflowImplementationOptions {
 
@@ -40,6 +44,8 @@ public final class WorkflowImplementationOptions {
   public static final class Builder {
 
     private Class<? extends Throwable>[] failWorkflowExceptionTypes;
+    private Map<String, ActivityOptions> activityOptions;
+    private ActivityOptions defaultActivityOptions;
 
     private Builder() {}
 
@@ -64,20 +70,62 @@ public final class WorkflowImplementationOptions {
       return this;
     }
 
+    /**
+     * Set individual activity options per activityType. Will be merged with the map from {@link
+     * io.temporal.workflow.Workflow#newActivityStub(Class, ActivityOptions, Map)} which has highest
+     * precedence.
+     *
+     * @param activityOptions map from activityType to ActivityOptions
+     */
+    public Builder setActivityOptions(Map<String, ActivityOptions> activityOptions) {
+      this.activityOptions = Objects.requireNonNull(activityOptions);
+      return this;
+    }
+
+    /**
+     * These activity options have the lowest precedence across all activity options. Will be
+     * overwritten entirely by {@link io.temporal.workflow.Workflow#newActivityStub(Class,
+     * ActivityOptions)} and then by the individual activity options if any are set through {@link
+     * #setActivityOptions(Map)}
+     *
+     * @param defaultActivityOptions ActivityOptions for all activities in the workflow.
+     */
+    public Builder setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
+      this.defaultActivityOptions = Objects.requireNonNull(defaultActivityOptions);
+      return this;
+    }
+
     public WorkflowImplementationOptions build() {
       return new WorkflowImplementationOptions(
-          failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes);
+          failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes,
+          activityOptions == null ? new HashMap<>() : activityOptions,
+          defaultActivityOptions);
     }
   }
 
   private final Class<? extends Throwable>[] failWorkflowExceptionTypes;
+  private final Map<String, ActivityOptions> activityOptions;
+  private final ActivityOptions defaultActivityOptions;
 
-  public WorkflowImplementationOptions(Class<? extends Throwable>[] failWorkflowExceptionTypes) {
+  public WorkflowImplementationOptions(
+      Class<? extends Throwable>[] failWorkflowExceptionTypes,
+      Map<String, ActivityOptions> activityOptions,
+      ActivityOptions defaultActivityOptions) {
     this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
+    this.activityOptions = activityOptions;
+    this.defaultActivityOptions = defaultActivityOptions;
   }
 
   public Class<? extends Throwable>[] getFailWorkflowExceptionTypes() {
     return failWorkflowExceptionTypes;
+  }
+
+  public Map<String, ActivityOptions> getActivityOptions() {
+    return activityOptions;
+  }
+
+  public ActivityOptions getDefaultActivityOptions() {
+    return defaultActivityOptions;
   }
 
   @Override
@@ -85,6 +133,10 @@ public final class WorkflowImplementationOptions {
     return "WorkflowImplementationOptions{"
         + "failWorkflowExceptionTypes="
         + Arrays.toString(failWorkflowExceptionTypes)
+        + ", activityOptions="
+        + activityOptions
+        + ", defaultActivityOptions="
+        + defaultActivityOptions
         + '}';
   }
 
@@ -93,11 +145,15 @@ public final class WorkflowImplementationOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkflowImplementationOptions that = (WorkflowImplementationOptions) o;
-    return Arrays.equals(failWorkflowExceptionTypes, that.failWorkflowExceptionTypes);
+    return Arrays.equals(failWorkflowExceptionTypes, that.failWorkflowExceptionTypes)
+        && Objects.equals(activityOptions, that.activityOptions)
+        && Objects.equals(defaultActivityOptions, that.defaultActivityOptions);
   }
 
   @Override
   public int hashCode() {
-    return Arrays.hashCode(failWorkflowExceptionTypes);
+    int result = Objects.hash(activityOptions, defaultActivityOptions);
+    result = 31 * result + Arrays.hashCode(failWorkflowExceptionTypes);
+    return result;
   }
 }
