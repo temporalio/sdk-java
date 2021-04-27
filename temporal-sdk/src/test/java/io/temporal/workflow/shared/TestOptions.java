@@ -19,9 +19,11 @@
 
 package io.temporal.workflow.shared;
 
+import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.RetryOptions;
 import java.time.Duration;
 
 public class TestOptions {
@@ -33,11 +35,42 @@ public class TestOptions {
     return WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
   }
 
+  public static ActivityOptions newActivityOptions20sScheduleToClose() {
+    return io.temporal.activity.ActivityOptions.newBuilder()
+        .setScheduleToCloseTimeout(Duration.ofSeconds(20))
+        .build();
+  }
+
   public static WorkflowOptions newWorkflowOptionsForTaskQueue200sTimeout(String taskQueue) {
     return WorkflowOptions.newBuilder()
         .setWorkflowRunTimeout(Duration.ofSeconds(200))
         .setWorkflowTaskTimeout(Duration.ofSeconds(60))
         .setTaskQueue(taskQueue)
+        .build();
+  }
+
+  public static ActivityOptions newActivityOptions1() {
+    return ActivityOptions.newBuilder()
+        .setHeartbeatTimeout(Duration.ofSeconds(1))
+        .setScheduleToStartTimeout(Duration.ofSeconds(2))
+        .setScheduleToCloseTimeout(Duration.ofDays(1))
+        .setStartToCloseTimeout(Duration.ofSeconds(2))
+        .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+        .setCancellationType(ActivityCancellationType.TRY_CANCEL)
+        .setContextPropagators(null)
+        .build();
+  }
+
+  public static ActivityOptions newActivityOptions2() {
+    return ActivityOptions.newBuilder()
+        .setTaskQueue("ActivityOptions")
+        .setHeartbeatTimeout(Duration.ofSeconds(3))
+        .setScheduleToStartTimeout(Duration.ofSeconds(3))
+        .setScheduleToCloseTimeout(Duration.ofDays(3))
+        .setStartToCloseTimeout(Duration.ofSeconds(3))
+        .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
+        .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
+        .setContextPropagators(null)
         .build();
   }
 
@@ -75,12 +108,6 @@ public class TestOptions {
           .setStartToCloseTimeout(Duration.ofSeconds(10))
           .build();
     }
-  }
-
-  public static ActivityOptions newActivityOptions20sScheduleToClose() {
-    return io.temporal.activity.ActivityOptions.newBuilder()
-        .setScheduleToCloseTimeout(Duration.ofSeconds(20))
-        .build();
   }
 
   public static LocalActivityOptions newLocalActivityOptions() {
