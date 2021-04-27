@@ -51,19 +51,12 @@ public final class ActivityOptions {
   public static final class Builder {
 
     private Duration heartbeatTimeout;
-
     private Duration scheduleToCloseTimeout;
-
     private Duration scheduleToStartTimeout;
-
     private Duration startToCloseTimeout;
-
     private String taskQueue;
-
     private RetryOptions retryOptions;
-
     private List<ContextPropagator> contextPropagators;
-
     private ActivityCancellationType cancellationType;
 
     private Builder() {}
@@ -240,19 +233,12 @@ public final class ActivityOptions {
   }
 
   private final Duration heartbeatTimeout;
-
   private final Duration scheduleToCloseTimeout;
-
   private final Duration scheduleToStartTimeout;
-
   private final Duration startToCloseTimeout;
-
   private final String taskQueue;
-
   private final RetryOptions retryOptions;
-
   private final List<ContextPropagator> contextPropagators;
-
   private final ActivityCancellationType cancellationType;
 
   private ActivityOptions(

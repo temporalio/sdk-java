@@ -28,6 +28,7 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -84,10 +85,51 @@ public interface TestActivities {
   List<UUID> activityUUIDList(List<UUID> arg);
 
   @ActivityInterface
+  interface TestActivity {
+
+    @ActivityMethod
+    Map<String, Duration> activity1();
+
+    @ActivityMethod
+    Map<String, Duration> activity2();
+  }
+
+  @ActivityInterface
   interface AngryChildActivity {
 
     @ActivityMethod
     void execute();
+  }
+
+  class TestActivityImpl implements TestActivity {
+
+    @Override
+    public Map<String, Duration> activity1() {
+      ActivityInfo info = Activity.getExecutionContext().getInfo();
+      Hashtable<String, Duration> result =
+          new Hashtable<String, Duration>() {
+            {
+              put("HeartbeatTimeout", info.getHeartbeatTimeout());
+              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
+              put("StartToCloseTimeout", info.getStartToCloseTimeout());
+            }
+          };
+      return result;
+    }
+
+    @Override
+    public Map<String, Duration> activity2() {
+      ActivityInfo info = Activity.getExecutionContext().getInfo();
+      Hashtable<String, Duration> result =
+          new Hashtable<String, Duration>() {
+            {
+              put("HeartbeatTimeout", info.getHeartbeatTimeout());
+              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
+              put("StartToCloseTimeout", info.getStartToCloseTimeout());
+            }
+          };
+      return result;
+    }
   }
 
   class TestActivitiesImpl implements TestActivities {
