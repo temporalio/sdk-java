@@ -34,6 +34,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
@@ -175,6 +177,30 @@ public class PollWorkflowTaskDispatcherTests {
         String.format(
             "No handler is subscribed for the PollWorkflowTaskQueueResponse.WorkflowExecutionTaskQueue %s",
             "I Don't Exist TaskQueue"),
+        event.getFormattedMessage());
+  }
+
+  @Test
+  public void testPollerOptionsRuntimeException() {
+    // Arrange
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.setContext(context);
+    appender.start();
+    logger.addAppender(appender);
+
+    PollerOptions pollerOptions = PollerOptions.getDefaultInstance();
+    Thread.UncaughtExceptionHandler exceptionHandler = pollerOptions.getUncaughtExceptionHandler();
+    RuntimeException e =
+        new RuntimeException(
+            "UnhandledCommand",
+            new StatusRuntimeException(
+                Status.fromCode(Status.Code.INVALID_ARGUMENT).withDescription("UnhandledCommand")));
+    exceptionHandler.uncaughtException(Thread.currentThread(), e);
+
+    ILoggingEvent event = appender.list.get(0);
+    assertEquals(Level.INFO, event.getLevel());
+    assertEquals(
+        "Failed workflow task caused by signal race condition. This error likely is recoverable.",
         event.getFormattedMessage());
   }
 

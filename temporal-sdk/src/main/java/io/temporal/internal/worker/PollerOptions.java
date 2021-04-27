@@ -139,18 +139,20 @@ public final class PollerOptions {
       if (uncaughtExceptionHandler == null) {
         uncaughtExceptionHandler =
             (t, e) -> {
-              if (e instanceof RuntimeException
-                  && e.getCause() != null
-                  && e.getCause() instanceof StatusRuntimeException) {
+              if (e instanceof RuntimeException && e.getCause() instanceof StatusRuntimeException) {
                 StatusRuntimeException sre = (StatusRuntimeException) e.getCause();
-                if (sre.getStatus().getCode() == Status.Code.INVALID_ARGUMENT) {
-                  log.info("Uncaught exception", e);
+                if (sre.getStatus().getCode() == Status.Code.INVALID_ARGUMENT
+                    && sre.getMessage().startsWith("INVALID_ARGUMENT: UnhandledCommand")) {
+                  log.info(
+                      "Failed workflow task caused by signal race condition. This error likely is recoverable.",
+                      e);
                 }
               } else {
                 log.error("uncaught exception", e);
               }
             };
       }
+
       return new PollerOptions(
           maximumPollRateIntervalMilliseconds,
           maximumPollRatePerSecond,
