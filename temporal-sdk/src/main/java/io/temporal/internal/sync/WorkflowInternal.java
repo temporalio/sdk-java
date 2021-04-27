@@ -58,6 +58,7 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -188,12 +189,24 @@ public final class WorkflowInternal {
       Class<T> activityInterface,
       ActivityOptions options,
       Map<String, ActivityOptions> activityMethodOptions) {
+    // Merge the activity options we may have received from the workflow with the options we may
+    // have received in WorkflowImplementationOptions.
+    SyncWorkflowContext context = getRootWorkflowContext();
+    options = (options == null) ? context.getDefaultActivityOptions() : options;
+    Map<String, ActivityOptions> mergedActivityOptionsMap = new HashMap<>();
+    Map<String, ActivityOptions> activityOptions = context.getActivityOptions();
+    if (activityOptions != null) {
+      mergedActivityOptionsMap.putAll(activityOptions);
+    }
+    if (activityMethodOptions != null) {
+      activityMethodOptions.forEach(
+          (key, value) ->
+              mergedActivityOptionsMap.merge(
+                  key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+    }
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface,
-            options,
-            activityMethodOptions,
-            WorkflowInternal.getWorkflowInterceptor());
+            activityInterface, options, mergedActivityOptionsMap, context.getWorkflowInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 

@@ -42,6 +42,7 @@ public class InterceptorsExceptionsTests {
               WorkflowClientOptions.newBuilder()
                   .setInterceptors(new ExceptionOnStartThrowingClientInterceptor())
                   .validateAndBuildWithDefaults())
+          .setTestTimeoutSeconds(15)
           .build();
 
   @Test
