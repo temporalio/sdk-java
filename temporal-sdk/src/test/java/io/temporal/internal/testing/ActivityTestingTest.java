@@ -27,11 +27,13 @@ import io.grpc.Status;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestActivityEnvironment;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -44,6 +46,11 @@ import org.junit.Test;
 public class ActivityTestingTest {
 
   private TestActivityEnvironment testEnvironment;
+  private ActivityOptions activityOptions =
+      ActivityOptions.newBuilder()
+          .setHeartbeatTimeout(Duration.ofSeconds(1))
+          .setScheduleToCloseTimeout(Duration.ofDays(1))
+          .build();
 
   @Before
   public void setUp() {
@@ -68,7 +75,7 @@ public class ActivityTestingTest {
   @Test
   public void testSuccess() {
     testEnvironment.registerActivitiesImplementations(new ActivityImpl());
-    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class, activityOptions);
     String result = activity.activity1("input1");
     assertEquals("Activity1-input1", result);
   }
@@ -84,7 +91,7 @@ public class ActivityTestingTest {
   @Test
   public void testFailure() {
     testEnvironment.registerActivitiesImplementations(new AngryActivityImpl());
-    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class, activityOptions);
     try {
       activity.activity1("input1");
       fail("unreachable");
@@ -114,7 +121,7 @@ public class ActivityTestingTest {
     testEnvironment.registerActivitiesImplementations(new HeartbeatActivityImpl());
     AtomicReference<String> details = new AtomicReference<>();
     testEnvironment.setActivityHeartbeatListener(String.class, details::set);
-    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class, activityOptions);
     String result = activity.activity1("input1");
     assertEquals("input1", result);
     assertEquals("details1", details.get());
@@ -146,7 +153,7 @@ public class ActivityTestingTest {
     Set<Integer> details = ConcurrentHashMap.newKeySet();
     testEnvironment.setActivityHeartbeatListener(Integer.class, details::add);
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class, activityOptions);
     activity.activity1();
     assertEquals(2, details.size());
   }
@@ -171,7 +178,7 @@ public class ActivityTestingTest {
     AtomicInteger count = new AtomicInteger();
     testEnvironment.setActivityHeartbeatListener(Void.class, i -> count.incrementAndGet());
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class, activityOptions);
     activity.activity1();
     assertEquals(2, count.get());
   }
@@ -193,7 +200,7 @@ public class ActivityTestingTest {
     testEnvironment.registerActivitiesImplementations(new HeartbeatCancellationActivityImpl());
     testEnvironment.requestCancelActivity();
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class, activityOptions);
     activity.activity1();
   }
 
@@ -230,7 +237,7 @@ public class ActivityTestingTest {
           }
         });
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class, activityOptions);
     activity.activity1();
   }
 
@@ -259,7 +266,7 @@ public class ActivityTestingTest {
           }
         });
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class, activityOptions);
     activity.activity1();
     assertEquals(3, count.get());
   }
@@ -360,17 +367,17 @@ public class ActivityTestingTest {
     DImpl dImpl = new DImpl();
     testEnvironment.registerActivitiesImplementations(bImpl, dImpl);
     try {
-      testEnvironment.newActivityStub(A.class);
+      testEnvironment.newActivityStub(A.class, activityOptions);
       fail("A doesn't implement activity");
     } catch (IllegalArgumentException e) {
       // expected as A doesn't implement any activity
     }
-    B b = testEnvironment.newActivityStub(B.class);
+    B b = testEnvironment.newActivityStub(B.class, activityOptions);
     b.a();
     b.b();
     A a = b;
     a.a();
-    D d = testEnvironment.newActivityStub(D.class);
+    D d = testEnvironment.newActivityStub(D.class, activityOptions);
     d.a();
     d.d();
     a = d;
@@ -400,12 +407,12 @@ public class ActivityTestingTest {
     } catch (IllegalArgumentException e) {
       // expected as A doesn't implement any activity
     }
-    B b = testEnvironment.newActivityStub(B.class);
+    B b = testEnvironment.newActivityStub(B.class, activityOptions);
     b.a();
     b.b();
     A a = b;
     a.a();
-    D d = testEnvironment.newActivityStub(D.class);
+    D d = testEnvironment.newActivityStub(D.class, activityOptions);
     d.a();
     d.d();
     a = d;
@@ -427,11 +434,11 @@ public class ActivityTestingTest {
   public void testInvokingActivityByBaseInterface2() {
     EImpl eImpl = new EImpl();
     testEnvironment.registerActivitiesImplementations(eImpl);
-    E e = testEnvironment.newActivityStub(E.class);
+    E e = testEnvironment.newActivityStub(E.class, activityOptions);
     e.a();
     e.d();
     e.e();
-    D d = testEnvironment.newActivityStub(D.class);
+    D d = testEnvironment.newActivityStub(D.class, activityOptions);
     d.a();
     d.d();
     List<String> expectedE = new ArrayList<>();

@@ -38,6 +38,7 @@ public final class ActivityOptions {
     return new Builder(options);
   }
 
+  @Deprecated
   public static ActivityOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
@@ -45,7 +46,7 @@ public final class ActivityOptions {
   private static final ActivityOptions DEFAULT_INSTANCE;
 
   static {
-    DEFAULT_INSTANCE = ActivityOptions.newBuilder().build();
+    DEFAULT_INSTANCE = ActivityOptions.newBuilder().validateAndBuildWithDefaults();
   }
 
   public static final class Builder {

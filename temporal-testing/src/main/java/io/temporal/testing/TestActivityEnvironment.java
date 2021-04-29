@@ -88,6 +88,17 @@ public interface TestActivityEnvironment {
    * @param <T> Type of the activity interface.
    * @param activityInterface activity interface class that the object under test implements
    * @param options options that specify the activity invocation parameters
+   * @return The stub that implements the activity interface.
+   */
+  <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options);
+
+  /**
+   * Creates a stub that can be used to invoke activities registered through {@link
+   * #registerActivitiesImplementations(Object...)}.
+   *
+   * @param <T> Type of the activity interface.
+   * @param activityInterface activity interface class that the object under test implements
+   * @param options options that specify the activity invocation parameters
    * @param activityMethodOptions a map keyed on Activity Type Name to its specific invocation
    *     parameters. By default the name of an activity type is its method name with the first
    *     letter capitalized.

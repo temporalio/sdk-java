@@ -180,16 +180,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
    */
   @Override
   public <T> T newActivityStub(Class<T> activityInterface) {
-    ActivityOptions options =
-        ActivityOptions.newBuilder()
-            .setScheduleToCloseTimeout(Duration.ofDays(1))
-            .setHeartbeatTimeout(Duration.ofSeconds(1))
-            .build();
-    InvocationHandler invocationHandler =
-        ActivityInvocationHandler.newInstance(
-            activityInterface, options, null, new TestActivityExecutor());
-    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
-    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
+    return newActivityStub(activityInterface, null, null);
+  }
+
+  @Override
+  public <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
+    return newActivityStub(activityInterface, options, null);
   }
 
   /**
