@@ -2,7 +2,7 @@
 plugins {
     id 'java-library'
     id 'net.ltgt.errorprone' version '2.0.1'
-    id 'org.cadixdev.licenser' version '0.5.1'
+    id 'org.cadixdev.licenser' version '0.6.0'
     id 'com.palantir.git-version' version '0.12.2'
     id 'maven-publish'
     id 'signing'
