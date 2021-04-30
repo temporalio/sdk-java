@@ -62,7 +62,7 @@ public class GetVersionAndTimerTest {
     assertTrue(
         "endInstant "
             + endInstant
-            + " should be more than 2 hours away from startInstant "
+            + " should be more than 5 seconds away from startInstant "
             + startInstant,
         endInstant.isAfter(startInstant.plus(Duration.ofSeconds(5))));
   }
