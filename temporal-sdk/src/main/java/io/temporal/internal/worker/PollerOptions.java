@@ -19,12 +19,17 @@
 
 package io.temporal.internal.worker;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Options for component that polls Temporal task queues for tasks. */
 public final class PollerOptions {
+
+  public static final String UNHANDLED_COMMAND_EXCEPTION_MESSAGE =
+      "Failed workflow task due to unhandled command. This error is likely recoverable.";
 
   public static Builder newBuilder() {
     return new Builder();
@@ -47,19 +52,12 @@ public final class PollerOptions {
   public static final class Builder {
 
     private int maximumPollRateIntervalMilliseconds = 1000;
-
     private double maximumPollRatePerSecond;
-
     private double pollBackoffCoefficient = 2;
-
     private Duration pollBackoffInitialInterval = Duration.ofMillis(100);
-
     private Duration pollBackoffMaximumInterval = Duration.ofMinutes(1);
-
     private int pollThreadCount = 1;
-
     private String pollThreadNamePrefix;
-
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
     private Builder() {}
@@ -135,8 +133,20 @@ public final class PollerOptions {
 
     public PollerOptions build() {
       if (uncaughtExceptionHandler == null) {
-        uncaughtExceptionHandler = (t, e) -> log.error("uncaught exception", e);
+        uncaughtExceptionHandler =
+            (t, e) -> {
+              if (e instanceof RuntimeException && e.getCause() instanceof StatusRuntimeException) {
+                StatusRuntimeException sre = (StatusRuntimeException) e.getCause();
+                if (sre.getStatus().getCode() == Status.Code.INVALID_ARGUMENT
+                    && sre.getMessage().startsWith("INVALID_ARGUMENT: UnhandledCommand")) {
+                  log.info(UNHANDLED_COMMAND_EXCEPTION_MESSAGE, e);
+                }
+              } else {
+                log.error("uncaught exception", e);
+              }
+            };
       }
+
       return new PollerOptions(
           maximumPollRateIntervalMilliseconds,
           maximumPollRatePerSecond,
@@ -152,19 +162,12 @@ public final class PollerOptions {
   private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
 
   private final int maximumPollRateIntervalMilliseconds;
-
   private final double maximumPollRatePerSecond;
-
   private final double pollBackoffCoefficient;
-
   private final Duration pollBackoffInitialInterval;
-
   private final Duration pollBackoffMaximumInterval;
-
   private final int pollThreadCount;
-
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
-
   private final String pollThreadNamePrefix;
 
   private PollerOptions(
