@@ -27,6 +27,8 @@ import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.time.Instant;
+
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -44,11 +46,13 @@ public class GetVersionAndTimerTest {
 
   @Test
   public void testTimedWorkflowWithoutVersionImpl() {
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     testTimedWorkflow(testWorkflowRuleWithoutVersion);
   }
 
   @Test
   public void testTimedWorkflowWithVersionImpl() {
+    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     testTimedWorkflow(testWorkflowRuleWithVersion);
   }
 
@@ -62,9 +66,9 @@ public class GetVersionAndTimerTest {
     assertTrue(
         "endInstant "
             + endInstant
-            + " should be more than 5 seconds away from startInstant "
+            + " should be more than 2 hours away from startInstant "
             + startInstant,
-        endInstant.isAfter(startInstant.plus(Duration.ofSeconds(5))));
+        endInstant.isAfter(startInstant.plus(Duration.ofHours(2))));
   }
 
   @WorkflowInterface
@@ -79,14 +83,14 @@ public class GetVersionAndTimerTest {
     public Instant startAndWait() {
       getVersion();
 
-      Workflow.newTimer(Duration.ofSeconds(1))
+      Workflow.newTimer(Duration.ofMinutes(1))
           .thenApply(
               (v) -> {
                 getVersion();
                 return v;
               });
 
-      Workflow.sleep(Duration.ofSeconds(5));
+      Workflow.sleep(Duration.ofHours(2));
 
       return Instant.ofEpochMilli(Workflow.currentTimeMillis());
     }
