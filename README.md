@@ -13,7 +13,7 @@ For samples, see [Samples for the Temporal Java SDK](https://github.com/temporal
 
 ## Run Temporal Server
 
-Follow the [Quick install guide](https://docs.temporal.io/docs/server-quick-install) to run the Temporal Server locally.
+Follow the [Quick install guide](https://docs.temporal.io/docs/server/quick-install) to run the Temporal Server locally.
 Additional information is available in the [Temporal Server docker-compose](https://github.com/temporalio/docker-compose) repo.
 
 ## Get CLI
@@ -38,7 +38,7 @@ or to *build.gradle*:
 
 ## Documentation
 
-The documentation on how to use the Temporal Java client is [here](http://docs.temporal.io/docs/java-quick-start).
+The documentation on how to use the Temporal Java client is [here](https://docs.temporal.io/docs/java/introduction).
 
 Javadocs for the client API are located [here](https://www.javadoc.io/doc/io.temporal/temporal-sdk).
 
