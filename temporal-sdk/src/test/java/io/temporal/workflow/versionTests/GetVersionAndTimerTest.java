@@ -64,7 +64,7 @@ public class GetVersionAndTimerTest {
             + endInstant
             + " should be more than 2 hours away from startInstant "
             + startInstant,
-        endInstant.isAfter(startInstant.plus(Duration.ofHours(2))));
+        endInstant.isAfter(startInstant.plus(Duration.ofSeconds(5))));
   }
 
   @WorkflowInterface
@@ -79,14 +79,14 @@ public class GetVersionAndTimerTest {
     public Instant startAndWait() {
       getVersion();
 
-      Workflow.newTimer(Duration.ofMinutes(1))
+      Workflow.newTimer(Duration.ofSeconds(1))
           .thenApply(
               (v) -> {
                 getVersion();
                 return v;
               });
 
-      Workflow.sleep(Duration.ofHours(2));
+      Workflow.sleep(Duration.ofSeconds(5));
 
       return Instant.ofEpochMilli(Workflow.currentTimeMillis());
     }
