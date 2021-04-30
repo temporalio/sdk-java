@@ -27,7 +27,6 @@ import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.time.Instant;
-
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
