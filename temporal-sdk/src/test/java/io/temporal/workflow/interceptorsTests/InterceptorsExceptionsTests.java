@@ -28,8 +28,7 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -42,17 +41,12 @@ public class InterceptorsExceptionsTests {
               WorkflowClientOptions.newBuilder()
                   .setInterceptors(new ExceptionOnStartThrowingClientInterceptor())
                   .validateAndBuildWithDefaults())
-          .setTestTimeoutSeconds(15)
           .build();
 
   @Test
   public void testExceptionOnStart() {
-    TestWorkflows.NoArgsWorkflow workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestWorkflows.NoArgsWorkflow.class,
-                TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+    NoArgsWorkflow workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
     try {
       workflowStub.execute();
       fail("Workflow call is expected to fail with an exception");
@@ -63,7 +57,7 @@ public class InterceptorsExceptionsTests {
     }
   }
 
-  public static class WorkflowImpl implements TestWorkflows.NoArgsWorkflow {
+  public static class WorkflowImpl implements NoArgsWorkflow {
     @Override
     public void execute() {}
   }
