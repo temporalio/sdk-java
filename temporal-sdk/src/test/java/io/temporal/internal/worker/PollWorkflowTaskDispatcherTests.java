@@ -75,7 +75,6 @@ public class PollWorkflowTaskDispatcherTests {
 
   @Test
   public void pollWorkflowTasksAreDispatchedBasedOnTaskQueueName() {
-    // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
 
@@ -83,18 +82,14 @@ public class PollWorkflowTaskDispatcherTests {
         new PollWorkflowTaskDispatcher(service, "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
-    // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
-    // Assert
     assertTrue(handled.get());
   }
 
   @Test
   public void pollWorkflowTasksAreDispatchedToTheCorrectHandler() {
-
-    // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
@@ -106,19 +101,15 @@ public class PollWorkflowTaskDispatcherTests {
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue2", handler2);
 
-    // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
-    // Assert
     assertTrue(handled.get());
     assertFalse(handled2.get());
   }
 
   @Test
   public void handlersGetOverwrittenWhenRegisteredForTheSameTaskQueue() {
-
-    // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
@@ -130,21 +121,16 @@ public class PollWorkflowTaskDispatcherTests {
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue1", handler2);
 
-    // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
-    // Assert
     assertTrue(handled2.get());
     assertFalse(handled.get());
   }
 
   @Test
   @Ignore // TODO: Rewrite as mocking of WorkflowServiceBlockingStub is not possible
-  public void aWarningIsLoggedAndWorkflowTaskIsFailedWhenNoHandlerIsRegisteredForTheTaskQueue()
-      throws Exception {
-
-    // Arrange
+  public void aWarningIsLoggedAndWorkflowTaskIsFailedWhenNoHandlerIsRegisteredForTheTaskQueue() {
     ListAppender<ILoggingEvent> appender = new ListAppender<>();
     appender.setContext(context);
     appender.start();
@@ -162,12 +148,10 @@ public class PollWorkflowTaskDispatcherTests {
         new PollWorkflowTaskDispatcher(mockService, "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
-    // Act
     PollWorkflowTaskQueueResponse response =
         CreatePollWorkflowTaskQueueResponse("I Don't Exist TaskQueue");
     dispatcher.process(response);
 
-    // Assert
     verify(stub, times(1)).respondWorkflowTaskFailed(any());
     assertFalse(handled.get());
     assertEquals(1, appender.list.size());
@@ -182,7 +166,6 @@ public class PollWorkflowTaskDispatcherTests {
 
   @Test
   public void testPollerOptionsRuntimeException() {
-    // Arrange
     ListAppender<ILoggingEvent> appender = new ListAppender<>();
     appender.setContext(context);
     appender.start();
@@ -199,9 +182,7 @@ public class PollWorkflowTaskDispatcherTests {
 
     ILoggingEvent event = appender.list.get(0);
     assertEquals(Level.INFO, event.getLevel());
-    assertEquals(
-        "Failed workflow task caused by signal race condition. This error likely is recoverable.",
-        event.getFormattedMessage());
+    assertEquals(PollerOptions.UNHANDLED_COMMAND_EXCEPTION_MESSAGE, event.getFormattedMessage());
   }
 
   private PollWorkflowTaskQueueResponse CreatePollWorkflowTaskQueueResponse(String taskQueueName) {
