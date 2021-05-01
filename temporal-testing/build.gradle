@@ -44,6 +44,7 @@ dependencies {
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.5'
 
     testImplementation group: 'junit', name: 'junit', version: '4.13.1'
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
 }
 
 license {
