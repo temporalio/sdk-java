@@ -24,14 +24,18 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
 
-/** Options used to configure how a local Activity is invoked. */
+/**
+ * Options used to configure how a local Activity is invoked.
+ */
 public final class LocalActivityOptions {
 
   public static Builder newBuilder() {
     return new Builder(null);
   }
 
-  /** @param o null is allowed */
+  /**
+   * @param o Null is allowed.
+   */
   public static Builder newBuilder(LocalActivityOptions o) {
     return new Builder(o);
   }
@@ -53,7 +57,9 @@ public final class LocalActivityOptions {
     private RetryOptions retryOptions;
     private Boolean doNotIncludeArgumentsIntoMarker;
 
-    /** Copy Builder fields from the options. */
+    /**
+     * Copy Builder fields from the options.
+     */
     private Builder(LocalActivityOptions options) {
       if (options == null) {
         return;
@@ -65,7 +71,9 @@ public final class LocalActivityOptions {
       this.doNotIncludeArgumentsIntoMarker = options.isDoNotIncludeArgumentsIntoMarker();
     }
 
-    /** Overall timeout a Workflow is willing to wait for an Activity's completion. */
+    /**
+     * Overall time a Workflow is willing to wait for an Activity's completion.
+     */
     public Builder setScheduleToCloseTimeout(Duration timeout) {
       if (timeout.isZero() || timeout.isNegative()) {
         throw new IllegalArgumentException("Illegal timeout: " + timeout);
@@ -75,8 +83,8 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * Maximum time to retry locally, while keeping Workflow task open through heartbeat.
-     * Default is 6 workflow task timeout.
+     * Maximum time to retry locally, while keeping the Workflow Task open via a Heartbeat.
+     * Default value is 6 workflow task timeout.
      */
     public Builder setLocalRetryThreshold(Duration localRetryThreshold) {
       if (localRetryThreshold.isZero() || localRetryThreshold.isNegative()) {
@@ -140,14 +148,11 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * When set to true, the serialized arguments of the local Activity are not included into the
-     * Marker Event that stores local Activity invocation result.
-     *
-     * <p>The serialized arguments are included only for human troubleshooting as they are never
-     * read by the SDK code. So in some cases it is worth not including them to reduce the history
-     * size.
-     *
-     * <p>Default is false.
+     * When set to true, the serialized arguments of the local Activity are not included in the
+     * Marker Event that stores the local Activity invocation result.
+     * The serialized arguments are included only for human troubleshooting as they are never
+     * read by the SDK code. In some cases, it is better not including them to reduce the history
+     * size. The default value is set to false.
      */
     public Builder setDoNotIncludeArgumentsIntoMarker(boolean doNotIncludeArgumentsIntoMarker) {
       this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
