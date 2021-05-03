@@ -208,7 +208,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             // runId.
             continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
-    this.workflowTaskStateMachine = StateMachines.newCommandStateMachine(store, startRequest);
+    this.workflowTaskStateMachine = StateMachines.newWorkflowTaskStateMachine(store, startRequest);
   }
 
   /** Based on overrideStartWorkflowExecutionRequest from historyEngine.go */
@@ -1491,8 +1491,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void scheduleWorkflowTask(RequestContext ctx) {
+    State beforeState = workflowTaskStateMachine.getState();
     workflowTaskStateMachine.action(StateMachines.Action.INITIATE, ctx, startRequest, 0);
-    ctx.lockTimer("scheduleWorkflowTask");
+    // Do not lock if there is an outstanding workflow task.
+    if (beforeState == State.NONE && workflowTaskStateMachine.getState() == State.INITIATED) {
+      ctx.lockTimer("scheduleWorkflowTask");
+    }
   }
 
   @Override
