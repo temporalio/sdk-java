@@ -35,9 +35,12 @@ interface DeterministicRunner {
   boolean debugMode = System.getenv("TEMPORAL_DEBUG") != null;
 
   long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
+  long deadlockDetectionTimeout = Long.parseLong(System.getenv().getOrDefault(
+      "DEADLOCK_DETECTION_TIMEOUT",
+      String.valueOf(DEFAULT_DEADLOCK_DETECTION_TIMEOUT)));
 
   static long getDeadlockDetectionTimeout() {
-    return debugMode ? Long.MAX_VALUE : DEFAULT_DEADLOCK_DETECTION_TIMEOUT;
+    return debugMode ? Long.MAX_VALUE : deadlockDetectionTimeout;
   }
 
   static DeterministicRunner newRunner(Runnable root) {
