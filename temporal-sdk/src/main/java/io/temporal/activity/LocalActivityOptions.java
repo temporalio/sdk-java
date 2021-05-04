@@ -137,8 +137,8 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * Merges {@link MethodRetry} annotation. The values of this builder take precedence over annotation
-     * ones.
+     * Merges {@link MethodRetry} annotation.
+     * The values of this builder take precedence over annotated ones.
      */
     public Builder setMethodRetry(MethodRetry r) {
       if (r != null) {
@@ -149,10 +149,11 @@ public final class LocalActivityOptions {
 
     /**
      * When set to true, the serialized arguments of the local Activity are not included in the
-     * Marker Event that stores the local Activity invocation result.
+     * Marker Event that stores the local Activity's invocation result.
      * The serialized arguments are included only for human troubleshooting as they are never
-     * read by the SDK code. In some cases, it is better not including them to reduce the history
-     * size. The default value is set to false.
+     * read by the SDK code.
+     * In some cases, it is better not including them to reduce the history size.
+     * The default value is set to false.
      */
     public Builder setDoNotIncludeArgumentsIntoMarker(boolean doNotIncludeArgumentsIntoMarker) {
       this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;

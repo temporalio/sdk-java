@@ -24,8 +24,8 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Information about the Activity Task that the current Activity is handling. Use {@link
- * ActivityExecutionContext#getInfo()} to access.
+ * Information about the Activity Task that the current Activity is handling.
+ * Use {@link ActivityExecutionContext#getInfo()} to access.
  */
 public interface ActivityInfo {
 
@@ -46,7 +46,8 @@ public interface ActivityInfo {
   String getRunId();
 
   /**
-   * ID of the Activity. This ID can be used to complete the Activity asynchronously through {@link
+   * ID of the Activity.
+   * This ID can be used to complete the Activity asynchronously through {@link
    * io.temporal.client.ActivityCompletionClient#complete(String, Optional, String, Object)}.
    */
   String getActivityId();
