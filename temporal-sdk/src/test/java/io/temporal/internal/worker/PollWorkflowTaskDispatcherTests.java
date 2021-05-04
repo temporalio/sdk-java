@@ -34,6 +34,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
@@ -73,7 +75,6 @@ public class PollWorkflowTaskDispatcherTests {
 
   @Test
   public void pollWorkflowTasksAreDispatchedBasedOnTaskQueueName() {
-    // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
 
@@ -81,18 +82,14 @@ public class PollWorkflowTaskDispatcherTests {
         new PollWorkflowTaskDispatcher(service, "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
-    // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
-    // Assert
     assertTrue(handled.get());
   }
 
   @Test
   public void pollWorkflowTasksAreDispatchedToTheCorrectHandler() {
-
-    // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
@@ -104,19 +101,15 @@ public class PollWorkflowTaskDispatcherTests {
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue2", handler2);
 
-    // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
-    // Assert
     assertTrue(handled.get());
     assertFalse(handled2.get());
   }
 
   @Test
   public void handlersGetOverwrittenWhenRegisteredForTheSameTaskQueue() {
-
-    // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
@@ -128,21 +121,16 @@ public class PollWorkflowTaskDispatcherTests {
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue1", handler2);
 
-    // Act
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
     dispatcher.process(response);
 
-    // Assert
     assertTrue(handled2.get());
     assertFalse(handled.get());
   }
 
   @Test
   @Ignore // TODO: Rewrite as mocking of WorkflowServiceBlockingStub is not possible
-  public void aWarningIsLoggedAndWorkflowTaskIsFailedWhenNoHandlerIsRegisteredForTheTaskQueue()
-      throws Exception {
-
-    // Arrange
+  public void aWarningIsLoggedAndWorkflowTaskIsFailedWhenNoHandlerIsRegisteredForTheTaskQueue() {
     ListAppender<ILoggingEvent> appender = new ListAppender<>();
     appender.setContext(context);
     appender.start();
@@ -160,12 +148,10 @@ public class PollWorkflowTaskDispatcherTests {
         new PollWorkflowTaskDispatcher(mockService, "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
-    // Act
     PollWorkflowTaskQueueResponse response =
         CreatePollWorkflowTaskQueueResponse("I Don't Exist TaskQueue");
     dispatcher.process(response);
 
-    // Assert
     verify(stub, times(1)).respondWorkflowTaskFailed(any());
     assertFalse(handled.get());
     assertEquals(1, appender.list.size());
@@ -176,6 +162,27 @@ public class PollWorkflowTaskDispatcherTests {
             "No handler is subscribed for the PollWorkflowTaskQueueResponse.WorkflowExecutionTaskQueue %s",
             "I Don't Exist TaskQueue"),
         event.getFormattedMessage());
+  }
+
+  @Test
+  public void testPollerOptionsRuntimeException() {
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.setContext(context);
+    appender.start();
+    logger.addAppender(appender);
+
+    PollerOptions pollerOptions = PollerOptions.getDefaultInstance();
+    Thread.UncaughtExceptionHandler exceptionHandler = pollerOptions.getUncaughtExceptionHandler();
+    RuntimeException e =
+        new RuntimeException(
+            "UnhandledCommand",
+            new StatusRuntimeException(
+                Status.fromCode(Status.Code.INVALID_ARGUMENT).withDescription("UnhandledCommand")));
+    exceptionHandler.uncaughtException(Thread.currentThread(), e);
+
+    ILoggingEvent event = appender.list.get(0);
+    assertEquals(Level.INFO, event.getLevel());
+    assertEquals(PollerOptions.UNHANDLED_COMMAND_EXCEPTION_MESSAGE, event.getFormattedMessage());
   }
 
   private PollWorkflowTaskQueueResponse CreatePollWorkflowTaskQueueResponse(String taskQueueName) {

@@ -789,6 +789,7 @@ public final class WorkflowStateMachines {
     @Override
     public void workflowTaskStarted(
         long startedEventId, long currentTimeMillis, boolean nonProcessedWorkflowTask) {
+      setCurrentTimeMillis(currentTimeMillis);
       // If some new commands are pending and there are no more command events.
       for (CancellableCommand cancellableCommand : commands) {
         if (cancellableCommand == null) {
@@ -805,7 +806,6 @@ public final class WorkflowStateMachines {
         }
       }
       WorkflowStateMachines.this.currentStartedEventId = startedEventId;
-      setCurrentTimeMillis(currentTimeMillis);
       eventLoop();
     }
 
