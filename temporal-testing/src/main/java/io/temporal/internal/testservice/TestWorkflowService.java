@@ -24,7 +24,10 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Context;
 import io.grpc.Deadline;
+import io.grpc.Grpc;
+import io.grpc.InsecureServerCredentials;
 import io.grpc.ManagedChannel;
+import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -128,12 +131,26 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
 
-  private final String serverName;
-  private final ManagedChannel channel;
-  private final WorkflowServiceStubs stubs;
+  private class Client {
+    public Client() {
+      serverName = InProcessServerBuilder.generateName();
+      channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+      stubs =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
+    }
+
+    public final String serverName;
+    public final ManagedChannel channel;
+    public final WorkflowServiceStubs stubs;
+  }
+
+  private final Client client;
+
+  private final Server outOfProcessServer;
 
   public WorkflowServiceStubs newClientStub() {
-    return stubs;
+    return client.stubs;
   }
 
   public TestWorkflowService() {
@@ -151,22 +168,49 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public TestWorkflowService(long initialTimeMillis) {
     store = new TestWorkflowStoreImpl(initialTimeMillis);
     serverName = InProcessServerBuilder.generateName();
+  }
+  
+  public TestWorkflowService() {
+    client = new Client();
     try {
-      InProcessServerBuilder.forName(serverName).directExecutor().addService(this).build().start();
+      InProcessServerBuilder.forName(client.serverName)
+          .directExecutor()
+          .addService(this)
+          .build()
+          .start();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    stubs =
-        WorkflowServiceStubs.newInstance(
-            WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
+    outOfProcessServer = null;
+  }
+
+  // Creates an out-of-process rather than in-process server, and does not set up a client.
+  public TestWorkflowService(int port) {
+    log.info("Server started, listening on " + port);
+    client = null;
+    try {
+      outOfProcessServer =
+          Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create())
+              .addService(this)
+              .build()
+              .start();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /** Await termination on the main thread since the grpc library uses daemon threads. */
+  void blockUntilShutdown() throws InterruptedException {
+    if (outOfProcessServer != null) {
+      outOfProcessServer.awaitTermination();
+    }
   }
 
   @Override
   public void close() {
-    channel.shutdown();
+    client.channel.shutdown();
     try {
-      channel.awaitTermination(1, TimeUnit.SECONDS);
+      client.channel.awaitTermination(1, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       log.debug("interrupted", e);
     }
