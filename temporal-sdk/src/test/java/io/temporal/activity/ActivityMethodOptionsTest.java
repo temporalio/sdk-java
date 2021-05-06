@@ -19,7 +19,6 @@
 
 package io.temporal.activity;
 
-import io.temporal.common.RetryOptions;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
@@ -34,18 +33,7 @@ import org.junit.Test;
 public class ActivityMethodOptionsTest {
 
   public static final ActivityOptions defaultOps = TestOptions.newActivityOptions1();
-
-  public static final ActivityOptions methodOps1 =
-      ActivityOptions.newBuilder()
-          .setTaskQueue("ActivityMethodOptions")
-          .setHeartbeatTimeout(Duration.ofSeconds(3))
-          .setScheduleToStartTimeout(Duration.ofSeconds(3))
-          .setScheduleToCloseTimeout(Duration.ofDays(3))
-          .setStartToCloseTimeout(Duration.ofSeconds(3))
-          .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
-          .setCancellationType(ActivityCancellationType.TRY_CANCEL)
-          .setContextPropagators(null)
-          .build();
+  public static final ActivityOptions methodOps1 = TestOptions.newActivityOptions2();
   private static final ActivityOptions methodOps2 =
       TestOptions.newActivityOptions20sScheduleToClose();
   private static final Map<String, ActivityOptions> perMethodOptionsMap =
@@ -79,14 +67,12 @@ public class ActivityMethodOptionsTest {
         testEnv.newActivityStub(TestActivity.class, defaultOps, perMethodOptionsMap);
 
     // Check that options for method1 were merged.
-    // Note that if scheduleToStartTimeout or startToCloseTimeout are null, they are set to the
-    // scheduleToCloseTimeout value.
     Map<String, Duration> method1OpsValues = activity.activity1();
     Assert.assertEquals(defaultOps.getHeartbeatTimeout(), method1OpsValues.get("HeartbeatTimeout"));
     Assert.assertEquals(
         methodOps2.getScheduleToCloseTimeout(), method1OpsValues.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
-        methodOps2.getStartToCloseTimeout(), method1OpsValues.get("StartToCloseTimeout"));
+        defaultOps.getStartToCloseTimeout(), method1OpsValues.get("StartToCloseTimeout"));
 
     // Check that options for method2 were default.
     Map<String, Duration> method2OpsValues = activity.activity2();

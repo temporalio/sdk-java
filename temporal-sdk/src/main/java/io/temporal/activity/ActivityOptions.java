@@ -252,22 +252,9 @@ public final class ActivityOptions {
       List<ContextPropagator> contextPropagators,
       ActivityCancellationType cancellationType) {
     this.heartbeatTimeout = heartbeatTimeout;
+    this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
-    if (scheduleToCloseTimeout != null) {
-      if (scheduleToStartTimeout == null) {
-        this.scheduleToStartTimeout = scheduleToCloseTimeout;
-      } else {
-        this.scheduleToStartTimeout = scheduleToStartTimeout;
-      }
-      if (startToCloseTimeout == null) {
-        this.startToCloseTimeout = scheduleToCloseTimeout;
-      } else {
-        this.startToCloseTimeout = startToCloseTimeout;
-      }
-    } else {
-      this.scheduleToStartTimeout = scheduleToStartTimeout;
-      this.startToCloseTimeout = startToCloseTimeout;
-    }
+    this.startToCloseTimeout = startToCloseTimeout;
     this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
     this.contextPropagators = contextPropagators;

@@ -78,7 +78,6 @@ public class ActivityOptionsTest {
     // Check that options were set correctly
     Map<String, Duration> optionsValues = activity.activity1();
     Assert.assertEquals(Duration.ofDays(1), optionsValues.get("ScheduleToCloseTimeout"));
-    Assert.assertEquals(Duration.ofDays(1), optionsValues.get("StartToCloseTimeout"));
   }
 
   @Test
