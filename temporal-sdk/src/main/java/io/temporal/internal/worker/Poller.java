@@ -28,6 +28,7 @@ import io.temporal.internal.metrics.MetricsType;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -150,11 +151,7 @@ public final class Poller<T> implements SuspendableWorker {
     }
     // shutdownNow and then await to stop long polling and ensure that no new tasks
     // are dispatched to the taskExecutor.
-    pollExecutor.shutdownNow();
-    try {
-      pollExecutor.awaitTermination(1, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-    }
+    shutdownAndAwaitTermination(pollExecutor);
     taskExecutor.shutdown();
   }
 
@@ -166,7 +163,7 @@ public final class Poller<T> implements SuspendableWorker {
     if (!isStarted()) {
       return;
     }
-    pollExecutor.shutdownNow();
+    shutdownAndAwaitTermination(pollExecutor);
     taskExecutor.shutdownNow();
   }
 
@@ -267,6 +264,31 @@ public final class Poller<T> implements SuspendableWorker {
         return;
       }
       taskExecutor.process(task);
+    }
+  }
+
+  /**
+   * Graceful 2-stage executor shutdown as recommended in
+   * https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ExecutorService.html
+   *
+   * @param pool - Executor service (such as Thread Pool) to shut down.
+   */
+  private static void shutdownAndAwaitTermination(ExecutorService pool) {
+    pool.shutdown(); // Disable new tasks from being submitted
+    try {
+      // Wait a while for existing tasks to terminate
+      if (!pool.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+        pool.shutdownNow(); // Cancel currently executing tasks
+        // Wait a while for tasks to respond to being cancelled
+        if (!pool.awaitTermination(1000, TimeUnit.MILLISECONDS)) {
+          log.info("Thread Pool did not terminate gracefully.");
+        }
+      }
+    } catch (InterruptedException ie) {
+      // (Re-)Cancel if current thread also interrupted
+      pool.shutdownNow();
+      // Preserve interrupt status
+      Thread.currentThread().interrupt();
     }
   }
 }
