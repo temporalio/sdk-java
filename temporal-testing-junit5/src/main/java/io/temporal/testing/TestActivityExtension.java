@@ -111,7 +111,7 @@ public class TestActivityExtension
       return testEnvironment;
     } else {
       // Activity stub
-      return testEnvironment.newActivityStub(parameterType);
+      return testEnvironment.newActivityStubWithDefaults(parameterType);
     }
   }
 
