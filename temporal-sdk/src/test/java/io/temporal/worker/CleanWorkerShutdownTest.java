@@ -136,7 +136,7 @@ public class CleanWorkerShutdownTest {
     public String execute() {
       try {
         started.complete(true);
-        Thread.sleep(1000);
+        Thread.sleep(1500);
       } catch (InterruptedException e) {
         return "interrupted";
       }
@@ -281,7 +281,7 @@ public class CleanWorkerShutdownTest {
     public String execute() {
       try {
         started.complete(true);
-        Thread.sleep(1000);
+        Thread.sleep(1500);
         Activity.getExecutionContext().heartbeat("foo");
       } catch (ActivityWorkerShutdownException e) {
         return "workershutdown";
