@@ -121,21 +121,6 @@ classes {
     dependsOn createProperties
 }
 
-if (JavaVersion.current().isJava8Compatible()) {
-    allprojects {
-        tasks.withType(Javadoc) {
-            options.addStringOption('Xdoclint:none', '-quiet')
-        }
-    }
-}
-
-javadoc {
-    options.encoding = 'UTF-8'
-    if (JavaVersion.current().isJava9Compatible()) {
-        options.addBooleanOption('html5', true)
-    }
-}
-
 // Needed to include generated files into the source jar
 tasks.sourcesJar.from(file("$buildDir/generated/main/java"))
 

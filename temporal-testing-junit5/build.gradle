@@ -29,21 +29,6 @@ dependencies {
     testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter'
 }
 
-if (JavaVersion.current().isJava8Compatible()) {
-    allprojects {
-        tasks.withType(Javadoc) {
-            options.addStringOption('Xdoclint:none', '-quiet')
-        }
-    }
-}
-
-javadoc {
-    options.encoding = 'UTF-8'
-    if (JavaVersion.current().isJava9Compatible()) {
-        options.addBooleanOption('html5', true)
-    }
-}
-
 test {
     useJUnitPlatform()
     testLogging {

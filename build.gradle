@@ -89,6 +89,16 @@ subprojects {
     }
     tasks.check.dependsOn('checkLicenseMain')
 
+    javadoc {
+        options.encoding = 'UTF-8'
+        if (JavaVersion.current().isJava8Compatible()) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+        if (JavaVersion.current().isJava9Compatible()) {
+            options.addBooleanOption('html5', true)
+        }
+    }
+
     // add a collection to track failedTests
     ext.failedTests = []
 

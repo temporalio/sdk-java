@@ -25,21 +25,6 @@ dependencies {
     api group: 'junit', name: 'junit', version: '4.13.2'
 }
 
-if (JavaVersion.current().isJava8Compatible()) {
-    allprojects {
-        tasks.withType(Javadoc) {
-            options.addStringOption('Xdoclint:none', '-quiet')
-        }
-    }
-}
-
-javadoc {
-    options.encoding = 'UTF-8'
-    if (JavaVersion.current().isJava9Compatible()) {
-        options.addBooleanOption('html5', true)
-    }
-}
-
 test {
     testLogging {
         events 'passed', 'skipped', 'failed'
