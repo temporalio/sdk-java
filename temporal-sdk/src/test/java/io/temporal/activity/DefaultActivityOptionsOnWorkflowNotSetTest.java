@@ -55,14 +55,16 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
     Map<String, Duration> activity1Values = result.get("Activity1");
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), activity1Values.get("ScheduleToCloseTimeout"));
+    // If not set, Temporal service sets to ScheduleToCloseTimeout value
     Assert.assertEquals(
-        defaultOps.getStartToCloseTimeout(), activity1Values.get("StartToCloseTimeout"));
+        defaultOps.getScheduleToCloseTimeout(), activity1Values.get("StartToCloseTimeout"));
 
     Map<String, Duration> activity2Values = result.get("Activity2");
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), activity2Values.get("ScheduleToCloseTimeout"));
+    // If not set, Temporal service sets to ScheduleToCloseTimeout value
     Assert.assertEquals(
-        defaultOps.getStartToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
+        defaultOps.getScheduleToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
   }
 
   public static class TestSetNullActivityOptionsWorkflowImpl

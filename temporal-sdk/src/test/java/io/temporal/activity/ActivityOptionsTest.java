@@ -26,12 +26,27 @@ import static org.junit.Assert.fail;
 
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.testing.TestActivityEnvironment;
+import io.temporal.workflow.shared.TestActivities.TestActivity;
+import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
+import io.temporal.workflow.shared.TestOptions;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 public class ActivityOptionsTest {
+
+  private TestActivityEnvironment testEnv;
+  private ActivityOptions defaultOps = TestOptions.newActivityOptions1();
+  private final ActivityOptions methodOps1 = TestOptions.newActivityOptions2();
+
+  @Before
+  public void setUp() {
+    testEnv = TestActivityEnvironment.newInstance();
+  }
 
   @MethodRetry(
       initialIntervalSeconds = 12,
@@ -40,6 +55,43 @@ public class ActivityOptionsTest {
       maximumIntervalSeconds = 22,
       doNotRetry = {"java.lang.NullPointerException", "java.lang.UnsupportedOperationException"})
   public void activityAndRetryOptions() {}
+
+  @Test
+  public void testActivityOptions() {
+    testEnv.registerActivitiesImplementations(new TestActivityImpl());
+    try {
+      testEnv.newActivityStub(TestActivity.class);
+    } catch (IllegalArgumentException e) {
+      Assert.assertTrue(e instanceof IllegalArgumentException);
+      Assert.assertEquals(
+          e.getMessage(),
+          "Both StartToCloseTimeout and ScheduleToCloseTimeout aren't specified for Activity1 activity. Please set at least one of the above through the ActivityStub or WorkflowImplementationOptions.");
+    }
+  }
+
+  @Test
+  public void testActivityOptionsMerge() {
+    // Assert no changes if no per method options
+    ActivityOptions merged =
+        ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(null).build();
+    Assert.assertEquals(defaultOps, merged);
+    // Assert options were overridden with method options
+    merged = ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps1).build();
+    Assert.assertEquals(methodOps1, merged);
+  }
+
+  @Test
+  public void testActivityOptionsDefaultInstance() {
+    testEnv.registerActivitiesImplementations(new TestActivityImpl());
+    TestActivity activity =
+        testEnv.newActivityStub(
+            TestActivity.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofDays(1)).build());
+
+    // Check that options were set correctly
+    Map<String, Duration> optionsValues = activity.activity1();
+    Assert.assertEquals(Duration.ofDays(1), optionsValues.get("ScheduleToCloseTimeout"));
+  }
 
   @Test
   public void testOnlyAnnotationsPresent() throws NoSuchMethodException {
