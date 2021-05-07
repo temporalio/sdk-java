@@ -29,11 +29,10 @@ import io.temporal.common.RetryOptions;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
+import io.temporal.workflow.shared.TestOptions;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Map;
-
-import io.temporal.workflow.shared.TestOptions;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -74,7 +73,7 @@ public class ActivityOptionsTest {
   public void testActivityOptionsMerge() {
     // Assert no changes if no per method options
     ActivityOptions merged =
-            ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(null).build();
+        ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(null).build();
     Assert.assertEquals(defaultOps, merged);
     // Assert options were overridden with method options
     merged = ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps1).build();

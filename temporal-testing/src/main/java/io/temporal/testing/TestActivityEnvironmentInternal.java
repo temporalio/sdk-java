@@ -199,9 +199,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
    * @param options options that specify the activity invocation parameters
    */
   @Override
-  public <T> T newActivityStub(
-      Class<T> activityInterface,
-      ActivityOptions options) {
+  public <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface, options, null, new TestActivityExecutor());

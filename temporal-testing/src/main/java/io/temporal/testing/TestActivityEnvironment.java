@@ -90,9 +90,7 @@ public interface TestActivityEnvironment {
    * @param options options that specify the activity invocation parameters
    * @return The stub that implements the activity interface.
    */
-  <T> T newActivityStub(
-      Class<T> activityInterface,
-      ActivityOptions options);
+  <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options);
 
   /**
    * Creates a stub that can be used to invoke activities registered through {@link
