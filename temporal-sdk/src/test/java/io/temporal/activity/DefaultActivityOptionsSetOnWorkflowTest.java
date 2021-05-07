@@ -73,14 +73,12 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
         defaultOps.getStartToCloseTimeout(), activity1Values.get("StartToCloseTimeout"));
 
     // Check that default options for activity2 were overwritten.
-    // Note that if scheduleToStartTimeout or startToCloseTimeout are null, they are set to the
-    // scheduleToCloseTimeout value.
     Map<String, Duration> activity2Values = result.get("Activity2");
     Assert.assertEquals(defaultOps.getHeartbeatTimeout(), activity2Values.get("HeartbeatTimeout"));
     Assert.assertEquals(
         activityOps2.getScheduleToCloseTimeout(), activity2Values.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
-        activityOps2.getStartToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
+        defaultOps.getStartToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
   }
 
   public static class TestSetDefaultActivityOptionsWorkflowImpl implements TestWorkflow3 {
