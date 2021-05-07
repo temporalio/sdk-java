@@ -197,16 +197,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
    *
    * @param activityInterface interface type implemented by activities
    * @param options options that specify the activity invocation parameters
-   * @param activityMethodOptions activity method-specific invocation parameters
    */
   @Override
   public <T> T newActivityStub(
       Class<T> activityInterface,
-      ActivityOptions options,
-      Map<String, ActivityOptions> activityMethodOptions) {
+      ActivityOptions options) {
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
-            activityInterface, options, activityMethodOptions, new TestActivityExecutor());
+            activityInterface, options, null, new TestActivityExecutor());
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }

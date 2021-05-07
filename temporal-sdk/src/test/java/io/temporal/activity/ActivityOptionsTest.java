@@ -32,6 +32,8 @@ import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Map;
+
+import io.temporal.workflow.shared.TestOptions;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,6 +41,8 @@ import org.junit.Test;
 public class ActivityOptionsTest {
 
   private TestActivityEnvironment testEnv;
+  private ActivityOptions defaultOps = TestOptions.newActivityOptions1();
+  private final ActivityOptions methodOps1 = TestOptions.newActivityOptions2();
 
   @Before
   public void setUp() {
@@ -67,13 +71,23 @@ public class ActivityOptionsTest {
   }
 
   @Test
+  public void testActivityOptionsMerge() {
+    // Assert no changes if no per method options
+    ActivityOptions merged =
+            ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(null).build();
+    Assert.assertEquals(defaultOps, merged);
+    // Assert options were overridden with method options
+    merged = ActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps1).build();
+    Assert.assertEquals(methodOps1, merged);
+  }
+
+  @Test
   public void testActivityOptionsDefaultInstance() {
     testEnv.registerActivitiesImplementations(new TestActivityImpl());
     TestActivity activity =
         testEnv.newActivityStub(
             TestActivity.class,
-            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofDays(1)).build(),
-            null);
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofDays(1)).build());
 
     // Check that options were set correctly
     Map<String, Duration> optionsValues = activity.activity1();
