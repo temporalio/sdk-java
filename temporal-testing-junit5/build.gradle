@@ -19,13 +19,6 @@ if (hasProperty('signing.keyId')) {
 
 description = '''Temporal Workflow Java SDK testing, JUnit 5.x integration'''
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    withJavadocJar()
-    withSourcesJar()
-}
-
 dependencies {
     api project(':temporal-testing')
 
@@ -34,17 +27,6 @@ dependencies {
 
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter'
-}
-
-compileJava {
-    dependsOn 'googleJavaFormat'
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-}
-
-compileTestJava {
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
 }
 
 if (JavaVersion.current().isJava8Compatible()) {

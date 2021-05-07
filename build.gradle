@@ -48,7 +48,12 @@ subprojects {
     }
 
     apply plugin: 'java-library'
-
+    java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+        withJavadocJar()
+        withSourcesJar()
+    }
     apply plugin: 'com.github.sherter.google-java-format'
 
     googleJavaFormat {
@@ -62,6 +67,19 @@ subprojects {
     dependencies {
         errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
         errorprone('com.google.errorprone:error_prone_core:2.7.1')
+    }
+
+    compileJava {
+        dependsOn 'googleJavaFormat'
+        options.encoding = 'UTF-8'
+        options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+        options.errorprone.excludedPaths = '.*/generated-sources/.*'
+    }
+
+    compileTestJava {
+        options.encoding = 'UTF-8'
+        options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+        options.errorprone.excludedPaths = '.*/generated-sources/.*'
     }
 
     apply plugin: 'org.cadixdev.licenser'

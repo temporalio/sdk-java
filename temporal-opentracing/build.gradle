@@ -19,13 +19,6 @@ if (hasProperty('signing.keyId')) {
 
 description = '''Temporal Java SDK OpenTracing Support Module'''
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    withJavadocJar()
-    withSourcesJar()
-}
-
 ext {
     opentracingVersion = '0.33.0'
 }
@@ -43,17 +36,6 @@ dependencies {
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.10.0'
     testImplementation group: 'io.opentracing', name: 'opentracing-mock', version: "$opentracingVersion"
-}
-
-compileJava {
-    dependsOn 'googleJavaFormat'
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-}
-
-compileTestJava {
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
 }
 
 if (JavaVersion.current().isJava8Compatible()) {

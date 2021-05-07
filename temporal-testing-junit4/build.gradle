@@ -19,28 +19,10 @@ if (hasProperty('signing.keyId')) {
 
 description = '''Temporal Workflow Java SDK testing, JUnit 4.x integration'''
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    withJavadocJar()
-    withSourcesJar()
-}
-
 dependencies {
     api project(':temporal-testing')
 
     api group: 'junit', name: 'junit', version: '4.13.2'
-}
-
-compileJava {
-    dependsOn 'googleJavaFormat'
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-}
-
-compileTestJava {
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
 }
 
 if (JavaVersion.current().isJava8Compatible()) {

@@ -28,13 +28,6 @@ if (hasProperty('signing.keyId')) {
 
 description = '''Temporal Workflow Java SDK'''
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    withJavadocJar()
-    withSourcesJar()
-}
-
 dependencies {
     api 'io.grpc:grpc-protobuf:1.37.1'
     api 'io.grpc:grpc-stub:1.37.1'
@@ -108,18 +101,6 @@ idea {
     }
 }
 
-compileJava {
-    dependsOn 'googleJavaFormat'
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-    options.errorprone.excludedPaths = '.*/generated-sources/.*'
-}
-
-compileTestJava {
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-    options.errorprone.excludedPaths = '.*/generated-sources/.*'
-}
 
 // Generation version.properties for value to be included into the request header
 task createProperties(dependsOn: processResources) {

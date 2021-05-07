@@ -19,13 +19,6 @@ if (hasProperty('signing.keyId')) {
 
 description = '''Temporal Workflow Java SDK testing'''
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    withJavadocJar()
-    withSourcesJar()
-}
-
 dependencies {
     api project(':temporal-sdk')
 
@@ -34,17 +27,6 @@ dependencies {
 
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
-}
-
-compileJava {
-    dependsOn 'googleJavaFormat'
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-}
-
-compileTestJava {
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
 }
 
 if (JavaVersion.current().isJava8Compatible()) {

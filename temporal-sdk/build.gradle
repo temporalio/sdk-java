@@ -20,13 +20,6 @@ if (hasProperty('signing.keyId')) {
 
 description = '''Temporal Workflow Java SDK'''
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    withJavadocJar()
-    withSourcesJar()
-}
-
 dependencies {
     api project(':temporal-serviceclient')
     api group: 'com.google.code.gson', name: 'gson', version: '2.8.6'
@@ -59,19 +52,6 @@ task updateSubmodules(type: Exec) {
     dependsOn initSubmodules
     description = 'Update submodules'
     commandLine 'git', 'submodule', 'update'
-}
-
-compileJava {
-    dependsOn 'googleJavaFormat'
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-    options.errorprone.excludedPaths = '.*/generated-sources/.*'
-}
-
-compileTestJava {
-    options.encoding = 'UTF-8'
-    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-    options.errorprone.excludedPaths = '.*/generated-sources/.*'
 }
 
 if (JavaVersion.current().isJava8Compatible()) {
