@@ -21,8 +21,6 @@ if (hasProperty('signing.keyId')) {
     }
 }
 
-archivesBaseName = "temporal-testing-junit5"
-
 description = '''Temporal Workflow Java SDK testing, JUnit 5.x integration'''
 
 java {

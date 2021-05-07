@@ -30,8 +30,6 @@ if (hasProperty('signing.keyId')) {
     }
 }
 
-//archivesBaseName = "temporal-sdk"
-
 description = '''Temporal Workflow Java SDK'''
 
 java {

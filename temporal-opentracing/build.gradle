@@ -21,8 +21,6 @@ if (hasProperty('signing.keyId')) {
     }
 }
 
-archivesBaseName = "temporal-opentracing"
-
 description = '''Temporal Java SDK OpenTracing Support Module'''
 
 java {
