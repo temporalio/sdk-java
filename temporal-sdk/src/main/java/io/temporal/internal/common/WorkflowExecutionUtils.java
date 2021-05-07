@@ -98,11 +98,10 @@ public class WorkflowExecutionUtils {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowExecutionUtils.class);
 
-  private static final RpcRetryOptions retryParameters =
+  private static final RpcRetryOptions GET_INSTANCE_CLOSE_EVENT_RETRY_OPTIONS =
       RpcRetryOptions.newBuilder()
-          .setBackoffCoefficient(2)
-          .setInitialInterval(Duration.ofMillis(500))
-          .setMaximumInterval(Duration.ofSeconds(30))
+          .setBackoffCoefficient(1)
+          .setInitialInterval(Duration.ofMillis(1))
           .setMaximumAttempts(Integer.MAX_VALUE)
           .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
           .addDoNotRetry(Status.Code.NOT_FOUND, null)
@@ -205,7 +204,12 @@ public class WorkflowExecutionUtils {
     }
   }
 
-  /** Returns an instance closing event, potentially waiting for workflow to complete. */
+  /**
+   * @param timeout timeout to retrieve InstanceCloseEvent in {@code unit} units. If 0 - MAX_INTEGER
+   *     will be used
+   * @param unit time unit of {@code timeout}
+   * @return an instance closing event, potentially waiting for workflow to complete.
+   */
   public static HistoryEvent getInstanceCloseEvent(
       WorkflowServiceStubs service,
       String namespace,
@@ -215,10 +219,9 @@ public class WorkflowExecutionUtils {
       TimeUnit unit)
       throws TimeoutException {
     ByteString pageToken = ByteString.EMPTY;
-    GetWorkflowExecutionHistoryResponse response = null;
+    GetWorkflowExecutionHistoryResponse response;
     // TODO: Interrupt service long poll call on timeout and on interrupt
     long start = System.currentTimeMillis();
-    HistoryEvent event;
     do {
       GetWorkflowExecutionHistoryRequest r =
           GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -229,17 +232,14 @@ public class WorkflowExecutionUtils {
               .setWaitNewEvent(true)
               .setNextPageToken(pageToken)
               .build();
+
       long elapsed = System.currentTimeMillis() - start;
-      Deadline expiration = Deadline.after(unit.toMillis(timeout) - elapsed, TimeUnit.MILLISECONDS);
-      if (expiration.timeRemaining(TimeUnit.MILLISECONDS) > 0) {
+      long millisRemaining = unit.toMillis(timeout != 0 ? timeout : Integer.MAX_VALUE) - elapsed;
+
+      if (millisRemaining > 0) {
         RpcRetryOptions retryOptions =
-            RpcRetryOptions.newBuilder()
-                .setBackoffCoefficient(1)
-                .setInitialInterval(Duration.ofMillis(1))
-                .setMaximumAttempts(Integer.MAX_VALUE)
-                .setExpiration(Duration.ofMillis(expiration.timeRemaining(TimeUnit.MILLISECONDS)))
-                .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
-                .addDoNotRetry(Status.Code.NOT_FOUND, null)
+            RpcRetryOptions.newBuilder(GET_INSTANCE_CLOSE_EVENT_RETRY_OPTIONS)
+                .setExpiration(Duration.ofMillis(millisRemaining))
                 .build();
         response =
             GrpcRetryer.retryWithResult(
@@ -256,11 +256,10 @@ public class WorkflowExecutionUtils {
                       .withDeadline(expirationInRetry)
                       .getWorkflowExecutionHistory(r);
                 });
-      }
-      if (response == null || !response.hasHistory()) {
-        continue;
-      }
-      if (timeout != 0 && System.currentTimeMillis() - start > unit.toMillis(timeout)) {
+        if (response == null || !response.hasHistory()) {
+          continue;
+        }
+      } else {
         throw new TimeoutException(
             "WorkflowId="
                 + workflowExecution.getWorkflowId()
@@ -271,10 +270,11 @@ public class WorkflowExecutionUtils {
                 + ", unit="
                 + unit);
       }
+
       pageToken = response.getNextPageToken();
       History history = response.getHistory();
       if (history.getEventsCount() > 0) {
-        event = history.getEvents(0);
+        HistoryEvent event = history.getEvents(0);
         if (!isWorkflowExecutionCompletedEvent(event)) {
           throw new RuntimeException("Last history event is not completion event: " + event);
         }
@@ -291,10 +291,9 @@ public class WorkflowExecutionUtils {
                   .build();
           continue;
         }
-        break;
+        return event;
       }
     } while (true);
-    return event;
   }
 
   /** Returns an instance closing event, potentially waiting for workflow to complete. */

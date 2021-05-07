@@ -66,6 +66,12 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
             .mergeActivityOptions(this.activityMethodOptions.get(activityName))
             .mergeMethodRetry(methodRetry)
             .build();
+    if (merged.getStartToCloseTimeout() == null && merged.getScheduleToCloseTimeout() == null) {
+      throw new IllegalArgumentException(
+          "Both StartToCloseTimeout and ScheduleToCloseTimeout aren't specified for "
+              + activityName
+              + " activity. Please set at least one of the above through the ActivityStub or WorkflowImplementationOptions.");
+    }
     ActivityStub stub = ActivityStubImpl.newInstance(merged, activityExecutor);
     function =
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);

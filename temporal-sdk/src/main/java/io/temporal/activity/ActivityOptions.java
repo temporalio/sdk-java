@@ -38,6 +38,7 @@ public final class ActivityOptions {
     return new Builder(options);
   }
 
+  @Deprecated
   public static ActivityOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
@@ -45,7 +46,7 @@ public final class ActivityOptions {
   private static final ActivityOptions DEFAULT_INSTANCE;
 
   static {
-    DEFAULT_INSTANCE = ActivityOptions.newBuilder().build();
+    DEFAULT_INSTANCE = ActivityOptions.newBuilder().validateAndBuildWithDefaults();
   }
 
   public static final class Builder {
@@ -251,22 +252,9 @@ public final class ActivityOptions {
       List<ContextPropagator> contextPropagators,
       ActivityCancellationType cancellationType) {
     this.heartbeatTimeout = heartbeatTimeout;
+    this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
-    if (scheduleToCloseTimeout != null) {
-      if (scheduleToStartTimeout == null) {
-        this.scheduleToStartTimeout = scheduleToCloseTimeout;
-      } else {
-        this.scheduleToStartTimeout = scheduleToStartTimeout;
-      }
-      if (startToCloseTimeout == null) {
-        this.startToCloseTimeout = scheduleToCloseTimeout;
-      } else {
-        this.startToCloseTimeout = startToCloseTimeout;
-      }
-    } else {
-      this.scheduleToStartTimeout = scheduleToStartTimeout;
-      this.startToCloseTimeout = startToCloseTimeout;
-    }
+    this.startToCloseTimeout = startToCloseTimeout;
     this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
     this.contextPropagators = contextPropagators;
