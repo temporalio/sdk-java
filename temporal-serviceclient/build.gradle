@@ -8,7 +8,6 @@ buildscript {
 
 plugins {
     id 'com.google.protobuf' version '0.8.16'
-    id 'org.cadixdev.licenser' version '0.6.0'
     id 'maven-publish'
     id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
@@ -55,11 +54,6 @@ dependencies {
 configurations.all {
     // Conflicts with logback
     exclude group: 'org.slf4j', module: 'slf4j-simple'
-}
-
-license {
-    header rootProject.file('license-header.txt')
-    exclude '**/*.puml'
 }
 
 task initSubmodules(type: Exec) {
@@ -174,7 +168,6 @@ task registerNamespace(type: JavaExec) {
 
 test {
     dependsOn 'registerNamespace'
-    dependsOn 'checkLicenseMain'
     testLogging {
         events 'passed', 'skipped', 'failed'
         exceptionFormat 'full'

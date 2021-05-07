@@ -1,6 +1,5 @@
 // Run 'gradle checkUpdates' to find out which dependencies have newer versions
 plugins {
-    id 'org.cadixdev.licenser' version '0.6.0'
     id 'com.palantir.git-version' version '0.12.2'
     id 'maven-publish'
     id 'signing'
@@ -31,11 +30,6 @@ dependencies {
     api project(':temporal-testing')
 
     api group: 'junit', name: 'junit', version: '4.13.2'
-}
-
-license {
-    header rootProject.file('license-header.txt')
-    exclude '**/*.puml'
 }
 
 compileJava {
@@ -70,7 +64,6 @@ task sourceJar(type: Jar) {
 }
 
 test {
-    dependsOn 'checkLicenseMain'
     testLogging {
         events 'passed', 'skipped', 'failed'
         exceptionFormat 'full'

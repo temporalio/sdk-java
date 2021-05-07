@@ -1,6 +1,5 @@
 // Run 'gradle checkUpdates' to find out which dependencies have newer versions
 plugins {
-    id 'org.cadixdev.licenser' version '0.6.0'
     id 'com.palantir.git-version' version '0.12.2'
     id 'maven-publish'
     id 'signing'
@@ -49,11 +48,6 @@ dependencies {
 configurations.all {
     // Conflicts with logback
     exclude group: 'org.slf4j', module: 'slf4j-simple'
-}
-
-license {
-    header rootProject.file('license-header.txt')
-    exclude '**/*.puml'
 }
 
 task initSubmodules(type: Exec) {
@@ -108,7 +102,6 @@ task registerNamespace(type: JavaExec) {
 
 test {
     dependsOn 'registerNamespace'
-    dependsOn 'checkLicenseMain'
     testLogging {
         events 'passed', 'skipped', 'failed'
         exceptionFormat 'full'

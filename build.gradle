@@ -1,6 +1,7 @@
 plugins {
     id 'com.github.sherter.google-java-format' version '0.9' apply false
     id 'net.ltgt.errorprone' version '2.0.1' apply false
+    id 'org.cadixdev.licenser' version '0.6.0'
 }
 
 // v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
@@ -62,6 +63,13 @@ subprojects {
         errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
         errorprone('com.google.errorprone:error_prone_core:2.7.1')
     }
+
+    apply plugin: 'org.cadixdev.licenser'
+    license {
+        header rootProject.file('license-header.txt')
+        exclude '**/*.puml'
+    }
+    tasks.check.dependsOn('checkLicenseMain')
 
     // add a collection to track failedTests
     ext.failedTests = []
