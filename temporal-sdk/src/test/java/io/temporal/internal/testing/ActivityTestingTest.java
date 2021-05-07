@@ -68,7 +68,7 @@ public class ActivityTestingTest {
   @Test
   public void testSuccess() {
     testEnvironment.registerActivitiesImplementations(new ActivityImpl());
-    TestActivity activity = testEnvironment.newActivityStubWithDefaults(TestActivity.class);
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
     assertEquals("Activity1-input1", result);
   }
@@ -84,7 +84,7 @@ public class ActivityTestingTest {
   @Test
   public void testFailure() {
     testEnvironment.registerActivitiesImplementations(new AngryActivityImpl());
-    TestActivity activity = testEnvironment.newActivityStubWithDefaults(TestActivity.class);
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     try {
       activity.activity1("input1");
       fail("unreachable");
@@ -114,7 +114,7 @@ public class ActivityTestingTest {
     testEnvironment.registerActivitiesImplementations(new HeartbeatActivityImpl());
     AtomicReference<String> details = new AtomicReference<>();
     testEnvironment.setActivityHeartbeatListener(String.class, details::set);
-    TestActivity activity = testEnvironment.newActivityStubWithDefaults(TestActivity.class);
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
     assertEquals("input1", result);
     assertEquals("details1", details.get());
@@ -146,7 +146,7 @@ public class ActivityTestingTest {
     Set<Integer> details = ConcurrentHashMap.newKeySet();
     testEnvironment.setActivityHeartbeatListener(Integer.class, details::add);
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStubWithDefaults(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
     assertEquals(2, details.size());
   }
@@ -171,7 +171,7 @@ public class ActivityTestingTest {
     AtomicInteger count = new AtomicInteger();
     testEnvironment.setActivityHeartbeatListener(Void.class, i -> count.incrementAndGet());
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStubWithDefaults(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
     assertEquals(2, count.get());
   }
@@ -193,7 +193,7 @@ public class ActivityTestingTest {
     testEnvironment.registerActivitiesImplementations(new HeartbeatCancellationActivityImpl());
     testEnvironment.requestCancelActivity();
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStubWithDefaults(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
   }
 
@@ -230,7 +230,7 @@ public class ActivityTestingTest {
           }
         });
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStubWithDefaults(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
   }
 
@@ -259,7 +259,7 @@ public class ActivityTestingTest {
           }
         });
     InterruptibleTestActivity activity =
-        testEnvironment.newActivityStubWithDefaults(InterruptibleTestActivity.class);
+        testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
     assertEquals(3, count.get());
   }
@@ -360,17 +360,17 @@ public class ActivityTestingTest {
     DImpl dImpl = new DImpl();
     testEnvironment.registerActivitiesImplementations(bImpl, dImpl);
     try {
-      testEnvironment.newActivityStubWithDefaults(A.class);
+      testEnvironment.newActivityStub(A.class);
       fail("A doesn't implement activity");
     } catch (IllegalArgumentException e) {
       // expected as A doesn't implement any activity
     }
-    B b = testEnvironment.newActivityStubWithDefaults(B.class);
+    B b = testEnvironment.newActivityStub(B.class);
     b.a();
     b.b();
     A a = b;
     a.a();
-    D d = testEnvironment.newActivityStubWithDefaults(D.class);
+    D d = testEnvironment.newActivityStub(D.class);
     d.a();
     d.d();
     a = d;
@@ -400,12 +400,12 @@ public class ActivityTestingTest {
     } catch (IllegalArgumentException e) {
       // expected as A doesn't implement any activity
     }
-    B b = testEnvironment.newActivityStubWithDefaults(B.class);
+    B b = testEnvironment.newActivityStub(B.class);
     b.a();
     b.b();
     A a = b;
     a.a();
-    D d = testEnvironment.newActivityStubWithDefaults(D.class);
+    D d = testEnvironment.newActivityStub(D.class);
     d.a();
     d.d();
     a = d;
@@ -427,11 +427,11 @@ public class ActivityTestingTest {
   public void testInvokingActivityByBaseInterface2() {
     EImpl eImpl = new EImpl();
     testEnvironment.registerActivitiesImplementations(eImpl);
-    E e = testEnvironment.newActivityStubWithDefaults(E.class);
+    E e = testEnvironment.newActivityStub(E.class);
     e.a();
     e.d();
     e.e();
-    D d = testEnvironment.newActivityStubWithDefaults(D.class);
+    D d = testEnvironment.newActivityStub(D.class);
     d.a();
     d.d();
     List<String> expectedE = new ArrayList<>();

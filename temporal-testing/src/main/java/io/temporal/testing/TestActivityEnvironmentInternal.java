@@ -179,28 +179,17 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
    * @param activityInterface interface type implemented by activities
    */
   @Override
-  public <T> T newActivityStubWithDefaults(Class<T> activityInterface) {
+  public <T> T newActivityStub(Class<T> activityInterface) {
     ActivityOptions options =
         ActivityOptions.newBuilder()
             .setScheduleToCloseTimeout(Duration.ofDays(1))
             .setHeartbeatTimeout(Duration.ofSeconds(1))
             .build();
-    return newActivityStub(activityInterface, options, null);
-  }
-
-  /**
-   * Creates client stub to activities that implement given interface.
-   *
-   * @param activityInterface interface type implemented by activities
-   */
-  @Override
-  public <T> T newActivityStub(Class<T> activityInterface) {
-    return newActivityStub(activityInterface, null, null);
-  }
-
-  @Override
-  public <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    return newActivityStub(activityInterface, options, null);
+    InvocationHandler invocationHandler =
+        ActivityInvocationHandler.newInstance(
+            activityInterface, options, null, new TestActivityExecutor());
+    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
   /**
