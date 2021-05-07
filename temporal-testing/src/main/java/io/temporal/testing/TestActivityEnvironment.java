@@ -39,7 +39,7 @@ import java.util.Map;
  *   private static class ActivityImpl implements TestActivity {
  *    {@literal @}Override
  *     public String activity1(String input) {
- *       return Activity.getExecutionContext().getInfo().getActivityType().getName() + "-" + input;
+ *       return Activity.getExecutionContext().getInfo().getActivityType() + "-" + input;
  *     }
  *   }
  *
