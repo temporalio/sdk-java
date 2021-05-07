@@ -91,6 +91,8 @@ public class SyncTest {
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     String result = workflowStub.getResult(String.class);
     assertEquals("activity10", result);
+    // No stacktrace after the workflow is closed. Assert message.
+    assertEquals("Workflow is closed.", workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class));
   }
 
   @Test
