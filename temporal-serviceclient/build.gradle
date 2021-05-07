@@ -7,7 +7,6 @@ buildscript {
 plugins {
     id 'com.google.protobuf' version '0.8.16'
     id 'maven-publish'
-    id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
 }
 
@@ -15,13 +14,6 @@ apply plugin: 'com.google.protobuf'
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 apply plugin: 'maven-publish'
 apply plugin: 'de.marcphilipp.nexus-publish'
-
-if (hasProperty('signing.keyId')) {
-    apply plugin: 'signing'
-    signing {
-        sign configurations.archives
-    }
-}
 
 description = '''Temporal Workflow Java SDK'''
 

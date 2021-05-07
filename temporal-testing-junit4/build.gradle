@@ -1,19 +1,11 @@
 plugins {
     id 'com.palantir.git-version' version '0.12.2'
     id 'maven-publish'
-    id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
 }
 
 apply plugin: 'maven-publish'
 apply plugin: 'de.marcphilipp.nexus-publish'
-
-if (hasProperty('signing.keyId')) {
-    apply plugin: 'signing'
-    signing {
-        sign configurations.archives
-    }
-}
 
 description = '''Temporal Workflow Java SDK testing, JUnit 4.x integration'''
 

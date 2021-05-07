@@ -104,6 +104,13 @@ subprojects {
         }
     }
 
+    apply plugin: 'signing'
+    if (hasProperty('signing.keyId')) {
+        signing {
+            sign configurations.archives
+        }
+    }
+
     // add a collection to track failedTests
     ext.failedTests = []
 
