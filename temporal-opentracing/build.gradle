@@ -71,11 +71,6 @@ javadoc {
     }
 }
 
-task sourceJar(type: Jar) {
-    from sourceSets.main.allSource
-    classifier "sources"
-}
-
 test {
     testLogging {
         events 'passed', 'skipped', 'failed'

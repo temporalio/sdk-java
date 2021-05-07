@@ -155,11 +155,8 @@ javadoc {
     }
 }
 
-// Needed to include generated fils into the source jar
-task sourceJar(type: Jar) {
-    from sourceSets.main.allSource, file("$buildDir/generated/main/java")
-    classifier "sources"
-}
+// Needed to include generated files into the source jar
+tasks.sourcesJar.from(file("$buildDir/generated/main/java"))
 
 task registerNamespace(type: JavaExec) {
     main = 'io.temporal.serviceclient.RegisterTestNamespace'
