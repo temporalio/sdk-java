@@ -8,8 +8,6 @@ buildscript {
 
 plugins {
     id 'com.google.protobuf' version '0.8.16'
-    id 'java-library'
-    id 'net.ltgt.errorprone' version '2.0.1'
     id 'org.cadixdev.licenser' version '0.6.0'
     id 'maven-publish'
     id 'signing'
@@ -21,7 +19,6 @@ apply plugin: 'com.google.protobuf'
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 apply plugin: 'maven-publish'
 apply plugin: 'de.marcphilipp.nexus-publish'
-apply plugin: 'java'
 
 if (hasProperty('signing.keyId')) {
     apply plugin: 'signing'
@@ -40,9 +37,6 @@ java {
 }
 
 dependencies {
-    errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
-    errorprone('com.google.errorprone:error_prone_core:2.7.1')
-
     api 'io.grpc:grpc-protobuf:1.37.1'
     api 'io.grpc:grpc-stub:1.37.1'
     api 'io.grpc:grpc-core:1.37.1'

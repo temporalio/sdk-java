@@ -1,7 +1,5 @@
 // Run 'gradle checkUpdates' to find out which dependencies have newer versions
 plugins {
-    id 'java-library'
-    id 'net.ltgt.errorprone' version '2.0.1'
     id 'org.cadixdev.licenser' version '0.6.0'
     id 'com.palantir.git-version' version '0.12.2'
     id 'maven-publish'
@@ -12,7 +10,6 @@ plugins {
 
 apply plugin: 'maven-publish'
 apply plugin: 'de.marcphilipp.nexus-publish'
-apply plugin: 'java'
 
 if (hasProperty('signing.keyId')) {
     apply plugin: 'signing'
@@ -31,9 +28,6 @@ java {
 }
 
 dependencies {
-    errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
-    errorprone('com.google.errorprone:error_prone_core:2.7.1')
-
     api project(':temporal-testing')
 
     api group: 'junit', name: 'junit', version: '4.13.2'
