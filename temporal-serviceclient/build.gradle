@@ -129,17 +129,7 @@ task registerNamespace(type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
 }
 
-test {
-    dependsOn 'registerNamespace'
-    testLogging {
-        events 'passed', 'skipped', 'failed'
-        exceptionFormat 'full'
-        // Uncomment the following line if you want to see test logs in gradlew run.
-        showStandardStreams true
-    }
-    forkEvery = 1
-    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
-}
+test.dependsOn 'registerNamespace'
 
 publishing {
     publications {
