@@ -35,6 +35,9 @@ ext.getClientVersionName = { ->
 
 // Logs list of failed tests after build is done.
 subprojects {
+    group = 'io.temporal'
+    version = getVersionName()
+
     repositories {
         maven {
             url 'https://plugins.gradle.org/m2/'

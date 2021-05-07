@@ -30,8 +30,6 @@ if (hasProperty('signing.keyId')) {
     }
 }
 
-group = 'io.temporal'
-version = getVersionName()
 //archivesBaseName = "temporal-sdk"
 
 description = '''Temporal Workflow Java SDK'''
