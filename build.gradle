@@ -2,6 +2,37 @@ plugins {
     id 'com.github.sherter.google-java-format' version '0.9' apply false
 }
 
+// v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
+ext.getTag = { ->
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'describe', '--tags'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim().substring(1)
+}
+
+// 0.20.0-2-g000a42a -> 0.20.0-SNAPSHOT
+// 0.20.0 -> 0.20.0
+// Used to name jar files
+ext.getVersionName = { ->
+    def split = getTag().split('-')
+    if (split.size() > 1) {
+        return split[0] + '-SNAPSHOT'
+    }
+    return split[0]
+}
+
+// 0.20.0-SNAPSHOT -> 0.20.0
+// 0.20.0 -> 0.20.0
+// Stored int version.properties which is loaded
+// and used as a value of temporal-client-version gRPC header.
+ext.getClientVersionName = { ->
+    def split = getVersionName().split('-')
+    return split[0]
+}
+
+
 // Logs list of failed tests after build is done.
 subprojects {
     repositories {
@@ -18,36 +49,6 @@ subprojects {
         include '**/*.java'
         exclude '**/generated/*'
         exclude '**/.idea/**'
-    }
-
-    // v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
-    ext.getTag = { ->
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            commandLine 'git', 'describe', '--tags'
-            standardOutput = stdout
-        }
-        return stdout.toString().trim().substring(1)
-    }
-
-// 0.20.0-2-g000a42a -> 0.20.0-SNAPSHOT
-// 0.20.0 -> 0.20.0
-// Used to name jar files
-    ext.getVersionName = { ->
-        def split = getTag().split('-')
-        if (split.size() > 1) {
-            return split[0] + '-SNAPSHOT'
-        }
-        return split[0]
-    }
-
-// 0.20.0-SNAPSHOT -> 0.20.0
-// 0.20.0 -> 0.20.0
-// Stored int version.properties which is loaded
-// and used as a value of temporal-client-version gRPC header.
-    ext.getClientVersionName = { ->
-        def split = getVersionName().split('-')
-        return split[0]
     }
 
     // add a collection to track failedTests
@@ -74,6 +75,7 @@ subprojects {
     }
 }
 //logging.captureStandardOutput LogLevel.INFO
+
 
 task clean {
     subprojects.each {
