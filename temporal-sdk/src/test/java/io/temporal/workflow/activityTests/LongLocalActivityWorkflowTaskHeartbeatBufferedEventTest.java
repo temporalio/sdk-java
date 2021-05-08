@@ -21,6 +21,7 @@ package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.QueryMethod;
@@ -33,6 +34,7 @@ import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -64,9 +66,10 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
     testWorkflowRule.sleep(Duration.ofSeconds(1));
     workflowStub.signal();
     // wait for completion
-    workflowStub.execute(testWorkflowRule.getTaskQueue());
+    String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
+    Assert.assertEquals("foo", result);
     // force replay
-    Assert.assertEquals("foo", workflowStub.getState());
+    Assert.assertEquals("bar", workflowStub.getState());
     Assert.assertEquals(activitiesImpl.toString(), 1, activitiesImpl.invocations.size());
   }
 
