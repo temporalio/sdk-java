@@ -47,12 +47,11 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
           .setWorkflowTypes(TestLongLocalActivityWorkflowTaskHeartbeatWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           //          .setUseExternalService(true)
-          .setTestTimeoutSeconds(600)
+          .setTestTimeoutSeconds(20)
           .build();
 
   @Test
   public void testWorkflowCompletionWhileLocalActivityRunning() {
-    long start = System.nanoTime();
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofMinutes(5))
@@ -66,7 +65,6 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
     workflowStub.signal();
     // wait for completion
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    System.out.println("T: " + (System.nanoTime() - start) / 1000000);
     Assert.assertEquals("foo", result);
     // force replay
     Assert.assertEquals("bar", workflowStub.getState());
