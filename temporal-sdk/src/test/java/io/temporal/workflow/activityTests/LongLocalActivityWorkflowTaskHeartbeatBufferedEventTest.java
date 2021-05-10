@@ -21,7 +21,6 @@ package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.WorkflowReplayer;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.QueryMethod;
@@ -34,7 +33,6 @@ import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -49,11 +47,12 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
           .setWorkflowTypes(TestLongLocalActivityWorkflowTaskHeartbeatWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           //          .setUseExternalService(true)
-          .setTestTimeoutSeconds(20)
+          .setTestTimeoutSeconds(600)
           .build();
 
   @Test
   public void testWorkflowCompletionWhileLocalActivityRunning() {
+    long start = System.nanoTime();
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofMinutes(5))
@@ -67,10 +66,11 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
     workflowStub.signal();
     // wait for completion
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
+    System.out.println("T: " + (System.nanoTime() - start) / 1000000);
     Assert.assertEquals("foo", result);
     // force replay
     Assert.assertEquals("bar", workflowStub.getState());
-    Assert.assertEquals(activitiesImpl.toString(), 1, activitiesImpl.invocations.size());
+    Assert.assertEquals(activitiesImpl.toString(), 0, activitiesImpl.invocations.size());
   }
 
   @WorkflowInterface
@@ -94,7 +94,7 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(
               TestActivities.class, TestOptions.newLocalActivityOptions());
-      Async.function(localActivities::sleepActivity, 8000L, 123);
+      Async.function(localActivities::sleepActivity, 10 * 1000L, 123);
       signaled.get();
       return "foo";
     }
