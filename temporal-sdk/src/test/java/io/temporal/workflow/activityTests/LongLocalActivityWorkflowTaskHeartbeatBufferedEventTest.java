@@ -46,7 +46,6 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLongLocalActivityWorkflowTaskHeartbeatWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          //          .setUseExternalService(true)
           .setTestTimeoutSeconds(20)
           .build();
 
