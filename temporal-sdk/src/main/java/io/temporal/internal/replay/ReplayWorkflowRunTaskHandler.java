@@ -155,7 +155,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           .setCommands(commands)
           .setQueryResults(queryResults)
           .setFinalCommand(replayWorkflowExecutor.isCompleted())
-          .setForceWorkflowTask(localActivityTaskCount > 0)
+          .setForceWorkflowTask(localActivityTaskCount > 0 && !replayWorkflowExecutor.isCompleted())
           .build();
     } finally {
       lock.unlock();
