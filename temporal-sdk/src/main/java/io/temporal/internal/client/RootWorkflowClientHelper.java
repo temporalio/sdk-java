@@ -84,7 +84,8 @@ final class RootWorkflowClientHelper {
       request.setCronSchedule(options.getCronSchedule());
     }
     if (options.getMemo() != null) {
-      request.setMemo(Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(options.getMemo())));
+      request.setMemo(
+          Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(options.getMemo())));
     }
     if (options.getSearchAttributes() != null) {
       request.setSearchAttributes(

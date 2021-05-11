@@ -40,8 +40,7 @@ public class HeaderUtils {
     return builder.build();
   }
 
-  public static Map<String, Payload> convertMapFromObjectToBytes(
-      Map<String, Object> map) {
+  public static Map<String, Payload> convertMapFromObjectToBytes(Map<String, Object> map) {
     if (map == null) {
       return null;
     }
