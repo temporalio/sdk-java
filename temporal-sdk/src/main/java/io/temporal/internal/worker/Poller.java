@@ -263,7 +263,7 @@ public final class Poller<T> implements SuspendableWorker {
     /**
      * Defines if the task should be terminated.
      *
-     * This method preserves the interrupted flag of the current thread.
+     * <p>This method preserves the interrupted flag of the current thread.
      *
      * @return true if pollExecutor is terminating, or the current thread is interrupted.
      */
