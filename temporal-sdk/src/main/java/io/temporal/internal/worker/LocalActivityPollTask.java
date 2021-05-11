@@ -44,9 +44,9 @@ final class LocalActivityPollTask
         log.trace("LocalActivity Task poll returned: " + task.getActivityId());
       }
       return task;
-
     } catch (InterruptedException e) {
-      throw new RuntimeException("local activity poll task interrupted", e);
+      Thread.currentThread().interrupt();
+      return null;
     }
   }
 
@@ -67,6 +67,7 @@ final class LocalActivityPollTask
       }
       return accepted;
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       return false;
     }
   }
