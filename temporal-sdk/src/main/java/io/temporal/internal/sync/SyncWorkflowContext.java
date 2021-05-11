@@ -740,7 +740,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         attributes.setSearchAttributes(
             SearchAttributes.newBuilder()
                 .putAllIndexedFields(
-                    convertMapFromObjectToBytes(searchAttributes, getDataConverter())));
+                    convertMapFromObjectToBytes(
+                        searchAttributes, DataConverter.getDefaultInstance())));
       }
     }
     Optional<Payloads> payloads = getDataConverter().toPayloads(input.getArgs());
@@ -790,8 +791,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       throw new IllegalArgumentException("Empty search attributes");
     }
 
-    SearchAttributes attr =
-        InternalUtils.convertMapToSearchAttributes(searchAttributes, getDataConverter());
+    SearchAttributes attr = InternalUtils.convertMapToSearchAttributes(searchAttributes);
     context.upsertSearchAttributes(attr);
   }
 

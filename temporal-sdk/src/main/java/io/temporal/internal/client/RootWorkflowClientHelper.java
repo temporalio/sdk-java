@@ -31,6 +31,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.util.*;
@@ -101,7 +102,7 @@ final class RootWorkflowClientHelper {
   }
 
   private Map<String, Payload> convertFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, clientOptions.getDataConverter());
+    return convertMapFromObjectToBytes(map, DataConverter.getDefaultInstance());
   }
 
   private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
