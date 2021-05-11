@@ -39,6 +39,15 @@ import org.slf4j.LoggerFactory;
 public final class Poller<T> implements SuspendableWorker {
 
   public interface PollTask<TT> {
+    /**
+     * Pollers should shade all {@code java.lang.InterruptedException}s and raise {@code
+     * Thread.interrupted()} flag if the exceptions happen. This follows GRPC stubs approach, see
+     * {@code io.grpc.stub.ClientCalls#blockingUnaryCall}. Because pollers use GRPC subs anyway,
+     * this implementation was chosen for consistency. The caller of the poll task is responsible
+     * for handling the flag
+     *
+     * @return result of the task
+     */
     TT poll();
   }
 
@@ -93,7 +102,7 @@ public final class Poller<T> implements SuspendableWorker {
   @Override
   public void start() {
     if (log.isInfoEnabled()) {
-      log.info("start(): " + toString());
+      log.info("start(): " + this);
     }
     if (pollerOptions.getMaximumPollRatePerSecond() > 0.0) {
       pollRateThrottler =
@@ -213,13 +222,7 @@ public final class Poller<T> implements SuspendableWorker {
     @Override
     public void run() {
       try {
-        if (pollExecutor.isShutdown()) {
-          return;
-        }
         pollBackoffThrottler.throttle();
-        if (pollExecutor.isTerminating()) {
-          return;
-        }
         if (pollRateThrottler != null) {
           pollRateThrottler.throttle();
         }
@@ -232,26 +235,44 @@ public final class Poller<T> implements SuspendableWorker {
           suspender.await();
         }
 
-        if (pollExecutor.isShutdown()) {
+        if (shouldTerminate()) {
           return;
         }
+
         task.run();
         pollBackoffThrottler.success();
+      } catch (InterruptedException e) {
+        // we restore the flag here, so it can be checked and processed (with exit) in finally
+        Thread.currentThread().interrupt();
       } catch (Throwable e) {
         pollBackoffThrottler.failure();
-        if (!pollExecutor.isShutdown() && !pollExecutor.isTerminating()
-            || !(e.getCause() instanceof InterruptedException)
-                && !(e instanceof RejectedExecutionException)) {
+        // if we are terminating and getting rejected execution - it's normal
+        if (!pollExecutor.isTerminating() || !(e instanceof RejectedExecutionException)) {
           uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
         }
       } finally {
-        // Resubmit itself back to pollExecutor
-        if (!pollExecutor.isTerminating() && !pollExecutor.isShutdown()) {
+        if (!shouldTerminate()) {
+          // Resubmit itself back to pollExecutor
           pollExecutor.execute(this);
         } else {
-          log.info("poll loop done");
+          log.info("poll loop is terminated");
         }
       }
+    }
+
+    /**
+     * Defines if the task should be terminated.
+     *
+     * This method preserves the interrupted flag of the current thread.
+     *
+     * @return true if pollExecutor is terminating, or the current thread is interrupted.
+     */
+    private boolean shouldTerminate() {
+      boolean threadIsInterrupted = Thread.interrupted();
+      if (threadIsInterrupted) {
+        Thread.currentThread().interrupt();
+      }
+      return pollExecutor.isTerminating() || threadIsInterrupted;
     }
   }
 
