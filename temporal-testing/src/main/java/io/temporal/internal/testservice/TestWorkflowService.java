@@ -153,10 +153,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return client.stubs;
   }
 
-  public TestWorkflowService() {
-    this(0);
-  }
-
+  // Creates an in-memory service along with client stubs for use in Java code.
+  // See also createServerOnly.
   public TestWorkflowService(boolean lockTimeSkipping) {
     this(0);
     if (lockTimeSkipping) {
@@ -171,6 +169,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
   
   public TestWorkflowService() {
+    this(0);
     client = new Client();
     try {
       InProcessServerBuilder.forName(client.serverName)
@@ -185,8 +184,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   // Creates an out-of-process rather than in-process server, and does not set up a client.
-  public TestWorkflowService(int port) {
+  // Useful, for example, if you want to use the test service from other SDKs.
+  public static TestWorkflowService createServerOnly(int port) {
     log.info("Server started, listening on " + port);
+    return new TestWorkflowService(port);
+  }
+
+  private TestWorkflowService(int port) {
     client = null;
     try {
       outOfProcessServer =
@@ -199,20 +203,21 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  /** Await termination on the main thread since the grpc library uses daemon threads. */
-  void blockUntilShutdown() throws InterruptedException {
-    if (outOfProcessServer != null) {
-      outOfProcessServer.awaitTermination();
-    }
-  }
-
   @Override
   public void close() {
-    client.channel.shutdown();
+    log.info("Shutting down GRPC server");
+    if (client != null) {
+      client.channel.shutdown();
+    }
+
     try {
-      client.channel.awaitTermination(1, TimeUnit.SECONDS);
+      if (outOfProcessServer != null) {
+        outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
+      } else {
+        client.channel.awaitTermination(1, TimeUnit.SECONDS);
+      }
     } catch (InterruptedException e) {
-      log.debug("interrupted", e);
+      log.debug("shutdown interrupted", e);
     }
     store.close();
   }
