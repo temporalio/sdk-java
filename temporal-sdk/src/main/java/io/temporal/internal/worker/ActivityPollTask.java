@@ -78,14 +78,6 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               .build());
     }
 
-    if (taskQueueActivitiesPerSecond > 0) {
-      pollRequest.setTaskQueueMetadata(
-          TaskQueueMetadata.newBuilder()
-              .setMaxTasksPerSecond(
-                  DoubleValue.newBuilder().setValue(taskQueueActivitiesPerSecond).build())
-              .build());
-    }
-
     if (log.isTraceEnabled()) {
       log.trace("poll request begin: " + pollRequest);
     }
@@ -95,8 +87,10 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     try {
       pollSemaphore.acquire();
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       return null;
     }
+
     try {
       response =
           service
