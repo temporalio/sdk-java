@@ -78,19 +78,6 @@ public class WorkflowServiceStubsOptions {
   private final boolean enableHttps;
 
   /**
-   * By default, after gRPC connection to the Server is created, client will make a request to
-   * health check endpoint to make sure that the Server is accessible. Set DisableHealthCheck to
-   * true to disable it.
-   */
-  private final boolean disableHealthCheck;
-
-  /**
-   * HealthCheckTimeout specifies how to long to wait while checking server connection when creating
-   * new client. Default: 5s.
-   */
-  private final Duration healthCheckTimeout;
-
-  /**
    * Enables keep alive ping from client to the server, which can help drop abruptly closed
    * connections faster.
    */
@@ -160,8 +147,6 @@ public class WorkflowServiceStubsOptions {
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
     this.metricsScope = builder.metricsScope;
-    this.disableHealthCheck = builder.disableHealthCheck;
-    this.healthCheckTimeout = builder.healthCheckTimeout;
     this.enableKeepAlive = builder.enableKeepAlive;
     this.keepAliveTime = builder.keepAliveTime;
     this.keepAliveTimeout = builder.keepAliveTimeout;
@@ -202,8 +187,6 @@ public class WorkflowServiceStubsOptions {
       this.headers = new Metadata();
     }
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
-    this.disableHealthCheck = builder.disableHealthCheck;
-    this.healthCheckTimeout = builder.healthCheckTimeout;
     this.enableKeepAlive = builder.enableKeepAlive;
     this.keepAliveTime = builder.keepAliveTime;
     this.keepAliveTimeout = builder.keepAliveTimeout;
@@ -226,22 +209,6 @@ public class WorkflowServiceStubsOptions {
   /** @return Returns a boolean indicating whether gRPC should use SSL/TLS. * */
   public boolean getEnableHttps() {
     return enableHttps;
-  }
-
-  /**
-   * @return true if client doesn't make a health check request to endpoint to make sure that the
-   *     Server is accessible.
-   */
-  public boolean getDisableHealthCheck() {
-    return disableHealthCheck;
-  }
-
-  /**
-   * @return interval at which to wait while checking server connection when creating new client.
-   *     Default: 5s.
-   */
-  public Duration getHealthCheckTimeout() {
-    return healthCheckTimeout;
   }
 
   /**
@@ -341,8 +308,6 @@ public class WorkflowServiceStubsOptions {
     private SslContext sslContext;
     private boolean enableHttps;
     private String target;
-    private boolean disableHealthCheck;
-    private Duration healthCheckTimeout;
     private boolean enableKeepAlive;
     private Duration keepAliveTime;
     private Duration keepAliveTimeout;
@@ -383,8 +348,6 @@ public class WorkflowServiceStubsOptions {
       this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
       this.metricsScope = options.metricsScope;
-      this.disableHealthCheck = options.disableHealthCheck;
-      this.healthCheckTimeout = options.healthCheckTimeout;
       this.enableKeepAlive = options.enableKeepAlive;
       this.keepAliveTime = options.keepAliveTime;
       this.keepAliveTimeout = options.keepAliveTimeout;
@@ -530,22 +493,6 @@ public class WorkflowServiceStubsOptions {
     public Builder setMetricsScope(Scope metricsScope) {
       this.metricsScope = metricsScope;
       return this;
-    }
-
-    /**
-     * Disables client from making a request to health check endpoint to make sure that the Server
-     * is accessible. Disabled if set to true.
-     */
-    public boolean setDisableHealthCheck() {
-      return disableHealthCheck;
-    }
-
-    /**
-     * Sets how long to wait while checking whether the server is accessible when creating new
-     * client.
-     */
-    public Duration setHealthCheckTimeout() {
-      return healthCheckTimeout;
     }
 
     /**
