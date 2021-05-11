@@ -21,12 +21,12 @@ package io.temporal.internal.testservice;
 
 public class TestServiceServer {
 
-  public static void main(String[] args) throws InterruptedException {
+  public static void main(String[] args) {
     if (args.length != 1) {
       System.err.println("Usage: <command> <port>");
     }
     Integer port = Integer.parseInt(args[0]);
 
-    TestWorkflowService service = TestWorkflowService.createServerOnly(port);
+    TestWorkflowService.createServerOnly(port);
   }
 }

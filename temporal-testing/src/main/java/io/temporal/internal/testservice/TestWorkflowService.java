@@ -150,6 +150,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final Server outOfProcessServer;
 
   public WorkflowServiceStubs newClientStub() {
+    if (client == null) {
+      throw new RuntimeException(
+              "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
+    }
     return client.stubs;
   }
 
