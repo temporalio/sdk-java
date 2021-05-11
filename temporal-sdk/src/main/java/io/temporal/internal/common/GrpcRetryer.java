@@ -27,6 +27,7 @@ import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -163,25 +164,28 @@ public final class GrpcRetryer {
         .thenCompose(
             (ignore) -> {
               // try-catch is because get() call might throw.
+              CompletableFuture<R> result;
               try {
-                CompletableFuture<R> result = function.get();
-                if (result == null) {
-                  return CompletableFuture.completedFuture(null);
-                }
-                return result.handle(
-                    (r, e) -> {
-                      if (e == null) {
-                        throttler.success();
-                        return r;
-                      } else {
-                        throttler.failure();
-                        throw CheckedExceptionWrapper.wrap(e);
-                      }
-                    });
+                result = function.get();
               } catch (Throwable e) {
                 throttler.failure();
                 throw CheckedExceptionWrapper.wrap(e);
               }
+
+              if (result == null) {
+                return CompletableFuture.completedFuture(null);
+              }
+
+              return result.handle(
+                  (r, e) -> {
+                    if (e == null) {
+                      throttler.success();
+                      return r;
+                    } else {
+                      throttler.failure();
+                      throw CheckedExceptionWrapper.wrap(e);
+                    }
+                  });
             })
         .handle((r, e) -> failOrRetry(options, function, attempt, startTime, throttler, r, e))
         .thenCompose(
@@ -205,9 +209,18 @@ public final class GrpcRetryer {
     if (e == null) {
       return new ValueExceptionPair<>(CompletableFuture.completedFuture(r), null);
     }
+    //If exception is thrown from CompletionStage/CompletableFuture methods like compose or handle -
+    //it gets wrapped into CompletionException, so here we need to unwrap it.
+    // We can get not wrapped raw exception here too if CompletableFuture was explicitly
+    //filled with this exception using CompletableFuture.completeExceptionally
+    if (e instanceof CompletionException) {
+      e = e.getCause();
+    }
+    // Do not retry if it's not StatusRuntimeException
     if (!(e instanceof StatusRuntimeException)) {
       return new ValueExceptionPair<>(null, e);
     }
+
     StatusRuntimeException exception = (StatusRuntimeException) e;
     long elapsed = System.currentTimeMillis() - startTime;
     for (RpcRetryOptions.DoNotRetryPair pair : options.getDoNotRetry()) {
