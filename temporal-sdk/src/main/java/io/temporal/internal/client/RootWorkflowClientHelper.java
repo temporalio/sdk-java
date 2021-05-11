@@ -31,7 +31,6 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.util.*;
@@ -85,12 +84,12 @@ final class RootWorkflowClientHelper {
       request.setCronSchedule(options.getCronSchedule());
     }
     if (options.getMemo() != null) {
-      request.setMemo(Memo.newBuilder().putAllFields(convertFromObjectToBytes(options.getMemo())));
+      request.setMemo(Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(options.getMemo())));
     }
     if (options.getSearchAttributes() != null) {
       request.setSearchAttributes(
           SearchAttributes.newBuilder()
-              .putAllIndexedFields(convertFromObjectToBytes(options.getSearchAttributes())));
+              .putAllIndexedFields(convertMapFromObjectToBytes(options.getSearchAttributes())));
     }
 
     Header grpcHeader =
@@ -99,10 +98,6 @@ final class RootWorkflowClientHelper {
     request.setHeader(grpcHeader);
 
     return request.build();
-  }
-
-  private Map<String, Payload> convertFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, DataConverter.getDefaultInstance());
   }
 
   private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(

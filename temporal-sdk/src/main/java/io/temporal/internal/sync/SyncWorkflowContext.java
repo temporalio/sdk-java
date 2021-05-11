@@ -732,16 +732,13 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       }
       Map<String, Object> memo = ops.getMemo();
       if (memo != null) {
-        attributes.setMemo(
-            Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(memo, getDataConverter())));
+        attributes.setMemo(Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(memo)));
       }
       Map<String, Object> searchAttributes = ops.getSearchAttributes();
       if (searchAttributes != null) {
         attributes.setSearchAttributes(
             SearchAttributes.newBuilder()
-                .putAllIndexedFields(
-                    convertMapFromObjectToBytes(
-                        searchAttributes, DataConverter.getDefaultInstance())));
+                .putAllIndexedFields(convertMapFromObjectToBytes(searchAttributes)));
       }
     }
     Optional<Payloads> payloads = getDataConverter().toPayloads(input.getArgs());

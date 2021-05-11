@@ -41,10 +41,11 @@ public class HeaderUtils {
   }
 
   public static Map<String, Payload> convertMapFromObjectToBytes(
-      Map<String, Object> map, DataConverter dataConverter) {
+      Map<String, Object> map) {
     if (map == null) {
       return null;
     }
+    DataConverter dataConverter = DataConverter.getDefaultInstance();
     Map<String, Payload> result = new HashMap<>();
     for (Map.Entry<String, Object> item : map.entrySet()) {
       try {
