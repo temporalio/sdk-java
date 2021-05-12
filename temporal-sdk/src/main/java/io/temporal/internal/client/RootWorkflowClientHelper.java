@@ -19,7 +19,7 @@
 
 package io.temporal.internal.client;
 
-import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
+import static io.temporal.internal.common.HeaderUtils.intoPayloadMapWithDefaultConverter;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
@@ -85,12 +85,12 @@ final class RootWorkflowClientHelper {
     }
     if (options.getMemo() != null) {
       request.setMemo(
-          Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(options.getMemo())));
+          Memo.newBuilder().putAllFields(intoPayloadMapWithDefaultConverter(options.getMemo())));
     }
     if (options.getSearchAttributes() != null) {
       request.setSearchAttributes(
           SearchAttributes.newBuilder()
-              .putAllIndexedFields(convertMapFromObjectToBytes(options.getSearchAttributes())));
+              .putAllIndexedFields(intoPayloadMapWithDefaultConverter(options.getSearchAttributes())));
     }
 
     Header grpcHeader =

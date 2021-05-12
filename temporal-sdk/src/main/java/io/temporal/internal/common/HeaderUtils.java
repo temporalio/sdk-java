@@ -40,7 +40,12 @@ public class HeaderUtils {
     return builder.build();
   }
 
-  public static Map<String, Payload> convertMapFromObjectToBytes(Map<String, Object> map) {
+  /*
+   * Converts a Map<String, Object> into a Map<String, Payload> by applying default data converter on each value.
+   * Note that this does not use user defined converters and should be used only for things like search attributes and
+   * memo that need to be converted back from bytes on the server.
+   */
+  public static Map<String, Payload> intoPayloadMapWithDefaultConverter(Map<String, Object> map) {
     if (map == null) {
       return null;
     }
