@@ -22,7 +22,6 @@ package io.temporal.internal.common;
 import static junit.framework.TestCase.assertEquals;
 
 import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.common.converter.DataConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -47,8 +46,7 @@ public class SearchAttributesUtilTest {
     attr.put("CustomDoubleField", doubleVal);
     Boolean boolVal = Boolean.TRUE;
     attr.put("CustomBooleanField", boolVal);
-    SearchAttributes searchAttributes =
-        InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
+    SearchAttributes searchAttributes = InternalUtils.convertMapToSearchAttributes(attr);
 
     assertEquals(
         stringVal,
@@ -73,8 +71,7 @@ public class SearchAttributesUtilTest {
     Map<String, Object> attr = new HashMap<>();
     String stringVal = "keyword";
     attr.put("CustomKeywordField", stringVal);
-    SearchAttributes searchAttributes =
-        InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
+    SearchAttributes searchAttributes = InternalUtils.convertMapToSearchAttributes(attr);
     assertEquals(
         stringVal,
         SearchAttributesUtil.getValueFromSearchAttributes(

@@ -47,8 +47,7 @@ public class SyncWorkflowContextTest {
   public void testUpsertSearchAttributes() throws Throwable {
     Map<String, Object> attr = new HashMap<>();
     attr.put("CustomKeywordField", "keyword");
-    SearchAttributes serializedAttr =
-        InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
+    SearchAttributes serializedAttr = InternalUtils.convertMapToSearchAttributes(attr);
 
     context.upsertSearchAttributes(attr);
     verify(mockReplayWorkflowContext, times(1)).upsertSearchAttributes(serializedAttr);

@@ -19,7 +19,7 @@
 
 package io.temporal.internal.client;
 
-import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
+import static io.temporal.internal.common.HeaderUtils.intoPayloadMapWithDefaultConverter;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
@@ -84,12 +84,13 @@ final class RootWorkflowClientHelper {
       request.setCronSchedule(options.getCronSchedule());
     }
     if (options.getMemo() != null) {
-      request.setMemo(Memo.newBuilder().putAllFields(convertFromObjectToBytes(options.getMemo())));
+      request.setMemo(
+          Memo.newBuilder().putAllFields(intoPayloadMapWithDefaultConverter(options.getMemo())));
     }
     if (options.getSearchAttributes() != null) {
       request.setSearchAttributes(
           SearchAttributes.newBuilder()
-              .putAllIndexedFields(convertFromObjectToBytes(options.getSearchAttributes())));
+              .putAllIndexedFields(intoPayloadMapWithDefaultConverter(options.getSearchAttributes())));
     }
 
     Header grpcHeader =
@@ -98,10 +99,6 @@ final class RootWorkflowClientHelper {
     request.setHeader(grpcHeader);
 
     return request.build();
-  }
-
-  private Map<String, Payload> convertFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, clientOptions.getDataConverter());
   }
 
   private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
