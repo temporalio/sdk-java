@@ -409,8 +409,9 @@ public class WorkflowServiceStubsOptions {
     }
 
     /** Sets the rpc timeout for queries. Defaults to 10 seconds. */
-    public void setRpcQueryTimeout(Duration rpcQueryTimeout) {
+    public Builder setRpcQueryTimeout(Duration rpcQueryTimeout) {
       this.rpcQueryTimeout = rpcQueryTimeout;
+      return this;
     }
 
     /**
@@ -419,8 +420,9 @@ public class WorkflowServiceStubsOptions {
      * values as it may result in increased load to the temporal backend or bad network instability
      * tolerance.
      */
-    public void setRpcRetryOptions(RpcRetryOptions rpcRetryOptions) {
+    public Builder setRpcRetryOptions(RpcRetryOptions rpcRetryOptions) {
       this.rpcRetryOptions = rpcRetryOptions;
+      return this;
     }
 
     /**
@@ -447,8 +449,9 @@ public class WorkflowServiceStubsOptions {
      * @param grpcReconnectFrequency frequency, defaults to once every 1 minute. Set to null in
      *     order to disable this feature.
      */
-    public void setGrpcReconnectFrequency(Duration grpcReconnectFrequency) {
+    public Builder setGrpcReconnectFrequency(Duration grpcReconnectFrequency) {
       this.grpcReconnectFrequency = grpcReconnectFrequency;
+      return this;
     }
 
     /**
