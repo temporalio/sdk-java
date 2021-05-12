@@ -26,6 +26,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,16 +40,16 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DefaultDataConverter implements DataConverter {
 
-  private static final AtomicReference<DataConverter> defaultDataConverterInstance =
-      new AtomicReference<>(
-          // Order is important as the first converter that can convert the payload is used
-          new DefaultDataConverter(
-              new NullPayloadConverter(),
-              new ByteArrayPayloadConverter(),
-              new ProtobufJsonPayloadConverter(),
-              new JacksonJsonPayloadConverter()));
+  // Order is important as the first converter that can convert the payload is used
+  private static final PayloadConverter[] DEFAULT_PAYLOAD_CONVERTERS = {
+    new NullPayloadConverter(),
+    new ByteArrayPayloadConverter(),
+    new ProtobufJsonPayloadConverter(),
+    new JacksonJsonPayloadConverter()
+  };
 
-  private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
+  private static final AtomicReference<DataConverter> defaultDataConverterInstance =
+      new AtomicReference<>(newDefaultInstance());
 
   private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
 
@@ -71,15 +72,43 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   /**
+   * Creates a new instance of {@code DefaultDataConverter} populated with the default list of
+   * payload converters.
+   */
+  public static DefaultDataConverter newDefaultInstance() {
+    return new DefaultDataConverter(DEFAULT_PAYLOAD_CONVERTERS);
+  }
+
+  /**
    * Creates instance from ordered array of converters. When converting an object to payload the
-   * array of converters is iterated from the beginning until one of the converters succesfully
+   * array of converters is iterated from the beginning until one of the converters successfully
    * converts the value.
    */
   public DefaultDataConverter(PayloadConverter... converters) {
-    for (PayloadConverter converter : converters) {
-      this.converters.add(converter);
-      this.converterMap.put(converter.getEncodingType(), converter);
+    Collections.addAll(this.converters, converters);
+    updateConverterMap();
+  }
+
+  /**
+   * Modifies this {@code DefaultDataConverter} by overriding some of its {@link PayloadConverter}s.
+   * Every payload converter from {@code overrideConverters} either replaces existing payload
+   * converter with the same encoding type, or is added to the end of payload converters list.
+   */
+  public DefaultDataConverter withPayloadConverterOverrides(
+      PayloadConverter... overrideConverters) {
+    for (PayloadConverter overrideConverter : overrideConverters) {
+      PayloadConverter existingConverter = converterMap.get(overrideConverter.getEncodingType());
+      if (existingConverter != null) {
+        int existingConverterIndex = converters.indexOf(existingConverter);
+        converters.set(existingConverterIndex, overrideConverter);
+      } else {
+        converters.add(overrideConverter);
+      }
     }
+
+    updateConverterMap();
+
+    return this;
   }
 
   @Override
@@ -153,5 +182,12 @@ public class DefaultDataConverter implements DataConverter {
       return (T) Defaults.defaultValue((Class<?>) parameterType);
     }
     return fromPayload(content.get().getPayloads(index), parameterType, genericParameterType);
+  }
+
+  private void updateConverterMap() {
+    converterMap.clear();
+    for (PayloadConverter converter : converters) {
+      converterMap.put(converter.getEncodingType(), converter);
+    }
   }
 }
