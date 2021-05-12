@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
+import static io.temporal.internal.common.HeaderUtils.intoPayloadMapWithDefaultConverter;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
@@ -732,15 +732,13 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       }
       Map<String, Object> memo = ops.getMemo();
       if (memo != null) {
-        attributes.setMemo(
-            Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(memo, getDataConverter())));
+        attributes.setMemo(Memo.newBuilder().putAllFields(intoPayloadMapWithDefaultConverter(memo)));
       }
       Map<String, Object> searchAttributes = ops.getSearchAttributes();
       if (searchAttributes != null) {
         attributes.setSearchAttributes(
             SearchAttributes.newBuilder()
-                .putAllIndexedFields(
-                    convertMapFromObjectToBytes(searchAttributes, getDataConverter())));
+                .putAllIndexedFields(intoPayloadMapWithDefaultConverter(searchAttributes)));
       }
     }
     Optional<Payloads> payloads = getDataConverter().toPayloads(input.getArgs());
@@ -790,8 +788,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       throw new IllegalArgumentException("Empty search attributes");
     }
 
-    SearchAttributes attr =
-        InternalUtils.convertMapToSearchAttributes(searchAttributes, getDataConverter());
+    SearchAttributes attr = InternalUtils.convertMapToSearchAttributes(searchAttributes);
     context.upsertSearchAttributes(attr);
   }
 

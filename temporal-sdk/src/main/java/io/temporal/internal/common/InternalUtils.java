@@ -91,7 +91,8 @@ public final class InternalUtils {
   }
 
   public static SearchAttributes convertMapToSearchAttributes(
-      Map<String, Object> searchAttributes, DataConverter converter) {
+      Map<String, Object> searchAttributes) {
+    DataConverter converter = DataConverter.getDefaultInstance();
     Map<String, Payload> mapOfByteBuffer = new HashMap<>();
     searchAttributes.forEach(
         (key, value) -> mapOfByteBuffer.put(key, converter.toPayload(value).get()));
