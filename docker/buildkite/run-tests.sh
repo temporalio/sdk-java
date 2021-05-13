@@ -2,7 +2,7 @@
 set -eou pipefail
 set -x
 
-./gradlew --no-daemon test
+./gradlew --no-daemon --no-watch-fs test
 
 if [ ! -z "$(git status --porcelain)" ]; then 
 	echo 'Some files were improperly formatted. Please run build locally and check in all changes.'

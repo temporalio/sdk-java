@@ -90,7 +90,8 @@ final class RootWorkflowClientHelper {
     if (options.getSearchAttributes() != null) {
       request.setSearchAttributes(
           SearchAttributes.newBuilder()
-              .putAllIndexedFields(intoPayloadMapWithDefaultConverter(options.getSearchAttributes())));
+              .putAllIndexedFields(
+                  intoPayloadMapWithDefaultConverter(options.getSearchAttributes())));
     }
 
     Header grpcHeader =
