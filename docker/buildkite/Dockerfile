@@ -12,5 +12,8 @@ RUN apk update && apk add --virtual wget ca-certificates wget && apk add protobu
 # Git is needed in order to update the dls submodule
 RUN apk add --virtual git
 
+# Fossa to run license scans
+RUN wget -O- https://raw.githubusercontent.com/fossas/fossa-cli/master/install.sh | sh
+
 RUN mkdir /temporal-java-client
 WORKDIR /temporal-java-client

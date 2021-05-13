@@ -63,3 +63,14 @@ services:
       - "USE_DOCKER_SERVICE=false"
     volumes:
       - "../../:/temporal-java-client"
+
+  fossa:
+    build:
+      context: ../../
+      dockerfile: ./docker/buildkite/Dockerfile
+    command: /bin/sh
+    environment:
+      - FOSSA_API_KEY
+    volumes:
+      - "../../:/temporal-java-client"
+
