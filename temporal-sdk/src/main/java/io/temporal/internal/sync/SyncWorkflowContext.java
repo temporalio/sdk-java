@@ -335,8 +335,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
+    // Set the context value.  Use the context propagators from the ActivityOptions
+    // if present, otherwise use the ones configured on the WorkflowContext
+    List<ContextPropagator> propagators = options.getContextPropagators();
+    if (propagators == null) {
+      propagators = this.contextPropagators;
+    }
     io.temporal.api.common.v1.Header grpcHeader =
-        toHeaderGrpc(header, extractContextsAndConvertToBytes(contextPropagators));
+        toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
     if (grpcHeader != null) {
       activityTask.setHeader(grpcHeader);
     }

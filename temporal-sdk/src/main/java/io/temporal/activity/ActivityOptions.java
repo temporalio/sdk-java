@@ -152,7 +152,12 @@ public final class ActivityOptions {
       return this;
     }
 
-    /** ContextPropagators help propagate the context from the workflow to the activities */
+    /**
+     * ContextPropagators help propagate the context from the workflow to the activities. This
+     * setting works like an override for contextPropagators specified in WorkflowOptions. Note that
+     * this option applies only to a stub/clint side of the activity call. It means that the
+     * Activity Worker still uses ContextPropagators from the Worker's WorkflowClientOptions.
+     */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
       return this;

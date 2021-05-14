@@ -22,7 +22,9 @@ package io.temporal.activity;
 import com.google.common.base.Objects;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
+import java.util.List;
 
 /** Options used to configure how an local activity is invoked. */
 public final class LocalActivityOptions {
@@ -51,6 +53,7 @@ public final class LocalActivityOptions {
     private Duration localRetryThreshold;
     private Duration startToCloseTimeout;
     private RetryOptions retryOptions;
+    private List<ContextPropagator> contextPropagators;
     private Boolean doNotIncludeArgumentsIntoMarker;
 
     /** Copy Builder fields from the options. */
@@ -58,11 +61,12 @@ public final class LocalActivityOptions {
       if (options == null) {
         return;
       }
-      this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
-      this.localRetryThreshold = options.getLocalRetryThreshold();
-      this.startToCloseTimeout = options.getStartToCloseTimeout();
-      this.retryOptions = options.getRetryOptions();
-      this.doNotIncludeArgumentsIntoMarker = options.isDoNotIncludeArgumentsIntoMarker();
+      this.scheduleToCloseTimeout = options.scheduleToCloseTimeout;
+      this.localRetryThreshold = options.localRetryThreshold;
+      this.startToCloseTimeout = options.startToCloseTimeout;
+      this.retryOptions = options.retryOptions;
+      this.contextPropagators = options.contextPropagators;
+      this.doNotIncludeArgumentsIntoMarker = options.doNotIncludeArgumentsIntoMarker;
     }
 
     /** Overall timeout workflow is willing to wait for activity to complete. */
@@ -94,37 +98,23 @@ public final class LocalActivityOptions {
       return this;
     }
 
-    public Builder mergeActivityOptions(LocalActivityOptions override) {
-      if (override == null) {
-        return this;
-      }
-      this.scheduleToCloseTimeout =
-          (override.scheduleToCloseTimeout == null)
-              ? this.scheduleToCloseTimeout
-              : override.scheduleToCloseTimeout;
-      this.localRetryThreshold =
-          (override.localRetryThreshold == null)
-              ? this.localRetryThreshold
-              : override.localRetryThreshold;
-      this.startToCloseTimeout =
-          (override.startToCloseTimeout == null)
-              ? this.startToCloseTimeout
-              : override.startToCloseTimeout;
-      this.retryOptions =
-          (override.retryOptions == null) ? this.retryOptions : override.retryOptions;
-      this.doNotIncludeArgumentsIntoMarker =
-          (override.doNotIncludeArgumentsIntoMarker != null)
-              ? override.doNotIncludeArgumentsIntoMarker
-              : this.doNotIncludeArgumentsIntoMarker;
-      return this;
-    }
-
     /**
      * RetryOptions that define how activity is retried in case of failure. Default is null which is
      * no retries.
      */
     public Builder setRetryOptions(RetryOptions retryOptions) {
       this.retryOptions = retryOptions;
+      return this;
+    }
+
+    /**
+     * ContextPropagators help propagate the context from the workflow to the activities. This
+     * setting works like an override for contextPropagators specified in WorkflowOptions. Note that
+     * this option applies only to a stub/clint side of the activity call. It means that the
+     * Activity Worker still uses ContextPropagators from the Worker's WorkflowClientOptions.
+     */
+    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+      this.contextPropagators = contextPropagators;
       return this;
     }
 
@@ -154,12 +144,43 @@ public final class LocalActivityOptions {
       return this;
     }
 
+    public Builder mergeActivityOptions(LocalActivityOptions override) {
+      if (override == null) {
+        return this;
+      }
+      this.scheduleToCloseTimeout =
+          (override.scheduleToCloseTimeout == null)
+              ? this.scheduleToCloseTimeout
+              : override.scheduleToCloseTimeout;
+      this.localRetryThreshold =
+          (override.localRetryThreshold == null)
+              ? this.localRetryThreshold
+              : override.localRetryThreshold;
+      this.startToCloseTimeout =
+          (override.startToCloseTimeout == null)
+              ? this.startToCloseTimeout
+              : override.startToCloseTimeout;
+      this.retryOptions =
+          (override.retryOptions == null) ? this.retryOptions : override.retryOptions;
+      if (this.contextPropagators == null) {
+        this.contextPropagators = override.contextPropagators;
+      } else if (override.contextPropagators != null) {
+        this.contextPropagators.addAll(override.contextPropagators);
+      }
+      this.doNotIncludeArgumentsIntoMarker =
+          (override.doNotIncludeArgumentsIntoMarker != null)
+              ? override.doNotIncludeArgumentsIntoMarker
+              : this.doNotIncludeArgumentsIntoMarker;
+      return this;
+    }
+
     public LocalActivityOptions build() {
       return new LocalActivityOptions(
           startToCloseTimeout,
           localRetryThreshold,
           scheduleToCloseTimeout,
           retryOptions,
+          contextPropagators,
           doNotIncludeArgumentsIntoMarker);
     }
 
@@ -173,6 +194,7 @@ public final class LocalActivityOptions {
           localRetryThreshold,
           scheduleToCloseTimeout,
           RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
+          contextPropagators,
           doNotIncludeArgumentsIntoMarker);
     }
   }
@@ -181,6 +203,7 @@ public final class LocalActivityOptions {
   private final Duration localRetryThreshold;
   private final Duration startToCloseTimeout;
   private final RetryOptions retryOptions;
+  private final List<ContextPropagator> contextPropagators;
   private Boolean doNotIncludeArgumentsIntoMarker;
 
   private LocalActivityOptions(
@@ -188,11 +211,13 @@ public final class LocalActivityOptions {
       Duration localRetryThreshold,
       Duration scheduleToCloseTimeout,
       RetryOptions retryOptions,
+      List<ContextPropagator> contextPropagators,
       Boolean doNotIncludeArgumentsIntoMarker) {
     this.localRetryThreshold = localRetryThreshold;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     this.startToCloseTimeout = startToCloseTimeout;
     this.retryOptions = retryOptions;
+    this.contextPropagators = contextPropagators;
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
   }
 
@@ -212,6 +237,10 @@ public final class LocalActivityOptions {
     return retryOptions;
   }
 
+  public List<ContextPropagator> getContextPropagators() {
+    return contextPropagators;
+  }
+
   public boolean isDoNotIncludeArgumentsIntoMarker() {
     return (doNotIncludeArgumentsIntoMarker == null) ? false : doNotIncludeArgumentsIntoMarker;
   }
@@ -229,7 +258,8 @@ public final class LocalActivityOptions {
         && Objects.equal(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
         && Objects.equal(localRetryThreshold, that.localRetryThreshold)
         && Objects.equal(startToCloseTimeout, that.startToCloseTimeout)
-        && Objects.equal(retryOptions, that.retryOptions);
+        && Objects.equal(retryOptions, that.retryOptions)
+        && Objects.equal(contextPropagators, that.contextPropagators);
   }
 
   @Override
@@ -239,6 +269,7 @@ public final class LocalActivityOptions {
         localRetryThreshold,
         startToCloseTimeout,
         retryOptions,
+        contextPropagators,
         doNotIncludeArgumentsIntoMarker);
   }
 
@@ -253,6 +284,8 @@ public final class LocalActivityOptions {
         + startToCloseTimeout
         + ", retryOptions="
         + retryOptions
+        + ", contextPropagators="
+        + contextPropagators
         + ", doNotIncludeArgumentsIntoMarker="
         + isDoNotIncludeArgumentsIntoMarker()
         + '}';
