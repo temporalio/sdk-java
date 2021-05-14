@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TimeoutType;
@@ -1072,6 +1073,18 @@ public class WorkflowTestingTest {
     }
   }
 
+  public static class DefaultContextPropagationLocalActivityWorkflowImpl implements TestWorkflow {
+    @Override
+    public String workflow1(String input) {
+      LocalActivityOptions options =
+          LocalActivityOptions.newBuilder()
+              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+              .build();
+      TestActivity activity = Workflow.newLocalActivityStub(TestActivity.class, options);
+      return activity.activity1("foo");
+    }
+  }
+
   @Test
   public void testDefaultActivityContextPropagation() {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
@@ -1086,6 +1099,26 @@ public class WorkflowTestingTest {
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
             .build();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
+    String result = workflow.workflow1("input1");
+    assertEquals("activitytesting123", result);
+  }
+
+  @Test
+  public void testDefaultLocalActivityContextPropagation() {
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(
+        DefaultContextPropagationLocalActivityWorkflowImpl.class);
+    worker.registerActivitiesImplementations(new ContextActivityImpl());
+    testEnvironment.start();
+    MDC.put("test", "testing123");
+    WorkflowClient client = testEnvironment.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(TASK_QUEUE)
+            .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
+            .build();
+    WorkflowTestingTest.TestWorkflow workflow =
+        client.newWorkflowStub(WorkflowTestingTest.TestWorkflow.class, options);
     String result = workflow.workflow1("input1");
     assertEquals("activitytesting123", result);
   }
