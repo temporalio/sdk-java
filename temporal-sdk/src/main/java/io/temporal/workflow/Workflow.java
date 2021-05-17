@@ -371,6 +371,14 @@ import org.slf4j.Logger;
 public final class Workflow {
   public static final int DEFAULT_VERSION = WorkflowInternal.DEFAULT_VERSION;
 
+  public static void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
+    WorkflowInternal.setDefaultActivityOptions(defaultActivityOptions);
+  }
+
+  public static void setActivityOptions(Map<String, ActivityOptions> activityOptions) {
+    WorkflowInternal.setActivityOptions(activityOptions);
+  }
+
   /**
    * Creates client stub to activities that implement given interface. `
    *
