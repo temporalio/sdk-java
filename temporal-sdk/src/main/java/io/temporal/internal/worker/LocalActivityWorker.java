@@ -29,6 +29,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
+import io.temporal.internal.worker.activity.ActivityWorkerHelper;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
@@ -218,6 +219,11 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       Scope metricsScope = options.getMetricsScope().tagged(activityTypeTag);
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_TOTAL_COUNTER).inc(1);
+
+      if (activityTask.hasHeader()) {
+        ActivityWorkerHelper.deserializeAndPopulateContext(
+            activityTask.getHeader(), options.getContextPropagators());
+      }
 
       Stopwatch sw = metricsScope.timer(MetricsType.LOCAL_ACTIVITY_EXECUTION_LATENCY).start();
       ActivityTaskHandler.Result result =

@@ -25,7 +25,6 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
@@ -33,18 +32,16 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
+import io.temporal.internal.worker.activity.ActivityWorkerHelper;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.MDC;
@@ -94,7 +91,7 @@ public final class ActivityWorker implements SuspendableWorker {
   public void start() {
     if (handler.isAnyTypeSupported()) {
       poller =
-          new Poller<ActivityTask>(
+          new Poller<>(
               options.getIdentity(),
               new ActivityPollTask(
                   service, namespace, taskQueue, options, taskQueueActivitiesPerSecond),
@@ -185,7 +182,10 @@ public final class ActivityWorker implements SuspendableWorker {
         MDC.put(LoggerTag.WORKFLOW_ID, r.getWorkflowExecution().getWorkflowId());
         MDC.put(LoggerTag.RUN_ID, r.getWorkflowExecution().getRunId());
 
-        propagateContext(r);
+        if (r.hasHeader()) {
+          ActivityWorkerHelper.deserializeAndPopulateContext(
+              r.getHeader(), options.getContextPropagators());
+        }
 
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
         try {
@@ -224,23 +224,6 @@ public final class ActivityWorker implements SuspendableWorker {
         if (response != null && !response.isManualCompletion()) {
           task.getCompletionHandle().apply();
         }
-      }
-    }
-
-    void propagateContext(PollActivityTaskQueueResponse response) {
-      if (options.getContextPropagators() == null || options.getContextPropagators().isEmpty()) {
-        return;
-      }
-
-      if (!response.hasHeader()) {
-        return;
-      }
-      Map<String, Payload> headerData = new HashMap<>();
-      for (Map.Entry<String, Payload> entry : response.getHeader().getFieldsMap().entrySet()) {
-        headerData.put(entry.getKey(), entry.getValue());
-      }
-      for (ContextPropagator propagator : options.getContextPropagators()) {
-        propagator.setCurrentContext(propagator.deserializeContext(headerData));
       }
     }
 
