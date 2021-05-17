@@ -24,7 +24,6 @@ import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
 import com.uber.m3.tally.Scope;
-import io.micrometer.core.lang.NonNull;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
@@ -160,23 +159,28 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return activityOptionsMap;
   }
 
-  public void setDefaultActivityOptions(@NonNull ActivityOptions defaultActivityOptions) {
+  public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
     this.defaultActivityOptions =
-        defaultActivityOptions
-            .toBuilder()
-            .mergeActivityOptions(this.defaultActivityOptions)
-            .build();
+        (this.defaultActivityOptions == null)
+            ? defaultActivityOptions
+            : this.defaultActivityOptions
+                .toBuilder()
+                .mergeActivityOptions(defaultActivityOptions)
+                .build();
   }
 
-  public void setActivityOptions(@NonNull Map<String, ActivityOptions> activityOptions) {
-    Map<String, ActivityOptions> mergedActivityOptionsMap = new HashMap<>();
-    mergedActivityOptionsMap.putAll(activityOptions);
-    if (this.activityOptionsMap != null) {
-      this.activityOptionsMap.forEach(
-          (key, value) ->
-              mergedActivityOptionsMap.merge(
-                  key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+  public void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
+    if (this.activityOptionsMap == null) {
+      this.activityOptionsMap = activityMethodOptions;
+      return;
     }
+    Objects.requireNonNull(activityMethodOptions);
+    Map<String, ActivityOptions> mergedActivityOptionsMap = new HashMap<>();
+    mergedActivityOptionsMap.putAll(this.activityOptionsMap);
+    activityMethodOptions.forEach(
+        (key, value) ->
+            mergedActivityOptionsMap.merge(
+                key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
   }
 
   @Override

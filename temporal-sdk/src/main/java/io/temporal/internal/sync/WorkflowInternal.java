@@ -181,8 +181,8 @@ public final class WorkflowInternal {
     getRootWorkflowContext().setDefaultActivityOptions(activityOptions);
   }
 
-  public static void setActivityOptions(Map<String, ActivityOptions> activityOptionsMap) {
-    getRootWorkflowContext().setActivityOptions(activityOptionsMap);
+  public static void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
+    getRootWorkflowContext().setActivityOptions(activityMethodOptions);
   }
 
   /**

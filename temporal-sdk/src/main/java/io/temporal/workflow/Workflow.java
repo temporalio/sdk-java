@@ -375,8 +375,8 @@ public final class Workflow {
     WorkflowInternal.setDefaultActivityOptions(defaultActivityOptions);
   }
 
-  public static void setActivityOptions(Map<String, ActivityOptions> activityOptions) {
-    WorkflowInternal.setActivityOptions(activityOptions);
+  public static void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
+    WorkflowInternal.setActivityOptions(activityMethodOptions);
   }
 
   /**
