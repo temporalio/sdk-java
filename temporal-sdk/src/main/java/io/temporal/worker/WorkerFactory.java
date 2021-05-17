@@ -80,8 +80,8 @@ public final class WorkerFactory {
   private static final Logger log = LoggerFactory.getLogger(WorkerFactory.class);
 
   /**
-   * Creates a factory. Workers will be connect to the temporal-server using the workflowService
-   * client passed in.
+   * Creates a factory. Workers will connect to the temporal server using the workflowService client
+   * passed in.
    *
    * @param workflowClient client to the Temporal Service endpoint.
    * @param factoryOptions Options used to configure factory settings

@@ -209,10 +209,10 @@ public final class GrpcRetryer {
     if (e == null) {
       return new ValueExceptionPair<>(CompletableFuture.completedFuture(r), null);
     }
-    //If exception is thrown from CompletionStage/CompletableFuture methods like compose or handle -
-    //it gets wrapped into CompletionException, so here we need to unwrap it.
-    // We can get not wrapped raw exception here too if CompletableFuture was explicitly
-    //filled with this exception using CompletableFuture.completeExceptionally
+    // If exception is thrown from CompletionStage/CompletableFuture methods like compose or handle
+    // - it gets wrapped into CompletionException, so here we need to unwrap it. We can get not
+    // wrapped raw exception here too if CompletableFuture was explicitly filled with this exception
+    // using CompletableFuture.completeExceptionally
     if (e instanceof CompletionException) {
       e = e.getCause();
     }
