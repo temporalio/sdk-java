@@ -28,6 +28,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Constructor;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -84,6 +85,7 @@ public class TestWorkflowExtension
   private final boolean useExternalService;
   private final String target;
   private final boolean doNotStart;
+  private final long initialTimeMillis;
 
   private final Set<Class<?>> supportedParameterTypes = new HashSet<>();
 
@@ -100,6 +102,7 @@ public class TestWorkflowExtension
     useExternalService = builder.useExternalService;
     target = builder.target;
     doNotStart = builder.doNotStart;
+    initialTimeMillis = builder.initialTimeMillis;
 
     supportedParameterTypes.add(TestWorkflowEnvironment.class);
     supportedParameterTypes.add(WorkflowClient.class);
@@ -165,6 +168,7 @@ public class TestWorkflowExtension
             .setWorkflowClientOptions(workflowClientOptions)
             .setUseExternalService(useExternalService)
             .setTarget(target)
+            .setInitialTimeMillis(initialTimeMillis)
             .build();
     TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
     String taskQueue =
@@ -238,6 +242,7 @@ public class TestWorkflowExtension
     private boolean useExternalService = false;
     private String target = null;
     private boolean doNotStart = false;
+    private long initialTimeMillis = 0;
 
     private Builder() {}
 
@@ -327,6 +332,26 @@ public class TestWorkflowExtension
      */
     public Builder setDoNotStart(boolean doNotStart) {
       this.doNotStart = doNotStart;
+      return this;
+    }
+
+    /**
+     * Set the initial time for the workflow virtual clock, milliseconds since epoch.
+     *
+     * <p>Default is current time
+     */
+    public Builder setInitialTimeMillis(long initialTimeMillis) {
+      this.initialTimeMillis = initialTimeMillis;
+      return this;
+    }
+
+    /**
+     * Set the initial time for the workflow virtual clock.
+     *
+     * <p>Default is current time
+     */
+    public Builder setInitialTime(Instant initialTime) {
+      this.initialTimeMillis = initialTime.toEpochMilli();
       return this;
     }
 

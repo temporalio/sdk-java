@@ -24,6 +24,7 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.worker.WorkerFactoryOptions;
+import java.time.Instant;
 
 @VisibleForTesting
 public final class TestEnvironmentOptions {
@@ -57,6 +58,8 @@ public final class TestEnvironmentOptions {
     private boolean useExternalService;
 
     private String target;
+
+    private long initialTimeMillis = 0;
 
     private Builder() {}
 
@@ -103,9 +106,34 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
+    /**
+     * Set the initial time for the workflow virtual clock, milliseconds since epoch.
+     *
+     * <p>Default is current time
+     */
+    public Builder setInitialTimeMillis(long initialTimeMillis) {
+      this.initialTimeMillis = initialTimeMillis;
+      return this;
+    }
+
+    /**
+     * Set the initial time for the workflow virtual clock.
+     *
+     * <p>Default is current time
+     */
+    public Builder setInitialTime(Instant initialTime) {
+      this.initialTimeMillis = initialTime.toEpochMilli();
+      return this;
+    }
+
     public TestEnvironmentOptions build() {
       return new TestEnvironmentOptions(
-          workflowClientOptions, workerFactoryOptions, useExternalService, target, metricsScope);
+          workflowClientOptions,
+          workerFactoryOptions,
+          useExternalService,
+          target,
+          initialTimeMillis,
+          metricsScope);
     }
 
     public TestEnvironmentOptions validateAndBuildWithDefaults() {
@@ -114,6 +142,7 @@ public final class TestEnvironmentOptions {
           WorkerFactoryOptions.newBuilder(workerFactoryOptions).validateAndBuildWithDefaults(),
           useExternalService,
           target,
+          initialTimeMillis,
           metricsScope == null ? new NoopScope() : metricsScope);
     }
   }
@@ -123,18 +152,21 @@ public final class TestEnvironmentOptions {
   private final Scope metricsScope;
   private final boolean useExternalService;
   private final String target;
+  private final long initialTimeMillis;
 
   private TestEnvironmentOptions(
       WorkflowClientOptions workflowClientOptions,
       WorkerFactoryOptions workerFactoryOptions,
       boolean useExternalService,
       String target,
+      long initialTimeMillis,
       Scope metricsScope) {
     this.workflowClientOptions = workflowClientOptions;
     this.workerFactoryOptions = workerFactoryOptions;
     this.metricsScope = metricsScope;
     this.useExternalService = useExternalService;
     this.target = target;
+    this.initialTimeMillis = initialTimeMillis;
   }
 
   public WorkerFactoryOptions getWorkerFactoryOptions() {
@@ -157,6 +189,10 @@ public final class TestEnvironmentOptions {
     return target;
   }
 
+  public long getInitialTimeMillis() {
+    return initialTimeMillis;
+  }
+
   @Override
   public String toString() {
     return "TestEnvironmentOptions{"
@@ -168,6 +204,8 @@ public final class TestEnvironmentOptions {
         + useExternalService
         + ", target="
         + target
+        + ", initialTimeMillis="
+        + initialTimeMillis
         + '}';
   }
 }
