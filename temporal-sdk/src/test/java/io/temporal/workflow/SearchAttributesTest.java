@@ -20,6 +20,7 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
@@ -35,18 +36,46 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
 import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class SearchAttributesTest {
 
+  private static Map<String, Object> searchAttributes = new HashMap<>();
+  private static String testKeyString = "CustomKeywordField";
+  private static String testValueString = "testKeyword";
+  private static String testKeyInteger = "CustomIntField";
+  private static Integer testValueInteger = 1;
+  private static String testKeyDateTime = "CustomDatetimeField";
+  private static LocalDateTime testValueDateTime = LocalDateTime.now();
+  private static String testKeyBool = "CustomBoolField";
+  private static Boolean testValueBool = true;
+  private static String testKeyDouble = "CustomDoubleField";
+  private static Double testValueDouble = 1.23;
+
+  @Before
+  public void setUp() {
+    // add more type to test
+    searchAttributes = new HashMap<>();
+    searchAttributes.put(testKeyString, testValueString);
+    searchAttributes.put(testKeyInteger, testValueInteger);
+    searchAttributes.put(testKeyDateTime, testValueDateTime);
+    searchAttributes.put(testKeyBool, testValueBool);
+    searchAttributes.put(testKeyDouble, testValueDouble);
+  }
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
+          .setWorkflowTypes(
+              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class,
+              TestParentWorkflow.class,
+              TestChild.class)
           .build();
 
   @Test
@@ -54,29 +83,11 @@ public class SearchAttributesTest {
     if (SDKTestWorkflowRule.useExternalService) {
       return;
     }
-    String testKeyString = "CustomKeywordField";
-    String testValueString = "testKeyword";
-    String testKeyInteger = "CustomIntField";
-    Integer testValueInteger = 1;
-    String testKeyDateTime = "CustomDatetimeField";
-    LocalDateTime testValueDateTime = LocalDateTime.now();
-    String testKeyBool = "CustomBoolField";
-    Boolean testValueBool = true;
-    String testKeyDouble = "CustomDoubleField";
-    Double testValueDouble = 1.23;
-
-    // add more type to test
-    Map<String, Object> searchAttr = new HashMap<>();
-    searchAttr.put(testKeyString, testValueString);
-    searchAttr.put(testKeyInteger, testValueInteger);
-    searchAttr.put(testKeyDateTime, testValueDateTime);
-    searchAttr.put(testKeyBool, testValueBool);
-    searchAttr.put(testKeyDouble, testValueDouble);
 
     WorkflowOptions workflowOptions =
         TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
-            .setSearchAttributes(searchAttr)
+            .setSearchAttributes(searchAttributes)
             .build();
     TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
         testWorkflowRule
@@ -118,5 +129,34 @@ public class SearchAttributesTest {
     Double retrievedDouble =
         converter.fromPayload(searchAttrDoubleBytes, Double.class, Double.class);
     assertEquals(testValueDouble, retrievedDouble);
+  }
+
+  @Test
+  public void testSearchAttributesPresentInChildWorkflow() {
+    TestWorkflows.TestWorkflow4 client =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow4.class);
+    Map<String, Object> result = client.execute();
+    result.put(testKeyDateTime, LocalDateTime.parse(result.get(testKeyDateTime).toString()));
+    assertTrue(result.equals(searchAttributes));
+  }
+
+  public static class TestParentWorkflow implements TestWorkflows.TestWorkflow4 {
+    @Override
+    public Map<String, Object> execute() {
+      ChildWorkflowOptions options =
+          ChildWorkflowOptions.newBuilder().setSearchAttributes(searchAttributes).build();
+      TestWorkflows.TestMapWorkflow child =
+          Workflow.newChildWorkflowStub(TestWorkflows.TestMapWorkflow.class, options);
+      Map<String, Object> result = child.execute();
+      result.put(testKeyDateTime, LocalDateTime.parse(result.get(testKeyDateTime).toString()));
+      return child.execute();
+    }
+  }
+
+  public static class TestChild implements TestWorkflows.TestMapWorkflow {
+    @Override
+    public Map<String, Object> execute() {
+      return Workflow.getInfo().getSearchAttributesMap();
+    }
   }
 }
