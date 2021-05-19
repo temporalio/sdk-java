@@ -442,6 +442,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
+    Map<String, Object> searchAttributes = options.getSearchAttributes();
+    if (searchAttributes != null) {
+      attributes.setSearchAttributes(InternalUtils.convertMapToSearchAttributes(searchAttributes));
+    }
+    Map<String, Object> memo = options.getMemo();
+    if (memo != null) {
+      attributes.setMemo(Memo.newBuilder().putAllFields(intoPayloadMapWithDefaultConverter(memo)));
+    }
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
     attributes.setHeader(grpcHeader);
