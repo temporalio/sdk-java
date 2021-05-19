@@ -35,7 +35,8 @@ import org.junit.Test;
 
 public class DefaultActivityOptionsSetOnWorkflowTest {
 
-  public static final ActivityOptions defaultOps = TestOptions.newActivityOptions1();
+  private static final ActivityOptions workflowOps = TestOptions.newActivityOptions1();
+  private static final ActivityOptions workerOps = TestOptions.newActivityOptions2();
   private static final ActivityOptions activityOps2 =
       TestOptions.newActivityOptions20sScheduleToClose();
 
@@ -51,7 +52,7 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
               WorkflowImplementationOptions.newBuilder()
-                  .setDefaultActivityOptions(defaultOps)
+                  .setDefaultActivityOptions(workerOps)
                   .setActivityOptions(activity2MethodOptions)
                   .build(),
               TestSetDefaultActivityOptionsWorkflowImpl.class)
@@ -64,26 +65,31 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow3.class);
     Map<String, Map<String, Duration>> result = workflowStub.execute();
 
-    // Check that activity1 has default options.
+    // Check that activity1 has default workerOptions options that were partially overwritten with
+    // workflow.
     Map<String, Duration> activity1Values = result.get("Activity1");
-    Assert.assertEquals(defaultOps.getHeartbeatTimeout(), activity1Values.get("HeartbeatTimeout"));
+    Duration workflowRunTimeout =
+        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+            .getWorkflowRunTimeout();
+    Assert.assertEquals(workerOps.getHeartbeatTimeout(), activity1Values.get("HeartbeatTimeout"));
     Assert.assertEquals(
-        defaultOps.getScheduleToCloseTimeout(), activity1Values.get("ScheduleToCloseTimeout"));
+        workflowOps.getScheduleToCloseTimeout(), activity1Values.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
-        defaultOps.getStartToCloseTimeout(), activity1Values.get("StartToCloseTimeout"));
+        workflowOps.getStartToCloseTimeout(), activity1Values.get("StartToCloseTimeout"));
 
     // Check that default options for activity2 were overwritten.
     Map<String, Duration> activity2Values = result.get("Activity2");
-    Assert.assertEquals(defaultOps.getHeartbeatTimeout(), activity2Values.get("HeartbeatTimeout"));
+    Assert.assertEquals(workerOps.getHeartbeatTimeout(), activity2Values.get("HeartbeatTimeout"));
     Assert.assertEquals(
         activityOps2.getScheduleToCloseTimeout(), activity2Values.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
-        defaultOps.getStartToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
+        workflowOps.getStartToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
   }
 
   public static class TestSetDefaultActivityOptionsWorkflowImpl implements TestWorkflow3 {
     @Override
     public Map<String, Map<String, Duration>> execute() {
+      Workflow.setDefaultActivityOptions(workflowOps);
       Map<String, Map<String, Duration>> result = new HashMap<>();
       TestActivity activities = Workflow.newActivityStub(TestActivity.class);
       result.put("Activity1", activities.activity1());
