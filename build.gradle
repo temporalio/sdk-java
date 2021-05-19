@@ -4,6 +4,8 @@ plugins {
     id 'net.ltgt.errorprone' version '2.0.1' apply false
     id 'org.cadixdev.licenser' version '0.6.0'
     id 'name.remal.check-updates' version '1.3.1' apply false
+    id 'com.palantir.git-version' version '0.12.2' apply false
+    id 'de.marcphilipp.nexus-publish' version '0.4.0' apply false
 }
 
 // v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
@@ -39,6 +41,7 @@ ext.getClientVersionName = { ->
 
 // Logs list of failed tests after build is done.
 subprojects {
+    apply plugin: "com.palantir.git-version"
     group = 'io.temporal'
     version = getVersionName()
 
@@ -104,13 +107,6 @@ subprojects {
         }
     }
 
-    apply plugin: 'signing'
-    if (hasProperty('signing.keyId')) {
-        signing {
-            sign configurations.archives
-        }
-    }
-
     // add a collection to track failedTests
     ext.failedTests = []
 
@@ -129,7 +125,6 @@ subprojects {
             }
         }
     }
-
     // print out tracked failed tests when the build has finished
     gradle.buildFinished {
         if (!failedTests.empty) {
@@ -138,6 +133,89 @@ subprojects {
                 println failedTest
             }
             println ""
+        }
+    }
+
+    apply plugin: 'maven-publish'
+    apply plugin: 'de.marcphilipp.nexus-publish'
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                versionMapping {
+                    usage('java-api') {
+                        fromResolutionOf('runtimeClasspath')
+                    }
+                    usage('java-runtime') {
+                        fromResolutionResult()
+                    }
+                }
+
+            }
+        }
+
+        // Uncomment to test local publishing and comment nexusPublishing
+//        repositories {
+//            maven {
+//                def releasesRepoUrl = "$System.env.HOME/repos/releases"
+//                def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
+//                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+//            }
+//        }
+    }
+
+    nexusPublishing {
+        repositories {
+            sonatype {
+                username = project.hasProperty('ossrhUsername') ? project.property('ossrhUsername') : ''
+                password = project.hasProperty('ossrhPassword') ? project.property('ossrhPassword') : ''
+            }
+        }
+    }
+
+    if (project.hasProperty('signing.keyId')) {
+        apply plugin: 'signing'
+        signing {
+            sign publishing.publications.mavenJava
+        }
+    }
+
+    //customize the pom in afterEvaluate to allow subproject build.gradle files to
+    //contribute the description field
+    afterEvaluate { subproject ->
+        subproject.publishing.publications.mavenJava {
+            pom {
+                name = subproject.description
+                description = subproject.description
+                url = 'https://github.com/temporalio/temporal-java-sdk'
+
+                scm {
+                    connection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
+                    developerConnection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
+                    url = 'https://github.com/temporalio/temporal-java-sdk.git'
+                }
+
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'mfateev'
+                        name = 'Maxim Fateev'
+                        email = 'maxim@temporal.io'
+                    }
+                    developer {
+                        id = 'samarabbas'
+                        name = 'Samar Abbas'
+                        email = 'samar@temporal.io'
+                    }
+                }
+            }
         }
     }
 }
