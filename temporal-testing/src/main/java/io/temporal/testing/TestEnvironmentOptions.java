@@ -59,7 +59,7 @@ public final class TestEnvironmentOptions {
 
     private String target;
 
-    private long initialTimeMillis = 0;
+    private long initialTimeMillis;
 
     private Builder() {}
 

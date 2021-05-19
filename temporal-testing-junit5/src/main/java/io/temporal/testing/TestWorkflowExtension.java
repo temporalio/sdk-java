@@ -242,7 +242,7 @@ public class TestWorkflowExtension
     private boolean useExternalService = false;
     private String target = null;
     private boolean doNotStart = false;
-    private long initialTimeMillis = 0;
+    private long initialTimeMillis;
 
     private Builder() {}
 

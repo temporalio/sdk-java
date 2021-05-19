@@ -141,7 +141,7 @@ public class TestWorkflowRule implements TestRule {
     private boolean useExternalService;
     private boolean doNotStart;
     private long testTimeoutSeconds;
-    private long initialTimeMillis = 0;
+    private long initialTimeMillis;
 
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
