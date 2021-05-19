@@ -133,30 +133,26 @@ public class SearchAttributesTest {
 
   @Test
   public void testSearchAttributesPresentInChildWorkflow() {
-    TestWorkflows.TestWorkflow4 client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow4.class);
-    Map<String, Object> result = client.execute();
-    result.put(testKeyDateTime, LocalDateTime.parse(result.get(testKeyDateTime).toString()));
-    assertTrue(result.equals(searchAttributes));
+    TestWorkflows.NoArgsWorkflow client =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.NoArgsWorkflow.class);
+    client.execute();
   }
 
-  public static class TestParentWorkflow implements TestWorkflows.TestWorkflow4 {
+  public static class TestParentWorkflow implements TestWorkflows.NoArgsWorkflow {
     @Override
-    public Map<String, Object> execute() {
+    public void execute() {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder().setSearchAttributes(searchAttributes).build();
-      TestWorkflows.TestMapWorkflow child =
-          Workflow.newChildWorkflowStub(TestWorkflows.TestMapWorkflow.class, options);
-      Map<String, Object> result = child.execute();
-      result.put(testKeyDateTime, LocalDateTime.parse(result.get(testKeyDateTime).toString()));
-      return child.execute();
+      TestWorkflows.TestChildWorkflow child =
+          Workflow.newChildWorkflowStub(TestWorkflows.TestChildWorkflow.class, options);
+      child.execute();
     }
   }
 
-  public static class TestChild implements TestWorkflows.TestMapWorkflow {
+  public static class TestChild implements TestWorkflows.TestChildWorkflow {
     @Override
-    public Map<String, Object> execute() {
-      return Workflow.getInfo().getSearchAttributesMap();
+    public void execute() {
+      assertTrue(Workflow.getInfo().getSearchAttributes() instanceof SearchAttributes);
     }
   }
 }

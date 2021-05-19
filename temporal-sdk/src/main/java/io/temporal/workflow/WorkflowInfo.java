@@ -21,7 +21,6 @@ package io.temporal.workflow;
 
 import io.temporal.api.common.v1.SearchAttributes;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Optional;
 
 public interface WorkflowInfo {
@@ -49,8 +48,6 @@ public interface WorkflowInfo {
   long getRunStartedTimestampMillis();
 
   SearchAttributes getSearchAttributes();
-
-  Map<String, Object> getSearchAttributesMap();
 
   Optional<String> getParentWorkflowId();
 

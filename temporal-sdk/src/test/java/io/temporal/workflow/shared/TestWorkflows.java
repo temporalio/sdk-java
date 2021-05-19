@@ -67,20 +67,6 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
-  public interface TestWorkflow4 {
-
-    @WorkflowMethod
-    Map<String, Object> execute();
-  }
-
-  @WorkflowInterface
-  public interface TestMapWorkflow {
-
-    @WorkflowMethod
-    Map<String, Object> execute();
-  }
-
-  @WorkflowInterface
   public interface TestChildWorkflow {
     @WorkflowMethod
     void execute();

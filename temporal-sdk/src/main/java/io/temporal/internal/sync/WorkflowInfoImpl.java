@@ -19,39 +19,14 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 final class WorkflowInfoImpl implements WorkflowInfo {
-
-  public enum SearchAttribute {
-    ExecutionStatus,
-    CloseTime,
-    CustomBoolField,
-    CustomDatetimeField,
-    CustomNamespace,
-    CustomDoubleField,
-    CustomIntField,
-    CustomKeywordField,
-    CustomStringField,
-    NamespaceId,
-    ExecutionTime,
-    HistoryLength,
-    RunId,
-    StartTime,
-    TaskQueue,
-    WorkflowId,
-    WorkflowType;
-  }
 
   private final ReplayWorkflowContext context;
 
@@ -105,53 +80,8 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
-  @Deprecated
   public SearchAttributes getSearchAttributes() {
     return context.getSearchAttributes();
-  }
-
-  @Override
-  public Map<String, Object> getSearchAttributesMap() {
-    Map<String, Payload> serializedSearchAttributes =
-        context.getSearchAttributes().getIndexedFieldsMap();
-    Map<String, Object> searchAttributes = new HashMap<>();
-    DefaultDataConverter converter = DefaultDataConverter.newDefaultInstance();
-
-    for (String searchAttribute : serializedSearchAttributes.keySet()) {
-      SearchAttribute attribute = SearchAttribute.valueOf(searchAttribute);
-      Payload payload = serializedSearchAttributes.get(searchAttribute);
-      String stringValue = converter.fromPayload(payload, String.class, String.class);
-      switch (attribute) {
-        case CustomBoolField:
-          searchAttributes.put(searchAttribute, Boolean.parseBoolean(stringValue));
-          break;
-        case CustomDatetimeField:
-          searchAttributes.put(searchAttribute, LocalDateTime.parse(stringValue));
-          break;
-        case CustomDoubleField:
-          searchAttributes.put(searchAttribute, Double.parseDouble(stringValue));
-          break;
-        case CloseTime:
-        case CustomIntField:
-        case ExecutionStatus:
-        case ExecutionTime:
-        case HistoryLength:
-        case StartTime:
-          searchAttributes.put(searchAttribute, Integer.parseInt(stringValue));
-          break;
-        case CustomKeywordField:
-        case CustomNamespace:
-        case CustomStringField:
-        case NamespaceId:
-        case RunId:
-        case TaskQueue:
-        case WorkflowId:
-        case WorkflowType:
-          searchAttributes.put(searchAttribute, stringValue);
-          break;
-      }
-    }
-    return searchAttributes;
   }
 
   @Override
