@@ -744,6 +744,9 @@ class StateMachines {
           if (d.hasHeader()) {
             startChild.setHeader(d.getHeader());
           }
+          if (d.hasSearchAttributes()) {
+            startChild.setSearchAttributes(d.getSearchAttributes());
+          }
           if (d.hasMemo()) {
             startChild.setMemo(d.getMemo());
           }
