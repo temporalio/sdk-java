@@ -19,11 +19,6 @@ dependencies {
     testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.10.0'
 }
 
-configurations.all {
-    // Conflicts with logback
-    exclude group: 'org.slf4j', module: 'slf4j-simple'
-}
-
 task initSubmodules(type: Exec) {
     description = 'Initializes submodules'
     commandLine 'git', 'submodule', 'init'

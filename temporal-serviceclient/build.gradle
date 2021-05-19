@@ -22,11 +22,6 @@ dependencies {
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
 }
 
-configurations.all {
-    // Conflicts with logback
-    exclude group: 'org.slf4j', module: 'slf4j-simple'
-}
-
 task initSubmodules(type: Exec) {
     description = 'Initializes submodules'
     commandLine 'git', 'submodule', 'init'
