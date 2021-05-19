@@ -78,7 +78,7 @@ public final class WorkflowImplementationOptions {
      * @param activityOptions map from activityType to ActivityOptions
      */
     public Builder setActivityOptions(Map<String, ActivityOptions> activityOptions) {
-      this.activityOptions = Objects.requireNonNull(activityOptions);
+      this.activityOptions = new HashMap<>(Objects.requireNonNull(activityOptions));
       return this;
     }
 

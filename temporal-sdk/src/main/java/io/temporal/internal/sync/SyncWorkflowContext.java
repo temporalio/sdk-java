@@ -170,16 +170,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   public void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
+    Objects.requireNonNull(activityMethodOptions);
     if (this.activityOptionsMap == null) {
-      this.activityOptionsMap = activityMethodOptions;
+      this.activityOptionsMap.putAll(activityMethodOptions);
       return;
     }
-    Objects.requireNonNull(activityMethodOptions);
-    Map<String, ActivityOptions> mergedActivityOptionsMap = new HashMap<>();
-    mergedActivityOptionsMap.putAll(this.activityOptionsMap);
     activityMethodOptions.forEach(
         (key, value) ->
-            mergedActivityOptionsMap.merge(
+            this.activityOptionsMap.merge(
                 key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
   }
 

@@ -39,11 +39,18 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
   private static final ActivityOptions workerOps = TestOptions.newActivityOptions2();
   private static final ActivityOptions activityOps2 =
       TestOptions.newActivityOptions20sScheduleToClose();
-
-  Map<String, ActivityOptions> activity2MethodOptions =
+  private static final Map<String, ActivityOptions> activity2options =
       new HashMap<String, ActivityOptions>() {
         {
           put("Activity2", activityOps2);
+        }
+      };
+  private static final Map<String, ActivityOptions> defaultActivity2options =
+      new HashMap<String, ActivityOptions>() {
+        {
+          put(
+              "Activity2",
+              ActivityOptions.newBuilder().setHeartbeatTimeout(Duration.ofSeconds(2)).build());
         }
       };
 
@@ -53,7 +60,7 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
           .setWorkflowTypes(
               WorkflowImplementationOptions.newBuilder()
                   .setDefaultActivityOptions(workerOps)
-                  .setActivityOptions(activity2MethodOptions)
+                  .setActivityOptions(activity2options)
                   .build(),
               TestSetDefaultActivityOptionsWorkflowImpl.class)
           .setActivityImplementations(new TestActivityImpl())
@@ -79,7 +86,9 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
 
     // Check that default options for activity2 were overwritten.
     Map<String, Duration> activity2Values = result.get("Activity2");
-    Assert.assertEquals(workerOps.getHeartbeatTimeout(), activity2Values.get("HeartbeatTimeout"));
+    Assert.assertEquals(
+        defaultActivity2options.get("Activity2").getHeartbeatTimeout(),
+        activity2Values.get("HeartbeatTimeout"));
     Assert.assertEquals(
         activityOps2.getScheduleToCloseTimeout(), activity2Values.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
@@ -90,6 +99,7 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
     @Override
     public Map<String, Map<String, Duration>> execute() {
       Workflow.setDefaultActivityOptions(workflowOps);
+      Workflow.setActivityOptions(defaultActivity2options);
       Map<String, Map<String, Duration>> result = new HashMap<>();
       TestActivity activities = Workflow.newActivityStub(TestActivity.class);
       result.put("Activity1", activities.activity1());
