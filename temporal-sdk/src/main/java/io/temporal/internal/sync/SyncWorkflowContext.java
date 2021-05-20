@@ -172,7 +172,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
     Objects.requireNonNull(activityMethodOptions);
     if (this.activityOptionsMap == null) {
-      new HashMap<>(activityMethodOptions);
+      this.activityOptionsMap = new HashMap<>(activityMethodOptions);
       return;
     }
     activityMethodOptions.forEach(
