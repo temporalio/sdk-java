@@ -51,7 +51,6 @@ public class TestOptions {
 
   public static ActivityOptions newActivityOptions1() {
     return ActivityOptions.newBuilder()
-        .setHeartbeatTimeout(Duration.ofSeconds(1))
         .setScheduleToStartTimeout(Duration.ofSeconds(2))
         .setScheduleToCloseTimeout(Duration.ofDays(1))
         .setStartToCloseTimeout(Duration.ofSeconds(2))
@@ -63,7 +62,6 @@ public class TestOptions {
 
   public static ActivityOptions newActivityOptions2() {
     return ActivityOptions.newBuilder()
-        .setTaskQueue("ActivityOptions")
         .setHeartbeatTimeout(Duration.ofSeconds(3))
         .setScheduleToStartTimeout(Duration.ofSeconds(3))
         .setScheduleToCloseTimeout(Duration.ofDays(3))

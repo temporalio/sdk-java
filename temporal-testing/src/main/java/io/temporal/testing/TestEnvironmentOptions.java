@@ -200,6 +200,8 @@ public final class TestEnvironmentOptions {
         + workerFactoryOptions
         + ", workflowClientOptions="
         + workflowClientOptions
+        + ", metricsScope="
+        + metricsScope
         + ", useExternalService="
         + useExternalService
         + ", target="

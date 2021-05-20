@@ -159,6 +159,28 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return activityOptionsMap;
   }
 
+  public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
+    this.defaultActivityOptions =
+        (this.defaultActivityOptions == null)
+            ? defaultActivityOptions
+            : this.defaultActivityOptions
+                .toBuilder()
+                .mergeActivityOptions(defaultActivityOptions)
+                .build();
+  }
+
+  public void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
+    Objects.requireNonNull(activityMethodOptions);
+    if (this.activityOptionsMap == null) {
+      this.activityOptionsMap = new HashMap<>(activityMethodOptions);
+      return;
+    }
+    activityMethodOptions.forEach(
+        (key, value) ->
+            this.activityOptionsMap.merge(
+                key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+  }
+
   @Override
   public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
     Optional<Payloads> args = converter.toPayloads(input.getArgs());
