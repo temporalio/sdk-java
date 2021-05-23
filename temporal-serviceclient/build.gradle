@@ -7,21 +7,21 @@ buildscript {
 }
 
 plugins {
-    id 'com.google.protobuf' version '0.8.16'
     id 'java-library'
-    id 'net.ltgt.errorprone' version '2.0.1'
-    id 'org.cadixdev.licenser' version '0.6.0'
     id 'maven-publish'
     id 'signing'
+    id 'com.google.protobuf' version '0.8.16'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
     id 'name.remal.check-updates' version '1.3.1'
+    id 'net.ltgt.errorprone' version '2.0.1'
+    id 'org.cadixdev.licenser' version '0.6.0'
 }
 
+apply plugin: 'java'
 apply plugin: 'com.google.protobuf'
+apply plugin: 'de.marcphilipp.nexus-publish'
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 apply plugin: 'maven-publish'
-apply plugin: 'de.marcphilipp.nexus-publish'
-apply plugin: 'java'
 
 if (hasProperty('signing.keyId')) {
     apply plugin: 'signing'
@@ -77,10 +77,11 @@ dependencies {
     errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
     errorprone('com.google.errorprone:error_prone_core:2.7.1')
 
-    api 'io.grpc:grpc-protobuf:1.37.1'
-    api 'io.grpc:grpc-stub:1.37.1'
-    api 'io.grpc:grpc-core:1.37.1'
-    api 'io.grpc:grpc-netty-shaded:1.37.1'
+    api 'io.grpc:grpc-protobuf:1.38.0'
+    api 'io.grpc:grpc-stub:1.38.0'
+    api 'io.grpc:grpc-core:1.38.0'
+    api 'io.grpc:grpc-netty-shaded:1.38.0'
+    api 'io.grpc:grpc-services:1.38.0'
     api group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.17.0'
     api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
@@ -126,7 +127,7 @@ protobuf {
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.37.1'
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.38.0'
         }
     }
     generateProtoTasks {
