@@ -160,8 +160,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       }
       channelNeedsShutdown = true;
     }
-
-    //
+    
     healthBlockingStub = HealthGrpc.newBlockingStub(channel);
     checkHealth();
 
