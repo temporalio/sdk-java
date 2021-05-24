@@ -19,17 +19,6 @@ dependencies {
     testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.10.0'
 }
 
-task initSubmodules(type: Exec) {
-    description = 'Initializes submodules'
-    commandLine 'git', 'submodule', 'init'
-}
-
-task updateSubmodules(type: Exec) {
-    dependsOn initSubmodules
-    description = 'Update submodules'
-    commandLine 'git', 'submodule', 'update'
-}
-
 task registerNamespace(type: JavaExec) {
     main = 'io.temporal.RegisterTestNamespace'
     classpath = sourceSets.test.runtimeClasspath
