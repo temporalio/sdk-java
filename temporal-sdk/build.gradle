@@ -1,4 +1,3 @@
-apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 description = '''Temporal Workflow Java SDK'''
 
 dependencies {
