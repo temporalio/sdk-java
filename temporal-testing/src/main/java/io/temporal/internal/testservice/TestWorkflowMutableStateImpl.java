@@ -1135,6 +1135,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long workflowTaskCompletedId,
       String identity) {
     WorkflowData data = workflow.getData();
+    // This should probably follow the retry logic from
+    // https://github.com/temporalio/temporal/blob/master/service/history/retry.go#L95
     if (data.retryState.isPresent()) {
       TestServiceRetryState rs = data.retryState.get();
       Optional<String> failureType;
@@ -1149,9 +1151,21 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           failureType = Optional.of(failureInfo.getType());
           backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTime());
         }
-      } else {
+      } else if (d.getFailure().hasTerminatedFailureInfo()
+          || d.getFailure().hasCanceledFailureInfo()
+          || (d.getFailure().hasTimeoutFailureInfo()
+              && d.getFailure().getTimeoutFailureInfo().getTimeoutType()
+                  != TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE
+              && d.getFailure().getTimeoutFailureInfo().getTimeoutType()
+                  != TimeoutType.TIMEOUT_TYPE_HEARTBEAT)
+          || (d.getFailure().hasServerFailureInfo()
+              && d.getFailure().getServerFailureInfo().getNonRetryable())) {
+        // Indicate that the failure is not retryable.
         backoffInterval =
             new TestServiceRetryState.BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
+      } else {
+        // The failure may be retryable. (E.g. ActivityFailure)
+        backoffInterval = rs.getBackoffIntervalInSeconds(Optional.empty(), store.currentTime());
       }
       if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
         ContinueAsNewWorkflowExecutionCommandAttributes.Builder continueAsNewAttr =

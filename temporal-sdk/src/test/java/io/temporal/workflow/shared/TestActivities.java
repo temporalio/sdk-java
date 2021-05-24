@@ -95,6 +95,11 @@ public interface TestActivities {
   }
 
   @ActivityInterface
+  interface TestActivity1 {
+    String execute(String input);
+  }
+
+  @ActivityInterface
   interface AngryChildActivity {
 
     @ActivityMethod
