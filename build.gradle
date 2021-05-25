@@ -10,18 +10,12 @@ plugins {
 
 apply from: "$rootDir/gradle/versioning.gradle"
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/licensing.gradle"
 
 // Logs list of failed tests after build is done.
 subprojects {
 
     apply plugin: "name.remal.check-updates"
-
-    apply plugin: 'org.cadixdev.licenser'
-    license {
-        header rootProject.file('license-header.txt')
-        exclude '**/*.puml'
-    }
-    tasks.check.dependsOn('checkLicenseMain')
 
     apply plugin: 'maven-publish'
     apply plugin: 'de.marcphilipp.nexus-publish'
