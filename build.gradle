@@ -11,92 +11,10 @@ plugins {
 apply from: "$rootDir/gradle/versioning.gradle"
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/licensing.gradle"
+apply from: "$rootDir/gradle/publishing.gradle"
 
 // Logs list of failed tests after build is done.
 subprojects {
 
     apply plugin: "name.remal.check-updates"
-
-    apply plugin: 'maven-publish'
-    apply plugin: 'de.marcphilipp.nexus-publish'
-
-    publishing {
-        publications {
-            mavenJava(MavenPublication) {
-                from components.java
-                versionMapping {
-                    usage('java-api') {
-                        fromResolutionOf('runtimeClasspath')
-                    }
-                    usage('java-runtime') {
-                        fromResolutionResult()
-                    }
-                }
-
-            }
-        }
-
-        // Uncomment to test local publishing and comment nexusPublishing
-//        repositories {
-//            maven {
-//                def releasesRepoUrl = "$System.env.HOME/repos/releases"
-//                def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
-//                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-//            }
-//        }
-    }
-
-    nexusPublishing {
-        repositories {
-            sonatype {
-                username = project.hasProperty('ossrhUsername') ? project.property('ossrhUsername') : ''
-                password = project.hasProperty('ossrhPassword') ? project.property('ossrhPassword') : ''
-            }
-        }
-    }
-
-    if (project.hasProperty('signing.keyId')) {
-        apply plugin: 'signing'
-        signing {
-            sign publishing.publications.mavenJava
-        }
-    }
-
-    //customize the pom in afterEvaluate to allow subproject build.gradle files to
-    //contribute the description field
-    afterEvaluate { subproject ->
-        subproject.publishing.publications.mavenJava {
-            pom {
-                name = subproject.description
-                description = subproject.description
-                url = 'https://github.com/temporalio/temporal-java-sdk'
-
-                scm {
-                    connection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
-                    developerConnection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
-                    url = 'https://github.com/temporalio/temporal-java-sdk.git'
-                }
-
-                licenses {
-                    license {
-                        name = 'The Apache License, Version 2.0'
-                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                    }
-                }
-
-                developers {
-                    developer {
-                        id = 'mfateev'
-                        name = 'Maxim Fateev'
-                        email = 'maxim@temporal.io'
-                    }
-                    developer {
-                        id = 'samarabbas'
-                        name = 'Samar Abbas'
-                        email = 'samar@temporal.io'
-                    }
-                }
-            }
-        }
-    }
 }
