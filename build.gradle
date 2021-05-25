@@ -9,51 +9,12 @@ plugins {
 }
 
 apply from: "$rootDir/gradle/versioning.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 // Logs list of failed tests after build is done.
 subprojects {
 
-    repositories {
-        mavenCentral()
-    }
-
-    apply plugin: 'java-library'
-    java {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-        withJavadocJar()
-        withSourcesJar()
-    }
-
     apply plugin: "name.remal.check-updates"
-
-    apply plugin: 'com.github.sherter.google-java-format'
-
-    googleJavaFormat {
-        toolVersion '1.7'
-        include '**/*.java'
-        exclude '**/generated/*'
-        exclude '**/.idea/**'
-    }
-
-    apply plugin: 'net.ltgt.errorprone'
-    dependencies {
-        errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
-        errorprone('com.google.errorprone:error_prone_core:2.7.1')
-    }
-
-    compileJava {
-        dependsOn 'googleJavaFormat'
-        options.encoding = 'UTF-8'
-        options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-        options.errorprone.excludedPaths = '.*/generated-sources/.*'
-    }
-
-    compileTestJava {
-        options.encoding = 'UTF-8'
-        options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-        options.errorprone.excludedPaths = '.*/generated-sources/.*'
-    }
 
     apply plugin: 'org.cadixdev.licenser'
     license {
@@ -61,45 +22,6 @@ subprojects {
         exclude '**/*.puml'
     }
     tasks.check.dependsOn('checkLicenseMain')
-
-    javadoc {
-        options.encoding = 'UTF-8'
-        if (JavaVersion.current().isJava8Compatible()) {
-            options.addStringOption('Xdoclint:none', '-quiet')
-        }
-        if (JavaVersion.current().isJava9Compatible()) {
-            options.addBooleanOption('html5', true)
-        }
-    }
-
-    // add a collection to track failedTests
-    ext.failedTests = []
-
-    test {
-        testLogging {
-            events 'passed', 'skipped', 'failed'
-            exceptionFormat 'full'
-            // Uncomment the following line if you want to see test logs in gradlew run.
-            showStandardStreams true
-        }
-        forkEvery = 1
-        maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
-        afterTest { TestDescriptor descriptor, TestResult result ->
-            if (result.resultType == org.gradle.api.tasks.testing.TestResult.ResultType.FAILURE) {
-                failedTests << ["${descriptor.className}::${descriptor.name}"]
-            }
-        }
-    }
-    // print out tracked failed tests when the build has finished
-    gradle.buildFinished {
-        if (!failedTests.empty) {
-            println "Failed tests for ${project.name}:"
-            failedTests.each { failedTest ->
-                println failedTest
-            }
-            println ""
-        }
-    }
 
     apply plugin: 'maven-publish'
     apply plugin: 'de.marcphilipp.nexus-publish'
@@ -184,4 +106,3 @@ subprojects {
         }
     }
 }
-//logging.captureStandardOutput LogLevel.INFO
