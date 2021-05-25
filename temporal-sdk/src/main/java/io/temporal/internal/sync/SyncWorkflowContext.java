@@ -159,6 +159,28 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return activityOptionsMap;
   }
 
+  public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
+    this.defaultActivityOptions =
+        (this.defaultActivityOptions == null)
+            ? defaultActivityOptions
+            : this.defaultActivityOptions
+                .toBuilder()
+                .mergeActivityOptions(defaultActivityOptions)
+                .build();
+  }
+
+  public void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
+    Objects.requireNonNull(activityMethodOptions);
+    if (this.activityOptionsMap == null) {
+      this.activityOptionsMap = new HashMap<>(activityMethodOptions);
+      return;
+    }
+    activityMethodOptions.forEach(
+        (key, value) ->
+            this.activityOptionsMap.merge(
+                key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+  }
+
   @Override
   public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
     Optional<Payloads> args = converter.toPayloads(input.getArgs());
@@ -418,6 +440,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
+    Map<String, Object> searchAttributes = options.getSearchAttributes();
+    if (searchAttributes != null) {
+      attributes.setSearchAttributes(InternalUtils.convertMapToSearchAttributes(searchAttributes));
+    }
+    Map<String, Object> memo = options.getMemo();
+    if (memo != null) {
+      attributes.setMemo(Memo.newBuilder().putAllFields(intoPayloadMapWithDefaultConverter(memo)));
+    }
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
     attributes.setHeader(grpcHeader);

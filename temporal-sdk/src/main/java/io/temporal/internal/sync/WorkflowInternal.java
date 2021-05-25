@@ -177,6 +177,14 @@ public final class WorkflowInternal {
     return getWorkflowInterceptor().currentTimeMillis();
   }
 
+  public static void setDefaultActivityOptions(ActivityOptions activityOptions) {
+    getRootWorkflowContext().setDefaultActivityOptions(activityOptions);
+  }
+
+  public static void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
+    getRootWorkflowContext().setActivityOptions(activityMethodOptions);
+  }
+
   /**
    * Creates client stub to activities that implement given interface.
    *

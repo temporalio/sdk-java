@@ -176,10 +176,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   private final Map<TaskQueueId, BlockingQueue<PollWorkflowTaskQueueResponse.Builder>>
       workflowTaskQueues = new HashMap<>();
 
-  private final SelfAdvancingTimer timerService =
-      new SelfAdvancingTimerImpl(System.currentTimeMillis());
+  private final SelfAdvancingTimer timerService;
 
-  public TestWorkflowStoreImpl() {
+  public TestWorkflowStoreImpl(long initialTimeMillis) {
+    timerService = new SelfAdvancingTimerImpl(initialTimeMillis);
     // locked until the first save
     timerService.lockTimeSkipping("TestWorkflowStoreImpl constructor");
   }

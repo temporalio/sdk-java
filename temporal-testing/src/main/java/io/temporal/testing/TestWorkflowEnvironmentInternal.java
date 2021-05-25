@@ -68,7 +68,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     workerFactoryOptions =
         WorkerFactoryOptions.newBuilder(testEnvironmentOptions.getWorkerFactoryOptions())
             .validateAndBuildWithDefaults();
-    service = new TestWorkflowService();
+    service = new TestWorkflowService(testEnvironmentOptions.getInitialTimeMillis());
     timeLockingInterceptor = new TimeLockingInterceptor(service);
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
 

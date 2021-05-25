@@ -30,6 +30,7 @@ import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
@@ -123,6 +124,7 @@ public class TestWorkflowRule implements TestRule {
             .setWorkerFactoryOptions(workerFactoryOptions)
             .setUseExternalService(useExternalService)
             .setTarget(builder.target)
+            .setInitialTimeMillis(builder.initialTimeMillis)
             .build();
 
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
@@ -139,6 +141,7 @@ public class TestWorkflowRule implements TestRule {
     private boolean useExternalService;
     private boolean doNotStart;
     private long testTimeoutSeconds;
+    private long initialTimeMillis;
 
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
@@ -216,6 +219,26 @@ public class TestWorkflowRule implements TestRule {
     /** Global test timeout. Default is 10 seconds. */
     public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
       this.testTimeoutSeconds = testTimeoutSeconds;
+      return this;
+    }
+
+    /**
+     * Set the initial time for the workflow virtual clock, milliseconds since epoch.
+     *
+     * <p>Default is current time
+     */
+    public Builder setInitialTimeMillis(long initialTimeMillis) {
+      this.initialTimeMillis = initialTimeMillis;
+      return this;
+    }
+
+    /**
+     * Set the initial time for the workflow virtual clock.
+     *
+     * <p>Default is current time
+     */
+    public Builder setInitialTime(Instant initialTime) {
+      this.initialTimeMillis = initialTime.toEpochMilli();
       return this;
     }
 

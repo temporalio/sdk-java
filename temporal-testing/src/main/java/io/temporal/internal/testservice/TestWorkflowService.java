@@ -119,7 +119,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private final Lock lock = new ReentrantLock();
 
-  private final TestWorkflowStore store = new TestWorkflowStoreImpl();
+  private final TestWorkflowStore store;
 
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
 
@@ -136,15 +136,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return stubs;
   }
 
+  public TestWorkflowService() {
+    this(0);
+  }
+
   public TestWorkflowService(boolean lockTimeSkipping) {
-    this();
+    this(0);
     if (lockTimeSkipping) {
       this.lockTimeSkipping("constructor");
     }
   }
 
   // TODO: Shutdown.
-  public TestWorkflowService() {
+  public TestWorkflowService(long initialTimeMillis) {
+    store = new TestWorkflowStoreImpl(initialTimeMillis);
     serverName = InProcessServerBuilder.generateName();
     try {
       InProcessServerBuilder.forName(serverName).directExecutor().addService(this).build().start();
