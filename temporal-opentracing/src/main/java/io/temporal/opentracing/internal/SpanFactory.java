@@ -29,6 +29,7 @@ import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.SpanOperationType;
 import io.temporal.opentracing.StandardLogNames;
 import io.temporal.opentracing.StandardTagNames;
+import io.temporal.opentracing.StartSpanContext;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -36,8 +37,6 @@ import javax.annotation.Nullable;
 public class SpanFactory {
   // Inspired by convention used in JAX-RS2 OpenTracing implementation:
   // https://github.com/opentracing-contrib/java-jaxrs/blob/dcbfda6/opentracing-jaxrs2/src/main/java/io/opentracing/contrib/jaxrs2/server/OperationNameProvider.java#L46
-  private static final String PREFIX_DELIMITER = ":";
-
   private final OpenTracingOptions options;
 
   public SpanFactory(OpenTracingOptions options) {
@@ -50,9 +49,10 @@ public class SpanFactory {
       String workflowType,
       long startTimeMs,
       String workflowId) {
-    Map<String, String> tags = ImmutableMap.of(StandardTagNames.WORKFLOW_ID, workflowId);
-    String operationName =
-        options.getSpanOperationNamePrefix(operationType) + PREFIX_DELIMITER + workflowType;
+    StartSpanContext context =
+        new StartSpanContext(options, operationType, workflowType, workflowId, null, null, null);
+    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
+    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
     return createSpan(tracer, startTimeMs, operationName, tags, null, References.FOLLOWS_FROM);
   }
 
@@ -63,15 +63,17 @@ public class SpanFactory {
       String workflowId,
       String parentWorkflowId,
       String parentRunId) {
-    Map<String, String> tags =
-        ImmutableMap.of(
-            StandardTagNames.WORKFLOW_ID, workflowId,
-            StandardTagNames.PARENT_WORKFLOW_ID, parentWorkflowId,
-            StandardTagNames.PARENT_RUN_ID, parentRunId);
-    String operationName =
-        options.getSpanOperationNamePrefix(SpanOperationType.START_CHILD_WORKFLOW)
-            + PREFIX_DELIMITER
-            + childWorkflowType;
+    StartSpanContext context =
+        new StartSpanContext(
+            options,
+            SpanOperationType.START_CHILD_WORKFLOW,
+            childWorkflowType,
+            workflowId,
+            null,
+            parentWorkflowId,
+            parentRunId);
+    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
+    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
     return createSpan(tracer, startTimeMs, operationName, tags, null, References.FOLLOWS_FROM);
   }
 
@@ -82,14 +84,11 @@ public class SpanFactory {
       String workflowId,
       String runId,
       SpanContext workflowStartSpanContext) {
-    Map<String, String> tags =
-        ImmutableMap.of(
-            StandardTagNames.WORKFLOW_ID, workflowId,
-            StandardTagNames.RUN_ID, runId);
-    String operationName =
-        options.getSpanOperationNamePrefix(SpanOperationType.RUN_WORKFLOW)
-            + PREFIX_DELIMITER
-            + workflowType;
+    StartSpanContext context =
+        new StartSpanContext(
+            options, SpanOperationType.RUN_WORKFLOW, workflowType, workflowId, runId, null, null);
+    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
+    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
     return createSpan(
         tracer,
         startTimeMs,
@@ -101,14 +100,11 @@ public class SpanFactory {
 
   public Tracer.SpanBuilder createActivityStartSpan(
       Tracer tracer, String activityType, long startTimeMs, String workflowId, String runId) {
-    Map<String, String> tags =
-        ImmutableMap.of(
-            StandardTagNames.WORKFLOW_ID, workflowId,
-            StandardTagNames.RUN_ID, runId);
-    String operationName =
-        options.getSpanOperationNamePrefix(SpanOperationType.START_ACTIVITY)
-            + PREFIX_DELIMITER
-            + activityType;
+    StartSpanContext context =
+        new StartSpanContext(
+            options, SpanOperationType.START_ACTIVITY, activityType, workflowId, runId, null, null);
+    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
+    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
     return createSpan(tracer, startTimeMs, operationName, tags, null, References.CHILD_OF);
   }
 
@@ -119,14 +115,11 @@ public class SpanFactory {
       String workflowId,
       String runId,
       SpanContext activityStartSpanContext) {
-    Map<String, String> tags =
-        ImmutableMap.of(
-            StandardTagNames.WORKFLOW_ID, workflowId,
-            StandardTagNames.RUN_ID, runId);
-    String operationName =
-        options.getSpanOperationNamePrefix(SpanOperationType.RUN_ACTIVITY)
-            + PREFIX_DELIMITER
-            + activityType;
+    StartSpanContext context =
+        new StartSpanContext(
+            options, SpanOperationType.RUN_ACTIVITY, activityType, workflowId, runId, null, null);
+    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
+    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
     return createSpan(
         tracer, startTimeMs, operationName, tags, activityStartSpanContext, References.CHILD_OF);
   }
