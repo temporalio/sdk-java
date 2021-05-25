@@ -1,4 +1,3 @@
-// Run 'gradle checkUpdates' to find out which dependencies have newer versions
 plugins {
     id 'com.github.sherter.google-java-format' version '0.9' apply false
     id 'net.ltgt.errorprone' version '2.0.1' apply false
@@ -12,9 +11,4 @@ apply from: "$rootDir/gradle/versioning.gradle"
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/licensing.gradle"
 apply from: "$rootDir/gradle/publishing.gradle"
-
-// Logs list of failed tests after build is done.
-subprojects {
-
-    apply plugin: "name.remal.check-updates"
-}
+apply from: "$rootDir/gradle/dependencyManagement.gradle"

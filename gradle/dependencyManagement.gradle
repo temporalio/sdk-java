@@ -1,0 +1,4 @@
+// Run 'gradle checkUpdates' to find out which dependencies have newer versions
+subprojects {
+    apply plugin: "name.remal.check-updates"
+}
