@@ -152,7 +152,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public WorkflowServiceStubs newClientStub() {
     if (client == null) {
       throw new RuntimeException(
-              "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
+          "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
     }
     return client.stubs;
   }
@@ -169,11 +169,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   // TODO: Shutdown.
   public TestWorkflowService(long initialTimeMillis) {
     store = new TestWorkflowStoreImpl(initialTimeMillis);
-    serverName = InProcessServerBuilder.generateName();
-  }
-  
-  public TestWorkflowService() {
-    this(0);
     client = new Client();
     try {
       InProcessServerBuilder.forName(client.serverName)
@@ -187,15 +182,24 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     outOfProcessServer = null;
   }
 
+  public TestWorkflowService() {
+    this(0);
+  }
+
   // Creates an out-of-process rather than in-process server, and does not set up a client.
   // Useful, for example, if you want to use the test service from other SDKs.
   public static TestWorkflowService createServerOnly(int port) {
     log.info("Server started, listening on " + port);
-    return new TestWorkflowService(port);
+    return new TestWorkflowService(true, port);
   }
 
-  private TestWorkflowService(int port) {
+  private TestWorkflowService(boolean isOutOfProc, int port) {
+    if (!isOutOfProc) {
+      // isOutOfProc is just here to make unambiguous constructor overloading.
+      throw new RuntimeException("Impossible.");
+    }
     client = null;
+    store = new TestWorkflowStoreImpl(0 /* 0 means use current time */);
     try {
       outOfProcessServer =
           Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create())
