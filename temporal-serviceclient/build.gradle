@@ -46,7 +46,7 @@ protobuf {
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.37.1'
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.38.0'
         }
     }
     generateProtoTasks {
