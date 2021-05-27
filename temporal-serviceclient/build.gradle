@@ -8,7 +8,7 @@ description = '''Temporal Workflow Java SDK'''
 
 dependencies {
     api 'io.grpc:grpc-protobuf:1.37.1'
-    api 'io.grpc:grpc-stub:1.37.1'
+    api 'io.grpc:grpc-stub:1.38.0'
     api 'io.grpc:grpc-core:1.37.1'
     api 'io.grpc:grpc-netty-shaded:1.37.1'
     api group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.17.0'
