@@ -46,7 +46,6 @@ public class WorkflowRetryAfterActivityFailureTest {
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new FailingActivityImpl())
-          .setTestTimeoutSeconds(100000)
           .build();
 
   @Test
@@ -61,9 +60,11 @@ public class WorkflowRetryAfterActivityFailureTest {
                 .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
                 .validateBuildWithDefaults());
 
+    // Retry once
     assertEquals("bar", workflow.execute("input"));
     assertEquals(-1, failureCounter.get());
 
+    // Non retryable failure
     try {
       failureCounter = new AtomicInteger(1);
       workflow.execute("terminated");
