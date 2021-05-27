@@ -20,12 +20,15 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.TerminatedFailure;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
@@ -34,19 +37,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class TestRetry {
+public class WorkflowRetryAfterActivityFailureTest {
 
-  private static final AtomicInteger failureCounter = new AtomicInteger(1);
+  private static AtomicInteger failureCounter = new AtomicInteger(1);
 
   @Rule
   public TestWorkflowRule testWorkflowRule =
       TestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new FailingActivityImpl())
+          .setTestTimeoutSeconds(100000)
           .build();
 
   @Test
-  public void testActivityFailureFirstWorkflowRun() {
+  public void testWorkflowRetryAfterActivityFailure() {
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow1 workflow =
         client.newWorkflowStub(
@@ -56,17 +60,16 @@ public class TestRetry {
                 // Retry the workflow though
                 .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
                 .validateBuildWithDefaults());
-    assertEquals("bar", workflow.execute("input"));
-  }
 
-  public static class FailingActivityImpl implements TestActivity1 {
-    @Override
-    public String execute(String input) {
-      if (failureCounter.getAndDecrement() > 0) {
-        throw ApplicationFailure.newFailure("fail", "fail");
-      } else {
-        return "bar";
-      }
+    assertEquals("bar", workflow.execute("input"));
+    assertEquals(-1, failureCounter.get());
+
+    try {
+      failureCounter = new AtomicInteger(1);
+      workflow.execute("terminated");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof TerminatedFailure);
+      assertEquals(0, failureCounter.get());
     }
   }
 
@@ -75,14 +78,32 @@ public class TestRetry {
         Workflow.newActivityStub(
             TestActivity1.class,
             ActivityOptions.newBuilder()
-                .setStartToCloseTimeout(Duration.ofMinutes(1))
+                .setStartToCloseTimeout(Duration.ofSeconds(1))
                 // Don't retry the activity
                 .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                 .validateAndBuildWithDefaults());
 
     @Override
     public String execute(String input) {
+      if (input.equals("terminated") && failureCounter.getAndDecrement() > 0) {
+        throw new TerminatedFailure(input, null);
+      }
       return activity.execute(input);
+    }
+  }
+
+  public static class FailingActivityImpl implements TestActivity1 {
+    @Override
+    public String execute(String input) {
+      if (failureCounter.getAndDecrement() > 0) {
+        if (input.equals("terminated")) {
+          throw new TerminatedFailure(input, null);
+        } else {
+          throw ApplicationFailure.newFailure("fail", "fail");
+        }
+      } else {
+        return "bar";
+      }
     }
   }
 }
