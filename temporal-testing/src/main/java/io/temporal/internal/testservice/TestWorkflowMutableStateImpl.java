@@ -1159,11 +1159,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         }
       } else if (failure.hasTerminatedFailureInfo()
           || failure.hasCanceledFailureInfo()
-          || (failure.hasTimeoutFailureInfo()
-              && failure.getTimeoutFailureInfo().getTimeoutType()
-                  != TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE
-              && failure.getTimeoutFailureInfo().getTimeoutType()
-                  != TimeoutType.TIMEOUT_TYPE_HEARTBEAT)
           || (failure.hasServerFailureInfo() && failure.getServerFailureInfo().getNonRetryable())) {
         // Indicate that the failure is not retryable.
         backoffInterval =
