@@ -22,7 +22,6 @@ package io.temporal.workflow.activityTests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowClient;
@@ -37,6 +36,7 @@ import io.temporal.worker.Worker;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.TestActivities.TestActivity1;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.After;
@@ -83,7 +83,7 @@ public class ActivityThrowingErrorTest {
 
     @Override
     public String workflow(String input) {
-      return activity1.activity1(input);
+      return activity1.execute(input);
     }
   }
 
@@ -104,18 +104,13 @@ public class ActivityThrowingErrorTest {
 
     @Override
     public String workflow(String input) {
-      return activity1.activity1(input);
+      return activity1.execute(input);
     }
-  }
-
-  @ActivityInterface
-  public interface TestActivity1 {
-    String activity1(String input);
   }
 
   private static class Activity1Impl implements TestActivity1 {
     @Override
-    public String activity1(String input) {
+    public String execute(String input) {
       return Workflow.randomUUID().toString();
     }
   }
