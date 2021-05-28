@@ -66,6 +66,13 @@ public class OpenTracingOptions {
       this.tracer = tracer;
     }
 
+    /**
+     * Allows for more control over how the OpenTracing span is created, named, and
+     * tagged. 
+     * 
+     * @param spanBuilderProvider
+     * @return
+     */
     public Builder setSpanBuilderProvider(SpanBuilderProvider spanBuilderProvider) {
       this.spanBuilderProvider = spanBuilderProvider;
       return this;
