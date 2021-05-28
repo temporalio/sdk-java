@@ -19,8 +19,8 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.CheckedExceptionWrapper.wrap;
 import static io.temporal.internal.sync.WorkflowInternal.unwrap;
+import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payloads;

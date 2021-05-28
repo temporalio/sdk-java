@@ -23,6 +23,8 @@ import static org.junit.Assert.*;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
+import io.temporal.serviceclient.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
