@@ -1,8 +1,8 @@
-description = '''Temporal Workflow Java SDK testing'''
-
 plugins {
     id 'application'
 }
+
+description = '''Temporal Workflow Java SDK testing'''
 
 dependencies {
     api group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.30'
@@ -20,7 +20,7 @@ task testServiceServer(type: CreateStartScripts) {
     applicationName = 'test-service-server'
     outputDir = new File(project.buildDir, 'tmp')
     classpath = startScripts.classpath
-    dependsOn 'sourceJar'
+    dependsOn 'sourcesJar'
 }
 
 // Run: ./gradlew installDist :temporal-testing:testServiceServer
