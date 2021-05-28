@@ -22,9 +22,7 @@ package io.temporal.opentracing;
 import com.google.common.base.MoreObjects;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
-import io.temporal.opentracing.internal.DefaultOperationNameAndTagsProvider;
-import java.util.HashMap;
-import java.util.Map;
+import io.temporal.opentracing.internal.SpanBuilderFromSpanContentProvider;
 import javax.annotation.Nonnull;
 
 public class OpenTracingOptions {
@@ -32,27 +30,16 @@ public class OpenTracingOptions {
       OpenTracingOptions.newBuilder().build();
 
   private final Tracer tracer;
-  private final Map<SpanOperationType, String> customSpanOperationNamePrefixes;
-  private final OperationNameAndTagsProvider operationNameAndTagsProvider;
+  private final SpanBuilderProvider spanBuilderProvider;
 
   public static OpenTracingOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
 
-  private OpenTracingOptions(
-      Tracer tracer,
-      Map<SpanOperationType, String> customSpanOperationNamePrefixes,
-      OperationNameAndTagsProvider operationNameAndTagsProvider) {
+  private OpenTracingOptions(Tracer tracer, SpanBuilderProvider spanBuilderProvider) {
     if (tracer == null) throw new IllegalArgumentException("tracer shouldn't be null");
     this.tracer = tracer;
-    this.customSpanOperationNamePrefixes = customSpanOperationNamePrefixes;
-    this.operationNameAndTagsProvider = operationNameAndTagsProvider;
-  }
-
-  @Nonnull
-  public String getSpanOperationNamePrefix(SpanOperationType spanOperationType) {
-    return customSpanOperationNamePrefixes.getOrDefault(
-        spanOperationType, spanOperationType.getDefaultPrefix());
+    this.spanBuilderProvider = spanBuilderProvider;
   }
 
   @Nonnull
@@ -61,8 +48,8 @@ public class OpenTracingOptions {
   }
 
   @Nonnull
-  public OperationNameAndTagsProvider getOperationNameAndTagsProvider() {
-    return operationNameAndTagsProvider;
+  public SpanBuilderProvider getSpanBuilderProvider() {
+    return spanBuilderProvider;
   }
 
   public static Builder newBuilder() {
@@ -71,9 +58,7 @@ public class OpenTracingOptions {
 
   public static final class Builder {
     private Tracer tracer;
-    private final Map<SpanOperationType, String> customSpanOperationNamePrefixes = new HashMap<>();
-    private OperationNameAndTagsProvider operationNameAndTagsProvider =
-        new DefaultOperationNameAndTagsProvider();
+    private SpanBuilderProvider spanBuilderProvider = new SpanBuilderFromSpanContentProvider();
 
     private Builder() {}
 
@@ -81,22 +66,14 @@ public class OpenTracingOptions {
       this.tracer = tracer;
     }
 
-    public Builder setSpanOperationNamePrefix(
-        SpanOperationType spanOperationType, String customPrefix) {
-      this.customSpanOperationNamePrefixes.put(spanOperationType, customPrefix);
-      return this;
-    }
-
-    public Builder setSpanConfigurator(OperationNameAndTagsProvider configurator) {
-      this.operationNameAndTagsProvider = configurator;
+    public Builder setSpanBuilderProvider(SpanBuilderProvider spanBuilderProvider) {
+      this.spanBuilderProvider = spanBuilderProvider;
       return this;
     }
 
     public OpenTracingOptions build() {
       return new OpenTracingOptions(
-          MoreObjects.firstNonNull(tracer, GlobalTracer.get()),
-          customSpanOperationNamePrefixes,
-          operationNameAndTagsProvider);
+          MoreObjects.firstNonNull(tracer, GlobalTracer.get()), spanBuilderProvider);
     }
   }
 }

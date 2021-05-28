@@ -1,3 +1,22 @@
+/*
+ *  Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ *  Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ *  Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"). You may not
+ *  use this file except in compliance with the License. A copy of the License is
+ *  located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ *  or in the "license" file accompanying this file. This file is distributed on
+ *  an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ *  express or implied. See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
+
 package io.temporal.opentracing;
 
 import static org.junit.Assert.assertEquals;
@@ -15,7 +34,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.opentracing.internal.DefaultOperationNameAndTagsProvider;
+import io.temporal.opentracing.internal.SpanBuilderFromSpanContentProvider;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
@@ -43,7 +62,7 @@ public class CustomSpanNamingTest {
                   .setInterceptors(
                       new OpenTracingClientInterceptor(
                           OpenTracingOptions.newBuilder()
-                              .setSpanConfigurator(new TestOperationNameAndTagsProvider())
+                              .setSpanBuilderProvider(new TestSpanBuilderProvider())
                               .build()))
                   .validateAndBuildWithDefaults())
           .setWorkerFactoryOptions(
@@ -51,7 +70,7 @@ public class CustomSpanNamingTest {
                   .setWorkerInterceptors(
                       new OpenTracingWorkerInterceptor(
                           OpenTracingOptions.newBuilder()
-                              .setSpanConfigurator(new TestOperationNameAndTagsProvider())
+                              .setSpanBuilderProvider(new TestSpanBuilderProvider())
                               .build()))
                   .validateAndBuildWithDefaults())
           .setWorkflowTypes(WorkflowImpl.class)
@@ -109,19 +128,18 @@ public class CustomSpanNamingTest {
     }
   }
 
-  private static class TestOperationNameAndTagsProvider
-      extends DefaultOperationNameAndTagsProvider {
+  private static class TestSpanBuilderProvider extends SpanBuilderFromSpanContentProvider {
 
     @Override
-    public String getSpanName(StartSpanContext context) {
+    protected String getSpanName(SpanCreationContext context) {
       return context.getSpanOperationType().getDefaultPrefix();
     }
 
     @Override
-    public Map<String, String> getSpanTags(StartSpanContext context) {
+    protected Map<String, String> getSpanTags(SpanCreationContext context) {
       Map<String, String> tags = new HashMap<>();
       tags.putAll(super.getSpanTags(context));
-      tags.put("resource.name", context.getTypeName());
+      tags.put("resource.name", context.getOperationName());
       return tags;
     }
   }

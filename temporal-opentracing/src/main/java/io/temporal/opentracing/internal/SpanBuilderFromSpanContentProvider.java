@@ -20,25 +20,45 @@
 package io.temporal.opentracing.internal;
 
 import com.google.common.collect.ImmutableMap;
-import io.temporal.opentracing.OperationNameAndTagsProvider;
+import io.opentracing.Tracer;
+import io.temporal.opentracing.SpanBuilderProvider;
+import io.temporal.opentracing.SpanCreationContext;
 import io.temporal.opentracing.StandardTagNames;
-import io.temporal.opentracing.StartSpanContext;
-import java.util.HashMap;
 import java.util.Map;
 
-public class DefaultOperationNameAndTagsProvider implements OperationNameAndTagsProvider {
+public class SpanBuilderFromSpanContentProvider implements SpanBuilderProvider {
 
   private static final String PREFIX_DELIMITER = ":";
 
-  @Override
-  public String getSpanName(StartSpanContext context) {
-    return context.getOptions().getSpanOperationNamePrefix(context.getSpanOperationType())
-        + PREFIX_DELIMITER
-        + context.getTypeName();
+  public SpanBuilderFromSpanContentProvider() {}
+
+  public Tracer.SpanBuilder createSpanBuilder(Tracer tracer, SpanCreationContext context) {
+    Tracer.SpanBuilder spanBuilder = tracer.buildSpan(this.getSpanName(context));
+
+    this.getSpanTags(context).forEach(spanBuilder::withTag);
+
+    return spanBuilder;
   }
 
-  @Override
-  public Map<String, String> getSpanTags(StartSpanContext context) {
+  /**
+   * Generates the name of the span given the span context.
+   *
+   * @param context Span creation context
+   * @return The span name
+   */
+  protected String getSpanName(SpanCreationContext context) {
+    return context.getSpanOperationType().getDefaultPrefix()
+        + PREFIX_DELIMITER
+        + context.getOperationName();
+  }
+
+  /**
+   * Generates tags for the span given the span creation context
+   *
+   * @param context The span creation context
+   * @return The map of tags for the span
+   */
+  protected Map<String, String> getSpanTags(SpanCreationContext context) {
     switch (context.getSpanOperationType()) {
       case START_WORKFLOW:
         return ImmutableMap.of(StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
@@ -50,10 +70,11 @@ public class DefaultOperationNameAndTagsProvider implements OperationNameAndTags
       case RUN_WORKFLOW:
       case START_ACTIVITY:
       case RUN_ACTIVITY:
+      case SIGNAL_WITH_START_WORKFLOW:
         return ImmutableMap.of(
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.RUN_ID, context.getRunId());
     }
-    return new HashMap<>();
+    throw new IllegalArgumentException("Unknown span operation type provided");
   }
 }

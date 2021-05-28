@@ -19,24 +19,12 @@
 
 package io.temporal.opentracing;
 
-import java.util.Map;
+import io.opentracing.Tracer;
 
-/** Allows a pluggable mechanism to configure an OpenTracing span's name and tags */
-public interface OperationNameAndTagsProvider {
-
-  /**
-   * Returns the name of the span, given the operation type and type name
-   *
-   * @param context The start span context
-   * @return The span name
-   */
-  String getSpanName(StartSpanContext context);
-
-  /**
-   * Returns the tags for the span
-   *
-   * @param context The start span context
-   * @return The complete set of tags for the span, including the default tags if desired
-   */
-  Map<String, String> getSpanTags(StartSpanContext context);
+/**
+ * Fully pluggable strategy for creating OpenTracing spans based on content from the {@link
+ * SpanCreationContext}
+ */
+public interface SpanBuilderProvider {
+  Tracer.SpanBuilder createSpanBuilder(Tracer tracer, SpanCreationContext spanCreationContext);
 }

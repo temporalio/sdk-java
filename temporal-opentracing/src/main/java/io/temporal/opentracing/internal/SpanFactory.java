@@ -25,11 +25,12 @@ import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
+import io.opentracing.Tracer.SpanBuilder;
 import io.temporal.opentracing.OpenTracingOptions;
+import io.temporal.opentracing.SpanCreationContext;
 import io.temporal.opentracing.SpanOperationType;
 import io.temporal.opentracing.StandardLogNames;
 import io.temporal.opentracing.StandardTagNames;
-import io.temporal.opentracing.StartSpanContext;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -49,11 +50,15 @@ public class SpanFactory {
       String workflowType,
       long startTimeMs,
       String workflowId) {
-    StartSpanContext context =
-        new StartSpanContext(options, operationType, workflowType, workflowId, null, null, null);
-    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
-    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
-    return createSpan(tracer, startTimeMs, operationName, tags, null, References.FOLLOWS_FROM);
+
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(operationType)
+            .setOperationName(workflowType)
+            .setWorkflowId(workflowId)
+            .build();
+
+    return createSpan(context, tracer, startTimeMs, null, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createChildWorkflowStartSpan(
@@ -63,18 +68,15 @@ public class SpanFactory {
       String workflowId,
       String parentWorkflowId,
       String parentRunId) {
-    StartSpanContext context =
-        new StartSpanContext(
-            options,
-            SpanOperationType.START_CHILD_WORKFLOW,
-            childWorkflowType,
-            workflowId,
-            null,
-            parentWorkflowId,
-            parentRunId);
-    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
-    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
-    return createSpan(tracer, startTimeMs, operationName, tags, null, References.FOLLOWS_FROM);
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.START_CHILD_WORKFLOW)
+            .setOperationName(childWorkflowType)
+            .setWorkflowId(workflowId)
+            .setParentWorkflowId(parentWorkflowId)
+            .setParentRunId(parentRunId)
+            .build();
+    return createSpan(context, tracer, startTimeMs, null, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createWorkflowRunSpan(
@@ -84,28 +86,27 @@ public class SpanFactory {
       String workflowId,
       String runId,
       SpanContext workflowStartSpanContext) {
-    StartSpanContext context =
-        new StartSpanContext(
-            options, SpanOperationType.RUN_WORKFLOW, workflowType, workflowId, runId, null, null);
-    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
-    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.RUN_WORKFLOW)
+            .setOperationName(workflowType)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
     return createSpan(
-        tracer,
-        startTimeMs,
-        operationName,
-        tags,
-        workflowStartSpanContext,
-        References.FOLLOWS_FROM);
+        context, tracer, startTimeMs, workflowStartSpanContext, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createActivityStartSpan(
       Tracer tracer, String activityType, long startTimeMs, String workflowId, String runId) {
-    StartSpanContext context =
-        new StartSpanContext(
-            options, SpanOperationType.START_ACTIVITY, activityType, workflowId, runId, null, null);
-    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
-    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
-    return createSpan(tracer, startTimeMs, operationName, tags, null, References.CHILD_OF);
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.START_ACTIVITY)
+            .setOperationName(activityType)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, startTimeMs, null, References.CHILD_OF);
   }
 
   public Tracer.SpanBuilder createActivityRunSpan(
@@ -115,13 +116,14 @@ public class SpanFactory {
       String workflowId,
       String runId,
       SpanContext activityStartSpanContext) {
-    StartSpanContext context =
-        new StartSpanContext(
-            options, SpanOperationType.RUN_ACTIVITY, activityType, workflowId, runId, null, null);
-    Map<String, String> tags = options.getOperationNameAndTagsProvider().getSpanTags(context);
-    String operationName = options.getOperationNameAndTagsProvider().getSpanName(context);
-    return createSpan(
-        tracer, startTimeMs, operationName, tags, activityStartSpanContext, References.CHILD_OF);
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.RUN_ACTIVITY)
+            .setOperationName(activityType)
+            .setWorkflowId(workflowId)
+            .setRunId(runId)
+            .build();
+    return createSpan(context, tracer, startTimeMs, activityStartSpanContext, References.CHILD_OF);
   }
 
   public void logFail(Span toSpan, Throwable failReason) {
@@ -135,11 +137,10 @@ public class SpanFactory {
     toSpan.log(System.currentTimeMillis(), logPayload);
   }
 
-  private static Tracer.SpanBuilder createSpan(
+  private Tracer.SpanBuilder createSpan(
+      SpanCreationContext context,
       Tracer tracer,
       long startTimeMs,
-      String operationName,
-      Map<String, String> tags,
       @Nullable SpanContext parentSpanContext,
       @Nullable String parentReferenceType) {
     SpanContext parent;
@@ -153,16 +154,16 @@ public class SpanFactory {
       parent = parentSpanContext;
     }
 
+    SpanBuilder builder = options.getSpanBuilderProvider().createSpanBuilder(tracer, context);
+
     long startTimeMc = TimeUnit.MILLISECONDS.toMicros(startTimeMs);
-    Tracer.SpanBuilder spanBuilder =
-        tracer.buildSpan(operationName).withStartTimestamp(startTimeMc);
+    builder.withStartTimestamp(startTimeMc);
 
     if (parent != null) {
-      spanBuilder.addReference(
+      builder.addReference(
           MoreObjects.firstNonNull(parentReferenceType, References.FOLLOWS_FROM), parent);
     }
 
-    tags.forEach(spanBuilder::withTag);
-    return spanBuilder;
+    return builder;
   }
 }
