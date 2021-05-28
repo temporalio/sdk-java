@@ -87,7 +87,7 @@ public class WorkflowServiceStubsOptions {
    * HealthCheckAttemptTimeout specifies how to long to wait for service response on each health
    * check attempt. Default: 5s.
    */
-  private final Duration HealthCheckAttemptTimeout;
+  private final Duration healthCheckAttemptTimeout;
 
   /**
    * HealthCheckTimeout defines how long client should be sending health check requests to the
@@ -166,7 +166,7 @@ public class WorkflowServiceStubsOptions {
     this.headers = builder.headers;
     this.metricsScope = builder.metricsScope;
     this.disableHealthCheck = builder.disableHealthCheck;
-    this.HealthCheckAttemptTimeout = builder.HealthCheckAttemptTimeout;
+    this.healthCheckAttemptTimeout = builder.HealthCheckAttemptTimeout;
     this.healthCheckTimeout = builder.healthCheckTimeout;
     this.enableKeepAlive = builder.enableKeepAlive;
     this.keepAliveTime = builder.keepAliveTime;
@@ -209,7 +209,7 @@ public class WorkflowServiceStubsOptions {
     }
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
     this.disableHealthCheck = builder.disableHealthCheck;
-    this.HealthCheckAttemptTimeout =
+    this.healthCheckAttemptTimeout =
         builder.healthCheckTimeout == null
             ? Duration.ofSeconds(5)
             : builder.HealthCheckAttemptTimeout;
@@ -246,7 +246,7 @@ public class WorkflowServiceStubsOptions {
 
   /** @return how to long to wait for service response on each health check attempt. */
   public Duration getHealthCheckAttemptTimeout() {
-    return HealthCheckAttemptTimeout;
+    return healthCheckAttemptTimeout;
   }
 
   /** @return duration of time to wait while checking server connection when creating new client. */
@@ -395,7 +395,7 @@ public class WorkflowServiceStubsOptions {
       this.headers = options.headers;
       this.metricsScope = options.metricsScope;
       this.disableHealthCheck = options.disableHealthCheck;
-      this.HealthCheckAttemptTimeout = options.HealthCheckAttemptTimeout;
+      this.HealthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
       this.healthCheckTimeout = options.healthCheckTimeout;
       this.enableKeepAlive = options.enableKeepAlive;
       this.keepAliveTime = options.keepAliveTime;
