@@ -81,11 +81,17 @@ public class WorkflowServiceStubsOptions {
    * Asks client to perform a health check after gRPC connection to the Server is created by making
    * a request to endpoint to make sure that the server is accessible.
    */
-  private final boolean enableHealthCheck;
+  private final boolean disableHealthCheck;
 
   /**
-   * HealthCheckTimeout specifies how to long to wait while checking server connection when creating
-   * new client. Default: 5s.
+   * HealthCheckAttemptTimeout specifies how to long to wait for service response on each health
+   * check attempt. Default: 5s.
+   */
+  private final Duration HealthCheckAttemptTimeout;
+
+  /**
+   * HealthCheckTimeout defines how long client should be sending health check requests to the
+   * server before concluding that it is unavailable. Defaults to 10s.
    */
   private final Duration healthCheckTimeout;
 
@@ -159,7 +165,8 @@ public class WorkflowServiceStubsOptions {
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
     this.metricsScope = builder.metricsScope;
-    this.enableHealthCheck = builder.enableHealthCheck;
+    this.disableHealthCheck = builder.disableHealthCheck;
+    this.HealthCheckAttemptTimeout = builder.HealthCheckAttemptTimeout;
     this.healthCheckTimeout = builder.healthCheckTimeout;
     this.enableKeepAlive = builder.enableKeepAlive;
     this.keepAliveTime = builder.keepAliveTime;
@@ -201,9 +208,13 @@ public class WorkflowServiceStubsOptions {
       this.headers = new Metadata();
     }
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
-    this.enableHealthCheck = builder.enableHealthCheck;
+    this.disableHealthCheck = builder.disableHealthCheck;
+    this.HealthCheckAttemptTimeout =
+        builder.healthCheckTimeout == null
+            ? Duration.ofSeconds(5)
+            : builder.HealthCheckAttemptTimeout;
     this.healthCheckTimeout =
-        builder.healthCheckTimeout == null ? Duration.ofSeconds(5) : builder.healthCheckTimeout;
+        builder.healthCheckTimeout == null ? Duration.ofSeconds(10) : builder.healthCheckTimeout;
     this.enableKeepAlive = builder.enableKeepAlive;
     this.keepAliveTime = builder.keepAliveTime;
     this.keepAliveTimeout = builder.keepAliveTimeout;
@@ -229,8 +240,13 @@ public class WorkflowServiceStubsOptions {
   }
 
   /** @return true when client checks endpoint to make sure that the server is accessible. */
-  public boolean getEnableHealthCheck() {
-    return enableHealthCheck;
+  public boolean getDisableHealthCheck() {
+    return disableHealthCheck;
+  }
+
+  /** @return how to long to wait for service response on each health check attempt. */
+  public Duration getHealthCheckAttemptTimeout() {
+    return HealthCheckAttemptTimeout;
   }
 
   /** @return duration of time to wait while checking server connection when creating new client. */
@@ -335,7 +351,8 @@ public class WorkflowServiceStubsOptions {
     private SslContext sslContext;
     private boolean enableHttps;
     private String target;
-    private boolean enableHealthCheck;
+    private boolean disableHealthCheck;
+    private Duration HealthCheckAttemptTimeout;
     private Duration healthCheckTimeout;
     private boolean enableKeepAlive;
     private Duration keepAliveTime;
@@ -377,7 +394,8 @@ public class WorkflowServiceStubsOptions {
       this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
       this.metricsScope = options.metricsScope;
-      this.enableHealthCheck = options.enableHealthCheck;
+      this.disableHealthCheck = options.disableHealthCheck;
+      this.HealthCheckAttemptTimeout = options.HealthCheckAttemptTimeout;
       this.healthCheckTimeout = options.healthCheckTimeout;
       this.enableKeepAlive = options.enableKeepAlive;
       this.keepAliveTime = options.keepAliveTime;
@@ -530,14 +548,20 @@ public class WorkflowServiceStubsOptions {
      * If true, enables client to make a request to health check endpoint to make sure that the
      * server is accessible.
      */
-    public Builder setEnableHealthCheck(boolean enableHealthCheck) {
-      this.enableHealthCheck = enableHealthCheck;
+    public Builder setDisableHealthCheck(boolean disableHealthCheck) {
+      this.disableHealthCheck = disableHealthCheck;
+      return this;
+    }
+
+    /** Set the time to wait between service responses on each health check. */
+    public Builder setEnableKeepAlive(Duration HealthCheckAttemptTimeout) {
+      this.HealthCheckAttemptTimeout = HealthCheckAttemptTimeout;
       return this;
     }
 
     /**
      * Set a HealthCheckTimeout after which to stop waiting while checking server connection when
-     * creating new client. Default: 5s.
+     * creating new client.
      */
     public Builder setHealthCheckTimeout(Duration healthCheckTimeout) {
       this.healthCheckTimeout = healthCheckTimeout;

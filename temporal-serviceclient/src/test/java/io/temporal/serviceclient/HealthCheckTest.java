@@ -35,7 +35,7 @@ public class HealthCheckTest {
   public void testHealthCheck() {
     if (useDockerService) {
       WorkflowServiceStubs.newInstance(
-          WorkflowServiceStubsOptions.newBuilder().setEnableHealthCheck(true).build());
+          WorkflowServiceStubsOptions.newBuilder().setDisableHealthCheck(false).build());
     }
   }
 
@@ -45,7 +45,7 @@ public class HealthCheckTest {
       WorkflowServiceStubsImpl service =
           (WorkflowServiceStubsImpl)
               WorkflowServiceStubs.newInstance(
-                  WorkflowServiceStubsOptions.newBuilder().setEnableHealthCheck(true).build());
+                  WorkflowServiceStubsOptions.newBuilder().setDisableHealthCheck(false).build());
       try {
         service.checkHealth("IncorrectServiceName");
       } catch (RuntimeException e) {

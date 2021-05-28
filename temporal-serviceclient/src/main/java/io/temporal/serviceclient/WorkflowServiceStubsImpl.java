@@ -68,8 +68,6 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private static final String HEALTH_CHECK_SERVICE_NAME =
       "temporal.api.workflowservice.v1.WorkflowService";
 
-  private static final long DEFAULT_HEALTH_CHECK_TIMEOUT_SECONDS = 5;
-
   private final WorkflowServiceStubsOptions options;
   private final ManagedChannel channel;
   // Shutdown channel that was created by us
@@ -160,7 +158,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       }
       channelNeedsShutdown = true;
     }
-    
+
     healthBlockingStub = HealthGrpc.newBlockingStub(channel);
     checkHealth();
 
@@ -241,11 +239,23 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   @VisibleForTesting
   void checkHealth(String serviceName) {
-    if (options.getEnableHealthCheck()) {
+    if (options.getDisableHealthCheck()) {
+      RpcRetryOptions retryOptions =
+          RpcRetryOptions.newBuilder()
+              .setExpiration(getOptions().getHealthCheckTimeout())
+              .validateBuildWithDefaults();
+
       HealthCheckResponse response =
-          healthBlockingStub
-              .withDeadline(Deadline.after(DEFAULT_HEALTH_CHECK_TIMEOUT_SECONDS, TimeUnit.SECONDS))
-              .check(HealthCheckRequest.newBuilder().setService(serviceName).build());
+          GrpcRetryer.retryWithResult(
+              retryOptions,
+              () -> {
+                return healthBlockingStub
+                    .withDeadline(
+                        Deadline.after(
+                            options.getHealthCheckAttemptTimeout().getSeconds(), TimeUnit.SECONDS))
+                    .check(HealthCheckRequest.newBuilder().setService(serviceName).build());
+              });
+
       if (!HealthCheckResponse.ServingStatus.SERVING.equals(response.getStatus())) {
         throw new RuntimeException(
             "Health check returned unhealthy status: " + response.getStatus());

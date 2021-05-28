@@ -17,13 +17,10 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.common;
-
-import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
+package io.temporal.serviceclient;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -145,7 +142,7 @@ public final class GrpcRetryer {
               if (e == null) {
                 unwrappedExceptionResult.complete(r);
               } else {
-                unwrappedExceptionResult.completeExceptionally(unwrap(e));
+                unwrappedExceptionResult.completeExceptionally(CheckedExceptionWrapper.unwrap(e));
               }
               return null;
             });
