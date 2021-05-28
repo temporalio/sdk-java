@@ -63,6 +63,8 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
+import io.temporal.serviceclient.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.io.File;
