@@ -48,6 +48,7 @@ public class HealthCheckTest {
                   WorkflowServiceStubsOptions.newBuilder().setDisableHealthCheck(false).build());
       try {
         service.checkHealth("IncorrectServiceName");
+        Assert.fail("Health check for IncorrectServiceName should fail");
       } catch (RuntimeException e) {
         Assert.assertTrue(e.getMessage().startsWith("Health check returned unhealthy status: "));
       }

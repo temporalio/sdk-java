@@ -239,7 +239,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   @VisibleForTesting
   void checkHealth(String serviceName) {
-    if (options.getDisableHealthCheck()) {
+    if (!options.getDisableHealthCheck()) {
       RpcRetryOptions retryOptions =
           RpcRetryOptions.newBuilder()
               .setExpiration(getOptions().getHealthCheckTimeout())
