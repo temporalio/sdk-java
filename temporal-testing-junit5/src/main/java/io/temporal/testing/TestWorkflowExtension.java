@@ -26,6 +26,7 @@ import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Constructor;
 import java.time.Instant;
@@ -80,6 +81,7 @@ public class TestWorkflowExtension
 
   private final WorkerOptions workerOptions;
   private final WorkflowClientOptions workflowClientOptions;
+  private final WorkerFactoryOptions workerFactoryOptions;
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
   private final boolean useExternalService;
@@ -97,6 +99,7 @@ public class TestWorkflowExtension
       workflowClientOptions =
           WorkflowClientOptions.newBuilder().setNamespace(builder.namespace).build();
     }
+    workerFactoryOptions = builder.workerFactoryOptions;
     workflowTypes = builder.workflowTypes;
     activityImplementations = builder.activityImplementations;
     useExternalService = builder.useExternalService;
@@ -166,6 +169,7 @@ public class TestWorkflowExtension
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(workflowClientOptions)
+            .setWorkerFactoryOptions(workerFactoryOptions)
             .setUseExternalService(useExternalService)
             .setTarget(target)
             .setInitialTimeMillis(initialTimeMillis)
@@ -236,6 +240,7 @@ public class TestWorkflowExtension
 
     private WorkerOptions workerOptions = WorkerOptions.getDefaultInstance();
     private WorkflowClientOptions workflowClientOptions;
+    private WorkerFactoryOptions workerFactoryOptions;
     private String namespace = "UnitTest";
     private Class<?>[] workflowTypes = NO_WORKFLOWS;
     private Object[] activityImplementations = NO_ACTIVITIES;
@@ -258,6 +263,17 @@ public class TestWorkflowExtension
      */
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
       this.workflowClientOptions = workflowClientOptions;
+      return this;
+    }
+
+    /**
+     * Override {@link WorkerFactoryOptions} for test environment.
+     *
+     * @see TestEnvironmentOptions.Builder#setWorkerFactoryOptions(WorkerFactoryOptions)
+     * @see io.temporal.worker.WorkerFactory#newInstance(WorkflowClient, WorkerFactoryOptions)
+     */
+    public Builder setWorkerFactoryOptions(WorkerFactoryOptions workerFactoryOptions) {
+      this.workerFactoryOptions = workerFactoryOptions;
       return this;
     }
 
