@@ -24,8 +24,8 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Information about the Activity Task that the current Activity is handling.
- * Use {@link ActivityExecutionContext#getInfo()} to access.
+ * Information about the Activity Task that the current Activity is handling. Use {@link
+ * ActivityExecutionContext#getInfo()} to access.
  */
 public interface ActivityInfo {
 
@@ -35,26 +35,19 @@ public interface ActivityInfo {
    */
   byte[] getTaskToken();
 
-  /**
-   * WorkflowId of the Workflow that scheduled the Activity.
-   */
+  /** WorkflowId of the Workflow that scheduled the Activity. */
   String getWorkflowId();
 
-  /**
-   * RunId of the Workflow that scheduled the Activity.
-   */
+  /** RunId of the Workflow that scheduled the Activity. */
   String getRunId();
 
   /**
-   * ID of the Activity.
-   * This ID can be used to complete the Activity asynchronously through {@link
+   * ID of the Activity. This ID can be used to complete the Activity asynchronously through {@link
    * io.temporal.client.ActivityCompletionClient#complete(String, Optional, String, Object)}.
    */
   String getActivityId();
 
-  /**
-   * Type of the Activity.
-   */
+  /** Type of the Activity. */
   String getActivityType();
 
   /**
@@ -78,13 +71,9 @@ public interface ActivityInfo {
 
   String getActivityNamespace();
 
-  /**
-   * Activity execution attempt. Starts from 1.
-   */
+  /** Activity execution attempt. Starts from 1. Incremented on each Activity retry. */
   int getAttempt();
 
-  /**
-   * Determines if this Activity is invoked as a local Activity.
-   */
+  /** Determines if this Activity is invoked as a local Activity. */
   boolean isLocal();
 }

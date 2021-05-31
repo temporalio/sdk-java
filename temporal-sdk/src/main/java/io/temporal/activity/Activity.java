@@ -19,9 +19,6 @@
 
 package io.temporal.activity;
 
-import io.temporal.common.converter.DataConverter;
-import io.temporal.failure.ActivityFailure;
-import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.internal.sync.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
 
@@ -35,24 +32,24 @@ import io.temporal.internal.sync.WorkflowInternal;
 public final class Activity {
 
   /**
-   * Can be used to get information about Activity invocation and Heartbeats.
-   * This static method relies on a local thread and works only in the original Activity thread.
+   * Can be used to get information about Activity invocation and to invoke Heartbeats. This static
+   * method relies on a local thread and works only in the original Activity thread.
    */
   public static ActivityExecutionContext getExecutionContext() {
     return ActivityInternal.getExecutionContext();
   }
 
   /**
-   * Use this to rethrow a checked exception from an Activity instead of adding the exception to a method signature.
+   * Use this to rethrow a checked exception from an Activity instead of adding the exception to a
+   * method signature.
    *
-   * @return Never returns; always throws. Throws original exception if e is {@link RuntimeException} or {@link Error}.
+   * @return Never returns; always throws. Throws original exception if e is {@link
+   *     RuntimeException} or {@link Error}.
    */
   public static RuntimeException wrap(Throwable e) {
     return WorkflowInternal.wrap(e);
   }
 
-  /**
-   * Prohibits instantiation.
-   */
+  /** Prohibits instantiation. */
   private Activity() {}
 }
