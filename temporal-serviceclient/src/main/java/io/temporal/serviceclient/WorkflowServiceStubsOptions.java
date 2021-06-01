@@ -166,7 +166,7 @@ public class WorkflowServiceStubsOptions {
     this.headers = builder.headers;
     this.metricsScope = builder.metricsScope;
     this.disableHealthCheck = builder.disableHealthCheck;
-    this.healthCheckAttemptTimeout = builder.HealthCheckAttemptTimeout;
+    this.healthCheckAttemptTimeout = builder.healthCheckAttemptTimeout;
     this.healthCheckTimeout = builder.healthCheckTimeout;
     this.enableKeepAlive = builder.enableKeepAlive;
     this.keepAliveTime = builder.keepAliveTime;
@@ -210,9 +210,9 @@ public class WorkflowServiceStubsOptions {
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
     this.disableHealthCheck = builder.disableHealthCheck;
     this.healthCheckAttemptTimeout =
-        builder.healthCheckTimeout == null
+        builder.healthCheckAttemptTimeout == null
             ? Duration.ofSeconds(5)
-            : builder.HealthCheckAttemptTimeout;
+            : builder.healthCheckAttemptTimeout;
     this.healthCheckTimeout =
         builder.healthCheckTimeout == null ? Duration.ofSeconds(10) : builder.healthCheckTimeout;
     this.enableKeepAlive = builder.enableKeepAlive;
@@ -239,7 +239,7 @@ public class WorkflowServiceStubsOptions {
     return enableHttps;
   }
 
-  /** @return true when client checks endpoint to make sure that the server is accessible. */
+  /** @return false when client checks endpoint to make sure that the server is accessible. */
   public boolean getDisableHealthCheck() {
     return disableHealthCheck;
   }
@@ -352,7 +352,7 @@ public class WorkflowServiceStubsOptions {
     private boolean enableHttps;
     private String target;
     private boolean disableHealthCheck;
-    private Duration HealthCheckAttemptTimeout;
+    private Duration healthCheckAttemptTimeout;
     private Duration healthCheckTimeout;
     private boolean enableKeepAlive;
     private Duration keepAliveTime;
@@ -395,7 +395,7 @@ public class WorkflowServiceStubsOptions {
       this.headers = options.headers;
       this.metricsScope = options.metricsScope;
       this.disableHealthCheck = options.disableHealthCheck;
-      this.HealthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
+      this.healthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
       this.healthCheckTimeout = options.healthCheckTimeout;
       this.enableKeepAlive = options.enableKeepAlive;
       this.keepAliveTime = options.keepAliveTime;
@@ -545,7 +545,7 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * If true, enables client to make a request to health check endpoint to make sure that the
+     * If false, enables client to make a request to health check endpoint to make sure that the
      * server is accessible.
      */
     public Builder setDisableHealthCheck(boolean disableHealthCheck) {
@@ -553,9 +553,9 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    /** Set the time to wait between service responses on each health check. */
-    public Builder setEnableKeepAlive(Duration HealthCheckAttemptTimeout) {
-      this.HealthCheckAttemptTimeout = HealthCheckAttemptTimeout;
+    /** Set the time to wait between service responses on each health check */
+    public Builder setHealthCheckAttemptTimeout(Duration healthCheckAttemptTimeout) {
+      this.healthCheckAttemptTimeout = healthCheckAttemptTimeout;
       return this;
     }
 

@@ -137,7 +137,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
       stubs =
           WorkflowServiceStubs.newInstance(
-              WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
+              WorkflowServiceStubsOptions.newBuilder()
+                  .setChannel(channel)
+                  .setDisableHealthCheck(true)
+                  .build());
     }
 
     public final String serverName;
