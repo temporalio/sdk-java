@@ -19,7 +19,7 @@
 
 package io.temporal.activity;
 
-/** Defines activity cancellation behavior. */
+/** Defines Activity cancellation behavior. */
 public enum ActivityCancellationType {
   /**
    * Wait for the Activity to complete its cancellation. Note that an Activity must Heartbeat to
