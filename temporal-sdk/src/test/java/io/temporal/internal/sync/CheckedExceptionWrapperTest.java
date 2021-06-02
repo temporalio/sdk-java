@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.Workflow;
 import org.junit.Assert;
 import org.junit.Test;

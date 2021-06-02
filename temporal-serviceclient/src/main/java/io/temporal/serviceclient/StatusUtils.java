@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.common;
+package io.temporal.serviceclient;
 
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Any;

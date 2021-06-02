@@ -19,8 +19,8 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.CheckedExceptionWrapper.wrap;
 import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
+import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.util.Durations;

@@ -19,13 +19,19 @@
 
 package io.temporal.serviceclient;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptor;
 import io.grpc.ClientInterceptors;
+import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.Server;
+import io.grpc.StatusRuntimeException;
+import io.grpc.health.v1.HealthCheckRequest;
+import io.grpc.health.v1.HealthCheckResponse;
+import io.grpc.health.v1.HealthGrpc;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
@@ -39,7 +45,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** TODO: (vkoby) Add metrics. */
 public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceStubsImpl.class);
@@ -60,6 +65,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final String CLIENT_NAME_HEADER_VALUE = "temporal-java";
 
+  private static final String HEALTH_CHECK_SERVICE_NAME =
+      "temporal.api.workflowservice.v1.WorkflowService";
+
   private final WorkflowServiceStubsOptions options;
   private final ManagedChannel channel;
   // Shutdown channel that was created by us
@@ -67,6 +75,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private final AtomicBoolean shutdownRequested = new AtomicBoolean();
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
+  private final HealthGrpc.HealthBlockingStub healthBlockingStub;
   private final Server inProcessServer;
   private final ScheduledExecutorService grpcConnectionManager;
 
@@ -149,6 +158,10 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       }
       channelNeedsShutdown = true;
     }
+
+    healthBlockingStub = HealthGrpc.newBlockingStub(channel);
+    checkHealth();
+
     GrpcMetricsInterceptor metricsInterceptor =
         new GrpcMetricsInterceptor(options.getMetricsScope());
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
@@ -210,6 +223,44 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
             .setDaemon(true)
             .setNameFormat("grpc-connection-manager-thread-%d")
             .build());
+  }
+
+  /**
+   * Checks service health using gRPC health check:
+   * https://github.com/grpc/grpc/blob/master/doc/health-checking.md
+   *
+   * @throws StatusRuntimeException if the service is unavailable.
+   * @throws RuntimeException if the check returns unhealthy status.
+   * @return true if server is up.
+   */
+  private void checkHealth() {
+    checkHealth(HEALTH_CHECK_SERVICE_NAME);
+  }
+
+  @VisibleForTesting
+  void checkHealth(String serviceName) {
+    if (!options.getDisableHealthCheck()) {
+      RpcRetryOptions retryOptions =
+          RpcRetryOptions.newBuilder()
+              .setExpiration(getOptions().getHealthCheckTimeout())
+              .validateBuildWithDefaults();
+
+      HealthCheckResponse response =
+          GrpcRetryer.retryWithResult(
+              retryOptions,
+              () -> {
+                return healthBlockingStub
+                    .withDeadline(
+                        Deadline.after(
+                            options.getHealthCheckAttemptTimeout().getSeconds(), TimeUnit.SECONDS))
+                    .check(HealthCheckRequest.newBuilder().setService(serviceName).build());
+              });
+
+      if (!HealthCheckResponse.ServingStatus.SERVING.equals(response.getStatus())) {
+        throw new RuntimeException(
+            "Health check returned unhealthy status: " + response.getStatus());
+      }
+    }
   }
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */

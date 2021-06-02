@@ -84,6 +84,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
               service,
               WorkflowServiceStubsOptions.newBuilder()
                   .setMetricsScope(options.getMetricsScope())
+                  .setDisableHealthCheck(true)
                   .build());
     }
     WorkflowClient client = WorkflowClient.newInstance(workflowServiceStubs, workflowClientOptions);

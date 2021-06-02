@@ -36,7 +36,7 @@ import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
-import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Optional;

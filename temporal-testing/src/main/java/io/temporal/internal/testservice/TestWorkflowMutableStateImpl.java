@@ -99,7 +99,6 @@ import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
@@ -110,6 +109,7 @@ import io.temporal.internal.testservice.StateMachines.State;
 import io.temporal.internal.testservice.StateMachines.TimerData;
 import io.temporal.internal.testservice.StateMachines.WorkflowData;
 import io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
+import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -1134,13 +1134,21 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       FailWorkflowExecutionCommandAttributes d,
       long workflowTaskCompletedId,
       String identity) {
+
+    // This should probably follow the retry logic from
+    // https://github.com/temporalio/temporal/blob/master/service/history/retry.go#L95
+    Failure failure = d.getFailure();
     WorkflowData data = workflow.getData();
+
     if (data.retryState.isPresent()) {
+
       TestServiceRetryState rs = data.retryState.get();
       Optional<String> failureType;
       TestServiceRetryState.BackoffInterval backoffInterval;
-      if (d.getFailure().hasApplicationFailureInfo()) {
-        ApplicationFailureInfo failureInfo = d.getFailure().getApplicationFailureInfo();
+
+      if (failure.hasApplicationFailureInfo()) {
+        // Application failure
+        ApplicationFailureInfo failureInfo = failure.getApplicationFailureInfo();
         if (failureInfo.getNonRetryable()) {
           backoffInterval =
               new TestServiceRetryState.BackoffInterval(
@@ -1149,10 +1157,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           failureType = Optional.of(failureInfo.getType());
           backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTime());
         }
-      } else {
+      } else if (failure.hasTerminatedFailureInfo()
+          || failure.hasCanceledFailureInfo()
+          || (failure.hasServerFailureInfo() && failure.getServerFailureInfo().getNonRetryable())) {
+        // Indicate that the failure is not retryable.
         backoffInterval =
             new TestServiceRetryState.BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
+      } else {
+        // The failure may be retryable. (E.g. ActivityFailure)
+        backoffInterval = rs.getBackoffIntervalInSeconds(Optional.empty(), store.currentTime());
       }
+
       if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
         ContinueAsNewWorkflowExecutionCommandAttributes.Builder continueAsNewAttr =
             ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder()
@@ -1182,7 +1197,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             event.getWorkflowExecutionContinuedAsNewEventAttributes();
 
         Optional<TestServiceRetryState> continuedRetryState =
-            Optional.of(rs.getNextAttempt(Optional.of(d.getFailure())));
+            Optional.of(rs.getNextAttempt(Optional.of(failure)));
         String runId =
             service.continueAsNew(
                 startRequest,
@@ -1203,7 +1218,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           identity,
           data,
           data.lastCompletionResult,
-          Optional.of(d.getFailure()));
+          Optional.of(failure));
       return;
     }
 
@@ -1214,7 +1229,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ChildWorkflowExecutionFailedEventAttributes a =
           ChildWorkflowExecutionFailedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setFailure(d.getFailure())
+              .setFailure(failure)
               .setWorkflowType(startRequest.getWorkflowType())
               .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())
