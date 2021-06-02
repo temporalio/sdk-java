@@ -62,22 +62,22 @@ public class SyncWorkflowWorker
       String namespace,
       String taskQueue,
       WorkerInterceptor[] workerInterceptors,
-      SingleWorkerOptions workflowOptions,
+      SingleWorkerOptions singleWorkerOptions,
       SingleWorkerOptions localActivityOptions,
       WorkflowExecutorCache cache,
       String stickyTaskQueueName,
       Duration stickyWorkflowTaskScheduleToStartTimeout,
       ThreadPoolExecutor workflowThreadPool) {
     Objects.requireNonNull(workflowThreadPool);
-    this.dataConverter = workflowOptions.getDataConverter();
+    this.dataConverter = singleWorkerOptions.getDataConverter();
 
     factory =
         new POJOWorkflowImplementationFactory(
-            workflowOptions.getDataConverter(),
+            singleWorkerOptions.getDataConverter(),
             workflowThreadPool,
             workerInterceptors,
             cache,
-            workflowOptions.getContextPropagators());
+            singleWorkerOptions);
 
     laTaskHandler =
         new POJOActivityTaskHandler(
@@ -93,7 +93,7 @@ public class SyncWorkflowWorker
             namespace,
             factory,
             cache,
-            workflowOptions,
+            singleWorkerOptions,
             stickyTaskQueueName,
             stickyWorkflowTaskScheduleToStartTimeout,
             service,
@@ -102,7 +102,7 @@ public class SyncWorkflowWorker
 
     workflowWorker =
         new WorkflowWorker(
-            service, namespace, taskQueue, workflowOptions, taskHandler, stickyTaskQueueName);
+            service, namespace, taskQueue, singleWorkerOptions, taskHandler, stickyTaskQueueName);
   }
 
   public void registerWorkflowImplementationTypes(

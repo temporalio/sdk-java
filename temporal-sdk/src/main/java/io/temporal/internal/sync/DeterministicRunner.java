@@ -82,7 +82,8 @@ interface DeterministicRunner {
    * completed or blocked.
    *
    * @throws Throwable if one of the threads didn't handle an exception.
-   * @param deadlockDetectionTimeout the maximum time a thread can run without calling yield.
+   * @param deadlockDetectionTimeout the maximum time in milliseconds a thread can run without
+   *     calling yield.
    */
   void runUntilAllBlocked(long deadlockDetectionTimeout);
 

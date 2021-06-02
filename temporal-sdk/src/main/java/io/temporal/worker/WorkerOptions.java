@@ -21,8 +21,8 @@ package io.temporal.worker;
 
 import static java.lang.Double.compare;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import java.util.Objects;
 
 public final class WorkerOptions {
 
@@ -51,6 +51,7 @@ public final class WorkerOptions {
     private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 200;
     private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 200;
     private static final int DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = 200;
+    private static final long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
 
     private double maxWorkerActivitiesPerSecond;
     private int maxConcurrentActivityExecutionSize;
@@ -60,6 +61,7 @@ public final class WorkerOptions {
     private int workflowPollThreadCount;
     private int activityPollThreadCount;
     private boolean localActivityWorkerOnly;
+    private long defaultDeadlockDetectionTimeout;
 
     private Builder() {}
 
@@ -75,6 +77,7 @@ public final class WorkerOptions {
       workflowPollThreadCount = o.workflowPollThreadCount;
       activityPollThreadCount = o.activityPollThreadCount;
       localActivityWorkerOnly = o.localActivityWorkerOnly;
+      defaultDeadlockDetectionTimeout = o.defaultDeadlockDetectionTimeout;
     }
 
     /**
@@ -188,6 +191,11 @@ public final class WorkerOptions {
       return this;
     }
 
+    public Builder setDefaultDeadlockDetectionTimeout(long defaultDeadlockDetectionTimeout) {
+      this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -197,7 +205,8 @@ public final class WorkerOptions {
           maxTaskQueueActivitiesPerSecond,
           workflowPollThreadCount,
           activityPollThreadCount,
-          localActivityWorkerOnly);
+          localActivityWorkerOnly,
+          defaultDeadlockDetectionTimeout);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -215,6 +224,8 @@ public final class WorkerOptions {
           maxTaskQueueActivitiesPerSecond >= 0, "negative taskQueueActivitiesPerSecond");
       Preconditions.checkState(workflowPollThreadCount >= 0, "negative workflowPollThreadCount");
       Preconditions.checkState(activityPollThreadCount >= 0, "negative activityPollThreadCount");
+      Preconditions.checkState(
+          defaultDeadlockDetectionTimeout >= 0, "negative defaultDeadlockDetectionTimeout");
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
           maxConcurrentActivityExecutionSize == 0
@@ -233,7 +244,10 @@ public final class WorkerOptions {
           activityPollThreadCount == 0
               ? DEFAULT_ACTIVITY_POLL_THREAD_COUNT
               : activityPollThreadCount,
-          localActivityWorkerOnly);
+          localActivityWorkerOnly,
+          defaultDeadlockDetectionTimeout == 0
+              ? DEFAULT_DEADLOCK_DETECTION_TIMEOUT
+              : defaultDeadlockDetectionTimeout);
     }
   }
 
@@ -245,6 +259,7 @@ public final class WorkerOptions {
   private final int workflowPollThreadCount;
   private final int activityPollThreadCount;
   private final boolean localActivityWorkerOnly;
+  private final long defaultDeadlockDetectionTimeout;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -254,7 +269,8 @@ public final class WorkerOptions {
       double maxTaskQueueActivitiesPerSecond,
       int workflowPollThreadCount,
       int activityPollThreadCount,
-      boolean localActivityWorkerOnly) {
+      boolean localActivityWorkerOnly,
+      long defaultDeadlockDetectionTimeout) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -263,6 +279,7 @@ public final class WorkerOptions {
     this.workflowPollThreadCount = workflowPollThreadCount;
     this.activityPollThreadCount = activityPollThreadCount;
     this.localActivityWorkerOnly = localActivityWorkerOnly;
+    this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -293,6 +310,10 @@ public final class WorkerOptions {
     return activityPollThreadCount;
   }
 
+  public long getDefaultDeadlockDetectionTimeout() {
+    return defaultDeadlockDetectionTimeout;
+  }
+
   public boolean isLocalActivityWorkerOnly() {
     return localActivityWorkerOnly;
   }
@@ -309,12 +330,13 @@ public final class WorkerOptions {
         && compare(that.maxTaskQueueActivitiesPerSecond, maxTaskQueueActivitiesPerSecond) == 0
         && workflowPollThreadCount == that.workflowPollThreadCount
         && activityPollThreadCount == that.activityPollThreadCount
-        && localActivityWorkerOnly == that.localActivityWorkerOnly;
+        && localActivityWorkerOnly == that.localActivityWorkerOnly
+        && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(
+    return Objects.hash(
         maxWorkerActivitiesPerSecond,
         maxConcurrentActivityExecutionSize,
         maxConcurrentWorkflowTaskExecutionSize,
@@ -322,7 +344,8 @@ public final class WorkerOptions {
         maxTaskQueueActivitiesPerSecond,
         workflowPollThreadCount,
         activityPollThreadCount,
-        localActivityWorkerOnly);
+        localActivityWorkerOnly,
+        defaultDeadlockDetectionTimeout);
   }
 
   @Override
@@ -344,6 +367,8 @@ public final class WorkerOptions {
         + activityPollThreadCount
         + ", localActivityWorkerOnly="
         + localActivityWorkerOnly
+        + ", defaultDeadlockDetectionTimeout="
+        + defaultDeadlockDetectionTimeout
         + '}';
   }
 }

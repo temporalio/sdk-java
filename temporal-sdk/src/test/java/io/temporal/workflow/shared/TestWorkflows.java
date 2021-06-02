@@ -37,6 +37,12 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface TestWorkflow4 {
+    @WorkflowMethod
+    void execute(long arg);
+  }
+
+  @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
     void execute(ChildWorkflowCancellationType cancellationType);

@@ -19,8 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.DeterministicRunner.getDeadlockDetectionTimeout;
-
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.EventType;
@@ -57,6 +55,7 @@ class SyncWorkflow implements ReplayWorkflow {
   private final SyncWorkflowDefinition workflow;
   WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkflowExecutorCache cache;
+  private final long defaultDeadlockDetectionTimeout;
   private WorkflowExecuteRunnable workflowProc;
   private DeterministicRunner runner;
 
@@ -66,7 +65,8 @@ class SyncWorkflow implements ReplayWorkflow {
       DataConverter dataConverter,
       ExecutorService threadPool,
       WorkflowExecutorCache cache,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      long defaultDeadlockDetectionTimeout) {
     this.workflow = Objects.requireNonNull(workflow);
     this.workflowImplementationOptions =
         workflowImplementationOptions == null
@@ -76,6 +76,7 @@ class SyncWorkflow implements ReplayWorkflow {
     this.threadPool = Objects.requireNonNull(threadPool);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
+    this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
   }
 
   @Override
@@ -147,7 +148,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (runner == null) {
       return false;
     }
-    runner.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    runner.runUntilAllBlocked(defaultDeadlockDetectionTimeout);
     return runner.isDone() || workflowProc.isDone(); // Do not wait for all other threads.
   }
 
