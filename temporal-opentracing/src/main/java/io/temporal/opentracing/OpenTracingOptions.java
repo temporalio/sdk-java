@@ -22,7 +22,7 @@ package io.temporal.opentracing;
 import com.google.common.base.MoreObjects;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
-import io.temporal.opentracing.internal.SpanBuilderFromSpanContentProvider;
+import io.temporal.opentracing.internal.ActionTypeAndNameSpanBuilderProvider;
 import javax.annotation.Nonnull;
 
 public class OpenTracingOptions {
@@ -58,7 +58,7 @@ public class OpenTracingOptions {
 
   public static final class Builder {
     private Tracer tracer;
-    private SpanBuilderProvider spanBuilderProvider = new SpanBuilderFromSpanContentProvider();
+    private SpanBuilderProvider spanBuilderProvider = new ActionTypeAndNameSpanBuilderProvider();
 
     private Builder() {}
 
@@ -67,9 +67,8 @@ public class OpenTracingOptions {
     }
 
     /**
-     * Allows for more control over how the OpenTracing span is created, named, and
-     * tagged. 
-     * 
+     * Allows for more control over how the OpenTracing span is created, named, and tagged.
+     *
      * @param spanBuilderProvider
      * @return
      */

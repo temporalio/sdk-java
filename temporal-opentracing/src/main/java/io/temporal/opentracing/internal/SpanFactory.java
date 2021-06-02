@@ -54,7 +54,7 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(operationType)
-            .setOperationName(workflowType)
+            .setActionName(workflowType)
             .setWorkflowId(workflowId)
             .build();
 
@@ -71,7 +71,7 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.START_CHILD_WORKFLOW)
-            .setOperationName(childWorkflowType)
+            .setActionName(childWorkflowType)
             .setWorkflowId(workflowId)
             .setParentWorkflowId(parentWorkflowId)
             .setParentRunId(parentRunId)
@@ -89,7 +89,7 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.RUN_WORKFLOW)
-            .setOperationName(workflowType)
+            .setActionName(workflowType)
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
@@ -102,7 +102,7 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.START_ACTIVITY)
-            .setOperationName(activityType)
+            .setActionName(activityType)
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
@@ -119,7 +119,7 @@ public class SpanFactory {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.RUN_ACTIVITY)
-            .setOperationName(activityType)
+            .setActionName(activityType)
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();

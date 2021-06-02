@@ -23,14 +23,22 @@ import com.google.common.collect.ImmutableMap;
 import io.opentracing.Tracer;
 import io.temporal.opentracing.SpanBuilderProvider;
 import io.temporal.opentracing.SpanCreationContext;
+import io.temporal.opentracing.SpanOperationType;
 import io.temporal.opentracing.StandardTagNames;
 import java.util.Map;
 
-public class SpanBuilderFromSpanContentProvider implements SpanBuilderProvider {
+/**
+ * Default implementation of the {@link SpanBuilderProvider}. Uses both the {@link
+ * SpanOperationType} and the {@link SpanCreationContext#getActionName()} as the name of the
+ * OpenTracing span, e.g "StartActivity:LoadUsersFromDatabaseActivity". <br>
+ * This class also provides any available IDs, such as workflow ID, run ID, or parent workflow/run
+ * ID, as tags depending on the context of the operation.
+ */
+public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider {
 
   private static final String PREFIX_DELIMITER = ":";
 
-  public SpanBuilderFromSpanContentProvider() {}
+  public ActionTypeAndNameSpanBuilderProvider() {}
 
   public Tracer.SpanBuilder createSpanBuilder(Tracer tracer, SpanCreationContext context) {
     Tracer.SpanBuilder spanBuilder = tracer.buildSpan(this.getSpanName(context));
@@ -49,7 +57,7 @@ public class SpanBuilderFromSpanContentProvider implements SpanBuilderProvider {
   protected String getSpanName(SpanCreationContext context) {
     return context.getSpanOperationType().getDefaultPrefix()
         + PREFIX_DELIMITER
-        + context.getOperationName();
+        + context.getActionName();
   }
 
   /**

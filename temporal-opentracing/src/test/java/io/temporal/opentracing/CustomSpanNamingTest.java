@@ -34,7 +34,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.opentracing.internal.SpanBuilderFromSpanContentProvider;
+import io.temporal.opentracing.internal.ActionTypeAndNameSpanBuilderProvider;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
@@ -128,7 +128,7 @@ public class CustomSpanNamingTest {
     }
   }
 
-  private static class TestSpanBuilderProvider extends SpanBuilderFromSpanContentProvider {
+  private static class TestSpanBuilderProvider extends ActionTypeAndNameSpanBuilderProvider {
 
     @Override
     protected String getSpanName(SpanCreationContext context) {
@@ -139,7 +139,7 @@ public class CustomSpanNamingTest {
     protected Map<String, String> getSpanTags(SpanCreationContext context) {
       Map<String, String> tags = new HashMap<>();
       tags.putAll(super.getSpanTags(context));
-      tags.put("resource.name", context.getOperationName());
+      tags.put("resource.name", context.getActionName());
       return tags;
     }
   }

@@ -25,22 +25,22 @@ package io.temporal.opentracing;
  */
 public class SpanCreationContext {
 
-  private SpanOperationType spanOperationType;
-  private String operationName;
-  private String workflowId;
-  private String runId;
-  private String parentWorkflowId;
-  private String parentRunId;
+  private final SpanOperationType spanOperationType;
+  private final String actionName;
+  private final String workflowId;
+  private final String runId;
+  private final String parentWorkflowId;
+  private final String parentRunId;
 
   private SpanCreationContext(
       SpanOperationType spanOperationType,
-      String operationName,
+      String actionName,
       String workflowId,
       String runId,
       String parentWorkflowId,
       String parentRunId) {
     this.spanOperationType = spanOperationType;
-    this.operationName = operationName;
+    this.actionName = actionName;
     this.workflowId = workflowId;
     this.runId = runId;
     this.parentWorkflowId = parentWorkflowId;
@@ -52,12 +52,12 @@ public class SpanCreationContext {
   }
 
   /**
-   * Returns the operation name, which is the name of the Workflow or Activity class
+   * Returns the action name, which is the name of the Workflow or Activity class
    *
-   * @return The operation name
+   * @return The action name
    */
-  public String getOperationName() {
-    return operationName;
+  public String getActionName() {
+    return actionName;
   }
 
   public String getWorkflowId() {
@@ -82,7 +82,7 @@ public class SpanCreationContext {
 
   public static final class Builder {
     private SpanOperationType spanOperationType;
-    private String operationName;
+    private String actionName;
     private String workflowId;
     private String runId;
     private String parentWorkflowId;
@@ -95,8 +95,8 @@ public class SpanCreationContext {
       return this;
     }
 
-    public Builder setOperationName(String operationName) {
-      this.operationName = operationName;
+    public Builder setActionName(String actionName) {
+      this.actionName = actionName;
       return this;
     }
 
@@ -122,7 +122,7 @@ public class SpanCreationContext {
 
     public SpanCreationContext build() {
       return new SpanCreationContext(
-          spanOperationType, operationName, workflowId, runId, parentWorkflowId, parentRunId);
+          spanOperationType, actionName, workflowId, runId, parentWorkflowId, parentRunId);
     }
   }
 }
