@@ -33,7 +33,7 @@ public final class Activity {
 
   /**
    * Can be used to get information about Activity invocation and to invoke Heartbeats. This static
-   * method relies on a local thread and works only in the original Activity thread.
+   * method relies on a thread-local variable and works only in the original Activity thread.
    */
   public static ActivityExecutionContext getExecutionContext() {
     return ActivityInternal.getExecutionContext();
