@@ -9,3 +9,7 @@ dependencies {
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter'
 }
+
+test {
+    useJUnitPlatform()
+}
