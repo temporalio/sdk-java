@@ -23,53 +23,29 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.worker.Worker;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class LocalActivityManyWorkflowsTest {
 
-  private static final String TASK_QUEUE = "test-workflow";
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
+          .setActivityImplementations(new ActivityImpl())
+          .setWorkflowTypes(ActivityWorkflow.class)
+          .build();
 
-  private TestWorkflowEnvironment testEnvironment;
-
-  @Before
-  public void setUp() {
-    TestEnvironmentOptions options = TestEnvironmentOptions.newBuilder().build();
-    testEnvironment = TestWorkflowEnvironment.newInstance(options);
-  }
-
-  @After
-  public void tearDown() {
-    testEnvironment.close();
-  }
-
-  @WorkflowInterface
-  public interface TestWorkflow {
-    @WorkflowMethod
-    String workflow(String input);
-  }
-
-  public static class ActivityWorkflow implements TestWorkflow {
-    private final TestActivity activity =
-        Workflow.newLocalActivityStub(
-            TestActivity.class,
-            LocalActivityOptions.newBuilder()
-                .setStartToCloseTimeout(Duration.ofSeconds(2))
-                .build());
-
-    @Override
-    public String workflow(String input) {
-      return activity.activity(input + "3");
+  @Test
+  public void manyWorkflowsTest() {
+    for (int reqCount = 1; reqCount < 1000; reqCount++) {
+      TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
+      String input = String.valueOf(reqCount);
+      String result = workflow.execute(input);
+      assertEquals(input + "31", result);
     }
   }
 
@@ -78,28 +54,24 @@ public class LocalActivityManyWorkflowsTest {
     String activity(String input);
   }
 
+  public static class ActivityWorkflow implements TestWorkflow1 {
+    private final TestActivity activity =
+        Workflow.newLocalActivityStub(
+            TestActivity.class,
+            LocalActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(2))
+                .build());
+
+    @Override
+    public String execute(String input) {
+      return activity.activity(input + "3");
+    }
+  }
+
   private static class ActivityImpl implements TestActivity {
     @Override
     public String activity(String input) {
       return input + "1";
-    }
-  }
-
-  @Test
-  public void manyWorkflowsTest() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(ActivityWorkflow.class);
-    worker.registerActivitiesImplementations(new ActivityImpl());
-
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-
-    for (int reqCount = 1; reqCount < 1000; reqCount++) {
-      TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
-      String input = String.valueOf(reqCount);
-      String result = workflow.workflow(input);
-      assertEquals(input + "31", result);
     }
   }
 }

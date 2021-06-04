@@ -30,6 +30,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,8 +53,7 @@ public class ChildWorkflowExecutionPromiseHandlerTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.TestWorkflow1 client =
-        workflowStub.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    TestWorkflow1 client = workflowStub.newWorkflowStub(TestWorkflow1.class, options);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     assertEquals("FOO", result);
   }
@@ -66,8 +66,7 @@ public class ChildWorkflowExecutionPromiseHandlerTest {
     }
   }
 
-  public static class TestChildWorkflowExecutionPromiseHandler
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestChildWorkflowExecutionPromiseHandler implements TestWorkflow1 {
 
     private TestWorkflows.ITestNamedChild child;
 

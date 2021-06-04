@@ -26,7 +26,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import org.junit.Rule;
@@ -60,9 +60,9 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
 
     @Override
     public String execute(String taskQueue) {
-      TestActivities testActivities =
+      VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class,
+              VariousTestActivities.class,
               ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
                   .build());
       testActivities.activity();

@@ -29,7 +29,8 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -39,8 +40,7 @@ import org.junit.Test;
 
 public class SyncTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -127,9 +127,9 @@ public class SyncTest {
 
     @Override
     public String execute(String taskQueue) {
-      TestActivities activities =
+      VariousTestActivities activities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       // Invoke synchronously in a separate thread for testing purposes only.
       // In real workflows use
       // Async.procedure(activities::activityWithDelay, 1000, true)

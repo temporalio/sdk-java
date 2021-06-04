@@ -32,19 +32,20 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.ITestNamedChild;
+import io.temporal.workflow.shared.TestWorkflows.TestNamedChild;
 import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class NamedChildTest {
 
-  private static final String childReexecuteId = UUID.randomUUID().toString();
+  private static final String childReExecuteId = UUID.randomUUID().toString();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestNamedChild.class, TestChildReexecuteWorkflow.class)
+          .setWorkflowTypes(TestNamedChild.class, TestChildReExecuteWorkflow.class)
           .build();
 
   @Test
@@ -87,43 +88,33 @@ public class NamedChildTest {
     String execute(boolean parallel, WorkflowIdReusePolicy policy);
   }
 
-  public static class TestNamedChild implements TestWorkflows.ITestNamedChild {
+  public static class TestChildReExecuteWorkflow implements WorkflowIdReusePolicyParent {
 
-    @Override
-    public String execute(String arg) {
-      return arg.toUpperCase();
-    }
-  }
-
-  public static class TestChildReexecuteWorkflow implements WorkflowIdReusePolicyParent {
-
-    public TestChildReexecuteWorkflow() {}
+    public TestChildReExecuteWorkflow() {}
 
     @Override
     public String execute(boolean parallel, WorkflowIdReusePolicy policy) {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder()
-              .setWorkflowId(childReexecuteId)
+              .setWorkflowId(childReExecuteId)
               .setWorkflowIdReusePolicy(policy)
               .build();
 
-      TestWorkflows.ITestNamedChild child1 =
-          Workflow.newChildWorkflowStub(TestWorkflows.ITestNamedChild.class, options);
+      ITestNamedChild child1 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
       Promise<String> r1P = Async.function(child1::execute, "Hello ");
       String r1 = null;
       if (!parallel) {
         r1 = r1P.get();
       }
-      TestWorkflows.ITestNamedChild child2 =
-          Workflow.newChildWorkflowStub(TestWorkflows.ITestNamedChild.class, options);
+      ITestNamedChild child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
       ChildWorkflowStub child2Stub = ChildWorkflowStub.fromTyped(child2);
       // Same as String r2 = child2.execute("World!");
       String r2 = child2Stub.execute(String.class, "World!");
       if (parallel) {
         r1 = r1P.get();
       }
-      assertEquals(childReexecuteId, Workflow.getWorkflowExecution(child1).get().getWorkflowId());
-      assertEquals(childReexecuteId, Workflow.getWorkflowExecution(child2).get().getWorkflowId());
+      assertEquals(childReExecuteId, Workflow.getWorkflowExecution(child1).get().getWorkflowId());
+      assertEquals(childReExecuteId, Workflow.getWorkflowExecution(child2).get().getWorkflowId());
       return r1 + r2;
     }
   }

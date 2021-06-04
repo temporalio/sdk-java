@@ -26,7 +26,8 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
@@ -35,8 +36,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class LocalActivityRetryTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -80,7 +80,8 @@ public class LocalActivityRetryTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      TestActivities activities = Workflow.newLocalActivityStub(TestActivities.class, options);
+      VariousTestActivities activities =
+          Workflow.newLocalActivityStub(VariousTestActivities.class, options);
       activities.throwIO();
 
       return "ignored";

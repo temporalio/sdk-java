@@ -26,8 +26,11 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestChild;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.ITestChild;
+import io.temporal.workflow.shared.TestWorkflows.ITestNamedChild;
+import io.temporal.workflow.shared.TestWorkflows.TestChild;
+import io.temporal.workflow.shared.TestWorkflows.TestNamedChild;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,28 +48,19 @@ public class ChildWorkflowTest {
   @Test
   public void testChildWorkflow() {
     child2Id = UUID.randomUUID().toString();
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 client = testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflow1.class);
     assertEquals("HELLO WORLD!", client.execute(testWorkflowRule.getTaskQueue()));
   }
 
-  public static class TestNamedChild implements TestWorkflows.ITestNamedChild {
-    @Override
-    public String execute(String arg) {
-      return arg.toUpperCase();
-    }
-  }
+  public static class TestParentWorkflow implements TestWorkflow1 {
 
-  public static class TestParentWorkflow implements TestWorkflows.TestWorkflow1 {
-
-    private final TestWorkflows.ITestChild child1 =
-        Workflow.newChildWorkflowStub(TestWorkflows.ITestChild.class);
-    private final TestWorkflows.ITestNamedChild child2;
+    private final ITestChild child1 = Workflow.newChildWorkflowStub(ITestChild.class);
+    private final ITestNamedChild child2;
 
     public TestParentWorkflow() {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder().setWorkflowId(child2Id).build();
-      child2 = Workflow.newChildWorkflowStub(TestWorkflows.ITestNamedChild.class, options);
+      child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
     }
 
     @Override

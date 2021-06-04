@@ -19,17 +19,22 @@
 
 package io.temporal.workflow.shared;
 
+import io.temporal.activity.ActivityOptions;
 import io.temporal.common.CronSchedule;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
+import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
 public class TestWorkflows {
+
   @WorkflowInterface
   public interface NoArgsWorkflow {
     @WorkflowMethod
@@ -37,20 +42,74 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
-  public interface TestWorkflow {
+  public interface TestWorkflowStringArg {
+    @WorkflowMethod
+    void execute(String arg);
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflowLongArg {
+    @WorkflowMethod
+    void execute(long arg);
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflowCancellationType {
     @WorkflowMethod
     void execute(ChildWorkflowCancellationType cancellationType);
   }
 
   @WorkflowInterface
-  public interface TestWorkflow1 {
-
+  public interface TestWorkflowReturnMap {
     @WorkflowMethod
-    String execute(String taskQueue);
+    Map<String, Map<String, Duration>> execute();
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflowReturnString {
+    @WorkflowMethod
+    String execute();
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflow1 {
+    @WorkflowMethod
+    String execute(String arg);
   }
 
   @WorkflowInterface
   public interface TestWorkflow2 {
+    @WorkflowMethod
+    String execute(String arg, String arg2);
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflow3 {
+    @WorkflowMethod
+    String execute(String arg, int arg2);
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflowWithCronSchedule {
+    @WorkflowMethod
+    @CronSchedule("0 * * * *")
+    String execute(String testName);
+  }
+
+  @WorkflowInterface
+  public interface ITestChild {
+    @WorkflowMethod
+    String execute(String arg, int arg2);
+  }
+
+  @WorkflowInterface
+  public interface ITestNamedChild {
+    @WorkflowMethod(name = "namedChild")
+    String execute(String arg);
+  }
+
+  @WorkflowInterface
+  public interface TestTraceWorkflow {
 
     @WorkflowMethod(name = "testActivity")
     String execute(boolean useExternalService);
@@ -60,30 +119,21 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
-  public interface TestWorkflow3 {
+  public interface TestSignaledWorkflow {
 
     @WorkflowMethod
-    Map<String, Map<String, Duration>> execute();
+    String execute();
+
+    @SignalMethod(name = "testSignal")
+    void signal(String arg);
   }
 
-  @WorkflowInterface
-  public interface TestChildWorkflow {
-    @WorkflowMethod
-    void execute();
-  }
+  public interface SignalQueryBase {
+    @SignalMethod
+    void signal(String arg);
 
-  @WorkflowInterface
-  public interface ITestChild {
-
-    @WorkflowMethod
-    String execute(String arg, int delay);
-  }
-
-  @WorkflowInterface
-  public interface ITestNamedChild {
-
-    @WorkflowMethod(name = "namedChild")
-    String execute(String arg);
+    @QueryMethod
+    String getSignal();
   }
 
   @WorkflowInterface
@@ -99,40 +149,49 @@ public class TestWorkflows {
     void mySignal(String value);
   }
 
-  @WorkflowInterface
-  public interface DeterminismFailingWorkflow {
-    @WorkflowMethod
-    void execute(String taskQueue);
+  /** IMPLEMENTATIONS * */
+  public static class TestChild implements ITestChild {
+
+    @Override
+    public String execute(String arg, int delay) {
+      Workflow.sleep(delay);
+      return arg.toUpperCase();
+    }
   }
 
-  @WorkflowInterface
-  public interface SignalingChild {
+  public static class AngryChild implements ITestChild {
 
-    @WorkflowMethod
-    String execute(String arg, String parentWorkflowId);
+    @Override
+    public String execute(String taskQueue, int delay) {
+      TestActivities.NoArgsActivity activity =
+          Workflow.newActivityStub(
+              TestActivities.NoArgsActivity.class,
+              ActivityOptions.newBuilder()
+                  .setTaskQueue(taskQueue)
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
+      activity.execute();
+      throw ApplicationFailure.newFailure("simulated failure", "test");
+    }
   }
 
-  @WorkflowInterface
-  public interface TestWorkflowRetry {
-
-    @WorkflowMethod
-    String execute(String testName);
+  public static class TestNamedChild implements ITestNamedChild {
+    @Override
+    public String execute(String arg) {
+      return arg.toUpperCase();
+    }
   }
 
-  @WorkflowInterface
-  public interface TestWorkflowWithCronSchedule {
-    @WorkflowMethod
-    @CronSchedule("0 * * * *")
-    String execute(String testName);
-  }
+  public static class DeterminismFailingWorkflowImpl implements TestWorkflowStringArg {
 
-  @WorkflowInterface
-  public interface TestWorkflowSignaled {
-
-    @WorkflowMethod
-    String execute();
-
-    @SignalMethod(name = "testSignal")
-    void signal1(String arg);
+    @Override
+    public void execute(String taskQueue) {
+      VariousTestActivities activities =
+          Workflow.newActivityStub(
+              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+      if (!Workflow.isReplaying()) {
+        activities.activity1(1);
+      }
+    }
   }
 }

@@ -28,6 +28,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.Duration;
 import org.junit.Test;
 
@@ -36,13 +37,7 @@ public class DeadlockDetectorTest {
   private static final String taskQueue = "deadlock-test";
   boolean debugMode = System.getenv("TEMPORAL_DEBUG") != null;
 
-  @WorkflowInterface
-  public interface TestWorkflow {
-    @WorkflowMethod
-    void execute();
-  }
-
-  public static class TestDeadlockWorkflow implements TestWorkflow {
+  public static class TestDeadlockWorkflow implements NoArgsWorkflow {
 
     @Override
     public void execute() {
@@ -73,7 +68,7 @@ public class DeadlockDetectorTest {
             .setWorkflowRunTimeout(Duration.ofSeconds(1000))
             .setTaskQueue(taskQueue)
             .build();
-    TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
+    NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
     try {
       workflow.execute();
       if (!debugMode) {

@@ -25,8 +25,9 @@ import com.google.common.base.Throwables;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestChild;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestChild;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,21 +42,20 @@ public class ChildWorkflowTimeoutTest {
 
   @Test
   public void testChildWorkflowTimeout() {
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 client = testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     assertTrue(result, result.contains("ChildWorkflowFailure"));
     assertTrue(result, result.contains("TimeoutFailure"));
   }
 
-  public static class TestParentWorkflowWithChildTimeout implements TestWorkflows.TestWorkflow1 {
+  public static class TestParentWorkflowWithChildTimeout implements TestWorkflow1 {
 
-    private final TestWorkflows.ITestChild child;
+    private final TestWorkflow3 child;
 
     public TestParentWorkflowWithChildTimeout() {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder().setWorkflowRunTimeout(Duration.ofSeconds(1)).build();
-      child = Workflow.newChildWorkflowStub(TestWorkflows.ITestChild.class, options);
+      child = Workflow.newChildWorkflowStub(TestWorkflow3.class, options);
     }
 
     @Override

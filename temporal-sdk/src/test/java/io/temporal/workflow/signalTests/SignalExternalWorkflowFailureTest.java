@@ -27,7 +27,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,10 +49,8 @@ public class SignalExternalWorkflowFailureTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    TestWorkflow1 client =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
     try {
       client.execute(testWorkflowRule.getTaskQueue());
       fail("unreachable");
@@ -64,16 +63,15 @@ public class SignalExternalWorkflowFailureTest {
     }
   }
 
-  public static class TestSignalExternalWorkflowFailure implements TestWorkflows.TestWorkflow1 {
+  public static class TestSignalExternalWorkflowFailure implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
       WorkflowExecution parentExecution =
           WorkflowExecution.newBuilder().setWorkflowId("invalid id").build();
-      TestWorkflows.TestWorkflowSignaled workflow =
-          Workflow.newExternalWorkflowStub(
-              TestWorkflows.TestWorkflowSignaled.class, parentExecution);
-      workflow.signal1("World");
+      TestSignaledWorkflow workflow =
+          Workflow.newExternalWorkflowStub(TestSignaledWorkflow.class, parentExecution);
+      workflow.signal("World");
       return "ignored";
     }
   }

@@ -25,7 +25,7 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnMap;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,8 +47,8 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
 
   @Test
   public void testDefaultActivityOptionsNotSetTest() {
-    TestWorkflows.TestWorkflow3 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow3.class);
+    TestWorkflowReturnMap workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowReturnMap.class);
     Map<String, Map<String, Duration>> result = workflowStub.execute();
 
     // Check that both activities have options passed in the stub.
@@ -67,8 +67,7 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
         defaultOps.getScheduleToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
   }
 
-  public static class TestSetNullActivityOptionsWorkflowImpl
-      implements TestWorkflows.TestWorkflow3 {
+  public static class TestSetNullActivityOptionsWorkflowImpl implements TestWorkflowReturnMap {
     @Override
     public Map<String, Map<String, Duration>> execute() {
       Map<String, Map<String, Duration>> result = new HashMap<>();
