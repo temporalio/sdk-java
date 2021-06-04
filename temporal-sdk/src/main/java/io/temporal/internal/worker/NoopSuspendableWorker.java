@@ -64,14 +64,10 @@ class NoopSuspendableWorker implements SuspendableWorker {
   }
 
   @Override
-  public void suspendPolling() {
-    throw new IllegalStateException("Non suspendable");
-  }
+  public void suspendPolling() {}
 
   @Override
-  public void resumePolling() {
-    throw new IllegalStateException("Non resumable");
-  }
+  public void resumePolling() {}
 
   @Override
   public boolean isSuspended() {
