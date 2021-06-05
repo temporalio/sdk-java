@@ -350,7 +350,7 @@ public class TestWorkflowRule implements TestRule {
   /**
    * Returns the default worker created for each test method.
    * This worker listens to the default task queue which is obtainable
-   * via the {@link #getTaskQueue()} method
+   * via the {@link #getTaskQueue()} method.
    */
   public Worker getWorker() {
     return testEnvironment.getWorkerFactory().getWorker(getTaskQueue());
