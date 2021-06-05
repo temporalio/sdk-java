@@ -60,7 +60,7 @@ public class DeadlockDetectorTest {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     TestWorkflowLongArg workflow =
         workflowClient.newWorkflowStub(
-                TestWorkflowLongArg.class,
+            TestWorkflowLongArg.class,
             WorkflowOptions.newBuilder()
                 .setWorkflowRunTimeout(Duration.ofSeconds(1000))
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
@@ -88,7 +88,7 @@ public class DeadlockDetectorTest {
     WorkflowClient workflowClient = testWorkflowRule2.getWorkflowClient();
     TestWorkflowLongArg workflow =
         workflowClient.newWorkflowStub(
-                TestWorkflowLongArg.class,
+            TestWorkflowLongArg.class,
             WorkflowOptions.newBuilder()
                 .setWorkflowRunTimeout(Duration.ofSeconds(1000))
                 .setTaskQueue(testWorkflowRule2.getTaskQueue())
