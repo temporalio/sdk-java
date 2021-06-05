@@ -25,7 +25,8 @@ import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.ArrayList;
@@ -36,8 +37,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class AsyncActivityTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -67,9 +67,9 @@ public class AsyncActivityTest {
 
     @Override
     public String execute(String taskQueue) {
-      TestActivities testActivities =
+      VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptions20sScheduleToClose());
+              VariousTestActivities.class, TestOptions.newActivityOptions20sScheduleToClose());
       Promise<String> a = Async.function(testActivities::activity);
       Promise<Integer> a1 = Async.function(testActivities::activity1, 1);
       Promise<String> a2 = Async.function(testActivities::activity2, "1", 2);

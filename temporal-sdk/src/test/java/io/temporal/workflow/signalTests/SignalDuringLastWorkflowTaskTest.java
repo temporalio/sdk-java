@@ -24,7 +24,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,10 +55,8 @@ public class SignalDuringLastWorkflowTaskTest {
             .toBuilder()
             .setWorkflowId("testSignalDuringLastWorkflowTask-" + UUID.randomUUID().toString())
             .build();
-    TestWorkflows.TestWorkflowSignaled client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflowSignaled.class, options);
+    TestSignaledWorkflow client =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
     WorkflowExecution execution = WorkflowClient.start(client::execute);
     testWorkflowRule.registerDelayedCallback(
         Duration.ofSeconds(1),
@@ -69,7 +67,7 @@ public class SignalDuringLastWorkflowTaskTest {
             } catch (InterruptedException e) {
               throw new RuntimeException(e);
             }
-            client.signal1("Signal Input");
+            client.signal("Signal Input");
           } catch (TimeoutException | ExecutionException e) {
             throw new RuntimeException(e);
           }
@@ -83,8 +81,7 @@ public class SignalDuringLastWorkflowTaskTest {
     testWorkflowRule.sleep(Duration.ofSeconds(2));
   }
 
-  static class TestSignalDuringLastWorkflowTaskWorkflowImpl
-      implements TestWorkflows.TestWorkflowSignaled {
+  static class TestSignalDuringLastWorkflowTaskWorkflowImpl implements TestSignaledWorkflow {
 
     private String signal;
 
@@ -104,7 +101,7 @@ public class SignalDuringLastWorkflowTaskTest {
     }
 
     @Override
-    public void signal1(String arg) {
+    public void signal(String arg) {
       signal = arg;
     }
   }

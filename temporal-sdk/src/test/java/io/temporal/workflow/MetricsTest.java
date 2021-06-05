@@ -55,6 +55,8 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.interceptors.SignalWorkflowOutboundCallsInterceptor;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import java.time.Duration;
 import java.util.Map;
 import org.junit.After;
@@ -64,6 +66,12 @@ import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
 public class MetricsTest {
+
+  private static final long REPORTING_FLUSH_TIME = 600;
+  private static final String TASK_QUEUE = "metrics_test";
+  private TestWorkflowEnvironment testEnvironment;
+  private TestStatsReporter reporter;
+  private Scope metricsScope;
 
   @Rule
   public TestWatcher watchman =
@@ -75,151 +83,6 @@ public class MetricsTest {
           }
         }
       };
-
-  private static final com.uber.m3.util.Duration REPORTING_FREQUENCY =
-      com.uber.m3.util.Duration.ofMillis(10);
-  private static final long REPORTING_FLUSH_TIME = 600;
-  private static final String TASK_QUEUE = "metrics_test";
-
-  private TestWorkflowEnvironment testEnvironment;
-  private Scope metricsScope;
-  private TestStatsReporter reporter;
-
-  @WorkflowInterface
-  public interface TestWorkflow {
-
-    @WorkflowMethod
-    void execute();
-  }
-
-  public static class TestMetricsInWorkflow implements TestWorkflow {
-
-    @Override
-    public void execute() {
-      Workflow.getMetricsScope().counter("test_started").inc(1);
-
-      ActivityOptions activityOptions =
-          ActivityOptions.newBuilder()
-              .setTaskQueue(TASK_QUEUE)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .setMaximumAttempts(3)
-                      .setDoNotRetry(AssertionError.class.getName())
-                      .build())
-              .build();
-      TestActivity activity = Workflow.newActivityStub(TestActivity.class, activityOptions);
-      activity.runActivity(1);
-
-      ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-      TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
-      workflow.executeChild();
-
-      Workflow.getMetricsScope().counter("test_done").inc(1);
-    }
-  }
-
-  @ActivityInterface
-  public interface TestActivity {
-
-    int runActivity(int input);
-  }
-
-  static class TestActivityImpl implements TestActivity {
-
-    @Override
-    public int runActivity(int input) {
-      return input;
-    }
-  }
-
-  @WorkflowInterface
-  public interface TestChildWorkflow {
-
-    @WorkflowMethod
-    void executeChild();
-  }
-
-  public static class TestMetricsInChildWorkflow implements TestChildWorkflow {
-
-    @Override
-    public void executeChild() {
-      Workflow.getMetricsScope().counter("test_child_started").inc(1);
-
-      Stopwatch sw = Workflow.getMetricsScope().timer("test_timer").start();
-      Workflow.sleep(3000);
-      sw.stop();
-
-      Workflow.getMetricsScope().counter("test_child_done").inc(1);
-    }
-  }
-
-  @WorkflowInterface
-  public interface ReceiveSignalObjectChildWorkflow {
-
-    @WorkflowMethod
-    String execute();
-
-    @SignalMethod(name = "testSignal")
-    void signal(Signal arg);
-
-    @SignalMethod(name = "endWorkflow")
-    void close();
-  }
-
-  public static class ReceiveSignalObjectChildWorkflowImpl
-      implements ReceiveSignalObjectChildWorkflow {
-
-    private String receivedSignal = "Initial State";
-    // Keep workflow open so that we can send signal
-    CompletablePromise<Void> promise = Workflow.newPromise();
-
-    @Override
-    public String execute() {
-      promise.get();
-      return receivedSignal;
-    }
-
-    @Override
-    public void signal(Signal arg) {
-      receivedSignal = arg.value;
-    }
-
-    @Override
-    public void close() {
-      promise.complete(null);
-    }
-  }
-
-  @WorkflowInterface
-  public interface SendSignalObjectWorkflow {
-
-    @WorkflowMethod
-    String execute();
-  }
-
-  public static class SendSignalObjectWorkflowImpl implements SendSignalObjectWorkflow {
-
-    @Override
-    public String execute() {
-      ReceiveSignalObjectChildWorkflow child =
-          Workflow.newChildWorkflowStub(ReceiveSignalObjectChildWorkflow.class);
-      Promise<String> greeting = Async.function(child::execute);
-      Signal sig = new Signal();
-      sig.value = "Hello World";
-      child.signal(sig);
-      child.close();
-      return greeting.get();
-    }
-  }
-
-  public static class Signal {
-
-    public String value;
-  }
 
   public void setUp(WorkerFactoryOptions workerFactoryOptions) {
     reporter = new TestStatsReporter();
@@ -260,7 +123,7 @@ public class MetricsTest {
             .setWorkflowRunTimeout(Duration.ofSeconds(1000))
             .setTaskQueue(TASK_QUEUE)
             .build();
-    TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
+    NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
     workflow.execute();
 
     Thread.sleep(REPORTING_FLUSH_TIME);
@@ -288,7 +151,7 @@ public class MetricsTest {
     tags =
         new ImmutableMap.Builder<String, String>(9)
             .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
+            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .build();
 
@@ -310,7 +173,7 @@ public class MetricsTest {
             .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.ACTIVITY_TYPE, "RunActivity")
-            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
+            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
             .put(MetricsTag.OPERATION_NAME, "RespondActivityTaskCompleted")
             .build();
     reporter.assertCounter(TEMPORAL_REQUEST, activityCompletionTags, 1);
@@ -323,7 +186,7 @@ public class MetricsTest {
     tags =
         tagsB
             .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
-            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
+            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
             .build();
     reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
     reporter.assertTimer(TEMPORAL_REQUEST_LATENCY, tags);
@@ -332,7 +195,7 @@ public class MetricsTest {
         new ImmutableMap.Builder<String, String>(9)
             .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
-            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
+            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
             .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
             .build();
     reporter.assertCounter(TEMPORAL_REQUEST, workflowTaskCompletionTags, 4);
@@ -373,8 +236,8 @@ public class MetricsTest {
             .build();
 
     WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
-    SendSignalObjectWorkflow workflow =
-        workflowClient.newWorkflowStub(SendSignalObjectWorkflow.class, options);
+    TestWorkflowReturnString workflow =
+        workflowClient.newWorkflowStub(TestWorkflowReturnString.class, options);
     workflow.execute();
 
     // Wait for reporter
@@ -387,33 +250,6 @@ public class MetricsTest {
             .put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectChildWorkflow")
             .build();
     reporter.assertCounter(CORRUPTED_SIGNALS_COUNTER, tags, 1);
-  }
-
-  private static class CorruptedSignalWorkerInterceptor implements WorkerInterceptor {
-
-    @Override
-    public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
-      return new WorkflowInboundCallsInterceptorBase(next) {
-        @Override
-        public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
-          next.init(
-              new SignalWorkflowOutboundCallsInterceptor(
-                  args -> {
-                    if (args != null && args.length > 0) {
-                      return new Object[] {"Corrupted Signal"};
-                    }
-                    return args;
-                  },
-                  sig -> sig,
-                  outboundCalls));
-        }
-      };
-    }
-
-    @Override
-    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
-      return next;
-    }
   }
 
   @Test
@@ -487,5 +323,154 @@ public class MetricsTest {
             .put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT")
             .build();
     reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
+  }
+
+  @ActivityInterface
+  public interface TestActivity {
+
+    int runActivity(int input);
+  }
+
+  @WorkflowInterface
+  public interface TestChildWorkflow {
+
+    @WorkflowMethod
+    void executeChild();
+  }
+
+  @WorkflowInterface
+  public interface ReceiveSignalObjectChildWorkflow {
+
+    @WorkflowMethod
+    String execute();
+
+    @SignalMethod(name = "testSignal")
+    void signal(Signal arg);
+
+    @SignalMethod(name = "endWorkflow")
+    void close();
+  }
+
+  public static class TestMetricsInWorkflow implements NoArgsWorkflow {
+
+    @Override
+    public void execute() {
+      Workflow.getMetricsScope().counter("test_started").inc(1);
+
+      ActivityOptions activityOptions =
+          ActivityOptions.newBuilder()
+              .setTaskQueue(TASK_QUEUE)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+              .setRetryOptions(
+                  RetryOptions.newBuilder()
+                      .setMaximumInterval(Duration.ofSeconds(1))
+                      .setInitialInterval(Duration.ofSeconds(1))
+                      .setMaximumAttempts(3)
+                      .setDoNotRetry(AssertionError.class.getName())
+                      .build())
+              .build();
+      TestActivity activity = Workflow.newActivityStub(TestActivity.class, activityOptions);
+      activity.runActivity(1);
+
+      ChildWorkflowOptions options =
+          ChildWorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+      TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
+      workflow.executeChild();
+
+      Workflow.getMetricsScope().counter("test_done").inc(1);
+    }
+  }
+
+  static class TestActivityImpl implements TestActivity {
+
+    @Override
+    public int runActivity(int input) {
+      return input;
+    }
+  }
+
+  public static class TestMetricsInChildWorkflow implements TestChildWorkflow {
+
+    @Override
+    public void executeChild() {
+      Workflow.getMetricsScope().counter("test_child_started").inc(1);
+
+      Stopwatch sw = Workflow.getMetricsScope().timer("test_timer").start();
+      Workflow.sleep(3000);
+      sw.stop();
+
+      Workflow.getMetricsScope().counter("test_child_done").inc(1);
+    }
+  }
+
+  public static class ReceiveSignalObjectChildWorkflowImpl
+      implements ReceiveSignalObjectChildWorkflow {
+
+    // Keep workflow open so that we can send signal
+    CompletablePromise<Void> promise = Workflow.newPromise();
+    private String receivedSignal = "Initial State";
+
+    @Override
+    public String execute() {
+      promise.get();
+      return receivedSignal;
+    }
+
+    @Override
+    public void signal(Signal arg) {
+      receivedSignal = arg.value;
+    }
+
+    @Override
+    public void close() {
+      promise.complete(null);
+    }
+  }
+
+  public static class SendSignalObjectWorkflowImpl implements TestWorkflowReturnString {
+
+    @Override
+    public String execute() {
+      ReceiveSignalObjectChildWorkflow child =
+          Workflow.newChildWorkflowStub(ReceiveSignalObjectChildWorkflow.class);
+      Promise<String> greeting = Async.function(child::execute);
+      Signal sig = new Signal();
+      sig.value = "Hello World";
+      child.signal(sig);
+      child.close();
+      return greeting.get();
+    }
+  }
+
+  public static class Signal {
+
+    public String value;
+  }
+
+  private static class CorruptedSignalWorkerInterceptor implements WorkerInterceptor {
+
+    @Override
+    public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
+      return new WorkflowInboundCallsInterceptorBase(next) {
+        @Override
+        public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
+          next.init(
+              new SignalWorkflowOutboundCallsInterceptor(
+                  args -> {
+                    if (args != null && args.length > 0) {
+                      return new Object[] {"Corrupted Signal"};
+                    }
+                    return args;
+                  },
+                  sig -> sig,
+                  outboundCalls));
+        }
+      };
+    }
+
+    @Override
+    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
+      return next;
+    }
   }
 }

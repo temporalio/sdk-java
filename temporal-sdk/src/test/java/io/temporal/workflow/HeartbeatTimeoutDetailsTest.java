@@ -27,7 +27,8 @@ import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -39,8 +40,7 @@ import org.slf4j.LoggerFactory;
 public class HeartbeatTimeoutDetailsTest {
 
   private static final Logger log = LoggerFactory.getLogger(HeartbeatTimeoutDetailsTest.class);
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -70,7 +70,8 @@ public class HeartbeatTimeoutDetailsTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .build();
 
-      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
+      VariousTestActivities activities =
+          Workflow.newActivityStub(VariousTestActivities.class, options);
       try {
         // false for second argument means to heartbeat once to set details and then stop.
         activities.activityWithDelay(5000, false);

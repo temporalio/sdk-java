@@ -30,10 +30,11 @@ import io.temporal.testing.WorkflowReplayer;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.AngryChild;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestActivities.AngryChildActivityImpl;
+import io.temporal.workflow.shared.TestWorkflows.AngryChild;
+import io.temporal.workflow.shared.TestWorkflows.ITestChild;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assume;
 import org.junit.Rule;
@@ -41,8 +42,7 @@ import org.junit.Test;
 
 public class ChildWorkflowAsyncRetryTest {
 
-  private final TestActivities.AngryChildActivityImpl angryChildActivity =
-      new TestActivities.AngryChildActivityImpl();
+  private final AngryChildActivityImpl angryChildActivity = new AngryChildActivityImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -59,10 +59,8 @@ public class ChildWorkflowAsyncRetryTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    TestWorkflow1 client =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
     try {
       client.execute(testWorkflowRule.getTaskQueue());
       fail("unreachable");
@@ -86,9 +84,9 @@ public class ChildWorkflowAsyncRetryTest {
         "testChildWorkflowRetryHistory.json", AlteredTestChildWorkflowRetryWorkflow.class);
   }
 
-  public static class TestChildWorkflowAsyncRetryWorkflow implements TestWorkflows.TestWorkflow1 {
+  public static class TestChildWorkflowAsyncRetryWorkflow implements TestWorkflow1 {
 
-    private TestWorkflows.ITestChild child;
+    private ITestChild child;
 
     public TestChildWorkflowAsyncRetryWorkflow() {}
 
@@ -106,7 +104,7 @@ public class ChildWorkflowAsyncRetryTest {
                       .setMaximumAttempts(3)
                       .build())
               .build();
-      child = Workflow.newChildWorkflowStub(TestWorkflows.ITestChild.class, options);
+      child = Workflow.newChildWorkflowStub(ITestChild.class, options);
       return Async.function(child::execute, taskQueue, 0).get();
     }
   }

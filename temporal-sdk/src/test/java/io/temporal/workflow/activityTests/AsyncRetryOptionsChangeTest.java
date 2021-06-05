@@ -27,7 +27,7 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestTraceWorkflow;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,8 +51,8 @@ public class AsyncRetryOptionsChangeTest {
   /** @see DeterministicRunnerTest#testRetry() */
   @Test
   public void testAsyncRetryOptionsChange() {
-    TestWorkflows.TestWorkflow2 client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow2.class);
+    TestTraceWorkflow client =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestTraceWorkflow.class);
     String result = null;
     try {
       result = client.execute(SDKTestWorkflowRule.useExternalService);
@@ -74,7 +74,7 @@ public class AsyncRetryOptionsChangeTest {
     Assert.assertTrue(trace.get(2).startsWith("retry at "));
   }
 
-  public static class TestAsyncRetryOptionsChangeWorkflow implements TestWorkflows.TestWorkflow2 {
+  public static class TestAsyncRetryOptionsChangeWorkflow implements TestTraceWorkflow {
 
     private final List<String> trace = new ArrayList<>();
 

@@ -27,9 +27,10 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -37,8 +38,7 @@ import org.junit.Test;
 
 public class TryCancelActivityTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -49,8 +49,7 @@ public class TryCancelActivityTest {
 
   @Test
   public void testTryCancelActivity() {
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
         .getTestEnvironment()
@@ -70,13 +69,13 @@ public class TryCancelActivityTest {
     activitiesImpl.assertInvocations("activityWithDelay");
   }
 
-  public static class TestTryCancelActivity implements TestWorkflows.TestWorkflow1 {
+  public static class TestTryCancelActivity implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      TestActivities testActivities =
+      VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class,
+              VariousTestActivities.class,
               ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(1))
                   .setCancellationType(ActivityCancellationType.TRY_CANCEL)

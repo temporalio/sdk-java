@@ -19,13 +19,13 @@
 
 package io.temporal.workflow.activityTests;
 
-import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.NonSerializableException;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -45,20 +45,14 @@ public class NonSerializableExceptionInActivityWorkflowTest {
 
   @Test
   public void testNonSerializableExceptionInActivity() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
 
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertTrue(result.contains("NonSerializableException"));
   }
 
-  @ActivityInterface
-  public interface NonSerializableExceptionActivity {
-    void execute();
-  }
-
-  public static class NonSerializableExceptionActivityImpl
-      implements NonSerializableExceptionActivity {
+  public static class NonSerializableExceptionActivityImpl implements NoArgsActivity {
 
     @Override
     public void execute() {
@@ -66,14 +60,13 @@ public class NonSerializableExceptionInActivityWorkflowTest {
     }
   }
 
-  public static class TestNonSerializableExceptionInActivityWorkflow
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestNonSerializableExceptionInActivityWorkflow implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      NonSerializableExceptionActivity activity =
+      NoArgsActivity activity =
           Workflow.newActivityStub(
-              NonSerializableExceptionActivity.class,
+              NoArgsActivity.class,
               ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .build());

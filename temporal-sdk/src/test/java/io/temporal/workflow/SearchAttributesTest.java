@@ -36,7 +36,7 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -133,23 +133,27 @@ public class SearchAttributesTest {
 
   @Test
   public void testSearchAttributesPresentInChildWorkflow() {
-    TestWorkflows.NoArgsWorkflow client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.NoArgsWorkflow.class);
+    NoArgsWorkflow client = testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
     client.execute();
   }
 
-  public static class TestParentWorkflow implements TestWorkflows.NoArgsWorkflow {
+  @WorkflowInterface
+  public interface TestChildWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class TestParentWorkflow implements NoArgsWorkflow {
     @Override
     public void execute() {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder().setSearchAttributes(searchAttributes).build();
-      TestWorkflows.TestChildWorkflow child =
-          Workflow.newChildWorkflowStub(TestWorkflows.TestChildWorkflow.class, options);
+      TestChildWorkflow child = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
       child.execute();
     }
   }
 
-  public static class TestChild implements TestWorkflows.TestChildWorkflow {
+  public static class TestChild implements TestChildWorkflow {
     @Override
     public void execute() {
       assertTrue(Workflow.getInfo().getSearchAttributes() instanceof SearchAttributes);

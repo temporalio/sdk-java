@@ -25,7 +25,8 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -34,8 +35,7 @@ import org.junit.Test;
 
 public class ActivityApplicationNoSpecifiedRetryTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -66,7 +66,7 @@ public class ActivityApplicationNoSpecifiedRetryTest {
   public static class TestActivityApplicationNoSpecifiedRetry
       implements TestWorkflows.TestWorkflow1 {
 
-    private TestActivities activities;
+    private VariousTestActivities activities;
 
     @Override
     public String execute(String taskQueue) {
@@ -76,7 +76,7 @@ public class ActivityApplicationNoSpecifiedRetryTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(200))
               .setStartToCloseTimeout(Duration.ofSeconds(1))
               .build();
-      activities = Workflow.newActivityStub(TestActivities.class, options);
+      activities = Workflow.newActivityStub(VariousTestActivities.class, options);
       activities.throwApplicationFailureThreeTimes();
       return "ignored";
     }

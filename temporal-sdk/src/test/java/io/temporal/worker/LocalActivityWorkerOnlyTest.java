@@ -19,37 +19,47 @@
 
 package io.temporal.worker;
 
-import static java.util.stream.Collectors.groupingBy;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
-import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.TimeoutFailure;
-import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.Duration;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class LocalActivityWorkerOnlyTest {
 
-  @ActivityInterface
-  public interface TestActivity {
-    void foo();
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
+          .setActivityImplementations(new TestActivityImpl())
+          .setWorkflowTypes(ActivityWorkflowImpl.class, LocalActivityWorkflowImpl.class)
+          .setWorkerOptions(WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build())
+          .build();
+
+  @Test
+  public void verifyThatLocalActivitiesAreExecuted() {
+    LocalActivityWorkflow localActivityWorkflow =
+        testWorkflowRule.newWorkflowStub(LocalActivityWorkflow.class);
+    localActivityWorkflow.callLocalActivity();
   }
 
-  public static class TestActivityImpl implements TestActivity {
-    @Override
-    public void foo() {}
+  @Test
+  public void verifyThatNormalActivitiesAreTimedOut() {
+    NoArgsWorkflow activityWorkflow = testWorkflowRule.newWorkflowStub(NoArgsWorkflow.class);
+    try {
+      activityWorkflow.execute();
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause().getCause() instanceof TimeoutFailure);
+    }
   }
 
   @WorkflowInterface
@@ -58,129 +68,36 @@ public class LocalActivityWorkerOnlyTest {
     void callLocalActivity();
   }
 
+  public static class TestActivityImpl implements NoArgsActivity {
+    @Override
+    public void execute() {}
+  }
+
   public static class LocalActivityWorkflowImpl implements LocalActivityWorkflow {
 
     @Override
     public void callLocalActivity() {
-      TestActivity activity =
+      NoArgsActivity activity =
           Workflow.newLocalActivityStub(
-              TestActivity.class,
+              NoArgsActivity.class,
               LocalActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(1))
                   .build());
-      activity.foo();
+      activity.execute();
     }
   }
 
-  @WorkflowInterface
-  public interface ActivityWorkflow {
-    @WorkflowMethod
-    void callActivity();
-  }
-
-  public static class ActivityWorkflowImpl implements ActivityWorkflow {
+  public static class ActivityWorkflowImpl implements NoArgsWorkflow {
 
     @Override
-    public void callActivity() {
-      TestActivity activity =
+    public void execute() {
+      NoArgsActivity activity =
           Workflow.newActivityStub(
-              TestActivity.class,
+              NoArgsActivity.class,
               ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(1))
                   .build());
-      activity.foo();
-    }
-  }
-
-  public static final String TASK_QUEUE = "test-workflow";
-
-  @Test
-  public void verifyThatWorkerIsNotGettingStarted() throws InterruptedException {
-    String activityPollerThreadNamePrefix = "Activity Poller task";
-    String workflowPollerThreadNamePrefix = "Workflow Poller task";
-    String workflowHostLocalPollerThreadNamePrefix = "Host Local Workflow ";
-    int hostLocalThreadCount = 22;
-    int workflowPollCount = 11;
-    int activityPollCount = 18;
-
-    TestEnvironmentOptions options =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkerFactoryOptions(
-                WorkerFactoryOptions.newBuilder()
-                    .setWorkflowHostLocalPollThreadCount(hostLocalThreadCount)
-                    .build())
-            .build();
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(options);
-    Worker worker =
-        env.newWorker(
-            TASK_QUEUE,
-            WorkerOptions.newBuilder()
-                .setWorkflowPollThreadCount(workflowPollCount)
-                .setActivityPollThreadCount(activityPollCount)
-                .setLocalActivityWorkerOnly(true)
-                .build());
-    // Need to register something for workers to start
-    worker.registerActivitiesImplementations(new TestActivityImpl());
-    worker.registerWorkflowImplementationTypes(
-        LocalActivityWorkflowImpl.class, ActivityWorkflowImpl.class);
-    env.start();
-    Thread.sleep(1000);
-    Map<String, Long> threads =
-        Thread.getAllStackTraces().keySet().stream()
-            .map((t) -> t.getName().substring(0, Math.min(20, t.getName().length())))
-            .collect(groupingBy(Function.identity(), Collectors.counting()));
-    assertEquals(hostLocalThreadCount, (long) threads.get(workflowHostLocalPollerThreadNamePrefix));
-    assertEquals(workflowPollCount, (long) threads.get(workflowPollerThreadNamePrefix));
-    assertFalse(threads.containsKey(activityPollerThreadNamePrefix));
-    assertNull(worker.activityWorker);
-  }
-
-  @Test
-  public void verifyThatLocalActivitiesAreExecuted() {
-    TestEnvironmentOptions options =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkerFactoryOptions(WorkerFactoryOptions.newBuilder().build())
-            .build();
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(options);
-    Worker worker =
-        env.newWorker(
-            TASK_QUEUE, WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build());
-    // Need to register something for workers to start
-    worker.registerActivitiesImplementations(new TestActivityImpl());
-    worker.registerWorkflowImplementationTypes(
-        LocalActivityWorkflowImpl.class, ActivityWorkflowImpl.class);
-    env.start();
-    WorkflowClient client = env.getWorkflowClient();
-    LocalActivityWorkflow localActivityWorkflow =
-        client.newWorkflowStub(
-            LocalActivityWorkflow.class,
-            WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
-    localActivityWorkflow.callLocalActivity();
-  }
-
-  @Test
-  public void verifyThatNormalActivitiesAreTimedOut() {
-    TestEnvironmentOptions options =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkerFactoryOptions(WorkerFactoryOptions.newBuilder().build())
-            .build();
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(options);
-    Worker worker =
-        env.newWorker(
-            TASK_QUEUE, WorkerOptions.newBuilder().setLocalActivityWorkerOnly(true).build());
-    // Need to register something for workers to start
-    worker.registerActivitiesImplementations(new TestActivityImpl());
-    worker.registerWorkflowImplementationTypes(
-        LocalActivityWorkflowImpl.class, ActivityWorkflowImpl.class);
-    env.start();
-    WorkflowClient client = env.getWorkflowClient();
-    ActivityWorkflow activityWorkflow =
-        client.newWorkflowStub(
-            ActivityWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
-    try {
-      activityWorkflow.callActivity();
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause().getCause() instanceof TimeoutFailure);
+      activity.execute();
     }
   }
 }
