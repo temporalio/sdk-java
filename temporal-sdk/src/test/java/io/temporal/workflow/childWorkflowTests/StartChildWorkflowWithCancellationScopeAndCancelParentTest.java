@@ -32,7 +32,8 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowCancellationType;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Ignore;
@@ -62,12 +63,12 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
   }
 
   public static class ParentThatStartsChildInCancellationScope
-      implements TestWorkflows.TestWorkflow {
+      implements TestWorkflowCancellationType {
     @Override
     public void execute(ChildWorkflowCancellationType cancellationType) {
-      TestWorkflows.TestChildWorkflow child =
+      NoArgsWorkflow child =
           Workflow.newChildWorkflowStub(
-              TestWorkflows.TestChildWorkflow.class,
+              NoArgsWorkflow.class,
               ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
       List<Promise<Void>> children = new ArrayList<>();
       // This is a non blocking call that returns immediately.
@@ -83,7 +84,7 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
     }
   }
 
-  public static class SleepyChild implements TestWorkflows.TestChildWorkflow {
+  public static class SleepyChild implements NoArgsWorkflow {
     @Override
     public void execute() {
       Workflow.await(() -> false);

@@ -22,9 +22,9 @@ package io.temporal.activity;
 /** Defines Activity cancellation behavior. */
 public enum ActivityCancellationType {
   /**
-   * Wait for the Activity to confirm any requested cancellation. Note that an Activity must Heartbeat to
-   * receive a cancellation notification. This can block the cancellation for a long time if the
-   * Activity doesn't Heartbeat or chooses to ignore the cancellation request.
+   * Wait for the Activity to confirm any requested cancellation. Note that an Activity must
+   * Heartbeat to receive a cancellation notification. This can block the cancellation for a long
+   * time if the Activity doesn't Heartbeat or chooses to ignore the cancellation request.
    */
   WAIT_CANCELLATION_COMPLETED,
 

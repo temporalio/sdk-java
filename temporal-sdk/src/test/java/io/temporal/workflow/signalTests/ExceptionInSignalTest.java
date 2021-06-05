@@ -26,8 +26,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.time.Duration;
@@ -42,16 +42,16 @@ public class ExceptionInSignalTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalExceptionWorkflowImpl.class)
-          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
+          .setActivityImplementations(new TestActivitiesImpl())
           .setTestTimeoutSeconds(20)
           .build();
 
   @Test
   public void testExceptionInSignal() throws InterruptedException {
-    TestWorkflows.TestWorkflowSignaled signalWorkflow =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflowSignaled.class);
+    TestSignaledWorkflow signalWorkflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestSignaledWorkflow.class);
     CompletableFuture<String> result = WorkflowClient.execute(signalWorkflow::execute);
-    signalWorkflow.signal1("test");
+    signalWorkflow.signal("test");
     try {
       result.get(1, TimeUnit.SECONDS);
       fail("not reachable");
@@ -78,8 +78,7 @@ public class ExceptionInSignalTest {
         "workflow threads might leak, #workflowThreads = " + workflowThreads, workflowThreads < 20);
   }
 
-  public static class TestSignalExceptionWorkflowImpl
-      implements TestWorkflows.TestWorkflowSignaled {
+  public static class TestSignalExceptionWorkflowImpl implements TestSignaledWorkflow {
     private final boolean signaled = false;
 
     @Override
@@ -89,7 +88,7 @@ public class ExceptionInSignalTest {
     }
 
     @Override
-    public void signal1(String arg) {
+    public void signal(String arg) {
       for (int i = 0; i < 10; i++) {
         Async.procedure(() -> Workflow.sleep(Duration.ofHours(1)));
       }

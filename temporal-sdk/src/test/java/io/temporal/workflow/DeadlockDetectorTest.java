@@ -28,7 +28,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowLongArg;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,9 +58,9 @@ public class DeadlockDetectorTest {
   @Test
   public void testDefaultDeadlockDetector() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
-    TestWorkflow4 workflow =
+    TestWorkflowLongArg workflow =
         workflowClient.newWorkflowStub(
-            TestWorkflow4.class,
+                TestWorkflowLongArg.class,
             WorkflowOptions.newBuilder()
                 .setWorkflowRunTimeout(Duration.ofSeconds(1000))
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
@@ -86,9 +86,9 @@ public class DeadlockDetectorTest {
   @Test
   public void testSetDeadlockDetector() {
     WorkflowClient workflowClient = testWorkflowRule2.getWorkflowClient();
-    TestWorkflow4 workflow =
+    TestWorkflowLongArg workflow =
         workflowClient.newWorkflowStub(
-            TestWorkflow4.class,
+                TestWorkflowLongArg.class,
             WorkflowOptions.newBuilder()
                 .setWorkflowRunTimeout(Duration.ofSeconds(1000))
                 .setTaskQueue(testWorkflowRule2.getTaskQueue())
@@ -111,7 +111,7 @@ public class DeadlockDetectorTest {
     }
   }
 
-  public static class TestDeadlockWorkflow implements TestWorkflow4 {
+  public static class TestDeadlockWorkflow implements TestWorkflowLongArg {
 
     @Override
     public void execute(long millis) {

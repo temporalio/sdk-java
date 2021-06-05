@@ -21,12 +21,24 @@ package io.temporal.workflow;
 
 import static junit.framework.TestCase.assertTrue;
 
-import io.temporal.activity.ActivityInterface;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
+import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
 import org.junit.Test;
 
 public class TestEnvironmentCloseTest {
+
+  @Test
+  public void testCloseNotHanging() throws InterruptedException {
+    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance();
+    Worker worker = env.newWorker("WW");
+    worker.registerWorkflowImplementationTypes(WW.class);
+    worker.registerActivitiesImplementations(new AA());
+    long start = System.currentTimeMillis();
+    env.close();
+    long elapsed = System.currentTimeMillis() - start;
+    assertTrue(elapsed < 5000);
+  }
 
   @WorkflowInterface
   public interface W {
@@ -46,26 +58,9 @@ public class TestEnvironmentCloseTest {
     public void signal() {}
   }
 
-  @ActivityInterface
-  public interface A {
-    void bar();
-  }
-
-  public static class AA implements A {
+  public static class AA implements NoArgsActivity {
 
     @Override
-    public void bar() {}
-  }
-
-  @Test
-  public void testCloseNotHanging() throws InterruptedException {
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance();
-    Worker worker = env.newWorker("WW");
-    worker.registerWorkflowImplementationTypes(WW.class);
-    worker.registerActivitiesImplementations(new AA());
-    long start = System.currentTimeMillis();
-    env.close();
-    long elapsed = System.currentTimeMillis() - start;
-    assertTrue(elapsed < 5000);
+    public void execute() {}
   }
 }

@@ -29,7 +29,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -39,8 +40,7 @@ import org.junit.Test;
 
 public class AbandonOnCancelActivityTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -80,9 +80,9 @@ public class AbandonOnCancelActivityTest {
   public static class TestAbandonOnCancelActivity implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
-      TestActivities testActivities =
+      VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class,
+              VariousTestActivities.class,
               ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(10))
                   .setCancellationType(ActivityCancellationType.ABANDON)

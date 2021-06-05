@@ -27,8 +27,9 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -37,8 +38,7 @@ import org.junit.Test;
 
 public class UntypedActivityRetryTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -63,7 +63,7 @@ public class UntypedActivityRetryTest {
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
 
-  public static class TestUntypedActivityRetry implements TestWorkflows.TestWorkflow1 {
+  public static class TestUntypedActivityRetry implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

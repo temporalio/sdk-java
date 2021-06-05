@@ -30,8 +30,9 @@ import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowCancellationType;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -43,12 +44,13 @@ public class ChildWorkflowCancellationTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class)
-          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
+          .setActivityImplementations(new TestActivitiesImpl())
           .build();
 
   @Test
   public void testChildWorkflowWaitCancellationRequested() {
-    WorkflowStub client = testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow");
+    WorkflowStub client =
+        testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflowCancellationType");
     WorkflowExecution execution =
         client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
     testWorkflowRule.waitForOKQuery(client);
@@ -67,7 +69,8 @@ public class ChildWorkflowCancellationTest {
 
   @Test
   public void testChildWorkflowWaitCancellationCompleted() {
-    WorkflowStub client = testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow");
+    WorkflowStub client =
+        testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflowCancellationType");
     WorkflowExecution execution =
         client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
     testWorkflowRule.waitForOKQuery(client);
@@ -84,7 +87,8 @@ public class ChildWorkflowCancellationTest {
 
   @Test
   public void testChildWorkflowCancellationAbandon() {
-    WorkflowStub client = testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow");
+    WorkflowStub client =
+        testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflowCancellationType");
     WorkflowExecution execution = client.start(ChildWorkflowCancellationType.ABANDON);
     testWorkflowRule.waitForOKQuery(client);
     client.cancel();
@@ -100,7 +104,8 @@ public class ChildWorkflowCancellationTest {
 
   @Test
   public void testChildWorkflowCancellationTryCancel() {
-    WorkflowStub client = testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow");
+    WorkflowStub client =
+        testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflowCancellationType");
     WorkflowExecution execution = client.start(ChildWorkflowCancellationType.TRY_CANCEL);
     testWorkflowRule.waitForOKQuery(client);
     client.cancel();
@@ -116,19 +121,19 @@ public class ChildWorkflowCancellationTest {
         execution, EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
   }
 
-  public static class TestParentWorkflowImpl implements TestWorkflows.TestWorkflow {
+  public static class TestParentWorkflowImpl implements TestWorkflowCancellationType {
 
     @Override
     public void execute(ChildWorkflowCancellationType cancellationType) {
-      TestWorkflows.TestChildWorkflow child =
+      NoArgsWorkflow child =
           Workflow.newChildWorkflowStub(
-              TestWorkflows.TestChildWorkflow.class,
+              NoArgsWorkflow.class,
               ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
       child.execute();
     }
   }
 
-  public static class TestChildWorkflowImpl implements TestWorkflows.TestChildWorkflow {
+  public static class TestChildWorkflowImpl implements NoArgsWorkflow {
     @Override
     public void execute() {
       try {

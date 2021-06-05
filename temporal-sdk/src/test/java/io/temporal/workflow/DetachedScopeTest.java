@@ -26,7 +26,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -36,8 +37,7 @@ import org.junit.Test;
 
 public class DetachedScopeTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -50,7 +50,7 @@ public class DetachedScopeTest {
   public void testDetachedScope() {
     WorkflowStub client = testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow1");
     client.start(testWorkflowRule.getTaskQueue());
-    testWorkflowRule.sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
+    testWorkflowRule.sleep(Duration.ofSeconds(1)); // To let activityWithDelay start.
     client.cancel();
     try {
       client.getResult(String.class);
@@ -65,9 +65,9 @@ public class DetachedScopeTest {
 
     @Override
     public String execute(String taskQueue) {
-      TestActivities testActivities =
+      VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       try {
         testActivities.activityWithDelay(100000, true);
         fail("unreachable");

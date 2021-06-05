@@ -25,7 +25,8 @@ import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -38,8 +39,7 @@ import org.junit.Test;
 
 public class ParallelLocalActivitiesTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -85,9 +85,9 @@ public class ParallelLocalActivitiesTest {
 
     @Override
     public String execute(String taskQueue) {
-      TestActivities localActivities =
+      VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions());
+              VariousTestActivities.class, TestOptions.newLocalActivityOptions());
       List<Promise<String>> laResults = new ArrayList<>();
       Random r = Workflow.newRandom();
       for (int i = 0; i < COUNT; i++) {

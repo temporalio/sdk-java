@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -42,8 +41,8 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.TestActivities.TestActivity2;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -65,8 +64,13 @@ public class CleanWorkerShutdownTest {
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-
+  private static WorkflowServiceStubs service;
   @Parameterized.Parameter public boolean useExternalService;
+
+  @Parameterized.Parameter(1)
+  public String testType;
+
+  @Rule public TestName testName = new TestName();
 
   @Parameterized.Parameters(name = "{1}")
   public static Object[] data() {
@@ -76,13 +80,6 @@ public class CleanWorkerShutdownTest {
       return new Object[][] {{true, "Docker"}};
     }
   }
-
-  @Parameterized.Parameter(1)
-  public String testType;
-
-  @Rule public TestName testName = new TestName();
-
-  private static WorkflowServiceStubs service;
 
   @Before
   public void setUp() {
@@ -99,55 +96,10 @@ public class CleanWorkerShutdownTest {
     service.awaitTermination(1, TimeUnit.SECONDS);
   }
 
-  @WorkflowInterface
-  public interface TestWorkflow {
-    @WorkflowMethod
-    String execute();
-  }
-
-  public static class TestWorkflowImpl implements TestWorkflow {
-
-    private final Activities activities =
-        Workflow.newActivityStub(
-            Activities.class,
-            ActivityOptions.newBuilder()
-                .setScheduleToCloseTimeout(Duration.ofSeconds(100))
-                .build());
-
-    @Override
-    public String execute() {
-      return activities.execute();
-    }
-  }
-
-  @ActivityInterface
-  public interface Activities {
-    String execute();
-  }
-
-  public static class ActivitiesImpl implements Activities {
-    private final CompletableFuture<Boolean> started;
-
-    public ActivitiesImpl(CompletableFuture<Boolean> started) {
-      this.started = started;
-    }
-
-    @Override
-    public String execute() {
-      try {
-        started.complete(true);
-        Thread.sleep(1500);
-      } catch (InterruptedException e) {
-        return "interrupted";
-      }
-      return "completed";
-    }
-  }
-
   @Test
   public void testShutdown() throws ExecutionException, InterruptedException {
     String taskQueue =
-        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
+        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID();
     WorkflowClient workflowClient;
     WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
@@ -173,7 +125,8 @@ public class CleanWorkerShutdownTest {
       testEnvironment.start();
     }
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-    TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
+    TestWorkflowReturnString workflow =
+        workflowClient.newWorkflowStub(TestWorkflowReturnString.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();
     if (useExternalService) {
@@ -208,7 +161,7 @@ public class CleanWorkerShutdownTest {
   @Test
   public void testShutdownNow() throws ExecutionException, InterruptedException {
     String taskQueue =
-        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
+        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID();
     WorkflowClient workflowClient;
     WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
@@ -234,7 +187,8 @@ public class CleanWorkerShutdownTest {
       testEnvironment.start();
     }
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-    TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
+    TestWorkflowReturnString workflow =
+        workflowClient.newWorkflowStub(TestWorkflowReturnString.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();
     if (useExternalService) {
@@ -270,28 +224,6 @@ public class CleanWorkerShutdownTest {
     }
   }
 
-  public static class HeartbeatingActivitiesImpl implements Activities {
-    private final CompletableFuture<Boolean> started;
-
-    public HeartbeatingActivitiesImpl(CompletableFuture<Boolean> started) {
-      this.started = started;
-    }
-
-    @Override
-    public String execute() {
-      try {
-        started.complete(true);
-        Thread.sleep(1500);
-        Activity.getExecutionContext().heartbeat("foo");
-      } catch (ActivityWorkerShutdownException e) {
-        return "workershutdown";
-      } catch (InterruptedException e) {
-        return "interrupted";
-      }
-      return "completed";
-    }
-  }
-
   /**
    * Tests that Activity#heartbeat throws ActivityWorkerShutdownException after {@link
    * WorkerFactory#shutdown()} is closed.
@@ -299,7 +231,7 @@ public class CleanWorkerShutdownTest {
   @Test
   public void testShutdownHeartbeatingActivity() throws ExecutionException, InterruptedException {
     String taskQueue =
-        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
+        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID();
     WorkflowClient workflowClient;
     WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
@@ -325,7 +257,8 @@ public class CleanWorkerShutdownTest {
       testEnvironment.start();
     }
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-    TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
+    TestWorkflowReturnString workflow =
+        workflowClient.newWorkflowStub(TestWorkflowReturnString.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();
     if (useExternalService) {
@@ -358,6 +291,62 @@ public class CleanWorkerShutdownTest {
     if (useExternalService) {
       service.shutdownNow();
       service.awaitTermination(10, TimeUnit.MINUTES);
+    }
+  }
+
+  public static class TestWorkflowImpl implements TestWorkflowReturnString {
+
+    private final TestActivity2 activities =
+        Workflow.newActivityStub(
+            TestActivity2.class,
+            ActivityOptions.newBuilder()
+                .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+                .build());
+
+    @Override
+    public String execute() {
+      return activities.execute();
+    }
+  }
+
+  public static class ActivitiesImpl implements TestActivity2 {
+    private final CompletableFuture<Boolean> started;
+
+    public ActivitiesImpl(CompletableFuture<Boolean> started) {
+      this.started = started;
+    }
+
+    @Override
+    public String execute() {
+      try {
+        started.complete(true);
+        Thread.sleep(1500);
+      } catch (InterruptedException e) {
+        return "interrupted";
+      }
+      return "completed";
+    }
+  }
+
+  public static class HeartbeatingActivitiesImpl implements TestActivity2 {
+    private final CompletableFuture<Boolean> started;
+
+    public HeartbeatingActivitiesImpl(CompletableFuture<Boolean> started) {
+      this.started = started;
+    }
+
+    @Override
+    public String execute() {
+      try {
+        started.complete(true);
+        Thread.sleep(1500);
+        Activity.getExecutionContext().heartbeat("foo");
+      } catch (ActivityWorkerShutdownException e) {
+        return "workershutdown";
+      } catch (InterruptedException e) {
+        return "interrupted";
+      }
+      return "completed";
     }
   }
 }
