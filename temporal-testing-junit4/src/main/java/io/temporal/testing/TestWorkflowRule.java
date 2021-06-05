@@ -347,7 +347,11 @@ public class TestWorkflowRule implements TestRule {
     return this.blockingStub().getWorkflowExecutionHistory(request).getHistory();
   }
 
-  /** Returns the worker */
+  /**
+   * Returns the default worker created for each test method.
+   * This worker listens to the default task queue which is obtainable
+   * via the {@link #getTaskQueue()} method
+   */
   public Worker getWorker() {
     return testEnvironment.getWorkerFactory().getWorker(getTaskQueue());
   }
