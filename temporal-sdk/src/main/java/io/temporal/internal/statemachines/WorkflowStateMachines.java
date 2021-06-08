@@ -412,6 +412,7 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
         callbacks.cancel(event);
         break;
+      case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
       case UNRECOGNIZED:
         break;
       default:
