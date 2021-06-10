@@ -48,7 +48,7 @@ public class DeadlockDetectorTest {
           .build();
 
   @Rule
-  public SDKTestWorkflowRule testWorkflowRule2 =
+  public SDKTestWorkflowRule testWorkflowRuleWithDDDTimeout =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(workflowImplementationOptions, TestDeadlockWorkflow.class)
           .setWorkerOptions(
@@ -85,13 +85,13 @@ public class DeadlockDetectorTest {
 
   @Test
   public void testSetDeadlockDetector() {
-    WorkflowClient workflowClient = testWorkflowRule2.getWorkflowClient();
+    WorkflowClient workflowClient = testWorkflowRuleWithDDDTimeout.getWorkflowClient();
     TestWorkflowLongArg workflow =
         workflowClient.newWorkflowStub(
             TestWorkflowLongArg.class,
             WorkflowOptions.newBuilder()
                 .setWorkflowRunTimeout(Duration.ofSeconds(1000))
-                .setTaskQueue(testWorkflowRule2.getTaskQueue())
+                .setTaskQueue(testWorkflowRuleWithDDDTimeout.getTaskQueue())
                 .build());
     try {
       workflow.execute(750);

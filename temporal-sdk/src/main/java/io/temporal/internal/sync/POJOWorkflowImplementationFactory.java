@@ -88,12 +88,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final WorkflowExecutorCache cache;
 
   POJOWorkflowImplementationFactory(
-      DataConverter dataConverter,
+      SingleWorkerOptions singleWorkerOptions,
       ExecutorService threadPool,
       WorkerInterceptor[] workerInterceptors,
-      WorkflowExecutorCache cache,
-      SingleWorkerOptions singleWorkerOptions) {
-    this.dataConverter = Objects.requireNonNull(dataConverter);
+      WorkflowExecutorCache cache) {
+    Objects.requireNonNull(singleWorkerOptions);
+    this.dataConverter = singleWorkerOptions.getDataConverter();
     this.threadPool = Objects.requireNonNull(threadPool);
     this.workerInterceptors = Objects.requireNonNull(workerInterceptors);
     this.cache = cache;
