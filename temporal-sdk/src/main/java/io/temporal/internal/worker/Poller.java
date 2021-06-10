@@ -40,11 +40,11 @@ public final class Poller<T> implements SuspendableWorker {
 
   public interface PollTask<TT> {
     /**
-     * Pollers should shade all {@code java.lang.InterruptedException}s and raise {@code
-     * Thread.interrupted()} flag if the exceptions happen. This follows GRPC stubs approach, see
-     * {@code io.grpc.stub.ClientCalls#blockingUnaryCall}. Because pollers use GRPC subs anyway,
-     * this implementation was chosen for consistency. The caller of the poll task is responsible
-     * for handling the flag
+     * Pollers should shade or wrap all {@code java.lang.InterruptedException}s and raise {@code
+     * Thread.interrupted()} flag. This follows GRPC stubs approach, see {@code
+     * io.grpc.stub.ClientCalls#blockingUnaryCall}. Because pollers use GRPC subs anyway, we chose
+     * this implementation for consistency. The caller of the poll task is responsible for handling
+     * the flag.
      *
      * @return result of the task
      */
@@ -70,18 +70,21 @@ public final class Poller<T> implements SuspendableWorker {
 
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> {
-        if (e instanceof StatusRuntimeException) {
-          StatusRuntimeException te = (StatusRuntimeException) e;
-          if (te.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED) {
-            log.warn("Failure in thread " + t.getName(), e);
-            return;
+        if (!pollExecutor.isTerminating() || !shouldIgnoreDuringTermination(e)) {
+          if (e instanceof StatusRuntimeException) {
+            StatusRuntimeException te = (StatusRuntimeException) e;
+            if (te.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED) {
+              log.warn("Failure in thread {}", t.getName(), e);
+              return;
+            }
           }
-          if (te.getCause() instanceof InterruptedException) {
-            log.debug("Failure in thread " + t.getName(), e);
-            return;
-          }
+          log.error("Failure in thread {}", t.getName(), e);
+        } else {
+          log.trace(
+              "Failure in thread {} is suppressed, considered normal during shutdown",
+              t.getName(),
+              e);
         }
-        log.error("Failure in thread " + t.getName(), e);
       };
 
   public Poller(
@@ -245,15 +248,13 @@ public final class Poller<T> implements SuspendableWorker {
 
         task.run();
         pollBackoffThrottler.success();
-      } catch (InterruptedException e) {
-        // we restore the flag here, so it can be checked and processed (with exit) in finally
-        Thread.currentThread().interrupt();
       } catch (Throwable e) {
-        pollBackoffThrottler.failure();
-        // if we are terminating and getting rejected execution - it's normal
-        if (!pollExecutor.isTerminating() || !(e instanceof RejectedExecutionException)) {
-          uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
+        if (e instanceof InterruptedException) {
+          // we restore the flag here, so it can be checked and processed (with exit) in finally.
+          Thread.currentThread().interrupt();
         }
+        pollBackoffThrottler.failure();
+        uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
       } finally {
         if (!shouldTerminate()) {
           // Resubmit itself back to pollExecutor
@@ -315,5 +316,16 @@ public final class Poller<T> implements SuspendableWorker {
       // Preserve interrupt status
       Thread.currentThread().interrupt();
     }
+  }
+
+  private static boolean shouldIgnoreDuringTermination(Throwable ex) {
+    return
+    // if we are terminating and getting rejected execution - it's normal
+    ex instanceof RejectedExecutionException
+        // if the worker thread gets InterruptedException - it's normal during shutdown
+        || ex instanceof InterruptedException
+        // if we get wrapped InterruptedException like what PollTask or GRPC clients do with setting
+        // Thread.interrupted() on - it's normal during shutdown too. See PollTask javadoc.
+        || ex.getCause() instanceof InterruptedException;
   }
 }
