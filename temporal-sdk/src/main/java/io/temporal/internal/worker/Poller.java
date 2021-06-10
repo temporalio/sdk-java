@@ -69,23 +69,7 @@ public final class Poller<T> implements SuspendableWorker {
   private Throttler pollRateThrottler;
 
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
-      (t, e) -> {
-        if (!pollExecutor.isTerminating() || !shouldIgnoreDuringTermination(e)) {
-          if (e instanceof StatusRuntimeException) {
-            StatusRuntimeException te = (StatusRuntimeException) e;
-            if (te.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED) {
-              log.warn("Failure in thread {}", t.getName(), e);
-              return;
-            }
-          }
-          log.error("Failure in thread {}", t.getName(), e);
-        } else {
-          log.trace(
-              "Failure in thread {} is suppressed, considered normal during shutdown",
-              t.getName(),
-              e);
-        }
-      };
+      new PollerUncaughtExceptionHandler();
 
   public Poller(
       String identity,
@@ -318,14 +302,50 @@ public final class Poller<T> implements SuspendableWorker {
     }
   }
 
-  private static boolean shouldIgnoreDuringTermination(Throwable ex) {
-    return
-    // if we are terminating and getting rejected execution - it's normal
-    ex instanceof RejectedExecutionException
-        // if the worker thread gets InterruptedException - it's normal during shutdown
-        || ex instanceof InterruptedException
-        // if we get wrapped InterruptedException like what PollTask or GRPC clients do with setting
-        // Thread.interrupted() on - it's normal during shutdown too. See PollTask javadoc.
-        || ex.getCause() instanceof InterruptedException;
+  private final class PollerUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
+
+    @Override
+    public void uncaughtException(Thread t, Throwable e) {
+      if (!pollExecutor.isTerminating() || !shouldIgnoreDuringShutdown(e)) {
+        logPollErrors(t, e);
+      } else {
+        logPollExceptionsSuppressedDuringShutdown(t, e);
+      }
+    }
+
+    private void logPollErrors(Thread t, Throwable e) {
+      if (e instanceof StatusRuntimeException) {
+        StatusRuntimeException te = (StatusRuntimeException) e;
+        if (te.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED) {
+          log.warn("Failure in thread {}", t.getName(), e);
+          return;
+        }
+      }
+      log.error("Failure in thread {}", t.getName(), e);
+    }
+
+    /**
+     * Some exceptions are considered normal during shutdown {@link #shouldIgnoreDuringShutdown} and
+     * we log them in the most quite manner.
+     *
+     * @param t thread where the exception happened
+     * @param e the exception itself
+     */
+    private void logPollExceptionsSuppressedDuringShutdown(Thread t, Throwable e) {
+      log.trace(
+          "Failure in thread {} is suppressed, considered normal during shutdown", t.getName(), e);
+    }
+
+    private boolean shouldIgnoreDuringShutdown(Throwable ex) {
+      return
+      // if we are terminating and getting rejected execution - it's normal
+      ex instanceof RejectedExecutionException
+          // if the worker thread gets InterruptedException - it's normal during shutdown
+          || ex instanceof InterruptedException
+          // if we get wrapped InterruptedException like what PollTask or GRPC clients do with
+          // setting
+          // Thread.interrupted() on - it's normal during shutdown too. See PollTask javadoc.
+          || ex.getCause() instanceof InterruptedException;
+    }
   }
 }
