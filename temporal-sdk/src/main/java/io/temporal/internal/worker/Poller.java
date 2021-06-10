@@ -76,6 +76,10 @@ public final class Poller<T> implements SuspendableWorker {
             log.warn("Failure in thread " + t.getName(), e);
             return;
           }
+          if (te.getCause() instanceof InterruptedException) {
+            log.debug("Failure in thread " + t.getName(), e);
+            return;
+          }
         }
         log.error("Failure in thread " + t.getName(), e);
       };
