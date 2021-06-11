@@ -312,7 +312,8 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   /**
    * @return true if coroutine made some progress.
-   * @param deadlockDetectionTimeout maximum time the thread can run before calling yield.
+   * @param deadlockDetectionTimeout maximum time in milliseconds the thread can run before calling
+   *     yield.
    */
   @Override
   public boolean runUntilBlocked(long deadlockDetectionTimeout) {

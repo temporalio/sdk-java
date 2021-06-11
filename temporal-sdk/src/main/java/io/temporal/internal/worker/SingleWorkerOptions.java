@@ -46,6 +46,7 @@ public final class SingleWorkerOptions {
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
     private List<ContextPropagator> contextPropagators;
+    private long defaultDeadlockDetectionTimeout;
 
     private Builder() {}
 
@@ -61,6 +62,7 @@ public final class SingleWorkerOptions {
       this.metricsScope = options.getMetricsScope();
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
       this.contextPropagators = options.getContextPropagators();
+      this.defaultDeadlockDetectionTimeout = options.getDefaultDeadlockDetectionTimeout();
     }
 
     public Builder setIdentity(String identity) {
@@ -104,6 +106,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setDefaultDeadlockDetectionTimeout(long defaultDeadlockDetectionTimeout) {
+      this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       if (pollerOptions == null) {
         pollerOptions =
@@ -130,7 +137,8 @@ public final class SingleWorkerOptions {
           pollerOptions,
           metricsScope,
           enableLoggingInReplay,
-          contextPropagators);
+          contextPropagators,
+          defaultDeadlockDetectionTimeout);
     }
   }
 
@@ -142,6 +150,7 @@ public final class SingleWorkerOptions {
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
   private final List<ContextPropagator> contextPropagators;
+  private final long defaultDeadlockDetectionTimeout;
 
   private SingleWorkerOptions(
       String identity,
@@ -151,7 +160,8 @@ public final class SingleWorkerOptions {
       PollerOptions pollerOptions,
       Scope metricsScope,
       boolean enableLoggingInReplay,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      long defaultDeadlockDetectionTimeout) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.dataConverter = dataConverter;
@@ -160,6 +170,7 @@ public final class SingleWorkerOptions {
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.contextPropagators = contextPropagators;
+    this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
   }
 
   public String getIdentity() {
@@ -192,5 +203,9 @@ public final class SingleWorkerOptions {
 
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
+  }
+
+  public long getDefaultDeadlockDetectionTimeout() {
+    return defaultDeadlockDetectionTimeout;
   }
 }
