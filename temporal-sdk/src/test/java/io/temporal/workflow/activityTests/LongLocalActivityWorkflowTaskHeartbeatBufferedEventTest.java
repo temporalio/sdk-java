@@ -29,7 +29,8 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import org.junit.Assert;
@@ -38,8 +39,7 @@ import org.junit.Test;
 
 public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -88,9 +88,9 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
 
     @Override
     public String execute(String taskQueue) {
-      TestActivities localActivities =
+      VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions());
+              VariousTestActivities.class, TestOptions.newLocalActivityOptions());
       Async.function(localActivities::sleepActivity, 10 * 1000L, 123);
       signaled.get();
       return "foo";

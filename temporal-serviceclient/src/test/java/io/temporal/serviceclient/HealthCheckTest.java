@@ -22,31 +22,36 @@ package io.temporal.serviceclient;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * This test needs to be performed with env variable USE_DOCKER_SERVICE=true. It should fail if
+ * docker is not up or returns health status other than SERVING.
+ */
 public class HealthCheckTest {
 
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String HEALTH_CHECK_SERVICE_NAME =
+      "temporal.api.workflowservice.v1.WorkflowService";
 
-  /**
-   * This test needs to be performed with env variable USE_DOCKER_SERVICE=true. It should fail if
-   * docker is not up or returns health status other than SERVING.
-   */
   @Test
   public void testHealthCheck() {
     if (useDockerService) {
-      WorkflowServiceStubs.newInstance(
-          WorkflowServiceStubsOptions.newBuilder().setDisableHealthCheck(false).build());
+      try {
+        WorkflowServiceStubsImpl service =
+            (WorkflowServiceStubsImpl) WorkflowServiceStubs.newInstance();
+        service.checkHealth(HEALTH_CHECK_SERVICE_NAME);
+      } catch (Exception e) {
+        Assert.fail("Health check failed");
+      }
     }
   }
 
   @Test
-  public void testFaiLedHealthCheck() {
+  public void testUnhealthyStatus() {
     if (useDockerService) {
-      WorkflowServiceStubsImpl service =
-          (WorkflowServiceStubsImpl)
-              WorkflowServiceStubs.newInstance(
-                  WorkflowServiceStubsOptions.newBuilder().setDisableHealthCheck(false).build());
       try {
+        WorkflowServiceStubsImpl service =
+            (WorkflowServiceStubsImpl) WorkflowServiceStubs.newInstance();
         service.checkHealth("IncorrectServiceName");
         Assert.fail("Health check for IncorrectServiceName should fail");
       } catch (RuntimeException e) {

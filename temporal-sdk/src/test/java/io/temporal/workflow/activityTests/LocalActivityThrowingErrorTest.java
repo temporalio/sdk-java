@@ -22,7 +22,7 @@ package io.temporal.workflow.activityTests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
@@ -38,17 +38,17 @@ import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class ActivityThrowingErrorTest {
+public class LocalActivityThrowingErrorTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(ActivityThrowsErrorWorkflow.class)
-          .setActivityImplementations(new Activity1Impl())
+          .setWorkflowTypes(LocalActivityThrowsErrorWorkflow.class)
+          .setActivityImplementations(new ActivityThrowingErrorTest.Activity1Impl())
           .build();
 
   @Test
-  public void activityThrowsError() {
+  public void localActivityThrowsError() {
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
@@ -70,12 +70,12 @@ public class ActivityThrowingErrorTest {
     }
   }
 
-  public static class ActivityThrowsErrorWorkflow implements TestWorkflow1 {
+  public static class LocalActivityThrowsErrorWorkflow implements TestWorkflow1 {
 
     private final TestActivity1 activity1 =
-        Workflow.newActivityStub(
+        Workflow.newLocalActivityStub(
             TestActivity1.class,
-            ActivityOptions.newBuilder()
+            LocalActivityOptions.newBuilder()
                 .setRetryOptions(
                     RetryOptions.newBuilder()
                         .setMaximumAttempts(3)
@@ -88,13 +88,6 @@ public class ActivityThrowingErrorTest {
     @Override
     public String execute(String input) {
       return activity1.execute(input);
-    }
-  }
-
-  public static class Activity1Impl implements TestActivity1 {
-    @Override
-    public String execute(String input) {
-      return Workflow.randomUUID().toString();
     }
   }
 }

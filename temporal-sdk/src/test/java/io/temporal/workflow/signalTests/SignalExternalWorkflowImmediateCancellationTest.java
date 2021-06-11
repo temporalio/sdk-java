@@ -28,7 +28,8 @@ import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -50,10 +51,8 @@ public class SignalExternalWorkflowImmediateCancellationTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    TestWorkflow1 client =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
     try {
       client.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -62,20 +61,18 @@ public class SignalExternalWorkflowImmediateCancellationTest {
     }
   }
 
-  public static class TestSignalExternalWorkflowImmediateCancellation
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestSignalExternalWorkflowImmediateCancellation implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
       WorkflowExecution parentExecution =
           WorkflowExecution.newBuilder().setWorkflowId("invalid id").build();
-      TestWorkflows.TestWorkflowSignaled workflow =
-          Workflow.newExternalWorkflowStub(
-              TestWorkflows.TestWorkflowSignaled.class, parentExecution);
+      TestSignaledWorkflow workflow =
+          Workflow.newExternalWorkflowStub(TestSignaledWorkflow.class, parentExecution);
       CompletablePromise<Void> signal = Workflow.newPromise();
       CancellationScope scope =
           Workflow.newCancellationScope(
-              () -> signal.completeFrom(Async.procedure(workflow::signal1, "World")));
+              () -> signal.completeFrom(Async.procedure(workflow::signal, "World")));
       scope.run();
       scope.cancel();
       try {

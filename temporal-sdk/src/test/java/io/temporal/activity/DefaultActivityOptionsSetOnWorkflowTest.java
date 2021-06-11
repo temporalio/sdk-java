@@ -25,7 +25,7 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnMap;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -68,8 +68,8 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
 
   @Test
   public void testSetWorkflowImplementationOptions() {
-    TestWorkflow3 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow3.class);
+    TestWorkflowReturnMap workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowReturnMap.class);
     Map<String, Map<String, Duration>> result = workflowStub.execute();
 
     // Check that activity1 has default workerOptions options that were partially overwritten with
@@ -95,7 +95,7 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
         workflowOps.getStartToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
   }
 
-  public static class TestSetDefaultActivityOptionsWorkflowImpl implements TestWorkflow3 {
+  public static class TestSetDefaultActivityOptionsWorkflowImpl implements TestWorkflowReturnMap {
     @Override
     public Map<String, Map<String, Duration>> execute() {
       Workflow.setDefaultActivityOptions(workflowOps);

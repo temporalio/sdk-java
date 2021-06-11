@@ -23,9 +23,9 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.shared.DeterminismFailingWorkflowImpl;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.DeterminismFailingWorkflowImpl;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.time.Duration;
@@ -53,10 +53,8 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.DeterminismFailingWorkflow workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.DeterminismFailingWorkflow.class, options);
+    TestWorkflowStringArg workflowStub =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflowStringArg.class, options);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");

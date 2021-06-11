@@ -25,57 +25,48 @@ import static org.junit.Assert.fail;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowLongArg;
 import java.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class DeadlockDetectorTest {
 
-  private static final String taskQueue = "deadlock-test";
-  boolean debugMode = System.getenv("TEMPORAL_DEBUG") != null;
+  private boolean debugMode = System.getenv("TEMPORAL_DEBUG") != null;
+  private WorkflowImplementationOptions workflowImplementationOptions =
+      WorkflowImplementationOptions.newBuilder()
+          .setFailWorkflowExceptionTypes(Throwable.class)
+          .build();
 
-  @WorkflowInterface
-  public interface TestWorkflow {
-    @WorkflowMethod
-    void execute();
-  }
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(workflowImplementationOptions, TestDeadlockWorkflow.class)
+          .build();
 
-  public static class TestDeadlockWorkflow implements TestWorkflow {
-
-    @Override
-    public void execute() {
-      Async.procedure(() -> Workflow.await(() -> false));
-      Workflow.sleep(Duration.ofSeconds(1));
-      try {
-        Thread.sleep(2000);
-      } catch (InterruptedException e) {
-        throw Workflow.wrap(e);
-      }
-    }
-  }
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRuleWithDDDTimeout =
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(workflowImplementationOptions, TestDeadlockWorkflow.class)
+          .setWorkerOptions(
+              WorkerOptions.newBuilder().setDefaultDeadlockDetectionTimeout(500).build())
+          .build();
 
   @Test
-  public void testDeadlockDetector() {
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance();
-    Worker worker = env.newWorker(taskQueue);
-    worker.registerWorkflowImplementationTypes(
-        WorkflowImplementationOptions.newBuilder()
-            .setFailWorkflowExceptionTypes(Throwable.class)
-            .build(),
-        TestDeadlockWorkflow.class);
-    env.start();
-
-    WorkflowClient workflowClient = env.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(1000))
-            .setTaskQueue(taskQueue)
-            .build();
-    TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
+  public void testDefaultDeadlockDetector() {
+    WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
+    TestWorkflowLongArg workflow =
+        workflowClient.newWorkflowStub(
+            TestWorkflowLongArg.class,
+            WorkflowOptions.newBuilder()
+                .setWorkflowRunTimeout(Duration.ofSeconds(1000))
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .build());
     try {
-      workflow.execute();
+      workflow.execute(2000);
       if (!debugMode) {
         fail("not reachable in non-debug mode");
       }
@@ -89,6 +80,48 @@ public class DeadlockDetectorTest {
       }
       assertTrue(failure.getMessage().contains("Potential deadlock detected"));
       assertTrue(failure.getMessage().contains("Workflow.await"));
+    }
+  }
+
+  @Test
+  public void testSetDeadlockDetector() {
+    WorkflowClient workflowClient = testWorkflowRuleWithDDDTimeout.getWorkflowClient();
+    TestWorkflowLongArg workflow =
+        workflowClient.newWorkflowStub(
+            TestWorkflowLongArg.class,
+            WorkflowOptions.newBuilder()
+                .setWorkflowRunTimeout(Duration.ofSeconds(1000))
+                .setTaskQueue(testWorkflowRuleWithDDDTimeout.getTaskQueue())
+                .build());
+    try {
+      workflow.execute(750);
+      if (!debugMode) {
+        fail("not reachable in non-debug mode");
+      }
+    } catch (WorkflowFailedException e) {
+      if (debugMode) {
+        fail("not reachable in debug mode");
+      }
+      Throwable failure = e;
+      while (failure.getCause() != null) {
+        failure = failure.getCause();
+      }
+      assertTrue(failure.getMessage().contains("Potential deadlock detected"));
+      assertTrue(failure.getMessage().contains("Workflow.await"));
+    }
+  }
+
+  public static class TestDeadlockWorkflow implements TestWorkflowLongArg {
+
+    @Override
+    public void execute(long millis) {
+      Async.procedure(() -> Workflow.await(() -> false));
+      Workflow.sleep(Duration.ofSeconds(1));
+      try {
+        Thread.sleep(millis);
+      } catch (InterruptedException e) {
+        throw Workflow.wrap(e);
+      }
     }
   }
 }

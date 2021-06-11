@@ -24,9 +24,10 @@ import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +41,7 @@ public class ParallelLocalActivityExecutionWorkflowTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParallelLocalActivityExecutionWorkflowImpl.class)
-          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
+          .setActivityImplementations(new TestActivitiesImpl())
           .build();
 
   @Test
@@ -51,23 +52,20 @@ public class ParallelLocalActivityExecutionWorkflowTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(5))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals(
         "sleepActivity1sleepActivity2sleepActivity3sleepActivity4sleepActivity21sleepActivity21sleepActivity21",
         result);
   }
 
-  public static class TestParallelLocalActivityExecutionWorkflowImpl
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestParallelLocalActivityExecutionWorkflowImpl implements TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
-      TestActivities localActivities =
+      VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.class, TestOptions.newLocalActivityOptions());
+              VariousTestActivities.class, TestOptions.newLocalActivityOptions());
       List<Promise<String>> results = new ArrayList<>(4);
       for (int i = 1; i <= 4; i++) {
         results.add(Async.function(localActivities::sleepActivity, (long) 1000 * i, i));

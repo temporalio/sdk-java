@@ -48,6 +48,8 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow2;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -282,18 +284,18 @@ public class StickyWorkerTest {
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
-    GreetingParentWorkflow workflow =
-        wrapper.getWorkflowClient().newWorkflowStub(GreetingParentWorkflow.class, workflowOptions);
+    TestWorkflow1 workflow =
+        wrapper.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, workflowOptions);
 
     // Act
-    Assert.assertEquals("Hello World!", workflow.getGreeting("World"));
+    Assert.assertEquals("Hello World!", workflow.execute("World"));
 
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(9)
             .putAll(MetricsTag.defaultTags(NAMESPACE))
             .put(MetricsTag.TASK_QUEUE, taskQueueName)
-            .put(MetricsTag.WORKFLOW_TYPE, "GreetingParentWorkflow")
+            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow1")
             .build();
     metricsScope.close(); // Flush metrics
     reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 2);
@@ -592,35 +594,23 @@ public class StickyWorkerTest {
     }
   }
 
-  @WorkflowInterface
-  public interface GreetingParentWorkflow {
-    @WorkflowMethod
-    String getGreeting(String name);
-  }
-
-  @WorkflowInterface
-  public interface GreetingChild {
-    @WorkflowMethod
-    String composeGreeting(String greeting, String name);
-  }
-
-  public static class GreetingParentWorkflowImpl implements GreetingParentWorkflow {
+  public static class GreetingParentWorkflowImpl implements TestWorkflow1 {
 
     @Override
-    public String getGreeting(String name) {
+    public String execute(String name) {
       // Workflows are stateful. So a new stub must be created for each new child.
-      GreetingChild child = Workflow.newChildWorkflowStub(GreetingChild.class);
+      TestWorkflow2 child = Workflow.newChildWorkflowStub(TestWorkflow2.class);
 
       // This is a blocking call that returns only after the child has completed.
-      Promise<String> greeting = Async.function(child::composeGreeting, "Hello", name);
+      Promise<String> greeting = Async.function(child::execute, "Hello", name);
       // Do something else here.
       return greeting.get(); // blocks waiting for the child to complete.
     }
   }
 
-  public static class GreetingChildImpl implements GreetingChild {
+  public static class GreetingChildImpl implements TestWorkflow2 {
     @Override
-    public String composeGreeting(String greeting, String name) {
+    public String execute(String greeting, String name) {
       return greeting + " " + name + "!";
     }
   }

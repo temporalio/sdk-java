@@ -26,6 +26,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
@@ -36,8 +37,7 @@ import org.junit.Test;
 
 public class ActivityRetryOptionsChangeTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -84,7 +84,8 @@ public class ActivityRetryOptionsChangeTest {
       } else {
         retryOptions = RetryOptions.newBuilder().setMaximumAttempts(2).build();
       }
-      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options.build());
+      TestActivities.VariousTestActivities activities =
+          Workflow.newActivityStub(TestActivities.VariousTestActivities.class, options.build());
       Workflow.retry(retryOptions, Optional.of(Duration.ofDays(1)), () -> activities.throwIO());
       return "ignored";
     }

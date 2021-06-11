@@ -18,18 +18,3 @@
  */
 
 package io.temporal.workflow.shared;
-
-import io.temporal.workflow.Workflow;
-
-public class DeterminismFailingWorkflowImpl implements TestWorkflows.DeterminismFailingWorkflow {
-
-  @Override
-  public void execute(String taskQueue) {
-    TestActivities activities =
-        Workflow.newActivityStub(
-            TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
-    if (!Workflow.isReplaying()) {
-      activities.activity1(1);
-    }
-  }
-}

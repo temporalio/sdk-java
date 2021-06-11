@@ -27,8 +27,9 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -37,8 +38,7 @@ import org.junit.Test;
 
 public class AsyncActivityRetryOptionsChangeTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -49,8 +49,8 @@ public class AsyncActivityRetryOptionsChangeTest {
 
   @Test
   public void testAsyncActivityRetryOptionsChange() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -63,9 +63,9 @@ public class AsyncActivityRetryOptionsChangeTest {
     Assert.assertEquals(activitiesImpl.toString(), 2, activitiesImpl.invocations.size());
   }
 
-  public static class TestAsyncActivityRetryOptionsChange implements TestWorkflows.TestWorkflow1 {
+  public static class TestAsyncActivityRetryOptionsChange implements TestWorkflow1 {
 
-    private TestActivities activities;
+    private VariousTestActivities activities;
 
     @Override
     public String execute(String taskQueue) {
@@ -93,7 +93,7 @@ public class AsyncActivityRetryOptionsChangeTest {
                 .setDoNotRetry(NullPointerException.class.getName())
                 .build());
       }
-      this.activities = Workflow.newActivityStub(TestActivities.class, options.build());
+      this.activities = Workflow.newActivityStub(VariousTestActivities.class, options.build());
       Async.procedure(activities::throwIO).get();
       return "ignored";
     }

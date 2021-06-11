@@ -122,8 +122,8 @@ public final class Worker implements Suspendable {
               activityOptions);
     }
 
-    SingleWorkerOptions workflowOptions =
-        toWorkflowOptions(
+    SingleWorkerOptions singleWorkerOptions =
+        toSingleWorkerOptions(
             this.factoryOptions,
             this.options,
             clientOptions,
@@ -143,7 +143,7 @@ public final class Worker implements Suspendable {
             namespace,
             taskQueue,
             this.factoryOptions.getWorkerInterceptors(),
-            workflowOptions,
+            singleWorkerOptions,
             localActivityOptions,
             this.cache,
             this.stickyTaskQueueName,
@@ -173,7 +173,7 @@ public final class Worker implements Suspendable {
         .build();
   }
 
-  private static SingleWorkerOptions toWorkflowOptions(
+  private static SingleWorkerOptions toSingleWorkerOptions(
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
@@ -190,6 +190,7 @@ public final class Worker implements Suspendable {
             PollerOptions.newBuilder()
                 .setPollThreadCount(options.getWorkflowPollThreadCount())
                 .build())
+        .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
         .setMetricsScope(metricsScope.tagged(tags))
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
