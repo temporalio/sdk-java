@@ -67,7 +67,7 @@ public class OpenTracingOptions {
     }
 
     /**
-     * Allows for more control over how the OpenTracing span is created, named, and tagged.
+     * Allows for more control over how OpenTracing spans are created, named, and tagged.
      *
      * @param spanBuilderProvider
      * @return
