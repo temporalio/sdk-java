@@ -26,7 +26,8 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -35,8 +36,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 public class ActivityRetryOnTimeoutTest {
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule public TestName testName = new TestName();
 
@@ -86,7 +86,8 @@ public class ActivityRetryOnTimeoutTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
+      VariousTestActivities activities =
+          Workflow.newActivityStub(VariousTestActivities.class, options);
       long start = Workflow.currentTimeMillis();
       try {
         activities.neverComplete(); // should timeout as scheduleToClose is 1 second

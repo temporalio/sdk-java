@@ -19,8 +19,8 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.CheckedExceptionWrapper.wrap;
 import static io.temporal.internal.sync.WorkflowInternal.unwrap;
+import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payloads;
@@ -41,6 +41,7 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
@@ -68,6 +69,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private DataConverter dataConverter;
   private final List<ContextPropagator> contextPropagators;
+  private final long defaultDeadlockDetectionTimeout;
 
   /** Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance. */
   private final Map<String, Functions.Func<SyncWorkflowDefinition>> workflowDefinitions =
@@ -86,16 +88,17 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final WorkflowExecutorCache cache;
 
   POJOWorkflowImplementationFactory(
-      DataConverter dataConverter,
+      SingleWorkerOptions singleWorkerOptions,
       ExecutorService threadPool,
       WorkerInterceptor[] workerInterceptors,
-      WorkflowExecutorCache cache,
-      List<ContextPropagator> contextPropagators) {
-    this.dataConverter = Objects.requireNonNull(dataConverter);
+      WorkflowExecutorCache cache) {
+    Objects.requireNonNull(singleWorkerOptions);
+    this.dataConverter = singleWorkerOptions.getDataConverter();
     this.threadPool = Objects.requireNonNull(threadPool);
     this.workerInterceptors = Objects.requireNonNull(workerInterceptors);
     this.cache = cache;
-    this.contextPropagators = contextPropagators;
+    this.contextPropagators = singleWorkerOptions.getContextPropagators();
+    this.defaultDeadlockDetectionTimeout = singleWorkerOptions.getDefaultDeadlockDetectionTimeout();
   }
 
   void registerWorkflowImplementationTypes(
@@ -239,7 +242,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
     WorkflowImplementationOptions options = implementationOptions.get(workflowType.getName());
     return new SyncWorkflow(
-        workflow, options, dataConverter, threadPool, cache, contextPropagators);
+        workflow,
+        options,
+        dataConverter,
+        threadPool,
+        cache,
+        contextPropagators,
+        defaultDeadlockDetectionTimeout);
   }
 
   @Override

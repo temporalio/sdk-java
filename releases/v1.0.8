@@ -1,0 +1,34 @@
+Highlights
+
+* Option to set default ActivityOptions and per activityType. Can be done
+through the activityStub, WorkflowImplementationOptions, and on a workflow.
+* Added context propagation for local activities
+* Option to set initial time for workflow tests
+* Implemented a Health Check. By default it's on and checks if the server is up
+every 5s. If the server is not up in 10s, the worker will not start. It may break
+those users that deploy workers while server is not up. Please configure in 
+WorkflowServiceStubsOptions.
+
+All changes
+2021-04-10 - 6fa0fc93 - Do not override Micrometer's naming conventions (#434)
+2021-04-13 - af27a9fe - Local type (#441)
+2021-04-15 - 08f4f96a - Gradle & Temporal Service Update  (#442)
+2021-04-30 - 75663139 - Change log level from ERROR to INFO for failed workflow task caused by signal race condition (#451)
+2021-04-30 - debc3571 - Set current time before processing commands (#458)
+2021-04-30 - ec663a25 - Updating links to docs in README (#452)
+2021-05-03 - e98c19f9 - Test env sleep (#463)
+2021-05-06 - fec4731b - Workflow#newActivityStub(activityInterface) method produces broken activity stubs (#457)
+2021-05-07 - 5c7d0573 - Do not fail stack trace query on a closed workflow (#473)
+2021-05-07 - f22d431d - Fixed implementation of WorkflowExecutionUtils#getInstanceCloseEvent that previously could get into infinite loop after a timeout (#472)
+2021-05-10 - 07a10cfe - Cleanup the way Pollers handle InterruptedExceptions (#478)
+2021-05-11 - 192f0c44 - Use default data converter for search attributes and memo (#483)
+2021-05-11 - 23bccf07 - Local activity race condition (#475)
+2021-05-11 - df5f2445 - Cleanup the way Pollers handle InterruptedExceptions (#477)
+2021-05-12 - 45de2dc9 - Override ObjectMapper in the DefaultDataConverter's payload coverter (#410)
+2021-05-14 - b23edac3 - Added context propagation for local activities (#491)
+2021-05-18 - 81afb31d - Fixed SearchAttributes and memo lost from ChildWorkflowOptions (#500)
+2021-05-19 - 221c4bb6 - Per activity method options (#431) (#448) (#497)
+2021-05-19 - b9dd6d9b - Option to set initial time for workflow test (#498)
+2021-05-28 - 1238ffc4 - Workflow retry in Test Service (#510)
+2021-05-28 - b0199150 - Health Check (#504)
+2021-05-28 - b0bb4e4d - Out-of-process test server (#470)

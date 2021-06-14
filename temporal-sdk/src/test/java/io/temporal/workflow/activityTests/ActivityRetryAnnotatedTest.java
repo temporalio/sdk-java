@@ -25,7 +25,8 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.io.IOException;
 import java.time.Duration;
@@ -35,8 +36,7 @@ import org.junit.Test;
 
 public class ActivityRetryAnnotatedTest {
 
-  private final TestActivities.TestActivitiesImpl activitiesImpl =
-      new TestActivities.TestActivitiesImpl();
+  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -63,12 +63,12 @@ public class ActivityRetryAnnotatedTest {
 
   public static class TestActivityRetryAnnotated implements TestWorkflows.TestWorkflow1 {
 
-    private final TestActivities activities;
+    private final VariousTestActivities activities;
 
     public TestActivityRetryAnnotated() {
       this.activities =
           Workflow.newActivityStub(
-              TestActivities.class,
+              VariousTestActivities.class,
               ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .setScheduleToStartTimeout(Duration.ofSeconds(5))

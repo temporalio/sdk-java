@@ -26,7 +26,8 @@ import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow2;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -49,17 +50,14 @@ public class UntypedSignalExternalWorkflowTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.TestWorkflowSignaled client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflowSignaled.class, options);
+    TestSignaledWorkflow client =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
     Assert.assertEquals("Hello World!", client.execute());
   }
 
-  public static class TestUntypedSignalExternalWorkflow
-      implements TestWorkflows.TestWorkflowSignaled {
+  public static class TestUntypedSignalExternalWorkflow implements TestSignaledWorkflow {
 
-    private final ChildWorkflowStub child = Workflow.newUntypedChildWorkflowStub("SignalingChild");
+    private final ChildWorkflowStub child = Workflow.newUntypedChildWorkflowStub("TestWorkflow2");
 
     private final CompletablePromise<Object> fromSignal = Workflow.newPromise();
 
@@ -71,12 +69,12 @@ public class UntypedSignalExternalWorkflowTest {
     }
 
     @Override
-    public void signal1(String arg) {
+    public void signal(String arg) {
       fromSignal.complete(arg);
     }
   }
 
-  public static class UntypedSignalingChildImpl implements TestWorkflows.SignalingChild {
+  public static class UntypedSignalingChildImpl implements TestWorkflow2 {
 
     @Override
     public String execute(String greeting, String parentWorkflowId) {

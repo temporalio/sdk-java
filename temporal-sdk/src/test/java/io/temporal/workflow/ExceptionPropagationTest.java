@@ -28,9 +28,11 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
@@ -50,7 +52,7 @@ public class ExceptionPropagationTest {
                   .build(),
               ThrowingChild.class,
               TestExceptionPropagationImpl.class)
-          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
+          .setActivityImplementations(new TestActivitiesImpl())
           .build();
 
   /**
@@ -70,8 +72,8 @@ public class ExceptionPropagationTest {
    */
   @Test
   public void testExceptionPropagation() {
-    TestExceptionPropagation client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestExceptionPropagation.class);
+    TestWorkflowStringArg client =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowStringArg.class);
     try {
       client.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("Unreachable");
@@ -89,7 +91,7 @@ public class ExceptionPropagationTest {
       assertNoEmptyStacks(e);
       // Uncomment to see the actual trace.
       //            e.printStackTrace();
-      Assert.assertTrue(e.getMessage(), e.getMessage().contains("TestExceptionPropagation"));
+      Assert.assertTrue(e.getMessage(), e.getMessage().contains("TestWorkflowStringArg"));
       Assert.assertTrue(e.getStackTrace().length > 0);
       Assert.assertTrue(c1 instanceof ApplicationFailure);
       Assert.assertEquals(
@@ -117,20 +119,14 @@ public class ExceptionPropagationTest {
     }
   }
 
-  @WorkflowInterface
-  public interface TestExceptionPropagation {
-    @WorkflowMethod
-    void execute(String taskQueue);
-  }
-
-  public static class ThrowingChild implements TestWorkflows.TestWorkflow1 {
+  public static class ThrowingChild implements TestWorkflow1 {
 
     @Override
     @SuppressWarnings("AssertionFailureIgnored")
     public String execute(String taskQueue) {
-      TestActivities testActivities =
+      VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class,
+              VariousTestActivities.class,
               TestOptions.newActivityOptions20sScheduleToClose()
                   .toBuilder()
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
@@ -158,15 +154,14 @@ public class ExceptionPropagationTest {
     }
   }
 
-  public static class TestExceptionPropagationImpl implements TestExceptionPropagation {
+  public static class TestExceptionPropagationImpl implements TestWorkflowStringArg {
 
     @Override
     @SuppressWarnings("AssertionFailureIgnored")
     public void execute(String taskQueue) {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder().setWorkflowRunTimeout(Duration.ofHours(1)).build();
-      TestWorkflows.TestWorkflow1 child =
-          Workflow.newChildWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+      TestWorkflow1 child = Workflow.newChildWorkflowStub(TestWorkflow1.class, options);
       try {
         child.execute(taskQueue);
         fail("unreachable");

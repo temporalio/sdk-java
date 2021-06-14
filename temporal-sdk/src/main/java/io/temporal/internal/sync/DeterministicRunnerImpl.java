@@ -34,13 +34,13 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -81,7 +81,27 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private static final int ROOT_THREAD_PRIORITY = 0;
   private static final int CALLBACK_THREAD_PRIORITY = 10;
   private static final int WORKFLOW_THREAD_PRIORITY = 20000000;
+  static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-method";
+
+  private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
+  private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
+  // Note that threads field is a set. So we need to make sure that getPriority never returns the
+  // same value for different threads. We use addedThreads variable for this. Protected by lock
+  private final Set<WorkflowThread> threads =
+      new TreeSet<>((t1, t2) -> Ints.compare(t1.getPriority(), t2.getPriority()));
+  // Values from RunnerLocalInternal
+  private final Map<RunnerLocalInternal<?>, Object> runnerLocalMap = new HashMap<>();
+  private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
+  private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
+  private final Lock lock = new ReentrantLock();
   private final Runnable rootRunnable;
+  private final ExecutorService threadPool;
+  private final SyncWorkflowContext workflowContext;
+  private final WorkflowExecutorCache cache;
+  private boolean inRunUntilAllBlocked;
+  private boolean closeRequested;
+  private boolean closed;
+  private int addedThreads;
 
   private static class NamedRunnable {
     private final String name;
@@ -93,30 +113,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
   }
 
-  private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
-  static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-method";
-  private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
-
-  private final Lock lock = new ReentrantLock();
-  private final ExecutorService threadPool;
-  private final SyncWorkflowContext workflowContext;
-
-  // Note that threads field is a set. So we need to make sure that getPriority never returns the
-  // same value for different threads. We use addedThreads variable for this.
-  //
-  // protected by lock
-  private final Set<WorkflowThread> threads =
-      new TreeSet<>((t1, t2) -> Ints.compare(t1.getPriority(), t2.getPriority()));
-  // Values from RunnerLocalInternal
-  private final Map<RunnerLocalInternal<?>, Object> runnerLocalMap = new HashMap<>();
-
-  private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
-  private int addedThreads;
-  private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
-  private final WorkflowExecutorCache cache;
-  private boolean inRunUntilAllBlocked;
-  private boolean closeRequested;
-  private boolean closed;
   /**
    * Used to create a root workflow thread through the interceptor chain. The default value is used
    * only in the unit tests.

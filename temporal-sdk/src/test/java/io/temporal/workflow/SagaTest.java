@@ -22,8 +22,9 @@ package io.temporal.workflow;
 import io.temporal.common.RetryOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
+import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc;
 import io.temporal.workflow.shared.TestOptions;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -37,8 +38,8 @@ public class SagaTest {
           .setWorkflowTypes(
               TestSagaWorkflowImpl.class,
               TestCompensationWorkflowImpl.class,
-              TestMultiargsWorkflowsFuncImpl.class)
-          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
+              TestMultiArgsWorkflowsFuncImpl.class)
+          .setActivityImplementations(new TestActivitiesImpl())
           .build();
 
   @Test
@@ -96,9 +97,9 @@ public class SagaTest {
 
     @Override
     public String execute(String taskQueue, boolean parallelCompensation) {
-      TestActivities testActivities =
+      VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              TestActivities.class,
+              VariousTestActivities.class,
               TestOptions.newActivityOptionsForTaskQueue(taskQueue)
                   .toBuilder()
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
@@ -106,9 +107,8 @@ public class SagaTest {
 
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF1 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class, workflowOptions);
+      TestMultiargsWorkflowsFunc stubF1 =
+          Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
 
       Saga saga =
           new Saga(
@@ -135,8 +135,7 @@ public class SagaTest {
     }
   }
 
-  public static class TestMultiargsWorkflowsFuncImpl
-      implements TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc {
+  public static class TestMultiArgsWorkflowsFuncImpl implements TestMultiargsWorkflowsFunc {
 
     @Override
     public String func() {

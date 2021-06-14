@@ -24,36 +24,36 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * The information about the activity task that the current activity is handling. Use {@link
+ * Information about the Activity Task that the current Activity is handling. Use {@link
  * ActivityExecutionContext#getInfo()} to access.
  */
 public interface ActivityInfo {
 
   /**
-   * A correlation token that can be used to complete the activity asynchronously through {@link
+   * Correlation token that can be used to complete the Activity asynchronously through {@link
    * io.temporal.client.ActivityCompletionClient#complete(byte[], Object)}.
    */
   byte[] getTaskToken();
 
-  /** WorkflowId of the workflow that scheduled the activity. */
+  /** WorkflowId of the Workflow that scheduled the Activity. */
   String getWorkflowId();
 
-  /** RunId of the workflow that scheduled the activity. */
+  /** RunId of the Workflow that scheduled the Activity. */
   String getRunId();
 
   /**
-   * ID of the activity. This ID can be used to complete the activity asynchronously through {@link
+   * ID of the Activity. This ID can be used to complete the Activity asynchronously through {@link
    * io.temporal.client.ActivityCompletionClient#complete(String, Optional, String, Object)}.
    */
   String getActivityId();
 
-  /** Type of the activity. */
+  /** Type of the Activity. */
   String getActivityType();
 
   /**
-   * Time when the activity was initially scheduled by the workflow.
+   * Time when the Activity was initially scheduled by the Workflow.
    *
-   * @return timestamp in milliseconds
+   * @return Timestamp in milliseconds.
    */
   long getScheduledTimestamp();
 
@@ -71,9 +71,9 @@ public interface ActivityInfo {
 
   String getActivityNamespace();
 
-  /** Activity execution attempt starting from 1. */
+  /** Activity execution attempt. Starts from 1. Incremented on each Activity retry. */
   int getAttempt();
 
-  /** Is this activity invoked as a local activity? */
+  /** Determines if this Activity is invoked as a local Activity. */
   boolean isLocal();
 }

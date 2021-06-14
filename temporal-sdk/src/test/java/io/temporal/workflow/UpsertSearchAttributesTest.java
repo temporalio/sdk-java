@@ -29,8 +29,10 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow2;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
@@ -43,13 +45,13 @@ public class UpsertSearchAttributesTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestUpsertSearchAttributesImpl.class)
-          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
+          .setActivityImplementations(new TestActivitiesImpl())
           .build();
 
   @Test
   public void testUpsertSearchAttributes() {
-    TestUpsertSearchAttributes testWorkflow =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestUpsertSearchAttributes.class);
+    TestWorkflow2 testWorkflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow2.class);
     WorkflowExecution execution =
         WorkflowClient.start(testWorkflow::execute, testWorkflowRule.getTaskQueue(), "testKey");
     String result = testWorkflow.execute(testWorkflowRule.getTaskQueue(), "testKey");
@@ -66,13 +68,7 @@ public class UpsertSearchAttributesTest {
         execution, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES);
   }
 
-  @WorkflowInterface
-  public interface TestUpsertSearchAttributes {
-    @WorkflowMethod
-    String execute(String taskQueue, String keyword);
-  }
-
-  public static class TestUpsertSearchAttributesImpl implements TestUpsertSearchAttributes {
+  public static class TestUpsertSearchAttributesImpl implements TestWorkflow2 {
 
     @Override
     public String execute(String taskQueue, String keyword) {
@@ -93,9 +89,9 @@ public class UpsertSearchAttributesTest {
       // adding the search attributes. This helps with replaying the history one more time to check
       // against a possible NonDeterminisicWorkflowError which could be caused by missing
       // UpsertWorkflowSearchAttributes event in history.
-      TestActivities activities =
+      VariousTestActivities activities =
           Workflow.newActivityStub(
-              TestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
       activities.activity();
 
       return "done";

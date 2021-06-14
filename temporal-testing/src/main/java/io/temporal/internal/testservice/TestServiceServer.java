@@ -17,15 +17,16 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow.shared;
+package io.temporal.internal.testservice;
 
-import io.temporal.workflow.Workflow;
+public class TestServiceServer {
 
-public class TestChild implements TestWorkflows.ITestChild {
+  public static void main(String[] args) {
+    if (args.length != 1) {
+      System.err.println("Usage: <command> <port>");
+    }
+    Integer port = Integer.parseInt(args[0]);
 
-  @Override
-  public String execute(String arg, int delay) {
-    Workflow.sleep(delay);
-    return arg.toUpperCase();
+    TestWorkflowService.createServerOnly(port);
   }
 }

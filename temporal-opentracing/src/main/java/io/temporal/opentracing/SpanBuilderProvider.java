@@ -17,25 +17,14 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow.shared;
+package io.temporal.opentracing;
 
-import io.temporal.activity.ActivityOptions;
-import io.temporal.failure.ApplicationFailure;
-import io.temporal.workflow.Workflow;
-import java.time.Duration;
+import io.opentracing.Tracer;
 
-public class AngryChild implements TestWorkflows.ITestChild {
-
-  @Override
-  public String execute(String taskQueue, int delay) {
-    TestActivities.AngryChildActivity activity =
-        Workflow.newActivityStub(
-            TestActivities.AngryChildActivity.class,
-            ActivityOptions.newBuilder()
-                .setTaskQueue(taskQueue)
-                .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-                .build());
-    activity.execute();
-    throw ApplicationFailure.newFailure("simulated failure", "test");
-  }
+/**
+ * Fully pluggable strategy for creating OpenTracing spans based on content from the {@link
+ * SpanCreationContext}
+ */
+public interface SpanBuilderProvider {
+  Tracer.SpanBuilder createSpanBuilder(Tracer tracer, SpanCreationContext spanCreationContext);
 }

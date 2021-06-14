@@ -24,7 +24,10 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Context;
 import io.grpc.Deadline;
+import io.grpc.Grpc;
+import io.grpc.InsecureServerCredentials;
 import io.grpc.ManagedChannel;
+import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -87,8 +90,8 @@ import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
+import io.temporal.serviceclient.StatusUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.IOException;
@@ -128,18 +131,37 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
 
-  private final String serverName;
-  private final ManagedChannel channel;
-  private final WorkflowServiceStubs stubs;
+  private class Client {
+    public Client() {
+      serverName = InProcessServerBuilder.generateName();
+      channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+      stubs =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder()
+                  .setChannel(channel)
+                  .setDisableHealthCheck(true)
+                  .build());
+    }
+
+    public final String serverName;
+    public final ManagedChannel channel;
+    public final WorkflowServiceStubs stubs;
+  }
+
+  private final Client client;
+
+  private final Server outOfProcessServer;
 
   public WorkflowServiceStubs newClientStub() {
-    return stubs;
+    if (client == null) {
+      throw new RuntimeException(
+          "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
+    }
+    return client.stubs;
   }
 
-  public TestWorkflowService() {
-    this(0);
-  }
-
+  // Creates an in-memory service along with client stubs for use in Java code.
+  // See also createServerOnly.
   public TestWorkflowService(boolean lockTimeSkipping) {
     this(0);
     if (lockTimeSkipping) {
@@ -150,25 +172,63 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   // TODO: Shutdown.
   public TestWorkflowService(long initialTimeMillis) {
     store = new TestWorkflowStoreImpl(initialTimeMillis);
-    serverName = InProcessServerBuilder.generateName();
+    client = new Client();
     try {
-      InProcessServerBuilder.forName(serverName).directExecutor().addService(this).build().start();
+      InProcessServerBuilder.forName(client.serverName)
+          .directExecutor()
+          .addService(this)
+          .build()
+          .start();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    stubs =
-        WorkflowServiceStubs.newInstance(
-            WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
+    outOfProcessServer = null;
+  }
+
+  public TestWorkflowService() {
+    this(0);
+  }
+
+  // Creates an out-of-process rather than in-process server, and does not set up a client.
+  // Useful, for example, if you want to use the test service from other SDKs.
+  public static TestWorkflowService createServerOnly(int port) {
+    log.info("Server started, listening on " + port);
+    return new TestWorkflowService(true, port);
+  }
+
+  private TestWorkflowService(boolean isOutOfProc, int port) {
+    if (!isOutOfProc) {
+      // isOutOfProc is just here to make unambiguous constructor overloading.
+      throw new RuntimeException("Impossible.");
+    }
+    client = null;
+    store = new TestWorkflowStoreImpl(0 /* 0 means use current time */);
+    try {
+      outOfProcessServer =
+          Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create())
+              .addService(this)
+              .build()
+              .start();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public void close() {
-    channel.shutdown();
+    log.info("Shutting down GRPC server");
+    if (client != null) {
+      client.channel.shutdown();
+    }
+
     try {
-      channel.awaitTermination(1, TimeUnit.SECONDS);
+      if (outOfProcessServer != null) {
+        outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
+      } else {
+        client.channel.awaitTermination(1, TimeUnit.SECONDS);
+      }
     } catch (InterruptedException e) {
-      log.debug("interrupted", e);
+      log.debug("shutdown interrupted", e);
     }
     store.close();
   }

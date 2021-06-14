@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestOptions;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,26 +49,20 @@ public class LargeHistoryTest {
   @Ignore // Requires DEBUG_TIMEOUTS=true
   public void testLargeHistory() {
     final int activityCount = 1000;
-    TestLargeWorkflow workflowStub =
+    TestWorkflow3 workflowStub =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                TestLargeWorkflow.class,
+                TestWorkflow3.class,
                 TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
                     .setWorkflowTaskTimeout(Duration.ofSeconds(30))
                     .build());
     long start = System.currentTimeMillis();
-    String result = workflowStub.execute(activityCount, testWorkflowRule.getTaskQueue());
+    String result = workflowStub.execute(testWorkflowRule.getTaskQueue(), activityCount);
     long duration = System.currentTimeMillis() - start;
     log.info(testWorkflowRule.getTestEnvironment().getNamespace() + " duration is " + duration);
     Assert.assertEquals("done", result);
-  }
-
-  @WorkflowInterface
-  public interface TestLargeWorkflow {
-    @WorkflowMethod
-    String execute(int activityCount, String taskQueue);
   }
 
   @ActivityInterface
@@ -82,10 +77,10 @@ public class LargeHistoryTest {
     }
   }
 
-  public static class TestLargeHistory implements TestLargeWorkflow {
+  public static class TestLargeHistory implements TestWorkflow3 {
 
     @Override
-    public String execute(int activityCount, String taskQueue) {
+    public String execute(String taskQueue, int activityCount) {
       TestLargeWorkflowActivity activities =
           Workflow.newActivityStub(
               TestLargeWorkflowActivity.class,

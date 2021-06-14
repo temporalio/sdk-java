@@ -24,14 +24,14 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
 
-/** Options used to configure how an local activity is invoked. */
+/** Options used to configure how a local Activity is invoked. */
 public final class LocalActivityOptions {
 
   public static Builder newBuilder() {
     return new Builder(null);
   }
 
-  /** @param o null is allowed */
+  /** @param o null is allowed. */
   public static Builder newBuilder(LocalActivityOptions o) {
     return new Builder(o);
   }
@@ -65,7 +65,10 @@ public final class LocalActivityOptions {
       this.doNotIncludeArgumentsIntoMarker = options.isDoNotIncludeArgumentsIntoMarker();
     }
 
-    /** Overall timeout workflow is willing to wait for activity to complete. */
+    /**
+     * Overall time a Workflow is willing to wait for an Activity's completion. This includes all
+     * retries.
+     */
     public Builder setScheduleToCloseTimeout(Duration timeout) {
       if (timeout.isZero() || timeout.isNegative()) {
         throw new IllegalArgumentException("Illegal timeout: " + timeout);
@@ -75,8 +78,8 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * Maximum time to retry locally keeping workflow task open through heartbeat. Default is 6
-     * workflow task timeout.
+     * Maximum time to retry locally, while keeping the Workflow Task open via a Heartbeat. Default
+     * value is Workflow Task timeout multiplied by 6.
      */
     public Builder setLocalRetryThreshold(Duration localRetryThreshold) {
       if (localRetryThreshold.isZero() || localRetryThreshold.isNegative()) {
@@ -120,8 +123,8 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * RetryOptions that define how activity is retried in case of failure. Default is null which is
-     * no retries.
+     * {@link RetryOptions} that define how an Activity is retried in case of failure. Activities
+     * use a default RetryPolicy if not provided.
      */
     public Builder setRetryOptions(RetryOptions retryOptions) {
       this.retryOptions = retryOptions;
@@ -129,8 +132,8 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * Merges MethodRetry annotation. The values of this builder take precedence over annotation
-     * ones.
+     * Merges {@link MethodRetry} annotation. The values of this builder take precedence over
+     * annotated ones.
      */
     public Builder setMethodRetry(MethodRetry r) {
       if (r != null) {
@@ -140,14 +143,11 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * When set to true the serialized arguments of the local activity are not included into the
-     * Marker Event that stores local activity invocation result.
-     *
-     * <p>The serialized arguments are included only for human troubleshooting as they are never
-     * read by the SDK code. So in some cases it is worth not including them to reduce the history
-     * size.
-     *
-     * <p>Default is false.
+     * When set to true, the serialized arguments of the local Activity are not included in the
+     * Marker Event that stores the local Activity's invocation result. The serialized arguments are
+     * included only for human troubleshooting as they are never read by the SDK code. In some
+     * cases, it is better to not include them to reduce the history size. The default value is set
+     * to false.
      */
     public Builder setDoNotIncludeArgumentsIntoMarker(boolean doNotIncludeArgumentsIntoMarker) {
       this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;

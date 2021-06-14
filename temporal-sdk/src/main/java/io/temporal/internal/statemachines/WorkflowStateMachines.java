@@ -19,13 +19,13 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 import static io.temporal.internal.common.WorkflowExecutionUtils.getEventTypeForCommand;
 import static io.temporal.internal.common.WorkflowExecutionUtils.isCommandEvent;
 import static io.temporal.internal.statemachines.LocalActivityStateMachine.LOCAL_ACTIVITY_MARKER_NAME;
 import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKER_ACTIVITY_ID_KEY;
 import static io.temporal.internal.statemachines.VersionStateMachine.MARKER_CHANGE_ID_KEY;
 import static io.temporal.internal.statemachines.VersionStateMachine.VERSION_MARKER_NAME;
+import static io.temporal.serviceclient.CheckedExceptionWrapper.unwrap;
 
 import com.cronutils.utils.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -412,6 +412,7 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
         callbacks.cancel(event);
         break;
+      case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
       case UNRECOGNIZED:
         break;
       default:

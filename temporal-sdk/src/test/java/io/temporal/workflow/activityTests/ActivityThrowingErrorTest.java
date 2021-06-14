@@ -22,72 +22,55 @@ package io.temporal.workflow.activityTests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.worker.Worker;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities.TestActivity1;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.UUID;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class ActivityThrowingErrorTest {
 
-  private static final String TASK_QUEUE = "test-workflow";
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(ActivityThrowsErrorWorkflow.class)
+          .setActivityImplementations(new Activity1Impl())
+          .build();
 
-  private TestWorkflowEnvironment testEnvironment;
+  @Test
+  public void activityThrowsError() {
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setRetryOptions(
+                RetryOptions.newBuilder()
+                    .setMaximumAttempts(1)
+                    .setInitialInterval(Duration.ofMinutes(2))
+                    .build())
+            .build();
 
-  @Before
-  public void setUp() {
-    TestEnvironmentOptions options = TestEnvironmentOptions.newBuilder().build();
-    testEnvironment = TestWorkflowEnvironment.newInstance(options);
-  }
-
-  @After
-  public void tearDown() {
-    testEnvironment.close();
-  }
-
-  @WorkflowInterface
-  public interface TestWorkflow {
-    @WorkflowMethod
-    String workflow(String input);
-  }
-
-  public static class LocalActivityThrowsErrorWorkflow implements TestWorkflow {
-
-    private final TestActivity1 activity1 =
-        Workflow.newLocalActivityStub(
-            TestActivity1.class,
-            LocalActivityOptions.newBuilder()
-                .setRetryOptions(
-                    RetryOptions.newBuilder()
-                        .setMaximumAttempts(3)
-                        .setInitialInterval(Duration.ofSeconds(1))
-                        .setMaximumInterval(Duration.ofMinutes(2))
-                        .build())
-                .setStartToCloseTimeout(Duration.ofMinutes(2))
-                .build());
-
-    @Override
-    public String workflow(String input) {
-      return activity1.activity1(input);
+    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
+    try {
+      workflow.execute(UUID.randomUUID().toString());
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("java.lang.Error", ((ApplicationFailure) e.getCause().getCause()).getType());
     }
   }
 
-  public static class ActivityThrowsErrorWorkflow implements TestWorkflow {
+  public static class ActivityThrowsErrorWorkflow implements TestWorkflow1 {
 
     private final TestActivity1 activity1 =
         Workflow.newActivityStub(
@@ -103,76 +86,15 @@ public class ActivityThrowingErrorTest {
                 .build());
 
     @Override
-    public String workflow(String input) {
-      return activity1.activity1(input);
+    public String execute(String input) {
+      return activity1.execute(input);
     }
   }
 
-  @ActivityInterface
-  public interface TestActivity1 {
-    String activity1(String input);
-  }
-
-  private static class Activity1Impl implements TestActivity1 {
+  public static class Activity1Impl implements TestActivity1 {
     @Override
-    public String activity1(String input) {
+    public String execute(String input) {
       return Workflow.randomUUID().toString();
-    }
-  }
-
-  @Test
-  public void localActivityThrowsError() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(LocalActivityThrowsErrorWorkflow.class);
-    worker.registerActivitiesImplementations(new Activity1Impl());
-
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setMaximumAttempts(1)
-                    .setInitialInterval(Duration.ofMinutes(2))
-                    .build())
-            .build();
-
-    TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
-    try {
-      workflow.workflow(UUID.randomUUID().toString());
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("java.lang.Error", ((ApplicationFailure) e.getCause().getCause()).getType());
-    }
-  }
-
-  @Test
-  public void activityThrowsError() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(ActivityThrowsErrorWorkflow.class);
-    worker.registerActivitiesImplementations(new Activity1Impl());
-
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setMaximumAttempts(1)
-                    .setInitialInterval(Duration.ofMinutes(2))
-                    .build())
-            .build();
-
-    TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
-    try {
-      workflow.workflow(UUID.randomUUID().toString());
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("java.lang.Error", ((ApplicationFailure) e.getCause().getCause()).getType());
     }
   }
 }

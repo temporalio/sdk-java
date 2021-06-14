@@ -25,7 +25,7 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import org.junit.Assert;
@@ -49,17 +49,17 @@ public class GetVersionWithoutCommandEventTest {
   @Test
   public void testGetVersionWithoutCommandEvent() throws Exception {
     executionStarted = new CompletableFuture<Boolean>();
-    TestWorkflows.TestWorkflowSignaled workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflowSignaled.class);
+    TestSignaledWorkflow workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestSignaledWorkflow.class);
     WorkflowClient.start(workflowStub::execute);
     executionStarted.get();
-    workflowStub.signal1("test signal");
+    workflowStub.signal("test signal");
     String result = WorkflowStub.fromTyped(workflowStub).getResult(String.class);
     Assert.assertEquals("result 1", result);
   }
 
   public static class TestGetVersionWithoutCommandEventWorkflowImpl
-      implements TestWorkflows.TestWorkflowSignaled {
+      implements TestSignaledWorkflow {
 
     CompletablePromise<Boolean> signalReceived = Workflow.newPromise();
 
@@ -89,7 +89,7 @@ public class GetVersionWithoutCommandEventTest {
     }
 
     @Override
-    public void signal1(String arg) {
+    public void signal(String arg) {
       signalReceived.complete(true);
     }
   }

@@ -116,6 +116,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                 .setChannel(channel)
                 .setMetricsScope(options.getMetricsScope())
                 .setQueryRpcTimeout(Duration.ofSeconds(60))
+                .setDisableHealthCheck(true)
                 .build());
     activityTaskHandler =
         new POJOActivityTaskHandler(

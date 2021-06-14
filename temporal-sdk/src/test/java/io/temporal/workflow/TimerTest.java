@@ -25,7 +25,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestTraceWorkflow;
 import java.time.Duration;
 import java.util.List;
 import org.junit.Assert;
@@ -50,10 +50,8 @@ public class TimerTest {
               .setWorkflowRunTimeout(Duration.ofDays(1))
               .build();
     }
-    TestWorkflows.TestWorkflow2 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow2.class, options);
+    TestTraceWorkflow client =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestTraceWorkflow.class, options);
     String result = client.execute(SDKTestWorkflowRule.useExternalService);
     Assert.assertEquals("testTimer", result);
     if (SDKTestWorkflowRule.useExternalService) {
@@ -87,7 +85,7 @@ public class TimerTest {
     }
   }
 
-  public static class TestTimerWorkflowImpl implements TestWorkflows.TestWorkflow2 {
+  public static class TestTimerWorkflowImpl implements TestTraceWorkflow {
 
     @Override
     public String execute(boolean useExternalService) {

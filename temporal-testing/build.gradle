@@ -1,3 +1,7 @@
+plugins {
+    id 'application'
+}
+
 description = '''Temporal Workflow Java SDK testing'''
 
 dependencies {
@@ -8,4 +12,19 @@ dependencies {
 
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+    testRuntimeOnly group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.30'
+}
+
+task testServiceServer(type: CreateStartScripts) {
+    mainClassName = 'io.temporal.internal.testservice.TestServiceServer'
+    applicationName = 'test-service-server'
+    outputDir = new File(project.buildDir, 'tmp')
+    classpath = startScripts.classpath
+    dependsOn 'sourcesJar'
+}
+
+// Run: ./gradlew installDist :temporal-testing:testServiceServer
+applicationDistribution.into('bin') {
+    from(testServiceServer)
+    fileMode = 0755
 }

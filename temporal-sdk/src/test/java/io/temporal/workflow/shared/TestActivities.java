@@ -19,9 +19,15 @@
 
 package io.temporal.workflow.shared;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 
-import io.temporal.activity.*;
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.ActivityInfo;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityNotExistsException;
@@ -29,64 +35,39 @@ import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@ActivityInterface
-public interface TestActivities {
-
-  String sleepActivity(long milliseconds, int input);
-
-  String activityWithDelay(long milliseconds, boolean heartbeatMoreThanOnce);
-
-  String activity();
-
-  @ActivityMethod(name = "customActivity1")
-  int activity1(int input);
-
-  String activity2(String a1, int a2);
-
-  String activity3(String a1, int a2, int a3);
-
-  String activity4(String a1, int a2, int a3, int a4);
-
-  String activity5(String a1, int a2, int a3, int a4, int a5);
-
-  String activity6(String a1, int a2, int a3, int a4, int a5, int a6);
-
-  void proc();
-
-  void proc1(String input);
-
-  void proc2(String a1, int a2);
-
-  void proc3(String a1, int a2, int a3);
-
-  void proc4(String a1, int a2, int a3, int a4);
-
-  void proc5(String a1, int a2, int a3, int a4, int a5);
-
-  void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
-
-  void heartbeatAndThrowIO();
-
-  void throwIO();
-
-  void throwApplicationFailureThreeTimes();
-
-  void neverComplete();
-
-  @MethodRetry(initialIntervalSeconds = 1, maximumIntervalSeconds = 1, maximumAttempts = 3)
-  void throwIOAnnotated();
-
-  List<UUID> activityUUIDList(List<UUID> arg);
+public class TestActivities {
 
   @ActivityInterface
-  interface TestActivity {
+  public interface NoArgsActivity {
+    @ActivityMethod
+    void execute();
+  }
 
+  @ActivityInterface
+  public interface TestActivity1 {
+    String execute(String input);
+  }
+
+  @ActivityInterface
+  public interface TestActivity2 {
+    String execute();
+  }
+
+  @ActivityInterface
+  public interface TestActivity {
     @ActivityMethod
     Map<String, Duration> activity1();
 
@@ -95,13 +76,71 @@ public interface TestActivities {
   }
 
   @ActivityInterface
-  interface AngryChildActivity {
+  public interface VariousTestActivities {
 
-    @ActivityMethod
-    void execute();
+    String sleepActivity(long milliseconds, int input);
+
+    String activityWithDelay(long milliseconds, boolean heartbeatMoreThanOnce);
+
+    String activity();
+
+    @ActivityMethod(name = "customActivity1")
+    int activity1(int input);
+
+    String activity2(String a1, int a2);
+
+    String activity3(String a1, int a2, int a3);
+
+    String activity4(String a1, int a2, int a3, int a4);
+
+    String activity5(String a1, int a2, int a3, int a4, int a5);
+
+    String activity6(String a1, int a2, int a3, int a4, int a5, int a6);
+
+    void proc();
+
+    void proc1(String input);
+
+    void proc2(String a1, int a2);
+
+    void proc3(String a1, int a2, int a3);
+
+    void proc4(String a1, int a2, int a3, int a4);
+
+    void proc5(String a1, int a2, int a3, int a4, int a5);
+
+    void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
+
+    void heartbeatAndThrowIO();
+
+    void throwIO();
+
+    void throwApplicationFailureThreeTimes();
+
+    void neverComplete();
+
+    @MethodRetry(initialIntervalSeconds = 1, maximumIntervalSeconds = 1, maximumAttempts = 3)
+    void throwIOAnnotated();
+
+    List<UUID> activityUUIDList(List<UUID> arg);
   }
 
-  class TestActivityImpl implements TestActivity {
+  /** IMPLEMENTATIONS * */
+  public static class AngryChildActivityImpl implements NoArgsActivity {
+
+    private long invocationCount;
+
+    @Override
+    public void execute() {
+      invocationCount++;
+    }
+
+    public long getInvocationCount() {
+      return invocationCount;
+    }
+  }
+
+  public static class TestActivityImpl implements TestActivity {
 
     @Override
     public Map<String, Duration> activity1() {
@@ -132,7 +171,7 @@ public interface TestActivities {
     }
   }
 
-  class TestActivitiesImpl implements TestActivities {
+  public static class TestActivitiesImpl implements VariousTestActivities {
 
     public final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
     public final List<String> procResult = Collections.synchronizedList(new ArrayList<>());
@@ -362,20 +401,6 @@ public interface TestActivities {
 
     public int getLastAttempt() {
       return lastAttempt;
-    }
-  }
-
-  class AngryChildActivityImpl implements AngryChildActivity {
-
-    private long invocationCount;
-
-    @Override
-    public void execute() {
-      invocationCount++;
-    }
-
-    public long getInvocationCount() {
-      return invocationCount;
     }
   }
 }
