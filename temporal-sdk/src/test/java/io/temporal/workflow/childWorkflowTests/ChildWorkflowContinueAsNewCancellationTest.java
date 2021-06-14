@@ -30,9 +30,9 @@ import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
-import io.temporal.workflow.shared.TestWorkflows.TestChildWorkflow;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowCancellationType;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
@@ -46,12 +46,12 @@ public class ChildWorkflowContinueAsNewCancellationTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class)
-          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
+          .setActivityImplementations(new TestActivitiesImpl())
           .build();
 
   @Test
   public void testChildWorkflowCancellationTryCancel() {
-    WorkflowStub client = testWorkflowRule.newUntypedWorkflowStub("TestWorkflow");
+    WorkflowStub client = testWorkflowRule.newUntypedWorkflowStub("TestWorkflowCancellationType");
     WorkflowExecution execution = client.start(ChildWorkflowCancellationType.TRY_CANCEL);
     testWorkflowRule.sleep(Duration.ofSeconds(3));
     client.cancel();
@@ -66,18 +66,18 @@ public class ChildWorkflowContinueAsNewCancellationTest {
         execution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
   }
 
-  public static class TestParentWorkflowImpl implements TestWorkflow {
+  public static class TestParentWorkflowImpl implements TestWorkflowCancellationType {
     @Override
     public void execute(ChildWorkflowCancellationType cancellationType) {
-      TestChildWorkflow child =
+      NoArgsWorkflow child =
           Workflow.newChildWorkflowStub(
-              TestChildWorkflow.class,
+              NoArgsWorkflow.class,
               ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
       child.execute();
     }
   }
 
-  public static class TestChildWorkflowImpl implements TestChildWorkflow {
+  public static class TestChildWorkflowImpl implements NoArgsWorkflow {
     @Override
     public void execute() {
       count.incrementAndGet();
