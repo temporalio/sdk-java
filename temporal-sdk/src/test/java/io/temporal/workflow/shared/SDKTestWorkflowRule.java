@@ -285,7 +285,7 @@ public class SDKTestWorkflowRule implements TestRule {
             workflow, TestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
   }
 
-  /** Used to ensure that workflow first workflow task is executed. */
+  /** Used to ensure that first workflow task is executed. */
   public static void waitForOKQuery(WorkflowStub stub) {
     while (true) {
       try {

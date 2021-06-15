@@ -337,7 +337,6 @@ public class TestWorkflowRule implements TestRule {
     return null;
   }
 
-  /** Returns name of the task queue that test worker is polling. */
   public History getWorkflowExecutionHistory(WorkflowExecution execution) {
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()

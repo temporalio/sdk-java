@@ -34,13 +34,14 @@ import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowCancellationType;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class ChildWorkflowContinueAsNewCancellationTest {
-  private static final AtomicInteger count = new AtomicInteger(1);
+  private static AtomicInteger count;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -50,20 +51,52 @@ public class ChildWorkflowContinueAsNewCancellationTest {
           .build();
 
   @Test
-  public void testChildWorkflowCancellationTryCancel() {
-    WorkflowStub client = testWorkflowRule.newUntypedWorkflowStub("TestWorkflowCancellationType");
-    WorkflowExecution execution = client.start(ChildWorkflowCancellationType.TRY_CANCEL);
-    testWorkflowRule.sleep(Duration.ofSeconds(3));
-    client.cancel();
+  public void testChildWorkflowContinueAsNewCancellationTest() throws InterruptedException {
+    count = new AtomicInteger(3);
+    WorkflowStub parentWorkflow =
+        testWorkflowRule.newUntypedWorkflowStub("TestWorkflowCancellationType");
+    WorkflowExecution parentExecution =
+        parentWorkflow.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
+    Thread.sleep(500);
+    parentWorkflow.cancel();
     try {
-      client.getResult(String.class);
+      parentWorkflow.getResult(String.class);
       Assert.fail("unreachable");
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
-      System.out.println("CANCELLED!");
     }
     testWorkflowRule.assertHistoryEvent(
-        execution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
+        parentExecution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
+  }
+
+  @Test
+  public void testImposterWorkflowContinueAsNewCancellationTest() throws InterruptedException {
+    count = new AtomicInteger(3);
+    // Parent-child workflow
+    WorkflowStub parentWorkflow =
+        testWorkflowRule.newUntypedWorkflowStub("TestWorkflowCancellationType");
+    WorkflowExecution parentExecution =
+        parentWorkflow.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
+    // Imposter workflow
+    WorkflowStub imposterChild = testWorkflowRule.newUntypedWorkflowStub("NoArgsWorkflow");
+    WorkflowExecution execution = imposterChild.start();
+    Thread.sleep(500);
+    parentWorkflow.cancel();
+    try {
+      parentWorkflow.getResult(String.class);
+      Assert.fail("unreachable");
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof CanceledFailure);
+    }
+    // Assert parent behavior
+    // TODO: assert runID not set on this event and child workflow only boolean set to true
+    testWorkflowRule.assertHistoryEvent(
+        parentExecution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
+    testWorkflowRule.assertHistoryEvent(
+        parentExecution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
+    // Assert imposter workflow behavior
+    testWorkflowRule.assertNoHistoryEvent(
+        execution, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED);
   }
 
   public static class TestParentWorkflowImpl implements TestWorkflowCancellationType {
@@ -80,10 +113,22 @@ public class ChildWorkflowContinueAsNewCancellationTest {
   public static class TestChildWorkflowImpl implements NoArgsWorkflow {
     @Override
     public void execute() {
-      count.incrementAndGet();
-      System.out.println("ChildWorkflow runID: " + Workflow.getInfo().getRunId());
-      Workflow.sleep(Duration.ofSeconds(1));
-      Workflow.continueAsNew();
+      Optional<String> id = Workflow.getInfo().getParentRunId();
+      if (!id.isPresent()) {
+        // Does not have parent
+        Workflow.continueAsNew();
+      } else if (count.getAndDecrement() > 0) {
+        // Has parent
+        if (count.get() == 0) {
+          try {
+            // Last child falls asleep
+            Workflow.sleep(Duration.ofHours(1));
+          } catch (CanceledFailure e) {
+            System.out.println("Canceled child with runID: " + Workflow.getInfo().getRunId());
+          }
+        }
+        Workflow.continueAsNew();
+      }
     }
   }
 }

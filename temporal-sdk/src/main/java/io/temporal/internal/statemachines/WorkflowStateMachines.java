@@ -550,7 +550,7 @@ public final class WorkflowStateMachines {
   }
 
   /**
-   * @param attributes attributes to use to cancel external worklfow
+   * @param attributes attributes to use to cancel external workflow
    * @param completionCallback one of ExternalWorkflowExecutionCancelRequestedEvent,
    */
   public void requestCancelExternalWorkflowExecution(
