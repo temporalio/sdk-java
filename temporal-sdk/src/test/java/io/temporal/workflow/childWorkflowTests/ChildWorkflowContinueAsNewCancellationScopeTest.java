@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowFailedException;
+import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Async;
@@ -40,6 +41,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -47,6 +49,7 @@ import org.junit.Test;
 
 public class ChildWorkflowContinueAsNewCancellationScopeTest {
   private static AtomicInteger count;
+  private static CountDownLatch latch = new CountDownLatch(1);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -57,7 +60,7 @@ public class ChildWorkflowContinueAsNewCancellationScopeTest {
 
   @Test
   public void testChildWorkflowContinueAsNewCancellationTest() throws InterruptedException {
-    count = new AtomicInteger(3);
+    count = new AtomicInteger(2);
     WorkflowStub parentWorkflow =
         testWorkflowRule.newUntypedWorkflowStub("TestWorkflowCancellationType");
     WorkflowExecution parentExecution =
@@ -83,9 +86,19 @@ public class ChildWorkflowContinueAsNewCancellationScopeTest {
     WorkflowExecution parentExecution =
         parentWorkflow.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
     // Imposter workflow
-    WorkflowStub imposterChild = testWorkflowRule.newUntypedWorkflowStub("NoArgsWorkflow");
-    WorkflowExecution execution = imposterChild.start();
-    Thread.sleep(500);
+    NoArgsWorkflow imposterChild =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                NoArgsWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setWorkflowId("WorkflowID")
+                    .build());
+    System.out.println("Waiting for the first child workflow to finish...");
+    latch.await();
+    System.out.println("First child workflow has finished, starting the impostor.");
+    imposterChild.execute();
     parentWorkflow.cancel();
     try {
       parentWorkflow.getResult(String.class);
@@ -99,9 +112,6 @@ public class ChildWorkflowContinueAsNewCancellationScopeTest {
         parentExecution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
     testWorkflowRule.assertHistoryEvent(
         parentExecution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
-    // Assert imposter workflow behavior
-    testWorkflowRule.assertNoHistoryEvent(
-        execution, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED);
   }
 
   public static class TestParentWorkflowImpl implements TestWorkflowCancellationType {
@@ -110,7 +120,10 @@ public class ChildWorkflowContinueAsNewCancellationScopeTest {
       NoArgsWorkflow child =
           Workflow.newChildWorkflowStub(
               NoArgsWorkflow.class,
-              ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
+              ChildWorkflowOptions.newBuilder()
+                  .setWorkflowId("WorkflowID")
+                  .setCancellationType(cancellationType)
+                  .build());
       // Create CancellationScope.
       List<Promise<Void>> children = new ArrayList<>();
       CancellationScope scope =
@@ -129,10 +142,10 @@ public class ChildWorkflowContinueAsNewCancellationScopeTest {
   public static class TestChildWorkflowImpl implements NoArgsWorkflow {
     @Override
     public void execute() {
-      Optional<String> id = Workflow.getInfo().getParentRunId();
-      if (!id.isPresent()) {
+      Optional<String> parentRunId = Workflow.getInfo().getParentRunId();
+      if (!parentRunId.isPresent()) {
         // Does not have parent
-        Workflow.continueAsNew();
+        Workflow.await(() -> false);
       } else if (count.getAndDecrement() > 0) {
         // Has parent
         if (count.get() == 0) {
@@ -140,9 +153,10 @@ public class ChildWorkflowContinueAsNewCancellationScopeTest {
             // Last child falls asleep
             Workflow.sleep(Duration.ofHours(1));
           } catch (CanceledFailure e) {
-            System.out.println("Canceled child with runID: " + Workflow.getInfo().getRunId());
           }
         }
+        // Signal that the workflow has finished.
+        latch.countDown();
         Workflow.continueAsNew();
       }
     }
