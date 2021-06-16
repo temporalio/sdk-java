@@ -41,7 +41,7 @@ public final class Poller<T> implements SuspendableWorker {
     /**
      * Pollers should shade or wrap all {@code java.lang.InterruptedException}s and raise {@code
      * Thread.interrupted()} flag. This follows GRPC stubs approach, see {@code
-     * io.grpc.stub.ClientCalls#blockingUnaryCall}. Because pollers use GRPC subs anyway, we chose
+     * io.grpc.stub.ClientCalls#blockingUnaryCall}. Because pollers use GRPC stubs anyway, we chose
      * this implementation for consistency. The caller of the poll task is responsible for handling
      * the flag.
      *
@@ -102,9 +102,9 @@ public final class Poller<T> implements SuspendableWorker {
               pollerOptions.getMaximumPollRateIntervalMilliseconds());
     }
 
-    // It is important to pass blocking queue of at least options.getPollThreadCount() capacity.
-    // As task enqueues next task the buffering is needed to queue task until the previous one
-    // releases a thread.
+    // It is important to pass blocking queue of at least options.getPollThreadCount() capacity. As
+    // task enqueues next task the buffering is needed to queue task until the previous one releases
+    // a thread.
     pollExecutor =
         new ThreadPoolExecutor(
             pollerOptions.getPollThreadCount(),
@@ -148,8 +148,8 @@ public final class Poller<T> implements SuspendableWorker {
     if (!isStarted()) {
       return;
     }
-    // shutdownNow and then await to stop long polling and ensure that no new tasks
-    // are dispatched to the taskExecutor.
+    // shutdownNow and then await to stop long polling and ensure that no new tasks are dispatched
+    // to the taskExecutor.
     pollExecutor.shutdownNow();
     try {
       pollExecutor.awaitTermination(1, TimeUnit.SECONDS);
@@ -321,8 +321,8 @@ public final class Poller<T> implements SuspendableWorker {
           // if the worker thread gets InterruptedException - it's normal during shutdown
           || ex instanceof InterruptedException
           // if we get wrapped InterruptedException like what PollTask or GRPC clients do with
-          // setting
-          // Thread.interrupted() on - it's normal during shutdown too. See PollTask javadoc.
+          // setting Thread.interrupted() on - it's normal during shutdown too. See PollTask
+          // javadoc.
           || ex.getCause() instanceof InterruptedException;
     }
   }
