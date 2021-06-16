@@ -81,10 +81,8 @@ public class GetVersionRemovedInReplayTest {
       if (!Workflow.isReplaying()) {
         int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 13);
         assertEquals(13, version);
-        result = testActivities.activity2("activity2", 2);
-      } else {
-        result = testActivities.activity2("activity2", 2);
       }
+      result = testActivities.activity2("activity2", 2);
       result += testActivities.activity();
       return result;
     }
