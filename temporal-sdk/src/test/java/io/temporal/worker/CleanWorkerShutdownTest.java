@@ -320,7 +320,7 @@ public class CleanWorkerShutdownTest {
     public String execute() {
       try {
         started.complete(true);
-        Thread.sleep(1500);
+        Thread.sleep(1000);
       } catch (InterruptedException e) {
         return "interrupted";
       }
@@ -339,7 +339,7 @@ public class CleanWorkerShutdownTest {
     public String execute() {
       try {
         started.complete(true);
-        Thread.sleep(1500);
+        Thread.sleep(1000);
         Activity.getExecutionContext().heartbeat("foo");
       } catch (ActivityWorkerShutdownException e) {
         return "workershutdown";
