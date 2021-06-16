@@ -64,7 +64,8 @@ public final class WorkflowImplementationOptions {
      * matched. For example to fail workflow on any exception pass {@link Throwable} class to this
      * method.
      */
-    public Builder setFailWorkflowExceptionTypes(
+    @SafeVarargs
+    public final Builder setFailWorkflowExceptionTypes(
         Class<? extends Throwable>... failWorkflowExceptionTypes) {
       this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
       return this;
