@@ -24,25 +24,25 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Information about the Activity Task that the current Activity is handling. Use {@link
+ * Information about the Activity Task that the current Activity Execution is handling. Use {@link
  * ActivityExecutionContext#getInfo()} to access.
  */
 public interface ActivityInfo {
 
   /**
-   * Correlation token that can be used to complete the Activity asynchronously through {@link
+   * Returns a correlation token that can be used to complete the Activity Execution asynchronously through {@link
    * io.temporal.client.ActivityCompletionClient#complete(byte[], Object)}.
    */
   byte[] getTaskToken();
 
-  /** WorkflowId of the Workflow that scheduled the Activity. */
+  /** WorkflowId of the Workflow Execution that scheduled the Activity Execution. */
   String getWorkflowId();
 
-  /** RunId of the Workflow that scheduled the Activity. */
+  /** RunId of the Workflow Execution that scheduled the Activity Execution. */
   String getRunId();
 
   /**
-   * ID of the Activity. This ID can be used to complete the Activity asynchronously through {@link
+   * ID of the Activity Execution. This ID can be used to complete the Activity Execution asynchronously through {@link
    * io.temporal.client.ActivityCompletionClient#complete(String, Optional, String, Object)}.
    */
   String getActivityId();
@@ -51,29 +51,52 @@ public interface ActivityInfo {
   String getActivityType();
 
   /**
-   * Time when the Activity was initially scheduled by the Workflow.
+   * Time when the Activity Execution was initially scheduled by the Workflow Execution.
    *
    * @return Timestamp in milliseconds.
    */
   long getScheduledTimestamp();
 
+  /**
+   * Returns the Schedule-To-Close Timeout setting as a Duration.
+   */
   Duration getScheduleToCloseTimeout();
 
+  /**
+   * Returns the Start-To-Close Timeout setting as a Duration.
+   */
   Duration getStartToCloseTimeout();
 
+  /**
+   * Returns the Heartbeat Timeout setting as a Duration.
+   */
   Duration getHeartbeatTimeout();
 
   Optional<Payloads> getHeartbeatDetails();
 
+  /**
+   * Returns the Workflow Type of the Workflow Execution that ececuted the Activity.
+   */
   String getWorkflowType();
 
+  /**
+   * Returns the Namespace of Workflow Execution that executed the Activity.
+   */
   String getWorkflowNamespace();
 
+  /**
+   * Returns the Namespace of the Activty Execution.
+   */
   String getActivityNamespace();
 
-  /** Activity execution attempt. Starts from 1. Incremented on each Activity retry. */
+  /**
+   * Gets the currents Activity Execution attempt.
+   * Attempts start at 1 and increment on each Activity Execution retry.
+   */
   int getAttempt();
 
-  /** Determines if this Activity is invoked as a local Activity. */
+  /**
+   * Use to determine if the Activity Execution is a local Activity.
+   */
   boolean isLocal();
 }
