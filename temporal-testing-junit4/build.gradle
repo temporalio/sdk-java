@@ -5,6 +5,6 @@ dependencies {
 
     api group: 'junit', name: 'junit', version: '4.13.2'
 
-    testRuntimeOnly group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.30'
+    testRuntimeOnly group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.31'
 }
 
