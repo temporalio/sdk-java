@@ -62,7 +62,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final Scope metricsScope;
 
   /**
-   * Creates client that connects to an instance of the Temporal Service.
+   * Creates client that connects to an instance of the Temporal Service. Cannot be used from within
+   * workflow code.
    *
    * @param service client to the Temporal Service endpoint.
    * @param options Options (like {@link io.temporal.common.converter.DataConverter} override) for
@@ -70,6 +71,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    */
   public static WorkflowClient newInstance(
       WorkflowServiceStubs service, WorkflowClientOptions options) {
+    checkThread();
     return new WorkflowClientInternal(service, options);
   }
 
@@ -108,17 +110,20 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @Override
   public WorkflowServiceStubs getWorkflowServiceStubs() {
+    checkThread();
     return workflowServiceStubs;
   }
 
   @Override
   public WorkflowClientOptions getOptions() {
+    checkThread();
     return options;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
+    checkThread();
     checkAnnotation(workflowInterface, WorkflowMethod.class);
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
@@ -162,6 +167,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public <T> T newWorkflowStub(
       Class<T> workflowInterface, String workflowId, Optional<String> runId) {
+    checkThread();
     checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class, SignalMethod.class);
     if (Strings.isNullOrEmpty(workflowId)) {
       throw new IllegalArgumentException("workflowId is null or empty");
@@ -185,6 +191,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions workflowOptions) {
+    checkThread();
     WorkflowStub result =
         new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, workflowOptions);
     for (WorkflowClientInterceptor i : interceptors) {
@@ -204,11 +211,13 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
+    checkThread();
     return new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, execution);
   }
 
   @Override
   public ActivityCompletionClient newActivityCompletionClient() {
+    checkThread();
     ActivityCompletionClient result =
         new ActivityCompletionClientImpl(manualActivityCompletionClientFactory, () -> {});
     for (WorkflowClientInterceptor i : interceptors) {
@@ -219,15 +228,18 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @Override
   public BatchRequest newSignalWithStartRequest() {
+    checkThread();
     return new SignalWithStartBatchRequest();
   }
 
   @Override
   public WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch) {
+    checkThread();
     return ((SignalWithStartBatchRequest) signalWithStartBatch).invoke();
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {
+    checkThread();
     WorkflowInvocationHandler.initAsyncInvocation(InvocationType.START);
     try {
       workflow.apply();
@@ -321,6 +333,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @SuppressWarnings("unchecked")
   public static CompletableFuture<Void> execute(Functions.Proc workflow) {
+    checkThread();
     WorkflowInvocationHandler.initAsyncInvocation(InvocationType.EXECUTE);
     try {
       workflow.apply();
@@ -413,5 +426,11 @@ public final class WorkflowClientInternal implements WorkflowClient {
       A5 arg5,
       A6 arg6) {
     return execute(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
+
+  private static void checkThread() {
+    if (Thread.currentThread().getName().startsWith("workflow")) {
+      throw new IllegalStateException("Cannot be called from workflow thread.");
+    }
   }
 }
