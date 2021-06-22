@@ -75,7 +75,7 @@ public interface ActivityInfo {
   Optional<Payloads> getHeartbeatDetails();
 
   /**
-   * Returns the Workflow Type of the Workflow Execution that ececuted the Activity.
+   * Returns the Workflow Type of the Workflow Execution that executed the Activity.
    */
   String getWorkflowType();
 
