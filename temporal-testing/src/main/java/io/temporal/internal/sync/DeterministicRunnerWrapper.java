@@ -19,19 +19,16 @@
 
 package io.temporal.internal.sync;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-@VisibleForTesting
 public class DeterministicRunnerWrapper implements InvocationHandler {
 
   private final InvocationHandler invocationHandler;
 
-  @VisibleForTesting
   public DeterministicRunnerWrapper(InvocationHandler invocationHandler) {
     this.invocationHandler = Objects.requireNonNull(invocationHandler);
   }
