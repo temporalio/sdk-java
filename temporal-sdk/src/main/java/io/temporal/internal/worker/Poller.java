@@ -28,7 +28,6 @@ import io.temporal.serviceclient.BackoffThrottler;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +41,7 @@ public final class Poller<T> implements SuspendableWorker {
     /**
      * Pollers should shade or wrap all {@code java.lang.InterruptedException}s and raise {@code
      * Thread.interrupted()} flag. This follows GRPC stubs approach, see {@code
-     * io.grpc.stub.ClientCalls#blockingUnaryCall}. Because pollers use GRPC subs anyway, we chose
+     * io.grpc.stub.ClientCalls#blockingUnaryCall}. Because pollers use GRPC stubs anyway, we chose
      * this implementation for consistency. The caller of the poll task is responsible for handling
      * the flag.
      *
@@ -103,9 +102,9 @@ public final class Poller<T> implements SuspendableWorker {
               pollerOptions.getMaximumPollRateIntervalMilliseconds());
     }
 
-    // It is important to pass blocking queue of at least options.getPollThreadCount() capacity.
-    // As task enqueues next task the buffering is needed to queue task until the previous one
-    // releases a thread.
+    // It is important to pass blocking queue of at least options.getPollThreadCount() capacity. As
+    // task enqueues next task the buffering is needed to queue task until the previous one releases
+    // a thread.
     pollExecutor =
         new ThreadPoolExecutor(
             pollerOptions.getPollThreadCount(),
@@ -149,9 +148,13 @@ public final class Poller<T> implements SuspendableWorker {
     if (!isStarted()) {
       return;
     }
-    // shutdownNow and then await to stop long polling and ensure that no new tasks
-    // are dispatched to the taskExecutor.
-    shutdownAndAwaitTermination(pollExecutor);
+    // shutdownNow and then await to stop long polling and ensure that no new tasks are dispatched
+    // to the taskExecutor.
+    pollExecutor.shutdownNow();
+    try {
+      pollExecutor.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+    }
     taskExecutor.shutdown();
   }
 
@@ -163,7 +166,7 @@ public final class Poller<T> implements SuspendableWorker {
     if (!isStarted()) {
       return;
     }
-    shutdownAndAwaitTermination(pollExecutor);
+    pollExecutor.shutdownNow();
     taskExecutor.shutdownNow();
   }
 
@@ -277,31 +280,6 @@ public final class Poller<T> implements SuspendableWorker {
     }
   }
 
-  /**
-   * Graceful 2-stage executor shutdown as recommended in
-   * https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ExecutorService.html
-   *
-   * @param pool - Executor service (such as Thread Pool) to shut down.
-   */
-  private static void shutdownAndAwaitTermination(ExecutorService pool) {
-    pool.shutdown(); // Disable new tasks from being submitted
-    try {
-      // Wait a while for existing tasks to terminate
-      if (!pool.awaitTermination(500, TimeUnit.MILLISECONDS)) {
-        pool.shutdownNow(); // Cancel currently executing tasks
-        // Wait a while for tasks to respond to being cancelled
-        if (!pool.awaitTermination(1000, TimeUnit.MILLISECONDS)) {
-          log.info("Thread Pool did not terminate gracefully.");
-        }
-      }
-    } catch (InterruptedException ie) {
-      // (Re-)Cancel if current thread also interrupted
-      pool.shutdownNow();
-      // Preserve interrupt status
-      Thread.currentThread().interrupt();
-    }
-  }
-
   private final class PollerUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
 
     @Override
@@ -343,8 +321,8 @@ public final class Poller<T> implements SuspendableWorker {
           // if the worker thread gets InterruptedException - it's normal during shutdown
           || ex instanceof InterruptedException
           // if we get wrapped InterruptedException like what PollTask or GRPC clients do with
-          // setting
-          // Thread.interrupted() on - it's normal during shutdown too. See PollTask javadoc.
+          // setting Thread.interrupted() on - it's normal during shutdown too. See PollTask
+          // javadoc.
           || ex.getCause() instanceof InterruptedException;
     }
   }
