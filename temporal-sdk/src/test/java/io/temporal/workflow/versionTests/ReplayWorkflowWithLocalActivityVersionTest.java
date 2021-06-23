@@ -22,45 +22,33 @@ package io.temporal.workflow.versionTests;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.common.RetryOptions;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class ReplayWithVersionTest {
-
-  private static final AtomicInteger COUNTER = new AtomicInteger(1);
+public class ReplayWorkflowWithLocalActivityVersionTest {
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new ActivityImpl())
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+                  .build())
           .build();
 
   @Test
-  public void testWorkflowReplaySpanStructure() {
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow1 workflow =
-        client.newWorkflowStub(
-            TestWorkflow1.class,
-            WorkflowOptions.newBuilder()
-                .setRetryOptions(
-                    RetryOptions.newBuilder()
-                        .setInitialInterval(Duration.ofSeconds(1))
-                        .setMaximumAttempts(2)
-                        .build())
-                .setTaskQueue(testWorkflowRule.getTaskQueue())
-                .build());
-    String result = workflow.execute(" version: ");
-    assertEquals("Activity version: default.", result);
+  public void testReplayWorkflowWithLocalActivityVersion() {
+    TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
+    String result = client.execute(" version: ");
+    assertEquals("noLocalActivity", result);
   }
 
   public static class ActivityImpl implements TestActivity1 {
@@ -80,15 +68,15 @@ public class ReplayWithVersionTest {
 
     @Override
     public String execute(String input) {
-      if (COUNTER.getAndDecrement() > 0) {
-        throw new OutOfMemoryError();
-      }
       int version = Workflow.getVersion("noLocalActivity", Workflow.DEFAULT_VERSION, 1);
+      Workflow.sleep(1000);
       if (version == Workflow.DEFAULT_VERSION) {
         // call Local activity
-        return activity.execute(input + "v1.");
+        return activity.execute(input + "default.");
+      } else {
+        // directly set properties on the workflow result
+        return "noLocalActivity";
       }
-      return activity.execute(input + "default.");
     }
   }
 }
