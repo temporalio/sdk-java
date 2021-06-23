@@ -57,7 +57,7 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
     if (!(value instanceof MessageOrBuilder)) {
       return Optional.empty();
     }
-    JsonFormat.Printer printer = JsonFormat.printer();
+
     try {
       String data = printer.print((MessageOrBuilder) value);
       return Optional.of(
