@@ -19,12 +19,14 @@
 
 package io.temporal.workflow.versionTests;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
+
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
 import java.time.Duration;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -47,18 +49,20 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
 
   @Test
   public void testGetVersionWorkflowReplaceGetVersionId() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
-    workflowStub.execute(testWorkflowRule.getTaskQueue());
+    TestWorkflow4 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow4.class);
+    assertTrue(workflowStub.execute());
   }
 
-  public static class TestGetVersionWorkflowReplaceGetVersionId
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestGetVersionWorkflowReplaceGetVersionId implements TestWorkflow4 {
+
+    private boolean hasReplayed;
 
     @Override
-    public String execute(String taskQueue) {
+    public boolean execute() {
+      if (Workflow.isReplaying()) hasReplayed = true;
       log.info("TestGetVersionWorkflow3Impl this=" + this.hashCode());
       // Test adding a version check in replay code.
       if (!Workflow.isReplaying()) {
@@ -83,7 +87,7 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
         }
       }
       Workflow.sleep(1000); // forces new workflow task
-      return "test";
+      return hasReplayed;
     }
   }
 }

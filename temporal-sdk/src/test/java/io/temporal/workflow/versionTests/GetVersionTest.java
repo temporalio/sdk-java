@@ -29,13 +29,14 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class GetVersionTest {
+
+  private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -50,10 +51,11 @@ public class GetVersionTest {
 
   @Test
   public void testGetVersion() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertEquals("activity22activity1activity1activity1", result);
+    assertTrue(hasReplayed);
+    assertEquals("activity22activity1activity1activity1", result);
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
@@ -73,10 +75,11 @@ public class GetVersionTest {
             "activity customActivity1");
   }
 
-  public static class TestGetVersionWorkflowImpl implements TestWorkflows.TestWorkflow1 {
+  public static class TestGetVersionWorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
+      if (Workflow.isReplaying()) hasReplayed = true;
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));

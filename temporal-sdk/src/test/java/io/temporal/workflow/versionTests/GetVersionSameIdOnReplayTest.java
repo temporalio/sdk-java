@@ -20,6 +20,8 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
@@ -27,9 +29,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
 import java.time.Duration;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -47,19 +48,22 @@ public class GetVersionSameIdOnReplayTest {
 
   @Test
   public void testGetVersionSameIdOnReplay() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
-    workflowStub.execute(testWorkflowRule.getTaskQueue());
+    TestWorkflow4 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow4.class);
+    assertTrue(workflowStub.execute());
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
     testWorkflowRule.assertNoHistoryEvent(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
   }
 
-  public static class TestGetVersionSameIdOnReplay implements TestWorkflows.TestWorkflow1 {
+  public static class TestGetVersionSameIdOnReplay implements TestWorkflow4 {
+
+    private boolean hasReplayed;
 
     @Override
-    public String execute(String taskQueue) {
+    public boolean execute() {
+      if (Workflow.isReplaying()) hasReplayed = true;
       // Test adding a version check in replay code.
       if (!Workflow.isReplaying()) {
         Workflow.sleep(Duration.ofMinutes(1));
@@ -72,7 +76,7 @@ public class GetVersionSameIdOnReplayTest {
         assertEquals(version2, version3);
       }
 
-      return "test";
+      return hasReplayed;
     }
   }
 }
