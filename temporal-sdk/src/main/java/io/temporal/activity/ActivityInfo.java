@@ -90,13 +90,13 @@ public interface ActivityInfo {
   String getActivityNamespace();
 
   /**
-   * Gets the currents Activity Execution attempt.
-   * Attempts start at 1 and increment on each Activity Execution retry.
+   * Gets the current Activity Execution attempt count.
+   * Attempt counts start at 1 and increment on each Activity Task Execution retry.
    */
   int getAttempt();
 
   /**
-   * Use to determine if the Activity Execution is a local Activity.
+   * Used to determine if the Activity Execution is a local Activity.
    */
   boolean isLocal();
 }
