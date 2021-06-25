@@ -71,7 +71,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    */
   public static WorkflowClient newInstance(
       WorkflowServiceStubs service, WorkflowClientOptions options) {
-    checkThread();
+    enforceNonWorkflowThread();
     return new WorkflowClientInternal(service, options);
   }
 
@@ -110,20 +110,20 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @Override
   public WorkflowServiceStubs getWorkflowServiceStubs() {
-    checkThread();
+    enforceNonWorkflowThread();
     return workflowServiceStubs;
   }
 
   @Override
   public WorkflowClientOptions getOptions() {
-    checkThread();
+    enforceNonWorkflowThread();
     return options;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
-    checkThread();
+    enforceNonWorkflowThread();
     checkAnnotation(workflowInterface, WorkflowMethod.class);
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
@@ -167,7 +167,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public <T> T newWorkflowStub(
       Class<T> workflowInterface, String workflowId, Optional<String> runId) {
-    checkThread();
+    enforceNonWorkflowThread();
     checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class, SignalMethod.class);
     if (Strings.isNullOrEmpty(workflowId)) {
       throw new IllegalArgumentException("workflowId is null or empty");
@@ -191,7 +191,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions workflowOptions) {
-    checkThread();
+    enforceNonWorkflowThread();
     WorkflowStub result =
         new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, workflowOptions);
     for (WorkflowClientInterceptor i : interceptors) {
@@ -211,13 +211,13 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
-    checkThread();
+    enforceNonWorkflowThread();
     return new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, execution);
   }
 
   @Override
   public ActivityCompletionClient newActivityCompletionClient() {
-    checkThread();
+    enforceNonWorkflowThread();
     ActivityCompletionClient result =
         new ActivityCompletionClientImpl(manualActivityCompletionClientFactory, () -> {});
     for (WorkflowClientInterceptor i : interceptors) {
@@ -228,18 +228,18 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @Override
   public BatchRequest newSignalWithStartRequest() {
-    checkThread();
+    enforceNonWorkflowThread();
     return new SignalWithStartBatchRequest();
   }
 
   @Override
   public WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch) {
-    checkThread();
+    enforceNonWorkflowThread();
     return ((SignalWithStartBatchRequest) signalWithStartBatch).invoke();
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {
-    checkThread();
+    enforceNonWorkflowThread();
     WorkflowInvocationHandler.initAsyncInvocation(InvocationType.START);
     try {
       workflow.apply();
@@ -333,7 +333,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @SuppressWarnings("unchecked")
   public static CompletableFuture<Void> execute(Functions.Proc workflow) {
-    checkThread();
+    enforceNonWorkflowThread();
     WorkflowInvocationHandler.initAsyncInvocation(InvocationType.EXECUTE);
     try {
       workflow.apply();
@@ -428,8 +428,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
     return execute(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
   }
 
-  private static void checkThread() {
-    if (Thread.currentThread().getName().startsWith("workflow")) {
+  private static void enforceNonWorkflowThread() {
+    if (DeterministicRunnerImpl.currentThreadInternalIfPresent().isPresent()) {
       throw new IllegalStateException("Cannot be called from workflow thread.");
     }
   }
