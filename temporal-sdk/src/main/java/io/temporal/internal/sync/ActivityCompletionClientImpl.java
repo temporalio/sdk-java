@@ -26,6 +26,8 @@ import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
 
+import static io.temporal.internal.sync.WorkflowInternal.enforceNonWorkflowThread;
+
 class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   private final ManualActivityCompletionClientFactory factory;
@@ -40,6 +42,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public <R> void complete(byte[] taskToken, R result) {
+    enforceNonWorkflowThread();
     try {
       factory.getClient(taskToken).complete(result);
     } finally {
@@ -49,6 +52,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public <R> void complete(String workflowId, Optional<String> runId, String activityId, R result) {
+    enforceNonWorkflowThread();
     try {
       factory.getClient(toExecution(workflowId, runId), activityId).complete(result);
     } finally {
@@ -58,6 +62,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public void completeExceptionally(byte[] taskToken, Exception result) {
+    enforceNonWorkflowThread();
     try {
       factory.getClient(taskToken).fail(result);
     } finally {
@@ -68,6 +73,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   @Override
   public void completeExceptionally(
       String workflowId, Optional<String> runId, String activityId, Exception result) {
+    enforceNonWorkflowThread();
     try {
       factory.getClient(toExecution(workflowId, runId), activityId).fail(result);
     } finally {
@@ -77,6 +83,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public <V> void reportCancellation(byte[] taskToken, V details) {
+    enforceNonWorkflowThread();
     try {
       factory.getClient(taskToken).reportCancellation(details);
     } finally {
@@ -87,6 +94,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   @Override
   public <V> void reportCancellation(
       String workflowId, Optional<String> runId, String activityId, V details) {
+    enforceNonWorkflowThread();
     try {
       factory.getClient(toExecution(workflowId, runId), activityId).reportCancellation(details);
     } finally {
@@ -96,12 +104,14 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
+    enforceNonWorkflowThread();
     factory.getClient(taskToken).recordHeartbeat(details);
   }
 
   @Override
   public <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException {
+    enforceNonWorkflowThread();
     factory.getClient(toExecution(workflowId, runId), activityId).recordHeartbeat(details);
   }
 
@@ -110,6 +120,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   private static WorkflowExecution toExecution(String workflowId, Optional<String> runId) {
+    enforceNonWorkflowThread();
     return WorkflowExecution.newBuilder()
         .setWorkflowId(workflowId)
         .setRunId(runId.orElse(""))

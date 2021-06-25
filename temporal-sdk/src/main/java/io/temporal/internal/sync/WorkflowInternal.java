@@ -501,4 +501,10 @@ public final class WorkflowInternal {
         .getPreviousRunFailure()
         .map(f -> FailureConverter.failureToException(f, DataConverter.getDefaultInstance()));
   }
+
+  public static void enforceNonWorkflowThread() {
+    if (DeterministicRunnerImpl.currentThreadInternalIfPresent().isPresent()) {
+      throw new IllegalStateException("Cannot be called from workflow thread.");
+    }
+  }
 }

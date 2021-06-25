@@ -50,6 +50,8 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static io.temporal.internal.sync.WorkflowInternal.enforceNonWorkflowThread;
+
 public final class WorkflowClientInternal implements WorkflowClient {
 
   private final GenericWorkflowClientExternalImpl genericClient;
@@ -426,11 +428,5 @@ public final class WorkflowClientInternal implements WorkflowClient {
       A5 arg5,
       A6 arg6) {
     return execute(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
-  }
-
-  private static void enforceNonWorkflowThread() {
-    if (DeterministicRunnerImpl.currentThreadInternalIfPresent().isPresent()) {
-      throw new IllegalStateException("Cannot be called from workflow thread.");
-    }
   }
 }
