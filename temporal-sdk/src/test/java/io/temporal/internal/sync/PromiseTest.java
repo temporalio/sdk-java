@@ -49,17 +49,17 @@ public class PromiseTest {
   @Rule public final Tracer trace = new Tracer();
 
   @Test
-  public void testFailure() throws Throwable {
+  public void testFailure() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<Boolean> f = Workflow.newPromise();
               trace.add("root begin");
-              WorkflowInternal.newThread(
-                      false, () -> f.completeExceptionally(new IllegalArgumentException("foo")))
+              WorkflowThread.newThread(
+                      () -> f.completeExceptionally(new IllegalArgumentException("foo")), false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         try {
                           f.get();
@@ -69,7 +69,8 @@ public class PromiseTest {
                           assertEquals(IllegalArgumentException.class, e.getClass());
                           trace.add("thread1 get failure");
                         }
-                      })
+                      },
+                      false)
                   .start();
               trace.add("root done");
             });
@@ -82,13 +83,14 @@ public class PromiseTest {
   }
 
   @Test
-  public void testGet() throws Throwable {
+  public void testGet() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
               trace.add("root begin");
-              WorkflowInternal.newThread(false, () -> f.complete("thread1")).start();
+              WorkflowThread.newThread(() -> f.complete("thread1"), false).start();
               trace.add(f.get());
               trace.add("root done");
             });
@@ -101,13 +103,14 @@ public class PromiseTest {
   }
 
   @Test
-  public void testCancellableGet() throws Throwable {
+  public void testCancellableGet() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
               trace.add("root begin");
-              WorkflowInternal.newThread(false, () -> f.complete("thread1")).start();
+              WorkflowThread.newThread(() -> f.complete("thread1"), false).start();
               trace.add(f.cancellableGet());
               trace.add("root done");
             });
@@ -120,9 +123,10 @@ public class PromiseTest {
   }
 
   @Test
-  public void testCancellableGetCancellation() throws Throwable {
+  public void testCancellableGetCancellation() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
               trace.add("root begin");
@@ -193,34 +197,35 @@ public class PromiseTest {
   }
 
   @Test
-  public void testMultiple() throws Throwable {
+  public void testMultiple() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               CompletablePromise<Boolean> f1 = Workflow.newPromise();
               CompletablePromise<Boolean> f2 = Workflow.newPromise();
               CompletablePromise<Boolean> f3 = Workflow.newPromise();
 
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread1 begin");
                         assertTrue(f1.get());
                         trace.add("thread1 f1");
                         f2.complete(true);
                         trace.add("thread1 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread2 begin");
                         assertTrue(f2.get());
                         trace.add("thread2 f2");
                         f3.complete(true);
                         trace.add("thread2 done");
-                      })
+                      },
+                      false)
                   .start();
               f1.complete(true);
               assertFalse(f1.complete(false));
@@ -246,9 +251,10 @@ public class PromiseTest {
   }
 
   @Test
-  public void tstAsync() throws Throwable {
+  public void tstAsync() {
     DeterministicRunner runner =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               CompletablePromise<String> f1 = Workflow.newPromise();
@@ -279,9 +285,10 @@ public class PromiseTest {
   }
 
   @Test
-  public void testAsyncFailure() throws Throwable {
+  public void testAsyncFailure() {
     DeterministicRunner runner =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               CompletablePromise<String> f1 = Workflow.newPromise();
@@ -321,38 +328,39 @@ public class PromiseTest {
   }
 
   @Test
-  public void testAllOf() throws Throwable {
+  public void testAllOf() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               CompletablePromise<String> f1 = Workflow.newPromise();
               CompletablePromise<String> f2 = Workflow.newPromise();
               CompletablePromise<String> f3 = Workflow.newPromise();
 
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread1 begin");
                         f1.complete("value1");
                         trace.add("thread1 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread3 begin");
                         f3.complete("value3");
                         trace.add("thread3 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread2 begin");
                         f2.complete("value2");
                         trace.add("thread2 done");
-                      })
+                      },
+                      false)
                   .start();
               List<Promise<String>> promises = new ArrayList<>();
               promises.add(f1);
@@ -380,9 +388,10 @@ public class PromiseTest {
   }
 
   @Test
-  public void testAllOfImmediatelyReady() throws Throwable {
+  public void testAllOfImmediatelyReady() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               {
@@ -421,38 +430,39 @@ public class PromiseTest {
   }
 
   @Test
-  public void testAnyOf() throws Throwable {
+  public void testAnyOf() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               CompletablePromise<String> f1 = Workflow.newPromise();
               CompletablePromise<String> f2 = Workflow.newPromise();
               CompletablePromise<String> f3 = Workflow.newPromise();
 
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread1 begin");
                         f1.complete("value1");
                         trace.add("thread1 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread3 begin");
                         f3.complete("value3");
                         trace.add("thread3 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread2 begin");
                         f2.complete("value2");
                         trace.add("thread2 done");
-                      })
+                      },
+                      false)
                   .start();
               List<Promise<String>> promises = new ArrayList<>();
               promises.add(f1);
@@ -481,38 +491,39 @@ public class PromiseTest {
   }
 
   @Test
-  public void testAllOfArray() throws Throwable {
+  public void testAllOfArray() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               CompletablePromise<String> f1 = Workflow.newPromise();
               CompletablePromise<Integer> f2 = Workflow.newPromise();
               CompletablePromise<Boolean> f3 = Workflow.newPromise();
 
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread1 begin");
                         f1.complete("value1");
                         trace.add("thread1 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread3 begin");
                         f3.complete(true);
                         trace.add("thread3 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread2 begin");
                         f2.complete(111);
                         trace.add("thread2 done");
-                      })
+                      },
+                      false)
                   .start();
               trace.add("root before allOf");
               assertFalse(f1.isCompleted());
@@ -541,38 +552,39 @@ public class PromiseTest {
   }
 
   @Test
-  public void testAnyOfArray() throws Throwable {
+  public void testAnyOfArray() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               CompletablePromise<String> f1 = Workflow.newPromise();
               CompletablePromise<Integer> f2 = Workflow.newPromise();
               CompletablePromise<Boolean> f3 = Workflow.newPromise();
 
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread1 begin");
                         f1.complete("value1");
                         trace.add("thread1 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread3 begin");
                         f3.complete(true);
                         trace.add("thread3 done");
-                      })
+                      },
+                      false)
                   .start();
-              WorkflowInternal.newThread(
-                      false,
+              WorkflowThread.newThread(
                       () -> {
                         trace.add("thread2 begin");
                         f2.complete(111);
                         trace.add("thread2 done");
-                      })
+                      },
+                      false)
                   .start();
               trace.add("root before allOf");
               assertFalse(f1.isCompleted());
@@ -602,9 +614,10 @@ public class PromiseTest {
   }
 
   @Test
-  public void testAnyOfImmediatelyReady() throws Throwable {
+  public void testAnyOfImmediatelyReady() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
               {

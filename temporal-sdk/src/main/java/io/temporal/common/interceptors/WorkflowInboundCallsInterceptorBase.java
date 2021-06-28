@@ -46,4 +46,14 @@ public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCalls
   public QueryOutput handleQuery(QueryInput input) {
     return next.handleQuery(input);
   }
+
+  @Override
+  public Object newWorkflowMethodThread(Runnable runnable, String name) {
+    return next.newWorkflowMethodThread(runnable, name);
+  }
+
+  @Override
+  public Object newCallbackThread(Runnable runnable, String name) {
+    return next.newCallbackThread(runnable, name);
+  }
 }
