@@ -25,7 +25,7 @@ import static org.junit.Assume.assumeFalse;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnBoolean;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,17 +51,16 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
   @Test
   public void testGetVersionWorkflowReplaceGetVersionId() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
-
-    TestWorkflowReturnBoolean workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowReturnBoolean.class);
-    assertTrue(workflowStub.execute());
+    NoArgsWorkflow workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
+    workflowStub.execute();
+    assertTrue(hasReplayed);
   }
 
-  public static class TestGetVersionWorkflowReplaceGetVersionId
-      implements TestWorkflowReturnBoolean {
+  public static class TestGetVersionWorkflowReplaceGetVersionId implements NoArgsWorkflow {
 
     @Override
-    public boolean execute() {
+    public void execute() {
       log.info("TestGetVersionWorkflow3Impl this=" + this.hashCode());
       // Test adding a version check in replay code.
       if (!Workflow.isReplaying()) {
@@ -87,7 +86,6 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
         }
       }
       Workflow.sleep(1000); // forces new workflow task
-      return hasReplayed;
     }
   }
 }

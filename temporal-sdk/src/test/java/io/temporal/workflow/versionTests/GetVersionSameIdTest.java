@@ -20,12 +20,13 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnBoolean;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,15 +49,16 @@ public class GetVersionSameIdTest {
   public void testGetVersionSameId() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
-    TestWorkflowReturnBoolean workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowReturnBoolean.class);
+    NoArgsWorkflow workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
     workflowStub.execute();
+    assertTrue(hasReplayed);
   }
 
-  public static class TestGetVersionSameId implements TestWorkflowReturnBoolean {
+  public static class TestGetVersionSameId implements NoArgsWorkflow {
 
     @Override
-    public boolean execute() {
+    public void execute() {
       System.out.println("REPLAYING: " + Workflow.isReplaying());
       // Test adding a version check in replay code.
       if (!Workflow.isReplaying()) {
@@ -71,7 +73,6 @@ public class GetVersionSameIdTest {
         assertEquals(11, version2);
         assertEquals(version1, version2);
       }
-      return hasReplayed;
     }
   }
 }
