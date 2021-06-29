@@ -250,11 +250,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     try {
       channel.awaitTermination(100, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
     mockServer.shutdown();
     try {
       mockServer.awaitTermination();
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw Activity.wrap(e);
     }
   }
