@@ -28,6 +28,7 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import java.time.Duration;
 import java.util.List;
@@ -69,6 +70,12 @@ public class TestWorkflows {
   public interface TestWorkflowReturnString {
     @WorkflowMethod
     String execute();
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflowReturnBoolean {
+    @WorkflowMethod
+    boolean execute();
   }
 
   @WorkflowInterface
@@ -163,7 +170,7 @@ public class TestWorkflows {
 
     @Override
     public String execute(String taskQueue, int delay) {
-      TestActivities.NoArgsActivity activity =
+      NoArgsActivity activity =
           Workflow.newActivityStub(
               TestActivities.NoArgsActivity.class,
               ActivityOptions.newBuilder()

@@ -20,6 +20,7 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -29,13 +30,14 @@ import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class GetVersionRemovedInReplayTest {
+
+  public static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -50,10 +52,11 @@ public class GetVersionRemovedInReplayTest {
 
   @Test
   public void testGetVersionRemovedInReplay() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertEquals("activity22activity", result);
+    assertTrue(hasReplayed);
+    assertEquals("activity22activity", result);
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
@@ -66,12 +69,15 @@ public class GetVersionRemovedInReplayTest {
             "activity Activity");
   }
 
-  // The following test covers the scenario where getVersion call is removed before a
-  // non-version-marker command.
-  public static class TestGetVersionRemovedInReplay implements TestWorkflows.TestWorkflow1 {
+  /**
+   * The following test covers the scenario where getVersion call is removed before a
+   * non-version-marker command.
+   */
+  public static class TestGetVersionRemovedInReplay implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
+      hasReplayed = Workflow.isReplaying();
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               TestActivities.VariousTestActivities.class,
@@ -81,10 +87,8 @@ public class GetVersionRemovedInReplayTest {
       if (!Workflow.isReplaying()) {
         int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 13);
         assertEquals(13, version);
-        result = testActivities.activity2("activity2", 2);
-      } else {
-        result = testActivities.activity2("activity2", 2);
       }
+      result = testActivities.activity2("activity2", 2);
       result += testActivities.activity();
       return result;
     }
