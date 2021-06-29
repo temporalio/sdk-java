@@ -154,15 +154,14 @@ public final class Poller<T> implements SuspendableWorker {
     try {
       pollExecutor.awaitTermination(1, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
     taskExecutor.shutdown();
   }
 
   @Override
   public void shutdownNow() {
-    if (log.isInfoEnabled()) {
-      log.info("shutdownNow poller=" + this.pollerOptions.getPollThreadNamePrefix());
-    }
+    log.info("shutdownNow poller={}", this.pollerOptions.getPollThreadNamePrefix());
     if (!isStarted()) {
       return;
     }
@@ -260,11 +259,7 @@ public final class Poller<T> implements SuspendableWorker {
      * @return true if pollExecutor is terminating, or the current thread is interrupted.
      */
     private boolean shouldTerminate() {
-      boolean threadIsInterrupted = Thread.interrupted();
-      if (threadIsInterrupted) {
-        Thread.currentThread().interrupt();
-      }
-      return pollExecutor.isTerminating() || threadIsInterrupted;
+      return pollExecutor.isShutdown() || Thread.currentThread().isInterrupted();
     }
   }
 
@@ -284,7 +279,7 @@ public final class Poller<T> implements SuspendableWorker {
 
     @Override
     public void uncaughtException(Thread t, Throwable e) {
-      if (!pollExecutor.isTerminating() || !shouldIgnoreDuringShutdown(e)) {
+      if (!pollExecutor.isShutdown() || !shouldIgnoreDuringShutdown(e)) {
         logPollErrors(t, e);
       } else {
         logPollExceptionsSuppressedDuringShutdown(t, e);
