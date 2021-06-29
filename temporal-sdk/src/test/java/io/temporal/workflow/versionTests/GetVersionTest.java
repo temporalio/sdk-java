@@ -79,7 +79,6 @@ public class GetVersionTest {
 
     @Override
     public String execute(String taskQueue) {
-      if (Workflow.isReplaying()) hasReplayed = true;
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
@@ -94,23 +93,19 @@ public class GetVersionTest {
       assertEquals(version, 1);
       result += "activity" + testActivities.activity1(1);
 
-      boolean replaying = false;
       // Test adding a version check in replay code.
-      if (!Workflow.isReplaying()) {
-        result += "activity" + testActivities.activity1(1); // This is executed in non-replay mode.
-      } else {
-        replaying = true;
+      if (Workflow.isReplaying()) {
+        hasReplayed = true;
         int version2 = Workflow.getVersion("test_change_2", Workflow.DEFAULT_VERSION, 1);
         assertEquals(version2, Workflow.DEFAULT_VERSION);
-        result += "activity" + testActivities.activity1(1);
       }
+      result += "activity" + testActivities.activity1(1); // This is executed in non-replay mode.
 
       // Test get version in replay mode.
       Workflow.sleep(1000);
       version = Workflow.getVersion("test_change", 1, 2);
       assertEquals(version, 1);
       result += "activity" + testActivities.activity1(1);
-      assertTrue(replaying);
       return result;
     }
   }

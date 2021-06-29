@@ -73,6 +73,12 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface TestWorkflowReturnBoolean {
+    @WorkflowMethod
+    boolean execute();
+  }
+
+  @WorkflowInterface
   public interface TestWorkflow1 {
     @WorkflowMethod
     String execute(String arg);
@@ -88,12 +94,6 @@ public class TestWorkflows {
   public interface TestWorkflow3 {
     @WorkflowMethod
     String execute(String arg, int arg2);
-  }
-
-  @WorkflowInterface
-  public interface TestWorkflow4 {
-    @WorkflowMethod
-    boolean execute();
   }
 
   @WorkflowInterface

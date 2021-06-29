@@ -71,7 +71,7 @@ public class VersionNotSupportedTest {
 
     @Override
     public String execute(String taskQueue) {
-      if (Workflow.isReplaying()) hasReplayed = true;
+      hasReplayed = Workflow.isReplaying();
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));

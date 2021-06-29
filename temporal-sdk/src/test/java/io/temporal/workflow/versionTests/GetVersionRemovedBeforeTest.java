@@ -75,7 +75,6 @@ public class GetVersionRemovedBeforeTest {
 
     @Override
     public String execute(String taskQueue) {
-      if (Workflow.isReplaying()) hasReplayed = true;
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
@@ -86,6 +85,7 @@ public class GetVersionRemovedBeforeTest {
         Workflow.getVersion("test_change3", Workflow.DEFAULT_VERSION, 13);
         Workflow.getVersion("test_change4", Workflow.DEFAULT_VERSION, 14);
       } else {
+        hasReplayed = true;
         int version = Workflow.getVersion("test_change3", Workflow.DEFAULT_VERSION, 22);
         assertEquals(13, version);
       }

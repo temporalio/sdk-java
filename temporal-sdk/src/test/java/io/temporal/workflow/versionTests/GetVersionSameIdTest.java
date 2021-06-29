@@ -25,12 +25,14 @@ import static org.junit.Assume.assumeFalse;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnBoolean;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class GetVersionSameIdTest {
+
+  private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -46,24 +48,22 @@ public class GetVersionSameIdTest {
   public void testGetVersionSameId() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
-    TestWorkflow4 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow4.class);
+    TestWorkflowReturnBoolean workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowReturnBoolean.class);
     workflowStub.execute();
   }
 
-  public static class TestGetVersionSameId implements TestWorkflow4 {
-
-    private boolean hasReplayed;
+  public static class TestGetVersionSameId implements TestWorkflowReturnBoolean {
 
     @Override
     public boolean execute() {
       System.out.println("REPLAYING: " + Workflow.isReplaying());
-      if (Workflow.isReplaying()) hasReplayed = true;
       // Test adding a version check in replay code.
       if (!Workflow.isReplaying()) {
         Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 11);
         Workflow.sleep(Duration.ofMinutes(1));
       } else {
+        hasReplayed = true;
         int version1 = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 11);
         Workflow.sleep(Duration.ofMinutes(1));
         int version2 = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 11);

@@ -25,7 +25,7 @@ import static org.junit.Assume.assumeFalse;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnBoolean;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,6 +36,7 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
 
   private static final Logger log =
       LoggerFactory.getLogger(GetVersionWorkflowReplaceGetVersionIdTest.class);
+  private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -51,18 +52,16 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
   public void testGetVersionWorkflowReplaceGetVersionId() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
-    TestWorkflow4 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow4.class);
+    TestWorkflowReturnBoolean workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowReturnBoolean.class);
     assertTrue(workflowStub.execute());
   }
 
-  public static class TestGetVersionWorkflowReplaceGetVersionId implements TestWorkflow4 {
-
-    private boolean hasReplayed;
+  public static class TestGetVersionWorkflowReplaceGetVersionId
+      implements TestWorkflowReturnBoolean {
 
     @Override
     public boolean execute() {
-      if (Workflow.isReplaying()) hasReplayed = true;
       log.info("TestGetVersionWorkflow3Impl this=" + this.hashCode());
       // Test adding a version check in replay code.
       if (!Workflow.isReplaying()) {
@@ -76,6 +75,7 @@ public class GetVersionWorkflowReplaceGetVersionIdTest {
           throw new IllegalStateException("Unexpected version: " + changeFoo2);
         }
       } else {
+        hasReplayed = true;
         // The updated code
         int changeBar = Workflow.getVersion("changeBar", Workflow.DEFAULT_VERSION, 1);
         if (changeBar != Workflow.DEFAULT_VERSION) {

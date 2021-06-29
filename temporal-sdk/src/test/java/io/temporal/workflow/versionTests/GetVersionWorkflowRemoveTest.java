@@ -62,7 +62,6 @@ public class GetVersionWorkflowRemoveTest {
 
     @Override
     public String execute(String taskQueue) {
-      if (Workflow.isReplaying()) hasReplayed = true;
       VariousTestActivities activities =
           Workflow.newActivityStub(
               VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
@@ -76,6 +75,7 @@ public class GetVersionWorkflowRemoveTest {
         }
       } else {
         // No getVersionCall
+        hasReplayed = true;
       }
       result = activities.activity2("foo", 10);
       Workflow.sleep(1000); // forces new workflow task

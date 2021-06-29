@@ -77,7 +77,7 @@ public class GetVersionRemovedInReplayTest {
 
     @Override
     public String execute(String taskQueue) {
-      if (Workflow.isReplaying()) hasReplayed = true;
+      hasReplayed = Workflow.isReplaying();
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               TestActivities.VariousTestActivities.class,
