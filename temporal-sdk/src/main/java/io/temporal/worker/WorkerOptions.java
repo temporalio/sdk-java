@@ -90,22 +90,21 @@ public final class WorkerOptions {
      * workers.
      */
     public Builder setMaxWorkerActivitiesPerSecond(double maxWorkerActivitiesPerSecond) {
-      if (maxWorkerActivitiesPerSecond <= 0) {
-        throw new IllegalArgumentException("Negative or zero: " + maxWorkerActivitiesPerSecond);
+      if (maxWorkerActivitiesPerSecond < 0) {
+        throw new IllegalArgumentException("Negative maxWorkerActivitiesPerSecond value: " + maxWorkerActivitiesPerSecond);
       }
       this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
       return this;
     }
 
     /**
-     * Maximum number of parallely executed activities.
+     * Maximum number of activities executed in parallel.
      *
      * <p>Default is 200.
      */
     public Builder setMaxConcurrentActivityExecutionSize(int maxConcurrentActivityExecutionSize) {
-      if (maxConcurrentActivityExecutionSize <= 0) {
-        throw new IllegalArgumentException(
-            "Negative or zero: " + maxConcurrentActivityExecutionSize);
+      if (maxConcurrentActivityExecutionSize < 0) {
+        throw new IllegalArgumentException("Negative maxConcurrentActivityExecutionSize value: " + maxConcurrentActivityExecutionSize);
       }
       this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
       return this;
@@ -120,24 +119,24 @@ public final class WorkerOptions {
      */
     public Builder setMaxConcurrentWorkflowTaskExecutionSize(
         int maxConcurrentWorkflowTaskExecutionSize) {
-      if (maxConcurrentWorkflowTaskExecutionSize <= 0) {
+      if (maxConcurrentWorkflowTaskExecutionSize < 0) {
         throw new IllegalArgumentException(
-            "Negative or zero: " + maxConcurrentWorkflowTaskExecutionSize);
+            "Negative maxConcurrentWorkflowTaskExecutionSize value: " + maxConcurrentWorkflowTaskExecutionSize);
       }
       this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
       return this;
     }
 
     /**
-     * Maximum number of parallely executed local activities.
+     * Maximum number of local activities executed in parallel.
      *
      * <p>Default is 200.
      */
     public Builder setMaxConcurrentLocalActivityExecutionSize(
         int maxConcurrentLocalActivityExecutionSize) {
-      if (maxConcurrentLocalActivityExecutionSize <= 0) {
+      if (maxConcurrentLocalActivityExecutionSize < 0) {
         throw new IllegalArgumentException(
-            "Negative or zero: " + maxConcurrentLocalActivityExecutionSize);
+            "Negative maxConcurrentLocalActivityExecutionSize value: " + maxConcurrentLocalActivityExecutionSize);
       }
       this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
       return this;
