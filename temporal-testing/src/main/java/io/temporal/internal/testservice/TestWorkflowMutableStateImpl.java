@@ -1989,6 +1989,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     try {
       return result.get(deadline, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       return QueryWorkflowResponse.getDefaultInstance();
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
@@ -2060,6 +2061,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     try {
       return result.get(deadline, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       return QueryWorkflowResponse.getDefaultInstance();
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();

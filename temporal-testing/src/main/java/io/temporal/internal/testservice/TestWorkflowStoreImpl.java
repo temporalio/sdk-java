@@ -155,6 +155,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
               newEventsCondition.await();
             }
           } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return null;
           }
         }
@@ -347,7 +348,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
                 deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
       }
     } catch (InterruptedException e) {
-      // Intentionally left empty
+      Thread.currentThread().interrupt();
     }
     return Optional.ofNullable(result);
   }
@@ -369,7 +370,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
                 deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
       }
     } catch (InterruptedException e) {
-      // Intentionally left empty
+      Thread.currentThread().interrupt();
     }
     return Optional.ofNullable(result);
   }
