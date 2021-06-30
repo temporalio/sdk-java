@@ -20,6 +20,7 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -28,13 +29,14 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class GetVersionRemovedBeforeTest {
+
+  private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -49,10 +51,11 @@ public class GetVersionRemovedBeforeTest {
 
   @Test
   public void testGetVersionRemovedBefore() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertEquals("activity", result);
+    assertTrue(hasReplayed);
+    assertEquals("activity", result);
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
@@ -68,7 +71,7 @@ public class GetVersionRemovedBeforeTest {
 
   // The following test covers the scenario where getVersion call is removed before another
   // version-marker command.
-  public static class TestGetVersionRemovedBefore implements TestWorkflows.TestWorkflow1 {
+  public static class TestGetVersionRemovedBefore implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
@@ -82,6 +85,7 @@ public class GetVersionRemovedBeforeTest {
         Workflow.getVersion("test_change3", Workflow.DEFAULT_VERSION, 13);
         Workflow.getVersion("test_change4", Workflow.DEFAULT_VERSION, 14);
       } else {
+        hasReplayed = true;
         int version = Workflow.getVersion("test_change3", Workflow.DEFAULT_VERSION, 22);
         assertEquals(13, version);
       }

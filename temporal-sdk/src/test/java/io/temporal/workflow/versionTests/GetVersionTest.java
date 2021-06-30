@@ -29,13 +29,14 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class GetVersionTest {
+
+  private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -50,10 +51,11 @@ public class GetVersionTest {
 
   @Test
   public void testGetVersion() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertEquals("activity22activity1activity1activity1", result);
+    assertTrue(hasReplayed);
+    assertEquals("activity22activity1activity1activity1", result);
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
@@ -73,7 +75,7 @@ public class GetVersionTest {
             "activity customActivity1");
   }
 
-  public static class TestGetVersionWorkflowImpl implements TestWorkflows.TestWorkflow1 {
+  public static class TestGetVersionWorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
@@ -91,23 +93,19 @@ public class GetVersionTest {
       assertEquals(version, 1);
       result += "activity" + testActivities.activity1(1);
 
-      boolean replaying = false;
       // Test adding a version check in replay code.
-      if (!Workflow.isReplaying()) {
-        result += "activity" + testActivities.activity1(1); // This is executed in non-replay mode.
-      } else {
-        replaying = true;
+      if (Workflow.isReplaying()) {
+        hasReplayed = true;
         int version2 = Workflow.getVersion("test_change_2", Workflow.DEFAULT_VERSION, 1);
         assertEquals(version2, Workflow.DEFAULT_VERSION);
-        result += "activity" + testActivities.activity1(1);
       }
+      result += "activity" + testActivities.activity1(1); // This is executed in non-replay mode.
 
       // Test get version in replay mode.
       Workflow.sleep(1000);
       version = Workflow.getVersion("test_change", 1, 2);
       assertEquals(version, 1);
       result += "activity" + testActivities.activity1(1);
-      assertTrue(replaying);
       return result;
     }
   }
