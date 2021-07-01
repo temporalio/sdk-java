@@ -1,0 +1,7 @@
+2021-06-04 - 0727c950 - Add getWorker method to TestWorkflowRule (#528)
+2021-06-04 - c09e03c9 - Avoid throwing IllegalStateException in NoopSuspendableWorker (#527)
+2021-06-09 - a6ade139 - Implement configurable DEFAULT_DEADLOCK_DETECTION_TIMEOUT (#524)
+2021-06-10 - 2b51430e - Added exclusion of GRPC wrapped InterruptedExceptions logging in Poller during shutdown (#536)
+2021-06-11 - 1be5b7df - Pluggable span naming (#511)
+2021-06-21 - 37401492 - Cancel child fix (#542)
+2021-07-01 - 36fea93e - Allow zero value on some worker options values (#563)
