@@ -19,17 +19,20 @@
 
 package io.temporal.workflow;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows.DeterminismFailingWorkflowImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.time.Duration;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -39,6 +42,7 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(DeterminismFailingWorkflowImpl.class)
+          .setActivityImplementations(new TestActivitiesImpl())
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
@@ -57,10 +61,10 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflowStringArg.class, options);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
-      Assert.fail("unreachable");
+      fail("unreachable");
     } catch (WorkflowFailedException e) {
       // expected to timeout as workflow is going get blocked.
-      Assert.assertTrue(e.getCause() instanceof TimeoutFailure);
+      assertTrue(e.getCause() instanceof TimeoutFailure);
     }
 
     int workflowRootThreads = 0;
@@ -71,6 +75,6 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
       }
     }
 
-    Assert.assertTrue("workflow threads might leak", workflowRootThreads < 10);
+    assertTrue("workflow threads might leak", workflowRootThreads < 10);
   }
 }

@@ -86,7 +86,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
       lock.lock();
       try {
         runLocked();
-      } catch (Throwable e) {
+      } catch (RuntimeException e) {
         log.error("Timer pump failed", e);
       } finally {
         lock.unlock();
@@ -133,7 +133,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                     }
                   });
             }
-          } catch (Throwable e) {
+          } catch (RuntimeException e) {
             log.error("Timer task failure", e);
           }
           continue;
@@ -143,6 +143,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
         try {
           condition.await(timeToAwait, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           break;
         }
       }

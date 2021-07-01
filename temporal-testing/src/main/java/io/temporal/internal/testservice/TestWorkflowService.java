@@ -228,6 +228,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         client.channel.awaitTermination(1, TimeUnit.SECONDS);
       }
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       log.debug("shutdown interrupted", e);
     }
     store.close();
@@ -1117,6 +1118,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       result.get();
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new RuntimeException(e);
     } catch (ExecutionException e) {
       throw new RuntimeException(e);

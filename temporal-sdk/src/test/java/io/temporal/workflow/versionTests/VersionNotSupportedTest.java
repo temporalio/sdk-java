@@ -19,6 +19,10 @@
 
 package io.temporal.workflow.versionTests;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import io.temporal.client.WorkflowException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -27,13 +31,14 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class VersionNotSupportedTest {
+
+  private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -48,23 +53,25 @@ public class VersionNotSupportedTest {
 
   @Test
   public void testVersionNotSupported() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
 
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
-      Assert.fail("unreachable");
+      fail("unreachable");
     } catch (WorkflowException e) {
-      Assert.assertEquals(
+      assertEquals(
           "message='unsupported change version', type='test', nonRetryable=false",
           e.getCause().getMessage());
     }
+    assertTrue(hasReplayed);
   }
 
-  public static class TestVersionNotSupportedWorkflowImpl implements TestWorkflows.TestWorkflow1 {
+  public static class TestVersionNotSupportedWorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
+      hasReplayed = Workflow.isReplaying();
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
