@@ -19,7 +19,13 @@
 
 package io.temporal.internal.sync;
 
-class PotentialDeadlockException extends RuntimeException {
+/**
+ * A workflow tasks are allowed to execute only some limited amount of time without interruption. If
+ * workflow task runs longer than specified interval without yielding (like calling an Activity), it
+ * will fail automatically with this exceptions. This is done to detect deadlocks in workflows and
+ * based on the assumptions that workflow code shouldn't be blocking.
+ */
+public class PotentialDeadlockException extends RuntimeException {
 
   private final WorkflowThreadContext workflowThreadContext;
   private String stackDump;
