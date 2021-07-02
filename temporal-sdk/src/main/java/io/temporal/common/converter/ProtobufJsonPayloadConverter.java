@@ -38,7 +38,7 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
   private final JsonFormat.Parser parser;
 
   public ProtobufJsonPayloadConverter() {
-    printer = JsonFormat.printer().preservingProtoFieldNames();
+    printer = JsonFormat.printer();
     parser = JsonFormat.parser().ignoringUnknownFields();
   }
 
