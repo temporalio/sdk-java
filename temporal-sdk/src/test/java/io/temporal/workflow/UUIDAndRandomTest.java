@@ -20,33 +20,42 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import java.time.Duration;
 import java.util.Random;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class UUIDAndRandomTest {
 
+  private static boolean hasReplayed;
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+                  .build())
           .setWorkflowTypes(TestUUIDAndRandom.class)
           .setActivityImplementations(new TestActivitiesImpl())
           .build();
 
   @Test
   public void testUUIDAndRandom() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertEquals("foo10", result);
+    assertTrue(hasReplayed);
+    assertEquals("foo10", result);
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
@@ -58,10 +67,11 @@ public class UUIDAndRandomTest {
             "activity Activity2");
   }
 
-  public static class TestUUIDAndRandom implements TestWorkflows.TestWorkflow1 {
+  public static class TestUUIDAndRandom implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
+      hasReplayed = Workflow.isReplaying();
       VariousTestActivities activities =
           Workflow.newActivityStub(
               VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
@@ -71,11 +81,15 @@ public class UUIDAndRandomTest {
       int savedInt = Workflow.sideEffect(int.class, () -> r12);
       String id = Workflow.randomUUID().toString() + "-" + Workflow.randomUUID().toString();
       String savedId = Workflow.sideEffect(String.class, () -> id);
+
       // Invoke activity in a blocking mode to ensure that asserts run after replay.
       String result = activities.activity2("foo", 10);
+
       // Assert that during replay values didn't change.
-      assertEquals(savedId, id);
-      assertEquals(savedInt, r12);
+      if (hasReplayed) {
+        assertEquals(savedId, id);
+        assertEquals(savedInt, r12);
+      }
       return result;
     }
   }

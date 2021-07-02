@@ -69,6 +69,7 @@ public final class InternalUtils {
           try {
             s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
           } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
           }
         });
   }
