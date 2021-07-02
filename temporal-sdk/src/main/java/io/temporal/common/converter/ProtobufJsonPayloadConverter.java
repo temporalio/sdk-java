@@ -38,7 +38,7 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
   private final JsonFormat.Parser parser;
 
   public ProtobufJsonPayloadConverter() {
-    printer = JsonFormat.printer().preservingProtoFieldNames();
+    printer = JsonFormat.printer();
     parser = JsonFormat.parser().ignoringUnknownFields();
   }
 
@@ -57,7 +57,7 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
     if (!(value instanceof MessageOrBuilder)) {
       return Optional.empty();
     }
-    JsonFormat.Printer printer = JsonFormat.printer();
+
     try {
       String data = printer.print((MessageOrBuilder) value);
       return Optional.of(
