@@ -386,4 +386,26 @@ public class WorkflowInternalQueueTest {
     trace.setExpected(expected);
     r.close();
   }
+
+  @Test
+  public void testQueueOrder() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> {
+              WorkflowQueue<Integer> queue = WorkflowInternal.newQueue(3);
+              queue.put(1);
+              queue.put(2);
+              queue.put(3);
+              trace.add(queue.take().toString());
+              trace.add(queue.poll().toString());
+              trace.add(queue.poll().toString());
+            });
+    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.cancel("test");
+    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+
+    String[] expected = new String[] {"1", "2", "3"};
+    trace.setExpected(expected);
+    r.close();
+  }
 }
