@@ -91,7 +91,24 @@ public final class WorkflowInternal {
     return getWorkflowInterceptor().newTimer(duration);
   }
 
+  /**
+   * @param capacity the maximum size of the queue
+   * @return new instance of {@link WorkflowQueue}
+   * @deprecated this method created a deprecated implementation of the queue that has some methods
+   *     implemented incorrectly. Please use {@link #newWorkflowQueue(int)} instead.
+   */
+  @Deprecated
   public static <E> WorkflowQueue<E> newQueue(int capacity) {
+    return new WorkflowQueueDeprecatedImpl<>(capacity);
+  }
+
+  /**
+   * Creates a {@link WorkflowQueue} implementation that can be used from workflow code.
+   *
+   * @param capacity the maximum size of the queue
+   * @return new instance of {@link WorkflowQueue}
+   */
+  public static <E> WorkflowQueue<E> newWorkflowQueue(int capacity) {
     return new WorkflowQueueImpl<>(capacity);
   }
 

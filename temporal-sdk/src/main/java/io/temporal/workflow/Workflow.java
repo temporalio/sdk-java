@@ -722,8 +722,20 @@ public final class Workflow {
     return WorkflowInternal.newTimer(delay);
   }
 
+  @Deprecated
   public static <E> WorkflowQueue<E> newQueue(int capacity) {
     return WorkflowInternal.newQueue(capacity);
+  }
+
+  /**
+   * Create a new instance of a {@link WorkflowQueue} implementation that is adapted to be used from
+   * a workflow code.
+   *
+   * @param capacity the maximum size of the queue
+   * @return new instance of {@link WorkflowQueue}
+   */
+  public static <E> WorkflowQueue<E> newWorkflowQueue(int capacity) {
+    return WorkflowInternal.newWorkflowQueue(capacity);
   }
 
   public static <E> CompletablePromise<E> newPromise() {
