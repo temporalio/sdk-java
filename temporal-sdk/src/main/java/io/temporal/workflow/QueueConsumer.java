@@ -45,16 +45,14 @@ public interface QueueConsumer<E> {
   /**
    * Retrieves and removes the head of this queue if it is not empty without blocking.
    *
-   * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
-   *     element is available
+   * @return the head of this queue, or {@code null} if the queue is empty
    */
   E poll();
 
   /**
    * Retrieves the head of this queue keeping it in the queue if it is not empty without blocking.
    *
-   * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
-   *     element is available
+   * @return the head of this queue, or {@code null} if the queue is empty
    */
   E peek();
 
