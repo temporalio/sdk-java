@@ -42,7 +42,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   @Override
   public E take() {
     WorkflowThread.await("WorkflowQueue.take", () -> !queue.isEmpty());
-    return queue.poll();
+    return queue.pollLast();
   }
 
   @Override
@@ -53,7 +53,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
           CancellationScope.throwCanceled();
           return !queue.isEmpty();
         });
-    return queue.poll();
+    return queue.pollLast();
   }
 
   @Override
