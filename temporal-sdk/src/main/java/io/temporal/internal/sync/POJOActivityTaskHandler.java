@@ -381,7 +381,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
               + info.getAttempt(),
           e);
     }
-    return mapToActivityFailure(e, info.getActivityId(), metricsScope, false);
+    return mapToActivityFailure(e, info.getActivityId(), metricsScope, info.isLocal());
   }
 
   private static class DynamicActivityInboundCallsInterceptor
@@ -464,7 +464,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
                   + info.getAttempt(),
               e);
         }
-        return mapToActivityFailure(e, info.getActivityId(), metricsScope, false);
+        return mapToActivityFailure(e, info.getActivityId(), metricsScope, info.isLocal());
       }
     }
   }
