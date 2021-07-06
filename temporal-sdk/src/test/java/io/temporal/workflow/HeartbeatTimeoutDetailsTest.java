@@ -29,7 +29,7 @@ import io.temporal.failure.TimeoutFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -53,13 +53,13 @@ public class HeartbeatTimeoutDetailsTest {
   public void testHeartbeatTimeoutDetails() {
     activitiesImpl.setCompletionClient(
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("heartbeatValue", result);
   }
 
-  public static class TestHeartbeatTimeoutDetails implements TestWorkflows.TestWorkflow1 {
+  public static class TestHeartbeatTimeoutDetails implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

@@ -29,7 +29,7 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.ITestNamedChild;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Rule;
@@ -58,7 +58,7 @@ public class ChildWorkflowExecutionPromiseHandlerTest {
     assertEquals("FOO", result);
   }
 
-  public static class TestNamedChild implements TestWorkflows.ITestNamedChild {
+  public static class TestNamedChild implements ITestNamedChild {
 
     @Override
     public String execute(String arg) {
@@ -68,11 +68,11 @@ public class ChildWorkflowExecutionPromiseHandlerTest {
 
   public static class TestChildWorkflowExecutionPromiseHandler implements TestWorkflow1 {
 
-    private TestWorkflows.ITestNamedChild child;
+    private ITestNamedChild child;
 
     @Override
     public String execute(String taskQueue) {
-      child = Workflow.newChildWorkflowStub(TestWorkflows.ITestNamedChild.class);
+      child = Workflow.newChildWorkflowStub(ITestNamedChild.class);
       Promise<String> childResult = Async.function(child::execute, "foo");
       Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
       CompletablePromise<String> result = Workflow.newPromise();

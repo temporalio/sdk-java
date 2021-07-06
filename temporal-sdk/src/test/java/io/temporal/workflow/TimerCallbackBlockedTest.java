@@ -21,7 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -44,15 +44,13 @@ public class TimerCallbackBlockedTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    TestWorkflow1 client =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("timer2Fired", result);
   }
 
-  public static class TestTimerCallbackBlockedWorkflowImpl implements TestWorkflows.TestWorkflow1 {
+  public static class TestTimerCallbackBlockedWorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

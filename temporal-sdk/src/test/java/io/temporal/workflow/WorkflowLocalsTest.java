@@ -22,7 +22,7 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -36,13 +36,13 @@ public class WorkflowLocalsTest {
 
   @Test
   public void testWorkflowLocals() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("result=2, 100", result);
   }
 
-  public static class TestWorkflowLocals implements TestWorkflows.TestWorkflow1 {
+  public static class TestWorkflowLocals implements TestWorkflow1 {
 
     private final WorkflowThreadLocal<Integer> threadLocal =
         WorkflowThreadLocal.withInitial(() -> 2);

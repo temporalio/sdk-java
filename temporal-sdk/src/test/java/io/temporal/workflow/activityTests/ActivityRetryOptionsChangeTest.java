@@ -27,7 +27,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
@@ -48,8 +48,8 @@ public class ActivityRetryOptionsChangeTest {
 
   @Test
   public void testActivityRetryOptionsChange() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -61,7 +61,7 @@ public class ActivityRetryOptionsChangeTest {
     Assert.assertEquals(activitiesImpl.toString(), 2, activitiesImpl.invocations.size());
   }
 
-  public static class TestActivityRetryOptionsChange implements TestWorkflows.TestWorkflow1 {
+  public static class TestActivityRetryOptionsChange implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

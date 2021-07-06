@@ -19,6 +19,8 @@
 
 package io.temporal.workflow.activityTests;
 
+import static org.junit.Assume.assumeFalse;
+
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowException;
@@ -32,11 +34,10 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -52,8 +53,8 @@ public class AsyncActivityRetryTest {
 
   @Test
   public void testAsyncActivityRetry() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -75,12 +76,12 @@ public class AsyncActivityRetryTest {
   @Test
   public void testAsyncActivityRetryReplay() throws Exception {
     // Avoid executing 4 times
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
   }
 
-  public static class TestAsyncActivityRetry implements TestWorkflows.TestWorkflow1 {
+  public static class TestAsyncActivityRetry implements TestWorkflow1 {
     private VariousTestActivities activities;
 
     @Override

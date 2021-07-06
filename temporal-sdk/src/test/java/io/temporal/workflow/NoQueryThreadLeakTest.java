@@ -22,7 +22,7 @@ package io.temporal.workflow;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.QueryableWorkflow;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import org.junit.Assert;
@@ -38,8 +38,8 @@ public class NoQueryThreadLeakTest {
   @Test
   public void testNoQueryThreadLeak() throws InterruptedException {
     int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
-    TestWorkflows.QueryableWorkflow client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.QueryableWorkflow.class);
+    QueryableWorkflow client =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(QueryableWorkflow.class);
     WorkflowClient.start(client::execute);
     testWorkflowRule.sleep(Duration.ofSeconds(1));
     // Calls query multiple times to check at the end of the method that if it doesn't leak threads
@@ -58,7 +58,7 @@ public class NoQueryThreadLeakTest {
     Assert.assertTrue("query leaks threads: " + threadsCreated, threadsCreated < queryCount);
   }
 
-  public static class TestNoQueryWorkflowImpl implements TestWorkflows.QueryableWorkflow {
+  public static class TestNoQueryWorkflowImpl implements QueryableWorkflow {
 
     CompletablePromise<Void> promise = Workflow.newPromise();
 

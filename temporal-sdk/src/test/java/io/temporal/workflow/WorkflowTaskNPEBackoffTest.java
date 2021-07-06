@@ -24,7 +24,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -48,10 +48,8 @@ public class WorkflowTaskNPEBackoffTest {
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
 
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
     long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     long elapsed = testWorkflowRule.getTestEnvironment().currentTimeMillis() - start;
@@ -65,7 +63,7 @@ public class WorkflowTaskNPEBackoffTest {
             .size());
   }
 
-  public static class TestWorkflowTaskNPEBackoff implements TestWorkflows.TestWorkflow1 {
+  public static class TestWorkflowTaskNPEBackoff implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

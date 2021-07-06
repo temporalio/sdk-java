@@ -32,7 +32,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -54,8 +54,7 @@ public class ChildAsyncLambdaWorkflowTest {
    */
   @Test
   public void testChildAsyncLambdaWorkflow() {
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 client = testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflow1.class);
     Assert.assertEquals(null, client.execute(testWorkflowRule.getTaskQueue()));
   }
 
@@ -75,7 +74,7 @@ public class ChildAsyncLambdaWorkflowTest {
     }
   }
 
-  public static class TestChildAsyncLambdaWorkflow implements TestWorkflows.TestWorkflow1 {
+  public static class TestChildAsyncLambdaWorkflow implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

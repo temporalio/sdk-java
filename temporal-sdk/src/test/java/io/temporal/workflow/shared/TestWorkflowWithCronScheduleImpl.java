@@ -22,6 +22,7 @@ package io.temporal.workflow.shared;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowWithCronSchedule;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
@@ -30,8 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 
-public class TestWorkflowWithCronScheduleImpl
-    implements TestWorkflows.TestWorkflowWithCronSchedule {
+public class TestWorkflowWithCronScheduleImpl implements TestWorkflowWithCronSchedule {
 
   public static final Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
   public static String lastCompletionResult;

@@ -31,7 +31,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Rule;
@@ -50,8 +50,8 @@ public class ActivityRetryWithMaxAttemptsTest {
 
   @Test
   public void testActivityRetryWithMaxAttempts() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       fail("unreachable");
@@ -78,7 +78,7 @@ public class ActivityRetryWithMaxAttemptsTest {
             "currentTimeMillis");
   }
 
-  public static class TestActivityRetryWithMaxAttempts implements TestWorkflows.TestWorkflow1 {
+  public static class TestActivityRetryWithMaxAttempts implements TestWorkflow1 {
     @Override
     @SuppressWarnings("Finally")
     public String execute(String taskQueue) {

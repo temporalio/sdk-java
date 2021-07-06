@@ -28,7 +28,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -47,8 +47,8 @@ public class LocalActivityRetryTest {
 
   @Test
   public void testLocalActivityRetry() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -62,7 +62,7 @@ public class LocalActivityRetryTest {
     Assert.assertEquals("last attempt", 5, activitiesImpl.getLastAttempt());
   }
 
-  public static class TestLocalActivityRetry implements TestWorkflows.TestWorkflow1 {
+  public static class TestLocalActivityRetry implements TestWorkflow1 {
 
     @Override
     @SuppressWarnings("Finally")
