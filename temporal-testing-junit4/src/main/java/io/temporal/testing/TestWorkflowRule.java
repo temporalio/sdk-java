@@ -354,4 +354,27 @@ public class TestWorkflowRule implements TestRule {
   public Worker getWorker() {
     return testEnvironment.getWorkerFactory().getWorker(getTaskQueue());
   }
+
+  /**
+   * Returns the default test watcher impl that can be used is your tests. It simplifies the test watcher
+   * creation to just:
+   * <pre><code>
+   *   @Rule
+   *   public TestWatcher watchman = testWorkflowRule.getTestWatcher();
+   *   </code></pre>
+   *
+   * @return default test watcher impl
+   */
+  public TestWatcher getTestWatcher() {
+    return
+      new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, Description description) {
+          if (getTestEnvironment() != null) {
+            System.err.println(getTestEnvironment().getDiagnostics());
+            getTestEnvironment().shutdown();
+          }
+        }
+      };
+  }
 }
