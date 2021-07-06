@@ -32,7 +32,7 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -51,8 +51,7 @@ public class AbandonOnCancelActivityTest {
 
   @Test
   public void testAbandonOnCancelActivity() {
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     WorkflowExecution execution =
         WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
     testWorkflowRule
@@ -77,7 +76,7 @@ public class AbandonOnCancelActivityTest {
             .isEmpty());
   }
 
-  public static class TestAbandonOnCancelActivity implements TestWorkflows.TestWorkflow1 {
+  public static class TestAbandonOnCancelActivity implements TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
       VariousTestActivities testActivities =

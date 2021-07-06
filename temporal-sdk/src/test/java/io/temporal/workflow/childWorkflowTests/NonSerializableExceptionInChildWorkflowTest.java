@@ -26,7 +26,7 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.NonSerializableException;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,8 +46,8 @@ public class NonSerializableExceptionInChildWorkflowTest {
 
   @Test
   public void testNonSerializableExceptionInChildWorkflow() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertTrue(result.contains("NonSerializableException"));
   }
@@ -68,8 +68,7 @@ public class NonSerializableExceptionInChildWorkflowTest {
     }
   }
 
-  public static class TestNonSerializableExceptionInChildWorkflow
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestNonSerializableExceptionInChildWorkflow implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

@@ -25,7 +25,7 @@ import io.temporal.workflow.ChildWorkflowStub;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,13 +42,11 @@ public class UntypedChildStubWorkflowAsyncInvokeTest {
 
   @Test
   public void testUntypedChildStubWorkflowAsyncInvoke() {
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 client = testWorkflowRule.newWorkflowStub200sTimeoutOptions(TestWorkflow1.class);
     Assert.assertEquals(null, client.execute(testWorkflowRule.getTaskQueue()));
   }
 
-  public static class TestUntypedChildStubWorkflowAsyncInvoke
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestUntypedChildStubWorkflowAsyncInvoke implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

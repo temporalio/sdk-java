@@ -28,7 +28,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -49,8 +49,8 @@ public class ActivityRetryOnTimeoutTest {
 
   @Test
   public void testActivityRetryOnTimeout() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     // Wall time on purpose
     long start = System.currentTimeMillis();
     try {
@@ -68,7 +68,7 @@ public class ActivityRetryOnTimeoutTest {
     }
   }
 
-  public static class TestActivityRetryOnTimeout implements TestWorkflows.TestWorkflow1 {
+  public static class TestActivityRetryOnTimeout implements TestWorkflow1 {
 
     @Override
     @SuppressWarnings("Finally")

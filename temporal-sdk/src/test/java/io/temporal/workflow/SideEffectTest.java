@@ -26,7 +26,7 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -43,8 +43,8 @@ public class SideEffectTest {
 
   @Test
   public void testSideEffect() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("activity1", result);
     testWorkflowRule
@@ -60,7 +60,7 @@ public class SideEffectTest {
             "activity customActivity1");
   }
 
-  public static class TestSideEffectWorkflowImpl implements TestWorkflows.TestWorkflow1 {
+  public static class TestSideEffectWorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

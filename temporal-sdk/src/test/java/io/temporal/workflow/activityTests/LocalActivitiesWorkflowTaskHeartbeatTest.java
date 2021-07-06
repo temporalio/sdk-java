@@ -26,7 +26,7 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -58,10 +58,8 @@ public class LocalActivitiesWorkflowTaskHeartbeatTest {
     int count = 5;
     Future<String>[] result = new Future[count];
     for (int i = 0; i < count; i++) {
-      TestWorkflows.TestWorkflow1 workflowStub =
-          testWorkflowRule
-              .getWorkflowClient()
-              .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+      TestWorkflow1 workflowStub =
+          testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
       result[i] = WorkflowClient.execute(workflowStub::execute, testWorkflowRule.getTaskQueue());
     }
     for (int i = 0; i < count; i++) {
@@ -73,7 +71,7 @@ public class LocalActivitiesWorkflowTaskHeartbeatTest {
   }
 
   public static class TestLocalActivitiesWorkflowTaskHeartbeatWorkflowImpl
-      implements TestWorkflows.TestWorkflow1 {
+      implements TestWorkflow1 {
     @Override
     public String execute(String taskQueue) {
       VariousTestActivities localActivities =

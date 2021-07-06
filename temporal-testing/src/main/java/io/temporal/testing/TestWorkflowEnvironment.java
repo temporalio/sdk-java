@@ -117,8 +117,9 @@ public interface TestWorkflowEnvironment {
   WorkflowClient getWorkflowClient();
 
   /**
-   * Returns the current in-memory test Temporal service time in milliseconds. This time might not
-   * be equal to {@link System#currentTimeMillis()} due to time skipping.
+   * This time might not be equal to {@link System#currentTimeMillis()} due to time skipping.
+   *
+   * @return the current in-memory test Temporal service time in milliseconds.
    */
   long currentTimeMillis();
 
@@ -135,16 +136,15 @@ public interface TestWorkflowEnvironment {
    */
   void registerDelayedCallback(Duration delay, Runnable r);
 
-  /** Returns the in-memory test Temporal service that is owned by this. */
+  /** @return the in-memory test Temporal service that is owned by this. */
   WorkflowServiceStubs getWorkflowService();
 
   String getNamespace();
 
   /**
-   * Returns the diagnostic data about the internal service state. Currently prints histories of all
-   * workflow instances stored in the service. This is useful information to print in the case of a
-   * unit test failure. A convenient way to achieve this is to add the following Rule to a unit
-   * test:
+   * Currently prints histories of all workflow instances stored in the service. This is useful
+   * information to print in the case of a unit test failure. A convenient way to achieve this is to
+   * add the following Rule to a unit test:
    *
    * <pre><code>
    *  {@literal @}Rule
@@ -157,6 +157,8 @@ public interface TestWorkflowEnvironment {
    *         }
    *       };
    * </code></pre>
+   *
+   * @return the diagnostic data about the internal service state.
    */
   String getDiagnostics();
 

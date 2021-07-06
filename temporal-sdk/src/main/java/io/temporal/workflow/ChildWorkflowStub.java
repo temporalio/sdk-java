@@ -57,8 +57,9 @@ public interface ChildWorkflowStub {
   String getWorkflowType();
 
   /**
-   * Returns promise that becomes ready once the child has started. If workflow completes before
-   * this promise is ready then the child might not start at all.
+   * If workflow completes before this promise is ready then the child might not start at all.
+   *
+   * @return promise that becomes ready once the child has started.
    */
   Promise<WorkflowExecution> getExecution();
 

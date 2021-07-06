@@ -29,7 +29,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -49,8 +49,8 @@ public class ActivityApplicationFailureNonRetryableTest {
 
   @Test
   public void testActivityApplicationFailureNonRetryable() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -66,8 +66,7 @@ public class ActivityApplicationFailureNonRetryableTest {
     Assert.assertEquals(activitiesImpl.toString(), 1, activitiesImpl.invocations.size());
   }
 
-  public static class TestActivityApplicationFailureNonRetryable
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestActivityApplicationFailureNonRetryable implements TestWorkflow1 {
 
     private VariousTestActivities activities;
 

@@ -20,7 +20,7 @@
 package io.temporal.workflow;
 
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.*;
 import org.junit.Assert;
@@ -40,8 +40,8 @@ public class MutableSideEffectTest {
 
   @Test
   public void testMutableSideEffect() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     ArrayDeque<Long> values = new ArrayDeque<Long>();
     values.add(1234L);
     values.add(1234L);
@@ -56,7 +56,7 @@ public class MutableSideEffectTest {
     Assert.assertEquals("1234, 1234, 1234, 3456, 3456, 4234, 4234, 4234", result);
   }
 
-  public static class TestMutableSideEffectWorkflowImpl implements TestWorkflows.TestWorkflow1 {
+  public static class TestMutableSideEffectWorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

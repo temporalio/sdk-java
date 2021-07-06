@@ -22,6 +22,7 @@ package io.temporal.workflow.childWorkflowTests;
 import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
 import static io.temporal.workflow.shared.SDKTestWorkflowRule.regenerateHistoryForReplay;
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeFalse;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClientOptions;
@@ -45,7 +46,6 @@ import io.temporal.workflow.shared.TestWorkflows.ITestChild;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -129,7 +129,7 @@ public class ChildWorkflowRetryTest {
    */
   @Test
   public void testChildWorkflowRetryReplay() throws Exception {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);

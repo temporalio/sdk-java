@@ -21,6 +21,7 @@ package io.temporal.workflow.childWorkflowTests;
 
 import static io.temporal.workflow.shared.TestOptions.newWorkflowOptionsWithTimeouts;
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeFalse;
 
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
@@ -28,9 +29,9 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowWithCronSchedule;
 import java.time.Duration;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -49,7 +50,7 @@ public class ChildWorkflowWithCronScheduleTest {
   public void testChildWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
-    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
+    assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
 
     WorkflowStub client =
         testWorkflowRule
@@ -75,9 +76,9 @@ public class ChildWorkflowWithCronScheduleTest {
     assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResult);
   }
 
-  public static class TestCronParentWorkflow implements TestWorkflows.TestWorkflow1 {
-    private final TestWorkflows.TestWorkflowWithCronSchedule cronChild =
-        Workflow.newChildWorkflowStub(TestWorkflows.TestWorkflowWithCronSchedule.class);
+  public static class TestCronParentWorkflow implements TestWorkflow1 {
+    private final TestWorkflowWithCronSchedule cronChild =
+        Workflow.newChildWorkflowStub(TestWorkflowWithCronSchedule.class);
 
     @Override
     public String execute(String taskQueue) {

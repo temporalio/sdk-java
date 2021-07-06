@@ -29,7 +29,7 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -61,7 +61,7 @@ public class DetachedScopeTest {
     activitiesImpl.assertInvocations("activityWithDelay", "activity1", "activity2", "activity3");
   }
 
-  public static class TestDetachedCancellationScope implements TestWorkflows.TestWorkflow1 {
+  public static class TestDetachedCancellationScope implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

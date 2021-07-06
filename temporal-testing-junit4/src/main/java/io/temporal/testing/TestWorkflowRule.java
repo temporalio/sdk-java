@@ -310,22 +310,22 @@ public class TestWorkflowRule implements TestRule {
     return testEnvironment;
   }
 
-  /** Returns name of the task queue that test worker is polling. */
+  /** @return name of the task queue that test worker is polling. */
   public String getTaskQueue() {
     return taskQueue;
   }
 
-  /** Returns client to the Temporal service used to start and query workflows. */
+  /** @return client to the Temporal service used to start and query workflows. */
   public WorkflowClient getWorkflowClient() {
     return testEnvironment.getWorkflowClient();
   }
 
-  /** Returns blockingStub */
+  /** @return blockingStub */
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
     return testEnvironment.getWorkflowService().blockingStub();
   }
 
-  /** Returns tracer. */
+  /** @return tracer. */
   public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
     if (workerFactoryOptions.getWorkerInterceptors() != null) {
       for (WorkerInterceptor interceptor : workerFactoryOptions.getWorkerInterceptors()) {
@@ -337,7 +337,7 @@ public class TestWorkflowRule implements TestRule {
     return null;
   }
 
-  /** Returns name of the task queue that test worker is polling. */
+  /** @return name of the task queue that test worker is polling. */
   public History getWorkflowExecutionHistory(WorkflowExecution execution) {
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -348,8 +348,10 @@ public class TestWorkflowRule implements TestRule {
   }
 
   /**
-   * Returns the default worker created for each test method. This worker listens to the default
-   * task queue which is obtainable via the {@link #getTaskQueue()} method.
+   * This worker listens to the default task queue which is obtainable via the {@link
+   * #getTaskQueue()} method.
+   *
+   * @return the default worker created for each test method.
    */
   public Worker getWorker() {
     return testEnvironment.getWorkerFactory().getWorker(getTaskQueue());

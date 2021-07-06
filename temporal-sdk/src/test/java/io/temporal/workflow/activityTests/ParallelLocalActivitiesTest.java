@@ -28,7 +28,7 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,10 +57,8 @@ public class ParallelLocalActivitiesTest {
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
 
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("done", result);
     Assert.assertEquals(activitiesImpl.toString(), 100, activitiesImpl.invocations.size());
@@ -79,8 +77,7 @@ public class ParallelLocalActivitiesTest {
         .setExpected(expected.toArray(new String[0]));
   }
 
-  public static class TestParallelLocalActivitiesWorkflowImpl
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestParallelLocalActivitiesWorkflowImpl implements TestWorkflow1 {
     static final int COUNT = 100;
 
     @Override

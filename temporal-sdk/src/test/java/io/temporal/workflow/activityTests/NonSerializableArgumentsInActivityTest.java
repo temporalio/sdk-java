@@ -28,7 +28,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -48,8 +48,8 @@ public class NonSerializableArgumentsInActivityTest {
 
   @Test
   public void testNonSerializableArgumentsInActivity() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
 
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals(
@@ -61,8 +61,7 @@ public class NonSerializableArgumentsInActivityTest {
     void execute(int arg);
   }
 
-  public static class TestNonSerializableArgumentsInActivityWorkflow
-      implements TestWorkflows.TestWorkflow1 {
+  public static class TestNonSerializableArgumentsInActivityWorkflow implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

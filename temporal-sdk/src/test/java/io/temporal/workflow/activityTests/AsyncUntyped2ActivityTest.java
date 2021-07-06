@@ -27,7 +27,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestOptions;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,8 +47,7 @@ public class AsyncUntyped2ActivityTest {
   public void testAsyncUntyped2Activity() {
     activitiesImpl.completionClient =
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
-    TestWorkflows.TestWorkflow1 client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
     Assert.assertEquals("proc", activitiesImpl.procResult.get(0));
@@ -60,7 +59,7 @@ public class AsyncUntyped2ActivityTest {
     Assert.assertEquals("123456", activitiesImpl.procResult.get(6));
   }
 
-  public static class TestAsyncUtypedActivity2WorkflowImpl implements TestWorkflows.TestWorkflow1 {
+  public static class TestAsyncUtypedActivity2WorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

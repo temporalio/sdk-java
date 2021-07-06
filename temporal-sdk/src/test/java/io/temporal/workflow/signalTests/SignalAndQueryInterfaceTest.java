@@ -26,7 +26,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.SignalQueryBase;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,10 +43,10 @@ public class SignalAndQueryInterfaceTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(SignalQueryWorkflowA.class);
     WorkflowExecution execution = WorkflowClient.start(stub::execute);
 
-    TestWorkflows.SignalQueryBase signalStub =
+    SignalQueryBase signalStub =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.SignalQueryBase.class, execution.getWorkflowId());
+            .newWorkflowStub(SignalQueryBase.class, execution.getWorkflowId());
     signalStub.signal("Hello World!");
     String result = WorkflowStub.fromTyped(stub).getResult(String.class);
     String queryResult = signalStub.getSignal();
@@ -55,7 +55,7 @@ public class SignalAndQueryInterfaceTest {
   }
 
   @WorkflowInterface
-  public interface SignalQueryWorkflowA extends TestWorkflows.SignalQueryBase {
+  public interface SignalQueryWorkflowA extends SignalQueryBase {
     @WorkflowMethod
     String execute();
   }

@@ -23,7 +23,7 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,7 +47,7 @@ public class WorkflowCancellationScopePromiseTest {
     }
   }
 
-  public static class TestCancellationScopePromise implements TestWorkflows.TestWorkflow1 {
+  public static class TestCancellationScopePromise implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

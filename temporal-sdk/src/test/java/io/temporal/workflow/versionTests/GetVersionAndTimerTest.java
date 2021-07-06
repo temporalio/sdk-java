@@ -20,6 +20,7 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
@@ -27,7 +28,6 @@ import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.time.Instant;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -45,13 +45,13 @@ public class GetVersionAndTimerTest {
 
   @Test
   public void testTimedWorkflowWithoutVersionImpl() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     testTimedWorkflow(testWorkflowRuleWithoutVersion);
   }
 
   @Test
   public void testTimedWorkflowWithVersionImpl() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     testTimedWorkflow(testWorkflowRuleWithVersion);
   }
 

@@ -110,7 +110,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   Map<String, Object> getPropagatedContexts();
 
-  /** Returns the set of configured context propagators */
+  /** @return the set of configured context propagators */
   List<ContextPropagator> getContextPropagators();
 
   /**

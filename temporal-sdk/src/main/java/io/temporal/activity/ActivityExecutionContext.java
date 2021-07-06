@@ -40,8 +40,8 @@ public interface ActivityExecutionContext {
    * Use to notify the Workflow Execution that the Activity Execution is alive.
    *
    * @param details In case the Activity Execution times out details are returned as a field of the
-   *     exception that is thrown. The details are also accessible through 
-   *     {@link getHeartbeatDetails} on the next Activity Execution retry.
+   *     exception that is thrown. The details are also accessible through {@link
+   *     #getHeartbeatDetails(Class)}() on the next Activity Execution retry.
    * @throws ActivityCompletionException Which indicates that cancellation of the Activity Execution
    *     was requested by the Workflow Execution. Or it could indicate any other reason for an
    *     Activity Execution to stop. Should be rethrown from the Activity implementation to indicate

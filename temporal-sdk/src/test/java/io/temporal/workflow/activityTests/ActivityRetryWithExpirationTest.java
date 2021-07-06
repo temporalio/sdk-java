@@ -30,7 +30,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -50,8 +50,8 @@ public class ActivityRetryWithExpirationTest {
 
   @Test
   public void testActivityRetryWithExpiration() {
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
@@ -71,7 +71,7 @@ public class ActivityRetryWithExpirationTest {
   }
 
   public static class TestActivityRetryWithExpiration
-      implements TestWorkflows.TestWorkflow1, EmptyInterface, UnrelatedInterface {
+      implements TestWorkflow1, EmptyInterface, UnrelatedInterface {
 
     @Override
     @SuppressWarnings("Finally")

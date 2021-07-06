@@ -21,6 +21,7 @@ package io.temporal.workflow;
 
 import static io.temporal.workflow.shared.TestOptions.newWorkflowOptionsWithTimeouts;
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeFalse;
 
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
@@ -28,7 +29,6 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
 import java.time.Duration;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -47,7 +47,7 @@ public class WorkflowWithCronScheduleTest {
   public void testWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
-    Assume.assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
+    assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
 
     WorkflowStub client =
         testWorkflowRule
