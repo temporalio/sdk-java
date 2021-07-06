@@ -20,6 +20,8 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
@@ -27,13 +29,14 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.Duration;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class GetVersionSameIdOnReplayTest {
+
+  private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -47,23 +50,24 @@ public class GetVersionSameIdOnReplayTest {
 
   @Test
   public void testGetVersionSameIdOnReplay() {
-    Assume.assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
-
-    TestWorkflows.TestWorkflow1 workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
-    workflowStub.execute(testWorkflowRule.getTaskQueue());
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+    NoArgsWorkflow workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
+    workflowStub.execute();
+    assertTrue(hasReplayed);
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
     testWorkflowRule.assertNoHistoryEvent(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
   }
 
-  public static class TestGetVersionSameIdOnReplay implements TestWorkflows.TestWorkflow1 {
+  public static class TestGetVersionSameIdOnReplay implements NoArgsWorkflow {
 
     @Override
-    public String execute(String taskQueue) {
+    public void execute() {
       // Test adding a version check in replay code.
       if (!Workflow.isReplaying()) {
         Workflow.sleep(Duration.ofMinutes(1));
       } else {
+        hasReplayed = true;
         int version2 = Workflow.getVersion("test_change_2", Workflow.DEFAULT_VERSION, 11);
         Workflow.sleep(Duration.ofMinutes(1));
         int version3 = Workflow.getVersion("test_change_2", Workflow.DEFAULT_VERSION, 11);
@@ -71,8 +75,6 @@ public class GetVersionSameIdOnReplayTest {
         assertEquals(Workflow.DEFAULT_VERSION, version3);
         assertEquals(version2, version3);
       }
-
-      return "test";
     }
   }
 }

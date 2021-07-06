@@ -81,63 +81,68 @@ public final class WorkerOptions {
     }
 
     /**
-     * Maximum number of activities started per second by this worker. Default is 0 which means
-     * unlimited. If worker is not fully loaded while tasks are backing up on the service consider
-     * increasing {@link #setActivityPollThreadCount(int)}.
-     *
-     * <p>Note that this is a per worker limit. Use {@link
-     * #setMaxTaskQueueActivitiesPerSecond(double)} to set per task queue limit across multiple
-     * workers.
+     * @param maxWorkerActivitiesPerSecond Maximum number of activities started per second by this
+     *     worker. Default is 0 which means unlimited.
+     * @return {@code this}
+     *     <p>If worker is not fully loaded while tasks are backing up on the service consider
+     *     increasing {@link #setActivityPollThreadCount(int)}.
+     *     <p>Note that this is a per worker limit. Use {@link
+     *     #setMaxTaskQueueActivitiesPerSecond(double)} to set per task queue limit across multiple
+     *     workers.
      */
     public Builder setMaxWorkerActivitiesPerSecond(double maxWorkerActivitiesPerSecond) {
-      if (maxWorkerActivitiesPerSecond <= 0) {
-        throw new IllegalArgumentException("Negative or zero: " + maxWorkerActivitiesPerSecond);
+      if (maxWorkerActivitiesPerSecond < 0) {
+        throw new IllegalArgumentException(
+            "Negative maxWorkerActivitiesPerSecond value: " + maxWorkerActivitiesPerSecond);
       }
       this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
       return this;
     }
 
     /**
-     * Maximum number of parallely executed activities.
-     *
-     * <p>Default is 200.
+     * @param maxConcurrentActivityExecutionSize Maximum number of activities executed in parallel.
+     *     Default is 200, which is chosen if set to zero.
+     * @return {@code this}
      */
     public Builder setMaxConcurrentActivityExecutionSize(int maxConcurrentActivityExecutionSize) {
-      if (maxConcurrentActivityExecutionSize <= 0) {
+      if (maxConcurrentActivityExecutionSize < 0) {
         throw new IllegalArgumentException(
-            "Negative or zero: " + maxConcurrentActivityExecutionSize);
+            "Negative maxConcurrentActivityExecutionSize value: "
+                + maxConcurrentActivityExecutionSize);
       }
       this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
       return this;
     }
 
     /**
-     * Maximum number of simultaneously executed workflow tasks. Note that this is not related to
-     * the total number of open workflows which do not need to be loaded in a worker when they are
-     * not making state transitions.
-     *
-     * <p>Default is 200.
+     * @param maxConcurrentWorkflowTaskExecutionSize Maximum number of simultaneously executed
+     *     workflow tasks. Default is 200, which is chosen if set to zero.
+     * @return {@code this}
+     *     <p>Note that this is not related to the total number of open workflows which do not need
+     *     to be loaded in a worker when they are not making state transitions.
      */
     public Builder setMaxConcurrentWorkflowTaskExecutionSize(
         int maxConcurrentWorkflowTaskExecutionSize) {
-      if (maxConcurrentWorkflowTaskExecutionSize <= 0) {
+      if (maxConcurrentWorkflowTaskExecutionSize < 0) {
         throw new IllegalArgumentException(
-            "Negative or zero: " + maxConcurrentWorkflowTaskExecutionSize);
+            "Negative maxConcurrentWorkflowTaskExecutionSize value: "
+                + maxConcurrentWorkflowTaskExecutionSize);
       }
       this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
       return this;
     }
 
     /**
-     * Maximum number of parallely executed local activities.
-     *
-     * <p>Default is 200.
+     * @param maxConcurrentLocalActivityExecutionSize Maximum number of local activities executed in
+     *     parallel. Default is 200, which is chosen if set to zero.
+     * @return {@code this}
      */
     public Builder setMaxConcurrentLocalActivityExecutionSize(
         int maxConcurrentLocalActivityExecutionSize) {
-      if (maxConcurrentLocalActivityExecutionSize <= 0) {
+      if (maxConcurrentLocalActivityExecutionSize < 0) {
         throw new IllegalArgumentException(
-            "Negative or zero: " + maxConcurrentLocalActivityExecutionSize);
+            "Negative maxConcurrentLocalActivityExecutionSize value: "
+                + maxConcurrentLocalActivityExecutionSize);
       }
       this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
       return this;
@@ -191,8 +196,21 @@ public final class WorkerOptions {
       return this;
     }
 
-    public Builder setDefaultDeadlockDetectionTimeout(long defaultDeadlockDetectionTimeout) {
-      this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
+    /**
+     * @param defaultDeadlockDetectionTimeoutMs time period in ms that will be used the detect
+     *     workflows deadlock. Default is 1000ms, which is chosen if set to zero.
+     *     <p>Specifies an amount of time in milliseconds that workflow tasks are allowed to execute
+     *     without interruption. If workflow task runs longer than specified interval without
+     *     yielding (like calling an Activity), it will fail automatically.
+     * @return {@code this}
+     * @see io.temporal.internal.sync.PotentialDeadlockException
+     */
+    public Builder setDefaultDeadlockDetectionTimeout(long defaultDeadlockDetectionTimeoutMs) {
+      if (defaultDeadlockDetectionTimeoutMs < 0) {
+        throw new IllegalArgumentException(
+            "Negative defaultDeadlockDetectionTimeout value: " + defaultDeadlockDetectionTimeoutMs);
+      }
+      this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeoutMs;
       return this;
     }
 

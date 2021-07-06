@@ -27,12 +27,21 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
+/**
+ * @deprecated it's an old implementation of {@link WorkflowQueue} with incorrectly implemented
+ *     {@link #take} and {@link #cancellableTake} that is left for backwards-compatibility with
+ *     workflows that already use old implementation. {@link WorkflowQueueImpl} should be used
+ *     instead.
+ *     <p>This class is to be deleted in the next major release that doesn't have to maintain
+ *     backwards compatibility.
+ */
+@Deprecated
+final class WorkflowQueueDeprecatedImpl<E> implements WorkflowQueue<E> {
 
   private final Deque<E> queue = new ArrayDeque<>();
   private final int capacity;
 
-  public WorkflowQueueImpl(int capacity) {
+  public WorkflowQueueDeprecatedImpl(int capacity) {
     if (capacity < 1) {
       throw new IllegalArgumentException("Capacity less than 1: " + capacity);
     }
@@ -42,7 +51,8 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   @Override
   public E take() {
     WorkflowThread.await("WorkflowQueue.take", () -> !queue.isEmpty());
-    return queue.poll();
+    // this implementation is incorrect and has been fixed in WorkflowQueueImpl
+    return queue.pollLast();
   }
 
   @Override
@@ -53,7 +63,8 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
           CancellationScope.throwCanceled();
           return !queue.isEmpty();
         });
-    return queue.poll();
+    // this implementation is incorrect and has been fixed in WorkflowQueueImpl
+    return queue.pollLast();
   }
 
   @Override

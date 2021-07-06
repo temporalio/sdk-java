@@ -32,16 +32,17 @@ import io.temporal.internal.sync.WorkflowInternal;
 public final class Activity {
 
   /**
-   * Can be used to get information about Activity invocation and to invoke Heartbeats. This static
-   * method relies on a thread-local variable and works only in the original Activity thread.
+   * Can be used to get information about an Activity Execution and to invoke Heartbeats. This
+   * static method relies on a thread-local variable and works only in the original Activity
+   * Execution thread.
    */
   public static ActivityExecutionContext getExecutionContext() {
     return ActivityInternal.getExecutionContext();
   }
 
   /**
-   * Use this to rethrow a checked exception from an Activity instead of adding the exception to a
-   * method signature.
+   * Use this to rethrow a checked exception from an Activity Execution instead of adding the
+   * exception to a method signature.
    *
    * @return Never returns; always throws. Throws original exception if e is {@link
    *     RuntimeException} or {@link Error}.
