@@ -30,15 +30,15 @@ import java.util.Optional;
 public interface ActivityInfo {
 
   /**
-   * Returns a correlation token that can be used to complete the Activity Execution asynchronously
-   * through {@link io.temporal.client.ActivityCompletionClient#complete(byte[], Object)}.
+   * @return a correlation token that can be used to complete the Activity Execution asynchronously
+   *     through {@link io.temporal.client.ActivityCompletionClient#complete(byte[], Object)}.
    */
   byte[] getTaskToken();
 
-  /** WorkflowId of the Workflow Execution that scheduled the Activity Execution. */
+  /** @return WorkflowId of the Workflow Execution that scheduled the Activity Execution. */
   String getWorkflowId();
 
-  /** RunId of the Workflow Execution that scheduled the Activity Execution. */
+  /** @return RunId of the Workflow Execution that scheduled the Activity Execution. */
   String getRunId();
 
   /**
@@ -48,7 +48,7 @@ public interface ActivityInfo {
    */
   String getActivityId();
 
-  /** Type of the Activity. */
+  /** @return type of the Activity. */
   String getActivityType();
 
   /**
@@ -58,24 +58,24 @@ public interface ActivityInfo {
    */
   long getScheduledTimestamp();
 
-  /** Returns the Schedule-To-Close Timeout setting as a Duration. */
+  /** @return the Schedule-To-Close Timeout setting as a Duration. */
   Duration getScheduleToCloseTimeout();
 
-  /** Returns the Start-To-Close Timeout setting as a Duration. */
+  /** @return the Start-To-Close Timeout setting as a Duration. */
   Duration getStartToCloseTimeout();
 
-  /** Returns the Heartbeat Timeout setting as a Duration. */
+  /** @return the Heartbeat Timeout setting as a Duration. */
   Duration getHeartbeatTimeout();
 
   Optional<Payloads> getHeartbeatDetails();
 
-  /** Returns the Workflow Type of the Workflow Execution that executed the Activity. */
+  /** @return the Workflow Type of the Workflow Execution that executed the Activity. */
   String getWorkflowType();
 
-  /** Returns the Namespace of Workflow Execution that executed the Activity. */
+  /** @return the Namespace of Workflow Execution that executed the Activity. */
   String getWorkflowNamespace();
 
-  /** Returns the Namespace of the Activty Execution. */
+  /** @return the Namespace of the Activty Execution. */
   String getActivityNamespace();
 
   /**
