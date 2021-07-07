@@ -19,17 +19,6 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.internal.metrics.MetricsType.ACTIVITY_EXEC_FAILED_COUNTER;
-import static io.temporal.internal.metrics.MetricsType.CORRUPTED_SIGNALS_COUNTER;
-import static io.temporal.internal.metrics.MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER;
-import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
-import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
-import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
-import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
-import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
@@ -43,7 +32,11 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.interceptors.*;
+import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -58,14 +51,26 @@ import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.ReceiveSignalObjectWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
-import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
+
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import static io.temporal.internal.metrics.MetricsType.ACTIVITY_EXEC_FAILED_COUNTER;
+import static io.temporal.internal.metrics.MetricsType.CORRUPTED_SIGNALS_COUNTER;
+import static io.temporal.internal.metrics.MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
+import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class MetricsTest {
 
@@ -85,9 +90,9 @@ public class MetricsTest {
       };
 
   private TestStatsReporter reporter;
-  private Scope metricsScope;
 
   public void setUp(WorkerFactoryOptions workerFactoryOptions) {
+    Scope metricsScope;
     reporter = new TestStatsReporter();
     metricsScope =
         new RootScopeBuilder()
@@ -248,7 +253,7 @@ public class MetricsTest {
           {
             putAll(MetricsTag.defaultTags(NAMESPACE));
             put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
-            put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectChildWorkflow");
+            put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectWorkflow");
           }
         };
     reporter.assertCounter(CORRUPTED_SIGNALS_COUNTER, tags, 1);
@@ -396,6 +401,7 @@ public class MetricsTest {
       try {
         activity.throwIO();
       } catch (Exception e) {
+        // increment temporal_activity_execution_failed
       }
 
       LocalActivityOptions localActivityOptions =
@@ -408,6 +414,7 @@ public class MetricsTest {
       try {
         localActivity.throwIO();
       } catch (Exception e) {
+        // increment temporal_local_activity_failed
       }
     }
   }
