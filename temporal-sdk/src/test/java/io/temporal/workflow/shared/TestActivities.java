@@ -67,6 +67,11 @@ public class TestActivities {
   }
 
   @ActivityInterface
+  public interface TestActivity3 {
+    int execute(int input);
+  }
+
+  @ActivityInterface
   public interface TestActivity {
     @ActivityMethod
     Map<String, Duration> activity1();
