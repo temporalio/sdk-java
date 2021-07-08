@@ -19,7 +19,10 @@
 
 package io.temporal.serviceclient;
 
+import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
+
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.internal.WorkflowThreadMarker;
 import java.util.concurrent.TimeUnit;
 
 /** Initializes and holds gRPC blocking and future stubs. */
@@ -30,12 +33,12 @@ public interface WorkflowServiceStubs {
    * the locally running temporal service.
    */
   static WorkflowServiceStubs newInstance() {
-    return new WorkflowServiceStubsImpl(null, WorkflowServiceStubsOptions.getDefaultInstance());
+    return newInstance(WorkflowServiceStubsOptions.getDefaultInstance());
   }
 
   /** Create gRPC connection stubs using provided options. */
   static WorkflowServiceStubs newInstance(WorkflowServiceStubsOptions options) {
-    return new WorkflowServiceStubsImpl(null, options);
+    return newInstance(null, options);
   }
 
   /**
@@ -44,7 +47,9 @@ public interface WorkflowServiceStubs {
    */
   static WorkflowServiceStubs newInstance(
       WorkflowServiceGrpc.WorkflowServiceImplBase service, WorkflowServiceStubsOptions options) {
-    return new WorkflowServiceStubsImpl(service, options);
+    enforceNonWorkflowThread();
+    return WorkflowThreadMarker.protectFromWorkflowThread(
+        new WorkflowServiceStubsImpl(service, options), WorkflowServiceStubs.class);
   }
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */
