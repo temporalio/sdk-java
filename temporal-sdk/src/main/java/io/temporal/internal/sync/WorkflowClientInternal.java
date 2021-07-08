@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
+
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
@@ -32,6 +34,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.RootWorkflowClientInvoker;
 import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
@@ -62,7 +65,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final Scope metricsScope;
 
   /**
-   * Creates client that connects to an instance of the Temporal Service.
+   * Creates client that connects to an instance of the Temporal Service. Cannot be used from within
+   * workflow code.
    *
    * @param service client to the Temporal Service endpoint.
    * @param options Options (like {@link io.temporal.common.converter.DataConverter} override) for
@@ -70,7 +74,9 @@ public final class WorkflowClientInternal implements WorkflowClient {
    */
   public static WorkflowClient newInstance(
       WorkflowServiceStubs service, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(service, options);
+    enforceNonWorkflowThread();
+    return WorkflowThreadMarker.protectFromWorkflowThread(
+        new WorkflowClientInternal(service, options), WorkflowClient.class);
   }
 
   private WorkflowClientInternal(
@@ -210,7 +216,9 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public ActivityCompletionClient newActivityCompletionClient() {
     ActivityCompletionClient result =
-        new ActivityCompletionClientImpl(manualActivityCompletionClientFactory, () -> {});
+        WorkflowThreadMarker.protectFromWorkflowThread(
+            new ActivityCompletionClientImpl(manualActivityCompletionClientFactory, () -> {}),
+            ActivityCompletionClient.class);
     for (WorkflowClientInterceptor i : interceptors) {
       result = i.newActivityCompletionClient(result);
     }
@@ -228,6 +236,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {
+    enforceNonWorkflowThread();
     WorkflowInvocationHandler.initAsyncInvocation(InvocationType.START);
     try {
       workflow.apply();
@@ -321,6 +330,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @SuppressWarnings("unchecked")
   public static CompletableFuture<Void> execute(Functions.Proc workflow) {
+    enforceNonWorkflowThread();
     WorkflowInvocationHandler.initAsyncInvocation(InvocationType.EXECUTE);
     try {
       workflow.apply();
