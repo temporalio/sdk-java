@@ -218,7 +218,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         // If history if full and exception occurred then sticky session hasn't been established
         // yet and we can avoid doing a reset.
         if (!isFullHistory(workflowTask)) {
-          resetStickyTaskList(execution);
+          resetStickyTaskQueue(execution);
         }
       }
       throw e;
@@ -231,7 +231,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     }
   }
 
-  private void resetStickyTaskList(WorkflowExecution execution) {
+  private void resetStickyTaskQueue(WorkflowExecution execution) {
     service
         .futureStub()
         .resetStickyTaskQueue(
