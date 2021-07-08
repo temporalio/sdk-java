@@ -47,11 +47,7 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.sync.ActivityInvocationHandler;
-import io.temporal.internal.sync.ActivityInvocationHandlerBase;
-import io.temporal.internal.sync.DeterministicRunnerWrapper;
-import io.temporal.internal.sync.LocalActivityInvocationHandler;
-import io.temporal.internal.sync.POJOActivityTaskHandler;
+import io.temporal.internal.sync.*;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
@@ -71,15 +67,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class TestActivityEnvironmentInternal implements TestActivityEnvironment {
+  private static final Logger log = LoggerFactory.getLogger(TestActivityEnvironmentInternal.class);
 
   private final POJOActivityTaskHandler activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
@@ -87,6 +84,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private ClassConsumerPair<Object> activityHeartbetListener;
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
+  private static final ExecutorService activityWorkerExecutor =
+      Executors.newSingleThreadExecutor(r -> new Thread(r, "test-service-activity-worker"));
   private final WorkflowServiceStubs workflowServiceStubs;
   private final Server mockServer;
   private final AtomicBoolean cancellationRequested = new AtomicBoolean();
@@ -246,6 +245,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
   @Override
   public void close() {
+    heartbeatExecutor.shutdownNow();
+    activityWorkerExecutor.shutdownNow();
     channel.shutdownNow();
     try {
       channel.awaitTermination(100, TimeUnit.MILLISECONDS);
@@ -292,11 +293,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         taskBuilder.setInput(payloads.get());
       }
       PollActivityTaskQueueResponse task = taskBuilder.build();
-      Result taskResult =
-          activityTaskHandler.handle(
-              new ActivityTask(task, () -> {}), testEnvironmentOptions.getMetricsScope(), false);
       return new ActivityOutput<>(
-          Workflow.newPromise(getReply(task, taskResult, i.getResultClass(), i.getResultType())));
+          Workflow.newPromise(
+              getReply(task, executeActivity(task, false), i.getResultClass(), i.getResultType())));
     }
 
     @Override
@@ -327,11 +326,42 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         taskBuilder.setInput(payloads.get());
       }
       PollActivityTaskQueueResponse task = taskBuilder.build();
-      Result taskResult =
-          activityTaskHandler.handle(
-              new ActivityTask(task, () -> {}), testEnvironmentOptions.getMetricsScope(), false);
       return new LocalActivityOutput<>(
-          Workflow.newPromise(getReply(task, taskResult, i.getResultClass(), i.getResultType())));
+          Workflow.newPromise(
+              getReply(task, executeActivity(task, true), i.getResultClass(), i.getResultType())));
+    }
+
+    /**
+     * We execute the activity task on a separate activity worker to emulate what actually happens
+     * in our production setup
+     *
+     * @param activityTask activity task to execute
+     * @param localActivity true if it's a local activity
+     * @return result of activity execution
+     */
+    private Result executeActivity(
+        PollActivityTaskQueueResponse activityTask, boolean localActivity) {
+      Future<Result> activityFuture =
+          activityWorkerExecutor.submit(
+              () ->
+                  activityTaskHandler.handle(
+                      new ActivityTask(activityTask, () -> {}),
+                      testEnvironmentOptions.getMetricsScope(),
+                      localActivity));
+
+      try {
+        // 10 seconds is just a "reasonable" wait to not make an infinite waiting
+        return activityFuture.get(10, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      } catch (ExecutionException e) {
+        log.error("Exception during processing of activity task");
+        throw new RuntimeException(e);
+      } catch (TimeoutException e) {
+        log.error("Timeout trying execute activity task {}", activityTask);
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
