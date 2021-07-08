@@ -35,6 +35,8 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -48,6 +50,7 @@ public class TestWorkflowExtensionTest {
       TestWorkflowExtension.newBuilder()
           .setWorkflowTypes(HelloWorkflowImpl.class)
           .setActivityImplementations(new HelloActivityImpl())
+          .setInitialTime(Instant.parse("2021-10-10T10:01:00Z"))
           .build();
 
   @ActivityInterface
@@ -90,6 +93,7 @@ public class TestWorkflowExtensionTest {
 
   @Test
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  @WorkflowInitialTime("2020-01-01T01:00:00Z")
   public void extensionShouldLaunchTestEnvironmentAndResolveParameters(
       TestWorkflowEnvironment testEnv,
       WorkflowClient workflowClient,
@@ -102,6 +106,10 @@ public class TestWorkflowExtensionTest {
         () -> assertNotNull(workflowClient),
         () -> assertNotNull(workflowOptions.getTaskQueue()),
         () -> assertNotNull(worker),
+        () ->
+            assertEquals(
+                Instant.parse("2020-01-01T01:00:00Z"),
+                Instant.ofEpochMilli(testEnv.currentTimeMillis()).truncatedTo(ChronoUnit.HOURS)),
         () ->
             assertEquals(
                 "Hello World from activity BuildGreeting and workflow HelloWorkflow",

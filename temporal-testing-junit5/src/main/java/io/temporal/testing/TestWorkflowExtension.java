@@ -40,6 +40,7 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.TestWatcher;
+import org.junit.platform.commons.support.AnnotationSupport;
 
 /**
  * JUnit Jupiter extension that simplifies testing of Temporal workflows.
@@ -162,13 +163,17 @@ public class TestWorkflowExtension
 
   @Override
   public void beforeEach(ExtensionContext context) throws Exception {
+    long currentInitialTimeMillis =
+        AnnotationSupport.findAnnotation(context.getElement(), WorkflowInitialTime.class)
+            .map(annotation -> Instant.parse(annotation.value()).toEpochMilli())
+            .orElse(initialTimeMillis);
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(workflowClientOptions)
             .setWorkerFactoryOptions(workerFactoryOptions)
             .setUseExternalService(useExternalService)
             .setTarget(target)
-            .setInitialTimeMillis(initialTimeMillis)
+            .setInitialTimeMillis(currentInitialTimeMillis)
             .build();
     TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
     String taskQueue =
