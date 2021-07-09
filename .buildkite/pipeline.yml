@@ -3,7 +3,7 @@ steps:
     agents:
       queue: "default"
       docker: "*"
-    command: "./gradlew --no-daemon test"
+    command: "./gradlew --no-daemon check"
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.0.0:
