@@ -19,6 +19,17 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.internal.metrics.MetricsType.ACTIVITY_EXEC_FAILED_COUNTER;
+import static io.temporal.internal.metrics.MetricsType.CORRUPTED_SIGNALS_COUNTER;
+import static io.temporal.internal.metrics.MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
+import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
+import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
@@ -51,32 +62,21 @@ import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.ReceiveSignalObjectWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
-import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import static io.temporal.internal.metrics.MetricsType.ACTIVITY_EXEC_FAILED_COUNTER;
-import static io.temporal.internal.metrics.MetricsType.CORRUPTED_SIGNALS_COUNTER;
-import static io.temporal.internal.metrics.MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER;
-import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
-import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
-import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
-import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
-import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
 public class MetricsTest {
 
   private static final long REPORTING_FLUSH_TIME = 600;
   private static final String TASK_QUEUE = "metrics_test";
   private TestWorkflowEnvironment testEnvironment;
+  private TestStatsReporter reporter;
 
   @Rule
   public TestWatcher watchman =
@@ -88,8 +88,6 @@ public class MetricsTest {
           }
         }
       };
-
-  private TestStatsReporter reporter;
 
   public void setUp(WorkerFactoryOptions workerFactoryOptions) {
     Scope metricsScope;
@@ -340,7 +338,6 @@ public class MetricsTest {
           }
         };
     reporter.assertCounter(ACTIVITY_EXEC_FAILED_COUNTER, tags, 2);
-    tags.put(MetricsTag.WORKFLOW_TYPE, "");
     reporter.assertCounter(LOCAL_ACTIVITY_FAILED_COUNTER, tags, 3);
   }
 
