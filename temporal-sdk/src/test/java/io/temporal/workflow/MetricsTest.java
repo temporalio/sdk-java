@@ -19,7 +19,9 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.internal.metrics.MetricsType.ACTIVITY_EXEC_FAILED_COUNTER;
 import static io.temporal.internal.metrics.MetricsType.CORRUPTED_SIGNALS_COUNTER;
+import static io.temporal.internal.metrics.MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
@@ -31,11 +33,10 @@ import static org.junit.Assert.fail;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
-import com.uber.m3.util.ImmutableMap;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClient;
@@ -55,9 +56,14 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.interceptors.SignalWorkflowOutboundCallsInterceptor;
+import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestActivities.TestActivity3;
+import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.ReceiveSignalObjectWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.After;
 import org.junit.Rule;
@@ -71,7 +77,6 @@ public class MetricsTest {
   private static final String TASK_QUEUE = "metrics_test";
   private TestWorkflowEnvironment testEnvironment;
   private TestStatsReporter reporter;
-  private Scope metricsScope;
 
   @Rule
   public TestWatcher watchman =
@@ -85,6 +90,7 @@ public class MetricsTest {
       };
 
   public void setUp(WorkerFactoryOptions workerFactoryOptions) {
+    Scope metricsScope;
     reporter = new TestStatsReporter();
     metricsScope =
         new RootScopeBuilder()
@@ -128,76 +134,73 @@ public class MetricsTest {
 
     Thread.sleep(REPORTING_FLUSH_TIME);
 
-    ImmutableMap.Builder<String, String> tagsB =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
-    reporter.assertCounter("temporal_worker_start", tagsB.build(), 3);
-    reporter.assertCounter("temporal_poller_start", tagsB.build());
-    reporter.assertCounter(
-        TEMPORAL_LONG_REQUEST,
-        tagsB.put(MetricsTag.OPERATION_NAME, "PollActivityTaskQueue").build());
-    reporter.assertCounter(
-        TEMPORAL_LONG_REQUEST,
-        tagsB.put(MetricsTag.OPERATION_NAME, "PollWorkflowTaskQueue").build());
+    Map<String, String> tagsB =
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(NAMESPACE));
+            put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+          }
+        };
+    reporter.assertCounter("temporal_worker_start", tagsB, 3);
+    reporter.assertCounter("temporal_poller_start", tagsB);
+    tagsB.put(MetricsTag.OPERATION_NAME, "PollActivityTaskQueue");
+    reporter.assertCounter(TEMPORAL_LONG_REQUEST, tagsB);
+    tagsB.put(MetricsTag.OPERATION_NAME, "PollWorkflowTaskQueue");
+    reporter.assertCounter(TEMPORAL_LONG_REQUEST, tagsB);
 
-    ImmutableMap<String, String> tags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.TASK_QUEUE, "sticky")
-            .build();
+    Map<String, String> tags =
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(NAMESPACE));
+            put(MetricsTag.TASK_QUEUE, "sticky");
+          }
+        };
     reporter.assertCounter("temporal_poller_start", tags);
 
-    tags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
-            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
-            .build();
-
+    tags.put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+    tags.put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
     reporter.assertCounter("test_started", tags, 1);
     reporter.assertCounter("test_done", tags, 1);
-    tags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow")
-            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
-            .build();
 
+    tags.put(MetricsTag.WORKFLOW_TYPE, "TestChildWorkflow");
+    tags.put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
     reporter.assertCounter("test_child_started", tags, 1);
     reporter.assertCounter("test_child_done", tags, 1);
     reporter.assertTimerMinDuration("test_timer", tags, Duration.ofSeconds(3));
 
     Map<String, String> activityCompletionTags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
-            .put(MetricsTag.ACTIVITY_TYPE, "RunActivity")
-            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
-            .put(MetricsTag.OPERATION_NAME, "RespondActivityTaskCompleted")
-            .build();
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(NAMESPACE));
+            put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+            put(MetricsTag.ACTIVITY_TYPE, "Execute");
+            put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+            put(MetricsTag.OPERATION_NAME, "RespondActivityTaskCompleted");
+          }
+        };
     reporter.assertCounter(TEMPORAL_REQUEST, activityCompletionTags, 1);
 
     tagsB =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
-
-    tags =
-        tagsB
-            .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
-            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
-            .build();
-    reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
-    reporter.assertTimer(TEMPORAL_REQUEST_LATENCY, tags);
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(NAMESPACE));
+            put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+            put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution");
+            put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+          }
+        };
+    reporter.assertCounter(TEMPORAL_REQUEST, tagsB, 1);
+    reporter.assertTimer(TEMPORAL_REQUEST_LATENCY, tagsB);
 
     Map<String, String> workflowTaskCompletionTags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
-            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
-            .put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted")
-            .build();
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(NAMESPACE));
+            put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+            put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+            put(MetricsTag.OPERATION_NAME, "RespondWorkflowTaskCompleted");
+          }
+        };
     reporter.assertCounter(TEMPORAL_REQUEST, workflowTaskCompletionTags, 4);
   }
 
@@ -226,7 +229,7 @@ public class MetricsTest {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
 
     worker.registerWorkflowImplementationTypes(
-        SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectChildWorkflowImpl.class);
+        SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectWorkflowImpl.class);
     testEnvironment.start();
 
     WorkflowOptions options =
@@ -244,11 +247,13 @@ public class MetricsTest {
     Thread.sleep(REPORTING_FLUSH_TIME);
 
     Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
-            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
-            .put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectChildWorkflow")
-            .build();
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(NAMESPACE));
+            put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+            put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectWorkflow");
+          }
+        };
     reporter.assertCounter(CORRUPTED_SIGNALS_COUNTER, tags, 1);
   }
 
@@ -273,18 +278,67 @@ public class MetricsTest {
     Thread.sleep(REPORTING_FLUSH_TIME);
 
     Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE))
-            .put(MetricsTag.OPERATION_NAME, "DescribeNamespace")
-            .build();
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
+            put(MetricsTag.OPERATION_NAME, "DescribeNamespace");
+          }
+        };
     reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
-    tags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE))
-            .put(MetricsTag.OPERATION_NAME, "DescribeNamespace")
-            .put(MetricsTag.STATUS_CODE, "UNIMPLEMENTED")
-            .build();
+    tags.put(MetricsTag.STATUS_CODE, "UNIMPLEMENTED");
     reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
+  }
+
+  @Test
+  public void testTemporalActivityFailureMetric() throws InterruptedException {
+    setUp(
+        WorkerFactoryOptions.newBuilder()
+            .setWorkerInterceptors(
+                // Add noop just to test that list of interceptors is working.
+                new WorkerInterceptor() {
+                  @Override
+                  public WorkflowInboundCallsInterceptor interceptWorkflow(
+                      WorkflowInboundCallsInterceptor next) {
+                    return next;
+                  }
+
+                  @Override
+                  public ActivityInboundCallsInterceptor interceptActivity(
+                      ActivityInboundCallsInterceptor next) {
+                    return next;
+                  }
+                })
+            .build());
+
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(TestActivityFailureCountersWorkflow.class);
+    worker.registerActivitiesImplementations(new TestActivitiesImpl());
+    testEnvironment.start();
+
+    WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofSeconds(1000))
+            .setTaskQueue(TASK_QUEUE)
+            .build();
+    NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
+    workflow.execute();
+
+    // Wait for reporter
+    Thread.sleep(REPORTING_FLUSH_TIME);
+
+    Map<String, String> tags =
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(NAMESPACE));
+            put(MetricsTag.ACTIVITY_TYPE, "ThrowIO");
+            put(MetricsTag.EXCEPTION, "IOException");
+            put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+            put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow");
+          }
+        };
+    reporter.assertCounter(ACTIVITY_EXEC_FAILED_COUNTER, tags, 2);
+    reporter.assertCounter(LOCAL_ACTIVITY_FAILED_COUNTER, tags, 3);
   }
 
   @Test
@@ -310,25 +364,16 @@ public class MetricsTest {
     Thread.sleep(REPORTING_FLUSH_TIME);
 
     Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE))
-            .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
-            .build();
+        new LinkedHashMap<String, String>() {
+          {
+            putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
+            put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution");
+          }
+        };
     reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
 
-    tags =
-        new ImmutableMap.Builder<String, String>(9)
-            .putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE))
-            .put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution")
-            .put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT")
-            .build();
+    tags.put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT");
     reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
-  }
-
-  @ActivityInterface
-  public interface TestActivity {
-
-    int runActivity(int input);
   }
 
   @WorkflowInterface
@@ -338,17 +383,37 @@ public class MetricsTest {
     void executeChild();
   }
 
-  @WorkflowInterface
-  public interface ReceiveSignalObjectChildWorkflow {
+  public static class TestActivityFailureCountersWorkflow implements NoArgsWorkflow {
 
-    @WorkflowMethod
-    String execute();
+    @Override
+    public void execute() {
+      ActivityOptions activityOptions =
+          ActivityOptions.newBuilder()
+              .setTaskQueue(TASK_QUEUE)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
+              .build();
+      VariousTestActivities activity =
+          Workflow.newActivityStub(VariousTestActivities.class, activityOptions);
+      try {
+        activity.throwIO();
+      } catch (Exception e) {
+        // increment temporal_activity_execution_failed
+      }
 
-    @SignalMethod(name = "testSignal")
-    void signal(Signal arg);
-
-    @SignalMethod(name = "endWorkflow")
-    void close();
+      LocalActivityOptions localActivityOptions =
+          LocalActivityOptions.newBuilder()
+              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(3).build())
+              .build();
+      VariousTestActivities localActivity =
+          Workflow.newLocalActivityStub(VariousTestActivities.class, localActivityOptions);
+      try {
+        localActivity.throwIO();
+      } catch (Exception e) {
+        // increment temporal_local_activity_failed
+      }
+    }
   }
 
   public static class TestMetricsInWorkflow implements NoArgsWorkflow {
@@ -369,8 +434,8 @@ public class MetricsTest {
                       .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
-      TestActivity activity = Workflow.newActivityStub(TestActivity.class, activityOptions);
-      activity.runActivity(1);
+      TestActivity3 activity = Workflow.newActivityStub(TestActivity3.class, activityOptions);
+      activity.execute(1);
 
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
@@ -381,10 +446,10 @@ public class MetricsTest {
     }
   }
 
-  static class TestActivityImpl implements TestActivity {
+  static class TestActivityImpl implements TestActivity3 {
 
     @Override
-    public int runActivity(int input) {
+    public int execute(int input) {
       return input;
     }
   }
@@ -403,8 +468,7 @@ public class MetricsTest {
     }
   }
 
-  public static class ReceiveSignalObjectChildWorkflowImpl
-      implements ReceiveSignalObjectChildWorkflow {
+  public static class ReceiveSignalObjectWorkflowImpl implements ReceiveSignalObjectWorkflow {
 
     // Keep workflow open so that we can send signal
     CompletablePromise<Void> promise = Workflow.newPromise();
@@ -431,8 +495,8 @@ public class MetricsTest {
 
     @Override
     public String execute() {
-      ReceiveSignalObjectChildWorkflow child =
-          Workflow.newChildWorkflowStub(ReceiveSignalObjectChildWorkflow.class);
+      ReceiveSignalObjectWorkflow child =
+          Workflow.newChildWorkflowStub(ReceiveSignalObjectWorkflow.class);
       Promise<String> greeting = Async.function(child::execute);
       Signal sig = new Signal();
       sig.value = "Hello World";

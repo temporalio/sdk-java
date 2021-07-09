@@ -348,6 +348,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         PollActivityTaskQueueResponse.newBuilder()
             .setActivityId(this.context.randomUUID().toString())
             .setWorkflowNamespace(this.context.getNamespace())
+            .setWorkflowType(this.context.getWorkflowType())
             .setWorkflowExecution(this.context.getWorkflowExecution())
             .setScheduledTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setStartToCloseTimeout(

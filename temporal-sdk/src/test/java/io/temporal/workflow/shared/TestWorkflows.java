@@ -22,12 +22,7 @@ package io.temporal.workflow.shared;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.CronSchedule;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.workflow.ChildWorkflowCancellationType;
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import java.time.Duration;
@@ -70,12 +65,6 @@ public class TestWorkflows {
   public interface TestWorkflowReturnString {
     @WorkflowMethod
     String execute();
-  }
-
-  @WorkflowInterface
-  public interface TestWorkflowReturnBoolean {
-    @WorkflowMethod
-    boolean execute();
   }
 
   @WorkflowInterface
@@ -133,6 +122,19 @@ public class TestWorkflows {
 
     @SignalMethod(name = "testSignal")
     void signal(String arg);
+  }
+
+  @WorkflowInterface
+  public interface ReceiveSignalObjectWorkflow {
+
+    @WorkflowMethod
+    String execute();
+
+    @SignalMethod(name = "testSignal")
+    void signal(MetricsTest.Signal arg);
+
+    @SignalMethod(name = "endWorkflow")
+    void close();
   }
 
   public interface SignalQueryBase {
