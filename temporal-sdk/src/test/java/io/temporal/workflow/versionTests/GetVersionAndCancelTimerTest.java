@@ -61,8 +61,10 @@ public class GetVersionAndCancelTimerTest {
 
     Instant now = now();
 
-    workflowStub.scheduleReminder(new ScheduleReminderSignal(now.plusSeconds(30), "Reminder 1"));
-    workflowStub.scheduleReminder(new ScheduleReminderSignal(now.plusSeconds(10), "Reminder 2"));
+    workflowStub.scheduleReminder(
+        new ScheduleReminderSignal(now.plusSeconds(2), "Reminder 1 in 2s"));
+    workflowStub.scheduleReminder(
+        new ScheduleReminderSignal(now.plusSeconds(4), "Reminder 2 in 4s"));
 
     WorkflowStub untypedWorkflowStub = WorkflowStub.fromTyped(workflowStub);
 
