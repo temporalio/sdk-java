@@ -28,6 +28,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.workflow.DynamicWorkflow;
 import java.lang.reflect.Constructor;
 import java.time.Instant;
 import java.util.HashSet;
@@ -91,6 +92,7 @@ public class TestWorkflowExtension
   private final long initialTimeMillis;
 
   private final Set<Class<?>> supportedParameterTypes = new HashSet<>();
+  private boolean includesDynamicWorkflow;
 
   private TestWorkflowExtension(Builder builder) {
     workerOptions = builder.workerOptions;
@@ -114,6 +116,10 @@ public class TestWorkflowExtension
     supportedParameterTypes.add(Worker.class);
 
     for (Class<?> workflowType : workflowTypes) {
+      if (DynamicWorkflow.class.isAssignableFrom(workflowType)) {
+        includesDynamicWorkflow = true;
+        continue;
+      }
       POJOWorkflowImplMetadata metadata = POJOWorkflowImplMetadata.newInstance(workflowType);
       for (POJOWorkflowInterfaceMetadata workflowInterface : metadata.getWorkflowInterfaces()) {
         supportedParameterTypes.add(workflowInterface.getInterfaceClass());
@@ -133,6 +139,10 @@ public class TestWorkflowExtension
     if (parameterContext.getParameter().getDeclaringExecutable() instanceof Constructor) {
       // Constructor injection is not supported
       return false;
+    }
+
+    if (includesDynamicWorkflow) {
+      return true;
     }
 
     Class<?> parameterType = parameterContext.getParameter().getType();
