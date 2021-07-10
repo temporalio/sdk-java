@@ -23,9 +23,7 @@ import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.temporal.client.BatchRequest;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.CancellationScope;
@@ -36,7 +34,6 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.WorkflowQueue;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
@@ -46,8 +43,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 
 public class GetVersionAndCancelTimerTest {
-
-  private static final String WORKFLOW_ID = "workflow-id";
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -59,14 +54,15 @@ public class GetVersionAndCancelTimerTest {
 
   @Test
   public void testGetVersionAndCancelTimer() {
-    ReminderWorkflow workflowStub = newWorkflowStub();
+    ReminderWorkflow workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ReminderWorkflow.class);
 
     WorkflowClient.start(workflowStub::start);
 
     Instant now = now();
 
-    scheduleReminder(now.plusSeconds(30), "Reminder 1");
-    scheduleReminder(now.plusSeconds(6), "Reminder 2");
+    workflowStub.scheduleReminder(new ScheduleReminderSignal(now.plusSeconds(30), "Reminder 1"));
+    workflowStub.scheduleReminder(new ScheduleReminderSignal(now.plusSeconds(10), "Reminder 2"));
 
     WorkflowStub untypedWorkflowStub = WorkflowStub.fromTyped(workflowStub);
 
@@ -78,23 +74,6 @@ public class GetVersionAndCancelTimerTest {
 
   private Instant now() {
     return Instant.ofEpochMilli(testWorkflowRule.getTestEnvironment().currentTimeMillis());
-  }
-
-  private void scheduleReminder(Instant reminderTime, String reminderText) {
-    ReminderWorkflow stub = newWorkflowStub();
-    BatchRequest request = testWorkflowRule.getWorkflowClient().newSignalWithStartRequest();
-    request.add(stub::start);
-    request.add(stub::scheduleReminder, new ScheduleReminderSignal(reminderTime, reminderText));
-    testWorkflowRule.getWorkflowClient().signalWithStart(request);
-  }
-
-  private ReminderWorkflow newWorkflowStub() {
-    WorkflowOptions options =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
-            .setWorkflowId(WORKFLOW_ID)
-            .build();
-    return testWorkflowRule.getWorkflowClient().newWorkflowStub(ReminderWorkflow.class, options);
   }
 
   @WorkflowInterface
