@@ -1517,38 +1517,19 @@ class StateMachines {
 
   private static State failActivityTaskByTaskToken(
       RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedRequest request) {
-    if (!request.getFailure().hasApplicationFailureInfo()) {
-      throw new IllegalArgumentException("application failure expected: " + request.getFailure());
-    }
-    Failure failure = request.getFailure();
-    RetryState retryState = attemptActivityRetry(ctx, Optional.of(failure), data);
-    if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
-      return INITIATED;
-    }
-    data.startedEventId = ctx.addEvent(data.startedEvent);
-    ActivityTaskFailedEventAttributes.Builder a =
-        ActivityTaskFailedEventAttributes.newBuilder()
-            .setIdentity(request.getIdentity())
-            .setScheduledEventId(data.scheduledEventId)
-            .setFailure(request.getFailure())
-            .setRetryState(retryState)
-            .setIdentity(request.getIdentity())
-            .setStartedEventId(data.startedEventId);
-    HistoryEvent event =
-        HistoryEvent.newBuilder()
-            .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED)
-            .setActivityTaskFailedEventAttributes(a)
-            .build();
-    ctx.addEvent(event);
-    return FAILED;
+    return getState(ctx, data, request.getFailure(), request.getIdentity());
   }
 
   private static State failActivityTaskById(
       RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedByIdRequest request) {
-    if (!request.getFailure().hasApplicationFailureInfo()) {
-      throw new IllegalArgumentException("application failure expected: " + request.getFailure());
+    return getState(ctx, data, request.getFailure(), request.getIdentity());
+  }
+
+  private static State getState(
+      RequestContext ctx, ActivityTaskData data, Failure failure, String identity) {
+    if (!failure.hasApplicationFailureInfo()) {
+      throw new IllegalArgumentException("application failure expected: " + failure);
     }
-    Failure failure = request.getFailure();
     RetryState retryState = attemptActivityRetry(ctx, Optional.of(failure), data);
     if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
       return INITIATED;
@@ -1556,11 +1537,11 @@ class StateMachines {
     data.startedEventId = ctx.addEvent(data.startedEvent);
     ActivityTaskFailedEventAttributes.Builder a =
         ActivityTaskFailedEventAttributes.newBuilder()
-            .setIdentity(request.getIdentity())
+            .setIdentity(identity)
             .setScheduledEventId(data.scheduledEventId)
-            .setFailure(request.getFailure())
+            .setFailure(failure)
             .setRetryState(retryState)
-            .setIdentity(request.getIdentity())
+            .setIdentity(identity)
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()

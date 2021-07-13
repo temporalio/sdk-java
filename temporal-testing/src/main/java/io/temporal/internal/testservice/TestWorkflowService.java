@@ -901,7 +901,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       source.completeSignalExternalWorkflowExecution(
           signalId, mutableState.getExecutionId().getExecution().getRunId());
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+      Status.Code statusCode = e.getStatus().getCode();
+      if (statusCode == Status.Code.NOT_FOUND || statusCode == Status.Code.INTERNAL) {
         source.failSignalExternalWorkflowExecution(
             signalId,
             SignalExternalWorkflowExecutionFailedCause

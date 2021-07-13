@@ -158,6 +158,16 @@ public class TestWorkflows {
     void mySignal(String value);
   }
 
+  @WorkflowInterface
+  public interface ExampleWorkflow {
+
+    @WorkflowMethod
+    public String execute(String s);
+
+    @SignalMethod
+    public void signal(boolean s);
+  }
+
   /** IMPLEMENTATIONS * */
   public static class TestChild implements ITestChild {
 
