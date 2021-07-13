@@ -19,7 +19,9 @@
 
 package io.temporal.workflow.signalTests;
 
+import static io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause.SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_EXTERNAL_WORKFLOW_EXECUTION_NOT_FOUND;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
@@ -27,13 +29,18 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows.ExampleWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class SignalTerminatedWorkflowTest {
+
+  private static String WORKFLOW_ID = "testWorkflowID";
+  private static String TEST_SIGNAL = "test";
+  private static CountDownLatch latch = new CountDownLatch(1);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -42,42 +49,41 @@ public class SignalTerminatedWorkflowTest {
           .build();
 
   @Test
-  public void testTerminateWorkflowSignalError() {
-    System.out.println("Client starting workflow 1:");
+  public void testTerminateWorkflowSignalError() throws InterruptedException {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setWorkflowId("abc123")
+            .setWorkflowId(WORKFLOW_ID)
             .build();
-    ExampleWorkflow workflow =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(ExampleWorkflow.class, options);
-    WorkflowClient.start(workflow::execute, testWorkflowRule.getTaskQueue());
+    TestSignaledWorkflow workflow =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
+    WorkflowClient.start(workflow::execute);
 
-    testWorkflowRule.sleep(Duration.ofSeconds(7));
+    latch.await();
 
     WorkflowStub stub = WorkflowStub.fromTyped(workflow);
     stub.terminate("Mock terminating workflow");
 
     TestWorkflowReturnString signalingWorkflow =
         testWorkflowRule.newWorkflowStub(TestWorkflowReturnString.class);
-    signalingWorkflow.execute();
+    WorkflowClient.start(signalingWorkflow::execute);
 
     WorkflowStub workflowStub2 = WorkflowStub.fromTyped(signalingWorkflow);
     assertEquals(workflowStub2.getResult(String.class), "Success!");
   }
 
-  public static class WorkflowImpl implements ExampleWorkflow {
-    private boolean signal = false;
+  public static class WorkflowImpl implements TestSignaledWorkflow {
+    private String signal;
 
     @Override
-    public String execute(String s) {
-      Workflow.await(() -> signal);
-      Workflow.sleep(Duration.ofSeconds(15));
-      return s;
+    public String execute() {
+      Workflow.await(Duration.ofSeconds(1), () -> signal == TEST_SIGNAL);
+      latch.countDown();
+      return signal;
     }
 
     @Override
-    public void signal(boolean signal) {
+    public void signal(String signal) {
       this.signal = signal;
     }
   }
@@ -86,11 +92,15 @@ public class SignalTerminatedWorkflowTest {
     @Override
     public String execute() {
       try {
-        ExampleWorkflow correspondingWorkflow =
-            Workflow.newExternalWorkflowStub(ExampleWorkflow.class, "abc123");
-        correspondingWorkflow.signal(true);
+        TestSignaledWorkflow stub =
+            Workflow.newExternalWorkflowStub(TestSignaledWorkflow.class, WORKFLOW_ID);
+        stub.signal(TEST_SIGNAL);
+        fail();
       } catch (ApplicationFailure e) {
-        // ignore
+        assertEquals(
+            e.getType(),
+            SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_EXTERNAL_WORKFLOW_EXECUTION_NOT_FOUND
+                .name());
       }
       return "Success!";
     }
