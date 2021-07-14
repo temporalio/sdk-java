@@ -1507,25 +1507,17 @@ class StateMachines {
   private static State failActivityTask(
       RequestContext ctx, ActivityTaskData data, Object request, long notUsed) {
     if (request instanceof RespondActivityTaskFailedRequest) {
-      return failActivityTaskByTaskToken(ctx, data, (RespondActivityTaskFailedRequest) request);
+      RespondActivityTaskFailedRequest req = (RespondActivityTaskFailedRequest) request;
+      return failActivityTaskByRequestType(ctx, data, req.getFailure(), req.getIdentity());
     } else if (request instanceof RespondActivityTaskFailedByIdRequest) {
-      return failActivityTaskById(ctx, data, (RespondActivityTaskFailedByIdRequest) request);
+      RespondActivityTaskFailedByIdRequest req = (RespondActivityTaskFailedByIdRequest) request;
+      return failActivityTaskByRequestType(ctx, data, req.getFailure(), req.getIdentity());
     } else {
       throw new IllegalArgumentException("Unknown request: " + request);
     }
   }
 
-  private static State failActivityTaskByTaskToken(
-      RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedRequest request) {
-    return getState(ctx, data, request.getFailure(), request.getIdentity());
-  }
-
-  private static State failActivityTaskById(
-      RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedByIdRequest request) {
-    return getState(ctx, data, request.getFailure(), request.getIdentity());
-  }
-
-  private static State getState(
+  private static State failActivityTaskByRequestType(
       RequestContext ctx, ActivityTaskData data, Failure failure, String identity) {
     if (!failure.hasApplicationFailureInfo()) {
       throw new IllegalArgumentException("application failure expected: " + failure);
@@ -1535,7 +1527,7 @@ class StateMachines {
       return INITIATED;
     }
     data.startedEventId = ctx.addEvent(data.startedEvent);
-    ActivityTaskFailedEventAttributes.Builder a =
+    ActivityTaskFailedEventAttributes.Builder attributes =
         ActivityTaskFailedEventAttributes.newBuilder()
             .setIdentity(identity)
             .setScheduledEventId(data.scheduledEventId)
@@ -1546,7 +1538,7 @@ class StateMachines {
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED)
-            .setActivityTaskFailedEventAttributes(a)
+            .setActivityTaskFailedEventAttributes(attributes)
             .build();
     ctx.addEvent(event);
     return FAILED;
