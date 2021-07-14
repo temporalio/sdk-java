@@ -871,7 +871,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ab.setRetryPolicy(validateAndOverrideRetryPolicy(a.getRetryPolicy()));
     }
 
-    // Inherit taskqueue from parent workflow execution if not provided on workflow task
+    // Inherit task queue from parent workflow execution if not provided on workflow task
     if (!ab.hasTaskQueue()) {
       ab.setTaskQueue(startRequest.getTaskQueue());
     }
@@ -1562,6 +1562,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         || workflowState == State.TIMED_OUT
         || workflowState == State.FAILED
         || workflowState == State.CANCELED
+        || workflowState == State.TERMINATED
         || workflowState == State.CONTINUED_AS_NEW;
   }
 

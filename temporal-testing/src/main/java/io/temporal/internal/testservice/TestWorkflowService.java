@@ -885,24 +885,23 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   public void signalExternalWorkflowExecution(
       String signalId,
-      SignalExternalWorkflowExecutionCommandAttributes a,
+      SignalExternalWorkflowExecutionCommandAttributes commandAttributes,
       TestWorkflowMutableState source) {
     String namespace;
-    if (a.getNamespace().isEmpty()) {
+    if (commandAttributes.getNamespace().isEmpty()) {
       namespace = source.getExecutionId().getNamespace();
     } else {
-      namespace = a.getNamespace();
+      namespace = commandAttributes.getNamespace();
     }
-    ExecutionId executionId = new ExecutionId(namespace, a.getExecution());
+    ExecutionId executionId = new ExecutionId(namespace, commandAttributes.getExecution());
     TestWorkflowMutableState mutableState = null;
     try {
       mutableState = getMutableState(executionId);
-      mutableState.signalFromWorkflow(a);
+      mutableState.signalFromWorkflow(commandAttributes);
       source.completeSignalExternalWorkflowExecution(
           signalId, mutableState.getExecutionId().getExecution().getRunId());
     } catch (StatusRuntimeException e) {
-      Status.Code statusCode = e.getStatus().getCode();
-      if (statusCode == Status.Code.NOT_FOUND || statusCode == Status.Code.INTERNAL) {
+      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         source.failSignalExternalWorkflowExecution(
             signalId,
             SignalExternalWorkflowExecutionFailedCause

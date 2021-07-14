@@ -95,7 +95,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         HistoryEvent.Builder eBuilder = event.toBuilder();
         if (completed) {
           throw new StatusRuntimeException(
-              Status.fromCode(Status.Code.INTERNAL)
+              Status.fromCode(Status.Code.NOT_FOUND)
                   .withCause(
                       ApplicationFailure.newNonRetryableFailure(
                           "Workflow execution completed.", "")));
