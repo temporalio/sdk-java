@@ -41,6 +41,7 @@ public class SignalTerminatedWorkflowTest {
   private static String WORKFLOW_ID = "testWorkflowID";
   private static String TEST_SIGNAL = "test";
   private static CountDownLatch latch = new CountDownLatch(1);
+  private static CountDownLatch latch2 = new CountDownLatch(1);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -55,18 +56,22 @@ public class SignalTerminatedWorkflowTest {
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .setWorkflowId(WORKFLOW_ID)
             .build();
-    TestSignaledWorkflow workflow =
+    TestSignaledWorkflow terminatedWorkflow =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
-    WorkflowClient.start(workflow::execute);
-
-    latch.await();
-
-    WorkflowStub stub = WorkflowStub.fromTyped(workflow);
-    stub.terminate("Mock terminating workflow");
+    WorkflowClient.start(terminatedWorkflow::execute);
 
     TestWorkflowReturnString signalingWorkflow =
         testWorkflowRule.newWorkflowStub(TestWorkflowReturnString.class);
     WorkflowClient.start(signalingWorkflow::execute);
+
+    // Wait for terminatedWorkflow to start
+    latch.await();
+
+    WorkflowStub stub = WorkflowStub.fromTyped(terminatedWorkflow);
+    stub.terminate("Mock terminating workflow");
+
+    // Wait for signalingWorkflow to start and terminatedWorkflow to terminate
+    latch2.countDown();
 
     WorkflowStub workflowStub2 = WorkflowStub.fromTyped(signalingWorkflow);
     assertEquals(workflowStub2.getResult(String.class), "Success!");
@@ -77,8 +82,8 @@ public class SignalTerminatedWorkflowTest {
 
     @Override
     public String execute() {
-      Workflow.await(Duration.ofSeconds(1), () -> signal == TEST_SIGNAL);
       latch.countDown();
+      Workflow.await(Duration.ofDays(100500), () -> TEST_SIGNAL.equals(signal));
       return signal;
     }
 
@@ -92,15 +97,24 @@ public class SignalTerminatedWorkflowTest {
     @Override
     public String execute() {
       try {
+        latch2.await();
         TestSignaledWorkflow stub =
             Workflow.newExternalWorkflowStub(TestSignaledWorkflow.class, WORKFLOW_ID);
+        // Signaling a terminated workflow should not succeed
         stub.signal(TEST_SIGNAL);
         fail();
-      } catch (ApplicationFailure e) {
-        assertEquals(
-            e.getType(),
-            SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_EXTERNAL_WORKFLOW_EXECUTION_NOT_FOUND
-                .name());
+      } catch (Exception e) {
+        if (e instanceof ApplicationFailure) {
+          // Expected
+          ApplicationFailure failure = (ApplicationFailure) e;
+          assertEquals(
+              failure.getType(),
+              SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_EXTERNAL_WORKFLOW_EXECUTION_NOT_FOUND
+                  .name());
+        } else {
+          // Something funky happened
+          fail();
+        }
       }
       return "Success!";
     }
