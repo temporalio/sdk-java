@@ -38,6 +38,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.workflow.Functions;
@@ -92,11 +93,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       for (HistoryEvent event : events) {
         HistoryEvent.Builder eBuilder = event.toBuilder();
         if (completed) {
-          throw Status.FAILED_PRECONDITION
-              .withDescription(
-                  "Attempt to add an eBuilder after a completion eBuilder: "
-                      + WorkflowExecutionUtils.prettyPrintObject(eBuilder))
-              .asRuntimeException();
+          throw ApplicationFailure.newNonRetryableFailure("Workflow execution completed.", "test");
         }
         eBuilder.setEventId(history.size() + 1L);
         // It can be set in StateMachines.startActivityTask
