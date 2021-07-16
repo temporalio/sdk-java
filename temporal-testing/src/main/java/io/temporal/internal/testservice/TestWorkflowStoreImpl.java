@@ -25,7 +25,6 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Deadline;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
@@ -94,11 +93,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       for (HistoryEvent event : events) {
         HistoryEvent.Builder eBuilder = event.toBuilder();
         if (completed) {
-          throw new StatusRuntimeException(
-              Status.fromCode(Status.Code.NOT_FOUND)
-                  .withCause(
-                      ApplicationFailure.newNonRetryableFailure(
-                          "Workflow execution completed.", "")));
+          throw ApplicationFailure.newNonRetryableFailure("Workflow execution completed.", "test");
         }
         eBuilder.setEventId(history.size() + 1L);
         // It can be set in StateMachines.startActivityTask
