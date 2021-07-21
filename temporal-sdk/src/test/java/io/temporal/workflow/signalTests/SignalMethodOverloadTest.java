@@ -26,14 +26,13 @@ import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SignalMethodOverrideTest {
+public class SignalMethodOverloadTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestSignalMethodOverrideImpl.class).build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestSignalMethodOverloadImpl.class).build();
 
-  public class TestSignalMethodOverrideImpl
-      implements SignalMethodOverrideTest.TestSignalMethodOverride {
+  public static class TestSignalMethodOverloadImpl implements TestSignalMethodOverload {
     @Override
     public void execute() {}
 
@@ -45,7 +44,7 @@ public class SignalMethodOverrideTest {
   }
 
   @WorkflowInterface
-  public interface TestSignalMethodOverride {
+  public interface TestSignalMethodOverload {
     @WorkflowMethod
     void execute();
 
