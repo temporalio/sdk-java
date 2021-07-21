@@ -23,7 +23,6 @@ import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
@@ -36,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 final class VersionStateMachine {
 
@@ -49,7 +49,7 @@ final class VersionStateMachine {
   private final Functions.Proc1<CancellableCommand> commandSink;
   private final Functions.Proc1<StateMachine> stateMachineSink;
 
-  private Optional<Integer> version = Optional.empty();
+  @Nullable private Integer version;
 
   enum ExplicitEvent {
     CHECK_EXECUTION_STATE,
@@ -137,15 +137,14 @@ final class VersionStateMachine {
     }
 
     private void validateVersion() {
-      if (!version.isPresent()) {
+      if (version == null) {
         throw new IllegalStateException("Version not set");
       }
-      int v = version.get();
-      if ((v < minSupported || v > maxSupported) && v != DEFAULT_VERSION) {
+      if ((version < minSupported || version > maxSupported) && version != DEFAULT_VERSION) {
         throw new UnsupportedVersion(
             String.format(
                 "Version %d of changeId %s is not supported. Supported v is between %d and %d.",
-                v, changeId, minSupported, maxSupported));
+                version, changeId, minSupported, maxSupported));
       }
     }
 
@@ -177,8 +176,7 @@ final class VersionStateMachine {
         // still can be followed by an event with our changeId.
         return WorkflowStateMachines.HandleEventStatus.NON_MATCHING_EVENT;
       }
-      super.handleEvent(event, hasNextEvent);
-      return WorkflowStateMachines.HandleEventStatus.OK;
+      return super.handleEvent(event, hasNextEvent);
     }
 
     @Override
@@ -191,39 +189,28 @@ final class VersionStateMachine {
     }
 
     State createMarker() {
-      State toState;
-      RecordMarkerCommandAttributes markerAttributes;
-      if (version.isPresent()) {
+      if (version != null) {
         validateVersion();
-        markerAttributes = RecordMarkerCommandAttributes.getDefaultInstance();
-        toState = State.SKIPPED;
+        addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
+        return State.SKIPPED;
       } else {
-        version = Optional.of(maxSupported);
+        version = maxSupported;
         DataConverter dataConverter = DataConverter.getDefaultInstance();
         Map<String, Payloads> details = new HashMap<>();
         details.put(MARKER_CHANGE_ID_KEY, dataConverter.toPayloads(changeId).get());
-        details.put(MARKER_VERSION_KEY, dataConverter.toPayloads(version.get()).get());
-        markerAttributes =
+        details.put(MARKER_VERSION_KEY, dataConverter.toPayloads(version).get());
+        RecordMarkerCommandAttributes markerAttributes =
             RecordMarkerCommandAttributes.newBuilder()
                 .setMarkerName(VERSION_MARKER_NAME)
                 .putAllDetails(details)
                 .build();
-        toState = State.MARKER_COMMAND_CREATED;
+        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes));
+        return State.MARKER_COMMAND_CREATED;
       }
-      addCommand(
-          Command.newBuilder()
-              .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-              .setRecordMarkerCommandAttributes(markerAttributes)
-              .build());
-      return toState;
     }
 
     void createFakeCommand() {
-      addCommand(
-          Command.newBuilder()
-              .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-              .setRecordMarkerCommandAttributes(RecordMarkerCommandAttributes.getDefaultInstance())
-              .build());
+      addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
     }
 
     /**
@@ -249,7 +236,7 @@ final class VersionStateMachine {
     }
 
     void notifyResult() {
-      resultCallback.apply(version.get());
+      resultCallback.apply(version);
     }
 
     void cancelCommandNotifyCachedResult() {
@@ -259,18 +246,18 @@ final class VersionStateMachine {
 
     void missingMarkerNotifyCachedOrDefault() {
       cancelCommand();
-      if (!version.isPresent()) {
-        version = Optional.of(DEFAULT_VERSION);
+      if (version == null) {
+        version = DEFAULT_VERSION;
       }
       notifyResult();
     }
   }
 
   private void updateVersionFromEvent(HistoryEvent event) {
-    if (version.isPresent()) {
+    if (version != null) {
       throw new IllegalStateException(
           "Version is already set to "
-              + version.get()
+              + version
               + ". The most probable cause is retroactive addition "
               + "of a getVersion call with an existing 'changeId'");
     }
@@ -291,8 +278,7 @@ final class VersionStateMachine {
       throw new IllegalStateException(
           "Marker details detailsMap missing required key: " + MARKER_VERSION_KEY);
     }
-    int v = dataConverter.fromPayloads(0, skipCountPayloads, Integer.class, Integer.class);
-    version = Optional.of(v);
+    version = dataConverter.fromPayloads(0, skipCountPayloads, Integer.class, Integer.class);
   }
 
   /** Creates new VersionStateMachine */
