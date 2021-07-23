@@ -871,7 +871,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ab.setRetryPolicy(validateAndOverrideRetryPolicy(a.getRetryPolicy()));
     }
 
-    // Inherit taskqueue from parent workflow execution if not provided on workflow task
+    // Inherit task queue from parent workflow execution if not provided on workflow task
     if (!ab.hasTaskQueue()) {
       ab.setTaskQueue(startRequest.getTaskQueue());
     }
@@ -1562,6 +1562,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         || workflowState == State.TIMED_OUT
         || workflowState == State.FAILED
         || workflowState == State.CANCELED
+        || workflowState == State.TERMINATED
         || workflowState == State.CONTINUED_AS_NEW;
   }
 
@@ -1636,10 +1637,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           if (activity.getState() != State.INITIATED && data.getAttempt() != attempt) {
             return;
           }
-          selfAdvancingTimer.lockTimeSkipping(
-              "activityRetryTimer " + activity.getData().scheduledEvent.getActivityId());
+          LockHandle lockHandle =
+              selfAdvancingTimer.lockTimeSkipping(
+                  "activityRetryTimer " + activity.getData().scheduledEvent.getActivityId());
           boolean unlockTimer = false;
           try {
+            // TODO this lock is getting releases somewhere on the activity completion.
+            // We should rework it on passing the lockHandle downstream and using it for the release
             update(ctx1 -> ctx1.addActivityTask(data.activityTask));
           } catch (StatusRuntimeException e) {
             // NOT_FOUND is expected as timers are not removed
@@ -1654,7 +1658,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           } finally {
             if (unlockTimer) {
               // Allow time skipping when waiting for an activity retry
-              selfAdvancingTimer.unlockTimeSkipping(
+              lockHandle.unlock(
                   "activityRetryTimer " + activity.getData().scheduledEvent.getActivityId());
             }
           }
@@ -1809,7 +1813,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             // TODO(maxim): real retry status
             workflow.action(StateMachines.Action.TIME_OUT, ctx, RetryState.RETRY_STATE_TIMEOUT, 0);
             workflowTaskStateMachine.getData().workflowCompleted = true;
-            if (parent != null) {
+            if (parent.isPresent()) {
               ctx.lockTimer("timeoutWorkflow notify parent"); // unlocked by the parent
             }
             ForkJoinPool.commonPool().execute(() -> reportWorkflowTimeoutToParent(ctx));

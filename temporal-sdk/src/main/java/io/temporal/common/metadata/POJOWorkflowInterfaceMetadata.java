@@ -22,14 +22,7 @@ package io.temporal.common.metadata;
 import io.temporal.workflow.WorkflowInterface;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Metadata of a workflow interface.
@@ -50,11 +43,13 @@ import java.util.Set;
 public final class POJOWorkflowInterfaceMetadata {
 
   /** Used to override equals and hashCode of Method to ensure deduping by method name in a set. */
-  private static class EqualsByMethodName {
+  private static class EqualsByName {
     private final Method method;
+    private String nameFromAnnotation;
 
-    EqualsByMethodName(Method method) {
+    EqualsByName(Method method, String nameFromAnnotation) {
       this.method = method;
+      this.nameFromAnnotation = nameFromAnnotation;
     }
 
     public Method getMethod() {
@@ -65,13 +60,14 @@ public final class POJOWorkflowInterfaceMetadata {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      EqualsByMethodName that = (EqualsByMethodName) o;
-      return com.google.common.base.Objects.equal(method.getName(), that.method.getName());
+      EqualsByName that = (EqualsByName) o;
+      return method.equals(that.method)
+          && Objects.equals(nameFromAnnotation, that.nameFromAnnotation);
     }
 
     @Override
     public int hashCode() {
-      return com.google.common.base.Objects.hashCode(method.getName());
+      return Objects.hash(method, nameFromAnnotation);
     }
   }
 
@@ -134,7 +130,7 @@ public final class POJOWorkflowInterfaceMetadata {
   /** @param implementation if the metadata is for a workflow implementation class vs stub. */
   private POJOWorkflowInterfaceMetadata(Class<?> anInterface, boolean implementation) {
     this.interfaceClass = anInterface;
-    Map<EqualsByMethodName, Method> dedupeMap = new HashMap<>();
+    Map<EqualsByName, Method> dedupeMap = new HashMap<>();
     getWorkflowInterfaceMethods(anInterface, !implementation, dedupeMap);
   }
 
@@ -177,7 +173,7 @@ public final class POJOWorkflowInterfaceMetadata {
 
   /** @return methods which are not part of an interface annotated with WorkflowInterface */
   private Set<POJOWorkflowMethod> getWorkflowInterfaceMethods(
-      Class<?> current, boolean rootClass, Map<EqualsByMethodName, Method> dedupeMap) {
+      Class<?> current, boolean rootClass, Map<EqualsByName, Method> dedupeMap) {
     WorkflowInterface annotation = current.getAnnotation(WorkflowInterface.class);
 
     if (annotation != null) {
@@ -187,8 +183,7 @@ public final class POJOWorkflowInterfaceMetadata {
     // Set to de-dupe the same method due to diamond inheritance
     Set<POJOWorkflowMethod> result = new HashSet<>();
     Class<?>[] interfaces = current.getInterfaces();
-    for (int i = 0; i < interfaces.length; i++) {
-      Class<?> anInterface = interfaces[i];
+    for (Class<?> anInterface : interfaces) {
       Set<POJOWorkflowMethod> parentMethods =
           getWorkflowInterfaceMethods(anInterface, false, dedupeMap);
       for (POJOWorkflowMethod parentMethod : parentMethods) {
@@ -210,8 +205,7 @@ public final class POJOWorkflowInterfaceMetadata {
       }
     }
     Method[] declaredMethods = current.getDeclaredMethods();
-    for (int i = 0; i < declaredMethods.length; i++) {
-      Method declaredMethod = declaredMethods[i];
+    for (Method declaredMethod : declaredMethods) {
       POJOWorkflowMethod methodMetadata = new POJOWorkflowMethod(declaredMethod);
       result.add(methodMetadata);
     }
@@ -220,13 +214,12 @@ public final class POJOWorkflowInterfaceMetadata {
     }
     for (POJOWorkflowMethod workflowMethod : result) {
       Method method = workflowMethod.getMethod();
-      if (workflowMethod.getType() == WorkflowMethodType.NONE) {
-        if (annotation != null) {
-          throw new IllegalArgumentException(
-              "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on " + method);
-        }
+      if (workflowMethod.getType() == WorkflowMethodType.NONE && annotation != null) {
+        throw new IllegalArgumentException(
+            "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on " + method);
       }
-      EqualsByMethodName wrapped = new EqualsByMethodName(method);
+      EqualsByName wrapped =
+          new EqualsByName(method, workflowMethod.getNameFromAnnotation().orElse(null));
       Method registered = dedupeMap.put(wrapped, method);
       if (registered != null && !registered.equals(method)) {
         throw new IllegalArgumentException(
@@ -237,7 +230,7 @@ public final class POJOWorkflowInterfaceMetadata {
                 + "\"");
       }
 
-      if (workflowMethod.getType() == WorkflowMethodType.NONE && annotation == null) {
+      if (workflowMethod.getType() == WorkflowMethodType.NONE) {
         continue;
       }
 

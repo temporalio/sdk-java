@@ -77,7 +77,7 @@ public final class ApplicationFailure extends TemporalFailure {
    * retry policy doNotRetry list.
    *
    * @param message optional error message
-   * @param type optional error type
+   * @param type error type
    * @param details optional details about the failure. They are serialized using the same approach
    *     as arguments and results.
    */
