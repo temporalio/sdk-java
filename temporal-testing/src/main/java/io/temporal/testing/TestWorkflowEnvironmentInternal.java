@@ -180,6 +180,12 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
+  @Deprecated
+  public void shutdownTestService() {
+    service.close();
+  }
+
+  @Override
   public void shutdown() {
     workerFactory.shutdown();
   }

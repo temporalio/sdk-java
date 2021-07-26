@@ -29,10 +29,12 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class InterceptorsExceptionsTests {
+public class InterceptorExceptionTests {
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -42,6 +44,16 @@ public class InterceptorsExceptionsTests {
                   .setInterceptors(new ExceptionOnStartThrowingClientInterceptor())
                   .validateAndBuildWithDefaults())
           .build();
+
+  /**
+   * Initiates Test Service shutdown as temporary to solution to long poll thread shutdown. See
+   * issue: https://github.com/temporalio/sdk-java/issues/608
+   */
+  @After
+  @SuppressWarnings("deprecation")
+  public void tearDown() {
+    testWorkflowRule.getTestEnvironment().shutdownTestService();
+  }
 
   @Test
   public void testExceptionOnStart() {

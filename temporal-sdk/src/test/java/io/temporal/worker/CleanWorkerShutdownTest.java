@@ -322,6 +322,7 @@ public class CleanWorkerShutdownTest {
         started.complete(true);
         Thread.sleep(1000);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         return "interrupted";
       }
       return "completed";
@@ -344,6 +345,7 @@ public class CleanWorkerShutdownTest {
       } catch (ActivityWorkerShutdownException e) {
         return "workershutdown";
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         return "interrupted";
       }
       return "completed";

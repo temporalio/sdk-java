@@ -174,7 +174,7 @@ public class TestWorkflows {
     public String execute(String taskQueue, int delay) {
       NoArgsActivity activity =
           Workflow.newActivityStub(
-              TestActivities.NoArgsActivity.class,
+              NoArgsActivity.class,
               ActivityOptions.newBuilder()
                   .setTaskQueue(taskQueue)
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))

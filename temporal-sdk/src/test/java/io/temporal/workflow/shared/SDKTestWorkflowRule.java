@@ -353,6 +353,7 @@ public class SDKTestWorkflowRule implements TestRule {
         try {
           result.get();
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
         } catch (ExecutionException e) {
           throw e.getCause();
         }
@@ -365,6 +366,7 @@ public class SDKTestWorkflowRule implements TestRule {
       try {
         Thread.sleep(d.toMillis());
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException("Interrupted", e);
       }
     } else {

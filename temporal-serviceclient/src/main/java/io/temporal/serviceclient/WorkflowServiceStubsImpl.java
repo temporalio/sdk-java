@@ -320,6 +320,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       }
       return true;
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       return false;
     }
   }

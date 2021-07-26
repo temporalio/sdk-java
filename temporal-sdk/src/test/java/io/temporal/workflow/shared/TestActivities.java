@@ -205,6 +205,7 @@ public class TestActivities {
       try {
         Thread.sleep(milliseconds);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw Activity.wrap(new RuntimeException("interrupted", new Throwable("simulated")));
       }
       invocations.add("sleepActivity");
@@ -230,11 +231,12 @@ public class TestActivities {
               }
               completionClient.complete(taskToken, "activity");
             } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
             } catch (ActivityNotExistsException | ActivityCanceledException e) {
               try {
                 Thread.sleep(500);
               } catch (InterruptedException interruptedException) {
-                // noop
+                Thread.currentThread().interrupt();
               }
               completionClient.reportCancellation(taskToken, null);
             }
