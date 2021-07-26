@@ -45,6 +45,10 @@ public class InterceptorExceptionTests {
                   .validateAndBuildWithDefaults())
           .build();
 
+  /**
+   * Initiates Test Service shutdown as temporary to solution to long poll thread shutdown. See
+   * issue: https://github.com/temporalio/sdk-java/issues/608
+   */
   @After
   @SuppressWarnings("deprecation")
   public void tearDown() {

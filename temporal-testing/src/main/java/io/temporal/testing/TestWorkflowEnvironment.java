@@ -182,7 +182,8 @@ public interface TestWorkflowEnvironment {
   /**
    * Initiates Test Service shutdown. This method is temporarily exposed to solve long poll thread
    * shutdown for {@link
-   * io.temporal.workflow.interceptorsTests.InterceptorExceptionTests#testExceptionOnStart()}.
+   * io.temporal.workflow.interceptorsTests.InterceptorExceptionTests#testExceptionOnStart()}. See
+   * issue: https://github.com/temporalio/sdk-java/issues/608
    */
   @Deprecated
   void shutdownTestService();
