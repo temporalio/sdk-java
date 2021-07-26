@@ -180,6 +180,14 @@ public interface TestWorkflowEnvironment {
   boolean isTerminated();
 
   /**
+   * Initiates Test Service shutdown. This method is temporarily exposed to solve long poll thread
+   * shutdown for {@link
+   * io.temporal.workflow.interceptorsTests.InterceptorExceptionTests#testExceptionOnStart()}.
+   */
+  @Deprecated
+  void shutdownTestService();
+
+  /**
    * Initiates an orderly shutdown in which polls are stopped and already received workflow and
    * activity tasks are executed. After the shutdown calls to {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link

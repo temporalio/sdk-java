@@ -148,11 +148,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public void close() {
-    // Invoke service.close() before shutting down the worker factories to prevent threads hanging
-    // due to the failure being interrupted (which isn't guaranteed by JVM).
-    service.close();
     workerFactory.shutdownNow();
     workerFactory.awaitTermination(10, TimeUnit.SECONDS);
+    service.close();
     if (Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"))) {
       workflowServiceStubs.shutdown();
     } else {
@@ -179,6 +177,12 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   @Override
   public boolean isTerminated() {
     return workerFactory.isTerminated();
+  }
+
+  @Override
+  @Deprecated
+  public void shutdownTestService() {
+    service.close();
   }
 
   @Override
