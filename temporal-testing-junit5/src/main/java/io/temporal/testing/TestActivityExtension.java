@@ -19,9 +19,11 @@
 
 package io.temporal.testing;
 
+import io.temporal.activity.DynamicActivity;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Parameter;
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -67,6 +69,8 @@ public class TestActivityExtension
 
   private final Set<Class<?>> supportedParameterTypes = new HashSet<>();
 
+  private boolean includesDynamicActivity;
+
   private TestActivityExtension(Builder builder) {
     testEnvironmentOptions = builder.testEnvironmentOptions;
     activityImplementations = builder.activityImplementations;
@@ -74,6 +78,10 @@ public class TestActivityExtension
     supportedParameterTypes.add(TestActivityEnvironment.class);
 
     for (Object activity : activityImplementations) {
+      if (DynamicActivity.class.isAssignableFrom(activity.getClass())) {
+        includesDynamicActivity = true;
+        continue;
+      }
       POJOActivityImplMetadata metadata = POJOActivityImplMetadata.newInstance(activity.getClass());
       for (POJOActivityInterfaceMetadata activityInterface : metadata.getActivityInterfaces()) {
         supportedParameterTypes.add(activityInterface.getInterfaceClass());
@@ -90,13 +98,31 @@ public class TestActivityExtension
       ParameterContext parameterContext, ExtensionContext extensionContext)
       throws ParameterResolutionException {
 
-    if (parameterContext.getParameter().getDeclaringExecutable() instanceof Constructor) {
+    Parameter parameter = parameterContext.getParameter();
+    if (parameter.getDeclaringExecutable() instanceof Constructor) {
       // Constructor injection is not supported
       return false;
     }
 
-    Class<?> parameterType = parameterContext.getParameter().getType();
-    return supportedParameterTypes.contains(parameterType);
+    Class<?> parameterType = parameter.getType();
+    if (supportedParameterTypes.contains(parameterType)) {
+      return true;
+    }
+
+    if (!includesDynamicActivity) {
+      // If no DynamicActivity implementation was registered then supportedParameterTypes are the
+      // only ones types that can be injected
+      return false;
+    }
+
+    try {
+      // If POJOActivityInterfaceMetadata can be instantiated then parameterType is a proper
+      // activity interface and can be injected
+      POJOActivityInterfaceMetadata.newInstance(parameterType);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   @Override
