@@ -30,6 +30,7 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Parameter;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -136,17 +137,31 @@ public class TestWorkflowExtension
       ParameterContext parameterContext, ExtensionContext extensionContext)
       throws ParameterResolutionException {
 
-    if (parameterContext.getParameter().getDeclaringExecutable() instanceof Constructor) {
+    Parameter parameter = parameterContext.getParameter();
+    if (parameter.getDeclaringExecutable() instanceof Constructor) {
       // Constructor injection is not supported
       return false;
     }
 
-    if (includesDynamicWorkflow) {
+    Class<?> parameterType = parameter.getType();
+    if (supportedParameterTypes.contains(parameterType)) {
       return true;
     }
 
-    Class<?> parameterType = parameterContext.getParameter().getType();
-    return supportedParameterTypes.contains(parameterType);
+    if (!includesDynamicWorkflow) {
+      // If no DynamicWorkflow implementation was registered then supportedParameterTypes are the
+      // only ones types that can be injected
+      return false;
+    }
+
+    try {
+      // If POJOWorkflowInterfaceMetadata can be instantiated then parameterType is a proper
+      // workflow interface and can be injected
+      POJOWorkflowInterfaceMetadata.newInstance(parameterType);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   @Override
