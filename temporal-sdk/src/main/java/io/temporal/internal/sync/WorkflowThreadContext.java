@@ -86,6 +86,7 @@ class WorkflowThreadContext {
       }
     } catch (InterruptedException e) {
       // Throwing Error in workflow code aborts workflow task without failing workflow.
+      Thread.currentThread().interrupt();
       throw new Error("Unexpected interrupt", e);
     } finally {
       setStatus(Status.RUNNING);
@@ -142,6 +143,7 @@ class WorkflowThreadContext {
         evaluationCondition.await();
       }
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new Error("Unexpected interrupt", e);
     } finally {
       evaluationFunction = null;
@@ -237,6 +239,7 @@ class WorkflowThreadContext {
       }
       return !remainedBlocked;
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       if (!isDestroyRequested()) {
         throw new Error("Unexpected interrupt", e);
       }

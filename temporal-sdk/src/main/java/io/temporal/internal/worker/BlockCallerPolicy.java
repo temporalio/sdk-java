@@ -35,6 +35,7 @@ class BlockCallerPolicy implements RejectedExecutionHandler {
       // block until there's room
       executor.getQueue().put(r);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new RejectedExecutionException("Unexpected InterruptedException", e);
     }
   }

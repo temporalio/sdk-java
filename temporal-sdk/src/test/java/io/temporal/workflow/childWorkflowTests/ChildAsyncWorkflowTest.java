@@ -25,7 +25,7 @@ import io.temporal.workflow.Async;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -36,9 +36,7 @@ public class ChildAsyncWorkflowTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(
-              TestChildAsyncWorkflow.class,
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
+          .setWorkflowTypes(TestChildAsyncWorkflow.class, TestMultiArgWorkflowImpl.class)
           .build();
 
   @Test
@@ -53,62 +51,48 @@ public class ChildAsyncWorkflowTest {
     public String execute(String taskQueue) {
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class, workflowOptions);
+      TestNoArgsWorkflowFunc stubF =
+          Workflow.newChildWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
       Assert.assertEquals("func", Async.function(stubF::func).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1 stubF1 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1.class, workflowOptions);
+      Test1ArgWorkflowFunc stubF1 =
+          Workflow.newChildWorkflowStub(Test1ArgWorkflowFunc.class, workflowOptions);
       assertEquals(1, (int) Async.function(stubF1::func1, 1).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2 stubF2 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2.class, workflowOptions);
+      Test2ArgWorkflowFunc stubF2 =
+          Workflow.newChildWorkflowStub(Test2ArgWorkflowFunc.class, workflowOptions);
       assertEquals("12", Async.function(stubF2::func2, "1", 2).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc3 stubF3 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc3.class, workflowOptions);
+      Test3ArgWorkflowFunc stubF3 =
+          Workflow.newChildWorkflowStub(Test3ArgWorkflowFunc.class, workflowOptions);
       assertEquals("123", Async.function(stubF3::func3, "1", 2, 3).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc4 stubF4 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc4.class, workflowOptions);
+      Test4ArgWorkflowFunc stubF4 =
+          Workflow.newChildWorkflowStub(Test4ArgWorkflowFunc.class, workflowOptions);
       assertEquals("1234", Async.function(stubF4::func4, "1", 2, 3, 4).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc5 stubF5 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc5.class, workflowOptions);
+      Test5ArgWorkflowFunc stubF5 =
+          Workflow.newChildWorkflowStub(Test5ArgWorkflowFunc.class, workflowOptions);
       assertEquals("12345", Async.function(stubF5::func5, "1", 2, 3, 4, 5).get());
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc6 stubF6 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc6.class, workflowOptions);
+      Test6ArgWorkflowFunc stubF6 =
+          Workflow.newChildWorkflowStub(Test6ArgWorkflowFunc.class, workflowOptions);
       assertEquals("123456", Async.function(stubF6::func6, "1", 2, 3, 4, 5, 6).get());
 
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc stubP =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc.class, workflowOptions);
+      TestNoArgsWorkflowProc stubP =
+          Workflow.newChildWorkflowStub(TestNoArgsWorkflowProc.class, workflowOptions);
       Async.procedure(stubP::proc).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc1 stubP1 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc1.class, workflowOptions);
+      Test1ArgWorkflowProc stubP1 =
+          Workflow.newChildWorkflowStub(Test1ArgWorkflowProc.class, workflowOptions);
       Async.procedure(stubP1::proc1, "1").get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc2 stubP2 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc2.class, workflowOptions);
+      Test2ArgWorkflowProc stubP2 =
+          Workflow.newChildWorkflowStub(Test2ArgWorkflowProc.class, workflowOptions);
       Async.procedure(stubP2::proc2, "1", 2).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc3 stubP3 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc3.class, workflowOptions);
+      Test3ArgWorkflowProc stubP3 =
+          Workflow.newChildWorkflowStub(Test3ArgWorkflowProc.class, workflowOptions);
       Async.procedure(stubP3::proc3, "1", 2, 3).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc4 stubP4 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc4.class, workflowOptions);
+      Test4ArgWorkflowProc stubP4 =
+          Workflow.newChildWorkflowStub(Test4ArgWorkflowProc.class, workflowOptions);
       Async.procedure(stubP4::proc4, "1", 2, 3, 4).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc5 stubP5 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc5.class, workflowOptions);
+      Test5ArgWorkflowProc stubP5 =
+          Workflow.newChildWorkflowStub(Test5ArgWorkflowProc.class, workflowOptions);
       Async.procedure(stubP5::proc5, "1", 2, 3, 4, 5).get();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc6 stubP6 =
-          Workflow.newChildWorkflowStub(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc6.class, workflowOptions);
+      Test6ArgWorkflowProc stubP6 =
+          Workflow.newChildWorkflowStub(Test6ArgWorkflowProc.class, workflowOptions);
       Async.procedure(stubP6::proc6, "1", 2, 3, 4, 5, 6).get();
       return null;
     }

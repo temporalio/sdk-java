@@ -806,6 +806,7 @@ public class WorkflowTestingTest {
         try {
           Thread.sleep(500);
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           e.printStackTrace();
         }
         Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
@@ -860,6 +861,7 @@ public class WorkflowTestingTest {
       try {
         Thread.sleep(500);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
       Workflow.await(() -> signalInput != null);
@@ -882,7 +884,7 @@ public class WorkflowTestingTest {
         try {
           Thread.sleep(50);
         } catch (InterruptedException e) {
-          // NOOP
+          Thread.currentThread().interrupt();
         }
       }
     }

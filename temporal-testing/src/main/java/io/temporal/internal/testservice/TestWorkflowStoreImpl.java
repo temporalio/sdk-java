@@ -60,6 +60,19 @@ import org.slf4j.LoggerFactory;
 
 class TestWorkflowStoreImpl implements TestWorkflowStore {
 
+  private static final int TASK_QUEUE_POLLER_TIMEOUT = 500;
+  private static final Logger log = LoggerFactory.getLogger(TestWorkflowStoreImpl.class);
+
+  private final Lock lock = new ReentrantLock();
+  private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
+  private final Map<TaskQueueId, BlockingQueue<PollActivityTaskQueueResponse.Builder>>
+      activityTaskQueues = new HashMap<>();
+  private final Map<TaskQueueId, BlockingQueue<PollWorkflowTaskQueueResponse.Builder>>
+      workflowTaskQueues = new HashMap<>();
+  private final SelfAdvancingTimer timerService;
+  private LockHandle emptyHistoryLockHandle;
+  private volatile boolean isShuttingDown;
+
   private static class HistoryStore {
 
     private final Lock lock;
@@ -161,21 +174,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       }
     }
   }
-
-  private static final Logger log = LoggerFactory.getLogger(TestWorkflowStoreImpl.class);
-
-  private final Lock lock = new ReentrantLock();
-
-  private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
-
-  private final Map<TaskQueueId, BlockingQueue<PollActivityTaskQueueResponse.Builder>>
-      activityTaskQueues = new HashMap<>();
-
-  private final Map<TaskQueueId, BlockingQueue<PollWorkflowTaskQueueResponse.Builder>>
-      workflowTaskQueues = new HashMap<>();
-
-  private final SelfAdvancingTimer timerService;
-  private LockHandle emptyHistoryLockHandle;
 
   public TestWorkflowStoreImpl(long initialTimeMillis) {
     timerService = new SelfAdvancingTimerImpl(initialTimeMillis);
@@ -341,9 +339,12 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       if (deadline == null) {
         result = workflowTaskQueue.take();
       } else {
-        result =
-            workflowTaskQueue.poll(
-                deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
+        // Listen on the task queue for short periods, and keep checking if we are being shutdown in
+        // between. Long poll doesn't work well here because thread interrupted status gets lost and
+        // poller keeps hanging on an empty queue, resulting in test timing out.
+        while (result == null && !isShuttingDown && !deadline.isExpired()) {
+          result = workflowTaskQueue.poll(TASK_QUEUE_POLLER_TIMEOUT, TimeUnit.MILLISECONDS);
+        }
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -363,9 +364,12 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       if (deadline == null) {
         result = activityTaskQueue.take();
       } else {
-        result =
-            activityTaskQueue.poll(
-                deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
+        // Listen on the task queue for short periods, and keep checking if we are being shutdown in
+        // between. Long poll doesn't work well here because thread interrupted status gets lost and
+        // poller keeps hanging on an empty queue, resulting in test timing out.
+        while (result == null && !isShuttingDown && !deadline.isExpired()) {
+          result = activityTaskQueue.poll(TASK_QUEUE_POLLER_TIMEOUT, TimeUnit.MILLISECONDS);
+        }
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -539,6 +543,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void close() {
+    isShuttingDown = true;
     timerService.shutdown();
   }
 }

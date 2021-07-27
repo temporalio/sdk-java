@@ -65,6 +65,7 @@ public class SignalDuringLastWorkflowTaskTest {
             try {
               sendSignal.get(2, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
               throw new RuntimeException(e);
             }
             client.signal("Signal Input");
@@ -94,6 +95,7 @@ public class SignalDuringLastWorkflowTaskTest {
         try {
           Thread.sleep(1000);
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           throw new RuntimeException(e);
         }
       }

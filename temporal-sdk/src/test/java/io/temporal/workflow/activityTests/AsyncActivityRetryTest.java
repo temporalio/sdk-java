@@ -31,7 +31,6 @@ import io.temporal.testing.WorkflowReplayer;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
@@ -100,8 +99,7 @@ public class AsyncActivityRetryTest {
                       .setMaximumAttempts(3)
                       .build())
               .build();
-      this.activities =
-          Workflow.newActivityStub(TestActivities.VariousTestActivities.class, options);
+      this.activities = Workflow.newActivityStub(VariousTestActivities.class, options);
       Async.procedure(activities::heartbeatAndThrowIO).get();
       return "ignored";
     }

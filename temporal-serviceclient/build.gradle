@@ -14,11 +14,11 @@ dependencies {
     api 'io.grpc:grpc-services:1.39.0'
     api group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.17.3'
     api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
-    api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.31'
+    api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.32'
     if (!JavaVersion.current().isJava8()) {
         implementation 'javax.annotation:javax.annotation-api:1.3.2'
     }
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.4'
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.5'
     testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.11.2'
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
 }
