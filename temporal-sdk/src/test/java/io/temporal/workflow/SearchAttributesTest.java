@@ -34,7 +34,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
 import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.LocalDateTime;
@@ -73,9 +74,7 @@ public class SearchAttributesTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
-              TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class,
-              TestParentWorkflow.class,
-              TestChild.class)
+              TestMultiArgWorkflowImpl.class, TestParentWorkflow.class, TestChild.class)
           .build();
 
   @Test
@@ -89,11 +88,10 @@ public class SearchAttributesTest {
             .toBuilder()
             .setSearchAttributes(searchAttributes)
             .build();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
+    TestNoArgsWorkflowFunc stubF =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class, workflowOptions);
+            .newWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
     WorkflowExecution executionF = WorkflowClient.start(stubF::func);
 
     GetWorkflowExecutionHistoryResponse historyResp =

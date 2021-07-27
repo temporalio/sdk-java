@@ -406,6 +406,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       try {
         future.get();
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new Error("Unexpected interrupt", e);
       } catch (ExecutionException e) {
         throw new Error("Unexpected failure stopping coroutine", e);

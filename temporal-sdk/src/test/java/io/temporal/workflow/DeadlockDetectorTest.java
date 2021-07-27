@@ -120,6 +120,7 @@ public class DeadlockDetectorTest {
       try {
         Thread.sleep(millis);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw Workflow.wrap(e);
       }
     }

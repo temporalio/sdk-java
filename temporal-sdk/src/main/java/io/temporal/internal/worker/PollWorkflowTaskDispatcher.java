@@ -58,13 +58,13 @@ public final class PollWorkflowTaskDispatcher
   }
 
   @Override
-  public void process(PollWorkflowTaskQueueResponse t) {
+  public void process(PollWorkflowTaskQueueResponse task) {
     if (isShutdown()) {
       throw new RejectedExecutionException("shutdown");
     }
-    String taskQueueName = t.getWorkflowExecutionTaskQueue().getName();
+    String taskQueueName = task.getWorkflowExecutionTaskQueue().getName();
     if (subscribers.containsKey(taskQueueName)) {
-      subscribers.get(taskQueueName).apply(t);
+      subscribers.get(taskQueueName).apply(task);
     } else {
       Exception exception =
           new Exception(
@@ -74,7 +74,7 @@ public final class PollWorkflowTaskDispatcher
       RespondWorkflowTaskFailedRequest request =
           RespondWorkflowTaskFailedRequest.newBuilder()
               .setNamespace(namespace)
-              .setTaskToken(t.getTaskToken())
+              .setTaskToken(task.getTaskToken())
               .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_STICKY_TASK_QUEUE)
               .setFailure(FailureConverter.exceptionToFailure(exception))
               .build();

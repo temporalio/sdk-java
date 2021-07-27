@@ -306,6 +306,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       laCompletion = localActivityCompletionQueue.poll(maxWaitTime, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       // TODO(maxim): interrupt when worker shutdown is called
+      Thread.currentThread().interrupt();
       throw new IllegalStateException("interrupted", e);
     }
     if (laCompletion == null) {

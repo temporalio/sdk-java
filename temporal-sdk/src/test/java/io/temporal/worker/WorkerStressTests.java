@@ -195,7 +195,7 @@ public class WorkerStressTests {
       return useExternalService ? factory.getWorkflowClient() : testEnv.getWorkflowClient();
     }
 
-    private void close() throws InterruptedException {
+    private void close() {
       if (factory != null) {
         factory.shutdown();
         factory.awaitTermination(10, TimeUnit.SECONDS);
