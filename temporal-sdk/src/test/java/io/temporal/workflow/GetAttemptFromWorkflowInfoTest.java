@@ -21,7 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestMultiargsWorkflowsFuncParent;
+import io.temporal.workflow.shared.TestNoArgsWorkflowFuncParent;
 import io.temporal.workflow.shared.TestOptions;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -33,7 +33,7 @@ public class GetAttemptFromWorkflowInfoTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
-              TestMultiargsWorkflowsFuncParent.class, TestAttemptReturningWorkflowFunc.class)
+              TestNoArgsWorkflowFuncParent.class, TestAttemptReturningWorkflowFunc.class)
           .build();
 
   @Test

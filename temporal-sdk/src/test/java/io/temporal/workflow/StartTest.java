@@ -26,7 +26,7 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
 import io.temporal.workflow.shared.TestOptions;
 import java.util.Optional;
 import org.junit.Assert;
@@ -37,9 +37,7 @@ public class StartTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestMultiArgWorkflowImpl.class).build();
 
   @Test
   public void testStart() {
@@ -49,21 +47,17 @@ public class StartTest {
             .setWorkflowIdReusePolicy(
                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .build();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
+    TestNoArgsWorkflowFunc stubF =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class, workflowOptions);
+            .newWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
     assertResult("func", WorkflowClient.start(stubF::func));
     Assert.assertEquals(
         "func", stubF.func()); // Check that duplicated start just returns the result.
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1 stubF1 =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1.class, options);
+    Test1ArgWorkflowFunc stubF1 =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(Test1ArgWorkflowFunc.class, options);
 
     if (!SDKTestWorkflowRule.useExternalService) {
       // Use worker that polls on a task queue configured through @WorkflowMethod annotation of
@@ -73,11 +67,11 @@ public class StartTest {
           1, stubF1.func1(1)); // Check that duplicated start just returns the result.
     }
     // Check that duplicated start is not allowed for AllowDuplicate IdReusePolicy
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2 stubF2 =
+    Test2ArgWorkflowFunc stubF2 =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2.class,
+                Test2ArgWorkflowFunc.class,
                 TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
                     .setWorkflowIdReusePolicy(
@@ -90,72 +84,61 @@ public class StartTest {
     } catch (IllegalStateException e) {
       // expected
     }
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc3 stubF3 =
+    Test3ArgWorkflowFunc stubF3 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc3.class, workflowOptions);
+            .newWorkflowStub(Test3ArgWorkflowFunc.class, workflowOptions);
     assertResult("123", WorkflowClient.start(stubF3::func3, "1", 2, 3));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc4 stubF4 =
+    Test4ArgWorkflowFunc stubF4 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc4.class, workflowOptions);
+            .newWorkflowStub(Test4ArgWorkflowFunc.class, workflowOptions);
     assertResult("1234", WorkflowClient.start(stubF4::func4, "1", 2, 3, 4));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc5 stubF5 =
+    Test5ArgWorkflowFunc stubF5 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc5.class, workflowOptions);
+            .newWorkflowStub(Test5ArgWorkflowFunc.class, workflowOptions);
     assertResult("12345", WorkflowClient.start(stubF5::func5, "1", 2, 3, 4, 5));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc6 stubF6 =
+    Test6ArgWorkflowFunc stubF6 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc6.class, workflowOptions);
+            .newWorkflowStub(Test6ArgWorkflowFunc.class, workflowOptions);
     assertResult("123456", WorkflowClient.start(stubF6::func6, "1", 2, 3, 4, 5, 6));
 
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc stubP =
+    TestNoArgsWorkflowProc stubP =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc.class, workflowOptions);
+            .newWorkflowStub(TestNoArgsWorkflowProc.class, workflowOptions);
     waitForProc(WorkflowClient.start(stubP::proc));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc1 stubP1 =
+    Test1ArgWorkflowProc stubP1 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc1.class, workflowOptions);
+            .newWorkflowStub(Test1ArgWorkflowProc.class, workflowOptions);
     waitForProc(WorkflowClient.start(stubP1::proc1, "1"));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc2 stubP2 =
+    Test2ArgWorkflowProc stubP2 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc2.class, workflowOptions);
+            .newWorkflowStub(Test2ArgWorkflowProc.class, workflowOptions);
     waitForProc(WorkflowClient.start(stubP2::proc2, "1", 2));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc3 stubP3 =
+    Test3ArgWorkflowProc stubP3 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc3.class, workflowOptions);
+            .newWorkflowStub(Test3ArgWorkflowProc.class, workflowOptions);
     waitForProc(WorkflowClient.start(stubP3::proc3, "1", 2, 3));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc4 stubP4 =
+    Test4ArgWorkflowProc stubP4 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc4.class, workflowOptions);
+            .newWorkflowStub(Test4ArgWorkflowProc.class, workflowOptions);
     waitForProc(WorkflowClient.start(stubP4::proc4, "1", 2, 3, 4));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc5 stubP5 =
+    Test5ArgWorkflowProc stubP5 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc5.class, workflowOptions);
+            .newWorkflowStub(Test5ArgWorkflowProc.class, workflowOptions);
     waitForProc(WorkflowClient.start(stubP5::proc5, "1", 2, 3, 4, 5));
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc6 stubP6 =
+    Test6ArgWorkflowProc stubP6 =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc6.class, workflowOptions);
+            .newWorkflowStub(Test6ArgWorkflowProc.class, workflowOptions);
     waitForProc(WorkflowClient.start(stubP6::proc6, "1", 2, 3, 4, 5, 6));
 
     Assert.assertEquals("proc", stubP.query());

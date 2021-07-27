@@ -31,7 +31,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
 import io.temporal.workflow.shared.TestOptions;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,9 +44,7 @@ public class MemoTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestMultiArgWorkflowImpl.class).build();
 
   @Test
   public void testMemo() {
@@ -60,12 +59,10 @@ public class MemoTest {
               .toBuilder()
               .setMemo(memo)
               .build();
-      TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
+      TestNoArgsWorkflowFunc stubF =
           testWorkflowRule
               .getWorkflowClient()
-              .newWorkflowStub(
-                  TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class,
-                  workflowOptions);
+              .newWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
       WorkflowExecution executionF = WorkflowClient.start(stubF::func);
 
       GetWorkflowExecutionHistoryResponse historyResp =

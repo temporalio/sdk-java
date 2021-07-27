@@ -21,7 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
 import java.util.concurrent.ExecutionException;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -31,68 +31,52 @@ public class ExecuteTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsImpl.class)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestMultiArgWorkflowImpl.class).build();
 
   @Test
   public void testExecute() throws ExecutionException, InterruptedException {
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc stubF =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class);
+    TestNoArgsWorkflowFunc stubF =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestNoArgsWorkflowFunc.class);
     Assert.assertEquals("func", WorkflowClient.execute(stubF::func).get());
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1 stubF1 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc1.class);
+    Test1ArgWorkflowFunc stubF1 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test1ArgWorkflowFunc.class);
     Assert.assertEquals(1, (int) WorkflowClient.execute(stubF1::func1, 1).get());
     Assert.assertEquals(1, stubF1.func1(1)); // Check that duplicated start just returns the result.
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2 stubF2 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2.class);
+    Test2ArgWorkflowFunc stubF2 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test2ArgWorkflowFunc.class);
     Assert.assertEquals("12", WorkflowClient.execute(stubF2::func2, "1", 2).get());
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc3 stubF3 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc3.class);
+    Test3ArgWorkflowFunc stubF3 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test3ArgWorkflowFunc.class);
     Assert.assertEquals("123", WorkflowClient.execute(stubF3::func3, "1", 2, 3).get());
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc4 stubF4 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc4.class);
+    Test4ArgWorkflowFunc stubF4 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test4ArgWorkflowFunc.class);
     Assert.assertEquals("1234", WorkflowClient.execute(stubF4::func4, "1", 2, 3, 4).get());
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc5 stubF5 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc5.class);
+    Test5ArgWorkflowFunc stubF5 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test5ArgWorkflowFunc.class);
     Assert.assertEquals("12345", WorkflowClient.execute(stubF5::func5, "1", 2, 3, 4, 5).get());
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc6 stubF6 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc6.class);
+    Test6ArgWorkflowFunc stubF6 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test6ArgWorkflowFunc.class);
     Assert.assertEquals("123456", WorkflowClient.execute(stubF6::func6, "1", 2, 3, 4, 5, 6).get());
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc stubP =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc.class);
+    TestNoArgsWorkflowProc stubP =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestNoArgsWorkflowProc.class);
     WorkflowClient.execute(stubP::proc).get();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc1 stubP1 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc1.class);
+    Test1ArgWorkflowProc stubP1 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test1ArgWorkflowProc.class);
     WorkflowClient.execute(stubP1::proc1, "1").get();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc2 stubP2 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc2.class);
+    Test2ArgWorkflowProc stubP2 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test2ArgWorkflowProc.class);
     WorkflowClient.execute(stubP2::proc2, "1", 2).get();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc3 stubP3 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc3.class);
+    Test3ArgWorkflowProc stubP3 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test3ArgWorkflowProc.class);
     WorkflowClient.execute(stubP3::proc3, "1", 2, 3).get();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc4 stubP4 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc4.class);
+    Test4ArgWorkflowProc stubP4 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test4ArgWorkflowProc.class);
     WorkflowClient.execute(stubP4::proc4, "1", 2, 3, 4).get();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc5 stubP5 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc5.class);
+    Test5ArgWorkflowProc stubP5 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test5ArgWorkflowProc.class);
     WorkflowClient.execute(stubP5::proc5, "1", 2, 3, 4, 5).get();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc6 stubP6 =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsProc6.class);
+    Test6ArgWorkflowProc stubP6 =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(Test6ArgWorkflowProc.class);
     WorkflowClient.execute(stubP6::proc6, "1", 2, 3, 4, 5, 6).get();
 
     Assert.assertEquals("proc", stubP.query());
