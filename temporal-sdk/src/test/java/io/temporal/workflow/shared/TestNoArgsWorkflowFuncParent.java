@@ -24,8 +24,8 @@ import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Optional;
 
-public class TestMultiargsWorkflowsFuncParent
-    implements TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc {
+public class TestNoArgsWorkflowFuncParent
+    implements TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc {
   @Override
   public String func() {
     ChildWorkflowOptions workflowOptions =
@@ -33,9 +33,9 @@ public class TestMultiargsWorkflowsFuncParent
             .setWorkflowRunTimeout(Duration.ofSeconds(100))
             .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .build();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2 child =
+    TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc child =
         Workflow.newChildWorkflowStub(
-            TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2.class, workflowOptions);
+            TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc.class, workflowOptions);
 
     Optional<String> parentWorkflowId = Workflow.getInfo().getParentWorkflowId();
     String childsParentWorkflowId = child.func2(null, 0);

@@ -23,52 +23,52 @@ import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
-public class TestMultiargdsWorkflowFunctions {
+public class TestMultiArgWorkflowFunctions {
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsFunc {
+  public interface TestNoArgsWorkflowFunc {
 
     @WorkflowMethod
     String func();
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsFunc1 {
+  public interface Test1ArgWorkflowFunc {
 
     @WorkflowMethod(name = "func1")
     int func1(int input);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsFunc2 {
+  public interface Test2ArgWorkflowFunc {
 
     @WorkflowMethod
     String func2(String a1, int a2);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsFunc3 {
+  public interface Test3ArgWorkflowFunc {
 
     @WorkflowMethod
     String func3(String a1, int a2, int a3);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsFunc4 {
+  public interface Test4ArgWorkflowFunc {
 
     @WorkflowMethod
     String func4(String a1, int a2, int a3, int a4);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsFunc5 {
+  public interface Test5ArgWorkflowFunc {
 
     @WorkflowMethod
     String func5(String a1, int a2, int a3, int a4, int a5);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsFunc6 {
+  public interface Test6ArgWorkflowFunc {
 
     @WorkflowMethod
     String func6(String a1, int a2, int a3, int a4, int a5, int a6);
@@ -81,69 +81,69 @@ public class TestMultiargdsWorkflowFunctions {
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc extends ProcInvocationQueryable {
+  public interface TestNoArgsWorkflowProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc();
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc1 extends ProcInvocationQueryable {
+  public interface Test1ArgWorkflowProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc1(String input);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc2 extends ProcInvocationQueryable {
+  public interface Test2ArgWorkflowProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc2(String a1, int a2);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc3 extends ProcInvocationQueryable {
+  public interface Test3ArgWorkflowProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc3(String a1, int a2, int a3);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc4 extends ProcInvocationQueryable {
+  public interface Test4ArgWorkflowProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc4(String a1, int a2, int a3, int a4);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc5 extends ProcInvocationQueryable {
+  public interface Test5ArgWorkflowProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc5(String a1, int a2, int a3, int a4, int a5);
   }
 
   @WorkflowInterface
-  public interface TestMultiargsWorkflowsProc6 extends ProcInvocationQueryable {
+  public interface Test6ArgWorkflowProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
   }
 
-  public static class TestMultiargsWorkflowsImpl
-      implements TestMultiargsWorkflowsFunc,
-          TestMultiargsWorkflowsFunc1,
-          TestMultiargsWorkflowsFunc2,
-          TestMultiargsWorkflowsFunc3,
-          TestMultiargsWorkflowsFunc4,
-          TestMultiargsWorkflowsFunc5,
-          TestMultiargsWorkflowsFunc6,
-          TestMultiargsWorkflowsProc,
-          TestMultiargsWorkflowsProc1,
-          TestMultiargsWorkflowsProc2,
-          TestMultiargsWorkflowsProc3,
-          TestMultiargsWorkflowsProc4,
-          TestMultiargsWorkflowsProc5,
-          TestMultiargsWorkflowsProc6 {
+  public static class TestMultiArgWorkflowImpl
+      implements TestNoArgsWorkflowFunc,
+          Test1ArgWorkflowFunc,
+          Test2ArgWorkflowFunc,
+          Test3ArgWorkflowFunc,
+          Test4ArgWorkflowFunc,
+          Test5ArgWorkflowFunc,
+          Test6ArgWorkflowFunc,
+          TestNoArgsWorkflowProc,
+          Test1ArgWorkflowProc,
+          Test2ArgWorkflowProc,
+          Test3ArgWorkflowProc,
+          Test4ArgWorkflowProc,
+          Test5ArgWorkflowProc,
+          Test6ArgWorkflowProc {
 
     private String procResult;
 

@@ -24,7 +24,7 @@ import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
 import io.temporal.workflow.shared.TestOptions;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -38,7 +38,7 @@ public class SagaTest {
           .setWorkflowTypes(
               TestSagaWorkflowImpl.class,
               TestCompensationWorkflowImpl.class,
-              TestMultiArgsWorkflowsFuncImpl.class)
+              TestNoArgsWorkflowsFuncImpl.class)
           .setActivityImplementations(new TestActivitiesImpl())
           .build();
 
@@ -54,7 +54,7 @@ public class SagaTest {
             "newThread workflow-method",
             "executeActivity customActivity1",
             "activity customActivity1",
-            "executeChildWorkflow TestMultiargsWorkflowsFunc",
+            "executeChildWorkflow TestNoArgsWorkflowFunc",
             "interceptExecuteWorkflow " + SDKTestWorkflowRule.UUID_REGEXP,
             "newThread workflow-method",
             "executeActivity ThrowIO",
@@ -107,8 +107,8 @@ public class SagaTest {
 
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-      TestMultiargsWorkflowsFunc stubF1 =
-          Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
+      TestNoArgsWorkflowFunc stubF1 =
+          Workflow.newChildWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
 
       Saga saga =
           new Saga(
@@ -135,7 +135,7 @@ public class SagaTest {
     }
   }
 
-  public static class TestMultiArgsWorkflowsFuncImpl implements TestMultiargsWorkflowsFunc {
+  public static class TestNoArgsWorkflowsFuncImpl implements TestNoArgsWorkflowFunc {
 
     @Override
     public String func() {

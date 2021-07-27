@@ -23,8 +23,9 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestMultiargdsWorkflowFunctions;
-import io.temporal.workflow.shared.TestMultiargsWorkflowsFuncParent;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc;
+import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
+import io.temporal.workflow.shared.TestNoArgsWorkflowFuncParent;
 import io.temporal.workflow.shared.TestOptions;
 import java.util.Optional;
 import org.junit.Assert;
@@ -37,7 +38,7 @@ public class ParentWorkflowInfoInChildWorkflowsTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
-              TestMultiargsWorkflowsFuncChild.class, TestMultiargsWorkflowsFuncParent.class)
+              TestMultiArgsWorkflowFuncChild.class, TestNoArgsWorkflowFuncParent.class)
           .build();
 
   @Test
@@ -49,19 +50,17 @@ public class ParentWorkflowInfoInChildWorkflowsTest {
             .toBuilder()
             .setWorkflowId(workflowId)
             .build();
-    TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc parent =
+    TestNoArgsWorkflowFunc parent =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(
-                TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc.class, workflowOptions);
+            .newWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
 
     String result = parent.func();
     String expected = String.format("%s - %s", false, workflowId);
     Assert.assertEquals(expected, result);
   }
 
-  public static class TestMultiargsWorkflowsFuncChild
-      implements TestMultiargdsWorkflowFunctions.TestMultiargsWorkflowsFunc2 {
+  public static class TestMultiArgsWorkflowFuncChild implements Test2ArgWorkflowFunc {
     @Override
     public String func2(String s, int i) {
       WorkflowInfo wi = Workflow.getInfo();
