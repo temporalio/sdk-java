@@ -56,11 +56,7 @@ public class ChildWorkflowWithCronScheduleTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                "TestWorkflow1",
-                newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-                    .toBuilder()
-                    .setWorkflowRunTimeout(Duration.ofHours(10))
-                    .build());
+                "TestWorkflow1", newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
     client.start(testName.getMethodName());
     testWorkflowRule.getTestEnvironment().sleep(Duration.ofHours(3));
     client.cancel();
@@ -73,7 +69,7 @@ public class ChildWorkflowWithCronScheduleTest {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResult);
+    assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResults[4]);
   }
 
   public static class TestCronParentWorkflow implements TestWorkflow1 {

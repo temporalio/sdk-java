@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 public class TestWorkflowWithCronScheduleImpl implements TestWorkflowWithCronSchedule {
 
   public static final Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
+  public static String[] lastCompletionResults = new String[10];
   public static String lastCompletionResult;
   public static Optional<Exception> lastFail;
 
@@ -56,6 +57,7 @@ public class TestWorkflowWithCronScheduleImpl implements TestWorkflowWithCronSch
     }
     int c = count.incrementAndGet();
 
+    lastCompletionResults[c] = lastCompletionResult;
     if (c == 3) {
       throw ApplicationFailure.newFailure("simulated error", "test");
     }
