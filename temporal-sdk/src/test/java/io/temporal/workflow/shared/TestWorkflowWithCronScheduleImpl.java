@@ -25,6 +25,8 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowWithCronSchedule;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,7 +36,8 @@ import org.slf4j.Logger;
 public class TestWorkflowWithCronScheduleImpl implements TestWorkflowWithCronSchedule {
 
   public static final Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
-  public static String[] lastCompletionResults = new String[10];
+  public static final Hashtable<String, HashMap<Integer, String>> lastCompletionResults =
+      new Hashtable<>();
   public static String lastCompletionResult;
   public static Optional<Exception> lastFail;
 
@@ -54,10 +57,12 @@ public class TestWorkflowWithCronScheduleImpl implements TestWorkflowWithCronSch
     if (count == null) {
       count = new AtomicInteger();
       retryCount.put(testName, count);
+      lastCompletionResults.put(testName, new HashMap<Integer, String>());
     }
-    int c = count.incrementAndGet();
 
-    lastCompletionResults[c] = lastCompletionResult;
+    int c = count.incrementAndGet();
+    lastCompletionResults.get(testName).put(c, lastCompletionResult);
+
     if (c == 3) {
       throw ApplicationFailure.newFailure("simulated error", "test");
     }
