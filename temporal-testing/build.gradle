@@ -12,7 +12,7 @@ dependencies {
 
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.5'
-    testRuntimeOnly group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.31'
+    testRuntimeOnly group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.32'
 }
 
 task testServiceServer(type: CreateStartScripts) {
