@@ -32,6 +32,7 @@ import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowWithCronSchedule;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -56,11 +57,7 @@ public class ChildWorkflowWithCronScheduleTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub(
-                "TestWorkflow1",
-                newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-                    .toBuilder()
-                    .setWorkflowRunTimeout(Duration.ofHours(10))
-                    .build());
+                "TestWorkflow1", newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
     client.start(testName.getMethodName());
     testWorkflowRule.getTestEnvironment().sleep(Duration.ofHours(3));
     client.cancel();
@@ -73,7 +70,9 @@ public class ChildWorkflowWithCronScheduleTest {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResult);
+    Map<Integer, String> lastCompletionResults =
+        TestWorkflowWithCronScheduleImpl.lastCompletionResults.get(testName.getMethodName());
+    assertEquals("run 2", lastCompletionResults.get(4));
   }
 
   public static class TestCronParentWorkflow implements TestWorkflow1 {
@@ -81,8 +80,8 @@ public class ChildWorkflowWithCronScheduleTest {
         Workflow.newChildWorkflowStub(TestWorkflowWithCronSchedule.class);
 
     @Override
-    public String execute(String taskQueue) {
-      return cronChild.execute(taskQueue);
+    public String execute(String testName) {
+      return cronChild.execute(testName);
     }
   }
 }

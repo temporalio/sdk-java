@@ -29,6 +29,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -70,7 +71,9 @@ public class WorkflowWithCronScheduleTest {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    assertEquals("run 2", TestWorkflowWithCronScheduleImpl.lastCompletionResult);
+    Map<Integer, String> lastCompletionResults =
+        TestWorkflowWithCronScheduleImpl.lastCompletionResults.get(testName.getMethodName());
+    assertEquals("run 2", lastCompletionResults.get(4));
     // The last failure ought to be the one from run 3
     assertTrue(TestWorkflowWithCronScheduleImpl.lastFail.isPresent());
     assertTrue(
