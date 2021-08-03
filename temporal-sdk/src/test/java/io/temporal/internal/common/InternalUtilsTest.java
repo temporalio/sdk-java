@@ -24,23 +24,52 @@ import static junit.framework.TestCase.assertEquals;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.converter.DataConverterException;
 import java.io.FileOutputStream;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import org.junit.Before;
 import org.junit.Test;
 
 public class InternalUtilsTest {
 
-  @Test
-  public void testConvertMapToSearchAttributes() throws Throwable {
-    Map<String, Object> attr = new HashMap<>();
-    String value = "keyword";
-    attr.put("CustomKeywordField", value);
+  private static Map<String, Object> searchAttributes = new HashMap<>();
 
-    SearchAttributes result = InternalUtils.convertMapToSearchAttributes(attr);
-    assertEquals(
-        value,
-        SearchAttributesUtil.getValueFromSearchAttributes(
-            result, "CustomKeywordField", String.class));
+  public static final String CUSTOM_KEYWORD_FIELD = "CustomKeywordField";
+  public static final String KEYWORD_VALUE = "test";
+  public static final String CUSTOM_INT_FIELD = "CustomIntField";
+  public static final int INT_VALUE = 1;
+  public static final String CUSTOM_INTEGER_FIELD = "CustomIntegerField";
+  public static final Integer INTEGER_VALUE = 12;
+  public static final String CUSTOM_DOUBLE_FIELD = "CustomDoubleField";
+  public static final double DOUBLE_VALUE = 1.0;
+  public static final String CUSTOM_BOOL_FIELD = "CustomBoolField";
+  public static final boolean BOOL_VALUE = true;
+  public static final String CUSTOM_BOOLEAN_FIELD = "CustomBooleanField";
+  public static final Boolean BOOLEAN_VALUE = false;
+  public static final String CUSTOM_DATETIME_FIELD = "CustomDatetimeField";
+  public static final LocalDateTime DATETIME_VALUE = LocalDateTime.now();
+
+  @Before
+  public void setUp() {
+    // add more type to test
+    searchAttributes = new HashMap<>();
+    searchAttributes.put(CUSTOM_KEYWORD_FIELD, KEYWORD_VALUE);
+    searchAttributes.put(CUSTOM_INT_FIELD, INT_VALUE);
+    searchAttributes.put(CUSTOM_INTEGER_FIELD, INTEGER_VALUE);
+    searchAttributes.put(CUSTOM_DOUBLE_FIELD, DOUBLE_VALUE);
+    searchAttributes.put(CUSTOM_BOOL_FIELD, BOOL_VALUE);
+    searchAttributes.put(CUSTOM_BOOLEAN_FIELD, BOOLEAN_VALUE);
+    searchAttributes.put(CUSTOM_DATETIME_FIELD, DATETIME_VALUE);
+  }
+
+  @Test
+  public void testConvertMapToSearchAttributes() {
+    SearchAttributes searchAttr = InternalUtils.convertMapToSearchAttributes(searchAttributes);
+    Map<String, Object> deserializedSearchAttr =
+        SearchAttributesUtil.deserializeToObjectMap(searchAttr);
+    for (Map.Entry<String, Object> entry : deserializedSearchAttr.entrySet()) {
+      assertEquals(searchAttributes.get(entry.getKey()), entry.getValue());
+    }
   }
 
   @Test(expected = DataConverterException.class)

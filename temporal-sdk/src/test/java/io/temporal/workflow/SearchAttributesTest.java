@@ -20,18 +20,17 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
@@ -47,27 +46,27 @@ import org.junit.Test;
 
 public class SearchAttributesTest {
 
-  private static Map<String, Object> searchAttributes = new HashMap<>();
-  private static String testKeyString = "CustomKeywordField";
-  private static String testValueString = "testKeyword";
-  private static String testKeyInteger = "CustomIntField";
-  private static Integer testValueInteger = 1;
-  private static String testKeyDateTime = "CustomDatetimeField";
-  private static LocalDateTime testValueDateTime = LocalDateTime.now();
-  private static String testKeyBool = "CustomBoolField";
-  private static Boolean testValueBool = true;
-  private static String testKeyDouble = "CustomDoubleField";
-  private static Double testValueDouble = 1.23;
+  private static final Map<String, Object> searchAttributes = new HashMap<>();
+  private static final String TEST_KEY_STRING = "NamespaceKey";
+  private static final String TEST_VALUE_STRING = "Namespace";
+  private static final String TEST_KEY_INTEGER = "StateTransitionCount";
+  private static final Integer TEST_VALUE_INTEGER = 1;
+  private static final String TEST_KEY_DATE_TIME = "CustomDatetimeField";
+  private static final LocalDateTime TEST_VALUE_DATE_TIME = LocalDateTime.now();
+  // Custom fields
+  private static final String TEST_KEY_DOUBLE = "CustomDoubleField";
+  private static final Double TEST_VALUE_DOUBLE = 1.23;
+  private static final String TEST_KEY_BOOL = "CustomBoolField";
+  private static final Boolean TEST_VALUE_BOOL = true;
 
   @Before
   public void setUp() {
     // add more type to test
-    searchAttributes = new HashMap<>();
-    searchAttributes.put(testKeyString, testValueString);
-    searchAttributes.put(testKeyInteger, testValueInteger);
-    searchAttributes.put(testKeyDateTime, testValueDateTime);
-    searchAttributes.put(testKeyBool, testValueBool);
-    searchAttributes.put(testKeyDouble, testValueDouble);
+    searchAttributes.put(TEST_KEY_STRING, TEST_VALUE_STRING);
+    searchAttributes.put(TEST_KEY_INTEGER, TEST_VALUE_INTEGER);
+    searchAttributes.put(TEST_KEY_DATE_TIME, TEST_VALUE_DATE_TIME);
+    searchAttributes.put(TEST_KEY_BOOL, TEST_VALUE_BOOL);
+    searchAttributes.put(TEST_KEY_DOUBLE, TEST_VALUE_DOUBLE);
   }
 
   @Rule
@@ -79,9 +78,6 @@ public class SearchAttributesTest {
 
   @Test
   public void testSearchAttributes() {
-    if (SDKTestWorkflowRule.useExternalService) {
-      return;
-    }
 
     WorkflowOptions workflowOptions =
         TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
@@ -105,28 +101,13 @@ public class SearchAttributesTest {
     SearchAttributes searchAttrFromEvent =
         startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
 
-    Map<String, Payload> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
-    Payload searchAttrStringBytes = fieldsMap.get(testKeyString);
-    DataConverter converter = DataConverter.getDefaultInstance();
-    String retrievedString =
-        converter.fromPayload(searchAttrStringBytes, String.class, String.class);
-    assertEquals(testValueString, retrievedString);
-    Payload searchAttrIntegerBytes = fieldsMap.get(testKeyInteger);
-    Integer retrievedInteger =
-        converter.fromPayload(searchAttrIntegerBytes, Integer.class, Integer.class);
-    assertEquals(testValueInteger, retrievedInteger);
-    Payload searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime);
-    LocalDateTime retrievedDateTime =
-        converter.fromPayload(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
-    assertEquals(testValueDateTime, retrievedDateTime);
-    Payload searchAttrBoolBytes = fieldsMap.get(testKeyBool);
-    Boolean retrievedBool =
-        converter.fromPayload(searchAttrBoolBytes, Boolean.class, Boolean.class);
-    assertEquals(testValueBool, retrievedBool);
-    Payload searchAttrDoubleBytes = fieldsMap.get(testKeyDouble);
-    Double retrievedDouble =
-        converter.fromPayload(searchAttrDoubleBytes, Double.class, Double.class);
-    assertEquals(testValueDouble, retrievedDouble);
+    Map<String, Object> fieldsMap =
+        SearchAttributesUtil.deserializeToObjectMap(searchAttrFromEvent);
+    assertEquals(TEST_VALUE_STRING, fieldsMap.get(TEST_KEY_STRING));
+    assertEquals(TEST_VALUE_INTEGER, fieldsMap.get(TEST_KEY_INTEGER));
+    assertEquals(TEST_VALUE_DATE_TIME, fieldsMap.get(TEST_KEY_DATE_TIME));
+    assertEquals(TEST_VALUE_BOOL, fieldsMap.get(TEST_KEY_BOOL));
+    assertEquals(TEST_VALUE_DOUBLE, fieldsMap.get(TEST_KEY_DOUBLE));
   }
 
   @Test
@@ -154,7 +135,8 @@ public class SearchAttributesTest {
   public static class TestChild implements TestChildWorkflow {
     @Override
     public void execute() {
-      assertTrue(Workflow.getInfo().getSearchAttributes() instanceof SearchAttributes);
+      // Check that search attributes are inherited by child workflows.
+      assertNotNull(Workflow.getInfo().getSearchAttributes());
     }
   }
 }

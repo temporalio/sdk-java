@@ -22,11 +22,9 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowClient;
-import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -35,7 +33,6 @@ import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow2;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -55,7 +52,7 @@ public class UpsertSearchAttributesTest {
     WorkflowExecution execution =
         WorkflowClient.start(testWorkflow::execute, testWorkflowRule.getTaskQueue(), "testKey");
     String result = testWorkflow.execute(testWorkflowRule.getTaskQueue(), "testKey");
-    Assert.assertEquals("done", result);
+    assertEquals("done", result);
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
@@ -72,7 +69,7 @@ public class UpsertSearchAttributesTest {
 
     @Override
     public String execute(String taskQueue, String keyword) {
-      SearchAttributes searchAttributes = Workflow.getInfo().getSearchAttributes();
+      Map<String, Object> searchAttributes = Workflow.getInfo().getSearchAttributes();
       assertNull(searchAttributes);
 
       Map<String, Object> searchAttrMap = new HashMap<>();
@@ -80,14 +77,11 @@ public class UpsertSearchAttributesTest {
       Workflow.upsertSearchAttributes(searchAttrMap);
 
       searchAttributes = Workflow.getInfo().getSearchAttributes();
-      assertEquals(
-          "testKey",
-          SearchAttributesUtil.getValueFromSearchAttributes(
-              searchAttributes, "CustomKeywordField", String.class));
+      assertEquals("testKey", searchAttributes.get("CustomKeywordField"));
 
       // Running the activity below ensures that we have one more workflow task to be executed after
       // adding the search attributes. This helps with replaying the history one more time to check
-      // against a possible NonDeterminisicWorkflowError which could be caused by missing
+      // against a possible NonDeterministicWorkflowError which could be caused by missing
       // UpsertWorkflowSearchAttributes event in history.
       VariousTestActivities activities =
           Workflow.newActivityStub(

@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
@@ -49,7 +49,7 @@ public class WorkflowContextTest {
 
     assertEquals(
         "key",
-        SearchAttributesUtil.getValueFromSearchAttributes(
-            workflowContext.getSearchAttributes(), "CustomKeywordField", String.class));
+        SearchAttributesUtil.deserializeToObjectMap(workflowContext.getSearchAttributes())
+            .get("CustomKeywordField"));
   }
 }

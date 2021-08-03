@@ -53,10 +53,7 @@ public final class InternalUtils {
       return timeoutMillis;
     }
     return awaitTermination(
-        timeoutMillis,
-        () -> {
-          s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
-        });
+        timeoutMillis, () -> s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS));
   }
 
   public static long awaitTermination(ExecutorService s, long timeoutMillis) {

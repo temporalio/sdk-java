@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 
 class EncodingKeys {
   static final String METADATA_ENCODING_KEY = "encoding";
+  static final String METADATA_TYPE_KEY = "type";
 
   static final String METADATA_ENCODING_NULL_NAME = "binary/null";
   static final ByteString METADATA_ENCODING_NULL =
