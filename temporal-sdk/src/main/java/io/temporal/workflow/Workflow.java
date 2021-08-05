@@ -800,16 +800,19 @@ public final class Workflow {
    * {@link Error} causing failure of the current workflow task.
    *
    * @param id unique identifier of this side effect
-   * @param updated used to decide if a new value should be recorded. A func result is recorded only
-   *     if call to updated with stored and a new value as arguments returns true. It is not called
-   *     for the first value.
    * @param resultClass class of the side effect
+   * @param shouldUpdate used to decide if a new value should be recorded. A func result is recorded
+   *     only if call to updated with stored and a new value as arguments returns true. It is not
+   *     called for the first stored value.
    * @param func function that produces a value. This function can contain non-deterministic code.
    * @see #sideEffect(Class, Functions.Func)
    */
   public static <R> R mutableSideEffect(
-      String id, Class<R> resultClass, BiPredicate<R, R> updated, Func<R> func) {
-    return WorkflowInternal.mutableSideEffect(id, resultClass, resultClass, updated, func);
+      String id,
+      Class<R> resultClass,
+      BiPredicate<? super R, ? super R> shouldUpdate,
+      Func<R> func) {
+    return WorkflowInternal.mutableSideEffect(id, resultClass, resultClass, shouldUpdate, func);
   }
 
   /**
@@ -834,17 +837,21 @@ public final class Workflow {
    * {@link Error} causing failure of the current workflow task.
    *
    * @param id unique identifier of this side effect
-   * @param updated used to decide if a new value should be recorded. A func result is recorded only
-   *     if call to updated with stored and a new value as arguments returns true. It is not called
-   *     for the first value.
    * @param resultClass class of the side effect
    * @param resultType type of the side effect. Differs from resultClass for generic types.
+   * @param shouldUpdate used to decide if a new value should be recorded. A func result is recorded
+   *     only if call to updated with stored and a new value as arguments returns true. It is not
+   *     called for the first value.
    * @param func function that produces a value. This function can contain non-deterministic code.
    * @see #sideEffect(Class, Functions.Func)
    */
   public static <R> R mutableSideEffect(
-      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
-    return WorkflowInternal.mutableSideEffect(id, resultClass, resultType, updated, func);
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<? super R, ? super R> shouldUpdate,
+      Func<R> func) {
+    return WorkflowInternal.mutableSideEffect(id, resultClass, resultType, shouldUpdate, func);
   }
 
   /**

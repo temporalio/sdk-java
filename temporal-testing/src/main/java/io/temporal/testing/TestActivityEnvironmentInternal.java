@@ -399,7 +399,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public <R> R mutableSideEffect(
-        String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+        String id,
+        Class<R> resultClass,
+        Type resultType,
+        BiPredicate<? super R, ? super R> shouldUpdate,
+        Func<R> func) {
       throw new UnsupportedOperationException("not implemented");
     }
 

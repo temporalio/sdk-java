@@ -95,8 +95,12 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
 
   @Override
   public <R> R mutableSideEffect(
-      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
-    return next.mutableSideEffect(id, resultClass, resultType, updated, func);
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<? super R, ? super R> shouldUpdate,
+      Func<R> func) {
+    return next.mutableSideEffect(id, resultClass, resultType, shouldUpdate, func);
   }
 
   @Override

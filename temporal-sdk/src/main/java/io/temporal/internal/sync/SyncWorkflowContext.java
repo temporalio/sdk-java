@@ -614,9 +614,13 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   @Override
   public <R> R mutableSideEffect(
-      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<? super R, ? super R> shouldUpdate,
+      Func<R> func) {
     try {
-      return mutableSideEffectImpl(id, resultClass, resultType, updated, func);
+      return mutableSideEffectImpl(id, resultClass, resultType, shouldUpdate, func);
     } catch (Exception e) {
       // MutableSideEffect cannot throw normal exception as it can lead to non-deterministic
       // behavior. So fail the workflow task by throwing an Error.
@@ -625,7 +629,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   private <R> R mutableSideEffectImpl(
-      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+      String id,
+      Class<R> resultClass,
+      Type resultType,
+      BiPredicate<? super R, ? super R> shouldUpdate,
+      Func<R> func) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     AtomicReference<R> unserializedResult = new AtomicReference<>();
     context.mutableSideEffect(
@@ -636,7 +644,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
                   (b) -> converter.fromPayloads(0, Optional.of(b), resultClass, resultType));
           R funcResult =
               Objects.requireNonNull(func.apply(), "mutableSideEffect function " + "returned null");
-          if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
+          if (!stored.isPresent() || shouldUpdate.test(stored.get(), funcResult)) {
             unserializedResult.set(funcResult);
             return converter.toPayloads(funcResult);
           }

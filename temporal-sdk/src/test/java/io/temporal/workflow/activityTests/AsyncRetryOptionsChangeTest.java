@@ -85,6 +85,9 @@ public class AsyncRetryOptionsChangeTest {
     public String execute() {
       RetryOptions retryOptions;
       if (WorkflowUnsafe.isReplaying()) {
+        // this change to 3 maximum attempts should be ignored and initial RetryOptions with
+        // maximumAttempts=2
+        // that was persisted into a side effect should be used instead
         retryOptions =
             RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
@@ -110,9 +113,6 @@ public class AsyncRetryOptionsChangeTest {
                 return Workflow.newFailedPromise(new IllegalThreadStateException("simulated"));
               })
           .get();
-      trace.add("beforeSleep");
-      Workflow.sleep(60000);
-      trace.add("done");
       return "";
     }
 

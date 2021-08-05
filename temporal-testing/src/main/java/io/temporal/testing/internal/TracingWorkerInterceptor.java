@@ -258,12 +258,12 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         String id,
         Class<R> resultClass,
         Type resultType,
-        BiPredicate<R, R> updated,
+        BiPredicate<? super R, ? super R> shouldUpdate,
         Functions.Func<R> func) {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("mutableSideEffect");
       }
-      return next.mutableSideEffect(id, resultClass, resultType, updated, func);
+      return next.mutableSideEffect(id, resultClass, resultType, shouldUpdate, func);
     }
 
     @Override
