@@ -22,6 +22,8 @@ package io.temporal.internal.common;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.converter.DefaultDataConverter;
+
+import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,12 +59,9 @@ public class SearchAttributesUtil {
     String,
     Keyword,
     Int,
-    Integer,
     Double,
     Bool,
-    Boolean,
-    Datetime,
-    LocalDateTime
+    Datetime
   }
 
   public static Map<String, Object> deserializeToObjectMap(SearchAttributes serializedMap) {
@@ -73,12 +72,13 @@ public class SearchAttributesUtil {
     Map<String, Object> deserializedMap = new HashMap<>();
     for (Entry<String, Payload> attribute : serializedMap.getIndexedFieldsMap().entrySet()) {
       String key = attribute.getKey();
-      String value = converter.fromPayload(attribute.getValue(), String.class, String.class);
-      if (!parseSearchAttributes(key, value, deserializedMap)) {
-        String type = attribute.getValue().getMetadataMap().get("type").toStringUtf8();
-        boolean customAttributeFound = parseCustomAttribute(key, type, value, deserializedMap);
-        if (!customAttributeFound) {
-          log.error("Error parsing Search Attribute: " + key + " of type " + type);
+      if (!parseSearchAttributes(key, attribute.getValue(), deserializedMap)) {
+        String typeString = attribute.getValue().getMetadataMap().get("type").toStringUtf8();
+        Type javaType = stringToJavaType(typeString);
+        if (javaType == null) {
+          log.error("Error parsing Search Attribute: " + key + " of type " + typeString);
+        } else {
+          deserializedMap.put(key, converter.fromPayload(attribute.getValue(), javaType.getClass(), javaType));
         }
       }
     }
@@ -86,9 +86,13 @@ public class SearchAttributesUtil {
   }
 
   private static boolean parseSearchAttributes(
-      String key, String value, Map<String, Object> deserializedMap) {
+      String key, Payload value, Map<String, Object> deserializedMap) {
+    SearchAttribute searchAttribute;
     try {
-      SearchAttribute searchAttribute = SearchAttribute.valueOf(key);
+      searchAttribute = SearchAttribute.valueOf(key);
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
       switch (searchAttribute) {
         case BatcherNamespace:
         case BatcherUser:
@@ -99,54 +103,42 @@ public class SearchAttributesUtil {
         case TemporalChangeVersion:
         case WorkflowId:
         case WorkflowType:
-          deserializedMap.put(key, value);
+          deserializedMap.put(key, converter.fromPayload(value, String.class, String.class));
           break;
         case CloseTime:
         case ExecutionTime:
         case StartTime:
-          deserializedMap.put(key, LocalDateTime.parse(value));
+          deserializedMap.put(key, converter.fromPayload(value, LocalDateTime.class, LocalDateTime.class));
           break;
         case ExecutionDuration:
         case HistoryLength:
         case StateTransitionCount:
-          deserializedMap.put(key, Integer.parseInt(value));
+          deserializedMap.put(key, converter.fromPayload(value, Integer.class, Integer.class));
           break;
       }
       return true;
-    } catch (IllegalArgumentException e) {
-      return false;
-    }
   }
 
-  private static boolean parseCustomAttribute(
-      String key, String type, String val, Map<String, Object> deserializedMap) {
+  private static Type stringToJavaType(String type) {
+    SearchAttributeType attributeType;
     try {
-      SearchAttributeType attributeType = SearchAttributeType.valueOf(type);
+      attributeType = SearchAttributeType.valueOf(type);
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
       switch (attributeType) {
-        case Unspecified:
         case String:
         case Keyword:
-          deserializedMap.put(key, val);
-          break;
+          return String.class;
         case Int:
-        case Integer:
-          deserializedMap.put(key, Integer.parseInt(val));
-          break;
+          return Integer.class;
         case Double:
-          deserializedMap.put(key, Double.parseDouble(val));
-          break;
+          return Double.class;
         case Bool:
-        case Boolean:
-          deserializedMap.put(key, Boolean.parseBoolean(val));
-          break;
+          return Boolean.class;
         case Datetime:
-        case LocalDateTime:
-          deserializedMap.put(key, LocalDateTime.parse(val));
-          break;
-      }
-      return true;
-    } catch (IllegalArgumentException e) {
-      return false;
-    }
+          return LocalDateTime.class;
+  }
+    return null;
   }
 }
