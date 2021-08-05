@@ -1,0 +1,4 @@
+2021-07-02 - 02d37a51 - ProtobufJsonPayloadConverter is fixed to use custom printer provided in constructor (#552)
+2021-07-05 - 177b8958 - Expose a fixed implementation of WorkflowQueue as a new method of Workflow class (#572)
+2021-07-07 - 9a0a9391 - Forbid the usage of WorkflowClient, ActivityCompletionClient, and WorkflowServiceStubs from workflow code (#556)
+2021-07-27 - 99e71037 - Polish JUnit5 extension: per-test initial time, dynamic workflows and activities (#581)
