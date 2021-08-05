@@ -62,8 +62,9 @@ public class OpenTracingOptions {
 
     private Builder() {}
 
-    public void setTracer(Tracer tracer) {
+    public Builder setTracer(Tracer tracer) {
       this.tracer = tracer;
+      return this;
     }
 
     /**
