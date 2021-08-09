@@ -33,12 +33,17 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
     extends WorkflowOutboundCallsInterceptorBase {
   private final SpanFactory spanFactory;
   private final Tracer tracer;
+  private final ContextAccessor contextAccessor;
 
   public OpenTracingWorkflowOutboundCallsInterceptor(
-      WorkflowOutboundCallsInterceptor next, OpenTracingOptions options, SpanFactory spanFactory) {
+      WorkflowOutboundCallsInterceptor next,
+      OpenTracingOptions options,
+      SpanFactory spanFactory,
+      ContextAccessor contextAccessor) {
     super(next);
     this.spanFactory = spanFactory;
     this.tracer = options.getTracer();
+    this.contextAccessor = contextAccessor;
   }
 
   @Override
@@ -87,7 +92,7 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
 
   private Span createAndPassActivityStartSpan(String activityName, Header header) {
     Span span = createActivityStartSpanBuilder(activityName).start();
-    OpenTracingContextAccessor.writeSpanContextToHeader(span.context(), header, tracer);
+    contextAccessor.writeSpanContextToHeader(span.context(), header, tracer);
     return span;
   }
 
@@ -103,7 +108,7 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
 
   private <R> Span createAndPassChildWorkflowStartSpan(ChildWorkflowInput<R> input) {
     Span span = createChildWorkflowStartSpanBuilder(tracer, input).start();
-    OpenTracingContextAccessor.writeSpanContextToHeader(span.context(), input.getHeader(), tracer);
+    contextAccessor.writeSpanContextToHeader(span.context(), input.getHeader(), tracer);
     return span;
   }
 
