@@ -51,9 +51,9 @@ public class SearchAttributesTest {
   private static final String TEST_VALUE_STRING = "Namespace";
   private static final String TEST_KEY_INTEGER = "StateTransitionCount";
   private static final Integer TEST_VALUE_INTEGER = 1;
+  // Custom fields
   private static final String TEST_KEY_DATE_TIME = "CustomDatetimeField";
   private static final LocalDateTime TEST_VALUE_DATE_TIME = LocalDateTime.now();
-  // Custom fields
   private static final String TEST_KEY_DOUBLE = "CustomDoubleField";
   private static final Double TEST_VALUE_DOUBLE = 1.23;
   private static final String TEST_KEY_BOOL = "CustomBoolField";

@@ -30,15 +30,11 @@ import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class JacksonJsonPayloadConverter implements PayloadConverter {
 
-  private final ObjectMapper mapper;
-  private static final Logger log = LoggerFactory.getLogger(JacksonJsonPayloadConverter.class);
+  protected final ObjectMapper mapper;
 
   public JacksonJsonPayloadConverter() {
     mapper = new ObjectMapper();
@@ -63,12 +59,8 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
       return Optional.of(
           Payload.newBuilder()
               .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
-              .putMetadata(
-                  EncodingKeys.METADATA_TYPE_KEY,
-                  ByteString.copyFrom(typeToString(value.getClass()), StandardCharsets.UTF_8))
               .setData(ByteString.copyFrom(serialized))
               .build());
-
     } catch (JsonProcessingException e) {
       throw new DataConverterException(e);
     }
@@ -88,9 +80,5 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
     } catch (IOException e) {
       throw new DataConverterException(e);
     }
-  }
-
-  static String typeToString(Class c) {
-    return c.getSimpleName();
   }
 }

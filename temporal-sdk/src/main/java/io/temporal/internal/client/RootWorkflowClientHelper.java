@@ -33,6 +33,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.*;
 
 final class RootWorkflowClientHelper {
@@ -66,9 +67,7 @@ final class RootWorkflowClientHelper {
     }
     Optional<Payloads> inputArgs =
         clientOptions.getDataConverter().toPayloads(input.getArguments());
-    if (inputArgs.isPresent()) {
-      request.setInput(inputArgs.get());
-    }
+    inputArgs.ifPresent(request::setInput);
     if (options.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     }
@@ -91,7 +90,7 @@ final class RootWorkflowClientHelper {
       request.setSearchAttributes(
           SearchAttributes.newBuilder()
               .putAllIndexedFields(
-                  intoPayloadMapWithDefaultConverter(options.getSearchAttributes())));
+                  SearchAttributesUtil.serializeToObjectMap(options.getSearchAttributes())));
     }
 
     Header grpcHeader =

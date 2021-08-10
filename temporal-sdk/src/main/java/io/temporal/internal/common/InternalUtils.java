@@ -24,7 +24,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.SearchAttributesPayloadConverter;
 import io.temporal.internal.worker.Shutdownable;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,10 +90,10 @@ public final class InternalUtils {
 
   public static SearchAttributes convertMapToSearchAttributes(
       Map<String, Object> searchAttributes) {
-    DataConverter converter = DataConverter.getDefaultInstance();
+    SearchAttributesPayloadConverter converter = new SearchAttributesPayloadConverter();
     Map<String, Payload> mapOfByteBuffer = new HashMap<>();
     searchAttributes.forEach(
-        (key, value) -> mapOfByteBuffer.put(key, converter.toPayload(value).get()));
+        (key, value) -> mapOfByteBuffer.put(key, converter.toData(value).get()));
     return SearchAttributes.newBuilder().putAllIndexedFields(mapOfByteBuffer).build();
   }
 

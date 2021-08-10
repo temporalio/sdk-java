@@ -21,8 +21,9 @@ package io.temporal.internal.common;
 
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
-
+import io.temporal.common.converter.SearchAttributesPayloadConverter;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -64,6 +65,24 @@ public class SearchAttributesUtil {
     Datetime
   }
 
+  public static Map<String, Payload> serializeToObjectMap(Map<String, Object> searchAttributes) {
+    if (searchAttributes == null) {
+      return null;
+    }
+
+    Map<String, Payload> serializedMap = new HashMap<>();
+    SearchAttributesPayloadConverter dataConverter = new SearchAttributesPayloadConverter();
+    for (Map.Entry<String, Object> item : searchAttributes.entrySet()) {
+      try {
+        serializedMap.put(item.getKey(), dataConverter.toData(item.getValue()).get());
+      } catch (DataConverterException e) {
+        throw new DataConverterException("Cannot serialize key " + item.getKey(), e.getCause());
+      }
+    }
+
+    return serializedMap;
+  }
+
   public static Map<String, Object> deserializeToObjectMap(SearchAttributes serializedMap) {
     if (serializedMap == null) {
       return null;
@@ -78,7 +97,8 @@ public class SearchAttributesUtil {
         if (javaType == null) {
           log.error("Error parsing Search Attribute: " + key + " of type " + typeString);
         } else {
-          deserializedMap.put(key, converter.fromPayload(attribute.getValue(), javaType.getClass(), javaType));
+          deserializedMap.put(
+              key, converter.fromPayload(attribute.getValue(), javaType.getClass(), javaType));
         }
       }
     }
@@ -93,52 +113,70 @@ public class SearchAttributesUtil {
     } catch (IllegalArgumentException e) {
       return false;
     }
-      switch (searchAttribute) {
-        case BatcherNamespace:
-        case BatcherUser:
-        case BinaryChecksums:
-        case ExecutionStatus:
-        case RunId:
-        case TaskQueue:
-        case TemporalChangeVersion:
-        case WorkflowId:
-        case WorkflowType:
-          deserializedMap.put(key, converter.fromPayload(value, String.class, String.class));
-          break;
-        case CloseTime:
-        case ExecutionTime:
-        case StartTime:
-          deserializedMap.put(key, converter.fromPayload(value, LocalDateTime.class, LocalDateTime.class));
-          break;
-        case ExecutionDuration:
-        case HistoryLength:
-        case StateTransitionCount:
-          deserializedMap.put(key, converter.fromPayload(value, Integer.class, Integer.class));
-          break;
-      }
-      return true;
+    switch (searchAttribute) {
+      case BatcherNamespace:
+      case BatcherUser:
+      case BinaryChecksums:
+      case ExecutionStatus:
+      case RunId:
+      case TaskQueue:
+      case TemporalChangeVersion:
+      case WorkflowId:
+      case WorkflowType:
+        deserializedMap.put(key, converter.fromPayload(value, String.class, String.class));
+        break;
+      case CloseTime:
+      case ExecutionTime:
+      case StartTime:
+        deserializedMap.put(
+            key, converter.fromPayload(value, LocalDateTime.class, LocalDateTime.class));
+        break;
+      case ExecutionDuration:
+      case HistoryLength:
+      case StateTransitionCount:
+        deserializedMap.put(key, converter.fromPayload(value, Integer.class, Integer.class));
+        break;
+    }
+    return true;
   }
 
-  private static Type stringToJavaType(String type) {
+  public static Type stringToJavaType(String type) {
     SearchAttributeType attributeType;
     try {
       attributeType = SearchAttributeType.valueOf(type);
     } catch (IllegalArgumentException e) {
       return null;
     }
-      switch (attributeType) {
-        case String:
-        case Keyword:
-          return String.class;
-        case Int:
-          return Integer.class;
-        case Double:
-          return Double.class;
-        case Bool:
-          return Boolean.class;
-        case Datetime:
-          return LocalDateTime.class;
-  }
+    switch (attributeType) {
+      case String:
+      case Keyword:
+        return String.class;
+      case Int:
+        return Integer.class;
+      case Double:
+        return Double.class;
+      case Bool:
+        return Boolean.class;
+      case Datetime:
+        return LocalDateTime.class;
+    }
     return null;
+  }
+
+  public static String javaTypeToEncodedType(Class type) {
+    String stringName = type.getSimpleName();
+    switch (stringName) {
+      case "String":
+        return SearchAttributeType.String.name();
+      case "Integer":
+        return SearchAttributeType.Int.name();
+      case "Double":
+        return SearchAttributeType.Double.name();
+      case "Boolean":
+        return SearchAttributeType.Bool.name();
+      case "LocalDateTime":
+        return SearchAttributeType.Datetime.name();
+    }
+    return SearchAttributeType.Unspecified.name();
   }
 }
