@@ -33,12 +33,19 @@ public class OpenTracingActivityInboundCallsInterceptor
     extends ActivityInboundCallsInterceptorBase {
   private final OpenTracingOptions options;
   private final SpanFactory spanFactory;
+  private final Tracer tracer;
+  private final ContextAccessor contextAccessor;
 
   public OpenTracingActivityInboundCallsInterceptor(
-      ActivityInboundCallsInterceptor next, OpenTracingOptions options, SpanFactory spanFactory) {
+      ActivityInboundCallsInterceptor next,
+      OpenTracingOptions options,
+      SpanFactory spanFactory,
+      ContextAccessor contextAccessor) {
     super(next);
     this.options = options;
     this.spanFactory = spanFactory;
+    this.tracer = options.getTracer();
+    this.contextAccessor = contextAccessor;
   }
 
   private ActivityExecutionContext activityExecutionContext;
@@ -54,9 +61,8 @@ public class OpenTracingActivityInboundCallsInterceptor
 
   @Override
   public ActivityOutput execute(ActivityInput input) {
-    Tracer tracer = options.getTracer();
     SpanContext rootSpanContext =
-        OpenTracingContextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+        contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
     ActivityInfo activityInfo = activityExecutionContext.getInfo();
     Span activityRunSpan =
         spanFactory

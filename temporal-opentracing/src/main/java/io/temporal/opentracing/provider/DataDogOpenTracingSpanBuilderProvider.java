@@ -37,6 +37,8 @@ import java.util.Map;
  * for the datadog standard tag names.
  */
 public class DataDogOpenTracingSpanBuilderProvider extends ActionTypeAndNameSpanBuilderProvider {
+  public static final DataDogOpenTracingSpanBuilderProvider INSTANCE =
+      new DataDogOpenTracingSpanBuilderProvider();
 
   private static final String DD_RESOURCE_NAME_TAG = "resource.name";
 

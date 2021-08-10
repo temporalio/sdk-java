@@ -35,6 +35,8 @@ import java.util.Map;
  * ID, as tags depending on the context of the operation.
  */
 public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider {
+  public static final ActionTypeAndNameSpanBuilderProvider INSTANCE =
+      new ActionTypeAndNameSpanBuilderProvider();
 
   private static final String PREFIX_DELIMITER = ":";
 

@@ -33,25 +33,31 @@ public class OpenTracingWorkflowInboundCallsInterceptor
     extends WorkflowInboundCallsInterceptorBase {
   private final OpenTracingOptions options;
   private final SpanFactory spanFactory;
+  private final ContextAccessor contextAccessor;
 
   public OpenTracingWorkflowInboundCallsInterceptor(
-      WorkflowInboundCallsInterceptor next, OpenTracingOptions options, SpanFactory spanFactory) {
+      WorkflowInboundCallsInterceptor next,
+      OpenTracingOptions options,
+      SpanFactory spanFactory,
+      ContextAccessor contextAccessor) {
     super(next);
     this.options = options;
     this.spanFactory = spanFactory;
+    this.contextAccessor = contextAccessor;
   }
 
   @Override
   public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
     super.init(
-        new OpenTracingWorkflowOutboundCallsInterceptor(outboundCalls, options, spanFactory));
+        new OpenTracingWorkflowOutboundCallsInterceptor(
+            outboundCalls, options, spanFactory, contextAccessor));
   }
 
   @Override
   public WorkflowOutput execute(WorkflowInput input) {
     Tracer tracer = options.getTracer();
     SpanContext rootSpanContext =
-        OpenTracingContextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
+        contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
     Span workflowRunSpan =
         spanFactory
             .createWorkflowRunSpan(

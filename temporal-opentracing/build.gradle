@@ -17,4 +17,5 @@ dependencies {
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.5'
     testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.11.2'
     testImplementation group: 'io.opentracing', name: 'opentracing-mock', version: "$opentracingVersion"
+    testImplementation group: 'io.jaegertracing', name: 'jaeger-client', version: '1.6.0'
 }

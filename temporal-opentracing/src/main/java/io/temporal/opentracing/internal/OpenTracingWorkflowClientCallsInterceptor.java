@@ -30,12 +30,17 @@ import io.temporal.opentracing.SpanOperationType;
 public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCallsInterceptorBase {
   private final SpanFactory spanFactory;
   private final Tracer tracer;
+  private final ContextAccessor contextAccessor;
 
   public OpenTracingWorkflowClientCallsInterceptor(
-      WorkflowClientCallsInterceptor next, OpenTracingOptions options, SpanFactory spanFactory) {
+      WorkflowClientCallsInterceptor next,
+      OpenTracingOptions options,
+      SpanFactory spanFactory,
+      ContextAccessor contextAccessor) {
     super(next);
     this.spanFactory = spanFactory;
     this.tracer = options.getTracer();
+    this.contextAccessor = contextAccessor;
   }
 
   @Override
@@ -63,7 +68,7 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
   private Span createAndPassWorkflowStartSpan(
       WorkflowStartInput input, SpanOperationType operationType) {
     Span span = createWorkflowStartSpanBuilder(input, operationType).start();
-    OpenTracingContextAccessor.writeSpanContextToHeader(span.context(), input.getHeader(), tracer);
+    contextAccessor.writeSpanContextToHeader(span.context(), input.getHeader(), tracer);
     return span;
   }
 
