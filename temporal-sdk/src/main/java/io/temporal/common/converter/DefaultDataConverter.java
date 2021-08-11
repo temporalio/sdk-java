@@ -64,6 +64,8 @@ public class DefaultDataConverter implements DataConverter {
    * instance (using {@link
    * io.temporal.client.WorkflowClientOptions.Builder#setDataConverter(DataConverter)} to avoid
    * potential conflicts.
+   *
+   * @param converter
    */
   public static void setDefaultDataConverter(DataConverter converter) {
     defaultDataConverterInstance.set(converter);
@@ -138,9 +140,9 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   /**
-   * When values is empty or is null then return empty blob. If a single value do not wrap it into
-   * Json array. Exception stack traces are converted to a single string stack trace to save space
-   * and make them more readable.
+   * When values is empty or it contains a single value and it is null then return empty blob. If a
+   * single value do not wrap it into Json array. Exception stack traces are converted to a single
+   * string stack trace to save space and make them more readable.
    *
    * @return serialized values
    */

@@ -66,7 +66,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
 
   /**
-   * RunId of the first run in the continue-as-new chain. Empty if this workflow never called
+   * RunId of the first run in the continue as new chain. Empty if this workflow never called
    * continue as new.
    */
   Optional<String> getContinuedExecutionRunId();
@@ -103,7 +103,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   SearchAttributes getSearchAttributes();
 
   /**
-   * Returns all current contexts being propagated by a {@link
+   * Returns all of the current contexts being propagated by a {@link
    * io.temporal.common.context.ContextPropagator}. The key is the {@link
    * ContextPropagator#getName()} and the value is the object returned by {@link
    * ContextPropagator#getCurrentContext()}
@@ -192,7 +192,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * which causes workflow task failure. The workflow task after timeout is rescheduled and
    * re-executed giving SideEffect another chance to succeed. Use {@link
    * #scheduleLocalActivityTask(ExecuteLocalActivityParameters, Functions.Proc2)} for executing
-   * operations that rely on non-global dependencies and can fail.
+   * operations that rely on non global dependencies and can fail.
    *
    * @param func function that is called once to return a value.
    * @param callback function that accepts the result of the side effect.
@@ -234,11 +234,11 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * GetVersion is used to safely perform backwards incompatible changes to workflow definitions. It
    * is not allowed to update workflow code while there are workflows running as it is going to
    * break determinism. The solution is to have both old code that is used to replay existing
-   * workflows and the new one that is used when it is executed for the first time. GetVersion
-   * returns maxSupported version when executed for the first time. This version is recorded into
-   * the workflow history as a marker event. Even if maxSupported version is changed the version
-   * that was recorded is returned on replay. DefaultVersion constant contains version of code that
-   * wasn't versioned before.
+   * workflows as well as the new one that is used when it is executed for the first time.
+   * GetVersion returns maxSupported version when executed for the first time. This version is
+   * recorded into the workflow history as a marker event. Even if maxSupported version is changed
+   * the version that was recorded is returned on replay. DefaultVersion constant contains version
+   * of code that wasn't versioned before.
    *
    * @param changeId identifier of a particular change
    * @param minSupported min version supported for the change

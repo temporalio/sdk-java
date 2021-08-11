@@ -31,9 +31,9 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.SearchAttributesConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.*;
 
 final class RootWorkflowClientHelper {
@@ -90,7 +90,7 @@ final class RootWorkflowClientHelper {
       request.setSearchAttributes(
           SearchAttributes.newBuilder()
               .putAllIndexedFields(
-                  SearchAttributesUtil.serializeToObjectMap(options.getSearchAttributes())));
+                  SearchAttributesConverter.objectToPayloadMap(options.getSearchAttributes())));
     }
 
     Header grpcHeader =

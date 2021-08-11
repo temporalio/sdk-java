@@ -20,14 +20,9 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.Defaults;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.common.converter.SearchAttributesPayloadConverter;
 import io.temporal.internal.worker.Shutdownable;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -86,15 +81,6 @@ public final class InternalUtils {
       return value;
     }
     return Defaults.defaultValue(valueClass);
-  }
-
-  public static SearchAttributes convertMapToSearchAttributes(
-      Map<String, Object> searchAttributes) {
-    SearchAttributesPayloadConverter converter = new SearchAttributesPayloadConverter();
-    Map<String, Payload> mapOfByteBuffer = new HashMap<>();
-    searchAttributes.forEach(
-        (key, value) -> mapOfByteBuffer.put(key, converter.toData(value).get()));
-    return SearchAttributes.newBuilder().putAllIndexedFields(mapOfByteBuffer).build();
   }
 
   /** Prohibit instantiation */

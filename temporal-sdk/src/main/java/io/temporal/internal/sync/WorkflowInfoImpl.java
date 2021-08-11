@@ -20,7 +20,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.common.converter.SearchAttributesConverter;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
@@ -82,7 +82,7 @@ final class WorkflowInfoImpl implements WorkflowInfo {
 
   @Override
   public Map<String, Object> getSearchAttributes() {
-    return SearchAttributesUtil.deserializeToObjectMap(context.getSearchAttributes());
+    return SearchAttributesConverter.decode(context.getSearchAttributes());
   }
 
   @Override

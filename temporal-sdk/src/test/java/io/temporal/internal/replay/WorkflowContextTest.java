@@ -24,8 +24,7 @@ import static org.junit.Assert.assertEquals;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.common.converter.SearchAttributesPayloadConverter;
-import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.common.converter.SearchAttributesConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -38,9 +37,8 @@ public class WorkflowContextTest {
         WorkflowExecutionStartedEventAttributes.getDefaultInstance();
     WorkflowContext workflowContext = new WorkflowContext("namespace", null, startAttr, 0, null);
 
-    SearchAttributesPayloadConverter converter = new SearchAttributesPayloadConverter();
     Map<String, Payload> indexedFields = new HashMap<>();
-    indexedFields.put("CustomKeywordField", converter.toData("key").get());
+    indexedFields.put("CustomKeywordField", SearchAttributesConverter.toData("key").get());
 
     SearchAttributes searchAttributes =
         SearchAttributes.newBuilder().putAllIndexedFields(indexedFields).build();
@@ -49,7 +47,7 @@ public class WorkflowContextTest {
 
     assertEquals(
         "key",
-        SearchAttributesUtil.deserializeToObjectMap(workflowContext.getSearchAttributes())
+        SearchAttributesConverter.decode(workflowContext.getSearchAttributes())
             .get("CustomKeywordField"));
   }
 }

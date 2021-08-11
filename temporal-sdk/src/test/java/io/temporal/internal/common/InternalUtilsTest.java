@@ -23,6 +23,7 @@ import static junit.framework.TestCase.assertEquals;
 
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.converter.SearchAttributesConverter;
 import java.io.FileOutputStream;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -64,9 +65,8 @@ public class InternalUtilsTest {
 
   @Test
   public void testConvertMapToSearchAttributes() {
-    SearchAttributes searchAttr = InternalUtils.convertMapToSearchAttributes(searchAttributes);
-    Map<String, Object> deserializedSearchAttr =
-        SearchAttributesUtil.deserializeToObjectMap(searchAttr);
+    SearchAttributes searchAttr = SearchAttributesConverter.encode(searchAttributes);
+    Map<String, Object> deserializedSearchAttr = SearchAttributesConverter.decode(searchAttr);
     for (Map.Entry<String, Object> entry : deserializedSearchAttr.entrySet()) {
       assertEquals(searchAttributes.get(entry.getKey()), entry.getValue());
     }
@@ -76,6 +76,6 @@ public class InternalUtilsTest {
   public void testConvertMapToSearchAttributesException() throws Throwable {
     Map<String, Object> attr = new HashMap<>();
     attr.put("InvalidValue", new FileOutputStream("dummy"));
-    InternalUtils.convertMapToSearchAttributes(attr);
+    SearchAttributesConverter.encode(attr);
   }
 }

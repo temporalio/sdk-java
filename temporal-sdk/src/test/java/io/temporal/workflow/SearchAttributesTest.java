@@ -30,7 +30,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.common.converter.SearchAttributesConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
@@ -101,8 +101,7 @@ public class SearchAttributesTest {
     SearchAttributes searchAttrFromEvent =
         startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
 
-    Map<String, Object> fieldsMap =
-        SearchAttributesUtil.deserializeToObjectMap(searchAttrFromEvent);
+    Map<String, Object> fieldsMap = SearchAttributesConverter.decode(searchAttrFromEvent);
     assertEquals(TEST_VALUE_STRING, fieldsMap.get(TEST_KEY_STRING));
     assertEquals(TEST_VALUE_INTEGER, fieldsMap.get(TEST_KEY_INTEGER));
     assertEquals(TEST_VALUE_DATE_TIME, fieldsMap.get(TEST_KEY_DATE_TIME));

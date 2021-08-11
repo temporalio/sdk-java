@@ -34,7 +34,7 @@ import java.util.Optional;
 
 public class JacksonJsonPayloadConverter implements PayloadConverter {
 
-  protected final ObjectMapper mapper;
+  private final ObjectMapper mapper;
 
   public JacksonJsonPayloadConverter() {
     mapper = new ObjectMapper();

@@ -42,8 +42,8 @@ final class WorkflowContext {
   private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
   private final WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String namespace;
-  // RunId can change when reset happens. This remembers the actual runId that is used as in this
-  // particular part of the history.
+  // RunId can change when reset happens. This remembers the actual runId that is used
+  // as in this particular part of the history.
   private String currentRunId;
   private SearchAttributes.Builder searchAttributes;
   private final List<ContextPropagator> contextPropagators;
@@ -170,7 +170,15 @@ final class WorkflowContext {
     }
 
     Header headers = startedAttributes.getHeader();
-    Map<String, Payload> headerData = new HashMap<>(headers.getFieldsMap());
+    if (headers == null) {
+      return new HashMap<>();
+    }
+
+    Map<String, Payload> headerData = new HashMap<>();
+    for (Map.Entry<String, Payload> pair : headers.getFieldsMap().entrySet()) {
+      headerData.put(pair.getKey(), pair.getValue());
+    }
+
     Map<String, Object> contextData = new HashMap<>();
     for (ContextPropagator propagator : contextPropagators) {
       contextData.put(propagator.getName(), propagator.deserializeContext(headerData));
@@ -180,12 +188,17 @@ final class WorkflowContext {
   }
 
   void mergeSearchAttributes(SearchAttributes searchAttributes) {
-    if (searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0) {
+    if (searchAttributes == null) {
       return;
     }
     if (this.searchAttributes == null) {
       this.searchAttributes = SearchAttributes.newBuilder();
     }
-    this.searchAttributes.putAllIndexedFields(searchAttributes.getIndexedFieldsMap());
+    for (Map.Entry<String, Payload> pair : searchAttributes.getIndexedFieldsMap().entrySet()) {
+      this.searchAttributes.putIndexedFields(pair.getKey(), pair.getValue());
+    }
+    if (searchAttributes.getIndexedFieldsCount() == 0) {
+      this.searchAttributes = null;
+    }
   }
 }
