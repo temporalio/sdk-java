@@ -20,33 +20,12 @@
 package io.temporal.internal.sync;
 
 import com.google.common.primitives.Ints;
-import com.uber.m3.tally.NoopScope;
-import com.uber.m3.tally.Scope;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.DataConverter;
-import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
-import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.context.ContextThreadLocal;
-import io.temporal.internal.replay.ExecuteActivityParameters;
-import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.internal.replay.ReplayWorkflowContext;
-import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
-import io.temporal.workflow.Functions;
-import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,14 +33,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.TreeSet;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -70,7 +44,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +57,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private static final int ROOT_THREAD_PRIORITY = 0;
   private static final int CALLBACK_THREAD_PRIORITY = 10;
   private static final int WORKFLOW_THREAD_PRIORITY = 20000000;
-  static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-method";
+
+  static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-root";
+  static final String WORKFLOW_MAIN_THREAD_NAME = "workflow-method";
 
   private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
   private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
@@ -92,7 +69,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       new TreeSet<>((t1, t2) -> Ints.compare(t1.getPriority(), t2.getPriority()));
   // Values from RunnerLocalInternal
   private final Map<RunnerLocalInternal<?>, Object> runnerLocalMap = new HashMap<>();
-  private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
+  private final List<WorkflowThread> workflowThreadsToAdd =
+      Collections.synchronizedList(new ArrayList<>());
+  private final List<WorkflowThread> callbackThreadsToAdd =
+      Collections.synchronizedList(new ArrayList<>());
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
   private final Lock lock = new ReentrantLock();
   private final Runnable rootRunnable;
@@ -113,18 +93,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       this.runnable = runnable;
     }
   }
-
-  /**
-   * Used to create a root workflow thread through the interceptor chain. The default value is used
-   * only in the unit tests.
-   */
-  private WorkflowOutboundCallsInterceptor interceptorHead =
-      new WorkflowOutboundCallsInterceptorBase(null) {
-        @Override
-        public Object newThread(Runnable runnable, boolean detached, String name) {
-          return DeterministicRunnerImpl.this.newThread(runnable, detached, name);
-        }
-      };
 
   static WorkflowThread currentThreadInternal() {
     WorkflowThread result = currentThreadThreadLocal.get();
@@ -163,58 +131,29 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private WorkflowThread rootWorkflowThread;
   private final CancellationScopeImpl runnerCancellationScope;
 
-  DeterministicRunnerImpl(Runnable root) {
-    this(System::currentTimeMillis, root);
-  }
-
-  DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
-    this(getDefaultThreadPool(), newDummySyncWorkflowContext(), root, null);
-  }
-
-  private static ThreadPoolExecutor getDefaultThreadPool() {
-    ThreadPoolExecutor result =
-        new ThreadPoolExecutor(0, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-    result.setThreadFactory(r -> new Thread(r, "deterministic runner thread"));
-    return result;
+  DeterministicRunnerImpl(@Nonnull SyncWorkflowContext workflowContext, Runnable root) {
+    this(getDefaultThreadPool(), workflowContext, root, null);
   }
 
   DeterministicRunnerImpl(
-      ExecutorService threadPool, SyncWorkflowContext workflowContext, Runnable root) {
+      ExecutorService threadPool, @Nonnull SyncWorkflowContext workflowContext, Runnable root) {
     this(threadPool, workflowContext, root, null);
   }
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
-      SyncWorkflowContext workflowContext,
+      @Nonnull SyncWorkflowContext workflowContext,
       Runnable root,
       WorkflowExecutorCache cache) {
     this.threadPool = threadPool;
-    this.workflowContext =
-        workflowContext != null ? workflowContext : newDummySyncWorkflowContext();
+    if (workflowContext == null) {
+      throw new NullPointerException("workflowContext can't be null");
+    }
+    this.workflowContext = workflowContext;
     this.workflowContext.setRunner(this);
     this.cache = cache;
-    runnerCancellationScope = new CancellationScopeImpl(true, null, null);
+    this.runnerCancellationScope = new CancellationScopeImpl(true, null, null);
     this.rootRunnable = root;
-  }
-
-  private WorkflowThreadImpl newRootWorkflowThread(
-      Runnable runnable, boolean detached, String name) {
-    return new WorkflowThreadImpl(
-        threadPool,
-        this,
-        name,
-        ROOT_THREAD_PRIORITY,
-        detached,
-        runnerCancellationScope,
-        runnable,
-        cache,
-        getContextPropagators(),
-        getPropagatedContexts());
-  }
-
-  private static SyncWorkflowContext newDummySyncWorkflowContext() {
-    return new SyncWorkflowContext(
-        new DummyReplayWorkflowContext(), DataConverter.getDefaultInstance(), null, null, null);
   }
 
   SyncWorkflowContext getWorkflowContext() {
@@ -224,10 +163,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   @Override
   public void runUntilAllBlocked(long deadlockDetectionTimeout) {
     if (rootWorkflowThread == null) {
-      // TODO: workflow instance specific thread name
-      rootWorkflowThread =
-          (WorkflowThread)
-              interceptorHead.newThread(rootRunnable, false, WORKFLOW_ROOT_THREAD_NAME);
+      rootWorkflowThread = newRootThread(rootRunnable);
       threads.add(rootWorkflowThread);
       rootWorkflowThread.start();
     }
@@ -244,24 +180,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       boolean progress;
       outerLoop:
       do {
-        threadsToAdd.clear();
         if (!toExecuteInWorkflowThread.isEmpty()) {
-          List<WorkflowThread> callbackThreads = new ArrayList<>(toExecuteInWorkflowThread.size());
           for (NamedRunnable nr : toExecuteInWorkflowThread) {
-            WorkflowThread thread =
-                new WorkflowThreadImpl(
-                    threadPool,
-                    this,
-                    nr.name,
-                    CALLBACK_THREAD_PRIORITY
-                        + (addedThreads++), // maintain the order in toExecuteInWorkflowThread
-                    false,
-                    runnerCancellationScope,
-                    nr.runnable,
-                    cache,
-                    getContextPropagators(),
-                    getPropagatedContexts());
-            callbackThreads.add(thread);
+            workflowContext.getWorkflowInboundInterceptor().newCallbackThread(nr.runnable, nr.name);
           }
 
           // It is important to prepend threads as there are callbacks
@@ -269,10 +190,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           // Otherwise signal might be never processed if it was received
           // after workflow decided to close.
           // Adding the callbacks in the same order as they appear in history.
-
-          for (int i = callbackThreads.size() - 1; i >= 0; i--) {
-            threads.add(callbackThreads.get(i));
+          for (int i = callbackThreadsToAdd.size() - 1; i >= 0; i--) {
+            threads.add(callbackThreadsToAdd.get(i));
           }
+          callbackThreadsToAdd.clear();
         }
         toExecuteInWorkflowThread.clear();
         progress = false;
@@ -296,9 +217,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           close();
           throw WorkflowInternal.wrap(unhandledException);
         }
-        for (WorkflowThread c : threadsToAdd) {
-          threads.add(c);
-        }
+        threads.addAll(workflowThreadsToAdd);
+        workflowThreadsToAdd.clear();
       } while (progress && !threads.isEmpty());
     } catch (PotentialDeadlockException e) {
       StringBuilder dump = new StringBuilder();
@@ -333,7 +253,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Object getExitValue() {
     lock.lock();
     try {
@@ -367,10 +286,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       return;
     }
     try {
-      for (WorkflowThread c : threadsToAdd) {
+      for (WorkflowThread c : workflowThreadsToAdd) {
         threads.add(c);
       }
-      threadsToAdd.clear();
+      workflowThreadsToAdd.clear();
 
       for (WorkflowThread c : threads) {
         threadFutures.add(c.stopNow());
@@ -440,38 +359,78 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
   }
 
-  /** To be called only from another workflow thread. */
-  public WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
+  /** Creates a new instance of a root workflow thread. */
+  private WorkflowThread newRootThread(Runnable runnable) {
+    String name = WORKFLOW_ROOT_THREAD_NAME;
+    // TODO: workflow instance specific thread name
+    // String name = "workflow[" + workflowContext.getContext().getWorkflowId() + "]-root";
+    if (rootWorkflowThread != null) {
+      throw new IllegalStateException(
+          "newRootThread can be called only if there is no existing root workflow thread");
+    }
+    rootWorkflowThread =
+        new WorkflowThreadImpl(
+            threadPool,
+            this,
+            name,
+            ROOT_THREAD_PRIORITY,
+            false,
+            runnerCancellationScope,
+            runnable,
+            cache,
+            getContextPropagators(),
+            getPropagatedContexts());
+    return rootWorkflowThread;
+  }
+
+  @Override
+  public WorkflowThread newWorkflowThread(
+      Runnable runnable, boolean detached, @Nullable String name) {
     if (name == null) {
       name = "workflow[" + workflowContext.getContext().getWorkflowId() + "]-" + addedThreads;
     }
-    WorkflowThread result;
     if (rootWorkflowThread == null) {
-      rootWorkflowThread = newRootWorkflowThread(runnable, detached, name);
-      result = rootWorkflowThread;
-    } else {
-      checkWorkflowThreadOnly();
-      checkClosed();
-      result =
-          new WorkflowThreadImpl(
-              threadPool,
-              this,
-              name,
-              WORKFLOW_THREAD_PRIORITY + (addedThreads++),
-              detached,
-              CancellationScopeImpl.current(),
-              runnable,
-              cache,
-              getContextPropagators(),
-              getPropagatedContexts());
+      throw new IllegalStateException(
+          "newChildThread can be called only with existing root workflow thread");
     }
-    threadsToAdd.add(result); // This is synchronized collection.
+    checkWorkflowThreadOnly();
+    checkClosed();
+    WorkflowThread result =
+        new WorkflowThreadImpl(
+            threadPool,
+            this,
+            name,
+            WORKFLOW_THREAD_PRIORITY + (addedThreads++),
+            detached,
+            CancellationScopeImpl.current(),
+            runnable,
+            cache,
+            getContextPropagators(),
+            getPropagatedContexts());
+    workflowThreadsToAdd.add(result); // This is synchronized collection.
     return result;
   }
 
   @Override
-  public void setInterceptorHead(WorkflowOutboundCallsInterceptor interceptorHead) {
-    this.interceptorHead = Objects.requireNonNull(interceptorHead);
+  public WorkflowThread newCallbackThread(Runnable runnable, @Nullable String name) {
+    if (name == null) {
+      name = "workflow[" + workflowContext.getContext().getWorkflowId() + "]-" + addedThreads;
+    }
+    WorkflowThread result =
+        new WorkflowThreadImpl(
+            threadPool,
+            this,
+            name,
+            CALLBACK_THREAD_PRIORITY
+                + (addedThreads++), // maintain the order in toExecuteInWorkflowThread
+            false,
+            runnerCancellationScope,
+            runnable,
+            cache,
+            getContextPropagators(),
+            getPropagatedContexts());
+    callbackThreadsToAdd.add(result);
+    return result;
   }
 
   /**
@@ -548,222 +507,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
   }
 
-  private static final class DummyReplayWorkflowContext implements ReplayWorkflowContext {
-
-    private final Timer timer = new Timer();
-
-    @Override
-    public WorkflowExecution getWorkflowExecution() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public WorkflowExecution getParentWorkflowExecution() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public WorkflowType getWorkflowType() {
-      return WorkflowType.newBuilder().setName("dummy-workflow").build();
-    }
-
-    @Override
-    public boolean isCancelRequested() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public void setContinueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Optional<String> getContinuedExecutionRunId() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public String getTaskQueue() {
-      return "dummy-task-queue";
-    }
-
-    @Override
-    public String getNamespace() {
-      return "dummy-namespace";
-    }
-
-    @Override
-    public String getWorkflowId() {
-      return "dummy-workflow-id";
-    }
-
-    @Override
-    public String getRunId() {
-      return "dummy-run-id";
-    }
-
-    @Override
-    public Duration getWorkflowRunTimeout() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Duration getWorkflowExecutionTimeout() {
-      return Duration.ZERO;
-    }
-
-    @Override
-    public long getRunStartedTimestampMillis() {
-      return 0;
-    }
-
-    @Override
-    public long getWorkflowExecutionExpirationTimestampMillis() {
-      return 0;
-    }
-
-    @Override
-    public Duration getWorkflowTaskTimeout() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public SearchAttributes getSearchAttributes() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Map<String, Object> getPropagatedContexts() {
-      return null;
-    }
-
-    @Override
-    public List<ContextPropagator> getContextPropagators() {
-      return null;
-    }
-
-    @Override
-    public Functions.Proc1<Exception> scheduleActivityTask(
-        ExecuteActivityParameters parameters,
-        Functions.Proc2<Optional<Payloads>, Failure> callback) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Functions.Proc scheduleLocalActivityTask(
-        ExecuteLocalActivityParameters parameters,
-        Functions.Proc2<Optional<Payloads>, Failure> callback) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Functions.Proc1<Exception> startChildWorkflow(
-        StartChildWorkflowExecutionParameters parameters,
-        Functions.Proc1<WorkflowExecution> executionCallback,
-        Functions.Proc2<Optional<Payloads>, Exception> callback) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Functions.Proc1<Exception> signalExternalWorkflowExecution(
-        SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
-        Functions.Proc2<Void, Failure> callback) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public void requestCancelExternalWorkflowExecution(
-        WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public void continueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public long currentTimeMillis() {
-      return System.currentTimeMillis();
-    }
-
-    @Override
-    public Functions.Proc1<RuntimeException> newTimer(
-        Duration delay, Functions.Proc1<RuntimeException> callback) {
-      timer.schedule(
-          new TimerTask() {
-            @Override
-            public void run() {
-              callback.apply(null);
-            }
-          },
-          delay.toMillis());
-      return (e) -> {
-        callback.apply(new CanceledFailure(null));
-      };
-    }
-
-    @Override
-    public void sideEffect(
-        Func<Optional<Payloads>> func, Functions.Proc1<Optional<Payloads>> callback) {
-      callback.apply(func.apply());
-    }
-
-    @Override
-    public void mutableSideEffect(
-        String id,
-        Func1<Optional<Payloads>, Optional<Payloads>> func,
-        Functions.Proc1<Optional<Payloads>> callback) {
-      callback.apply(func.apply(Optional.empty()));
-    }
-
-    @Override
-    public boolean isReplaying() {
-      return false;
-    }
-
-    @Override
-    public void getVersion(
-        String changeId, int minSupported, int maxSupported, Functions.Proc1<Integer> callback) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Random newRandom() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Scope getMetricsScope() {
-      return new NoopScope();
-    }
-
-    @Override
-    public boolean getEnableLoggingInReplay() {
-      return false;
-    }
-
-    @Override
-    public UUID randomUUID() {
-      return UUID.randomUUID();
-    }
-
-    @Override
-    public void upsertSearchAttributes(SearchAttributes searchAttributes) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public int getAttempt() {
-      return 1;
-    }
+  private static ThreadPoolExecutor getDefaultThreadPool() {
+    ThreadPoolExecutor result =
+        new ThreadPoolExecutor(0, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+    result.setThreadFactory(r -> new Thread(r, "deterministic runner thread"));
+    return result;
   }
 
   private static class WorkflowThreadMarkerAccessor extends WorkflowThreadMarker {

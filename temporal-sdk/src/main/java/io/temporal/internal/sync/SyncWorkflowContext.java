@@ -39,6 +39,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.client.WorkflowException;
@@ -82,6 +83,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
@@ -92,7 +94,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private final QueryDispatcher queryDispatcher;
   private final Optional<Payloads> lastCompletionResult;
   private final Optional<Failure> lastFailure;
-  private WorkflowOutboundCallsInterceptor headInterceptor;
+  private WorkflowInboundCallsInterceptor headInboundInterceptor;
+  private WorkflowOutboundCallsInterceptor headOutboundInterceptor;
   private DeterministicRunner runner;
 
   private ActivityOptions defaultActivityOptions = null;
@@ -125,6 +128,13 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       this.defaultActivityOptions = workflowImplementationOptions.getDefaultActivityOptions();
       this.activityOptionsMap = workflowImplementationOptions.getActivityOptions();
     }
+    // initial values for headInboundInterceptor and headOutboundInterceptor until they initialized
+    // with actual interceptors through #initHeadInboundCallsInterceptor and
+    // #initHeadOutboundCallsInterceptor during initialization phase.
+    // See workflow.initialize() performed inside the workflow root thread inside
+    // SyncWorkflow#start(HistoryEvent, ReplayWorkflowContext)
+    this.headInboundInterceptor = new InitialWorkflowInboundCallsInterceptor(this);
+    this.headOutboundInterceptor = this;
   }
 
   /**
@@ -139,16 +149,22 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return runner;
   }
 
-  public WorkflowOutboundCallsInterceptor getWorkflowInterceptor() {
-    // This is needed for unit tests that create DeterministicRunner directly.
-    return headInterceptor == null ? this : headInterceptor;
+  public WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
+    return headOutboundInterceptor;
   }
 
-  public void setHeadInterceptor(WorkflowOutboundCallsInterceptor head) {
-    if (headInterceptor == null) {
-      runner.setInterceptorHead(head);
-      this.headInterceptor = head;
-    }
+  public WorkflowInboundCallsInterceptor getWorkflowInboundInterceptor() {
+    return headInboundInterceptor;
+  }
+
+  public void initHeadOutboundCallsInterceptor(WorkflowOutboundCallsInterceptor head) {
+    headOutboundInterceptor = head;
+  }
+
+  public void initHeadInboundCallsInterceptor(WorkflowInboundCallsInterceptor head) {
+    headInboundInterceptor = head;
+    signalDispatcher.setInboundCallsInterceptor(head);
+    queryDispatcher.setInboundCallsInterceptor(head);
   }
 
   public ActivityOptions getDefaultActivityOptions() {
@@ -226,11 +242,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   public Optional<Payloads> handleQuery(String queryName, Optional<Payloads> input) {
     return queryDispatcher.handleQuery(queryName, input);
-  }
-
-  public void setHeadInboundCallsInterceptor(WorkflowInboundCallsInterceptor inbound) {
-    signalDispatcher.setInboundCallsInterceptor(inbound);
-    queryDispatcher.setInboundCallsInterceptor(inbound);
   }
 
   private class ActivityCallback {
@@ -824,13 +835,43 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     context.upsertSearchAttributes(attr);
   }
 
+  public Object newWorkflowMethodThreadIntercepted(Runnable runnable, @Nullable String name) {
+    return runner.newWorkflowThread(runnable, false, name);
+  }
+
+  public Object newWorkflowCallbackThreadIntercepted(Runnable runnable, @Nullable String name) {
+    return runner.newCallbackThread(runnable, name);
+  }
+
   @Override
-  public Object newThread(Runnable runnable, boolean detached, String name) {
-    return runner.newThread(runnable, detached, name);
+  public Object newChildThread(Runnable runnable, boolean detached, String name) {
+    return runner.newWorkflowThread(runnable, detached, name);
   }
 
   @Override
   public long currentTimeMillis() {
     return context.currentTimeMillis();
+  }
+
+  /**
+   * This WorkflowInboundCallsInterceptor is used during creation of the initial root workflow
+   * thread and should be replaced with another specific implementation during initialization stage
+   * {@code workflow.initialize()} performed inside the workflow root thread.
+   *
+   * @see SyncWorkflow#start(HistoryEvent, ReplayWorkflowContext)
+   */
+  private static final class InitialWorkflowInboundCallsInterceptor
+      extends BaseRootWorkflowInboundCallsInterceptor {
+
+    public InitialWorkflowInboundCallsInterceptor(SyncWorkflowContext workflowContext) {
+      super(workflowContext);
+    }
+
+    @Override
+    public WorkflowOutput execute(WorkflowInput input) {
+      throw new UnsupportedOperationException(
+          "SyncWorkflowContext should be initialized with a non-initial WorkflowInboundCallsInterceptor "
+              + "before #execute can be called");
+    }
   }
 }

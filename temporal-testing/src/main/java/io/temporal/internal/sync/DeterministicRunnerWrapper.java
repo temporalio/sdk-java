@@ -38,6 +38,7 @@ public class DeterministicRunnerWrapper implements InvocationHandler {
     CompletableFuture<Object> result = new CompletableFuture<>();
     DeterministicRunner runner =
         new DeterministicRunnerImpl(
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               try {
                 result.complete(invocationHandler.invoke(proxy, method, args));
