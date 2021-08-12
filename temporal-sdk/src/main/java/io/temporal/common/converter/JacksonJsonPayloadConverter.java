@@ -61,6 +61,7 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
               .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
               .setData(ByteString.copyFrom(serialized))
               .build());
+
     } catch (JsonProcessingException e) {
       throw new DataConverterException(e);
     }
