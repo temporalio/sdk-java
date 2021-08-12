@@ -253,8 +253,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             "activity failure callback",
             () ->
                 result.completeExceptionally(
-                    (RuntimeException)
-                        FailureConverter.failureToException(failure, getDataConverter())));
+                    FailureConverter.failureToException(failure, getDataConverter())));
       } else {
         runner.executeInWorkflowThread(
             "activity completion callback", () -> result.complete(output));
@@ -267,14 +266,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     long startTime = WorkflowInternal.currentTimeMillis();
     return new LocalActivityOutput<>(
         WorkflowRetryerInternal.retryAsync(
-            (attempt, currentStart) ->
-                executeLocalActivityOnce(input, currentStart - startTime, attempt),
-            1,
-            startTime));
+            (attempt, currentStart) -> executeLocalActivityOnce(input, attempt), 1, startTime));
   }
 
-  private <T> Promise<T> executeLocalActivityOnce(
-      LocalActivityInput<T> input, long elapsed, int attempt) {
+  private <T> Promise<T> executeLocalActivityOnce(LocalActivityInput<T> input, int attempt) {
     Optional<Payloads> payloads = converter.toPayloads(input.getArgs());
     Promise<Optional<Payloads>> binaryResult =
         executeLocalActivityOnce(
@@ -325,9 +320,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
                 ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
             .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()));
 
-    if (input.isPresent()) {
-      attributes.setInput(input.get());
-    }
+    input.ifPresent(attributes::setInput);
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
@@ -341,9 +334,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     }
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
-    if (grpcHeader != null) {
-      attributes.setHeader(grpcHeader);
-    }
+    attributes.setHeader(grpcHeader);
     return new ExecuteActivityParameters(attributes, options.getCancellationType());
   }
 
@@ -371,12 +362,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             .setAttempt(attempt);
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(contextPropagators));
-    if (grpcHeader != null) {
-      activityTask.setHeader(grpcHeader);
-    }
-    if (input.isPresent()) {
-      activityTask.setInput(input.get());
-    }
+    activityTask.setHeader(grpcHeader);
+    input.ifPresent(activityTask::setInput);
     RetryOptions retryOptions = options.getRetryOptions();
     activityTask.setRetryPolicy(
         toRetryPolicy(RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults()));
@@ -430,9 +417,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
             .setWorkflowType(WorkflowType.newBuilder().setName(name).build());
     attributes.setWorkflowId(workflowId);
     attributes.setNamespace(OptionsUtils.safeGet(options.getNamespace()));
-    if (input.isPresent()) {
-      attributes.setInput(input.get());
-    }
+    input.ifPresent(attributes::setInput);
     attributes.setWorkflowRunTimeout(
         ProtobufTimeUtils.toProtoDuration(options.getWorkflowRunTimeout()));
     attributes.setWorkflowExecutionTimeout(
@@ -440,7 +425,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     attributes.setWorkflowTaskTimeout(
         ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
     String taskQueue = options.getTaskQueue();
-    TaskQueue.Builder tl = TaskQueue.newBuilder();
     if (taskQueue != null) {
       attributes.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
     }
@@ -483,10 +467,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
                     () -> result.completeExceptionally(mapChildWorkflowException(failure)));
               } else {
                 runner.executeInWorkflowThread(
-                    "child workflow completion callback",
-                    () -> {
-                      result.complete(output);
-                    });
+                    "child workflow completion callback", () -> result.complete(output));
               }
             });
     AtomicBoolean callbackCalled = new AtomicBoolean();
@@ -555,17 +536,16 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     Functions.Proc1<RuntimeException> cancellationHandler =
         context.newTimer(
             delay,
-            (e) -> {
-              runner.executeInWorkflowThread(
-                  "timer-callback",
-                  () -> {
-                    if (e == null) {
-                      p.complete(null);
-                    } else {
-                      p.completeExceptionally(e);
-                    }
-                  });
-            });
+            (e) ->
+                runner.executeInWorkflowThread(
+                    "timer-callback",
+                    () -> {
+                      if (e == null) {
+                        p.complete(null);
+                      } else {
+                        p.completeExceptionally(e);
+                      }
+                    }));
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
@@ -590,11 +570,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
               runner.executeInWorkflowThread(
                   "side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
       return dataConverter.fromPayloads(0, result.get(), resultClass, resultType);
-    } catch (Error e) {
-      throw e;
     } catch (Exception e) {
-      // SideEffect cannot throw normal exception as it can lead to non deterministic behavior
-      // So fail the workflow task by throwing an Error.
+      // SideEffect cannot throw normal exception as it can lead to non-deterministic behavior. So
+      // fail the workflow task by throwing an Error.
       throw new Error(e);
     }
   }
@@ -604,12 +582,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     try {
       return mutableSideEffectImpl(id, resultClass, resultType, updated, func);
-    } catch (Error e) {
-      throw e;
     } catch (Exception e) {
-      // MutableSideEffect cannot throw normal exception as it can lead to non deterministic
-      // behavior
-      // So fail the workflow task by throwing an Error.
+      // MutableSideEffect cannot throw normal exception as it can lead to non-deterministic
+      // behavior. So fail the workflow task by throwing an Error.
       throw new Error(e);
     }
   }
@@ -655,8 +630,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         minSupported,
         maxSupported,
         (v) -> runner.executeInWorkflowThread("version-callback", () -> result.complete(v)));
-    int r = result.get();
-    return r;
+    return result.get();
   }
 
   @Override
@@ -708,9 +682,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     attributes.setSignalName(input.getSignalName());
     attributes.setExecution(input.getExecution());
     Optional<Payloads> payloads = getDataConverter().toPayloads(input.getArgs());
-    if (payloads.isPresent()) {
-      attributes.setInput(payloads.get());
-    }
+    payloads.ifPresent(attributes::setInput);
     CompletablePromise<Void> result = Workflow.newPromise();
     Functions.Proc1<Exception> cancellationCallback =
         context.signalExternalWorkflowExecution(
@@ -759,9 +731,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     ContinueAsNewWorkflowExecutionCommandAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder();
     Optional<String> workflowType = input.getWorkflowType();
-    if (workflowType.isPresent()) {
-      attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()));
-    }
+    workflowType.ifPresent(s -> attributes.setWorkflowType(WorkflowType.newBuilder().setName(s)));
     Optional<ContinueAsNewOptions> options = input.getOptions();
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
@@ -785,9 +755,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       }
     }
     Optional<Payloads> payloads = getDataConverter().toPayloads(input.getArgs());
-    if (payloads.isPresent()) {
-      attributes.setInput(payloads.get());
-    }
+    payloads.ifPresent(attributes::setInput);
     // TODO(maxim): Find out what to do about header
     context.continueAsNewOnCompletion(attributes.build());
     WorkflowThread.exit(null);
