@@ -19,19 +19,12 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.LambdaUtils.getTarget;
-
 import io.temporal.common.RetryOptions;
-import io.temporal.internal.common.LambdaUtils;
-import io.temporal.workflow.ActivityStub;
-import io.temporal.workflow.ChildWorkflowStub;
+import io.temporal.internal.async.MethodReferenceDisassembler;
 import io.temporal.workflow.CompletablePromise;
-import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import java.lang.invoke.MethodHandleInfo;
-import java.lang.invoke.SerializedLambda;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -280,8 +273,18 @@ public final class AsyncInternal {
     return WorkflowRetryerInternal.retryAsync(options, expiration, fn);
   }
 
-  private static <R> Promise<R> execute(boolean async, Functions.Func<R> func) {
-    if (async) {
+  /**
+   * Execute {@code func} asynchronously
+   *
+   * @param temporalStub If true, we work with temporal stub, it will be switched into async
+   *     invocation mode and promise of its call will be returned. If false, we work with a general
+   *     function and it will be triggered in a separate thread
+   * @param func function to call. Expected to be a lambda, method reference or {@code
+   *     Functions.Func} implementation
+   * @return promise on the return value of the asynchronous invocation of {@code func}
+   */
+  private static <R> Promise<R> execute(boolean temporalStub, Functions.Func<R> func) {
+    if (temporalStub) {
       initAsyncInvocation();
       try {
         func.apply();
@@ -308,13 +311,7 @@ public final class AsyncInternal {
   }
 
   public static boolean isAsync(Object func) {
-    SerializedLambda lambda = LambdaUtils.toSerializedLambda(func);
-    Object target = getTarget(lambda);
-    return target instanceof ActivityStub
-        || target instanceof ChildWorkflowStub
-        || target instanceof ExternalWorkflowStub
-        || (target instanceof AsyncMarker
-            && lambda.getImplMethodKind() == MethodHandleInfo.REF_invokeInterface);
+    return MethodReferenceDisassembler.isAsync(func);
   }
 
   public static boolean isAsync() {
