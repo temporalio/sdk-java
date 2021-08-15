@@ -24,8 +24,11 @@ import io.temporal.client.WorkflowOptions
 import io.temporal.common.converter.DefaultDataConverter
 import io.temporal.common.converter.JacksonJsonPayloadConverter
 import io.temporal.common.converter.KotlinObjectMapperFactory
+import io.temporal.internal.async.FunctionWrappingUtil
+import io.temporal.internal.sync.AsyncInternal
 import io.temporal.testing.TestWorkflowRule
 import junit.framework.Assert.assertTrue
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
@@ -36,9 +39,10 @@ class KotlinAsyncLambdaTest {
     private val success = AtomicBoolean(false)
   }
 
-  @Rule @JvmField
+  @Rule
+  @JvmField
   var testWorkflowRule: TestWorkflowRule = TestWorkflowRule.newBuilder()
-    .setWorkflowTypes(NaiveParentWorkflowImpl::class.java)
+    .setWorkflowTypes(LambdaWorkflowImpl::class.java)
     .setWorkflowClientOptions(
       WorkflowClientOptions.newBuilder()
         .setDataConverter(DefaultDataConverter(JacksonJsonPayloadConverter(KotlinObjectMapperFactory.new())))
@@ -47,22 +51,35 @@ class KotlinAsyncLambdaTest {
     .build()
 
   @WorkflowInterface
-  interface NaiveParentWorkflow {
+  interface Workflow {
     @WorkflowMethod
     fun execute()
   }
 
-  class NaiveParentWorkflowImpl : NaiveParentWorkflow {
+  class LambdaWorkflowImpl : Workflow {
     override fun execute() {
-      Async.procedure { success.set(true) }.get()
+      val lambda = { success.set(true) }
+      Assert.assertFalse(
+        "This is just a regular lambda function, it's shouldn't be recognized as a method reference to a" +
+          " Temporal async stub",
+        AsyncInternal.isAsync(lambda)
+      )
+
+      Assert.assertFalse(
+        "This is just a regular lambda function, it's shouldn't be recognized as a method reference to a" +
+          " Temporal async stub",
+        AsyncInternal.isAsync(FunctionWrappingUtil.temporalJavaFunctionalWrapper(lambda))
+      )
+
+      Async.procedure(lambda).get()
     }
   }
 
   @Test
-  fun asyncChildWorkflowTest() {
+  fun asyncLambdaTest() {
     val client = testWorkflowRule.workflowClient
     val options = WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.taskQueue).build()
-    val workflowStub = client.newWorkflowStub(NaiveParentWorkflow::class.java, options)
+    val workflowStub = client.newWorkflowStub(Workflow::class.java, options)
     workflowStub.execute()
     assertTrue(success.get())
   }
