@@ -26,6 +26,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
@@ -38,13 +39,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class LocalActivityWorker implements SuspendableWorker {
 
   private static final String POLL_THREAD_NAME_PREFIX = "Local Activity Poller taskQueue=";
-  private static final Logger log = LoggerFactory.getLogger(LocalActivityWorker.class);
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
@@ -232,6 +230,14 @@ public final class LocalActivityWorker implements SuspendableWorker {
       int attempt = activityTask.getAttempt();
       result.setAttempt(attempt);
 
+      // Do not retry for non-retryable ApplicationFailures
+      if (result.getTaskFailed() != null
+          && result.getTaskFailed().getFailure() != null
+          && result.getTaskFailed().getFailure() instanceof ApplicationFailure
+          && ((ApplicationFailure) result.getTaskFailed().getFailure()).isNonRetryable()) {
+        return result;
+      }
+
       if (result.getTaskCompleted() != null
           || result.getTaskCanceled() != null
           || !activityTask.hasRetryPolicy()) {
@@ -256,8 +262,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       if (retryPolicy.getMaximumAttempts() > 0) {
         roBuilder.setMaximumAttempts(retryPolicy.getMaximumAttempts());
       }
-      roBuilder.setDoNotRetry(doNotRetry).build();
-      RetryOptions retryOptions = roBuilder.validateBuildWithDefaults();
+      RetryOptions retryOptions = roBuilder.setDoNotRetry(doNotRetry).validateBuildWithDefaults();
       long sleepMillis = retryOptions.calculateSleepTime(attempt);
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long sinceScheduled =
