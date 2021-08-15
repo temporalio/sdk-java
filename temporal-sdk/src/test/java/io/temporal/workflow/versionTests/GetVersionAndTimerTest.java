@@ -22,10 +22,10 @@ package io.temporal.workflow.versionTests;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.Rule;

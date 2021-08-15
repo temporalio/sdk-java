@@ -19,12 +19,12 @@
 
 package io.temporal.activity;
 
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnMap;
 import java.time.Duration;
 import java.util.HashMap;
@@ -34,7 +34,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class DefaultActivityOptionsOnWorkflowNotSetTest {
-  private final ActivityOptions defaultOps = TestOptions.newActivityOptions20sScheduleToClose();
+  private final ActivityOptions defaultOps = SDKTestOptions.newActivityOptions20sScheduleToClose();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -73,7 +73,7 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
       Map<String, Map<String, Duration>> result = new HashMap<>();
       TestActivity activities =
           Workflow.newActivityStub(
-              TestActivity.class, TestOptions.newActivityOptions20sScheduleToClose());
+              TestActivity.class, SDKTestOptions.newActivityOptions20sScheduleToClose());
       result.put("Activity1", activities.activity1());
       result.put("Activity2", activities.activity2());
       return result;

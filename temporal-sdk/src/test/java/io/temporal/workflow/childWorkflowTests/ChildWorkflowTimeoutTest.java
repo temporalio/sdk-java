@@ -22,9 +22,9 @@ package io.temporal.workflow.childWorkflowTests;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Throwables;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestChild;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;

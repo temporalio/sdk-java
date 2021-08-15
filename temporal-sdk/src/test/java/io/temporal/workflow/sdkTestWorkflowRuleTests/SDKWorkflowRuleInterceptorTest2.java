@@ -20,8 +20,8 @@
 package io.temporal.workflow.sdkTestWorkflowRuleTests;
 
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;

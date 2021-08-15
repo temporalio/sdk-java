@@ -25,11 +25,11 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
@@ -76,7 +76,7 @@ public class TryCancelActivityTest {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class,
-              ActivityOptions.newBuilder(TestOptions.newActivityOptionsForTaskQueue(taskQueue))
+              ActivityOptions.newBuilder(SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue))
                   .setHeartbeatTimeout(Duration.ofSeconds(1))
                   .setCancellationType(ActivityCancellationType.TRY_CANCEL)
                   .build());

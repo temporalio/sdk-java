@@ -23,8 +23,8 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Rule;

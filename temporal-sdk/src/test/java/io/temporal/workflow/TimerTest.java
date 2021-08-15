@@ -23,8 +23,8 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestTraceWorkflow;
 import java.time.Duration;
 import java.util.List;
@@ -42,10 +42,10 @@ public class TimerTest {
   public void testTimer() {
     WorkflowOptions options;
     if (SDKTestWorkflowRule.useExternalService) {
-      options = TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
+      options = SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
     } else {
       options =
-          TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+          SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
               .toBuilder()
               .setWorkflowRunTimeout(Duration.ofDays(1))
               .build();

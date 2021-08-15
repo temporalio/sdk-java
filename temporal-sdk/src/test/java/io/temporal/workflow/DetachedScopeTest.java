@@ -25,10 +25,10 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
@@ -67,7 +67,8 @@ public class DetachedScopeTest {
     public String execute(String taskQueue) {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              VariousTestActivities.class,
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       try {
         testActivities.activityWithDelay(100000, true);
         fail("unreachable");

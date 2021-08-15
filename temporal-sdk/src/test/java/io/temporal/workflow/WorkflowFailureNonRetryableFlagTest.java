@@ -22,8 +22,8 @@ package io.temporal.workflow;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.Map;
@@ -57,7 +57,7 @@ public class WorkflowFailureNonRetryableFlagTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflow1.class,
-                TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
                     .setRetryOptions(workflowRetryOptions)
                     .build());
