@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
@@ -35,8 +36,7 @@ import org.junit.Test;
 
 public class DeadlockDetectorTest {
 
-  private boolean debugMode = System.getenv("TEMPORAL_DEBUG") != null;
-  private WorkflowImplementationOptions workflowImplementationOptions =
+  private final WorkflowImplementationOptions workflowImplementationOptions =
       WorkflowImplementationOptions.newBuilder()
           .setFailWorkflowExceptionTypes(Throwable.class)
           .build();
@@ -67,11 +67,11 @@ public class DeadlockDetectorTest {
                 .build());
     try {
       workflow.execute(2000);
-      if (!debugMode) {
+      if (!DebugModeUtils.isTemporalDebugModeOn()) {
         fail("not reachable in non-debug mode");
       }
     } catch (WorkflowFailedException e) {
-      if (debugMode) {
+      if (DebugModeUtils.isTemporalDebugModeOn()) {
         fail("not reachable in debug mode");
       }
       Throwable failure = e;
@@ -95,11 +95,11 @@ public class DeadlockDetectorTest {
                 .build());
     try {
       workflow.execute(750);
-      if (!debugMode) {
+      if (!DebugModeUtils.isTemporalDebugModeOn()) {
         fail("not reachable in non-debug mode");
       }
     } catch (WorkflowFailedException e) {
-      if (debugMode) {
+      if (DebugModeUtils.isTemporalDebugModeOn()) {
         fail("not reachable in debug mode");
       }
       Throwable failure = e;

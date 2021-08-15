@@ -19,24 +19,25 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
 import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
 
 /**
- * Executes code passed to {@link #newRunner(Runnable)} as well as threads created from it using
- * {@link WorkflowThread#newThread(Runnable, boolean)} deterministically. Requires use of provided
- * wrappers for synchronization and notification instead of native ones.
+ * Executes code passed to {@link #newRunner} as well as threads created from it using {@link
+ * WorkflowThread#newThread(Runnable, boolean)} deterministically. Requires use of provided wrappers
+ * for synchronization and notification instead of native ones.
  */
 interface DeterministicRunner {
-
-  boolean debugMode = System.getenv("TEMPORAL_DEBUG") != null;
 
   long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
 
   static long getDeadlockDetectionTimeout() {
-    return debugMode ? Long.MAX_VALUE : DEFAULT_DEADLOCK_DETECTION_TIMEOUT;
+    return DebugModeUtils.isTemporalDebugModeOn()
+        ? Long.MAX_VALUE
+        : DEFAULT_DEADLOCK_DETECTION_TIMEOUT;
   }
 
   static DeterministicRunner newRunner(SyncWorkflowContext workflowContext, Runnable root) {
