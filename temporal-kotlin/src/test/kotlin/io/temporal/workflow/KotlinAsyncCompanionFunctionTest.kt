@@ -27,16 +27,27 @@ import io.temporal.common.converter.KotlinObjectMapperFactory
 import io.temporal.internal.async.FunctionWrappingUtil
 import io.temporal.internal.sync.AsyncInternal
 import io.temporal.testing.TestWorkflowRule
-import org.junit.Assert.assertTrue
+import junit.framework.Assert.assertTrue
+import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicBoolean
 
-class KotlinAsyncChildWorkflowTest {
+class KotlinAsyncCompanionFunctionTest {
+
+  companion object {
+    private val success = AtomicBoolean(false)
+
+    @JvmStatic
+    fun setSuccess() {
+      success.set(true)
+    }
+  }
 
   @Rule
   @JvmField
   var testWorkflowRule: TestWorkflowRule = TestWorkflowRule.newBuilder()
-    .setWorkflowTypes(ParentWorkflowImpl::class.java, ChildWorkflowImpl::class.java)
+    .setWorkflowTypes(CompanionFunctionReferenceWorkflowImpl::class.java)
     .setWorkflowClientOptions(
       WorkflowClientOptions.newBuilder()
         .setDataConverter(DefaultDataConverter(JacksonJsonPayloadConverter(KotlinObjectMapperFactory.new())))
@@ -45,43 +56,39 @@ class KotlinAsyncChildWorkflowTest {
     .build()
 
   @WorkflowInterface
-  interface ChildWorkflow {
-    @WorkflowMethod
-    fun execute(): Int
-  }
-
-  class ChildWorkflowImpl : ChildWorkflow {
-    override fun execute(): Int {
-      return 0
-    }
-  }
-
-  @WorkflowInterface
   interface ParentWorkflow {
     @WorkflowMethod
     fun execute()
   }
 
-  class ParentWorkflowImpl : ParentWorkflow {
+  class CompanionFunctionReferenceWorkflowImpl : ParentWorkflow {
     override fun execute() {
-      val childWorkflow = Workflow.newChildWorkflowStub(ChildWorkflow::class.java)
-      assertTrue(
-        "This has to be true to make Async.function(childWorkflow::execute) work correctly as expected",
-        AsyncInternal.isAsync(childWorkflow::execute)
+      Assert.assertFalse(
+        "This is a reference to companion object static function," +
+          " it's shouldn't be recognized as a method reference to a" +
+          " Temporal async stub",
+        AsyncInternal.isAsync((KotlinAsyncCompanionFunctionTest)::setSuccess)
       )
-      assertTrue(
-        "This has to be true to make Async.function(childWorkflow::execute) work correctly as expected",
-        AsyncInternal.isAsync(FunctionWrappingUtil.temporalJavaFunctionalWrapper(childWorkflow::execute))
+
+      Assert.assertFalse(
+        "This is a reference to companion object static function," +
+          " it's shouldn't be recognized as a method reference to a" +
+          " Temporal async stub",
+        AsyncInternal.isAsync(
+          FunctionWrappingUtil.temporalJavaFunctionalWrapper((KotlinAsyncCompanionFunctionTest)::setSuccess)
+        )
       )
-      Async.function(childWorkflow::execute).get()
+
+      Async.procedure((KotlinAsyncCompanionFunctionTest)::setSuccess).get()
     }
   }
 
   @Test
-  fun asyncChildWorkflowTest() {
+  fun asyncCompanionFunctionTest() {
     val client = testWorkflowRule.workflowClient
     val options = WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.taskQueue).build()
     val workflowStub = client.newWorkflowStub(ParentWorkflow::class.java, options)
     workflowStub.execute()
+    assertTrue(success.get())
   }
 }
