@@ -20,7 +20,7 @@
 package io.temporal.workflow;
 
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

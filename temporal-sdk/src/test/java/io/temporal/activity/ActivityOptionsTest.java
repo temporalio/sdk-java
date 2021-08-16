@@ -29,7 +29,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
-import io.temporal.workflow.shared.TestOptions;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Map;
@@ -40,8 +39,8 @@ import org.junit.Test;
 public class ActivityOptionsTest {
 
   private TestActivityEnvironment testEnv;
-  private ActivityOptions defaultOps = TestOptions.newActivityOptions1();
-  private final ActivityOptions methodOps1 = TestOptions.newActivityOptions2();
+  private ActivityOptions defaultOps = ActivityTestOptions.newActivityOptions1();
+  private final ActivityOptions methodOps1 = ActivityTestOptions.newActivityOptions2();
 
   @Before
   public void setUp() {

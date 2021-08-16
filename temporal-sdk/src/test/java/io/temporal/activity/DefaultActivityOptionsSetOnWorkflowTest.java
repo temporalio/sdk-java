@@ -19,12 +19,12 @@
 
 package io.temporal.activity;
 
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnMap;
 import java.time.Duration;
 import java.util.HashMap;
@@ -35,10 +35,10 @@ import org.junit.Test;
 
 public class DefaultActivityOptionsSetOnWorkflowTest {
 
-  private static final ActivityOptions workflowOps = TestOptions.newActivityOptions1();
-  private static final ActivityOptions workerOps = TestOptions.newActivityOptions2();
+  private static final ActivityOptions workflowOps = ActivityTestOptions.newActivityOptions1();
+  private static final ActivityOptions workerOps = ActivityTestOptions.newActivityOptions2();
   private static final ActivityOptions activityOps2 =
-      TestOptions.newActivityOptions20sScheduleToClose();
+      SDKTestOptions.newActivityOptions20sScheduleToClose();
   private static final Map<String, ActivityOptions> activity2options =
       new HashMap<String, ActivityOptions>() {
         {
@@ -76,7 +76,7 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
     // workflow.
     Map<String, Duration> activity1Values = result.get("Activity1");
     Duration workflowRunTimeout =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .getWorkflowRunTimeout();
     Assert.assertEquals(workerOps.getHeartbeatTimeout(), activity1Values.get("HeartbeatTimeout"));
     Assert.assertEquals(

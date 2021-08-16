@@ -24,12 +24,12 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.SignalQueryBase;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,7 +48,7 @@ public class SignalAndQueryListenerTest {
   @Test
   public void testSignalAndQueryListener() {
     WorkflowOptions options =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
     TestSignalAndQueryListenerWorkflow stub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestSignalAndQueryListenerWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(stub::execute);

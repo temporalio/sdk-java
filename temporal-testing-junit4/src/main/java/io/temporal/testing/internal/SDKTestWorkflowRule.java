@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow.shared;
+package io.temporal.testing.internal;
 
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 import static org.junit.Assert.fail;
@@ -259,30 +259,30 @@ public class SDKTestWorkflowRule implements TestRule {
 
   public <T> T newWorkflowStub(Class<T> workflow) {
     return getWorkflowClient()
-        .newWorkflowStub(workflow, TestOptions.newWorkflowOptionsForTaskQueue(getTaskQueue()));
+        .newWorkflowStub(workflow, SDKTestOptions.newWorkflowOptionsForTaskQueue(getTaskQueue()));
   }
 
   public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow) {
     return getWorkflowClient()
-        .newWorkflowStub(workflow, TestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
+        .newWorkflowStub(workflow, SDKTestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
   }
 
   public <T> T newWorkflowStub200sTimeoutOptions(Class<T> workflow) {
     return getWorkflowClient()
         .newWorkflowStub(
-            workflow, TestOptions.newWorkflowOptionsForTaskQueue200sTimeout(getTaskQueue()));
+            workflow, SDKTestOptions.newWorkflowOptionsForTaskQueue200sTimeout(getTaskQueue()));
   }
 
   public <T> WorkflowStub newUntypedWorkflowStub(String workflow) {
     return getWorkflowClient()
         .newUntypedWorkflowStub(
-            workflow, TestOptions.newWorkflowOptionsForTaskQueue(getTaskQueue()));
+            workflow, SDKTestOptions.newWorkflowOptionsForTaskQueue(getTaskQueue()));
   }
 
   public <T> WorkflowStub newUntypedWorkflowStubTimeoutOptions(String workflow) {
     return getWorkflowClient()
         .newUntypedWorkflowStub(
-            workflow, TestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
+            workflow, SDKTestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
   }
 
   /** Used to ensure that workflow first workflow task is executed. */

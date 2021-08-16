@@ -22,6 +22,7 @@ package io.temporal.workflow.shared;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.CronSchedule;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
@@ -197,7 +198,8 @@ public class TestWorkflows {
     public void execute(String taskQueue) {
       VariousTestActivities activities =
           Workflow.newActivityStub(
-              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              VariousTestActivities.class,
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       if (!Workflow.isReplaying()) {
         activities.activity1(1);
       }

@@ -32,13 +32,13 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -154,7 +154,7 @@ public class LocalActivityTest {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
               VariousTestActivities.class,
-              TestOptions.newLocalActivityOptions()
+              SDKTestOptions.newLocalActivityOptions()
                   .toBuilder()
                   .setDoNotIncludeArgumentsIntoMarker(doNotIncludeArgumentsIntoMarker)
                   .build());
@@ -177,7 +177,8 @@ public class LocalActivityTest {
       String laResult = localActivities.activity2("test", 123);
       VariousTestActivities normalActivities =
           Workflow.newActivityStub(
-              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              VariousTestActivities.class,
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       laResult = normalActivities.activity2(laResult, 123);
       return laResult;
     }

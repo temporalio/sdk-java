@@ -20,13 +20,13 @@
 package io.temporal.workflow.childWorkflowTests;
 
 import io.temporal.client.WorkflowOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
 import io.temporal.workflow.shared.TestNoArgsWorkflowFuncParent;
-import io.temporal.workflow.shared.TestOptions;
 import java.util.Optional;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -46,7 +46,7 @@ public class ParentWorkflowInfoInChildWorkflowsTest {
 
     String workflowId = "testParentWorkflowInfoInChildWorkflows";
     WorkflowOptions workflowOptions =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
             .setWorkflowId(workflowId)
             .build();

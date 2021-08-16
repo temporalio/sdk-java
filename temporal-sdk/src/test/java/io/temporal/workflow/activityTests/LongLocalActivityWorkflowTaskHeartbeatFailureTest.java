@@ -20,11 +20,11 @@
 package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Assert;
@@ -73,7 +73,7 @@ public class LongLocalActivityWorkflowTaskHeartbeatFailureTest {
     public String execute(String taskQueue) {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              VariousTestActivities.class, TestOptions.newLocalActivityOptions());
+              VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
       String result = localActivities.sleepActivity(5000, 123);
       if (!invoked) {
         invoked = true;

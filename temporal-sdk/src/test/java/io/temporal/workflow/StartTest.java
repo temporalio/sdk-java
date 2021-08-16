@@ -25,9 +25,9 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
-import io.temporal.workflow.shared.TestOptions;
 import java.util.Optional;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -42,7 +42,7 @@ public class StartTest {
   @Test
   public void testStart() {
     WorkflowOptions workflowOptions =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
             .setWorkflowIdReusePolicy(
                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
@@ -72,7 +72,7 @@ public class StartTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 Test2ArgWorkflowFunc.class,
-                TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
                     .setWorkflowIdReusePolicy(
                         WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)

@@ -20,13 +20,13 @@
 package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -65,7 +65,7 @@ public class ParallelLocalActivityExecutionWorkflowTest {
     public String execute(String taskQueue) {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              VariousTestActivities.class, TestOptions.newLocalActivityOptions());
+              VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
       List<Promise<String>> results = new ArrayList<>(4);
       for (int i = 1; i <= 4; i++) {
         results.add(Async.function(localActivities::sleepActivity, (long) 1000 * i, i));

@@ -20,8 +20,8 @@
 package io.temporal.workflow;
 
 import io.temporal.activity.ActivityInterface;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -54,7 +54,7 @@ public class LargeHistoryTest {
             .getWorkflowClient()
             .newWorkflowStub(
                 TestWorkflow3.class,
-                TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
                     .setWorkflowTaskTimeout(Duration.ofSeconds(30))
                     .build());
@@ -84,7 +84,7 @@ public class LargeHistoryTest {
       TestLargeWorkflowActivity activities =
           Workflow.newActivityStub(
               TestLargeWorkflowActivity.class,
-              TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       List<Promise<String>> results = new ArrayList<>();
       for (int i = 0; i < activityCount; i++) {
         Promise<String> result = Async.function(activities::activity);

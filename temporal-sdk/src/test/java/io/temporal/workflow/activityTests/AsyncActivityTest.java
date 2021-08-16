@@ -21,13 +21,13 @@ package io.temporal.workflow.activityTests;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +68,7 @@ public class AsyncActivityTest {
     public String execute(String taskQueue) {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              VariousTestActivities.class, TestOptions.newActivityOptions20sScheduleToClose());
+              VariousTestActivities.class, SDKTestOptions.newActivityOptions20sScheduleToClose());
       Promise<String> a = Async.function(testActivities::activity);
       Promise<Integer> a1 = Async.function(testActivities::activity1, 1);
       Promise<String> a2 = Async.function(testActivities::activity2, "1", 2);

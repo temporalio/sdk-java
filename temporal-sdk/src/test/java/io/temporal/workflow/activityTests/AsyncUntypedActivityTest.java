@@ -21,13 +21,13 @@ package io.temporal.workflow.activityTests;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -63,7 +63,7 @@ public class AsyncUntypedActivityTest {
     @Override
     public String execute(String taskQueue) {
       ActivityStub testActivities =
-          Workflow.newUntypedActivityStub(TestOptions.newActivityOptions20sScheduleToClose());
+          Workflow.newUntypedActivityStub(SDKTestOptions.newActivityOptions20sScheduleToClose());
       Promise<String> a = Async.function(testActivities::<String>execute, "Activity", String.class);
       Promise<String> a1 =
           Async.function(
