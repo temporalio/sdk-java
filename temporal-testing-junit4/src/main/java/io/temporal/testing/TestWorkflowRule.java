@@ -26,12 +26,15 @@ import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.time.Instant;
 import java.util.UUID;
+import javax.annotation.Nullable;
+import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
@@ -70,7 +73,7 @@ public class TestWorkflowRule implements TestRule {
   private final String namespace;
   private final boolean useExternalService;
   private final boolean doNotStart;
-  private final Timeout globalTimeout;
+  @Nullable private final Timeout globalTimeout;
 
   private final Class<?>[] workflowTypes;
   private final Object[] activityImplementations;
@@ -109,10 +112,12 @@ public class TestWorkflowRule implements TestRule {
             ? WorkflowImplementationOptions.getDefaultInstance()
             : builder.workflowImplementationOptions;
     globalTimeout =
-        Timeout.seconds(
-            builder.testTimeoutSeconds == 0
-                ? DEFAULT_TEST_TIMEOUT_SECONDS
-                : builder.testTimeoutSeconds);
+        !DebugModeUtils.isTemporalDebugModeOn()
+            ? Timeout.seconds(
+                builder.testTimeoutSeconds == 0
+                    ? DEFAULT_TEST_TIMEOUT_SECONDS
+                    : builder.testTimeoutSeconds)
+            : null;
 
     WorkflowClientOptions clientOptions =
         (builder.workflowClientOptions == null)
@@ -269,12 +274,20 @@ public class TestWorkflowRule implements TestRule {
             shutdown();
           }
         };
-    return watchman.apply(globalTimeout.apply(testWorkflowStatement, description), description);
+
+    Test annotation = description.getAnnotation(Test.class);
+    boolean timeoutIsOverriddenOnTestAnnotation = annotation != null && annotation.timeout() > 0;
+
+    if (globalTimeout != null && !timeoutIsOverriddenOnTestAnnotation) {
+      testWorkflowStatement = globalTimeout.apply(testWorkflowStatement, description);
+    }
+
+    return watchman.apply(testWorkflowStatement, description);
   }
 
   private String init(Description description) {
     String testMethod = description.getMethodName();
-    String taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
+    String taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID();
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
     worker.registerWorkflowImplementationTypes(workflowImplementationOptions, workflowTypes);
     worker.registerActivitiesImplementations(activityImplementations);
