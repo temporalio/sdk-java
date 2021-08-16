@@ -21,11 +21,11 @@ package io.temporal.workflow;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.testing.TracingWorkerInterceptor;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
-import io.temporal.workflow.shared.TestOptions;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -100,7 +100,7 @@ public class SagaTest {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class,
-              TestOptions.newActivityOptionsForTaskQueue(taskQueue)
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue)
                   .toBuilder()
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());

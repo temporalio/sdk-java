@@ -26,11 +26,11 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
 import java.io.FileNotFoundException;
@@ -127,7 +127,7 @@ public class ExceptionPropagationTest {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class,
-              TestOptions.newActivityOptions20sScheduleToClose()
+              SDKTestOptions.newActivityOptions20sScheduleToClose()
                   .toBuilder()
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());

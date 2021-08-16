@@ -21,6 +21,8 @@ package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.QueryMethod;
@@ -28,10 +30,8 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -90,7 +90,7 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
     public String execute(String taskQueue) {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              VariousTestActivities.class, TestOptions.newLocalActivityOptions());
+              VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
       Async.function(localActivities::sleepActivity, 10 * 1000L, 123);
       signaled.get();
       return "foo";

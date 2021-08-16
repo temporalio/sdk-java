@@ -20,9 +20,9 @@
 package io.temporal.workflow;
 
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestNoArgsWorkflowFuncParent;
-import io.temporal.workflow.shared.TestOptions;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,7 +40,7 @@ public class GetAttemptFromWorkflowInfoTest {
   public void testGetAttemptFromWorkflowInfo() {
     String workflowId = "testGetAttemptWorkflow";
     WorkflowOptions workflowOptions =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
             .setWorkflowId(workflowId)
             .build();

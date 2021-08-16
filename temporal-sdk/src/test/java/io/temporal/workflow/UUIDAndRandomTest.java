@@ -23,11 +23,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.Random;
@@ -74,7 +74,8 @@ public class UUIDAndRandomTest {
       hasReplayed = Workflow.isReplaying();
       VariousTestActivities activities =
           Workflow.newActivityStub(
-              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              VariousTestActivities.class,
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       Random rand1 = Workflow.newRandom();
       int r11 = rand1.nextInt();
       int r12 = r11 + rand1.nextInt();

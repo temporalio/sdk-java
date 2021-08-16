@@ -22,10 +22,10 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.testing.TracingWorkerInterceptor;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Assert;
@@ -66,7 +66,8 @@ public class SideEffectTest {
     public String execute(String taskQueue) {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
-              VariousTestActivities.class, TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              VariousTestActivities.class,
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
 
       long workflowTime = Workflow.currentTimeMillis();
       long time1 = Workflow.sideEffect(long.class, () -> workflowTime);

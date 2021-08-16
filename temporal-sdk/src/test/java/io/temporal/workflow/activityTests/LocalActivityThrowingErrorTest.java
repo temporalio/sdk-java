@@ -29,10 +29,12 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity4;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;
+
 import java.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;

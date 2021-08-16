@@ -19,15 +19,15 @@
 
 package io.temporal.workflow.childWorkflowTests;
 
-import static io.temporal.workflow.shared.TestOptions.newWorkflowOptionsWithTimeouts;
+import static io.temporal.testing.internal.SDKTestOptions.newWorkflowOptionsWithTimeouts;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeFalse;
 
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowWithCronSchedule;

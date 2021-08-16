@@ -22,7 +22,7 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.testing.TracingWorkerInterceptor;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;

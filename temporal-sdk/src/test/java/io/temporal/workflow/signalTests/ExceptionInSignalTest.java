@@ -23,9 +23,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import io.temporal.client.WorkflowClient;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.lang.management.ManagementFactory;

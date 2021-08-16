@@ -22,8 +22,8 @@ package io.temporal.workflow.signalTests;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.time.Duration;
 import java.util.Optional;
@@ -51,7 +51,7 @@ public class SignalDuringLastWorkflowTaskTest {
   @Test
   public void testSignalDuringLastWorkflowTask() {
     WorkflowOptions options =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
             .setWorkflowId("testSignalDuringLastWorkflowTask-" + UUID.randomUUID().toString())
             .build();

@@ -27,10 +27,10 @@ import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.*;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.QueryableWorkflow;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -60,7 +60,7 @@ public class SignalTest {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
             .setWorkflowId(workflowId)
             .build();
@@ -99,7 +99,7 @@ public class SignalTest {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
             .setWorkflowId(workflowId)
             .build();
@@ -168,7 +168,7 @@ public class SignalTest {
     WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
             workflowType,
-            TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
     // To execute workflow client.execute() would do. But we want to start workflow and immediately
     // return.
     testWorkflowRule.registerDelayedCallback(

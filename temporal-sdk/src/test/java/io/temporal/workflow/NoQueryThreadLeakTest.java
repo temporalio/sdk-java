@@ -21,7 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.QueryableWorkflow;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
