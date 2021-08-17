@@ -32,10 +32,13 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SearchAttributesPayloadConverter {
 
   private static ObjectMapper mapper;
+  private static final Logger log = LoggerFactory.getLogger(SearchAttributesPayloadConverter.class);
   private static final SearchAttributesPayloadConverter INSTANCE =
       new SearchAttributesPayloadConverter();
 
@@ -53,12 +56,11 @@ public final class SearchAttributesPayloadConverter {
   public Optional<Payload> toData(Object obj) throws DataConverterException {
     try {
       byte[] serialized = mapper.writeValueAsBytes(obj);
+      String type = javaTypeToEncodedType(obj.getClass()).name();
       return Optional.of(
           Payload.newBuilder()
               .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
-              .putMetadata(
-                  EncodingKeys.METADATA_TYPE_KEY,
-                  ByteString.copyFromUtf8(javaTypeToEncodedType(obj.getClass()).name()))
+              .putMetadata(EncodingKeys.METADATA_TYPE_KEY, ByteString.copyFromUtf8(type))
               .setData(ByteString.copyFrom(serialized))
               .build());
     } catch (JsonProcessingException e) {
@@ -93,7 +95,6 @@ public final class SearchAttributesPayloadConverter {
     switch (attributeType) {
       case String:
       case Keyword:
-      case Unspecified:
         return String.class;
       case Int:
         return Integer.class;
@@ -104,7 +105,7 @@ public final class SearchAttributesPayloadConverter {
       case Datetime:
         return LocalDateTime.class;
     }
-    return null;
+    throw new DataConverterException("Unsupported Search Attribute type: " + type);
   }
 
   private SearchAttributeType javaTypeToEncodedType(Class type) {
@@ -119,7 +120,7 @@ public final class SearchAttributesPayloadConverter {
     } else if (LocalDateTime.class.equals(type)) {
       return SearchAttributeType.Datetime;
     }
-    return SearchAttributeType.Unspecified;
+    throw new DataConverterException("Unsupported Search Attribute type: " + type);
   }
 
   enum SearchAttributeType {
