@@ -27,8 +27,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WorkflowThreadContext {
+  private static final Logger log = LoggerFactory.getLogger(WorkflowThreadContext.class);
 
   // Shared runner lock
   private final Lock lock;
@@ -39,14 +43,16 @@ public class WorkflowThreadContext {
   // Used to block evaluateInCoroutineContext
   private final Condition evaluationCondition;
 
+  // thread safety of these field is guaranteed by taking a #lock for reading or updating
   private Status status = Status.CREATED;
+  @Nullable private Thread currentThread;
+
   private Functions.Proc1<String> evaluationFunction;
   private Throwable unhandledException;
   private boolean inRunUntilBlocked;
   private boolean remainedBlocked;
   private String yieldReason;
   private boolean destroyRequested;
-  private Thread currentThread;
 
   WorkflowThreadContext(Lock lock) {
     this.lock = lock;
@@ -81,7 +87,7 @@ public class WorkflowThreadContext {
         status = Status.YIELDED;
         runCondition.signal();
         yieldCondition.await();
-        mayBeEvaluate(reason);
+        maybeEvaluateLocked(reason);
         yieldReason = reason;
       }
     } catch (InterruptedException e) {
@@ -100,9 +106,11 @@ public class WorkflowThreadContext {
    * Execute evaluation function by the thread that owns this context if {@link
    * #evaluateInCoroutineContext(Functions.Proc1)} was called.
    *
+   * <p>Should be called under the lock
+   *
    * @param reason human readable reason for current thread blockage passed to await call.
    */
-  private void mayBeEvaluate(String reason) {
+  private void maybeEvaluateLocked(String reason) {
     if (status == Status.EVALUATING) {
       try {
         evaluationFunction.apply(reason);
@@ -167,6 +175,9 @@ public class WorkflowThreadContext {
       this.status = status;
       if (isDone()) {
         runCondition.signal();
+        // it's important to clear the thread after or together (under one lock) when setting the
+        // status, so nobody sees the context yet with RUNNING status, but without a currentThread
+        clearCurrentThreadLocked();
       }
     } finally {
       lock.unlock();
@@ -200,10 +211,6 @@ public class WorkflowThreadContext {
     }
   }
 
-  public void setCurrentThread(Thread currentThread) {
-    this.currentThread = currentThread;
-  }
-
   public String getYieldReason() {
     return yieldReason;
   }
@@ -228,10 +235,25 @@ public class WorkflowThreadContext {
       }
       remainedBlocked = true;
       yieldCondition.signal();
-      while (status == Status.RUNNING || status == Status.CREATED) {
-        if (!runCondition.await(deadlockDetectionTimeout, TimeUnit.MILLISECONDS)) {
-          throw new PotentialDeadlockException(
-              currentThread.getName(), currentThread.getStackTrace(), this);
+      while (potentialDeadlockStatesLocked()) {
+        boolean awaitTimedOut =
+            !runCondition.await(deadlockDetectionTimeout, TimeUnit.MILLISECONDS);
+        if (awaitTimedOut
+              // check that the condition is still true after acquiring the lock back (it could be moved
+              // into DONE meanwhile)
+              && potentialDeadlockStatesLocked()) {
+          if (currentThread != null) {
+            throw new PotentialDeadlockException(
+                currentThread.getName(), currentThread.getStackTrace(), this);
+          } else {
+            // This should never happen.
+            // We clear currentThread only after setting the status to DONE.
+            // And we check for it by the status condition check after waking up on the condition
+            // and acquiring the lock back
+            log.warn(
+                "Illegal State: WorkflowThreadContext has no currentThread in {} state", status);
+            throw new PotentialDeadlockException("UnknownThread", new StackTraceElement[0], this);
+          }
         }
         if (evaluationFunction != null) {
           throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
@@ -248,6 +270,15 @@ public class WorkflowThreadContext {
       inRunUntilBlocked = false;
       lock.unlock();
     }
+  }
+
+  /**
+   * Should be called under the lock.
+   *
+   * @return true is current status is RUNNING or CREATED - two states we actively monitor for potential deadlocks
+   */
+  private boolean potentialDeadlockStatesLocked() {
+    return status == Status.RUNNING || status == Status.CREATED;
   }
 
   public boolean isDestroyRequested() {
@@ -286,5 +317,38 @@ public class WorkflowThreadContext {
       lock.unlock();
     }
     throw new DestroyWorkflowThreadError();
+  }
+
+  public void initializeCurrentThread(Thread currentThread) {
+    lock.lock();
+    try {
+      this.currentThread = currentThread;
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  /**
+   * Call at the end of the execution to set up a current thread to null because it could be running
+   * a different workflow already and doesn't belong to this context anymore.
+   *
+   * <p>Should be called under the lock
+   */
+  private void clearCurrentThreadLocked() {
+    this.currentThread = null;
+  }
+
+  /**
+   * @return current thread that owns this context, could be null if the execution finished or
+   *     didn't start yet
+   */
+  @Nullable
+  public Thread getCurrentThread() {
+    lock.lock();
+    try {
+      return currentThread;
+    } finally {
+      lock.unlock();
+    }
   }
 }
