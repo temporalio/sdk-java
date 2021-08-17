@@ -230,6 +230,11 @@ public class WorkflowThreadContext {
       yieldCondition.signal();
       while (status == Status.RUNNING || status == Status.CREATED) {
         if (!runCondition.await(deadlockDetectionTimeout, TimeUnit.MILLISECONDS)) {
+          // There's a potential race here where the thread can get cleared out before the condvar
+          // times out.
+          if (currentThread == null) {
+            throw new PotentialDeadlockException("UnknownThread", null, this);
+          }
           throw new PotentialDeadlockException(
               currentThread.getName(), currentThread.getStackTrace(), this);
         }
