@@ -231,6 +231,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         }
       }
       e.setStackDump(dump.toString());
+      log.warn("Workflow potentially deadlocked", e);
       throw e;
     } finally {
       inRunUntilAllBlocked = false;

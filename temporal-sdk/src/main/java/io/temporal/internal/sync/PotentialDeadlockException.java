@@ -51,7 +51,7 @@ public class PotentialDeadlockException extends RuntimeException {
 
   @Override
   public String getMessage() {
-    return super.getMessage() + " Other workflow threads:\n\n" + stackDump + "\n";
+    return super.getMessage() + " Other workflow threads dump:\n" + stackDump + "---end dump---";
   }
 
   public WorkflowThreadContext getWorkflowThreadContext() {
