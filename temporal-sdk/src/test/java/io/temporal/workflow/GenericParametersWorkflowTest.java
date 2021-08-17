@@ -21,8 +21,8 @@ package io.temporal.workflow;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.client.WorkflowClient;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestOptions;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -121,7 +121,7 @@ public class GenericParametersWorkflowTest {
       activity =
           Workflow.newActivityStub(
               GenericParametersActivity.class,
-              TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       return activity.execute(arg1, arg2);
     }
 

@@ -21,9 +21,9 @@ package io.temporal.workflow.activityTests;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.failure.ActivityFailure;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.NonSerializableException;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;

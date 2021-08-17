@@ -20,7 +20,7 @@
 package io.temporal.workflow;
 
 import io.temporal.client.WorkflowClient;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
 import java.util.concurrent.ExecutionException;
 import org.junit.Assert;

@@ -29,28 +29,36 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities.TestActivity1;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.shared.TestActivities.TestActivity4;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
 import java.time.Duration;
-import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 public class ActivityThrowingErrorTest {
+
+  public static final String FAILURE_TYPE = "fail";
+  private static WorkflowOptions options;
+
+  @Rule public TestName testName = new TestName();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(ActivityThrowsErrorWorkflow.class)
-          .setActivityImplementations(new Activity1Impl())
+          .setActivityImplementations(new ApplicationFailureActivity())
           .build();
 
-  @Test
-  public void activityThrowsError() {
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    WorkflowOptions options =
+  @Before
+  public void setUp() {
+    options =
         WorkflowOptions.newBuilder()
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .setRetryOptions(
@@ -59,22 +67,45 @@ public class ActivityThrowingErrorTest {
                     .setInitialInterval(Duration.ofMinutes(2))
                     .build())
             .build();
+  }
 
-    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
+  @Test
+  public void activityThrowsError() {
+    String name = testName.getMethodName();
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
+
     try {
-      workflow.execute(UUID.randomUUID().toString());
+      workflow.execute(name, true);
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("java.lang.Error", ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(FAILURE_TYPE, ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(3, ApplicationFailureActivity.invocations.get(name).get());
     }
   }
 
-  public static class ActivityThrowsErrorWorkflow implements TestWorkflow1 {
+  @Test
+  public void activityThrowsNonRetryableError() {
+    String name = testName.getMethodName();
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
 
-    private final TestActivity1 activity1 =
+    try {
+      workflow.execute(name, false);
+    } catch (WorkflowFailedException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals(FAILURE_TYPE, ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(1, ApplicationFailureActivity.invocations.get(name).get());
+    }
+  }
+
+  public static class ActivityThrowsErrorWorkflow implements TestWorkflow4 {
+
+    private final TestActivity4 activity =
         Workflow.newActivityStub(
-            TestActivity1.class,
+            TestActivity4.class,
             ActivityOptions.newBuilder()
                 .setRetryOptions(
                     RetryOptions.newBuilder()
@@ -86,15 +117,24 @@ public class ActivityThrowingErrorTest {
                 .build());
 
     @Override
-    public String execute(String input) {
-      return activity1.execute(input);
+    public String execute(String testName, boolean retryable) {
+      activity.execute(testName, retryable);
+      return testName;
     }
   }
 
-  public static class Activity1Impl implements TestActivity1 {
+  public static class ApplicationFailureActivity implements TestActivity4 {
+    public static final Map<String, AtomicInteger> invocations = new ConcurrentHashMap<>();
+
     @Override
-    public String execute(String input) {
-      return Workflow.randomUUID().toString();
+    public void execute(String testName, boolean retryable) {
+      invocations.computeIfAbsent(testName, k -> new AtomicInteger()).incrementAndGet();
+      if (retryable) {
+        throw ApplicationFailure.newFailure(
+            "Simulate retryable failure.", FAILURE_TYPE, FAILURE_TYPE);
+      }
+      throw ApplicationFailure.newNonRetryableFailure(
+          "Simulate non-retryable failure.", FAILURE_TYPE, FAILURE_TYPE);
     }
   }
 }

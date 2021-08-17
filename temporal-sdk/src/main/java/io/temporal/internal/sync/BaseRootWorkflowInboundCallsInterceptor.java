@@ -25,10 +25,10 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 /**
  * Provides core functionality for a root WorkflowInboundCallsInterceptor that is reused by specific
  * root RootWorkflowInboundCallsInterceptor implementations inside {@link
- * DynamicSyncWorkflowDefinition#} and {@link POJOWorkflowImplementationFactory}
+ * DynamicSyncWorkflowDefinition} and {@link POJOWorkflowImplementationFactory}
  *
  * <p>Root {@code WorkflowInboundCallsInterceptor} is an interceptor that should be at the end of
- * the {@code WorkflowInboundCallsInterceptor} interceptors chain and which encapsulates calls into
+ * the {@link WorkflowInboundCallsInterceptor} interceptors chain and which encapsulates calls into
  * Temporal internals while providing a WorkflowInboundCallsInterceptor interface for chaining on
  * top of it.
  */

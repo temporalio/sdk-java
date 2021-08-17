@@ -21,7 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows.ITestChild;
 import io.temporal.workflow.shared.TestWorkflows.TestChild;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;

@@ -22,10 +22,10 @@ package io.temporal.workflow;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestTraceWorkflow;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -49,7 +49,7 @@ public class TerminatedWorkflowQueryTest {
   @Test
   public void testShouldReturnQueryResultAfterWorkflowTimeout() {
     WorkflowOptions options =
-        TestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
             .setWorkflowRunTimeout(Duration.ofSeconds(1))
             .build();
@@ -73,7 +73,7 @@ public class TerminatedWorkflowQueryTest {
     public String execute(boolean useExternalService) {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              VariousTestActivities.class, TestOptions.newLocalActivityOptions());
+              VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
 
       trace.add("started");
       localActivities.sleepActivity(5000, 123);

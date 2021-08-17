@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;

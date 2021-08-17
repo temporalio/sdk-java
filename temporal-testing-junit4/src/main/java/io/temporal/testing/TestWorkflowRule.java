@@ -343,7 +343,7 @@ public class TestWorkflowRule implements TestRule {
     if (workerFactoryOptions.getWorkerInterceptors() != null) {
       for (WorkerInterceptor interceptor : workerFactoryOptions.getWorkerInterceptors()) {
         if (type.isInstance(interceptor)) {
-          return (T) interceptor;
+          return type.cast(interceptor);
         }
       }
     }

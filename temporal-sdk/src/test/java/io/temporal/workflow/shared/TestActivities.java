@@ -33,6 +33,7 @@ import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -69,6 +70,12 @@ public class TestActivities {
   @ActivityInterface
   public interface TestActivity3 {
     int execute(int input);
+  }
+
+  @ActivityInterface
+  public interface TestActivity4 {
+    @ActivityMethod
+    void execute(String arg1, boolean arg2);
   }
 
   @ActivityInterface

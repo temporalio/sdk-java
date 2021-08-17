@@ -21,8 +21,8 @@ package io.temporal.workflow;
 
 import io.temporal.activity.*;
 import io.temporal.common.RetryOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;

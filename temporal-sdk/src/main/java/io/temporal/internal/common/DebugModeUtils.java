@@ -19,7 +19,7 @@
 
 package io.temporal.internal.common;
 
-public class  DebugModeUtils {
+public class DebugModeUtils {
   private static final boolean TEMPORAL_DEBUG_MODE = readTemporalDebugModeFromEnvVar();
 
   public static boolean isTemporalDebugModeOn() {
@@ -32,6 +32,7 @@ public class  DebugModeUtils {
       return false;
     }
     temporalDebugValue = temporalDebugValue.trim();
-    return  (!Boolean.FALSE.toString().equalsIgnoreCase(temporalDebugValue) && !"0".equals(temporalDebugValue));
+    return (!Boolean.FALSE.toString().equalsIgnoreCase(temporalDebugValue)
+        && !"0".equals(temporalDebugValue));
   }
 }

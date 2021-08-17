@@ -23,13 +23,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.Rule;
@@ -81,7 +81,7 @@ public class GetVersionRemovedInReplayTest {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               TestActivities.VariousTestActivities.class,
-              TestOptions.newActivityOptionsForTaskQueue(taskQueue));
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       String result;
       // Test removing a version check in replay code.
       if (!Workflow.isReplaying()) {

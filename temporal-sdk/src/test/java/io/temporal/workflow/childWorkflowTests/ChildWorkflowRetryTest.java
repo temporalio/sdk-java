@@ -19,8 +19,8 @@
 
 package io.temporal.workflow.childWorkflowTests;
 
-import static io.temporal.workflow.shared.SDKTestWorkflowRule.NAMESPACE;
-import static io.temporal.workflow.shared.SDKTestWorkflowRule.regenerateHistoryForReplay;
+import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
+import static io.temporal.testing.internal.SDKTestWorkflowRule.regenerateHistoryForReplay;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeFalse;
 
@@ -36,10 +36,10 @@ import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.testing.WorkflowReplayer;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.AngryChildActivityImpl;
 import io.temporal.workflow.shared.TestWorkflows.AngryChild;
 import io.temporal.workflow.shared.TestWorkflows.ITestChild;
