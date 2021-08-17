@@ -87,6 +87,12 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
+  public interface TestWorkflow4 {
+    @WorkflowMethod
+    String execute(String arg, boolean arg2);
+  }
+
+  @WorkflowInterface
   public interface TestWorkflowWithCronSchedule {
     @WorkflowMethod
     @CronSchedule("0 * * * *")

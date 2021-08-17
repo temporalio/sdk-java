@@ -73,6 +73,12 @@ public class TestActivities {
   }
 
   @ActivityInterface
+  public interface TestActivity4 {
+    @ActivityMethod
+    void execute(String arg1, boolean arg2);
+  }
+
+  @ActivityInterface
   public interface TestActivity {
     @ActivityMethod
     Map<String, Duration> activity1();
