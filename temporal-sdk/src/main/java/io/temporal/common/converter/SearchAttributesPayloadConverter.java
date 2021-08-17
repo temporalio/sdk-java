@@ -68,12 +68,12 @@ public final class SearchAttributesPayloadConverter {
     }
   }
 
-  public <T> T fromData(Payload payload) throws DataConverterException {
+  public <T> Object fromData(Payload payload) throws DataConverterException {
     ByteString data = payload.getData();
     String type = payload.getMetadataMap().get(EncodingKeys.METADATA_TYPE_KEY).toStringUtf8();
     Type javaType = encodedTypeToJavaType(type);
     if (data.isEmpty() || javaType == null) {
-      return null;
+      return payload;
     } else {
       try {
         @SuppressWarnings("deprecation")
@@ -85,7 +85,7 @@ public final class SearchAttributesPayloadConverter {
     }
   }
 
-  private Type encodedTypeToJavaType(String type) {
+  private static Type encodedTypeToJavaType(String type) {
     SearchAttributeType attributeType;
     try {
       attributeType = SearchAttributeType.valueOf(type);
@@ -104,11 +104,12 @@ public final class SearchAttributesPayloadConverter {
         return Boolean.class;
       case Datetime:
         return LocalDateTime.class;
+      default:
+        return null;
     }
-    throw new DataConverterException("Unsupported Search Attribute type: " + type);
   }
 
-  private SearchAttributeType javaTypeToEncodedType(Class type) {
+  private static SearchAttributeType javaTypeToEncodedType(Class<?> type) {
     if (String.class.equals(type)) {
       return SearchAttributeType.String;
     } else if (Integer.class.equals(type)) {
@@ -120,10 +121,10 @@ public final class SearchAttributesPayloadConverter {
     } else if (LocalDateTime.class.equals(type)) {
       return SearchAttributeType.Datetime;
     }
-    throw new DataConverterException("Unsupported Search Attribute type: " + type);
+    return SearchAttributeType.Unspecified;
   }
 
-  enum SearchAttributeType {
+  private enum SearchAttributeType {
     Unspecified,
     String,
     Keyword,
