@@ -31,9 +31,8 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity4;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +44,7 @@ import org.junit.rules.TestName;
 
 public class ActivityThrowingErrorTest {
 
+  public static final String FAILURE_TYPE = "fail";
   private static WorkflowOptions options;
 
   @Rule public TestName testName = new TestName();
@@ -54,7 +54,6 @@ public class ActivityThrowingErrorTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(ActivityThrowsErrorWorkflow.class)
           .setActivityImplementations(new ApplicationFailureActivity())
-          .setTestTimeoutSeconds(1000)
           .build();
 
   @Before
@@ -74,14 +73,14 @@ public class ActivityThrowingErrorTest {
   public void activityThrowsError() {
     String name = testName.getMethodName();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow3 workflow = client.newWorkflowStub(TestWorkflow3.class, options);
+    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
 
     try {
-      workflow.execute(name, 1);
+      workflow.execute(name, true);
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("fail", ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(FAILURE_TYPE, ((ApplicationFailure) e.getCause().getCause()).getType());
       assertEquals(3, ApplicationFailureActivity.invocations.get(name).get());
     }
   }
@@ -90,19 +89,19 @@ public class ActivityThrowingErrorTest {
   public void activityThrowsNonRetryableError() {
     String name = testName.getMethodName();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow3 workflow = client.newWorkflowStub(TestWorkflow3.class, options);
+    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
 
     try {
-      workflow.execute(name, 0);
+      workflow.execute(name, false);
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("fail", ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(FAILURE_TYPE, ((ApplicationFailure) e.getCause().getCause()).getType());
       assertEquals(1, ApplicationFailureActivity.invocations.get(name).get());
     }
   }
 
-  public static class ActivityThrowsErrorWorkflow implements TestWorkflow3 {
+  public static class ActivityThrowsErrorWorkflow implements TestWorkflow4 {
 
     private final TestActivity4 activity =
         Workflow.newActivityStub(
@@ -118,7 +117,7 @@ public class ActivityThrowingErrorTest {
                 .build());
 
     @Override
-    public String execute(String testName, int retryable) {
+    public String execute(String testName, boolean retryable) {
       activity.execute(testName, retryable);
       return testName;
     }
@@ -128,13 +127,14 @@ public class ActivityThrowingErrorTest {
     public static final Map<String, AtomicInteger> invocations = new ConcurrentHashMap<>();
 
     @Override
-    public void execute(String testName, int retryable) {
+    public void execute(String testName, boolean retryable) {
       invocations.computeIfAbsent(testName, k -> new AtomicInteger()).incrementAndGet();
-      if (retryable == 1) {
-        throw ApplicationFailure.newFailure("Simulate retryable failure.", "fail", "fail");
+      if (retryable) {
+        throw ApplicationFailure.newFailure(
+            "Simulate retryable failure.", FAILURE_TYPE, FAILURE_TYPE);
       }
       throw ApplicationFailure.newNonRetryableFailure(
-          "Simulate non-retryable failure.", "fail", "fail");
+          "Simulate non-retryable failure.", FAILURE_TYPE, FAILURE_TYPE);
     }
   }
 }

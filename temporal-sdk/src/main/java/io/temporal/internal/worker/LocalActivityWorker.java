@@ -230,11 +230,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       int attempt = activityTask.getAttempt();
       result.setAttempt(attempt);
 
-      // Do not retry for non-retryable ApplicationFailures
-      if (result.getTaskFailed() != null
-          && result.getTaskFailed().getFailure() != null
-          && result.getTaskFailed().getFailure() instanceof ApplicationFailure
-          && ((ApplicationFailure) result.getTaskFailed().getFailure()).isNonRetryable()) {
+      if (isNonRetryableApplicationFailure(result)) {
         return result;
       }
 
@@ -288,5 +284,12 @@ public final class LocalActivityWorker implements SuspendableWorker {
         return result;
       }
     }
+  }
+
+  private boolean isNonRetryableApplicationFailure(ActivityTaskHandler.Result result) {
+    return result.getTaskFailed() != null
+        && result.getTaskFailed().getFailure() != null
+        && result.getTaskFailed().getFailure() instanceof ApplicationFailure
+        && ((ApplicationFailure) result.getTaskFailed().getFailure()).isNonRetryable();
   }
 }

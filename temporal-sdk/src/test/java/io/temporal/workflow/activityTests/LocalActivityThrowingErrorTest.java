@@ -19,6 +19,7 @@
 
 package io.temporal.workflow.activityTests;
 
+import static io.temporal.workflow.activityTests.ActivityThrowingErrorTest.FAILURE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -31,10 +32,8 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity4;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow3;
-
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
 import java.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -52,7 +51,6 @@ public class LocalActivityThrowingErrorTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(LocalActivityThrowsErrorWorkflow.class)
           .setActivityImplementations(new ActivityThrowingErrorTest.ApplicationFailureActivity())
-          .setTestTimeoutSeconds(1000)
           .build();
 
   @Before
@@ -72,13 +70,13 @@ public class LocalActivityThrowingErrorTest {
   public void localActivityThrowsError() {
     String name = testName.getMethodName();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow3 workflow = client.newWorkflowStub(TestWorkflow3.class, options);
+    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
     try {
-      workflow.execute(name, 1);
+      workflow.execute(name, true);
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("fail", ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(FAILURE_TYPE, ((ApplicationFailure) e.getCause().getCause()).getType());
       assertEquals(
           3, ActivityThrowingErrorTest.ApplicationFailureActivity.invocations.get(name).get());
     }
@@ -88,19 +86,19 @@ public class LocalActivityThrowingErrorTest {
   public void localActivityNonRetryableThrowsError() {
     String name = testName.getMethodName();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow3 workflow = client.newWorkflowStub(TestWorkflow3.class, options);
+    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
     try {
-      workflow.execute(name, 0);
+      workflow.execute(name, false);
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      assertEquals("fail", ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(FAILURE_TYPE, ((ApplicationFailure) e.getCause().getCause()).getType());
       assertEquals(
           1, ActivityThrowingErrorTest.ApplicationFailureActivity.invocations.get(name).get());
     }
   }
 
-  public static class LocalActivityThrowsErrorWorkflow implements TestWorkflow3 {
+  public static class LocalActivityThrowsErrorWorkflow implements TestWorkflow4 {
 
     private final TestActivity4 activity1 =
         Workflow.newLocalActivityStub(
@@ -116,7 +114,7 @@ public class LocalActivityThrowingErrorTest {
                 .build());
 
     @Override
-    public String execute(String testName, int retryable) {
+    public String execute(String testName, boolean retryable) {
       activity1.execute(testName, retryable);
       return testName;
     }
