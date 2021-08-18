@@ -239,9 +239,9 @@ public class WorkflowThreadContext {
         boolean awaitTimedOut =
             !runCondition.await(deadlockDetectionTimeout, TimeUnit.MILLISECONDS);
         if (awaitTimedOut
-              // check that the condition is still true after acquiring the lock back (it could be moved
-              // into DONE meanwhile)
-              && potentialDeadlockStatesLocked()) {
+            // check that the condition is still true after acquiring the lock back
+            // (it could be moved into DONE meanwhile)
+            && potentialDeadlockStatesLocked()) {
           if (currentThread != null) {
             throw new PotentialDeadlockException(
                 currentThread.getName(), currentThread.getStackTrace(), this);
@@ -275,7 +275,8 @@ public class WorkflowThreadContext {
   /**
    * Should be called under the lock.
    *
-   * @return true is current status is RUNNING or CREATED - two states we actively monitor for potential deadlocks
+   * @return true is current status is RUNNING or CREATED - two states we actively monitor for
+   *     potential deadlocks
    */
   private boolean potentialDeadlockStatesLocked() {
     return status == Status.RUNNING || status == Status.CREATED;
