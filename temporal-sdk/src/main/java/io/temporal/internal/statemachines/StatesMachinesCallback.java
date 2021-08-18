@@ -21,7 +21,7 @@ package io.temporal.internal.statemachines;
 
 import io.temporal.api.history.v1.HistoryEvent;
 
-public interface EntityManagerListener {
+public interface StatesMachinesCallback {
 
   void start(HistoryEvent startWorkflowEvent);
 

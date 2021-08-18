@@ -20,7 +20,6 @@
 package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.statemachines.TestHistoryBuilder.assertCommand;
-import static io.temporal.internal.statemachines.VersionStateMachine.*;
 import static io.temporal.workflow.Workflow.DEFAULT_VERSION;
 import static org.junit.Assert.*;
 
@@ -34,6 +33,8 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.history.MarkerUtils;
+import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
@@ -82,9 +83,9 @@ public class VersionStateMachineTest {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
     }
     /*
@@ -97,8 +98,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -106,7 +107,9 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
                     .build())
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
 
@@ -140,13 +143,23 @@ public class VersionStateMachineTest {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .<Integer>add1(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c))
-            .<Integer>add1(
-                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
-            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
+            .<Integer, RuntimeException>add2(
+                (v, c) -> {
+                  assertNull(v.getT2());
+                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
+                })
+            .<Integer, RuntimeException>add2(
+                (v, c) -> {
+                  assertNull(v.getT2());
+                  stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
+                })
+            .add(
+                (v) -> {
+                  assertNull(v.getT2());
+                  stateMachines.completeWorkflow(converter.toPayloads(v.getT1()));
+                });
       }
     }
     /*
@@ -159,8 +172,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -168,7 +181,9 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
                     .build())
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
 
@@ -186,7 +201,7 @@ public class VersionStateMachineTest {
                   commands
                       .get(0)
                       .getRecordMarkerCommandAttributes()
-                      .getDetailsOrThrow(MARKER_VERSION_KEY)),
+                      .getDetailsOrThrow(VersionMarkerUtils.MARKER_VERSION_KEY)),
               Integer.class,
               Integer.class);
       assertEquals(maxSupported, version);
@@ -209,15 +224,23 @@ public class VersionStateMachineTest {
   @Test
   public void testUnsupportedVersion() {
     final int maxSupported = 13;
+    AtomicReference<RuntimeException> secondVersionCallException = new AtomicReference<>();
     class TestListener extends TestEntityManagerListenerBase {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .<Integer>add1(
-                (v, c) -> stateMachines.getVersion("id1", maxSupported + 10, maxSupported + 10, c))
-            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
+            .<Integer, RuntimeException>add2(
+                (v, c) -> {
+                  assertNull(v.getT2());
+                  stateMachines.getVersion("id1", maxSupported + 10, maxSupported + 10, c);
+                })
+            .add(
+                (v) -> {
+                  secondVersionCallException.set(v.getT2());
+                  stateMachines.completeWorkflow(converter.toPayloads(v));
+                });
       }
     }
     /*
@@ -230,8 +253,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -239,23 +262,39 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
                     .build())
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
 
-    TestEntityManagerListenerBase listener = new TestListener();
-    stateMachines = newStateMachines(listener);
-
-    try {
-      // TODO if you try to replace this replay to 0, execute to 1 with a full replay
-      // h.handleWorkflowTaskTakeCommands(stateMachines, Integer.MAX_VALUE)
-      // this test will fail. It's an actual bug in state machine that will be addressed in
-      // https://github.com/temporalio/sdk-java/pull/805
+    {
+      secondVersionCallException.set(null);
+      // test execution
+      TestEntityManagerListenerBase listener = new TestListener();
+      stateMachines = newStateMachines(listener);
       h.handleWorkflowTaskTakeCommands(stateMachines, 0, Integer.MAX_VALUE);
-      fail("failure expected");
-    } catch (Throwable e) {
+
+      assertNotNull(secondVersionCallException.get());
       assertTrue(
-          e.getMessage()
+          secondVersionCallException
+              .get()
+              .getMessage()
+              .startsWith("Version " + maxSupported + " of changeId id1 is not supported"));
+    }
+
+    {
+      secondVersionCallException.set(null);
+      // test full replay
+      TestEntityManagerListenerBase listener = new TestListener();
+      stateMachines = newStateMachines(listener);
+      h.handleWorkflowTaskTakeCommands(stateMachines);
+
+      assertNotNull(secondVersionCallException.get());
+      assertTrue(
+          secondVersionCallException
+              .get()
+              .getMessage()
               .startsWith("Version " + maxSupported + " of changeId id1 is not supported"));
     }
   }
@@ -273,21 +312,21 @@ public class VersionStateMachineTest {
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> {
-                  trace.append(v + ", ");
+                  trace.append(v.getT1()).append(", ");
                   stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
                 })
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> {
-                  trace.append(v + ", ");
+                  trace.append(v.getT1()).append(", ");
                   stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
                 })
             .<HistoryEvent>add1(
                 (v, c) -> {
-                  trace.append(v);
+                  trace.append(v.getT1());
                   stateMachines.newTimer(
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
@@ -347,9 +386,13 @@ public class VersionStateMachineTest {
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
+            .add(
+                (v) -> {
+                  assertNull(v.getT2());
+                  stateMachines.completeWorkflow(converter.toPayloads(v));
+                });
       }
     }
     /*
@@ -386,16 +429,16 @@ public class VersionStateMachineTest {
       @Override
       public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> {
-                  trace.append(v + ", ");
+                  trace.append(v.getT1()).append(", ");
                   stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c);
                 })
             .<HistoryEvent>add1(
                 (v, c) -> {
-                  trace.append(v + ", ");
+                  trace.append(v.getT1()).append(", ");
                   stateMachines.newTimer(
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
@@ -409,17 +452,17 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> {
-                  trace.append(v + ", ");
+                  trace.append(v.getT1()).append(", ");
                   stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c);
                 })
             .add(
                 (v) -> {
-                  trace.append(v);
-                  stateMachines.completeWorkflow(converter.toPayloads(v));
+                  trace.append(v.getT1());
+                  stateMachines.completeWorkflow(converter.toPayloads(v.getT1()));
                 });
       }
     }
@@ -444,8 +487,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -453,7 +496,9 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
                     .build());
     long timerStartedEventId1 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
     h.add(
@@ -484,7 +529,7 @@ public class VersionStateMachineTest {
                   commands
                       .get(0)
                       .getRecordMarkerCommandAttributes()
-                      .getDetailsOrThrow(MARKER_VERSION_KEY)),
+                      .getDetailsOrThrow(VersionMarkerUtils.MARKER_VERSION_KEY)),
               Integer.class,
               Integer.class);
       assertEquals(maxSupported, version);
@@ -528,11 +573,11 @@ public class VersionStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             /*.<Integer>add((v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))*/
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 10, c))
             .<HistoryEvent>add1(
                 (v, c) -> {
-                  trace.append(v + ", ");
+                  trace.append(v.getT1()).append(", ");
                   stateMachines.newTimer(
                       StartTimerCommandAttributes.newBuilder()
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
@@ -546,12 +591,12 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         c))
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
             /*.<Integer>add((v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c));*/
             .add(
                 (v) -> {
-                  trace.append(v);
+                  trace.append(v.getT1());
                   stateMachines.completeWorkflow(converter.toPayloads(v));
                 });
       }
@@ -577,8 +622,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -586,7 +631,9 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
                     .build());
     long timerStartedEventId1 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
     h.add(
@@ -632,7 +679,8 @@ public class VersionStateMachineTest {
                         "id2",
                         DEFAULT_VERSION,
                         maxSupported,
-                        (r) -> {
+                        (r, e) -> {
+                          assertNull(e);
                           versionId2 = r;
                           c.apply(r);
                         }))
@@ -668,23 +716,32 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 MarkerRecordedEventAttributes.newBuilder()
-                    .setMarkerName(VERSION_MARKER_NAME)
-                    .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get())
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported + 10).get())
+                    .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported + 10).get())
                     .build())
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 MarkerRecordedEventAttributes.newBuilder()
-                    .setMarkerName(VERSION_MARKER_NAME)
-                    .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id2").get())
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id2").get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
                     .build())
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 MarkerRecordedEventAttributes.newBuilder()
-                    .setMarkerName(VERSION_MARKER_NAME)
-                    .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id3").get())
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported + 20).get())
+                    .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id3").get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported + 20).get())
                     .build());
     long timerStartedEventId1 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
     h.add(
@@ -741,12 +798,12 @@ public class VersionStateMachineTest {
                         c))
             /*.<Integer>add(
             (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))*/
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
             .add(
                 (v) -> {
-                  trace.append(v);
-                  stateMachines.completeWorkflow(converter.toPayloads(v));
+                  trace.append(v.getT1());
+                  stateMachines.completeWorkflow(converter.toPayloads(v.getT1()));
                 });
       }
     }
@@ -771,8 +828,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -780,7 +837,9 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
                     .build());
     long timerStartedEventId1 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
     h.add(
@@ -857,8 +916,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -873,7 +932,8 @@ public class VersionStateMachineTest {
         .add(
             EventType.EVENT_TYPE_MARKER_RECORDED,
             markerBuilder
-                .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                .putDetails(
+                    VersionMarkerUtils.MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
                 .build())
         .addWorkflowTask()
         .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
@@ -895,18 +955,24 @@ public class VersionStateMachineTest {
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
-            .<Integer>add1(
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
             .<HistoryEvent>add1(
-                (v, c) ->
-                    stateMachines.newTimer(
-                        StartTimerCommandAttributes.newBuilder()
-                            .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
-                            .build(),
-                        c))
-            .<Integer>add1(
+                (v, c) -> {
+                  assertNull(v.getT2());
+                  stateMachines.newTimer(
+                      StartTimerCommandAttributes.newBuilder()
+                          .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
+                          .build(),
+                      c);
+                })
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported + 100, c))
-            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
+            .add(
+                (v) -> {
+                  assertNull(v.getT2());
+                  stateMachines.completeWorkflow(converter.toPayloads(v));
+                });
       }
     }
     /*
@@ -930,8 +996,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -946,19 +1012,29 @@ public class VersionStateMachineTest {
         .add(
             EventType.EVENT_TYPE_MARKER_RECORDED,
             markerBuilder
-                .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                .putDetails(
+                    VersionMarkerUtils.MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
                 .build())
         .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+
+    {
+      // Partial execution
+      TestListener listener = new TestListener();
+      stateMachines = newStateMachines(listener);
+      try {
+        h.handleWorkflowTaskTakeCommands(stateMachines, 1, Integer.MAX_VALUE);
+        fail("failure expected");
+      } catch (InternalWorkflowTaskException e) {
+        assertTrue(e.getCause().getMessage().startsWith("Version is already set"));
+      }
+    }
+
     {
       // Full replay
       TestListener listener = new TestListener();
       stateMachines = newStateMachines(listener);
       try {
-        // TODO if you try to replace this replay to 1, execute to MAX_VALUE with a full replay
-        // h.handleWorkflowTaskTakeCommands(stateMachines, Integer.MAX_VALUE)
-        // this test will fail. It's an actual bug in state machine that will be addressed in
-        // https://github.com/temporalio/sdk-java/pull/805
-        h.handleWorkflowTaskTakeCommands(stateMachines, 1, Integer.MAX_VALUE);
+        h.handleWorkflowTaskTakeCommands(stateMachines);
         fail("failure expected");
       } catch (InternalWorkflowTaskException e) {
         assertTrue(e.getCause().getMessage().startsWith("Version is already set"));
@@ -982,22 +1058,20 @@ public class VersionStateMachineTest {
 
         builder
             .add(
-                (v) -> {
-                  cancelTimerProc.set(
-                      stateMachines.newTimer(
-                          StartTimerCommandAttributes.newBuilder()
-                              .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
-                              .build(),
-                          ignore -> {}));
-                })
-            .add(
-                (v) -> {
-                  cancelTimerProc.get().apply();
-                })
-            .<Integer>add1(
+                (v) ->
+                    cancelTimerProc.set(
+                        stateMachines.newTimer(
+                            StartTimerCommandAttributes.newBuilder()
+                                .setStartToFireTimeout(
+                                    Duration.newBuilder().setSeconds(100).build())
+                                .build(),
+                            ignore -> {})))
+            .add((v) -> cancelTimerProc.get().apply())
+            .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
             .<HistoryEvent>add1(
                 (v, c) -> {
+                  assertNull(v.getT2());
                   // we add this to don't allow workflow complete command to be sent here
                   stateMachines.newTimer(
                       StartTimerCommandAttributes.newBuilder()
@@ -1018,8 +1092,8 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(VERSION_MARKER_NAME)
-            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
@@ -1027,7 +1101,9 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
                     .build());
 
     long timerStartedEventId1 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
@@ -1052,6 +1128,79 @@ public class VersionStateMachineTest {
       List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
       assertEquals(1, commands.size());
       assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
+    }
+  }
+
+  /** It is not allowed to prepend getVersion calls with existing changeId in the same WFT. */
+  @Test
+  public void testPrependingGetVersionInTheSameWFTWithExistingIdFails() {
+    final int maxSupported = 133;
+    class TestListener extends TestEntityManagerListenerBase {
+
+      @Override
+      protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Integer, RuntimeException>add2(
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .<HistoryEvent>add1(
+                (v, c) -> {
+                  assertNull(v.getT2());
+                  stateMachines.newTimer(
+                      StartTimerCommandAttributes.newBuilder()
+                          .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
+                          .build(),
+                      c);
+                })
+            .<Integer, RuntimeException>add2(
+                (v, c) -> stateMachines.getVersion("id1", DEFAULT_VERSION, maxSupported, c))
+            .add(
+                (v) -> {
+                  assertNull(v.getT2());
+                  stateMachines.completeWorkflow(converter.toPayloads(v));
+                });
+      }
+    }
+    /*
+      1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+      2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+      3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+      4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+      5: EVENT_TYPE_MARKER_RECORDED
+      6: EVENT_TYPE_TIMER_STARTED
+      7: EVENT_TYPE_MARKER_RECORDED
+      8: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+    MarkerRecordedEventAttributes.Builder markerBuilder =
+        MarkerRecordedEventAttributes.newBuilder()
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+    h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
+    h.add(
+            EventType.EVENT_TYPE_MARKER_RECORDED,
+            markerBuilder
+                .putDetails(
+                    VersionMarkerUtils.MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                .build())
+        .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+
+    {
+      // Full replay
+      TestListener listener = new TestListener();
+      stateMachines = newStateMachines(listener);
+      try {
+        h.handleWorkflowTaskTakeCommands(stateMachines);
+        fail("failure expected");
+      } catch (InternalWorkflowTaskException e) {
+        assertTrue(
+            e.getCause()
+                .getCause()
+                .getMessage()
+                .startsWith("getVersion call before the existing version marker event."));
+      }
     }
   }
 }

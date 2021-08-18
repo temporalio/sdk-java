@@ -30,6 +30,7 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
+import io.temporal.api.history.v1.TimerStartedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -105,7 +106,10 @@ public class TimerStateMachineTest {
       stateMachines = newStateMachines(listener);
       h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
       h.addWorkflowTask();
-      long timerStartedEventId = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
+      long timerStartedEventId =
+          h.addGetEventId(
+              EventType.EVENT_TYPE_TIMER_STARTED,
+              TimerStartedEventAttributes.newBuilder().setTimerId("timer1"));
       h.add(
           EventType.EVENT_TYPE_TIMER_FIRED,
           TimerFiredEventAttributes.newBuilder()
@@ -176,7 +180,10 @@ public class TimerStateMachineTest {
     TestHistoryBuilder h = new TestHistoryBuilder();
     h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
     h.addWorkflowTask();
-    long timerStartedEventId = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
+    long timerStartedEventId =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_TIMER_STARTED,
+            TimerStartedEventAttributes.newBuilder().setTimerId("timer2"));
     h.add(EventType.EVENT_TYPE_TIMER_FIRED, timerStartedEventId);
     h.addWorkflowTaskScheduledAndStarted();
     {
@@ -265,8 +272,14 @@ public class TimerStateMachineTest {
     TestHistoryBuilder h = new TestHistoryBuilder();
     h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
     h.addWorkflowTask();
-    long timerStartedEventId1 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
-    long timerStartedEventId2 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
+    long timerStartedEventId1 =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_TIMER_STARTED,
+            TimerStartedEventAttributes.newBuilder().setTimerId("timer1"));
+    long timerStartedEventId2 =
+        h.addGetEventId(
+            EventType.EVENT_TYPE_TIMER_STARTED,
+            TimerStartedEventAttributes.newBuilder().setTimerId("timer2"));
     h.add(
             EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
             WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("signal1"))

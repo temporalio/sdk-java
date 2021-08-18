@@ -137,7 +137,7 @@ final class StateMachine<State, ExplicitEvent, Data> {
     TransitionAction<State, Data> destination = definition.getTransitionAction(transition);
     if (destination == null) {
       throw new IllegalArgumentException(
-          definition.getName()
+          stateMachineNameString()
               + ": invalid "
               + transition
               + ", transition history is "
@@ -148,7 +148,7 @@ final class StateMachine<State, ExplicitEvent, Data> {
       logTransition(transition);
     } catch (RuntimeException e) {
       throw new RuntimeException(
-          definition.getName()
+          stateMachineNameString()
               + ": failure executing "
               + transition
               + ", transition history is "
@@ -161,15 +161,16 @@ final class StateMachine<State, ExplicitEvent, Data> {
   private void logTransition(Transition<State, TransitionEvent<ExplicitEvent>> transition) {
     if (log.isTraceEnabled()) {
       log.trace(
-          "State Machine "
-              + definition.getName()
-              + (entityName != null && !entityName.isEmpty() ? "[" + entityName + "]" : "")
-              + ": "
-              + transition.from
-              + " --:"
-              + transition.event
-              + ":--> "
-              + state);
+          "State Machine {}: {} --:{}:--> {}",
+          stateMachineNameString(),
+          transition.from,
+          transition.event,
+          state);
     }
+  }
+
+  private String stateMachineNameString() {
+    return definition.getName()
+        + (entityName != null && !entityName.isEmpty() ? "[" + entityName + "]" : "");
   }
 }

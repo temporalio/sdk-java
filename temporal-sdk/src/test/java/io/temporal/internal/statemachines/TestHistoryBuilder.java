@@ -287,7 +287,7 @@ class TestHistoryBuilder {
   }
 
   List<Command> handleWorkflowTaskTakeCommands(WorkflowStateMachines stateMachines) {
-    return handleWorkflowTaskTakeCommands(stateMachines, Integer.MAX_VALUE);
+    return handleWorkflowTaskTakeCommands(stateMachines, Integer.MAX_VALUE, Integer.MAX_VALUE);
   }
 
   public List<Command> handleWorkflowTaskTakeCommands(
@@ -303,7 +303,7 @@ class TestHistoryBuilder {
   }
 
   public void handleWorkflowTask(WorkflowStateMachines stateMachines) {
-    handleWorkflowTask(stateMachines, Integer.MAX_VALUE);
+    handleWorkflowTask(stateMachines, Integer.MAX_VALUE, Integer.MAX_VALUE);
   }
 
   public void handleWorkflowTask(WorkflowStateMachines stateMachines, int executeToTaskIndex) {

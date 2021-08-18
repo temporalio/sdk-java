@@ -61,6 +61,7 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.statemachines.UnsupportedVersion;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -629,8 +630,21 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
         changeId,
         minSupported,
         maxSupported,
-        (v) -> runner.executeInWorkflowThread("version-callback", () -> result.complete(v)));
-    return result.get();
+        (v, e) ->
+            runner.executeInWorkflowThread(
+                "version-callback",
+                () -> {
+                  if (v != null) {
+                    result.complete(v);
+                  } else {
+                    result.completeExceptionally(e);
+                  }
+                }));
+    try {
+      return result.get();
+    } catch (UnsupportedVersion.UnsupportedVersionException ex) {
+      throw new UnsupportedVersion(ex);
+    }
   }
 
   @Override
