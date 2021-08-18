@@ -112,7 +112,7 @@ public final class SearchAttributesPayloadConverter {
   private static SearchAttributeType javaTypeToEncodedType(Class<?> type) {
     if (String.class.equals(type)) {
       return SearchAttributeType.String;
-    } else if (Integer.class.equals(type)) {
+    } else if (Integer.class.equals(type) || Short.class.equals(type) || Byte.class.equals(type)) {
       return SearchAttributeType.Int;
     } else if (Double.class.equals(type) || Float.class.equals(type)) {
       return SearchAttributeType.Double;

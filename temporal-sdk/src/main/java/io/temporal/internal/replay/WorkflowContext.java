@@ -28,6 +28,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.SearchAttributesUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
 import java.util.HashMap;
@@ -153,6 +154,10 @@ final class WorkflowContext {
     return searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0
         ? null
         : searchAttributes.build();
+  }
+
+  public Map<String, Object> getSearchAttributesMap() {
+    return SearchAttributesUtil.decode(getSearchAttributes());
   }
 
   int getAttempt() {

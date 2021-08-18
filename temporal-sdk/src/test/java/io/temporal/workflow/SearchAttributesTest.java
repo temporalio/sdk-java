@@ -19,8 +19,9 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
@@ -47,8 +48,8 @@ import org.junit.Test;
 public class SearchAttributesTest {
 
   private static final Map<String, Object> searchAttributes = new HashMap<>();
-  private static final String TEST_KEY_STRING = "NamespaceKey";
-  private static final String TEST_VALUE_STRING = "Namespace";
+  private static final String TEST_KEY_STRING = "CustomStringField";
+  private static final String TEST_VALUE_STRING = NAMESPACE;
   private static final String TEST_KEY_INTEGER = "StateTransitionCount";
   private static final Integer TEST_VALUE_INTEGER = 1;
   // Custom fields
@@ -93,7 +94,7 @@ public class SearchAttributesTest {
     GetWorkflowExecutionHistoryResponse historyResp =
         WorkflowExecutionUtils.getHistoryPage(
             testWorkflowRule.getTestEnvironment().getWorkflowService(),
-            SDKTestWorkflowRule.NAMESPACE,
+            NAMESPACE,
             executionF,
             ByteString.EMPTY,
             new NoopScope());
@@ -135,7 +136,7 @@ public class SearchAttributesTest {
     @Override
     public void execute() {
       // Check that search attributes are inherited by child workflows.
-      assertNotNull(Workflow.getInfo().getSearchAttributes());
+      assertTrue(Workflow.getSearchAttributesMap().equals(searchAttributes));
     }
   }
 }

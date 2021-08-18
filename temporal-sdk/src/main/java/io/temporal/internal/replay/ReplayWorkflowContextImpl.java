@@ -197,6 +197,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public Map<String, Object> getSearchAttributesMap() {
+    return workflowContext.getSearchAttributesMap();
+  }
+
+  @Override
   public List<ContextPropagator> getContextPropagators() {
     return workflowContext.getContextPropagators();
   }

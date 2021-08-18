@@ -428,6 +428,10 @@ public final class WorkflowInternal {
     return new WorkflowInfoImpl(getRootWorkflowContext().getContext());
   }
 
+  public static Map<String, Object> getSearchAttributesMap() {
+    return getRootWorkflowContext().getContext().getSearchAttributesMap();
+  }
+
   public static <R> R retry(
       RetryOptions options, Optional<Duration> expiration, Functions.Func<R> fn) {
     return WorkflowRetryerInternal.validateOptionsAndRetry(options, expiration, fn);

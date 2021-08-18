@@ -103,6 +103,14 @@ public interface ReplayWorkflowContext extends ReplayAware {
   SearchAttributes getSearchAttributes();
 
   /**
+   * Used to retrieve search attributes.
+   *
+   * @return SearchAttribute object which can be used by {@code
+   *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
+   */
+  Map<String, Object> getSearchAttributesMap();
+
+  /**
    * Returns all current contexts being propagated by a {@link
    * io.temporal.common.context.ContextPropagator}. The key is the {@link
    * ContextPropagator#getName()} and the value is the object returned by {@link

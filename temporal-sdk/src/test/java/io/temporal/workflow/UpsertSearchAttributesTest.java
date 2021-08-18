@@ -69,14 +69,14 @@ public class UpsertSearchAttributesTest {
 
     @Override
     public String execute(String taskQueue, String keyword) {
-      Map<String, Object> searchAttributes = Workflow.getInfo().getSearchAttributes();
+      Map<String, Object> searchAttributes = Workflow.getSearchAttributesMap();
       assertNull(searchAttributes);
 
       Map<String, Object> searchAttrMap = new HashMap<>();
       searchAttrMap.put("CustomKeywordField", keyword);
       Workflow.upsertSearchAttributes(searchAttrMap);
 
-      searchAttributes = Workflow.getInfo().getSearchAttributes();
+      searchAttributes = Workflow.getSearchAttributesMap();
       assertEquals("testKey", searchAttributes.get("CustomKeywordField"));
 
       // Running the activity below ensures that we have one more workflow task to be executed after
