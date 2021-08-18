@@ -213,7 +213,7 @@ public class TestActivities {
         Thread.sleep(milliseconds);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw Activity.wrap(new RuntimeException("interrupted", new Throwable("simulated")));
+        throw Activity.wrap(e);
       }
       invocations.add("sleepActivity");
       return "sleepActivity" + input;

@@ -103,8 +103,6 @@ public final class WorkflowStateMachines {
   /** Current workflow time. */
   private long currentTimeMillis = -1;
 
-  private long replayTimeUpdatedAtMillis;
-
   private final Map<Long, EntityStateMachine> stateMachines = new HashMap<>();
 
   private final Queue<CancellableCommand> commands = new ArrayDeque<>();
@@ -135,7 +133,7 @@ public final class WorkflowStateMachines {
   private final Map<String, MutableSideEffectStateMachine> mutableSideEffects = new HashMap<>();
 
   /** Key is changeId */
-  private final Map<String, VersionStateMachine> vesions = new HashMap<>();
+  private final Map<String, VersionStateMachine> versions = new HashMap<>();
 
   /** Map of local activities by their id. */
   private final Map<String, LocalActivityStateMachine> localActivityMap = new HashMap<>();
@@ -146,25 +144,22 @@ public final class WorkflowStateMachines {
   private final Functions.Proc1<StateMachine> stateMachineSink;
 
   public WorkflowStateMachines(EntityManagerListener callbacks) {
-    this.callbacks = Objects.requireNonNull(callbacks);
-    commandSink = (command) -> cancellableCommands.add(command);
-    stateMachineSink = (stateMachine) -> {};
-    localActivityRequestSink = (request) -> localActivityRequests.add(request);
+    this(callbacks, (stateMachine) -> {});
   }
 
   @VisibleForTesting
   public WorkflowStateMachines(
       EntityManagerListener callbacks, Functions.Proc1<StateMachine> stateMachineSink) {
     this.callbacks = Objects.requireNonNull(callbacks);
-    commandSink = (command) -> cancellableCommands.add(command);
+    this.commandSink = cancellableCommands::add;
     this.stateMachineSink = stateMachineSink;
-    localActivityRequestSink = (request) -> localActivityRequests.add(request);
+    this.localActivityRequestSink = (request) -> localActivityRequests.add(request);
   }
 
   public void setStartedIds(long previousStartedEventId, long workflowTaskStartedEventId) {
     this.previousStartedEventId = previousStartedEventId;
     this.workflowTaskStartedEventId = workflowTaskStartedEventId;
-    replaying = previousStartedEventId > 0;
+    this.replaying = previousStartedEventId > 0;
   }
 
   /**
@@ -173,7 +168,7 @@ public final class WorkflowStateMachines {
    * @param event event from the history.
    * @param hasNextEvent false if this is the last event in the history.
    */
-  public final void handleEvent(HistoryEvent event, boolean hasNextEvent) {
+  public void handleEvent(HistoryEvent event, boolean hasNextEvent) {
     try {
       handleEventImpl(event, hasNextEvent);
     } catch (RuntimeException e) {
@@ -234,44 +229,61 @@ public final class WorkflowStateMachines {
     // Match event to the next command in the stateMachine queue.
     // After matching the command is notified about the event and is removed from the
     // queue.
-    CancellableCommand command;
-    while (true) {
+    CancellableCommand matchingCommand = null;
+    while (matchingCommand == null) {
       // handleVersionMarker can skip a marker event if the getVersion call was removed.
       // In this case we don't want to consume a command.
       // That's why peek is used instead of poll.
-      command = commands.peek();
+      CancellableCommand command = commands.peek();
       if (command == null) {
         throw new IllegalStateException("No command scheduled that corresponds to " + event);
       }
+
+      if (command.isCanceled()) {
+        // Consume and skip the command
+        commands.poll();
+        continue;
+      }
+
       // Note that handleEvent can cause a command cancellation in case
       // of MutableSideEffect
       HandleEventStatus status = command.handleEvent(event, true);
-      if (status == HandleEventStatus.NON_MATCHING_EVENT) {
-        if (handleVersionMarker(event)) {
-          // return without consuming the command as this event is a version marker for removed
-          // getVersion call.
-          return;
-        }
-        if (!command.isCanceled()) {
-          throw new IllegalStateException(
-              "Event "
-                  + event.getEventId()
-                  + " of "
-                  + event.getEventType()
-                  + " does not"
-                  + " match command "
-                  + command.getCommandType());
-        }
+
+      if (command.isCanceled()) {
+        // Consume and skip the command
+        commands.poll();
+        continue;
       }
-      // Consume the command
-      commands.poll();
-      if (!command.isCanceled()) {
-        break;
+
+      switch (status) {
+        case OK:
+          // Consume the command
+          commands.poll();
+          matchingCommand = command;
+          break;
+        case NON_MATCHING_EVENT:
+          if (handleVersionMarker(event)) {
+            // this event is a version marker for removed getVersion call.
+            // Return without consuming the command
+            return;
+          } else {
+            throw new IllegalStateException(
+                "Event "
+                    + event.getEventId()
+                    + " of "
+                    + event.getEventType()
+                    + " does not"
+                    + " match command "
+                    + command.getCommandType());
+          }
+        default:
+          throw new IllegalStateException(
+              "Got " + status + " value from command.handleEvent which is not handled");
       }
     }
-    validateCommand(command.getCommand(), event);
 
-    EntityStateMachine stateMachine = command.getStateMachine();
+    validateCommand(matchingCommand.getCommand(), event);
+    EntityStateMachine stateMachine = matchingCommand.getStateMachine();
     if (!stateMachine.isFinalState()) {
       stateMachines.put(event.getEventId(), stateMachine);
     }
@@ -294,7 +306,7 @@ public final class WorkflowStateMachines {
     Optional<Payloads> oid = Optional.ofNullable(detailsMap.get(MARKER_CHANGE_ID_KEY));
     String changeId = dataConverter.fromPayloads(0, oid, String.class, String.class);
     VersionStateMachine versionStateMachine =
-        vesions.computeIfAbsent(
+        versions.computeIfAbsent(
             changeId,
             (idKey) ->
                 VersionStateMachine.newInstance(
@@ -417,14 +429,12 @@ public final class WorkflowStateMachines {
         break;
       default:
         throw new IllegalArgumentException("Unexpected event:" + event);
-        // TODO(maxim)
     }
   }
 
   private long setCurrentTimeMillis(long currentTimeMillis) {
     if (this.currentTimeMillis < currentTimeMillis) {
       this.currentTimeMillis = currentTimeMillis;
-      this.replayTimeUpdatedAtMillis = System.currentTimeMillis();
     }
     return this.currentTimeMillis;
   }
@@ -446,13 +456,13 @@ public final class WorkflowStateMachines {
             attributes,
             (p, f) -> {
               callback.apply(p, f);
-              if (f != null && f.getCause() != null && f.getCause().hasCanceledFailureInfo()) {
+              if (f != null && f.hasCause() && f.getCause().hasCanceledFailureInfo()) {
                 eventLoop();
               }
             },
             commandSink,
             stateMachineSink);
-    return () -> activityStateMachine.cancel();
+    return activityStateMachine::cancel;
   }
 
   /**
@@ -478,7 +488,7 @@ public final class WorkflowStateMachines {
             },
             commandSink,
             stateMachineSink);
-    return () -> timer.cancel();
+    return timer::cancel;
   }
 
   /**
@@ -501,7 +511,7 @@ public final class WorkflowStateMachines {
             attributes, startedCallback, completionCallback, commandSink, stateMachineSink);
     return () -> {
       if (cancellationType == ChildWorkflowCancellationType.ABANDON) {
-        notifyChildCanceled(attributes, completionCallback);
+        notifyChildCanceled(completionCallback);
         return;
       }
       // The only time child can be canceled directly is before its start command
@@ -519,18 +529,17 @@ public final class WorkflowStateMachines {
                 .build(),
             (r, e) -> { // TODO(maxim): Decide what to do if an error is passed to the callback.
               if (cancellationType == ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
-                notifyChildCanceled(attributes, completionCallback);
+                notifyChildCanceled(completionCallback);
               }
             });
         if (cancellationType == ChildWorkflowCancellationType.TRY_CANCEL) {
-          notifyChildCanceled(attributes, completionCallback);
+          notifyChildCanceled(completionCallback);
         }
       }
     };
   }
 
   private void notifyChildCanceled(
-      StartChildWorkflowExecutionCommandAttributes attributes,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback) {
     CanceledFailure failure =
         new CanceledFailure("Child canceled", new EncodedValues(Optional.empty()), null);
@@ -659,7 +668,7 @@ public final class WorkflowStateMachines {
   public void getVersion(
       String changeId, int minSupported, int maxSupported, Functions.Proc1<Integer> callback) {
     VersionStateMachine stateMachine =
-        vesions.computeIfAbsent(
+        versions.computeIfAbsent(
             changeId,
             (idKey) ->
                 VersionStateMachine.newInstance(
@@ -718,7 +727,7 @@ public final class WorkflowStateMachines {
             commandSink,
             stateMachineSink);
     localActivityMap.put(activityId, commands);
-    return () -> commands.cancel();
+    return commands::cancel;
   }
 
   /** Validates that command matches the event during replay. */

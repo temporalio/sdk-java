@@ -35,9 +35,11 @@ import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.InternalWorkflowTaskException;
+import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -69,8 +71,7 @@ public class VersionStateMachineTest {
           VersionStateMachine.STATE_MACHINE_DEFINITION.asPlantUMLStateDiagramCoverage(
               stateMachineList));
       fail(
-          "LocalActivityStateMachine is missing test coverage for the following transitions:\n"
-              + missed);
+          "VersionStateMachine is missing test coverage for the following transitions:\n" + missed);
     }
   }
 
@@ -888,6 +889,95 @@ public class VersionStateMachineTest {
       } catch (InternalWorkflowTaskException e) {
         assertTrue(e.getCause().getMessage().startsWith("Version is already set"));
       }
+    }
+  }
+
+  /**
+   * This test provides a localized reproduction for a state machine issue
+   * https://github.com/temporalio/sdk-java/issues/615 This test has a corresponding full workflow
+   * test {@link io.temporal.workflow.versionTests.GetVersionAfterScopeCancellationTest}
+   */
+  @Test
+  public void testRecordAfterCommandCancellation() {
+    final int maxSupported = 133;
+    class TestListener extends TestEntityManagerListenerBase {
+
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        AtomicReference<Functions.Proc> cancelTimerProc = new AtomicReference<>();
+
+        builder
+            .add(
+                (v) -> {
+                  cancelTimerProc.set(
+                      stateMachines.newTimer(
+                          StartTimerCommandAttributes.newBuilder()
+                              .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
+                              .build(),
+                          ignore -> {}));
+                })
+            .add(
+                (v) -> {
+                  cancelTimerProc.get().apply();
+                })
+            .<Integer>add1(
+                (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
+            .<HistoryEvent>add1(
+                (v, c) -> {
+                  // we add this to don't allow workflow complete command to be sent here
+                  stateMachines.newTimer(
+                      StartTimerCommandAttributes.newBuilder()
+                          .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
+                          .build(),
+                      c);
+                })
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(null)));
+      }
+    }
+    /*
+      1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+      2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+      3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+      4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+      5: EVENT_TYPE_MARKER_RECORDED
+      17: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+    MarkerRecordedEventAttributes.Builder markerBuilder =
+        MarkerRecordedEventAttributes.newBuilder()
+            .setMarkerName(VERSION_MARKER_NAME)
+            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask()
+            .add(
+                EventType.EVENT_TYPE_MARKER_RECORDED,
+                markerBuilder
+                    .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                    .build());
+
+    long timerStartedEventId1 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
+    h.add(
+            EventType.EVENT_TYPE_TIMER_FIRED,
+            TimerFiredEventAttributes.newBuilder()
+                .setStartedEventId(timerStartedEventId1)
+                .setTimerId("timer1"))
+        .addWorkflowTask();
+    h.add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+
+    {
+      TestEntityManagerListenerBase listener = new TestListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+
+      assertEquals(2, commands.size());
+      assertEquals(CommandType.COMMAND_TYPE_RECORD_MARKER, commands.get(0).getCommandType());
+      assertEquals(CommandType.COMMAND_TYPE_START_TIMER, commands.get(1).getCommandType());
+    }
+    {
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 2);
+      assertEquals(1, commands.size());
+      assertCommand(CommandType.COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION, commands);
     }
   }
 }
