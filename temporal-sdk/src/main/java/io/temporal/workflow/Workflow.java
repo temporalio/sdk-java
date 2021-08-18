@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
@@ -613,6 +614,10 @@ public final class Workflow {
 
   public static WorkflowInfo getInfo() {
     return WorkflowInternal.getWorkflowInfo();
+  }
+
+  public static Payload getMemo(String key) {
+    return WorkflowInternal.getMemo(key);
   }
 
   /**

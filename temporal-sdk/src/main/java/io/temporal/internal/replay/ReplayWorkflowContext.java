@@ -22,6 +22,7 @@ package io.temporal.internal.replay;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -93,6 +94,13 @@ public interface ReplayWorkflowContext extends ReplayAware {
   long getWorkflowExecutionExpirationTimestampMillis();
 
   Duration getWorkflowTaskTimeout();
+
+  /**
+   * Used to retrieve the memo.
+   *
+   * @return Memo object
+   */
+  Payload getMemo(String key);
 
   /**
    * Used to retrieve search attributes.

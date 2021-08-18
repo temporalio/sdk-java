@@ -23,6 +23,7 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -138,6 +139,11 @@ public class DummySyncWorkflowContext {
 
     @Override
     public Duration getWorkflowTaskTimeout() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Payload getMemo(String key) {
       throw new UnsupportedOperationException("not implemented");
     }
 
