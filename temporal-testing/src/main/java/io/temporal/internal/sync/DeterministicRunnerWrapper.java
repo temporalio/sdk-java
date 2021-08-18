@@ -22,15 +22,16 @@ package io.temporal.internal.sync;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.*;
 
 public class DeterministicRunnerWrapper implements InvocationHandler {
-
   private final InvocationHandler invocationHandler;
+  private final ExecutorService executorService;
 
-  public DeterministicRunnerWrapper(InvocationHandler invocationHandler) {
+  public DeterministicRunnerWrapper(
+      InvocationHandler invocationHandler, ExecutorService executorService) {
     this.invocationHandler = Objects.requireNonNull(invocationHandler);
+    this.executorService = Objects.requireNonNull(executorService);
   }
 
   @Override
@@ -38,6 +39,7 @@ public class DeterministicRunnerWrapper implements InvocationHandler {
     CompletableFuture<Object> result = new CompletableFuture<>();
     DeterministicRunner runner =
         new DeterministicRunnerImpl(
+            executorService,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               try {

@@ -40,10 +40,6 @@ interface DeterministicRunner {
         : DEFAULT_DEADLOCK_DETECTION_TIMEOUT;
   }
 
-  static DeterministicRunner newRunner(SyncWorkflowContext workflowContext, Runnable root) {
-    return new DeterministicRunnerImpl(workflowContext, root);
-  }
-
   /**
    * Create new instance of DeterministicRunner
    *

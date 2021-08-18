@@ -31,18 +31,34 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.junit.Rule;
-import org.junit.Test;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.junit.*;
 
 @SuppressWarnings("deprecation")
 public class WorkflowInternalDeprecatedQueueTest {
 
   @Rule public final Tracer trace = new Tracer();
 
+  private static ExecutorService threadPool;
+
+  @BeforeClass
+  public static void beforeClass() {
+    threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    threadPool.shutdown();
+  }
+
   @Test
   public void testTakeBlocking() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -83,6 +99,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testTakeCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -117,6 +134,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testCancellableTakeCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -273,6 +291,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testPutCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -308,6 +327,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testCancellablePutCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -343,6 +363,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testMap() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Integer> queue = WorkflowInternal.newQueue(1);

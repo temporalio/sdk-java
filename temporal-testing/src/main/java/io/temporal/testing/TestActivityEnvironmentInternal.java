@@ -81,11 +81,20 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final POJOActivityTaskHandler activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final AtomicInteger idSequencer = new AtomicInteger();
-  private ClassConsumerPair<Object> activityHeartbetListener;
+  private ClassConsumerPair<Object> activityHeartbeatListener;
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
   private static final ExecutorService activityWorkerExecutor =
       Executors.newSingleThreadExecutor(r -> new Thread(r, "test-service-activity-worker"));
+  private static final ExecutorService deterministicRunnerExecutor =
+      new ThreadPoolExecutor(
+          1,
+          1000,
+          1,
+          TimeUnit.SECONDS,
+          new SynchronousQueue<>(),
+          r -> new Thread(r, "test-service-deterministic-runner"));
+
   private final WorkflowServiceStubs workflowServiceStubs;
   private final Server mockServer;
   private final AtomicBoolean cancellationRequested = new AtomicBoolean();
@@ -132,7 +141,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         RecordActivityTaskHeartbeatRequest request,
         StreamObserver<RecordActivityTaskHeartbeatResponse> responseObserver) {
       try {
-        if (activityHeartbetListener != null) {
+        if (activityHeartbeatListener != null) {
           Optional<Payloads> requestDetails =
               request.hasDetails() ? Optional.of(request.getDetails()) : Optional.empty();
 
@@ -143,9 +152,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                   .fromPayloads(
                       0,
                       requestDetails,
-                      activityHeartbetListener.valueClass,
-                      activityHeartbetListener.valueType);
-          activityHeartbetListener.consumer.apply(details);
+                      activityHeartbeatListener.valueClass,
+                      activityHeartbeatListener.valueType);
+          activityHeartbeatListener.consumer.apply(details);
         }
         responseObserver.onNext(
             RecordActivityTaskHeartbeatResponse.newBuilder()
@@ -188,7 +197,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface, options, null, new TestActivityExecutor());
-    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    invocationHandler =
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -203,7 +213,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface, options, null, new TestActivityExecutor());
-    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    invocationHandler =
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -222,7 +233,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(
             activityInterface, options, activityMethodOptions, new TestActivityExecutor());
-    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    invocationHandler =
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -240,13 +252,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   @SuppressWarnings("unchecked")
   public <T> void setActivityHeartbeatListener(
       Class<T> detailsClass, Type detailsType, Functions.Proc1<T> listener) {
-    activityHeartbetListener = new ClassConsumerPair(detailsClass, detailsType, listener);
+    activityHeartbeatListener = new ClassConsumerPair(detailsClass, detailsType, listener);
   }
 
   @Override
   public void close() {
     heartbeatExecutor.shutdownNow();
     activityWorkerExecutor.shutdownNow();
+    deterministicRunnerExecutor.shutdownNow();
     channel.shutdownNow();
     try {
       channel.awaitTermination(100, TimeUnit.MILLISECONDS);

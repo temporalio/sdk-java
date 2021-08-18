@@ -62,21 +62,28 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 public class DeterministicRunnerTest {
 
   @Rule public final Tracer trace = new Tracer();
 
+  private static ExecutorService threadPool;
+
   private String status;
   private boolean unblock1;
   private boolean unblock2;
   private Throwable failure;
-  private ExecutorService threadPool;
+
+  @BeforeClass
+  public static void beforeClass() {
+    threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    threadPool.shutdown();
+  }
 
   @Before
   public void setUp() {
@@ -84,19 +91,13 @@ public class DeterministicRunnerTest {
     unblock2 = false;
     failure = null;
     status = "initial";
-    threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-  }
-
-  @After
-  public void tearDown() throws InterruptedException {
-    threadPool.shutdown();
-    threadPool.awaitTermination(10, TimeUnit.SECONDS);
   }
 
   @Test
   public void testYield() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -181,6 +182,7 @@ public class DeterministicRunnerTest {
   public void testRootFailure() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -204,6 +206,7 @@ public class DeterministicRunnerTest {
   public void testDispatcherStop() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -233,6 +236,7 @@ public class DeterministicRunnerTest {
   public void testDispatcherExit() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -274,6 +278,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -301,6 +306,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -340,10 +346,11 @@ public class DeterministicRunnerTest {
   }
 
   @Test
-  public void testExplicitDetachedScopeCancellation() throws Throwable {
+  public void testExplicitDetachedScopeCancellation() {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -400,6 +407,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -444,6 +452,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -503,6 +512,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -557,6 +567,7 @@ public class DeterministicRunnerTest {
   public void testChild() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               Promise<Void> async =
@@ -614,6 +625,7 @@ public class DeterministicRunnerTest {
   public void testChildTree() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             new TestChildTreeRunnable(0)::apply);
     d.runUntilAllBlocked(getDeadlockDetectionTimeout());
