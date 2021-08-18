@@ -39,7 +39,7 @@ public final class SearchAttributesPayloadConverter {
 
   private static ObjectMapper mapper;
   private static final Logger log = LoggerFactory.getLogger(SearchAttributesPayloadConverter.class);
-  private static final SearchAttributesPayloadConverter INSTANCE =
+  public static final SearchAttributesPayloadConverter INSTANCE =
       new SearchAttributesPayloadConverter();
 
   private SearchAttributesPayloadConverter() {
@@ -47,10 +47,6 @@ public final class SearchAttributesPayloadConverter {
     mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
     mapper.registerModule(new JavaTimeModule());
     mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
-  }
-
-  public static SearchAttributesPayloadConverter getInstance() {
-    return INSTANCE;
   }
 
   public Optional<Payload> toData(Object obj) throws DataConverterException {

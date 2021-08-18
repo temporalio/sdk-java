@@ -32,7 +32,7 @@ import org.junit.Test;
 
 public class WorkflowContextTest {
 
-  SearchAttributesPayloadConverter converter = SearchAttributesPayloadConverter.getInstance();
+  SearchAttributesPayloadConverter converter = SearchAttributesPayloadConverter.INSTANCE;
 
   @Test
   public void testMergeSearchAttributes() {

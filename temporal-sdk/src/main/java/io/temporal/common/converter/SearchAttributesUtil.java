@@ -28,12 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SearchAttributesUtil {
-  private static final SearchAttributesPayloadConverter converter;
+  private static final SearchAttributesPayloadConverter converter =
+      SearchAttributesPayloadConverter.INSTANCE;
   private static final Logger log = LoggerFactory.getLogger(SearchAttributesUtil.class);
-
-  static {
-    converter = SearchAttributesPayloadConverter.getInstance();
-  }
 
   public static SearchAttributes encode(Map<String, Object> searchAttributes) {
     return SearchAttributes.newBuilder()
