@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.reflect.TypeToken;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.util.ImmutableMap;
@@ -119,7 +120,9 @@ public class MemoTest {
     @Override
     public void execute() {
       assertEquals(MEMO_VALUE, Workflow.getMemo(MEMO_KEY, String.class));
-      Map result = Workflow.getMemo(MEMO_KEY_2, Map.class, HashMap.class);
+      Map result =
+          Workflow.getMemo(
+              MEMO_KEY_2, Map.class, new TypeToken<HashMap<String, Integer>>() {}.getType());
       assertTrue(result instanceof HashMap);
       assertEquals(MEMO_VALUE_2, result.get(MEMO_KEY_2));
     }

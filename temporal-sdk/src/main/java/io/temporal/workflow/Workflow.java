@@ -615,8 +615,8 @@ public final class Workflow {
     return WorkflowInternal.getWorkflowInfo();
   }
 
-  public static Object getMemo(String key, Type valueType) {
-    return getMemo(key, valueType.getClass(), valueType);
+  public static <T> Object getMemo(String key, Class<T> valueClass) {
+    return getMemo(key, valueClass, valueClass.getGenericSuperclass());
   }
 
   public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
