@@ -24,6 +24,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Application failure is used to communicate application specific failures between workflows and
@@ -56,9 +57,10 @@ public final class ApplicationFailure extends TemporalFailure {
   private boolean nonRetryable;
 
   /**
-   * New ApplicationFailure with {@link #isNonRetryable()} flag set to false. Note that this
-   * exception still can be not retried by the service if its type is included into doNotRetry
-   * property of the correspondent retry policy.
+   * New ApplicationFailure with {@link #isNonRetryable()} flag set to false.
+   *
+   * <p>Note that this exception still may not be retried by the service if its type is included
+   * in the doNotRetry property of the correspondent retry policy.
    *
    * @param message optional error message
    * @param type optional error type that is used by {@link
@@ -67,7 +69,27 @@ public final class ApplicationFailure extends TemporalFailure {
    *     as arguments and results.
    */
   public static ApplicationFailure newFailure(String message, String type, Object... details) {
-    return new ApplicationFailure(message, type, false, new EncodedValues(details), null);
+    return newFailureWithCause(message, type, null, details);
+  }
+
+  /**
+   * New ApplicationFailure with {@link #isNonRetryable()} flag set to false.
+   *
+   * <p>Note that this exception still may not be retried by the service if its type is included
+   * in the doNotRetry property of the correspondent retry policy.
+   *
+   * @param message optional error message
+   * @param type optional error type that is used by {@link
+   *     io.temporal.common.RetryOptions.Builder#setDoNotRetry(String...)}.
+   * @param details optional details about the failure. They are serialized using the same approach
+   *     as arguments and results.
+   * @param cause failure cause. Each element of the cause chain will be converted to
+   *     ApplicationFailure for network transmission across network if it doesn't extend {@link
+   *     TemporalFailure}
+   */
+  public static ApplicationFailure newFailureWithCause(
+      String message, String type, @Nullable Throwable cause, Object... details) {
+    return new ApplicationFailure(message, type, false, new EncodedValues(details), cause);
   }
 
   /**
@@ -83,7 +105,25 @@ public final class ApplicationFailure extends TemporalFailure {
    */
   public static ApplicationFailure newNonRetryableFailure(
       String message, String type, Object... details) {
-    return new ApplicationFailure(message, type, true, new EncodedValues(details), null);
+    return newNonRetryableFailureWithCause(message, type, null, details);
+  }
+
+  /**
+   * New ApplicationFailure with {@link #isNonRetryable()} flag set to true.
+   *
+   * <p>This exception will not be retried even if it is absent from the retry policy doNotRetry list.
+   *
+   * @param message optional error message
+   * @param type error type
+   * @param details optional details about the failure. They are serialized using the same approach
+   *     as arguments and results.
+   * @param cause failure cause. Each element of the cause chain will be converted to
+   *     ApplicationFailure for network transmission across network if it doesn't extend {@link
+   *     TemporalFailure}
+   */
+  public static ApplicationFailure newNonRetryableFailureWithCause(
+      String message, String type, @Nullable Throwable cause, Object... details) {
+    return new ApplicationFailure(message, type, true, new EncodedValues(details), cause);
   }
 
   static ApplicationFailure newFromValues(
