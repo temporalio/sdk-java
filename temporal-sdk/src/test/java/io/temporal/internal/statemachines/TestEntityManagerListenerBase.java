@@ -26,8 +26,6 @@ import java.util.Queue;
 
 abstract class TestEntityManagerListenerBase implements EntityManagerListener {
 
-  boolean invoked;
-
   private final Queue<Functions.Proc> callbacks = new ArrayDeque<>();
 
   @Override

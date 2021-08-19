@@ -21,7 +21,6 @@ package io.temporal.internal.statemachines;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
@@ -171,19 +170,15 @@ final class MutableSideEffectStateMachine {
         explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
         return WorkflowStateMachines.HandleEventStatus.NON_MATCHING_EVENT;
       }
-      super.handleEvent(event, hasNextEvent);
-      return WorkflowStateMachines.HandleEventStatus.OK;
+      return super.handleEvent(event, hasNextEvent);
     }
 
     State createMarker() {
-      State toState;
-      RecordMarkerCommandAttributes markerAttributes;
-      Optional<Payloads> updated;
-      updated = func.apply(result);
+      Optional<Payloads> updated = func.apply(result);
       if (!updated.isPresent()) {
-        markerAttributes = RecordMarkerCommandAttributes.getDefaultInstance();
         currentSkipCount++;
-        toState = State.SKIPPED;
+        addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
+        return State.SKIPPED;
       } else {
         result = updated;
         DataConverter dataConverter = DataConverter.getDefaultInstance();
@@ -191,28 +186,19 @@ final class MutableSideEffectStateMachine {
         details.put(MARKER_ID_KEY, dataConverter.toPayloads(id).get());
         details.put(MARKER_DATA_KEY, updated.get());
         details.put(MARKER_SKIP_COUNT_KEY, dataConverter.toPayloads(currentSkipCount).get());
-        markerAttributes =
+        RecordMarkerCommandAttributes markerAttributes =
             RecordMarkerCommandAttributes.newBuilder()
                 .setMarkerName(MUTABLE_SIDE_EFFECT_MARKER_NAME)
                 .putAllDetails(details)
                 .build();
+        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes));
         currentSkipCount = 0;
-        toState = State.MARKER_COMMAND_CREATED;
+        return State.MARKER_COMMAND_CREATED;
       }
-      addCommand(
-          Command.newBuilder()
-              .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-              .setRecordMarkerCommandAttributes(markerAttributes)
-              .build());
-      return toState;
     }
 
     void createFakeCommand() {
-      addCommand(
-          Command.newBuilder()
-              .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-              .setRecordMarkerCommandAttributes(RecordMarkerCommandAttributes.getDefaultInstance())
-              .build());
+      addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
     }
 
     /**
