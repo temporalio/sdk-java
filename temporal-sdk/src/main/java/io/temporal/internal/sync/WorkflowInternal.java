@@ -429,8 +429,9 @@ public final class WorkflowInternal {
     return new WorkflowInfoImpl(getRootWorkflowContext().getContext());
   }
 
-  public static Payload getMemo(String key) {
-    return getRootWorkflowContext().getContext().getMemo(key);
+  public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
+    Payload memo = getRootWorkflowContext().getContext().getMemo(key);
+    return DataConverter.getDefaultInstance().fromPayload(memo, valueClass, valueType);
   }
 
   public static <R> R retry(

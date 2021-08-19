@@ -22,7 +22,6 @@ package io.temporal.workflow;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
@@ -335,7 +334,7 @@ import org.slf4j.Logger;
  * <ul>
  *   <li>Do not use any mutable global variables because multiple instances of workflows are
  *       executed in parallel.
- *   <li>Do not call any non deterministic functions like non seeded random or {@link
+ *   <li>Do not call any non-deterministic functions like non seeded random or {@link
  *       UUID#randomUUID()} directly form the workflow code. Always do this in activities.
  *   <li>Don’t perform any IO or service calls as they are not usually deterministic. Use activities
  *       for this.
@@ -616,8 +615,12 @@ public final class Workflow {
     return WorkflowInternal.getWorkflowInfo();
   }
 
-  public static Payload getMemo(String key) {
-    return WorkflowInternal.getMemo(key);
+  public static <T> Object getMemo(String key, Class<T> valueClass) {
+    return getMemo(key, valueClass, valueClass.getGenericSuperclass());
+  }
+
+  public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
+    return WorkflowInternal.getMemo(key, valueClass, valueType);
   }
 
   /**
@@ -630,12 +633,11 @@ public final class Workflow {
    * canceled and a {@link Promise} that contains their result will throw {@link CanceledFailure}
    * when {@link Promise#get()} is called.
    *
-   * <p>The new cancellation scope is linked to the parent one (available as {@link
-   * CancellationScope#current()}. If the parent one is canceled then all the children scopes are
-   * canceled automatically. The main workflow function (annotated with @{@link WorkflowMethod} is
-   * wrapped within a root cancellation scope which gets canceled when a workflow is canceled
-   * through the Temporal CancelWorkflowExecution API. To perform cleanup operations that require
-   * blocking after the current scope is canceled use a scope created through {@link
+   * <p>The new cancellation scope {@link CancellationScope#current()} is linked to the parent one.
+   * If the parent one is canceled then all the children scopes are wrapped within a root
+   * cancellation scope which gets canceled when a workflow is canceled through the Temporal
+   * CancelWorkflowExecution API. To perform cleanup operations that require blocking after the
+   * current scope is canceled use a scope created through {@link
    * #newDetachedCancellationScope(Runnable)}.
    *
    * <p>Example of running activities in parallel and cancelling them after a specified timeout.
@@ -692,10 +694,10 @@ public final class Workflow {
   }
 
   /**
-   * Creates a CancellationScope that is not linked to a parent scope. {@link
-   * CancellationScope#run()} must be called to execute the code the scope wraps. The detached scope
-   * is needed to execute cleanup code after a workflow is canceled which cancels the root scope
-   * that wraps the @WorkflowMethod invocation. Here is an example usage:
+   * Creates a CancellationScope {@link CancellationScope#run()} that is not linked to a parent
+   * scope must be called to execute the code the scope wraps. The detached scope is needed to
+   * execute cleanup code after a workflow is canceled which cancels the root scope that wraps
+   * the @WorkflowMethod invocation. Here is an example usage:
    *
    * <pre><code>
    *  try {
@@ -845,8 +847,7 @@ public final class Workflow {
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Optional, Functions.Func)} (RetryOptions, Optional, Func)}
-   * for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Functions.Func)} for asynchronous functions.
    *
    * @param options retry options that specify retry policy
    * @param expiration if specified stop retrying after this interval
@@ -900,7 +901,7 @@ public final class Workflow {
    * Replay safe way to generate UUID.
    *
    * <p>Must be used instead of {@link UUID#randomUUID()} which relies on a random generator, thus
-   * leads to non deterministic code which is prohibited inside a workflow.
+   * leads to non-deterministic code which is prohibited inside a workflow.
    */
   public static UUID randomUUID() {
     return WorkflowInternal.randomUUID();
@@ -950,7 +951,7 @@ public final class Workflow {
    * </code></pre>
    *
    * On replay the provided function is not executed, the random will always be 0, and the workflow
-   * could takes a different path breaking the determinism.
+   * could take a different path breaking the determinism.
    *
    * <p>Here is the correct way to use sideEffect:
    *
@@ -1004,7 +1005,7 @@ public final class Workflow {
    * </code></pre>
    *
    * On replay the provided function is not executed, the random will always be 0, and the workflow
-   * could takes a different path breaking the determinism.
+   * could take a different path breaking the determinism.
    *
    * <p>Here is the correct way to use sideEffect:
    *
@@ -1057,7 +1058,7 @@ public final class Workflow {
    *     if call to updated with stored and a new value as arguments returns true. It is not called
    *     for the first value.
    * @param resultClass class of the side effect
-   * @param func function that produces a value. This function can contain non deterministic code.
+   * @param func function that produces a value. This function can contain non-deterministic code.
    * @see #sideEffect(Class, Functions.Func)
    */
   public static <R> R mutableSideEffect(
@@ -1092,7 +1093,7 @@ public final class Workflow {
    *     for the first value.
    * @param resultClass class of the side effect
    * @param resultType type of the side effect. Differs from resultClass for generic types.
-   * @param func function that produces a value. This function can contain non deterministic code.
+   * @param func function that produces a value. This function can contain non-deterministic code.
    * @see #sideEffect(Class, Functions.Func)
    */
   public static <R> R mutableSideEffect(
@@ -1193,7 +1194,7 @@ public final class Workflow {
 
   /**
    * Get scope for reporting business metrics in workflow logic. This should be used instead of
-   * creating new metrics scopes as it is able to dedup metrics during replay.
+   * creating new metrics scopes as it is able to dedupe metrics during replay.
    *
    * <p>The original metrics scope is set through {@link WorkerOptions} when a worker starts up.
    */

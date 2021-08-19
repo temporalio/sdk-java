@@ -20,8 +20,9 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.reflect.TypeToken;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.util.ImmutableMap;
@@ -39,6 +40,7 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,7 +49,18 @@ public class MemoTest {
 
   private static final String MEMO_KEY = "testKey";
   private static final String MEMO_VALUE = "testValue";
-  private static final Map<String, Object> MEMO = ImmutableMap.of(MEMO_KEY, MEMO_VALUE);
+  private static final String MEMO_KEY_2 = "testKey2";
+  private static final Integer MEMO_VALUE_2 = 1;
+  private static final Map<String, Object> MEMO =
+      ImmutableMap.of(
+          MEMO_KEY,
+          MEMO_VALUE,
+          MEMO_KEY_2,
+          new HashMap<String, Integer>() {
+            {
+              put(MEMO_KEY_2, MEMO_VALUE_2);
+            }
+          });
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -106,7 +119,12 @@ public class MemoTest {
   public static class WorkflowImpl implements NoArgsWorkflow {
     @Override
     public void execute() {
-      assertNotNull(Workflow.getMemo(MEMO_KEY));
+      assertEquals(MEMO_VALUE, Workflow.getMemo(MEMO_KEY, String.class));
+      Map result =
+          Workflow.getMemo(
+              MEMO_KEY_2, Map.class, new TypeToken<HashMap<String, Integer>>() {}.getType());
+      assertTrue(result instanceof HashMap);
+      assertEquals(MEMO_VALUE_2, result.get(MEMO_KEY_2));
     }
   }
 }
