@@ -111,8 +111,7 @@ public final class ApplicationFailure extends TemporalFailure {
   /**
    * New ApplicationFailure with {@link #isNonRetryable()} flag set to true.
    *
-   * <p>It means that this exception is not going to be retried even if it is not included into
-   * retry policy doNotRetry list.
+   * <p>This exception will not be retried even if it is absent from the retry policy doNotRetry list.
    *
    * @param message optional error message
    * @param type error type
