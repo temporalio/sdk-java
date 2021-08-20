@@ -31,11 +31,16 @@ import io.temporal.api.common.v1.Payload;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SearchAttributesPayloadConverter {
 
   private static ObjectMapper mapper;
+  private static final Logger log = LoggerFactory.getLogger(SearchAttributesPayloadConverter.class);
   public static final SearchAttributesPayloadConverter INSTANCE =
       new SearchAttributesPayloadConverter();
 
@@ -48,28 +53,35 @@ public final class SearchAttributesPayloadConverter {
 
   public Optional<Payload> toData(Object obj) throws DataConverterException {
     try {
-      byte[] serialized = mapper.writeValueAsBytes(obj);
+      byte[] serialized;
+      if (obj instanceof LocalDateTime) {
+        ZonedDateTime utc = ((LocalDateTime) obj).atZone(ZoneOffset.UTC);
+        serialized = mapper.writeValueAsBytes(utc);
+      } else {
+        serialized = mapper.writeValueAsBytes(obj);
+      }
+      String type = SearchAttributesUtil.javaTypeToEncodedType(obj.getClass()).name();
       return Optional.of(
           Payload.newBuilder()
-              .setData(ByteString.copyFrom(serialized))
               .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
+              .putMetadata(EncodingKeys.METADATA_TYPE_KEY, ByteString.copyFromUtf8(type))
+              .setData(ByteString.copyFrom(serialized))
               .build());
     } catch (JsonProcessingException e) {
       throw new DataConverterException(e);
     }
   }
 
-  public <T> Object fromData(Payload payload) throws DataConverterException {
+  public Object fromData(Payload payload) throws DataConverterException {
     ByteString data = payload.getData();
-    String type = payload.getMetadataMap().get(EncodingKeys.METADATA_TYPE_KEY).toStringUtf8();
-    Type javaType = encodedTypeToJavaType(type);
+    ByteString type = payload.getMetadataMap().get(EncodingKeys.METADATA_TYPE_KEY);
+    Type javaType = (type == null) ? null : encodedTypeToJavaType(type.toStringUtf8());
     if (data.isEmpty() || javaType == null) {
+      log.warn("Something went wrong when parsing payload {}", payload);
       return payload;
     } else {
       try {
-        // TODO
-        @SuppressWarnings("deprecation")
-        JavaType reference = mapper.getTypeFactory().constructType(javaType, javaType.getClass());
+        JavaType reference = mapper.getTypeFactory().constructType(javaType);
         return mapper.readValue(data.toByteArray(), reference);
       } catch (IOException e) {
         throw new DataConverterException(e);

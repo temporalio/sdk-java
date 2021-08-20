@@ -20,6 +20,7 @@
 package io.temporal.workflow;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -35,7 +36,6 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowServiceException;
-import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.SearchAttributesUtil;
 import io.temporal.common.converter.SearchAttributesUtil.RegisteredSearchAttributes;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -46,15 +46,15 @@ import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkf
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class SearchAttributesTest {
 
-  private static final Map<String, Object> searchAttributes = new HashMap<>();
+  private static final Map<String, Object> searchAttributes = new ConcurrentHashMap<>();
   private static final String TEST_KEY_STRING = RegisteredSearchAttributes.BatcherNamespace.name();
   private static final String TEST_VALUE_STRING = NAMESPACE;
   private static final String TEST_KEY_INTEGER = RegisteredSearchAttributes.CustomIntField.name();
@@ -71,14 +71,20 @@ public class SearchAttributesTest {
   private static final String TEST_UNSUPPORTED_TYPE_KEY =
       RegisteredSearchAttributes.CustomStringField.name();
   private static final Duration TEST_UNSUPPORTED_TYPE_VALUE = Duration.ZERO;
+  private static WorkflowOptions options;
 
   @Before
   public void setUp() {
     searchAttributes.put(TEST_KEY_STRING, TEST_VALUE_STRING);
     searchAttributes.put(TEST_KEY_INTEGER, TEST_VALUE_INTEGER);
-    //    searchAttributes.put(TEST_KEY_DATE_TIME, TEST_VALUE_DATE_TIME);
+    searchAttributes.put(TEST_KEY_DATE_TIME, TEST_VALUE_DATE_TIME);
     searchAttributes.put(TEST_KEY_BOOL, TEST_VALUE_BOOL);
     searchAttributes.put(TEST_KEY_DOUBLE, TEST_VALUE_DOUBLE);
+    options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+            .toBuilder()
+            .setSearchAttributes(searchAttributes)
+            .build();
   }
 
   @Rule
@@ -87,20 +93,12 @@ public class SearchAttributesTest {
           .setNamespace(NAMESPACE)
           .setWorkflowTypes(
               TestMultiArgWorkflowImpl.class, TestParentWorkflow.class, TestChild.class)
-          .setTestTimeoutSeconds(10000) // TODO: remove
           .build();
 
   @Test
   public void testSearchAttributes() {
-    WorkflowOptions workflowOptions =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
-            .setSearchAttributes(searchAttributes)
-            .build();
     TestNoArgsWorkflowFunc stubF =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
     WorkflowExecution executionF = WorkflowClient.start(stubF::func);
 
     GetWorkflowExecutionHistoryResponse historyResp =
@@ -115,33 +113,29 @@ public class SearchAttributesTest {
         startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
 
     Map<String, Object> fieldsMap = SearchAttributesUtil.decode(searchAttrFromEvent);
-    assertTrue(fieldsMap.equals(searchAttributes));
+    assertEquals(searchAttributes, fieldsMap);
   }
 
   @Test
-  public void testInvalidSearchAttributes() {
-    assumeTrue(testWorkflowRule.isUseExternalService());
-    // Test unknown key
-    WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
-            .setSearchAttributes(searchAttributes)
-            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
-            .build();
+  public void testInvalidSearchAttributeKey() {
     searchAttributes.put(TEST_UNKNOWN_KEY, TEST_UNKNOWN_VALUE);
     TestNoArgsWorkflowFunc unregisteredKeyStub =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
     try {
       WorkflowClient.start(unregisteredKeyStub::func);
       fail();
-    } catch (WorkflowServiceException exception) {
-      assertTrue(exception.getCause() instanceof StatusRuntimeException);
-      StatusRuntimeException e = (StatusRuntimeException) exception.getCause();
-      assertTrue(e.getStatus().getCode().equals(Status.Code.INVALID_ARGUMENT));
+    } catch (WorkflowServiceException e) {
+      assertTrue(e.getCause() instanceof StatusRuntimeException);
+      StatusRuntimeException sre = (StatusRuntimeException) e.getCause();
+      assertEquals(Status.Code.INVALID_ARGUMENT, sre.getStatus().getCode());
     }
+    searchAttributes.remove(TEST_UNKNOWN_KEY, TEST_UNKNOWN_VALUE);
+  }
 
-    // Test unsupported type
-    searchAttributes.remove(TEST_UNKNOWN_KEY);
+  @Test
+  public void testInvalidSearchAttributeType() {
+    assumeTrue(testWorkflowRule.isUseExternalService());
+
     searchAttributes.put(TEST_UNSUPPORTED_TYPE_KEY, TEST_UNSUPPORTED_TYPE_VALUE);
     TestNoArgsWorkflowFunc unsupportedTypeStub =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
@@ -151,7 +145,7 @@ public class SearchAttributesTest {
     } catch (WorkflowServiceException exception) {
       assertTrue(exception.getCause() instanceof StatusRuntimeException);
       StatusRuntimeException e = (StatusRuntimeException) exception.getCause();
-      assertTrue(e.getStatus().getCode().equals(Status.Code.INVALID_ARGUMENT));
+      assertEquals(e.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
     }
     searchAttributes.remove(TEST_UNSUPPORTED_TYPE_KEY);
   }
@@ -182,7 +176,7 @@ public class SearchAttributesTest {
     @Override
     public void execute() {
       // Check that search attributes are inherited by child workflows.
-      assertTrue(Workflow.getSearchAttributes().equals(searchAttributes));
+      assertEquals(Workflow.getSearchAttributes(), searchAttributes);
     }
   }
 }

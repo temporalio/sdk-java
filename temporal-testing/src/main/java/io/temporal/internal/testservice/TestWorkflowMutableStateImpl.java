@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.common.converter.SearchAttributesUtil.javaTypeToEncodedType;
 import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
 import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
 import static io.temporal.internal.testservice.StateMachines.MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
@@ -269,16 +270,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .build());
       } else {
         searchAttributes.removeIndexedFields(key);
-        WorkflowServiceException e =
-            new WorkflowServiceException(
-                WorkflowExecution.newBuilder().setWorkflowId(request.getWorkflowId()).build(),
-                request.getWorkflowType().getName(),
-                Status.INVALID_ARGUMENT.asRuntimeException());
-        throw e;
+        throw Status.INVALID_ARGUMENT.asRuntimeException();
       }
     }
     request.setSearchAttributes(searchAttributes);
-
     return request.build();
   }
 
@@ -319,21 +314,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       default:
         return SearchAttributeType.Unspecified;
     }
-  }
-
-  private SearchAttributeType javaTypeToEncodedType(Class<?> type) {
-    if (String.class.equals(type)) {
-      return SearchAttributesUtil.SearchAttributeType.String;
-    } else if (Integer.class.equals(type) || Short.class.equals(type) || Byte.class.equals(type)) {
-      return SearchAttributesUtil.SearchAttributeType.Int;
-    } else if (Double.class.equals(type) || Float.class.equals(type)) {
-      return SearchAttributesUtil.SearchAttributeType.Double;
-    } else if (Boolean.class.equals(type)) {
-      return SearchAttributesUtil.SearchAttributeType.Bool;
-    } else if (LocalDateTime.class.equals(type)) {
-      return SearchAttributesUtil.SearchAttributeType.Datetime;
-    }
-    return null;
   }
 
   /** Based on validateStartWorkflowExecutionRequest from historyEngine.go */
