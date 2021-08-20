@@ -17,125 +17,24 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.common;
+package io.temporal.internal.retryer;
 
 import static org.junit.Assert.*;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.serviceclient.CheckedExceptionWrapper;
-import io.temporal.serviceclient.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
+import java.time.Clock;
 import java.time.Duration;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
-public class GrpcRetryerTest {
+public class GrpcAsyncRetryerTest {
 
-  @Test
-  public void testExpiration() {
-    final Status.Code STATUS_CODE = Status.Code.DATA_LOSS;
-
-    RpcRetryOptions options =
-        RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
-            .setMaximumInterval(Duration.ofMillis(100))
-            .setExpiration(Duration.ofMillis(500))
-            .validateBuildWithDefaults();
-    long start = System.currentTimeMillis();
-    try {
-      GrpcRetryer.retryWithResult(
-          options,
-          () -> {
-            throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
-          });
-      fail("unreachable");
-    } catch (Exception e) {
-      assertTrue(e instanceof StatusRuntimeException);
-      assertEquals(STATUS_CODE, ((StatusRuntimeException) e).getStatus().getCode());
-    }
-
-    assertTrue(System.currentTimeMillis() - start > 500);
-  }
-
-  @Test
-  public void testDoNotRetry() {
-    final Status.Code STATUS_CODE = Status.Code.DATA_LOSS;
-
-    RpcRetryOptions options =
-        RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
-            .setMaximumInterval(Duration.ofMillis(100))
-            .addDoNotRetry(STATUS_CODE, null)
-            .validateBuildWithDefaults();
-    long start = System.currentTimeMillis();
-    try {
-      GrpcRetryer.retryWithResult(
-          options,
-          () -> {
-            throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
-          });
-      fail("unreachable");
-    } catch (Exception e) {
-      assertTrue(e instanceof StatusRuntimeException);
-      assertEquals(STATUS_CODE, ((StatusRuntimeException) e).getStatus().getCode());
-    }
-    assertTrue(
-        "We should fail fast on exception that we specified to don't retry",
-        System.currentTimeMillis() - start < 10_000);
-  }
-
-  @Test
-  public void testInterruptedException() {
-    RpcRetryOptions options =
-        RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
-            .setMaximumInterval(Duration.ofMillis(100))
-            .validateBuildWithDefaults();
-    long start = System.currentTimeMillis();
-    try {
-      GrpcRetryer.retryWithResult(
-          options,
-          () -> {
-            Thread.currentThread().interrupt();
-            throw new InterruptedException();
-          });
-      fail("unreachable");
-    } catch (Exception e) {
-      // I'm not sure it's a good idea to replace interrupted exception with CancellationException,
-      // especially when async version of this method doesn't shadow the InterruptedException
-      // @see #testInterruptedExceptionAsync
-      assertTrue(e instanceof CancellationException);
-    }
-    assertTrue(
-        "We should fail fast on InterruptedException", System.currentTimeMillis() - start < 10_000);
-  }
-
-  @Test
-  public void testNotStatusRuntimeException() {
-    RpcRetryOptions options =
-        RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
-            .setMaximumInterval(Duration.ofMillis(100))
-            .validateBuildWithDefaults();
-    long start = System.currentTimeMillis();
-    try {
-      GrpcRetryer.retryWithResult(
-          options,
-          () -> {
-            throw new IllegalArgumentException("simulated");
-          });
-      fail("unreachable");
-    } catch (Exception e) {
-      assertTrue(e instanceof IllegalArgumentException);
-      assertEquals("simulated", e.getMessage());
-    }
-    assertTrue(
-        "If the exception is not StatusRuntimeException - we shouldn't retry",
-        System.currentTimeMillis() - start < 10_000);
-  }
+  private static final GrpcAsyncRetryer DEFAULT_ASYNC_RETRYER =
+      new GrpcAsyncRetryer(Clock.systemUTC());
 
   @Test
   public void testExpirationAsync() throws InterruptedException {
@@ -149,7 +48,8 @@ public class GrpcRetryerTest {
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {
-      GrpcRetryer.retryWithResultAsync(
+      DEFAULT_ASYNC_RETRYER
+          .retry(
               options,
               () -> {
                 throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
@@ -176,7 +76,8 @@ public class GrpcRetryerTest {
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {
-      GrpcRetryer.retryWithResultAsync(
+      DEFAULT_ASYNC_RETRYER
+          .retry(
               options,
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
@@ -205,7 +106,8 @@ public class GrpcRetryerTest {
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {
-      GrpcRetryer.retryWithResultAsync(
+      DEFAULT_ASYNC_RETRYER
+          .retry(
               options,
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
@@ -233,20 +135,19 @@ public class GrpcRetryerTest {
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {
-      GrpcRetryer.retryWithResultAsync(
+      DEFAULT_ASYNC_RETRYER
+          .retry(
               options,
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
-                Thread.currentThread().interrupt();
                 result.completeExceptionally(new InterruptedException("simulated"));
                 return result;
               })
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
-      assertTrue(e.getCause() instanceof CheckedExceptionWrapper);
-      assertTrue(e.getCause().getCause() instanceof InterruptedException);
-      assertEquals("simulated", e.getCause().getCause().getMessage());
+      assertTrue(e.getCause() instanceof InterruptedException);
+      assertEquals("simulated", e.getCause().getMessage());
     }
     assertTrue(
         "We should fail fast on InterruptedException", System.currentTimeMillis() - start < 10_000);
@@ -261,7 +162,8 @@ public class GrpcRetryerTest {
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {
-      GrpcRetryer.retryWithResultAsync(
+      DEFAULT_ASYNC_RETRYER
+          .retry(
               options,
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
@@ -277,5 +179,40 @@ public class GrpcRetryerTest {
     assertTrue(
         "If the exception is not StatusRuntimeException - we shouldn't retry",
         System.currentTimeMillis() - start < 10_000);
+  }
+
+  @Test
+  public void testDeadlineExceededException() throws InterruptedException {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(10))
+            .setMaximumInterval(Duration.ofMillis(100))
+            .validateBuildWithDefaults();
+    long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
+    try {
+      DEFAULT_ASYNC_RETRYER
+          .retry(
+              options,
+              () -> {
+                attempts.incrementAndGet();
+                CompletableFuture<?> future = new CompletableFuture<>();
+                future.completeExceptionally(
+                    new StatusRuntimeException(Status.fromCode(Status.Code.DEADLINE_EXCEEDED)));
+                return future;
+              })
+          .get();
+      fail("unreachable");
+    } catch (ExecutionException e) {
+      assertTrue(e.getCause() instanceof StatusRuntimeException);
+      assertEquals(
+          Status.Code.DEADLINE_EXCEEDED,
+          ((StatusRuntimeException) e.getCause()).getStatus().getCode());
+    }
+    assertTrue(
+        "If the exception is DEADLINE_EXCEEDED, we shouldn't retry",
+        System.currentTimeMillis() - start < 2_000);
+
+    assertEquals("If the exception is DEADLINE_EXCEEDED, we shouldn't retry", 1, attempts.get());
   }
 }
