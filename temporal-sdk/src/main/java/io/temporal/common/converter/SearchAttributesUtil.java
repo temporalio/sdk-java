@@ -21,7 +21,6 @@ package io.temporal.common.converter;
 
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -61,10 +60,7 @@ public class SearchAttributesUtil {
     Map<String, Object> deserializedMap = new HashMap<>();
     for (Map.Entry<String, Payload> attribute : serializedMap.entrySet()) {
       String key = attribute.getKey();
-      Object data = parseDefaultSearchAttributes(key, attribute.getValue());
-      if (data == null) {
-        data = converter.fromData(attribute.getValue());
-      }
+      Object data = converter.fromData(attribute.getValue());
       if (data == null) {
         log.error("Error parsing Search Attribute: {}.", key);
       } else {
@@ -74,39 +70,7 @@ public class SearchAttributesUtil {
     return deserializedMap;
   }
 
-  private static Object parseDefaultSearchAttributes(String key, Payload value) {
-    DefaultSearchAttributes searchAttribute;
-    try {
-      searchAttribute = DefaultSearchAttributes.valueOf(key);
-    } catch (IllegalArgumentException e) {
-      return null;
-    }
-    String data = value.getData().toStringUtf8();
-    switch (searchAttribute) {
-      case BatcherNamespace:
-      case BatcherUser:
-      case BinaryChecksums:
-      case ExecutionStatus:
-      case RunId:
-      case TaskQueue:
-      case TemporalChangeVersion:
-      case WorkflowId:
-      case WorkflowType:
-        return data;
-      case CloseTime:
-      case ExecutionTime:
-      case StartTime:
-        return LocalDateTime.parse(data);
-      case ExecutionDuration:
-      case HistoryLength:
-      case StateTransitionCount:
-        return Integer.valueOf(data);
-      default:
-        return null;
-    }
-  }
-
-  enum DefaultSearchAttributes {
+  public enum RegisteredSearchAttributes {
     BatcherNamespace,
     BatcherUser,
     BinaryChecksums,
@@ -121,6 +85,22 @@ public class SearchAttributesUtil {
     TaskQueue,
     TemporalChangeVersion,
     WorkflowId,
-    WorkflowType
+    WorkflowType,
+    CustomKeywordField,
+    CustomStringField,
+    CustomIntField,
+    CustomDoubleField,
+    CustomBoolField,
+    CustomDatetimeField
+  }
+
+  public enum SearchAttributeType {
+    Unspecified,
+    String,
+    Keyword,
+    Int,
+    Double,
+    Bool,
+    Datetime
   }
 }

@@ -32,13 +32,10 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class SearchAttributesPayloadConverter {
 
   private static ObjectMapper mapper;
-  private static final Logger log = LoggerFactory.getLogger(SearchAttributesPayloadConverter.class);
   public static final SearchAttributesPayloadConverter INSTANCE =
       new SearchAttributesPayloadConverter();
 
@@ -52,12 +49,10 @@ public final class SearchAttributesPayloadConverter {
   public Optional<Payload> toData(Object obj) throws DataConverterException {
     try {
       byte[] serialized = mapper.writeValueAsBytes(obj);
-      String type = javaTypeToEncodedType(obj.getClass()).name();
       return Optional.of(
           Payload.newBuilder()
-              .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
-              .putMetadata(EncodingKeys.METADATA_TYPE_KEY, ByteString.copyFromUtf8(type))
               .setData(ByteString.copyFrom(serialized))
+              .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
               .build());
     } catch (JsonProcessingException e) {
       throw new DataConverterException(e);
@@ -72,6 +67,7 @@ public final class SearchAttributesPayloadConverter {
       return payload;
     } else {
       try {
+        // TODO
         @SuppressWarnings("deprecation")
         JavaType reference = mapper.getTypeFactory().constructType(javaType, javaType.getClass());
         return mapper.readValue(data.toByteArray(), reference);
@@ -82,9 +78,9 @@ public final class SearchAttributesPayloadConverter {
   }
 
   private static Type encodedTypeToJavaType(String type) {
-    SearchAttributeType attributeType;
+    SearchAttributesUtil.SearchAttributeType attributeType;
     try {
-      attributeType = SearchAttributeType.valueOf(type);
+      attributeType = SearchAttributesUtil.SearchAttributeType.valueOf(type);
     } catch (IllegalArgumentException e) {
       return null;
     }
@@ -103,30 +99,5 @@ public final class SearchAttributesPayloadConverter {
       default:
         return null;
     }
-  }
-
-  private static SearchAttributeType javaTypeToEncodedType(Class<?> type) {
-    if (String.class.equals(type)) {
-      return SearchAttributeType.String;
-    } else if (Integer.class.equals(type) || Short.class.equals(type) || Byte.class.equals(type)) {
-      return SearchAttributeType.Int;
-    } else if (Double.class.equals(type) || Float.class.equals(type)) {
-      return SearchAttributeType.Double;
-    } else if (Boolean.class.equals(type)) {
-      return SearchAttributeType.Bool;
-    } else if (LocalDateTime.class.equals(type)) {
-      return SearchAttributeType.Datetime;
-    }
-    return SearchAttributeType.Unspecified;
-  }
-
-  private enum SearchAttributeType {
-    Unspecified,
-    String,
-    Keyword,
-    Int,
-    Double,
-    Bool,
-    Datetime
   }
 }

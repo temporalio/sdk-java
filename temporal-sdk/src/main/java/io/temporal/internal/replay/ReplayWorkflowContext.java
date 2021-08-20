@@ -95,22 +95,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
   Duration getWorkflowTaskTimeout();
 
   /**
-   * Used to retrieve search attributes.
-   *
-   * @return SearchAttribute object which can be used by {@code
-   *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
-   */
-  SearchAttributes getSearchAttributes();
-
-  /**
-   * Used to retrieve search attributes.
-   *
-   * @return SearchAttribute object which can be used by {@code
-   *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
-   */
-  Map<String, Object> getSearchAttributesMap();
-
-  /**
    * Returns all current contexts being propagated by a {@link
    * io.temporal.common.context.ContextPropagator}. The key is the {@link
    * ContextPropagator#getName()} and the value is the object returned by {@link
@@ -267,6 +251,14 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   /** @return replay safe UUID */
   UUID randomUUID();
+
+  /**
+   * Used to retrieve search attributes.
+   *
+   * @return SearchAttribute object which can be used by {@code
+   *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
+   */
+  SearchAttributes getSearchAttributes();
 
   /** Updates or inserts search attributes used to index workflows. */
   void upsertSearchAttributes(SearchAttributes searchAttributes);

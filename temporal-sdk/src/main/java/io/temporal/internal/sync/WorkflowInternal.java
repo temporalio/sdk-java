@@ -25,9 +25,11 @@ import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInt
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.SearchAttributesUtil;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
@@ -428,10 +430,6 @@ public final class WorkflowInternal {
     return new WorkflowInfoImpl(getRootWorkflowContext().getContext());
   }
 
-  public static Map<String, Object> getSearchAttributesMap() {
-    return getRootWorkflowContext().getContext().getSearchAttributesMap();
-  }
-
   public static <R> R retry(
       RetryOptions options, Optional<Duration> expiration, Functions.Func<R> fn) {
     return WorkflowRetryerInternal.validateOptionsAndRetry(options, expiration, fn);
@@ -495,6 +493,11 @@ public final class WorkflowInternal {
 
   public static <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
     return getRootWorkflowContext().getLastCompletionResult(resultClass, resultType);
+  }
+
+  public static Map<String, Object> getSearchAttributes() {
+    SearchAttributes searchAttributes = getRootWorkflowContext().getContext().getSearchAttributes();
+    return SearchAttributesUtil.decode(searchAttributes);
   }
 
   public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {

@@ -147,11 +147,6 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public Map<String, Object> getSearchAttributesMap() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
     public Map<String, Object> getPropagatedContexts() {
       return null;
     }

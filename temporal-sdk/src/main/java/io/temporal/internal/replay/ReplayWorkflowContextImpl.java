@@ -192,16 +192,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public SearchAttributes getSearchAttributes() {
-    return workflowContext.getSearchAttributes();
-  }
-
-  @Override
-  public Map<String, Object> getSearchAttributesMap() {
-    return workflowContext.getSearchAttributesMap();
-  }
-
-  @Override
   public List<ContextPropagator> getContextPropagators() {
     return workflowContext.getContextPropagators();
   }
@@ -337,6 +327,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
         && attr.getCause() == WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_WORKFLOW) {
       workflowContext.setCurrentRunId(attr.getNewRunId());
     }
+  }
+
+  @Override
+  public SearchAttributes getSearchAttributes() {
+    return workflowContext.getSearchAttributes();
   }
 
   @Override

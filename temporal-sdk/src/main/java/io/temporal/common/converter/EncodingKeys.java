@@ -22,9 +22,9 @@ package io.temporal.common.converter;
 import com.google.protobuf.ByteString;
 import java.nio.charset.StandardCharsets;
 
-class EncodingKeys {
-  static final String METADATA_ENCODING_KEY = "encoding";
-  static final String METADATA_TYPE_KEY = "type";
+public class EncodingKeys {
+  public static final String METADATA_ENCODING_KEY = "encoding";
+  public static final String METADATA_TYPE_KEY = "type";
 
   static final String METADATA_ENCODING_NULL_NAME = "binary/null";
   static final ByteString METADATA_ENCODING_NULL =
@@ -35,7 +35,7 @@ class EncodingKeys {
       ByteString.copyFrom(METADATA_ENCODING_RAW_NAME, StandardCharsets.UTF_8);
 
   static final String METADATA_ENCODING_JSON_NAME = "json/plain";
-  static final ByteString METADATA_ENCODING_JSON =
+  public static final ByteString METADATA_ENCODING_JSON =
       ByteString.copyFrom(METADATA_ENCODING_JSON_NAME, StandardCharsets.UTF_8);
 
   static final String METADATA_ENCODING_PROTOBUF_JSON_NAME = "json/protobuf";

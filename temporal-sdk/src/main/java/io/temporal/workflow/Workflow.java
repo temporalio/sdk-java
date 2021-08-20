@@ -615,10 +615,6 @@ public final class Workflow {
     return WorkflowInternal.getWorkflowInfo();
   }
 
-  public static Map<String, Object> getSearchAttributesMap() {
-    return WorkflowInternal.getSearchAttributesMap();
-  }
-
   /**
    * Wraps the Runnable method argument in a {@link CancellationScope}. The {@link
    * CancellationScope#run()} calls {@link Runnable#run()} on the wrapped Runnable. The returned
@@ -1293,6 +1289,10 @@ public final class Workflow {
    */
   public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
     WorkflowInternal.upsertSearchAttributes(searchAttributes);
+  }
+
+  public static Map<String, Object> getSearchAttributes() {
+    return WorkflowInternal.getSearchAttributes();
   }
 
   /** Prohibit instantiation. */

@@ -33,6 +33,7 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
@@ -51,7 +52,9 @@ import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttribut
 import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.QueryRejectCondition;
@@ -98,6 +101,9 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.common.converter.EncodingKeys;
+import io.temporal.common.converter.SearchAttributesUtil;
+import io.temporal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
@@ -112,6 +118,7 @@ import io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
 import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
@@ -171,8 +178,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   /**
    * @param retryState present if workflow is a retry
-   * @param backoffStartInterval
-   * @param lastCompletionResult
    * @param parentChildInitiatedEventId id of the child initiated event in the parent history
    */
   TestWorkflowMutableStateImpl(
@@ -204,7 +209,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             startRequest.getCronSchedule(),
             lastCompletionResult,
             lastFailure,
-            runId, // Test service doesn't support reset. Thus originalRunId is always the same as
+            runId, // Test service doesn't support reset, thus originalRunId is always the same as
             // runId.
             continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
@@ -246,7 +251,89 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (taskTimeoutMillis != Durations.toMillis(request.getWorkflowTaskTimeout())) {
       request.setWorkflowTaskTimeout(Durations.fromMillis(taskTimeoutMillis));
     }
+
+    SearchAttributes.Builder searchAttributes = request.getSearchAttributes().toBuilder();
+    Map<String, Payload> payloadMap = request.getSearchAttributes().getIndexedFieldsMap();
+    for (Map.Entry<String, Payload> searchAttribute : payloadMap.entrySet()) {
+      String key = searchAttribute.getKey();
+      SearchAttributeType type = searchAttributeToType(key);
+      if (type != null && !SearchAttributeType.Unspecified.name().equals(type.name())) {
+        searchAttributes.putIndexedFields(
+            key,
+            searchAttribute
+                .getValue()
+                .toBuilder()
+                .putMetadata(
+                    EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
+                .putMetadata(EncodingKeys.METADATA_TYPE_KEY, ByteString.copyFromUtf8(type.name()))
+                .build());
+      } else {
+        searchAttributes.removeIndexedFields(key);
+        WorkflowServiceException e =
+            new WorkflowServiceException(
+                WorkflowExecution.newBuilder().setWorkflowId(request.getWorkflowId()).build(),
+                request.getWorkflowType().getName(),
+                Status.INVALID_ARGUMENT.asRuntimeException());
+        throw e;
+      }
+    }
+    request.setSearchAttributes(searchAttributes);
+
     return request.build();
+  }
+
+  private SearchAttributeType searchAttributeToType(String key) {
+    SearchAttributesUtil.RegisteredSearchAttributes searchAttribute;
+    try {
+      searchAttribute = SearchAttributesUtil.RegisteredSearchAttributes.valueOf(key);
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
+    switch (searchAttribute) {
+      case BatcherNamespace:
+      case BatcherUser:
+      case BinaryChecksums:
+      case ExecutionStatus:
+      case RunId:
+      case TaskQueue:
+      case TemporalChangeVersion:
+      case WorkflowId:
+      case WorkflowType:
+      case CustomKeywordField:
+      case CustomStringField:
+        return javaTypeToEncodedType(String.class);
+      case CloseTime:
+      case ExecutionTime:
+      case StartTime:
+      case CustomDatetimeField:
+        return javaTypeToEncodedType(LocalDateTime.class);
+      case ExecutionDuration:
+      case HistoryLength:
+      case StateTransitionCount:
+      case CustomIntField:
+        return javaTypeToEncodedType(Integer.class);
+      case CustomDoubleField:
+        return javaTypeToEncodedType(Double.class);
+      case CustomBoolField:
+        return javaTypeToEncodedType(Boolean.class);
+      default:
+        return SearchAttributeType.Unspecified;
+    }
+  }
+
+  private SearchAttributeType javaTypeToEncodedType(Class<?> type) {
+    if (String.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.String;
+    } else if (Integer.class.equals(type) || Short.class.equals(type) || Byte.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.Int;
+    } else if (Double.class.equals(type) || Float.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.Double;
+    } else if (Boolean.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.Bool;
+    } else if (LocalDateTime.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.Datetime;
+    }
+    return null;
   }
 
   /** Based on validateStartWorkflowExecutionRequest from historyEngine.go */
@@ -272,7 +359,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
     if (!request.hasTaskQueue() || request.getTaskQueue().getName().isEmpty()) {
-      throw Status.INVALID_ARGUMENT.withDescription("Missing Taskqueue.").asRuntimeException();
+      throw Status.INVALID_ARGUMENT.withDescription("Missing TaskQueue.").asRuntimeException();
     }
     if (!request.hasWorkflowType() || request.getWorkflowType().getName().isEmpty()) {
       throw Status.INVALID_ARGUMENT.withDescription("Missing WorkflowType.").asRuntimeException();
@@ -480,7 +567,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   case UNRECOGNIZED:
                     throw Status.INVALID_ARGUMENT
                         .withDescription(
-                            "URECOGNIZED query result type for =" + resultEntry.getKey())
+                            "UNRECOGNIZED query result type for =" + resultEntry.getKey())
                         .asRuntimeException();
                 }
               }
@@ -603,7 +690,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (externalCancellations.containsKey(attr.getWorkflowId())) {
       // TODO: validate that this matches the service behavior
       throw Status.FAILED_PRECONDITION
-          .withDescription("cancellation aready requested for workflowId=" + attr.getWorkflowId())
+          .withDescription("cancellation already requested for workflowId=" + attr.getWorkflowId())
           .asRuntimeException();
     }
     StateMachine<CancelExternalData> cancelStateMachine =
