@@ -51,7 +51,7 @@ class AsyncWorkflowBuilderImpl<T> implements AsyncWorkflowBuilder<T> {
 
   @Override
   public <R> AsyncWorkflowBuilder<R> add1(Functions.Proc2<T, Functions.Proc1<R>> proc) {
-    AsyncWorkflowBuilderImpl<R> scheduler = new AsyncWorkflowBuilderImpl<R>(scheduled);
+    AsyncWorkflowBuilderImpl<R> scheduler = new AsyncWorkflowBuilderImpl<>(scheduled);
     callbacks.add((value) -> schedule(() -> proc.apply(value, scheduler.callback)));
     return scheduler;
   }
@@ -63,12 +63,13 @@ class AsyncWorkflowBuilderImpl<T> implements AsyncWorkflowBuilder<T> {
     callbacks.add(
         (value) ->
             schedule(
-                () -> proc.apply(value, (t1, t2) -> scheduler.callback.apply(new Pair(t1, t2)))));
+                () -> proc.apply(value, (t1, t2) -> scheduler.callback.apply(new Pair<>(t1, t2)))));
     return scheduler;
   }
 
   @Override
-  public void add(Functions.Proc1<T> proc) {
+  public AsyncWorkflowBuilder<T> add(Functions.Proc1<T> proc) {
     callbacks.add((result) -> schedule(() -> proc.apply(result)));
+    return this;
   }
 }

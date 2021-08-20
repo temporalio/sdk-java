@@ -64,7 +64,7 @@ class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateM
     } finally {
       this.currentEvent = null;
     }
-    return null;
+    return WorkflowStateMachines.HandleEventStatus.OK;
   }
 
   @Override
