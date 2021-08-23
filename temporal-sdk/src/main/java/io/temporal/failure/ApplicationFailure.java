@@ -59,8 +59,8 @@ public final class ApplicationFailure extends TemporalFailure {
   /**
    * New ApplicationFailure with {@link #isNonRetryable()} flag set to false.
    *
-   * <p>Note that this exception still may not be retried by the service if its type is included
-   * in the doNotRetry property of the correspondent retry policy.
+   * <p>Note that this exception still may not be retried by the service if its type is included in
+   * the doNotRetry property of the correspondent retry policy.
    *
    * @param message optional error message
    * @param type optional error type that is used by {@link
@@ -75,8 +75,8 @@ public final class ApplicationFailure extends TemporalFailure {
   /**
    * New ApplicationFailure with {@link #isNonRetryable()} flag set to false.
    *
-   * <p>Note that this exception still may not be retried by the service if its type is included
-   * in the doNotRetry property of the correspondent retry policy.
+   * <p>Note that this exception still may not be retried by the service if its type is included in
+   * the doNotRetry property of the correspondent retry policy.
    *
    * @param message optional error message
    * @param type optional error type that is used by {@link
@@ -111,7 +111,8 @@ public final class ApplicationFailure extends TemporalFailure {
   /**
    * New ApplicationFailure with {@link #isNonRetryable()} flag set to true.
    *
-   * <p>This exception will not be retried even if it is absent from the retry policy doNotRetry list.
+   * <p>This exception will not be retried even if it is absent from the retry policy doNotRetry
+   * list.
    *
    * @param message optional error message
    * @param type error type
