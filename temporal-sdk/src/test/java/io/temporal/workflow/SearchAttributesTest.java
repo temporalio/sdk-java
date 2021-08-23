@@ -55,7 +55,7 @@ import org.junit.Test;
 public class SearchAttributesTest {
 
   private static final Map<String, Object> searchAttributes = new ConcurrentHashMap<>();
-  private static final String TEST_KEY_STRING = RegisteredSearchAttributes.BatcherNamespace.name();
+  private static final String TEST_KEY_STRING = RegisteredSearchAttributes.CustomStringField.name();
   private static final String TEST_VALUE_STRING = NAMESPACE;
   private static final String TEST_KEY_INTEGER = RegisteredSearchAttributes.CustomIntField.name();
   private static final Integer TEST_VALUE_INTEGER = 1;

@@ -19,9 +19,11 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import com.google.common.collect.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowClient;
@@ -30,29 +32,31 @@ import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflow2;
-import java.util.HashMap;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
 import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class UpsertSearchAttributesTest {
 
+  private static final String TEST_VALUE = "test";
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setNamespace(NAMESPACE)
           .setWorkflowTypes(TestUpsertSearchAttributesImpl.class)
           .setActivityImplementations(new TestActivitiesImpl())
+          .setNamespace(NAMESPACE)
           .build();
 
   @Test
   public void testUpsertSearchAttributes() {
-    TestWorkflow2 testWorkflow =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow2.class);
+    TestWorkflowStringArg testWorkflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowStringArg.class);
     WorkflowExecution execution =
-        WorkflowClient.start(testWorkflow::execute, testWorkflowRule.getTaskQueue(), "testKey");
-    String result = testWorkflow.execute(testWorkflowRule.getTaskQueue(), "testKey");
-    assertEquals("done", result);
+        WorkflowClient.start(testWorkflow::execute, testWorkflowRule.getTaskQueue());
+    testWorkflow.execute(testWorkflowRule.getTaskQueue());
     testWorkflowRule
         .getInterceptor(TracingWorkerInterceptor.class)
         .setExpected(
@@ -65,19 +69,18 @@ public class UpsertSearchAttributesTest {
         execution, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES);
   }
 
-  public static class TestUpsertSearchAttributesImpl implements TestWorkflow2 {
+  public static class TestUpsertSearchAttributesImpl implements TestWorkflowStringArg {
 
     @Override
-    public String execute(String taskQueue, String keyword) {
-      Map<String, Object> searchAttributes = Workflow.getSearchAttributes();
-      assertNull(searchAttributes);
+    public void execute(String taskQueue) {
+      Map<String, Object> oldAttributes = Workflow.getSearchAttributes();
+      assertNull(oldAttributes);
 
-      Map<String, Object> searchAttrMap = new HashMap<>();
-      searchAttrMap.put("CustomKeywordField", keyword);
-      Workflow.upsertSearchAttributes(searchAttrMap);
+      Map<String, Object> objectMap = ImmutableMap.of("CustomKeywordField", TEST_VALUE);
+      Workflow.upsertSearchAttributes(objectMap);
 
-      searchAttributes = Workflow.getSearchAttributes();
-      assertEquals("testKey", searchAttributes.get("CustomKeywordField"));
+      oldAttributes = Workflow.getSearchAttributes();
+      assertEquals(TEST_VALUE, oldAttributes.get("CustomKeywordField"));
 
       // Running the activity below ensures that we have one more workflow task to be executed after
       // adding the search attributes. This helps with replaying the history one more time to check
@@ -88,8 +91,6 @@ public class UpsertSearchAttributesTest {
               VariousTestActivities.class,
               SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       activities.activity();
-
-      return "done";
     }
   }
 }
