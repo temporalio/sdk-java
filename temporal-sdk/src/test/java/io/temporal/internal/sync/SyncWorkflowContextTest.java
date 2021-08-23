@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.SearchAttributesUtil;
+import io.temporal.internal.common.converter.SearchAttributesUtil;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import java.util.HashMap;
 import java.util.Map;

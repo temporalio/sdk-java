@@ -36,9 +36,8 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowServiceException;
-import io.temporal.common.converter.SearchAttributesUtil;
-import io.temporal.common.converter.SearchAttributesUtil.RegisteredSearchAttributes;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.common.converter.SearchAttributesUtil;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
@@ -55,21 +54,21 @@ import org.junit.Test;
 public class SearchAttributesTest {
 
   private static final Map<String, Object> searchAttributes = new ConcurrentHashMap<>();
-  private static final String TEST_KEY_STRING = RegisteredSearchAttributes.CustomStringField.name();
+  private static final String TEST_KEY_STRING = SystemSearchAttributes.CustomStringField.name();
   private static final String TEST_VALUE_STRING = NAMESPACE;
-  private static final String TEST_KEY_INTEGER = RegisteredSearchAttributes.CustomIntField.name();
+  private static final String TEST_KEY_INTEGER = SystemSearchAttributes.CustomIntField.name();
   private static final Integer TEST_VALUE_INTEGER = 1;
   private static final String TEST_KEY_DATE_TIME =
-      RegisteredSearchAttributes.CustomDatetimeField.name();
+      SystemSearchAttributes.CustomDatetimeField.name();
   private static final LocalDateTime TEST_VALUE_DATE_TIME = LocalDateTime.now();
-  private static final String TEST_KEY_DOUBLE = RegisteredSearchAttributes.CustomDoubleField.name();
+  private static final String TEST_KEY_DOUBLE = SystemSearchAttributes.CustomDoubleField.name();
   private static final Double TEST_VALUE_DOUBLE = 1.23;
-  private static final String TEST_KEY_BOOL = RegisteredSearchAttributes.CustomBoolField.name();
+  private static final String TEST_KEY_BOOL = SystemSearchAttributes.CustomBoolField.name();
   private static final Boolean TEST_VALUE_BOOL = true;
   private static final String TEST_UNKNOWN_KEY = "UnknownKey";
   private static final String TEST_UNKNOWN_VALUE = "UnknownVal";
   private static final String TEST_UNSUPPORTED_TYPE_KEY =
-      RegisteredSearchAttributes.CustomStringField.name();
+      SystemSearchAttributes.CustomStringField.name();
   private static final Duration TEST_UNSUPPORTED_TYPE_VALUE = Duration.ZERO;
   private static WorkflowOptions options;
 

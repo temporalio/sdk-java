@@ -27,6 +27,7 @@ import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.internal.common.converter.EncodingKeys;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.Objects;

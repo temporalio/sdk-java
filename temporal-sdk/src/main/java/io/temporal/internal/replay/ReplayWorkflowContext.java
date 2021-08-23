@@ -252,12 +252,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /** @return replay safe UUID */
   UUID randomUUID();
 
-  /**
-   * Used to retrieve search attributes.
-   *
-   * @return SearchAttribute object which can be used by {@code
-   *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
-   */
+  /** @return search attributes in protobuf form. */
   SearchAttributes getSearchAttributes();
 
   /** Updates or inserts search attributes used to index workflows. */

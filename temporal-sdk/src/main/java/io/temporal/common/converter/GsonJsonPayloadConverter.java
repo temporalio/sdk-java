@@ -23,6 +23,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.internal.common.converter.EncodingKeys;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;

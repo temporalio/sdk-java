@@ -40,10 +40,6 @@ public class DataConverterException extends RuntimeException {
     super(toMessage(null, content, valueTypes), cause);
   }
 
-  public DataConverterException(String message) {
-    super(message);
-  }
-
   public DataConverterException(Throwable cause) {
     super(cause);
   }

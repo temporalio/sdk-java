@@ -19,7 +19,6 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.common.converter.SearchAttributesUtil.javaTypeToEncodedType;
 import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
 import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
 import static io.temporal.internal.testservice.StateMachines.MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
@@ -102,11 +101,10 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
-import io.temporal.common.converter.EncodingKeys;
-import io.temporal.common.converter.SearchAttributesUtil;
-import io.temporal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.common.converter.EncodingKeys;
+import io.temporal.internal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
 import io.temporal.internal.testservice.StateMachines.CancelExternalData;
@@ -117,9 +115,9 @@ import io.temporal.internal.testservice.StateMachines.TimerData;
 import io.temporal.internal.testservice.StateMachines.WorkflowData;
 import io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
 import io.temporal.serviceclient.StatusUtils;
+import io.temporal.workflow.SystemSearchAttributes;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
@@ -253,8 +251,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       request.setWorkflowTaskTimeout(Durations.fromMillis(taskTimeoutMillis));
     }
 
+    request.setSearchAttributes(getValidSearchAttributes(request));
+    return request.build();
+  }
+
+  private SearchAttributes.Builder getValidSearchAttributes(
+      StartWorkflowExecutionRequest.Builder request) {
     SearchAttributes.Builder searchAttributes = request.getSearchAttributes().toBuilder();
-    Map<String, Payload> payloadMap = request.getSearchAttributes().getIndexedFieldsMap();
+    Map<String, Payload> payloadMap = searchAttributes.getIndexedFieldsMap();
     for (Map.Entry<String, Payload> searchAttribute : payloadMap.entrySet()) {
       String key = searchAttribute.getKey();
       SearchAttributeType type = searchAttributeToType(key);
@@ -273,14 +277,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         throw Status.INVALID_ARGUMENT.asRuntimeException();
       }
     }
-    request.setSearchAttributes(searchAttributes);
-    return request.build();
+    return searchAttributes;
   }
 
   private SearchAttributeType searchAttributeToType(String key) {
-    SearchAttributesUtil.RegisteredSearchAttributes searchAttribute;
+    SystemSearchAttributes searchAttribute;
     try {
-      searchAttribute = SearchAttributesUtil.RegisteredSearchAttributes.valueOf(key);
+      searchAttribute = SystemSearchAttributes.valueOf(key);
     } catch (IllegalArgumentException e) {
       return null;
     }
@@ -296,21 +299,21 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       case WorkflowType:
       case CustomKeywordField:
       case CustomStringField:
-        return javaTypeToEncodedType(String.class);
+        return SearchAttributeType.String;
       case CloseTime:
       case ExecutionTime:
       case StartTime:
       case CustomDatetimeField:
-        return javaTypeToEncodedType(LocalDateTime.class);
+        return SearchAttributeType.Datetime;
       case ExecutionDuration:
       case HistoryLength:
       case StateTransitionCount:
       case CustomIntField:
-        return javaTypeToEncodedType(Integer.class);
+        return SearchAttributeType.Int;
       case CustomDoubleField:
-        return javaTypeToEncodedType(Double.class);
+        return SearchAttributeType.Double;
       case CustomBoolField:
-        return javaTypeToEncodedType(Boolean.class);
+        return SearchAttributeType.Bool;
       default:
         return SearchAttributeType.Unspecified;
     }

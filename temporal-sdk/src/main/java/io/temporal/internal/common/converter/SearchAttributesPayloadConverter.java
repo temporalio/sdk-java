@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.common.converter;
+package io.temporal.internal.common.converter;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -28,19 +28,21 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.common.converter.DataConverterException;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class SearchAttributesPayloadConverter {
 
-  private static ObjectMapper mapper;
-  private static final Logger log = LoggerFactory.getLogger(SearchAttributesPayloadConverter.class);
+  private final ObjectMapper mapper;
+  private final Logger log = LoggerFactory.getLogger(SearchAttributesPayloadConverter.class);
   public static final SearchAttributesPayloadConverter INSTANCE =
       new SearchAttributesPayloadConverter();
 
@@ -60,7 +62,7 @@ public final class SearchAttributesPayloadConverter {
       } else {
         serialized = mapper.writeValueAsBytes(obj);
       }
-      String type = SearchAttributesUtil.javaTypeToEncodedType(obj.getClass()).name();
+      String type = javaTypeToEncodedType(obj.getClass()).name();
       return Optional.of(
           Payload.newBuilder()
               .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
@@ -87,6 +89,22 @@ public final class SearchAttributesPayloadConverter {
         throw new DataConverterException(e);
       }
     }
+  }
+
+  @Nonnull
+  public static SearchAttributesUtil.SearchAttributeType javaTypeToEncodedType(Class<?> type) {
+    if (String.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.String;
+    } else if (Integer.class.equals(type) || Short.class.equals(type) || Byte.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.Int;
+    } else if (Double.class.equals(type) || Float.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.Double;
+    } else if (Boolean.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.Bool;
+    } else if (LocalDateTime.class.equals(type)) {
+      return SearchAttributesUtil.SearchAttributeType.Datetime;
+    }
+    return SearchAttributesUtil.SearchAttributeType.Unspecified;
   }
 
   private static Type encodedTypeToJavaType(String type) {

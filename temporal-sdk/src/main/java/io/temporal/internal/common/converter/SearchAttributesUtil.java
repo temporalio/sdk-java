@@ -17,14 +17,12 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.common.converter;
+package io.temporal.internal.common.converter;
 
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,46 +68,6 @@ public class SearchAttributesUtil {
       }
     }
     return deserializedMap;
-  }
-
-  @Nonnull
-  public static SearchAttributeType javaTypeToEncodedType(Class<?> type) {
-    if (String.class.equals(type)) {
-      return SearchAttributeType.String;
-    } else if (Integer.class.equals(type) || Short.class.equals(type) || Byte.class.equals(type)) {
-      return SearchAttributeType.Int;
-    } else if (Double.class.equals(type) || Float.class.equals(type)) {
-      return SearchAttributeType.Double;
-    } else if (Boolean.class.equals(type)) {
-      return SearchAttributeType.Bool;
-    } else if (LocalDateTime.class.equals(type)) {
-      return SearchAttributeType.Datetime;
-    }
-    return SearchAttributeType.Unspecified;
-  }
-
-  public enum RegisteredSearchAttributes {
-    BatcherNamespace,
-    BatcherUser,
-    BinaryChecksums,
-    CloseTime,
-    ExecutionDuration,
-    ExecutionStatus,
-    ExecutionTime,
-    HistoryLength,
-    RunId,
-    StartTime,
-    StateTransitionCount,
-    TaskQueue,
-    TemporalChangeVersion,
-    WorkflowId,
-    WorkflowType,
-    CustomKeywordField,
-    CustomStringField,
-    CustomIntField,
-    CustomDoubleField,
-    CustomBoolField,
-    CustomDatetimeField
   }
 
   public enum SearchAttributeType {
