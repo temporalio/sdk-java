@@ -73,8 +73,8 @@ public interface ActivityExecutionContext {
    * Task for the next retry attempt. The Activity implementation can extract the details via {@link
    * #getHeartbeatDetails(Class)}() and resume progress.
    *
-   * @param detailsClass Class of the heartbeat details
-   * @param detailsType Type of the Heatbeat details
+   * @param detailsClass Class of the Heartbeat details
+   * @param detailsType Type of the Heartbeat details
    */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType);
 
