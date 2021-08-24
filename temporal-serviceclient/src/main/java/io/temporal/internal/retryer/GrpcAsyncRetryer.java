@@ -1,0 +1,140 @@
+/*
+ *  Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ *  Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ *  Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"). You may not
+ *  use this file except in compliance with the License. A copy of the License is
+ *  located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ *  or in the "license" file accompanying this file. This file is distributed on
+ *  an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ *  express or implied. See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
+
+package io.temporal.internal.retryer;
+
+import io.grpc.StatusRuntimeException;
+import io.temporal.internal.AsyncBackoffThrottler;
+import io.temporal.serviceclient.RpcRetryOptions;
+import java.time.Clock;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+class GrpcAsyncRetryer {
+  private static final Logger log = LoggerFactory.getLogger(GrpcAsyncRetryer.class);
+
+  private final Clock clock;
+
+  public GrpcAsyncRetryer(Clock clock) {
+    this.clock = clock;
+  }
+
+  public <R> CompletableFuture<R> retry(
+      RpcRetryOptions options, Supplier<CompletableFuture<R>> function) {
+    long startTime = clock.millis();
+    AsyncBackoffThrottler throttler =
+        new AsyncBackoffThrottler(
+            options.getInitialInterval(),
+            options.getMaximumInterval(),
+            options.getBackoffCoefficient());
+    CompletableFuture<R> resultCF = new CompletableFuture<>();
+    retry(options, function, 1, startTime, throttler, resultCF);
+    return resultCF;
+  }
+
+  private <R> void retry(
+      RpcRetryOptions options,
+      Supplier<CompletableFuture<R>> function,
+      int attempt,
+      long startTime,
+      AsyncBackoffThrottler throttler,
+      CompletableFuture<R> resultCF) {
+    options.validate();
+    throttler
+        .throttle()
+        .thenAccept(
+            (ignore) -> {
+              // try-catch is because get() call might throw.
+              CompletableFuture<R> result;
+
+              try {
+                result = function.get();
+              } catch (Throwable e) {
+                throttler.failure();
+                // function isn't supposed to throw exceptions, it should always return a
+                // CompletableFuture even if it's a failed one.
+                // But if this happens - process the same way as it would be an exception from
+                // completable future
+                failOrRetry(options, function, attempt, startTime, throttler, e, resultCF);
+                return;
+              }
+              if (result == null) {
+                resultCF.complete(null);
+                return;
+              }
+
+              result.whenComplete(
+                  (r, e) -> {
+                    if (e == null) {
+                      throttler.success();
+                      resultCF.complete(r);
+                    } else {
+                      throttler.failure();
+                      failOrRetry(options, function, attempt, startTime, throttler, e, resultCF);
+                    }
+                  });
+            });
+  }
+
+  private <R> void failOrRetry(
+      RpcRetryOptions options,
+      Supplier<CompletableFuture<R>> function,
+      int attempt,
+      long startTime,
+      AsyncBackoffThrottler throttler,
+      Throwable lastException,
+      CompletableFuture<R> resultCF) {
+
+    // If exception is thrown from CompletionStage/CompletableFuture methods like compose or handle
+    // - it gets wrapped into CompletionException, so here we need to unwrap it. We can get not
+    // wrapped raw exception here too if CompletableFuture was explicitly filled with this exception
+    // using CompletableFuture.completeExceptionally
+    lastException = unwrapCompletionException(lastException);
+
+    // Do not retry if it's not StatusRuntimeException
+    if (!(lastException instanceof StatusRuntimeException)) {
+      resultCF.completeExceptionally(lastException);
+      return;
+    }
+
+    StatusRuntimeException exception = (StatusRuntimeException) lastException;
+
+    RuntimeException finalException =
+        GrpcRetryerUtils.createFinalExceptionIfNotRetryable(exception, options);
+    if (finalException != null) {
+      resultCF.completeExceptionally(finalException);
+      return;
+    }
+
+    if (GrpcRetryerUtils.ranOutOfRetries(options, startTime, clock.millis(), attempt)) {
+      resultCF.completeExceptionally(exception);
+      return;
+    }
+
+    log.debug("Retrying after failure", lastException);
+    retry(options, function, attempt + 1, startTime, throttler, resultCF);
+  }
+
+  private static Throwable unwrapCompletionException(Throwable e) {
+    return e instanceof CompletionException ? e.getCause() : e;
+  }
+}
