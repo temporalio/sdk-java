@@ -41,6 +41,12 @@ public class LocalActivityManyWorkflowsTest {
 
   @Test
   public void manyWorkflowsTest() {
+    if (SDKTestWorkflowRule.useExternalService) {
+      // Running 1k workflows against the external service takes ~30s on a 2019 macbook pro.
+      // That's kind of a long time for a unit test.
+      return;
+    }
+
     for (int reqCount = 1; reqCount < 1000; reqCount++) {
       TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
       String input = String.valueOf(reqCount);
