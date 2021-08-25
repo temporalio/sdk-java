@@ -133,7 +133,6 @@ public class DescribeTest {
         describe(execution)
             .assertMatchesOptions(options)
             .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
-            .assertHistoryLength(5)
             .assertNoParent()
             .assertPendingActivityCount(1)
             .assertPendingChildrenCount(0);
@@ -170,7 +169,6 @@ public class DescribeTest {
         describe(execution)
             .assertMatchesOptions(options)
             .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
-            .assertHistoryLength(5)
             .assertNoParent()
             .assertPendingActivityCount(1)
             .assertPendingChildrenCount(0);
@@ -194,7 +192,6 @@ public class DescribeTest {
     describe(execution)
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
-        .assertHistoryLength(11)
         .assertNoParent()
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
@@ -220,7 +217,6 @@ public class DescribeTest {
         describe(execution)
             .assertMatchesOptions(options)
             .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
-            .assertHistoryLength(5)
             .assertPendingActivityCount(1);
 
     PendingActivityInfo actual = asserter.getActual().getPendingActivities(0);
@@ -257,7 +253,6 @@ public class DescribeTest {
     describe(execution)
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
-        .assertHistoryLength(11)
         .assertNoParent()
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
@@ -296,7 +291,6 @@ public class DescribeTest {
         describe(execution)
             .assertMatchesOptions(options)
             .assertStatus(expectedWorkflowStatus)
-            .assertHistoryLength(expectedHistoryLength)
             .assertPendingActivityCount(expectedActivityStatus == null ? 0 : 1);
 
     if (expectedActivityStatus == null) {
@@ -384,7 +378,6 @@ public class DescribeTest {
         describe(parentExecution)
             .assertMatchesOptions(options)
             .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
-            .assertHistoryLength(9)
             .assertNoParent()
             .assertPendingActivityCount(0)
             .assertPendingChildrenCount(1);
@@ -416,7 +409,6 @@ public class DescribeTest {
     describe(childExecution)
         .assertMatchesOptions(expectedChildOptions)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING)
-        .assertHistoryLength(5)
         .assertParent(parentExecution)
         .assertPendingActivityCount(1)
         .assertPendingChildrenCount(0);
@@ -428,7 +420,6 @@ public class DescribeTest {
     describe(parentExecution)
         .assertMatchesOptions(options)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
-        .assertHistoryLength(14)
         .assertNoParent()
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);
@@ -436,7 +427,6 @@ public class DescribeTest {
     describe(childExecution)
         .assertMatchesOptions(expectedChildOptions)
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
-        .assertHistoryLength(11)
         .assertParent(parentExecution)
         .assertPendingActivityCount(0)
         .assertPendingChildrenCount(0);

@@ -151,14 +151,6 @@ public class DescribeWorkflowAsserter {
     return this;
   }
 
-  public DescribeWorkflowAsserter assertHistoryLength(int expected) {
-    Assert.assertEquals(
-        "history length should match",
-        expected,
-        actual.getWorkflowExecutionInfo().getHistoryLength());
-    return this;
-  }
-
   public DescribeWorkflowAsserter assertNoParent() {
     WorkflowExecutionInfo ei = actual.getWorkflowExecutionInfo();
     Assert.assertEquals("parent namespace should be absent", "", ei.getParentNamespaceId());
