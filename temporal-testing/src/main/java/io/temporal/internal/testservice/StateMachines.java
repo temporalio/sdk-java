@@ -164,18 +164,39 @@ class StateMachines {
   public static final long MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS = 60L * 1000;
 
   enum State {
-    NONE,
-    INITIATED,
-    INITIATED_QUERY_ONLY,
-    STARTED,
-    STARTED_QUERY_ONLY,
-    FAILED,
-    TIMED_OUT,
-    CANCELLATION_REQUESTED,
-    CANCELED,
-    COMPLETED,
-    CONTINUED_AS_NEW,
-    TERMINATED,
+    NONE(false),
+    INITIATED(false),
+    INITIATED_QUERY_ONLY(false),
+    STARTED(false),
+    STARTED_QUERY_ONLY(false),
+    FAILED(true),
+    TIMED_OUT(true),
+    CANCELLATION_REQUESTED(false),
+    CANCELED(true),
+    COMPLETED(true),
+    // Tricky! _this_ run is terminal if it continued-as-new, even though
+    // there's probably another, very similar looking, non-terminal run.
+    CONTINUED_AS_NEW(true),
+    TERMINATED(true);
+
+    private final boolean terminal;
+
+    State(boolean terminal) {
+      this.terminal = terminal;
+    }
+
+    public boolean isTerminal() {
+      return terminal;
+    }
+  }
+
+  public static boolean historyEventIsTerminal(HistoryEvent e) {
+    return e.hasWorkflowExecutionContinuedAsNewEventAttributes()
+        || e.hasWorkflowExecutionCompletedEventAttributes()
+        || e.hasWorkflowExecutionCanceledEventAttributes()
+        || e.hasWorkflowExecutionFailedEventAttributes()
+        || e.hasWorkflowExecutionTerminatedEventAttributes()
+        || e.hasWorkflowExecutionTimedOutEventAttributes();
   }
 
   enum Action {

@@ -44,6 +44,8 @@ import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
@@ -1050,6 +1052,28 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Deadline deadline = Context.current().getDeadline();
       QueryWorkflowResponse result =
           mutableState.query(queryRequest, deadline.timeRemaining(TimeUnit.MILLISECONDS));
+      responseObserver.onNext(result);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
+        log.error("unexpected", e);
+      }
+      responseObserver.onError(e);
+    }
+  }
+
+  @Override
+  public void describeWorkflowExecution(
+      DescribeWorkflowExecutionRequest request,
+      StreamObserver<io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse>
+          responseObserver) {
+    String namespace = requireNotNull("Namespace", request.getNamespace());
+    WorkflowExecution execution = requireNotNull("Execution", request.getExecution());
+    ExecutionId executionId = new ExecutionId(namespace, execution);
+
+    try {
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      DescribeWorkflowExecutionResponse result = mutableState.describeWorkflowExecution();
       responseObserver.onNext(result);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
