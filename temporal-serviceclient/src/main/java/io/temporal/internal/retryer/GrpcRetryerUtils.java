@@ -50,7 +50,7 @@ class GrpcRetryerUtils {
       case DEADLINE_EXCEEDED:
         return exception;
       default:
-        for (RpcRetryOptions.DoNotRetryPair pair : options.getDoNotRetry()) {
+        for (RpcRetryOptions.DoNotRetryItem pair : options.getDoNotRetry()) {
           if (pair.getCode() == code
               && (pair.getDetailsClass() == null
                   || StatusUtils.hasFailure(exception, pair.getDetailsClass()))) {
