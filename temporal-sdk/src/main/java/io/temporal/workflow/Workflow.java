@@ -24,6 +24,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -615,12 +616,31 @@ public final class Workflow {
     return WorkflowInternal.getWorkflowInfo();
   }
 
+  /**
+   * Extract deserialized Memo associated with given key
+   *
+   * @param key memo key
+   * @param valueClass Java class to deserialize into
+   * @return deserialized Memo
+   */
   public static <T> Object getMemo(String key, Class<T> valueClass) {
-    return getMemo(key, valueClass, valueClass.getGenericSuperclass());
+    return getMemo(key, valueClass, valueClass);
   }
 
-  public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
-    return WorkflowInternal.getMemo(key, valueClass, valueType);
+  /**
+   * Extract Memo associated with the given key and deserialized into an object of generic type as
+   * is done here: {@link DataConverter#fromPayloads(int, java.util.Optional, java.lang.Class,
+   * java.lang.reflect.Type)} Ex: To deserialize into HashMap<String, Integer> <code>
+   *  Workflow.getMemo(key, Map.class, new TypeToken<HashMap<String, Integer>>() {}.getType());
+   * </code>
+   *
+   * @param key memo key
+   * @param valueClass Java class to deserialize into
+   * @param genericType type parameter for the generic class
+   * @return deserialized Memo
+   */
+  public static <T> T getMemo(String key, Class<T> valueClass, Type genericType) {
+    return WorkflowInternal.getMemo(key, valueClass, genericType);
   }
 
   /**
