@@ -24,7 +24,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.BackoffThrottler;
+import io.temporal.internal.BackoffThrottler;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
