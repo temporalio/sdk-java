@@ -27,6 +27,7 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -41,13 +42,9 @@ public class LocalActivityManyWorkflowsTest {
 
   @Test
   public void manyWorkflowsTest() {
-    if (SDKTestWorkflowRule.useExternalService) {
-      // Running 1k workflows against the external service takes ~30s on a 2019 macbook pro.
-      // That's kind of a long time for a unit test.
-      return;
-    }
+    Assume.assumeFalse("skipping for docker tests", testWorkflowRule.isUseExternalService());
 
-    for (int reqCount = 1; reqCount < 1000; reqCount++) {
+    for (int reqCount = 1; reqCount < 100; reqCount++) {
       TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
       String input = String.valueOf(reqCount);
       String result = workflow.execute(input);
