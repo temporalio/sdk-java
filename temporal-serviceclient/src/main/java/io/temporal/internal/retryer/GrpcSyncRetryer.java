@@ -46,7 +46,7 @@ class GrpcSyncRetryer {
             options.getMaximumInterval(),
             options.getBackoffCoefficient());
 
-    Exception lastException = null;
+    StatusRuntimeException lastException = null;
     while (!GrpcRetryerUtils.ranOutOfRetries(options, startTime, clock.millis(), attempt)) {
       attempt++;
 
@@ -63,12 +63,12 @@ class GrpcSyncRetryer {
         Thread.currentThread().interrupt();
         throw new CancellationException();
       } catch (StatusRuntimeException e) {
-        lastException = e;
         RuntimeException finalException =
-            GrpcRetryerUtils.createFinalExceptionIfNotRetryable(e, options);
+            GrpcRetryerUtils.createFinalExceptionIfNotRetryable(e, lastException, options);
         if (finalException != null) {
           throw finalException;
         }
+        lastException = e;
       }
       // No catch block for any other exceptions because we don't retry them, we pass them through.
       // It's designed this way because it's GrpcRetryer, not general purpose retryer.

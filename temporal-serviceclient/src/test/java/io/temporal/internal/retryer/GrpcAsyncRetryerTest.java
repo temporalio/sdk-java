@@ -215,4 +215,37 @@ public class GrpcAsyncRetryerTest {
 
     assertEquals("If the exception is DEADLINE_EXCEEDED, we shouldn't retry", 1, attempts.get());
   }
+
+  @Test
+  public void testDeadlineExceededAfterAnotherException() throws InterruptedException {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(10))
+            .setMaximumInterval(Duration.ofMillis(100))
+            .validateBuildWithDefaults();
+    long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
+    try {
+      DEFAULT_ASYNC_RETRYER
+          .retry(
+              options,
+              () -> {
+                CompletableFuture<?> future = new CompletableFuture<>();
+                future.completeExceptionally(
+                    new StatusRuntimeException(
+                        attempts.incrementAndGet() > 1
+                            ? Status.fromCode(Status.Code.DEADLINE_EXCEEDED)
+                            : Status.fromCode(Status.Code.DATA_LOSS)));
+                return future;
+              })
+          .get();
+      fail("unreachable");
+    } catch (ExecutionException e) {
+      assertTrue(e.getCause() instanceof StatusRuntimeException);
+      assertEquals(
+          "We should get a previous exception in case of DEADLINE_EXCEEDED",
+          Status.Code.DATA_LOSS,
+          ((StatusRuntimeException) e.getCause()).getStatus().getCode());
+    }
+  }
 }
