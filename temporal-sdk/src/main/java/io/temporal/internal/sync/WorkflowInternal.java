@@ -25,6 +25,7 @@ import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInt
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
@@ -426,6 +427,11 @@ public final class WorkflowInternal {
 
   public static WorkflowInfo getWorkflowInfo() {
     return new WorkflowInfoImpl(getRootWorkflowContext().getContext());
+  }
+
+  public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
+    Payload memo = getRootWorkflowContext().getContext().getMemo(key);
+    return getDataConverter().fromPayload(memo, valueClass, valueType);
   }
 
   public static <R> R retry(
