@@ -24,6 +24,7 @@ import com.uber.m3.tally.Scope;
 import io.grpc.*;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -292,7 +293,11 @@ public class WorkflowServiceStubsOptions {
     return rpcQueryTimeout;
   }
 
-  /** @return Returns rpc retry options for outgoing requests to the temporal server. */
+  /**
+   * @return Returns rpc retry options for outgoing requests to the temporal server that supposed to
+   *     be processed and returned fast, like start workflow (not long polls or awaits for workflow
+   *     finishing).
+   */
   public RpcRetryOptions getRpcRetryOptions() {
     return rpcRetryOptions;
   }
@@ -356,7 +361,7 @@ public class WorkflowServiceStubsOptions {
     private Duration rpcTimeout = DEFAULT_RPC_TIMEOUT;
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
-    private RpcRetryOptions rpcRetryOptions = DefaultServiceOperationRpcRetryOptions.INSTANCE;
+    private RpcRetryOptions rpcRetryOptions = DefaultStubServiceOperationRpcRetryOptions.INSTANCE;
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
     private Duration grpcReconnectFrequency = DEFAULT_GRPC_RECONNECT_FREQUENCY;
     private Metadata headers;
