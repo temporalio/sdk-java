@@ -95,11 +95,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   Duration getWorkflowTaskTimeout();
 
-  /**
-   * Used to retrieve the memo.
-   *
-   * @return Memo object
-   */
   Payload getMemo(String key);
 
   /**

@@ -233,16 +233,13 @@ public final class RpcRetryOptions {
         backoff = DefaultServiceOperationRpcRetryOptions.BACKOFF;
       }
       if (initialInterval == null || initialInterval.isZero() || initialInterval.isNegative()) {
-        initialInterval =
-            DefaultServiceOperationRpcRetryOptions.INITIAL_INTERVAL;
+        initialInterval = DefaultServiceOperationRpcRetryOptions.INITIAL_INTERVAL;
       }
       if (expiration == null || expiration.isZero() || expiration.isNegative()) {
-        expiration =
-            DefaultServiceOperationRpcRetryOptions.EXPIRATION_INTERVAL;
+        expiration = DefaultServiceOperationRpcRetryOptions.EXPIRATION_INTERVAL;
       }
       if (maximumInterval == null || maximumInterval.isZero() || maximumInterval.isNegative()) {
-        maximumInterval =
-            DefaultServiceOperationRpcRetryOptions.MAXIMUM_INTERVAL;
+        maximumInterval = DefaultServiceOperationRpcRetryOptions.MAXIMUM_INTERVAL;
       }
       if (doNotRetry == null || doNotRetry.size() == 0) {
         doNotRetry = DefaultServiceOperationRpcRetryOptions.INSTANCE.doNotRetry;

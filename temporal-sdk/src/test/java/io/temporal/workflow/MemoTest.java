@@ -22,10 +22,10 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
-import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
