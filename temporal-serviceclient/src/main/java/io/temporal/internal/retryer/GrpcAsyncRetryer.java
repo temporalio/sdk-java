@@ -47,7 +47,7 @@ class GrpcAsyncRetryer {
             options.getMaximumInterval(),
             options.getBackoffCoefficient());
     CompletableFuture<R> resultCF = new CompletableFuture<>();
-    retry(options, function, 1, startTime, throttler, resultCF);
+    retry(options, function, 1, startTime, null, throttler, resultCF);
     return resultCF;
   }
 
@@ -56,6 +56,7 @@ class GrpcAsyncRetryer {
       Supplier<CompletableFuture<R>> function,
       int attempt,
       long startTime,
+      StatusRuntimeException previousException,
       AsyncBackoffThrottler throttler,
       CompletableFuture<R> resultCF) {
     options.validate();
@@ -74,7 +75,16 @@ class GrpcAsyncRetryer {
                 // CompletableFuture even if it's a failed one.
                 // But if this happens - process the same way as it would be an exception from
                 // completable future
-                failOrRetry(options, function, attempt, startTime, throttler, e, resultCF);
+                // Do not retry if it's not StatusRuntimeException
+                failOrRetry(
+                    options,
+                    function,
+                    attempt,
+                    startTime,
+                    throttler,
+                    previousException,
+                    e,
+                    resultCF);
                 return;
               }
               if (result == null) {
@@ -89,7 +99,15 @@ class GrpcAsyncRetryer {
                       resultCF.complete(r);
                     } else {
                       throttler.failure();
-                      failOrRetry(options, function, attempt, startTime, throttler, e, resultCF);
+                      failOrRetry(
+                          options,
+                          function,
+                          attempt,
+                          startTime,
+                          throttler,
+                          previousException,
+                          e,
+                          resultCF);
                     }
                   });
             });
@@ -101,37 +119,39 @@ class GrpcAsyncRetryer {
       int attempt,
       long startTime,
       AsyncBackoffThrottler throttler,
-      Throwable lastException,
+      StatusRuntimeException previousException,
+      Throwable currentException,
       CompletableFuture<R> resultCF) {
 
     // If exception is thrown from CompletionStage/CompletableFuture methods like compose or handle
     // - it gets wrapped into CompletionException, so here we need to unwrap it. We can get not
     // wrapped raw exception here too if CompletableFuture was explicitly filled with this exception
     // using CompletableFuture.completeExceptionally
-    lastException = unwrapCompletionException(lastException);
+    currentException = unwrapCompletionException(currentException);
 
     // Do not retry if it's not StatusRuntimeException
-    if (!(lastException instanceof StatusRuntimeException)) {
-      resultCF.completeExceptionally(lastException);
+    if (!(currentException instanceof StatusRuntimeException)) {
+      resultCF.completeExceptionally(currentException);
       return;
     }
 
-    StatusRuntimeException exception = (StatusRuntimeException) lastException;
+    StatusRuntimeException statusRuntimeException = (StatusRuntimeException) currentException;
 
     RuntimeException finalException =
-        GrpcRetryerUtils.createFinalExceptionIfNotRetryable(exception, options);
+        GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
+            statusRuntimeException, previousException, options);
     if (finalException != null) {
       resultCF.completeExceptionally(finalException);
       return;
     }
 
     if (GrpcRetryerUtils.ranOutOfRetries(options, startTime, clock.millis(), attempt)) {
-      resultCF.completeExceptionally(exception);
+      resultCF.completeExceptionally(statusRuntimeException);
       return;
     }
 
-    log.debug("Retrying after failure", lastException);
-    retry(options, function, attempt + 1, startTime, throttler, resultCF);
+    log.debug("Retrying after failure", currentException);
+    retry(options, function, attempt + 1, startTime, statusRuntimeException, throttler, resultCF);
   }
 
   private static Throwable unwrapCompletionException(Throwable e) {
