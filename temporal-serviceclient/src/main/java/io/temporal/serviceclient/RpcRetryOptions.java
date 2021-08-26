@@ -22,45 +22,16 @@ package io.temporal.serviceclient;
 import com.google.common.base.Defaults;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
-import io.temporal.api.errordetails.v1.QueryFailedFailure;
+import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class RpcRetryOptions {
-
-  public static final RpcRetryOptions DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
-
-  private static final Duration RETRY_SERVICE_OPERATION_INITIAL_INTERVAL = Duration.ofMillis(20);
-  private static final Duration RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL = Duration.ofMinutes(1);
-  private static final double RETRY_SERVICE_OPERATION_BACKOFF = 1.2;
-
-  static {
-    RpcRetryOptions.Builder roBuilder =
-        RpcRetryOptions.newBuilder()
-            .setInitialInterval(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL)
-            .setExpiration(RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL)
-            .setBackoffCoefficient(RETRY_SERVICE_OPERATION_BACKOFF);
-
-    Duration maxInterval = RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL.dividedBy(10);
-    if (maxInterval.compareTo(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL) < 0) {
-      maxInterval = RETRY_SERVICE_OPERATION_INITIAL_INTERVAL;
-    }
-    roBuilder.setMaximumInterval(maxInterval);
-    roBuilder
-        .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
-        .addDoNotRetry(Status.Code.NOT_FOUND, null)
-        .addDoNotRetry(Status.Code.ALREADY_EXISTS, null)
-        .addDoNotRetry(Status.Code.FAILED_PRECONDITION, null)
-        .addDoNotRetry(Status.Code.PERMISSION_DENIED, null)
-        .addDoNotRetry(Status.Code.UNAUTHENTICATED, null)
-        .addDoNotRetry(Status.Code.UNIMPLEMENTED, null)
-        .addDoNotRetry(Status.Code.CANCELLED, null)
-        .addDoNotRetry(Status.Code.INTERNAL, QueryFailedFailure.class);
-    DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS = roBuilder.validateBuildWithDefaults();
-  }
 
   public static Builder newBuilder() {
     return new Builder();
@@ -80,11 +51,23 @@ public final class RpcRetryOptions {
     DEFAULT_INSTANCE = RpcRetryOptions.newBuilder().build();
   }
 
-  public static class DoNotRetryPair {
+  public static class DoNotRetryItem {
     private final Status.Code code;
     private final Class<? extends GeneratedMessageV3> detailsClass;
 
-    private DoNotRetryPair(Status.Code code, Class<? extends GeneratedMessageV3> detailsClass) {
+    /**
+     * @param code errors with this code will be considered non retryable. {@link
+     *     Status.Code#CANCELLED} and {@link Status.Code#DEADLINE_EXCEEDED} are always considered
+     *     non-retryable.
+     * @param detailsClass If not null, only failures with the {@code code} and details of this
+     *     {@code detailsClass} class are non retryable If null, all failures with the code are non
+     *     retryable.
+     */
+    public DoNotRetryItem(
+        @Nonnull Status.Code code, @Nullable Class<? extends GeneratedMessageV3> detailsClass) {
+      if (code == null) {
+        throw new NullPointerException("code");
+      }
       this.code = code;
       this.detailsClass = detailsClass;
     }
@@ -110,7 +93,7 @@ public final class RpcRetryOptions {
 
     private Duration maximumInterval;
 
-    private List<DoNotRetryPair> doNotRetry = new ArrayList<>();
+    private List<DoNotRetryItem> doNotRetry = new ArrayList<>();
 
     private Builder() {}
 
@@ -191,14 +174,29 @@ public final class RpcRetryOptions {
     /**
      * Add <code>Status.Code</code> with associated details class to not retry. If <code>
      * detailsClass</code> is null all failures with the code are non retryable.
+     *
+     * <p>{@link Status.Code#CANCELLED} and {@link Status.Code#DEADLINE_EXCEEDED} are always
+     * considered non-retryable.
      */
     public Builder addDoNotRetry(
         Status.Code code, Class<? extends GeneratedMessageV3> detailsClass) {
-      doNotRetry.add(new DoNotRetryPair(code, detailsClass));
+      doNotRetry.add(new DoNotRetryItem(code, detailsClass));
       return this;
     }
 
-    Builder setDoNotRetry(List<DoNotRetryPair> pairs) {
+    /**
+     * Add {@link DoNotRetryItem} to not retry. If <code>DoNotRetryItem#detailsClass</code> is null
+     * all failures with the code are non retryable.
+     *
+     * <p>{@link Status.Code#CANCELLED} and {@link Status.Code#DEADLINE_EXCEEDED} are always
+     * considered non-retryable.
+     */
+    public Builder addDoNotRetry(DoNotRetryItem doNotRetryItem) {
+      doNotRetry.add(doNotRetryItem);
+      return this;
+    }
+
+    Builder setDoNotRetry(List<DoNotRetryItem> pairs) {
       doNotRetry = pairs;
       return this;
     }
@@ -225,7 +223,7 @@ public final class RpcRetryOptions {
       return annotation;
     }
 
-    private List<DoNotRetryPair> merge(List<DoNotRetryPair> o1, List<DoNotRetryPair> o2) {
+    private List<DoNotRetryItem> merge(List<DoNotRetryItem> o1, List<DoNotRetryItem> o2) {
       if (o2 != null) {
         return new ArrayList<>(o2);
       }
@@ -259,19 +257,19 @@ public final class RpcRetryOptions {
     public RpcRetryOptions validateBuildWithDefaults() {
       double backoff = backoffCoefficient;
       if (backoff == 0d) {
-        backoff = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.backoffCoefficient;
+        backoff = DefaultStubServiceOperationRpcRetryOptions.BACKOFF;
       }
       if (initialInterval == null || initialInterval.isZero() || initialInterval.isNegative()) {
-        initialInterval = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.initialInterval;
+        initialInterval = DefaultStubServiceOperationRpcRetryOptions.INITIAL_INTERVAL;
       }
       if (expiration == null || expiration.isZero() || expiration.isNegative()) {
-        expiration = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.expiration;
+        expiration = DefaultStubServiceOperationRpcRetryOptions.EXPIRATION_INTERVAL;
       }
       if (maximumInterval == null || maximumInterval.isZero() || maximumInterval.isNegative()) {
-        maximumInterval = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.maximumInterval;
+        maximumInterval = DefaultStubServiceOperationRpcRetryOptions.MAXIMUM_INTERVAL;
       }
       if (doNotRetry == null || doNotRetry.size() == 0) {
-        doNotRetry = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.doNotRetry;
+        doNotRetry = DefaultStubServiceOperationRpcRetryOptions.INSTANCE.doNotRetry;
       }
       RpcRetryOptions result =
           new RpcRetryOptions(
@@ -291,7 +289,7 @@ public final class RpcRetryOptions {
 
   private final Duration maximumInterval;
 
-  private final List<DoNotRetryPair> doNotRetry;
+  private final List<DoNotRetryItem> doNotRetry;
 
   private RpcRetryOptions(
       Duration initialInterval,
@@ -299,7 +297,7 @@ public final class RpcRetryOptions {
       Duration expiration,
       int maximumAttempts,
       Duration maximumInterval,
-      List<DoNotRetryPair> doNotRetry) {
+      List<DoNotRetryItem> doNotRetry) {
     this.initialInterval = initialInterval;
     this.backoffCoefficient = backoffCoefficient;
     this.expiration = expiration;
@@ -351,7 +349,7 @@ public final class RpcRetryOptions {
     }
   }
 
-  public List<DoNotRetryPair> getDoNotRetry() {
+  public List<DoNotRetryItem> getDoNotRetry() {
     return doNotRetry;
   }
 

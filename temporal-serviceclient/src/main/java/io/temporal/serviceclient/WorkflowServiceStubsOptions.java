@@ -21,12 +21,10 @@ package io.temporal.serviceclient;
 
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Metadata;
-import io.grpc.NameResolver;
+import io.grpc.*;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -49,11 +47,8 @@ public class WorkflowServiceStubsOptions {
    */
   private static final Duration DEFAULT_GRPC_RECONNECT_FREQUENCY = Duration.ofMinutes(1);
 
-  private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE;
-
-  static {
-    DEFAULT_INSTANCE = WorkflowServiceStubsOptions.newBuilder().build();
-  }
+  private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE =
+      WorkflowServiceStubsOptions.newBuilder().build();
 
   public static Builder newBuilder() {
     return new Builder();
@@ -298,7 +293,11 @@ public class WorkflowServiceStubsOptions {
     return rpcQueryTimeout;
   }
 
-  /** @return Returns rpc retry options for outgoing requests to the temporal server. */
+  /**
+   * @return Returns rpc retry options for outgoing requests to the temporal server that supposed to
+   *     be processed and returned fast, like start workflow (not long polls or awaits for workflow
+   *     finishing).
+   */
   public RpcRetryOptions getRpcRetryOptions() {
     return rpcRetryOptions;
   }
@@ -362,8 +361,7 @@ public class WorkflowServiceStubsOptions {
     private Duration rpcTimeout = DEFAULT_RPC_TIMEOUT;
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
-    private RpcRetryOptions rpcRetryOptions =
-        RpcRetryOptions.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+    private RpcRetryOptions rpcRetryOptions = DefaultStubServiceOperationRpcRetryOptions.INSTANCE;
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
     private Duration grpcReconnectFrequency = DEFAULT_GRPC_RECONNECT_FREQUENCY;
     private Metadata headers;

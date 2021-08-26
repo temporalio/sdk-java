@@ -17,16 +17,12 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient;
+package io.temporal.internal;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 
 /**
  * Used to throttle code execution in presence of failures using exponential backoff logic. The
@@ -46,8 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * BackoffThrottler throttler = new BackoffThrottler(1000, 60000, 2);
  * while(!stopped) {
  *     try {
- *         Future&lt;Void&gt; t = throttler.throttle();
- *         t.get();
+ *         throttler.throttle();
  *         // some code that can fail and should be throttled
  *         ...
  *         throttler.success();
@@ -60,9 +55,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @author fateev
  */
-public final class AsyncBackoffThrottler {
-
-  private static final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(1);
+public final class BackoffThrottler {
 
   private final Duration initialSleep;
 
@@ -79,13 +72,9 @@ public final class AsyncBackoffThrottler {
    * @param maxSleep maximum time to sleep independently of number of failures
    * @param backoffCoefficient coefficient used to calculate the next time to sleep.
    */
-  public AsyncBackoffThrottler(
-      Duration initialSleep, Duration maxSleep, double backoffCoefficient) {
+  public BackoffThrottler(
+      Duration initialSleep, @Nullable Duration maxSleep, double backoffCoefficient) {
     Objects.requireNonNull(initialSleep, "initialSleep");
-    if (backoffCoefficient < 1.0) {
-      throw new IllegalArgumentException(
-          "backoff coefficient less than 1.0: " + backoffCoefficient);
-    }
     this.initialSleep = initialSleep;
     this.maxSleep = maxSleep;
     this.backoffCoefficient = backoffCoefficient;
@@ -100,17 +89,15 @@ public final class AsyncBackoffThrottler {
     return (long) sleepMillis;
   }
 
-  /** Result future is done after a delay if there were failures since the last success call. */
-  public CompletableFuture<Void> throttle() {
-    if (failureCount.get() == 0) {
-      return CompletableFuture.completedFuture(null);
+  /**
+   * Sleep if there were failures since the last success call.
+   *
+   * @throws InterruptedException
+   */
+  public void throttle() throws InterruptedException {
+    if (failureCount.get() > 0) {
+      Thread.sleep(calculateSleepTime());
     }
-    CompletableFuture<Void> result = new CompletableFuture<>();
-    long delay = calculateSleepTime();
-    @SuppressWarnings({"FutureReturnValueIgnored", "unused"})
-    ScheduledFuture<?> ignored =
-        executor.schedule(() -> result.complete(null), delay, TimeUnit.MILLISECONDS);
-    return result;
   }
 
   /** Resent failure count to 0. */

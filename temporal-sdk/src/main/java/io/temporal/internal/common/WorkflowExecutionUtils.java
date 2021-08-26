@@ -63,10 +63,11 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
-import io.temporal.serviceclient.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.rpcretry.DefaultStubLongPollRpcRetryOptions;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -97,17 +98,6 @@ public class WorkflowExecutionUtils {
    * traces.
    */
   private static final String INDENTATION = "  ";
-
-  private static final Logger log = LoggerFactory.getLogger(WorkflowExecutionUtils.class);
-
-  private static final RpcRetryOptions GET_INSTANCE_CLOSE_EVENT_RETRY_OPTIONS =
-      RpcRetryOptions.newBuilder()
-          .setBackoffCoefficient(1)
-          .setInitialInterval(Duration.ofMillis(1))
-          .setMaximumAttempts(Integer.MAX_VALUE)
-          .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
-          .addDoNotRetry(Status.Code.NOT_FOUND, null)
-          .build();
 
   /**
    * Returns result of a workflow instance execution or throws an exception if workflow did not
@@ -240,7 +230,7 @@ public class WorkflowExecutionUtils {
 
       if (millisRemaining > 0) {
         RpcRetryOptions retryOptions =
-            RpcRetryOptions.newBuilder(GET_INSTANCE_CLOSE_EVENT_RETRY_OPTIONS)
+            DefaultStubLongPollRpcRetryOptions.getBuilder()
                 .setExpiration(Duration.ofMillis(millisRemaining))
                 .build();
         response =
