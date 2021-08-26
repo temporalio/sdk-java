@@ -460,7 +460,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           log.debug("Skipping outdated workflow task for " + executionId, e);
         }
         // The real service doesn't return this call on outdated task.
-        // For simplicity, we return empty result here.
+        // For simplicity, we return an empty result here.
         responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
         responseObserver.onCompleted();
       } else {
