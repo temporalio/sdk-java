@@ -113,23 +113,20 @@ import org.slf4j.LoggerFactory;
 
 /**
  * In memory implementation of the Temporal service. To be used for testing purposes only. Do not
- * use directly. Instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
+ * use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
  */
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
-
-  private final Lock lock = new ReentrantLock();
-
-  private final TestWorkflowStore store;
-
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
-
   // key->WorkflowId
   private final Map<WorkflowId, TestWorkflowMutableState> executionsByWorkflowId = new HashMap<>();
-
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
+  private final Lock lock = new ReentrantLock();
+  private final Server outOfProcessServer;
+  private final TestWorkflowStore store;
+  private final Client client;
 
   private class Client {
     public Client() {
@@ -147,10 +144,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     public final ManagedChannel channel;
     public final WorkflowServiceStubs stubs;
   }
-
-  private final Client client;
-
-  private final Server outOfProcessServer;
 
   public WorkflowServiceStubs newClientStub() {
     if (client == null) {
@@ -260,10 +253,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } finally {
       lock.unlock();
     }
-  }
-
-  private TestWorkflowMutableState getMutableState(WorkflowId workflowId) {
-    return getMutableState(workflowId, true);
   }
 
   private TestWorkflowMutableState getMutableState(WorkflowId workflowId, boolean failNotExists) {
@@ -458,9 +447,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     try {
       mutableState.startWorkflowTask(task, pollRequest);
-      // The task always has the original taskqueue is was created on as part of the response. This
-      // may different
-      // then the task queue it was scheduled on as in the case of sticky execution.
+      // The task always has the original task queue that was created as part of the response. This
+      // may be different task queue than the task queue it was scheduled on as in the case of
+      // sticky execution.
       task.setWorkflowExecutionTaskQueue(mutableState.getStartRequest().getTaskQueue());
       PollWorkflowTaskQueueResponse response = task.build();
       responseObserver.onNext(response);
@@ -471,7 +460,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           log.debug("Skipping outdated workflow task for " + executionId, e);
         }
         // The real service doesn't return this call on outdated task.
-        // For simplicity we return empty result here.
+        // For simplicity, we return empty result here.
         responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
         responseObserver.onCompleted();
       } else {
@@ -894,7 +883,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       namespace = commandAttributes.getNamespace();
     }
     ExecutionId executionId = new ExecutionId(namespace, commandAttributes.getExecution());
-    TestWorkflowMutableState mutableState = null;
+    TestWorkflowMutableState mutableState;
     try {
       mutableState = getMutableState(executionId);
       mutableState.signalFromWorkflow(commandAttributes);
@@ -1063,7 +1052,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private <R> R requireNotNull(String fieldName, R value) {
     if (value == null) {
       throw Status.INVALID_ARGUMENT
-          .withDescription("Missing requried field \"" + fieldName + "\".")
+          .withDescription("Missing required field \"" + fieldName + "\".")
           .asRuntimeException();
     }
     return value;
@@ -1071,7 +1060,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   /**
    * Adds diagnostic data about internal service state to the provided {@link StringBuilder}.
-   * Currently includes histories of all workflow instances stored in the service.
+   * Currently, includes histories of all workflow instances stored in the service.
    */
   public void getDiagnostics(StringBuilder result) {
     store.getDiagnostics(result);
