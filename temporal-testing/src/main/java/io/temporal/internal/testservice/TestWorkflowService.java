@@ -1060,7 +1060,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   /**
    * Adds diagnostic data about internal service state to the provided {@link StringBuilder}.
-   * Currently, includes histories of all workflow instances stored in the service.
+   * Includes histories of all workflow instances stored in the service.
    */
   public void getDiagnostics(StringBuilder result) {
     store.getDiagnostics(result);
