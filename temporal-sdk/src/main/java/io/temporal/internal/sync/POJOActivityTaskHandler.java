@@ -258,7 +258,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, null, context.isUseLocalManualCompletion());
         }
-        return constructActivityTaskHandler(info, result, method);
+        return constructActivityResultValue(info, result, method);
       } catch (Throwable e) {
         return activityFailureToResult(info, metricsScope, e);
       }
@@ -431,7 +431,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
             inboundCallsInterceptor.execute(
                 new ActivityInboundCallsInterceptor.ActivityInput(
                     new Header(info.getHeader()), args));
-        return constructActivityTaskHandler(info, result, method);
+        return constructActivityResultValue(info, result, method);
       } catch (Throwable e) {
         Throwable unwrappedException = CheckedExceptionWrapper.unwrap(e);
         if (log.isWarnEnabled()) {
@@ -450,7 +450,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
   }
 
-  private ActivityTaskHandler.Result constructActivityTaskHandler(
+  private ActivityTaskHandler.Result constructActivityResultValue(
       ActivityInfoInternal info,
       ActivityInboundCallsInterceptor.ActivityOutput result,
       Method method) {
