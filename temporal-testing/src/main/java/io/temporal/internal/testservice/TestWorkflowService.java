@@ -448,7 +448,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       mutableState.startWorkflowTask(task, pollRequest);
       // The task always has the original task queue that was created as part of the response. This
-      // may be different task queue than the task queue it was scheduled on as in the case of
+      // may be a different task queue than the task queue it was scheduled on, as in the case of
       // sticky execution.
       task.setWorkflowExecutionTaskQueue(mutableState.getStartRequest().getTaskQueue());
       PollWorkflowTaskQueueResponse response = task.build();
