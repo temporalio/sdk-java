@@ -25,6 +25,7 @@ import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 class GrpcRetryerUtils {
@@ -32,14 +33,19 @@ class GrpcRetryerUtils {
    * This method encapsulates the logic if {@code StatusRuntimeException exception} is retryable or
    * not.
    *
-   * @param exception exception to analyze
+   * @param currentException exception to analyze
+   * @param previousException previous exception happened before this one, {@code null} if {@code
+   *     currentException} is the first exception in the chain
    * @param options retry options
    * @return null if the {@code exception} can be retried, a final exception to throw in the
-   *     external code otherwise
+   *     external code otherwise. In case {@code previousException} is {@link
+   *     io.grpc.Status#DEADLINE_EXCEEDED}, we will prefer the previous exception if it's present.
    */
   static @Nullable RuntimeException createFinalExceptionIfNotRetryable(
-      StatusRuntimeException exception, RpcRetryOptions options) {
-    Status.Code code = exception.getStatus().getCode();
+      @Nonnull StatusRuntimeException currentException,
+      @Nullable StatusRuntimeException previousException,
+      @Nonnull RpcRetryOptions options) {
+    Status.Code code = currentException.getStatus().getCode();
 
     switch (code) {
         // CANCELLED and DEADLINE_EXCEEDED usually considered non-retryable in GRPC world, for
@@ -48,13 +54,13 @@ class GrpcRetryerUtils {
       case CANCELLED:
         return new CancellationException();
       case DEADLINE_EXCEEDED:
-        return exception;
+        return previousException != null ? previousException : currentException;
       default:
         for (RpcRetryOptions.DoNotRetryItem pair : options.getDoNotRetry()) {
           if (pair.getCode() == code
               && (pair.getDetailsClass() == null
-                  || StatusUtils.hasFailure(exception, pair.getDetailsClass()))) {
-            return exception;
+                  || StatusUtils.hasFailure(currentException, pair.getDetailsClass()))) {
+            return currentException;
           }
         }
     }

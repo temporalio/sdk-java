@@ -82,8 +82,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Convenience methods to be used by unit tests and during development.
