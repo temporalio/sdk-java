@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactoryOptions;
 import java.time.Instant;
 
@@ -53,6 +54,8 @@ public final class TestEnvironmentOptions {
 
     private WorkflowClientOptions workflowClientOptions;
 
+    private WorkflowServiceStubsOptions workflowServiceStubsOptions;
+
     private Scope metricsScope;
 
     private boolean useExternalService;
@@ -78,6 +81,11 @@ public final class TestEnvironmentOptions {
     /** Set factoryOptions for worker factory used to create workers. */
     public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
       this.workerFactoryOptions = options;
+      return this;
+    }
+
+    public Builder setWorkflowServiceStubsOptions(WorkflowServiceStubsOptions options) {
+      this.workflowServiceStubsOptions = options;
       return this;
     }
 
@@ -130,6 +138,7 @@ public final class TestEnvironmentOptions {
       return new TestEnvironmentOptions(
           workflowClientOptions,
           workerFactoryOptions,
+          workflowServiceStubsOptions,
           useExternalService,
           target,
           initialTimeMillis,
@@ -138,8 +147,18 @@ public final class TestEnvironmentOptions {
 
     public TestEnvironmentOptions validateAndBuildWithDefaults() {
       return new TestEnvironmentOptions(
-          WorkflowClientOptions.newBuilder(workflowClientOptions).validateAndBuildWithDefaults(),
-          WorkerFactoryOptions.newBuilder(workerFactoryOptions).validateAndBuildWithDefaults(),
+          (workflowClientOptions != null
+                  ? WorkflowClientOptions.newBuilder(workflowClientOptions)
+                  : WorkflowClientOptions.newBuilder())
+              .validateAndBuildWithDefaults(),
+          (workerFactoryOptions != null
+                  ? WorkerFactoryOptions.newBuilder(workerFactoryOptions)
+                  : WorkerFactoryOptions.newBuilder())
+              .validateAndBuildWithDefaults(),
+          (workflowServiceStubsOptions != null
+                  ? WorkflowServiceStubsOptions.newBuilder(workflowServiceStubsOptions)
+                  : WorkflowServiceStubsOptions.newBuilder())
+              .validateAndBuildWithDefaults(),
           useExternalService,
           target,
           initialTimeMillis,
@@ -149,6 +168,7 @@ public final class TestEnvironmentOptions {
 
   private final WorkerFactoryOptions workerFactoryOptions;
   private final WorkflowClientOptions workflowClientOptions;
+  private final WorkflowServiceStubsOptions workflowServiceStubsOptions;
   private final Scope metricsScope;
   private final boolean useExternalService;
   private final String target;
@@ -157,12 +177,14 @@ public final class TestEnvironmentOptions {
   private TestEnvironmentOptions(
       WorkflowClientOptions workflowClientOptions,
       WorkerFactoryOptions workerFactoryOptions,
+      WorkflowServiceStubsOptions workflowServiceStubsOptions,
       boolean useExternalService,
       String target,
       long initialTimeMillis,
       Scope metricsScope) {
     this.workflowClientOptions = workflowClientOptions;
     this.workerFactoryOptions = workerFactoryOptions;
+    this.workflowServiceStubsOptions = workflowServiceStubsOptions;
     this.metricsScope = metricsScope;
     this.useExternalService = useExternalService;
     this.target = target;
@@ -175,6 +197,10 @@ public final class TestEnvironmentOptions {
 
   public WorkflowClientOptions getWorkflowClientOptions() {
     return workflowClientOptions;
+  }
+
+  public WorkflowServiceStubsOptions getWorkflowServiceStubsOptions() {
+    return workflowServiceStubsOptions;
   }
 
   public Scope getMetricsScope() {
@@ -200,6 +226,8 @@ public final class TestEnvironmentOptions {
         + workerFactoryOptions
         + ", workflowClientOptions="
         + workflowClientOptions
+        + ", workflowServiceStubsOptions="
+        + workflowServiceStubsOptions
         + ", metricsScope="
         + metricsScope
         + ", useExternalService="
