@@ -18,7 +18,7 @@ Additional information is available in the [Temporal Server docker-compose](http
 
 ## Get CLI
 
-[CLI is avaialable as an executable or as a docker image](https://github.com/temporalio/temporal/blob/master/tools/cli/README.md)
+[CLI is available as an executable or as a docker image](https://github.com/temporalio/temporal/blob/master/tools/cli/README.md)
 
 ## Build a configuration
 
@@ -55,7 +55,7 @@ To solve the problem add the following entries to your `/etc/hosts` file (where 
 ```
 
 ## Contributing
-We'd love your help in making the Temporal Java SDKL great. Please review our [contribution guidelines](CONTRIBUTING.md).
+We'd love your help in making the Temporal Java SDK great. Please review our [contribution guidelines](CONTRIBUTING.md).
 
 ## License
 Apache License, please see [LICENSE](LICENSE) for details.
