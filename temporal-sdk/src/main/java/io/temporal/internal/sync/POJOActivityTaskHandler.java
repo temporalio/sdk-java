@@ -258,16 +258,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, null, context.isUseLocalManualCompletion());
         }
-        RespondActivityTaskCompletedRequest.Builder request =
-            RespondActivityTaskCompletedRequest.newBuilder();
-        if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
-          if (serialized.isPresent()) {
-            request.setResult(serialized.get());
-          }
-        }
-        return new ActivityTaskHandler.Result(
-            info.getActivityId(), request.build(), null, null, null, false);
+        return constructActivityResultValue(info, result, method);
       } catch (Throwable e) {
         return activityFailureToResult(info, metricsScope, e);
       }
@@ -347,9 +338,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
-        if (serialized.isPresent()) {
-          request.setResult(serialized.get());
-        }
+        serialized.ifPresent(request::setResult);
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null, false);
       } catch (Throwable e) {
@@ -442,18 +431,9 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
             inboundCallsInterceptor.execute(
                 new ActivityInboundCallsInterceptor.ActivityInput(
                     new Header(info.getHeader()), args));
-        RespondActivityTaskCompletedRequest.Builder request =
-            RespondActivityTaskCompletedRequest.newBuilder();
-        if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
-          if (serialized.isPresent()) {
-            request.setResult(serialized.get());
-          }
-        }
-        return new ActivityTaskHandler.Result(
-            info.getActivityId(), request.build(), null, null, null, false);
+        return constructActivityResultValue(info, result, method);
       } catch (Throwable e) {
-        e = CheckedExceptionWrapper.unwrap(e);
+        Throwable unwrappedException = CheckedExceptionWrapper.unwrap(e);
         if (log.isWarnEnabled()) {
           log.warn(
               "Local activity failure. ActivityId="
@@ -462,10 +442,24 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
                   + info.getActivityType()
                   + ", attempt="
                   + info.getAttempt(),
-              e);
+              unwrappedException);
         }
-        return mapToActivityFailure(e, info.getActivityId(), metricsScope, info.isLocal());
+        return mapToActivityFailure(
+            unwrappedException, info.getActivityId(), metricsScope, info.isLocal());
       }
     }
+  }
+
+  private ActivityTaskHandler.Result constructActivityResultValue(
+      ActivityInfoInternal info,
+      ActivityInboundCallsInterceptor.ActivityOutput result,
+      Method method) {
+    RespondActivityTaskCompletedRequest.Builder request =
+        RespondActivityTaskCompletedRequest.newBuilder();
+    if (method.getReturnType() != Void.TYPE) {
+      Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
+      serialized.ifPresent(request::setResult);
+    }
+    return new Result(info.getActivityId(), request.build(), null, null, null, false);
   }
 }

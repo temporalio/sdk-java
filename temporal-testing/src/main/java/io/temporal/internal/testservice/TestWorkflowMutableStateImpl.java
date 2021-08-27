@@ -121,7 +121,6 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -798,9 +797,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     int attempt = activity.getData().getAttempt();
     ctx.addTimer(
         ProtobufTimeUtils.toJavaDuration(scheduledEvent.getScheduleToCloseTimeout()),
-        () -> {
-          timeoutActivity(activityScheduleId, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, attempt);
-        },
+        () ->
+            timeoutActivity(
+                activityScheduleId, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, attempt),
         "Activity ScheduleToCloseTimeout");
     ctx.addTimer(
         ProtobufTimeUtils.toJavaDuration(scheduledEvent.getScheduleToStartTimeout()),
@@ -1041,14 +1040,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               // timeout for a previous workflow task
               return;
             }
-            Iterator<Map.Entry<String, ConsistentQuery>> queries =
-                workflowTaskStateMachine.getData().queryBuffer.entrySet().iterator();
-            while (queries.hasNext()) {
-              Map.Entry<String, ConsistentQuery> queryEntry = queries.next();
-              if (queryEntry.getValue().getResult().isCancelled()) {
-                queries.remove();
-              }
-            }
+            workflowTaskStateMachine
+                .getData()
+                .queryBuffer
+                .entrySet()
+                .removeIf(queryEntry -> queryEntry.getValue().getResult().isCancelled());
             workflowTaskStateMachine.action(
                 StateMachines.Action.TIME_OUT, ctx, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, 0);
             scheduleWorkflowTask(ctx);
@@ -1268,15 +1264,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
         Optional<TestServiceRetryState> continuedRetryState =
             Optional.of(rs.getNextAttempt(Optional.of(failure)));
-        String runId =
-            service.continueAsNew(
-                startRequest,
-                continuedAsNewEventAttributes,
-                continuedRetryState,
-                identity,
-                getExecutionId(),
-                parent,
-                parentChildInitiatedEventId);
+        service.continueAsNew(
+            startRequest,
+            continuedAsNewEventAttributes,
+            continuedRetryState,
+            identity,
+            getExecutionId(),
+            parent,
+            parentChildInitiatedEventId);
         return;
       }
     }
@@ -1406,25 +1401,21 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setBackoffStartInterval(ProtobufTimeUtils.toProtoDuration(backoffInterval))
             .setRetryPolicy(startRequest.getRetryPolicy())
             .setLastCompletionResult(lastCompletionResult);
-    if (lastFailure.isPresent()) {
-      builder.setFailure(lastFailure.get());
-    }
+    lastFailure.ifPresent(builder::setFailure);
     ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewAttr = builder.build();
     workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
         event.getWorkflowExecutionContinuedAsNewEventAttributes();
-
-    String runId =
-        service.continueAsNew(
-            startRequest,
-            continuedAsNewEventAttributes,
-            Optional.empty(),
-            identity,
-            getExecutionId(),
-            parent,
-            parentChildInitiatedEventId);
+    service.continueAsNew(
+        startRequest,
+        continuedAsNewEventAttributes,
+        Optional.empty(),
+        identity,
+        getExecutionId(),
+        parent,
+        parentChildInitiatedEventId);
   }
 
   static Cron parseCron(String schedule) {
@@ -1511,9 +1502,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       update(
           ctx -> {
             workflow.action(StateMachines.Action.START, ctx, startRequest, 0);
-            if (signalWithStartSignal.isPresent()) {
-              addExecutionSignaledEvent(ctx, signalWithStartSignal.get());
-            }
+            signalWithStartSignal.ifPresent(
+                signalWorkflowExecutionRequest ->
+                    addExecutionSignaledEvent(ctx, signalWorkflowExecutionRequest));
             Duration backoffStartInterval =
                 ProtobufTimeUtils.toJavaDuration(workflow.getData().backoffStartInterval);
             if (backoffStartInterval.compareTo(Duration.ZERO) > 0) {
@@ -2010,8 +2001,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Override
   public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline) {
     WorkflowExecutionStatus status = getWorkflowExecutionStatus();
-    if (status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
-        && queryRequest.getQueryRejectCondition() != null) {
+    if (status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING) {
       boolean rejectNotOpen =
           queryRequest.getQueryRejectCondition()
               == QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN;
