@@ -65,7 +65,7 @@ public class NonDeterministicWorkflowPolicyFailWorkflowTest {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
     } catch (WorkflowFailedException e) {
-      // expected to fail on non deterministic error
+      // expected to fail on non-deterministic error
       Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
       Assert.assertEquals(
           InternalWorkflowTaskException.class.getName(),

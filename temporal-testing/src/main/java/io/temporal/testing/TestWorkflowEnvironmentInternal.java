@@ -33,7 +33,6 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -43,40 +42,34 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
-  private final TestEnvironmentOptions testEnvironmentOptions;
   private final WorkflowClientOptions workflowClientOptions;
-  private final WorkerFactoryOptions workerFactoryOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final TestWorkflowService service;
   private final WorkerFactory workerFactory;
   private final TimeLockingInterceptor timeLockingInterceptor;
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
+    TestEnvironmentOptions testEnvironmentOptions;
     if (options == null) {
-      this.testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
+      testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
     } else {
-      this.testEnvironmentOptions = options;
+      testEnvironmentOptions = options;
     }
     workflowClientOptions =
         WorkflowClientOptions.newBuilder(testEnvironmentOptions.getWorkflowClientOptions())
-            .validateAndBuildWithDefaults();
-    workerFactoryOptions =
-        WorkerFactoryOptions.newBuilder(testEnvironmentOptions.getWorkerFactoryOptions())
             .validateAndBuildWithDefaults();
     service = new TestWorkflowService(testEnvironmentOptions.getInitialTimeMillis());
     timeLockingInterceptor = new TimeLockingInterceptor(service);
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
 
-    if (this.testEnvironmentOptions.isUseExternalService()) {
+    if (testEnvironmentOptions.isUseExternalService()) {
       workflowServiceStubs =
           WorkflowServiceStubs.newInstance(
               WorkflowServiceStubsOptions.newBuilder()
-                  .setTarget(this.testEnvironmentOptions.getTarget())
+                  .setTarget(testEnvironmentOptions.getTarget())
                   .build());
     } else {
       workflowServiceStubs =
@@ -93,14 +86,12 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public Worker newWorker(String taskQueue) {
-    Worker result = workerFactory.newWorker(taskQueue, WorkerOptions.getDefaultInstance());
-    return result;
+    return workerFactory.newWorker(taskQueue, WorkerOptions.getDefaultInstance());
   }
 
   @Override
   public Worker newWorker(String taskQueue, WorkerOptions options) {
-    Worker result = workerFactory.newWorker(taskQueue, options);
-    return result;
+    return workerFactory.newWorker(taskQueue, options);
   }
 
   @Override
@@ -231,8 +222,6 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     public ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next) {
       return next;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(IdempotentLocker.class);
 
     /**
      * Used to ensure that multiple TimeLockingWorkflowStubs that are blocked at the same time from

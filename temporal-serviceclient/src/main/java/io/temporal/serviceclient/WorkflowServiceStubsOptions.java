@@ -34,7 +34,7 @@ public class WorkflowServiceStubsOptions {
 
   private static final String LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
-  /** Default RPC timeout used for all non long poll calls. */
+  /** Default RPC timeout used for all non-long-poll calls. */
   private static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofSeconds(10);
   /** Default RPC timeout used for all long poll calls. */
   private static final Duration DEFAULT_POLL_RPC_TIMEOUT = Duration.ofSeconds(70);
@@ -439,7 +439,7 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    /** Sets the rpc timeout value for non query and non long poll calls. Default is 10 seconds. */
+    /** Sets the rpc timeout value for non query and non-long-poll calls. Default is 10 seconds. */
     public Builder setRpcTimeout(Duration timeout) {
       this.rpcTimeout = Objects.requireNonNull(timeout);
       return this;
