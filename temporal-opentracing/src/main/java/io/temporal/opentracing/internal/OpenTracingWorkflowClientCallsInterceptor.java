@@ -58,7 +58,7 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
     Span workflowStartSpan =
         createAndPassWorkflowStartSpan(
             input.getWorkflowStartInput(), SpanOperationType.SIGNAL_WITH_START_WORKFLOW);
-    try (Scope scope = tracer.scopeManager().activate(workflowStartSpan)) {
+    try (Scope ignored = tracer.scopeManager().activate(workflowStartSpan)) {
       return super.signalWithStart(input);
     } finally {
       workflowStartSpan.finish();

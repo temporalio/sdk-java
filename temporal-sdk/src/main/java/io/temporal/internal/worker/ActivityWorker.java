@@ -198,7 +198,6 @@ public final class ActivityWorker implements SuspendableWorker {
         Duration duration =
             ProtobufTimeUtils.toM3DurationSinceNow(r.getCurrentAttemptScheduledTime());
         metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
-
       } catch (FailureWrapperException e) {
         Failure failure = e.getFailure();
         if (failure.hasCanceledFailureInfo()) {

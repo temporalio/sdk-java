@@ -60,7 +60,6 @@ public class RegisterTestNamespace {
           e.printStackTrace();
           Thread.sleep(500);
         }
-        continue;
       } catch (Throwable e) {
         e.printStackTrace();
         System.exit(1);

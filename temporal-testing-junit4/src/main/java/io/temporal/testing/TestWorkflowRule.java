@@ -300,7 +300,7 @@ public class TestWorkflowRule implements TestRule {
     }
   }
 
-  protected void shutdown() throws Throwable {
+  protected void shutdown() {
     testEnvironment.close();
     if (getInterceptor(TracingWorkerInterceptor.class) != null) {
       TracingWorkerInterceptor tracer = getInterceptor(TracingWorkerInterceptor.class);
