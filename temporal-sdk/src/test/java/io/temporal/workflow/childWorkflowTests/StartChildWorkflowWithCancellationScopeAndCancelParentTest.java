@@ -71,7 +71,7 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
               NoArgsWorkflow.class,
               ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
       List<Promise<Void>> children = new ArrayList<>();
-      // This is a non blocking call that returns immediately.
+      // This is a non-blocking call that returns immediately.
       // Use child.composeGreeting("Hello", name) to call synchronously.
       CancellationScope scope =
           Workflow.newCancellationScope(
