@@ -63,9 +63,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
 
-  /** Set the attributes to request continue as new upon workflow code completion. */
-  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
-
   /**
    * RunId of the first run in the continue-as-new chain. Empty if this workflow never called
    * continue as new.
@@ -87,11 +84,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
   Duration getWorkflowExecutionTimeout();
 
   long getRunStartedTimestampMillis();
-
-  /**
-   * The time that is calculated as the start time of the first run plus workflow execution timeout.
-   */
-  long getWorkflowExecutionExpirationTimestampMillis();
 
   Duration getWorkflowTaskTimeout();
 
