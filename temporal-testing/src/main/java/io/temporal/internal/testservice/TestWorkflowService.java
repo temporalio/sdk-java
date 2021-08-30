@@ -1075,6 +1075,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     store.registerDelayedCallback(delay, r);
   }
 
+  public void registerSearchAttribute(String name, Class<?> type) {
+    store.registerSearchAttribute(name, type);
+  }
+
   /**
    * Disables time skipping. To enable back call {@link #unlockTimeSkipping(String)}. These calls
    * are counted, so calling unlock does not guarantee that time is going to be skipped immediately

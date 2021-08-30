@@ -19,6 +19,8 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.internal.common.converter.SearchAttributesPayloadConverter.javaTypeToEncodedType;
+
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 import com.google.protobuf.Timestamp;
@@ -40,6 +42,8 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.common.converter.SearchAttributesUtil.Pair;
+import io.temporal.internal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
@@ -60,11 +64,12 @@ import org.slf4j.LoggerFactory;
 
 class TestWorkflowStoreImpl implements TestWorkflowStore {
 
-  private static final int TASK_QUEUE_POLLER_TIMEOUT = 500;
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowStoreImpl.class);
+  private static final int TASK_QUEUE_POLLER_TIMEOUT = 500;
 
   private final Lock lock = new ReentrantLock();
   private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
+  private final Map<String, Pair<String, SearchAttributeType>> searchAttributes = new HashMap<>();
   private final Map<TaskQueueId, BlockingQueue<PollActivityTaskQueueResponse.Builder>>
       activityTaskQueues = new HashMap<>();
   private final Map<TaskQueueId, BlockingQueue<PollWorkflowTaskQueueResponse.Builder>>
@@ -76,8 +81,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   private static class HistoryStore {
 
     private final Lock lock;
-    private final Condition newEventsCondition;
     private final ExecutionId id;
+    private final Condition newEventsCondition;
     private final List<HistoryEvent> history = new ArrayList<>();
     private boolean completed;
 
@@ -286,6 +291,22 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   @Override
   public void registerDelayedCallback(Duration delay, Runnable r) {
     timerService.schedule(delay, r, "registerDelayedCallback");
+  }
+
+  @Override
+  public void registerSearchAttribute(String name, Class<?> type) {
+    SearchAttributeType encodedType = javaTypeToEncodedType(type);
+    if (encodedType == SearchAttributeType.Unspecified) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Unable to read search attribute type: " + type)
+          .asRuntimeException();
+    }
+    searchAttributes.put(name, new Pair(null, encodedType));
+  }
+
+  @Override
+  public Map<String, Pair<String, SearchAttributeType>> getRegisteredSearchAttribute() {
+    return searchAttributes;
   }
 
   private BlockingQueue<PollActivityTaskQueueResponse.Builder> getActivityTaskQueueQueue(

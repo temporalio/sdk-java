@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * TestWorkflowEnvironment provides workflow unit testing capabilities.
  *
- * <p>Testing the workflow code is hard as it might be potentially very long running. The included
+ * <p>Testing the workflow code is hard as it might be potentially very long-running. The included
  * in-memory implementation of the Temporal service supports <b>an automatic time skipping</b>.
  * Anytime a workflow under the test as well as the unit test code are waiting on a timer (or sleep)
  * the internal service time is automatically advanced to the nearest time that unblocks one of the
@@ -136,6 +136,14 @@ public interface TestWorkflowEnvironment {
    */
   void registerDelayedCallback(Duration delay, Runnable r);
 
+  /**
+   * Register a Search Attribute with the server.
+   *
+   * @param name Search Attribute key name
+   * @param type Search Attribute type
+   */
+  void registerSearchAttribute(String name, Class<?> type);
+
   /** @return the in-memory test Temporal service that is owned by this. */
   WorkflowServiceStubs getWorkflowService();
 
@@ -201,7 +209,7 @@ public interface TestWorkflowEnvironment {
   /**
    * Initiates an orderly shutdown in which polls are stopped and already received workflow and
    * activity tasks are attempted to be stopped. This implementation cancels tasks via
-   * Thread.interrupt(), so any task that fails to respond to interrupts may never terminate. Also
+   * Thread.interrupt(), so any task that fails to respond to interrupts may never terminate. Also,
    * after the shutdownNow calls to {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
    * io.temporal.client.ActivityWorkerShutdownException}. Invocation has no additional effect if

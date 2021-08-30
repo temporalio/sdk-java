@@ -121,6 +121,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
+  public void registerSearchAttribute(String name, Class<?> type) {
+    service.registerSearchAttribute(name, type);
+  }
+
+  @Override
   public WorkflowServiceStubs getWorkflowService() {
     return workflowServiceStubs;
   }

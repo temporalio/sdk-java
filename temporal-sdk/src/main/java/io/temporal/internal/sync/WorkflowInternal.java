@@ -25,8 +25,8 @@ import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInt
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;

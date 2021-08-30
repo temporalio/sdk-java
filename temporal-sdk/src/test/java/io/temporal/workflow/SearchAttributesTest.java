@@ -38,6 +38,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowServiceException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.common.converter.SearchAttributesUtil;
+import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
@@ -54,31 +55,34 @@ import org.junit.Test;
 public class SearchAttributesTest {
 
   private static final Map<String, Object> searchAttributes = new ConcurrentHashMap<>();
-  private static final String TEST_KEY_STRING = SystemSearchAttributes.CustomStringField.name();
+  private static final String TEST_KEY_STRING = "CustomStringField";
   private static final String TEST_VALUE_STRING = NAMESPACE;
-  private static final String TEST_KEY_INTEGER = SystemSearchAttributes.CustomIntField.name();
-  private static final Integer TEST_VALUE_INTEGER = 1;
-  private static final String TEST_KEY_DATE_TIME =
-      SystemSearchAttributes.CustomDatetimeField.name();
+  private static final String TEST_KEY_INTEGER = "CustomIntField";
+  private static final Integer TEST_VALUE_INTEGER = 7;
+  private static final String TEST_KEY_DATE_TIME = "CustomDatetimeField";
   private static final LocalDateTime TEST_VALUE_DATE_TIME = LocalDateTime.now();
-  private static final String TEST_KEY_DOUBLE = SystemSearchAttributes.CustomDoubleField.name();
+  private static final String TEST_KEY_DOUBLE = "CustomDoubleField";
   private static final Double TEST_VALUE_DOUBLE = 1.23;
-  private static final String TEST_KEY_BOOL = SystemSearchAttributes.CustomBoolField.name();
+  private static final String TEST_KEY_BOOL = "CustomBoolField";
   private static final Boolean TEST_VALUE_BOOL = true;
   private static final String TEST_UNKNOWN_KEY = "UnknownKey";
-  private static final String TEST_UNKNOWN_VALUE = "UnknownVal";
-  private static final String TEST_UNSUPPORTED_TYPE_KEY =
-      SystemSearchAttributes.CustomStringField.name();
+  private static final String TEST_UNKNOWN_VALUE = "val";
   private static final Duration TEST_UNSUPPORTED_TYPE_VALUE = Duration.ZERO;
   private static WorkflowOptions options;
 
   @Before
   public void setUp() {
+    TestWorkflowEnvironment testEnv = testWorkflowRule.getTestEnvironment();
+    testEnv.registerSearchAttribute(TEST_KEY_STRING, String.class);
+    testEnv.registerSearchAttribute(TEST_KEY_INTEGER, Integer.class);
+    testEnv.registerSearchAttribute(TEST_KEY_DOUBLE, Double.class);
+    testEnv.registerSearchAttribute(TEST_KEY_BOOL, Boolean.class);
+    testEnv.registerSearchAttribute(TEST_KEY_DATE_TIME, LocalDateTime.class);
     searchAttributes.put(TEST_KEY_STRING, TEST_VALUE_STRING);
     searchAttributes.put(TEST_KEY_INTEGER, TEST_VALUE_INTEGER);
-    searchAttributes.put(TEST_KEY_DATE_TIME, TEST_VALUE_DATE_TIME);
-    searchAttributes.put(TEST_KEY_BOOL, TEST_VALUE_BOOL);
     searchAttributes.put(TEST_KEY_DOUBLE, TEST_VALUE_DOUBLE);
+    searchAttributes.put(TEST_KEY_BOOL, TEST_VALUE_BOOL);
+    searchAttributes.put(TEST_KEY_DATE_TIME, TEST_VALUE_DATE_TIME);
     options =
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
@@ -89,7 +93,6 @@ public class SearchAttributesTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setNamespace(NAMESPACE)
           .setWorkflowTypes(
               TestMultiArgWorkflowImpl.class, TestParentWorkflow.class, TestChild.class)
           .build();
@@ -135,9 +138,10 @@ public class SearchAttributesTest {
   public void testInvalidSearchAttributeType() {
     assumeTrue(testWorkflowRule.isUseExternalService());
 
-    searchAttributes.put(TEST_UNSUPPORTED_TYPE_KEY, TEST_UNSUPPORTED_TYPE_VALUE);
+    searchAttributes.replace(TEST_KEY_INTEGER, TEST_UNSUPPORTED_TYPE_VALUE);
     TestNoArgsWorkflowFunc unsupportedTypeStub =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
+    WorkflowClient.start(unsupportedTypeStub::func);
     try {
       WorkflowClient.start(unsupportedTypeStub::func);
       fail();
@@ -146,7 +150,7 @@ public class SearchAttributesTest {
       StatusRuntimeException e = (StatusRuntimeException) exception.getCause();
       assertEquals(e.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
     }
-    searchAttributes.remove(TEST_UNSUPPORTED_TYPE_KEY);
+    searchAttributes.replace(TEST_KEY_INTEGER, TEST_VALUE_INTEGER);
   }
 
   @Test

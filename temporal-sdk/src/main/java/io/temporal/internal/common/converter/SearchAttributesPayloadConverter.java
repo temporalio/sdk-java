@@ -53,6 +53,15 @@ public final class SearchAttributesPayloadConverter {
     mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
   }
 
+  /**
+   * Convert Search Attribute object into payload with metadata. Ideally, we don't want to send the
+   * type metadata to the server, because starting with v1.10.0 Temporal doesn't look at the type
+   * metadata that the SDK sends. When the attribute is registered with the service, so is its
+   * intended type which is used to validate the data. However, we do include type metadata in
+   * payload here for compatibility with older versions of the server. Earlier version of Temporal
+   * save the type metadata and return exactly the same payload back to the SDK, which will be
+   * needed to deserialize the attribute into it's initial type.
+   */
   public Optional<Payload> toData(Object obj) throws DataConverterException {
     try {
       byte[] serialized;
@@ -78,8 +87,11 @@ public final class SearchAttributesPayloadConverter {
     ByteString data = payload.getData();
     ByteString type = payload.getMetadataMap().get(EncodingKeys.METADATA_TYPE_KEY);
     Type javaType = (type == null) ? null : encodedTypeToJavaType(type.toStringUtf8());
-    if (data.isEmpty() || javaType == null) {
-      log.warn("Something went wrong when parsing payload {}", payload);
+    if (data.isEmpty()) {
+      log.warn("No data in payload: {}", payload);
+      return payload;
+    } else if (javaType == null) {
+      log.warn("Absent type metadata or invalid search attribute type: {}", payload);
       return payload;
     } else {
       try {

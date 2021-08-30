@@ -104,6 +104,7 @@ import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.common.converter.EncodingKeys;
+import io.temporal.internal.common.converter.SearchAttributesUtil;
 import io.temporal.internal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
@@ -115,7 +116,6 @@ import io.temporal.internal.testservice.StateMachines.TimerData;
 import io.temporal.internal.testservice.StateMachines.WorkflowData;
 import io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
 import io.temporal.serviceclient.StatusUtils;
-import io.temporal.workflow.SystemSearchAttributes;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -190,14 +190,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       Optional<String> continuedExecutionRunId,
       TestWorkflowService service,
       TestWorkflowStore store) {
+    this.store = store;
+    this.service = service;
     startRequest = overrideStartWorkflowExecutionRequest(startRequest);
     this.startRequest = startRequest;
-    this.parent = parent;
-    this.parentChildInitiatedEventId = parentChildInitiatedEventId;
-    this.service = service;
     this.executionId =
         new ExecutionId(startRequest.getNamespace(), startRequest.getWorkflowId(), runId);
-    this.store = store;
+    this.parent = parent;
+    this.parentChildInitiatedEventId = parentChildInitiatedEventId;
     selfAdvancingTimer = store.getTimer();
     this.clock = selfAdvancingTimer.getClock();
     WorkflowData data =
@@ -256,66 +256,34 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private SearchAttributes.Builder getValidSearchAttributes(
       StartWorkflowExecutionRequest.Builder request) {
+
     SearchAttributes.Builder searchAttributes = request.getSearchAttributes().toBuilder();
-    Map<String, Payload> payloadMap = searchAttributes.getIndexedFieldsMap();
-    for (Map.Entry<String, Payload> searchAttribute : payloadMap.entrySet()) {
+    Map<String, SearchAttributesUtil.Pair<String, SearchAttributeType>> registeredAttributes =
+        store.getRegisteredSearchAttribute();
+
+    for (Map.Entry<String, Payload> searchAttribute :
+        searchAttributes.getIndexedFieldsMap().entrySet()) {
+
       String key = searchAttribute.getKey();
-      SearchAttributeType type = searchAttributeToType(key);
-      if (type != null && !SearchAttributeType.Unspecified.name().equals(type.name())) {
+      Payload val = searchAttribute.getValue();
+
+      if (!registeredAttributes.containsKey(key)) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription(key + " is not a valid search attribute name")
+            .asRuntimeException();
+      } else {
+        SearchAttributeType type = registeredAttributes.get(key).getType();
         searchAttributes.putIndexedFields(
             key,
-            searchAttribute
-                .getValue()
-                .toBuilder()
+            val.toBuilder()
                 .putMetadata(
                     EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
                 .putMetadata(EncodingKeys.METADATA_TYPE_KEY, ByteString.copyFromUtf8(type.name()))
                 .build());
-      } else {
-        searchAttributes.removeIndexedFields(key);
-        throw Status.INVALID_ARGUMENT.asRuntimeException();
       }
     }
-    return searchAttributes;
-  }
 
-  private SearchAttributeType searchAttributeToType(String key) {
-    SystemSearchAttributes searchAttribute;
-    try {
-      searchAttribute = SystemSearchAttributes.valueOf(key);
-    } catch (IllegalArgumentException e) {
-      return null;
-    }
-    switch (searchAttribute) {
-      case BatcherNamespace:
-      case BatcherUser:
-      case BinaryChecksums:
-      case ExecutionStatus:
-      case RunId:
-      case TaskQueue:
-      case TemporalChangeVersion:
-      case WorkflowId:
-      case WorkflowType:
-      case CustomKeywordField:
-      case CustomStringField:
-        return SearchAttributeType.String;
-      case CloseTime:
-      case ExecutionTime:
-      case StartTime:
-      case CustomDatetimeField:
-        return SearchAttributeType.Datetime;
-      case ExecutionDuration:
-      case HistoryLength:
-      case StateTransitionCount:
-      case CustomIntField:
-        return SearchAttributeType.Int;
-      case CustomDoubleField:
-        return SearchAttributeType.Double;
-      case CustomBoolField:
-        return SearchAttributeType.Bool;
-      default:
-        return SearchAttributeType.Unspecified;
-    }
+    return searchAttributes;
   }
 
   /** Based on validateStartWorkflowExecutionRequest from historyEngine.go */

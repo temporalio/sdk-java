@@ -97,6 +97,12 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   Payload getMemo(String key);
 
+  /** @return search attributes in protobuf form. */
+  SearchAttributes getSearchAttributes();
+
+  /** Updates or inserts search attributes used to index workflows. */
+  void upsertSearchAttributes(SearchAttributes searchAttributes);
+
   /**
    * Returns all current contexts being propagated by a {@link
    * io.temporal.common.context.ContextPropagator}. The key is the {@link
@@ -254,12 +260,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   /** @return replay safe UUID */
   UUID randomUUID();
-
-  /** @return search attributes in protobuf form. */
-  SearchAttributes getSearchAttributes();
-
-  /** Updates or inserts search attributes used to index workflows. */
-  void upsertSearchAttributes(SearchAttributes searchAttributes);
 
   int getAttempt();
 }

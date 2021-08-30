@@ -28,8 +28,11 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.internal.common.converter.SearchAttributesUtil.Pair;
+import io.temporal.internal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -143,6 +146,10 @@ interface TestWorkflowStore {
   void applyTimersAndLocks(RequestContext ctx);
 
   void registerDelayedCallback(Duration delay, Runnable r);
+
+  void registerSearchAttribute(String name, Class<?> type);
+
+  Map<String, Pair<String, SearchAttributeType>> getRegisteredSearchAttribute();
 
   /** @return empty if deadline expired */
   Optional<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
