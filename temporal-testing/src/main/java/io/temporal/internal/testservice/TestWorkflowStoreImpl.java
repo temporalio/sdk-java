@@ -446,7 +446,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
                       // They asked for only the close event. There are a variety of ways a workflow
                       // can close.
-                      return StateMachines.historyEventIsTerminal(e);
+                      return WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(e);
                     })
                 .collect(Collectors.toList());
         return GetWorkflowExecutionHistoryResponse.newBuilder()

@@ -54,6 +54,7 @@ import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.PendingActivityState;
@@ -89,7 +90,6 @@ import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -2130,19 +2130,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public DescribeWorkflowExecutionResponse describeWorkflowExecution() {
     WorkflowExecutionConfig.Builder executionConfig =
         WorkflowExecutionConfig.newBuilder()
-            .setTaskQueue(startRequest.getTaskQueue())
-            .setWorkflowExecutionTimeout(startRequest.getWorkflowExecutionTimeout())
-            .setWorkflowRunTimeout(startRequest.getWorkflowRunTimeout())
-            .setDefaultWorkflowTaskTimeout(startRequest.getWorkflowTaskTimeout());
+            .setTaskQueue(this.startRequest.getTaskQueue())
+            .setWorkflowExecutionTimeout(this.startRequest.getWorkflowExecutionTimeout())
+            .setWorkflowRunTimeout(this.startRequest.getWorkflowRunTimeout())
+            .setDefaultWorkflowTaskTimeout(this.startRequest.getWorkflowTaskTimeout());
 
     GetWorkflowExecutionHistoryRequest getRequest =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(startRequest.getNamespace())
-            .setExecution(executionId.getExecution())
+            .setNamespace(this.startRequest.getNamespace())
+            .setExecution(this.executionId.getExecution())
             .build();
     List<HistoryEvent> fullHistory =
         store
-            .getWorkflowExecutionHistory(executionId, getRequest, null)
+            .getWorkflowExecutionHistory(this.executionId, getRequest, null)
             .getHistory()
             .getEventsList();
 
@@ -2150,15 +2150,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     executionInfo
         .setExecution(this.executionId.getExecution())
         .setType(this.getStartRequest().getWorkflowType())
-        .setMemo(startRequest.getMemo())
+        .setMemo(this.startRequest.getMemo())
         // No setAutoResetPoints - the test environment doesn't support that feature
-        .setSearchAttributes(startRequest.getSearchAttributes())
+        .setSearchAttributes(this.startRequest.getSearchAttributes())
         .setStatus(this.getWorkflowExecutionStatus())
         .setHistoryLength(fullHistory.size());
 
-    setTimestampsBasedOnHistory(executionInfo, fullHistory);
+    populateWorkflowExecutionInfoFromHistory(executionInfo, fullHistory);
 
-    parent.ifPresent(
+    this.parent.ifPresent(
         p -> {
           executionInfo
               .setParentNamespaceId(p.getExecutionId().getNamespace())
@@ -2167,14 +2167,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     List<PendingActivityInfo> pendingActivities =
         this.activities.values().stream()
-            .filter(sm -> !sm.getState().isTerminal())
-            .map(this::constructPendingActivityInfo)
+            .filter(sm -> !isTerminalState(sm.getState()))
+            .map(TestWorkflowMutableStateImpl::constructPendingActivityInfo)
             .collect(Collectors.toList());
 
     List<PendingChildExecutionInfo> pendingChildren =
         this.childWorkflows.values().stream()
-            .filter(sm -> !sm.getState().isTerminal())
-            .map(this::constructPendingChildExecutionInfo)
+            .filter(sm -> !isTerminalState(sm.getState()))
+            .map(TestWorkflowMutableStateImpl::constructPendingChildExecutionInfo)
             .collect(Collectors.toList());
 
     return DescribeWorkflowExecutionResponse.newBuilder()
@@ -2185,7 +2185,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .build();
   }
 
-  private PendingChildExecutionInfo constructPendingChildExecutionInfo(
+  private static PendingChildExecutionInfo constructPendingChildExecutionInfo(
       StateMachine<ChildWorkflowData> sm) {
     ChildWorkflowData data = sm.getData();
     return PendingChildExecutionInfo.newBuilder()
@@ -2197,64 +2197,43 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .build();
   }
 
-  private PendingActivityInfo constructPendingActivityInfo(StateMachine<ActivityTaskData> sm) {
+  private static PendingActivityInfo constructPendingActivityInfo(
+      StateMachine<ActivityTaskData> sm) {
     /*
-     * Working on this code? First, go read StateMachines.scheduleActivityTask to learn which
-     * information it puts in pendingActivity.scheduledEvent and which information it puts
-     * in pendingActivity.activityTask. The ActivityTaskData itself also has some of what we need.
+     * Working on this code? Read StateMachines.scheduleActivityTask to get answers to questions
+     * like 'why does some of the information come from the scheduledEvent?'
      */
-    ActivityTaskData pendingActivity = sm.getData();
-    PollActivityTaskQueueResponse.Builder task = pendingActivity.activityTask.getTask();
-    ActivityTaskScheduledEventAttributes scheduledEvent = pendingActivity.scheduledEvent;
+    ActivityTaskData activityTaskData = sm.getData();
 
     State state = sm.getState();
-    PendingActivityInfo.Builder builder =
-        PendingActivityInfo.newBuilder()
-            .setActivityId(scheduledEvent.getActivityId())
-            .setActivityType(scheduledEvent.getActivityType())
-            .setState(computeActivityState(state, pendingActivity));
+    PendingActivityInfo.Builder builder = PendingActivityInfo.newBuilder();
 
-    // In golang, we set one but never both of these fields, depending on the activity state
-    if (builder.getState() == PendingActivityState.PENDING_ACTIVITY_STATE_SCHEDULED) {
-      builder.setScheduledTime(task.getScheduledTime());
-    } else {
-      builder.setLastStartedTime(task.getStartedTime());
-      builder.setLastHeartbeatTime(task.getStartedTime());
-    }
+    // The oddballs - these don't obviously come from any one part of the structure
+    builder
+        .setState(computeActivityState(state, activityTaskData))
+        // We don't track this in the test environment right now, but we could.
+        .setLastWorkerIdentity("test-environment-worker-identity");
 
-    if (pendingActivity.lastHeartbeatTime > 0) {
-      // This may overwrite the heartbeat time we just set - that's fine
-      builder.setLastHeartbeatTime(timestampFromMillis(pendingActivity.lastHeartbeatTime));
+    // Some ids are only present in the schedule event...
+    populatePendingActivityInfoFromScheduledEvent(builder, activityTaskData.scheduledEvent);
 
-      if (pendingActivity.heartbeatDetails != null) {
-        builder.setHeartbeatDetails(pendingActivity.heartbeatDetails);
-      }
-    }
+    // A few bits of timing are only present on the poll response...
+    PollActivityTaskQueueResponseOrBuilder pollResponse = activityTaskData.activityTask.getTask();
+    populatePendingActivityInfoFromPollResponse(builder, pollResponse);
 
-    if (scheduledEvent.hasRetryPolicy()) {
-      builder.setAttempt(pendingActivity.retryState.getAttempt());
-      builder.setExpirationTime(pendingActivity.retryState.getExpirationTime());
-      builder.setMaximumAttempts(scheduledEvent.getRetryPolicy().getMaximumAttempts());
-      pendingActivity.retryState.getPreviousRunFailure().ifPresent(builder::setLastFailure);
-      // We don't track this in the test environment right now, but we could.
-      builder.setLastWorkerIdentity("test-environment-worker-identity");
-    } else {
-      builder.setAttempt(1);
-    }
+    // Heartbeat details are housed directly in the activityTaskData
+    populatePendingActivityInfoFromHeartbeatDetails(builder, activityTaskData);
+
+    // Retry data is housed under .retryState
+    populatePendingActivityInfoFromRetryData(builder, activityTaskData.retryState);
 
     return builder.build();
   }
 
-  private Timestamp timestampFromMillis(long millis) {
-    return Timestamp.newBuilder()
-        .setSeconds(millis / 1000)
-        .setNanos(Math.toIntExact(Duration.ofMillis(millis % 1000).toNanos()))
-        .build();
-  }
-
   // Mimics golang in HistoryEngine.DescribeWorkflowExecution. Note that this only covers pending
   // states, so there's quite a bit of state-space that doesn't need to be mapped.
-  private PendingActivityState computeActivityState(State state, ActivityTaskData pendingActivity) {
+  private static PendingActivityState computeActivityState(
+      State state, ActivityTaskData pendingActivity) {
     if (state == State.CANCELLATION_REQUESTED) {
       return PendingActivityState.PENDING_ACTIVITY_STATE_CANCEL_REQUESTED;
     } else if (pendingActivity.startedEvent != null) {
@@ -2264,7 +2243,49 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
   }
 
-  private void setTimestampsBasedOnHistory(
+  private static void populatePendingActivityInfoFromScheduledEvent(
+      PendingActivityInfo.Builder builder, ActivityTaskScheduledEventAttributes scheduledEvent) {
+    builder
+        .setActivityId(scheduledEvent.getActivityId())
+        .setActivityType(scheduledEvent.getActivityType());
+  }
+
+  private static void populatePendingActivityInfoFromPollResponse(
+      PendingActivityInfo.Builder builder, PollActivityTaskQueueResponseOrBuilder task) {
+    // In golang, we set one but never both of these fields, depending on the activity state
+    if (builder.getState() == PendingActivityState.PENDING_ACTIVITY_STATE_SCHEDULED) {
+      builder.setScheduledTime(task.getScheduledTime());
+    } else {
+      builder.setLastStartedTime(task.getStartedTime());
+      builder.setLastHeartbeatTime(task.getStartedTime());
+    }
+  }
+
+  private static void populatePendingActivityInfoFromHeartbeatDetails(
+      PendingActivityInfo.Builder builder, ActivityTaskData activityTaskData) {
+    if (activityTaskData.lastHeartbeatTime > 0) {
+      // This may overwrite the heartbeat time we just set - that's fine
+      builder.setLastHeartbeatTime(Timestamps.fromMillis(activityTaskData.lastHeartbeatTime));
+
+      if (activityTaskData.heartbeatDetails != null) {
+        builder.setHeartbeatDetails(activityTaskData.heartbeatDetails);
+      }
+    }
+  }
+
+  private static void populatePendingActivityInfoFromRetryData(
+      PendingActivityInfo.Builder builder, TestServiceRetryState retryState) {
+    builder.setAttempt(retryState.getAttempt());
+    builder.setExpirationTime(retryState.getExpirationTime());
+    retryState.getPreviousRunFailure().ifPresent(builder::setLastFailure);
+
+    RetryPolicy retryPolicy =
+        Preconditions.checkNotNull(
+            retryState.getRetryPolicy(), "retryPolicy should always be present");
+    builder.setMaximumAttempts(retryPolicy.getMaximumAttempts());
+  }
+
+  private static void populateWorkflowExecutionInfoFromHistory(
       WorkflowExecutionInfo.Builder executionInfo, List<HistoryEvent> fullHistory) {
     getStartEvent(fullHistory)
         .ifPresent(
@@ -2296,7 +2317,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   // Has an analog in the golang codebase: MutableState.GetStartEvent(). This could become public
   // if needed.
-  private Optional<HistoryEvent> getStartEvent(List<HistoryEvent> history) {
+  private static Optional<HistoryEvent> getStartEvent(List<HistoryEvent> history) {
     if (history.size() == 0) {
       // It's theoretically possible for the TestWorkflowMutableState to exist, but
       // for the history to still be empty. This is the case between construction and
@@ -2319,10 +2340,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   // Has an analog in the golang codebase: MutableState.GetCompletionEvent(). This could become
   // public if needed.
-  private Optional<HistoryEvent> getCompletionEvent(List<HistoryEvent> history) {
+  private static Optional<HistoryEvent> getCompletionEvent(List<HistoryEvent> history) {
     HistoryEvent lastEvent = history.get(history.size() - 1);
 
-    if (StateMachines.historyEventIsTerminal(lastEvent)) {
+    if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(lastEvent)) {
       return Optional.of(lastEvent);
     } else {
       return Optional.empty();
