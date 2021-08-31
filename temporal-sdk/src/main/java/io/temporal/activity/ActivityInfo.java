@@ -75,7 +75,7 @@ public interface ActivityInfo {
   /** @return the Namespace of Workflow Execution that executed the Activity. */
   String getWorkflowNamespace();
 
-  /** @return the Namespace of the Activty Execution. */
+  /** @return the Namespace of the Activity Execution. */
   String getActivityNamespace();
 
   /**
