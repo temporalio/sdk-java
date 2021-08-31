@@ -46,7 +46,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AuthorizationTokenTest {
-
   private static final Logger log = LoggerFactory.getLogger(AuthorizationTokenTest.class);
   private static final String TASK_QUEUE = "test-workflow";
   private static final String AUTH_TOKEN = "Bearer <token>";
@@ -62,7 +61,7 @@ public class AuthorizationTokenTest {
         }
       };
 
-  private final List<GrpcRequest> loggedRequests = new ArrayList<>();
+  private final List<GrpcRequest> loggedRequests = Collections.synchronizedList(new ArrayList<>());
 
   @Before
   public void setUp() {
@@ -148,11 +147,11 @@ public class AuthorizationTokenTest {
     }
   }
 
-  class GrpcRequest {
-    String methodName;
-    String authTokenValue;
+  private static class GrpcRequest {
+    final String methodName;
+    final String authTokenValue;
 
-    public GrpcRequest(String methodName, String authTokenValue) {
+    GrpcRequest(String methodName, String authTokenValue) {
       this.methodName = methodName;
       this.authTokenValue = authTokenValue;
     }
