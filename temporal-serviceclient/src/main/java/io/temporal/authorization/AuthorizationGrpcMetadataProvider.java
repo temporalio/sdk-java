@@ -23,7 +23,7 @@ import io.grpc.Metadata;
 import io.temporal.serviceclient.GrpcMetadataProvider;
 
 public class AuthorizationGrpcMetadataProvider implements GrpcMetadataProvider {
-  public static final Metadata.Key<String> JWT_AUTHORIZATION_HEADER_KEY =
+  public static final Metadata.Key<String> AUTHORIZATION_HEADER_KEY =
       Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
 
   private final AuthorizationTokenSupplier authorizationTokenSupplier;
@@ -36,7 +36,7 @@ public class AuthorizationGrpcMetadataProvider implements GrpcMetadataProvider {
   @Override
   public Metadata getMetadata() {
     Metadata metadata = new Metadata();
-    metadata.put(JWT_AUTHORIZATION_HEADER_KEY, authorizationTokenSupplier.supply());
+    metadata.put(AUTHORIZATION_HEADER_KEY, authorizationTokenSupplier.supply());
     return metadata;
   }
 }

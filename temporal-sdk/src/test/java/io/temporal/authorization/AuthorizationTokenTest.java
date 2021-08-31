@@ -94,7 +94,7 @@ public class AuthorizationTokenTest {
                           new GrpcRequest(
                               method.getBareMethodName(),
                               headers.get(
-                                  AuthorizationGrpcMetadataProvider.JWT_AUTHORIZATION_HEADER_KEY)));
+                                  AuthorizationGrpcMetadataProvider.AUTHORIZATION_HEADER_KEY)));
                       super.start(responseListener, headers);
                     }
                   }
