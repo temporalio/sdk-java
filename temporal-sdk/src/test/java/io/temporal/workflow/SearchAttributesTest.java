@@ -79,8 +79,12 @@ public class SearchAttributesTest {
 
   @Test
   public void testSearchAttributes() {
-    if (SDKTestWorkflowRule.useExternalService) {
-      return;
+    if (testWorkflowRule.isUseExternalService()) {
+      // LocalDateTime fails to deserialize in the real service, with a message like
+      // INVALID_ARGUMENT: 2021-08-26T13:21:52.059738 is not a valid value for search attribute
+      // CustomDatetimeField of type Datetime
+      // Tracked in https://github.com/temporalio/sdk-java/issues/673
+      searchAttributes.remove(testKeyDateTime);
     }
 
     WorkflowOptions workflowOptions =
@@ -116,9 +120,11 @@ public class SearchAttributesTest {
         converter.fromPayload(searchAttrIntegerBytes, Integer.class, Integer.class);
     assertEquals(testValueInteger, retrievedInteger);
     Payload searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime);
-    LocalDateTime retrievedDateTime =
-        converter.fromPayload(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
-    assertEquals(testValueDateTime, retrievedDateTime);
+    if (!testWorkflowRule.isUseExternalService()) {
+      LocalDateTime retrievedDateTime =
+          converter.fromPayload(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
+      assertEquals(testValueDateTime, retrievedDateTime);
+    }
     Payload searchAttrBoolBytes = fieldsMap.get(testKeyBool);
     Boolean retrievedBool =
         converter.fromPayload(searchAttrBoolBytes, Boolean.class, Boolean.class);
@@ -131,6 +137,10 @@ public class SearchAttributesTest {
 
   @Test
   public void testSearchAttributesPresentInChildWorkflow() {
+    // see testSearchAttributes() for explanation
+    if (testWorkflowRule.isUseExternalService()) {
+      searchAttributes.remove(testKeyDateTime);
+    }
     NoArgsWorkflow client = testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
     client.execute();
   }
