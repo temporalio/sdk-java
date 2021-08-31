@@ -21,6 +21,7 @@ package io.temporal.authorization;
 
 /**
  * Supplies tokens that will be sent to the Temporal server to perform authorization.
+ * Implementations have to be thread-safe.
  *
  * <p>The default JWT ClaimMapper expects authorization tokens to be in the following format:
  *
@@ -32,5 +33,6 @@ package io.temporal.authorization;
  *     JWT</a>
  */
 public interface AuthorizationTokenSupplier {
+  /** @return token to be passed in authorization header */
   String supply();
 }
