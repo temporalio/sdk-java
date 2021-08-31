@@ -172,12 +172,12 @@ public class DefaultDataConverter implements DataConverter {
       int index, Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
       throws DataConverterException {
     if (!content.isPresent()) {
-      return (T) Defaults.defaultValue((Class<?>) parameterType);
+      return Defaults.defaultValue(parameterType);
     }
     int count = content.get().getPayloadsCount();
     // To make adding arguments a backwards compatible change
     if (index >= count) {
-      return (T) Defaults.defaultValue((Class<?>) parameterType);
+      return Defaults.defaultValue(parameterType);
     }
     return fromPayload(content.get().getPayloads(index), parameterType, genericParameterType);
   }
