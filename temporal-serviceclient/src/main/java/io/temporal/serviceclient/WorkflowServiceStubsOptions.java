@@ -23,12 +23,12 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.grpc.*;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
-import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Function;
 
 public class WorkflowServiceStubsOptions {
 
@@ -133,17 +133,15 @@ public class WorkflowServiceStubsOptions {
   /** Optional gRPC headers */
   private final Metadata headers;
 
+  /**
+   * gRPC metadata/headers providers to be called on each gRPC request to supply additional headers
+   */
+  private final Collection<GrpcMetadataProvider> grpcMetadataProviders;
+
+  /** gRPC client interceptors to be added to gRPC channel */
+  private final Collection<ClientInterceptor> grpcClientInterceptors;
+
   private final Scope metricsScope;
-
-  private final Function<
-          WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-          WorkflowServiceGrpc.WorkflowServiceBlockingStub>
-      blockingStubInterceptor;
-
-  private final Function<
-          WorkflowServiceGrpc.WorkflowServiceFutureStub,
-          WorkflowServiceGrpc.WorkflowServiceFutureStub>
-      futureStubInterceptor;
 
   private WorkflowServiceStubsOptions(Builder builder) {
     this.target = builder.target;
@@ -156,9 +154,9 @@ public class WorkflowServiceStubsOptions {
     this.rpcRetryOptions = builder.rpcRetryOptions;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
-    this.blockingStubInterceptor = builder.blockingStubInterceptor;
-    this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
+    this.grpcMetadataProviders = builder.grpcMetadataProviders;
+    this.grpcClientInterceptors = builder.grpcClientInterceptors;
     this.metricsScope = builder.metricsScope;
     this.disableHealthCheck = builder.disableHealthCheck;
     this.healthCheckAttemptTimeout = builder.healthCheckAttemptTimeout;
@@ -195,12 +193,20 @@ public class WorkflowServiceStubsOptions {
     this.rpcTimeout = builder.rpcTimeout;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
-    this.blockingStubInterceptor = builder.blockingStubInterceptor;
-    this.futureStubInterceptor = builder.futureStubInterceptor;
     if (builder.headers != null) {
       this.headers = builder.headers;
     } else {
       this.headers = new Metadata();
+    }
+    if (builder.grpcMetadataProviders != null) {
+      this.grpcMetadataProviders = builder.grpcMetadataProviders;
+    } else {
+      this.grpcMetadataProviders = Collections.emptyList();
+    }
+    if (builder.grpcClientInterceptors != null) {
+      this.grpcClientInterceptors = builder.grpcClientInterceptors;
+    } else {
+      this.grpcClientInterceptors = Collections.emptyList();
     }
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
     this.disableHealthCheck = builder.disableHealthCheck;
@@ -315,24 +321,22 @@ public class WorkflowServiceStubsOptions {
     return grpcReconnectFrequency;
   }
 
+  /** @return gRPC headers to be added to every call. */
   public Metadata getHeaders() {
     return headers;
   }
 
-  public Optional<
-          Function<
-              WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-              WorkflowServiceGrpc.WorkflowServiceBlockingStub>>
-      getBlockingStubInterceptor() {
-    return Optional.ofNullable(blockingStubInterceptor);
+  /**
+   * @return gRPC metadata/headers providers to be called on each gRPC request to supply additional
+   *     headers.
+   */
+  public Collection<GrpcMetadataProvider> getGrpcMetadataProviders() {
+    return grpcMetadataProviders;
   }
 
-  public Optional<
-          Function<
-              WorkflowServiceGrpc.WorkflowServiceFutureStub,
-              WorkflowServiceGrpc.WorkflowServiceFutureStub>>
-      getFutureStubInterceptor() {
-    return Optional.ofNullable(futureStubInterceptor);
+  /** @return gRPC client interceptors to be added to gRPC channel. */
+  public Collection<ClientInterceptor> getGrpcClientInterceptors() {
+    return grpcClientInterceptors;
   }
 
   public Scope getMetricsScope() {
@@ -365,14 +369,8 @@ public class WorkflowServiceStubsOptions {
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
     private Duration grpcReconnectFrequency = DEFAULT_GRPC_RECONNECT_FREQUENCY;
     private Metadata headers;
-    private Function<
-            WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-            WorkflowServiceGrpc.WorkflowServiceBlockingStub>
-        blockingStubInterceptor;
-    private Function<
-            WorkflowServiceGrpc.WorkflowServiceFutureStub,
-            WorkflowServiceGrpc.WorkflowServiceFutureStub>
-        futureStubInterceptor;
+    private Collection<GrpcMetadataProvider> grpcMetadataProviders = new ArrayList<>(0);
+    private Collection<ClientInterceptor> grpcClientInterceptors = new ArrayList<>(0);
     private Scope metricsScope;
 
     private Builder() {}
@@ -388,9 +386,9 @@ public class WorkflowServiceStubsOptions {
       this.rpcRetryOptions = options.rpcRetryOptions;
       this.connectionBackoffResetFrequency = options.connectionBackoffResetFrequency;
       this.grpcReconnectFrequency = options.grpcReconnectFrequency;
-      this.blockingStubInterceptor = options.blockingStubInterceptor;
-      this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
+      this.grpcMetadataProviders = new ArrayList<>(options.grpcMetadataProviders);
+      this.grpcClientInterceptors = new ArrayList<>(options.grpcClientInterceptors);
       this.metricsScope = options.metricsScope;
       this.disableHealthCheck = options.disableHealthCheck;
       this.healthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
@@ -511,26 +509,51 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
+    /**
+     * @param headers gRPC headers to be added to every call.
+     * @return {@code this}
+     */
     public Builder setHeaders(Metadata headers) {
       this.headers = headers;
       return this;
     }
 
-    public Builder setBlockingStubInterceptor(
-        Function<
-                WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-                WorkflowServiceGrpc.WorkflowServiceBlockingStub>
-            blockingStubInterceptor) {
-      this.blockingStubInterceptor = blockingStubInterceptor;
+    /**
+     * @param grpcMetadataProvider gRPC metadata/headers provider to be called on each gRPC request
+     *     to supply additional headers
+     * @return {@code this}
+     */
+    public Builder addGrpcMetadataProvider(GrpcMetadataProvider grpcMetadataProvider) {
+      this.grpcMetadataProviders.add(grpcMetadataProvider);
       return this;
     }
 
-    public Builder setFutureStubInterceptor(
-        Function<
-                WorkflowServiceGrpc.WorkflowServiceFutureStub,
-                WorkflowServiceGrpc.WorkflowServiceFutureStub>
-            futureStubInterceptor) {
-      this.futureStubInterceptor = futureStubInterceptor;
+    /**
+     * @param grpcMetadataProviders gRPC metadata/headers providers to be called on each gRPC
+     *     request to supply additional headers.
+     * @return {@code this}
+     */
+    public Builder setGrpcMetadataProviders(
+        Collection<GrpcMetadataProvider> grpcMetadataProviders) {
+      this.grpcMetadataProviders = grpcMetadataProviders;
+      return this;
+    }
+
+    /**
+     * @param grpcClientInterceptor gRPC client interceptor to be added to gRPC channel
+     * @return {@code this}
+     */
+    public Builder addGrpcClientInterceptor(ClientInterceptor grpcClientInterceptor) {
+      this.grpcClientInterceptors.add(grpcClientInterceptor);
+      return this;
+    }
+
+    /**
+     * @param grpcClientInterceptors gRPC client interceptors to be added to gRPC channel
+     * @return {@code this}
+     */
+    public Builder setGrpcClientInterceptors(Collection<ClientInterceptor> grpcClientInterceptors) {
+      this.grpcClientInterceptors = grpcClientInterceptors;
       return this;
     }
 

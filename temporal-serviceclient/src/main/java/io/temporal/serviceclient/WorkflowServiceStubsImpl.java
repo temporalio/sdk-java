@@ -39,6 +39,7 @@ import io.grpc.stub.MetadataUtils;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.retryer.GrpcRetryer;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -163,10 +164,22 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     healthBlockingStub = HealthGrpc.newBlockingStub(channel);
     checkHealth();
 
+    Channel interceptedChannel = channel;
+
+    interceptedChannel = applyCustomInterceptors(interceptedChannel);
+    interceptedChannel = applyStandardInterceptors(interceptedChannel);
+
+    this.blockingStub = WorkflowServiceGrpc.newBlockingStub(interceptedChannel);
+    this.futureStub = WorkflowServiceGrpc.newFutureStub(interceptedChannel);
+    log.info(String.format("Created GRPC client for channel: %s", channel));
+  }
+
+  private Channel applyStandardInterceptors(Channel channel) {
     GrpcMetricsInterceptor metricsInterceptor =
         new GrpcMetricsInterceptor(options.getMetricsScope());
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
     GrpcTracingInterceptor tracingInterceptor = new GrpcTracingInterceptor();
+
     Metadata headers = new Metadata();
     headers.merge(options.getHeaders());
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
@@ -181,19 +194,28 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     if (tracingInterceptor.isEnabled()) {
       interceptedChannel = ClientInterceptors.intercept(interceptedChannel, tracingInterceptor);
     }
-    WorkflowServiceGrpc.WorkflowServiceBlockingStub bs =
-        WorkflowServiceGrpc.newBlockingStub(interceptedChannel);
-    if (options.getBlockingStubInterceptor().isPresent()) {
-      bs = options.getBlockingStubInterceptor().get().apply(bs);
+    interceptedChannel = applyGrpcMetadataProviderInterceptors(interceptedChannel);
+    return interceptedChannel;
+  }
+
+  private Channel applyGrpcMetadataProviderInterceptors(Channel channel) {
+    Collection<GrpcMetadataProvider> grpcMetadataProviders = options.getGrpcMetadataProviders();
+    if (grpcMetadataProviders != null && !grpcMetadataProviders.isEmpty()) {
+      GrpcMetadataProviderInterceptor grpcMetadataProviderInterceptor =
+          new GrpcMetadataProviderInterceptor(grpcMetadataProviders);
+      channel = ClientInterceptors.intercept(channel, grpcMetadataProviderInterceptor);
     }
-    this.blockingStub = bs;
-    WorkflowServiceGrpc.WorkflowServiceFutureStub fs =
-        WorkflowServiceGrpc.newFutureStub(interceptedChannel);
-    if (options.getFutureStubInterceptor().isPresent()) {
-      fs = options.getFutureStubInterceptor().get().apply(fs);
+    return channel;
+  }
+
+  private Channel applyCustomInterceptors(Channel channel) {
+    Collection<ClientInterceptor> grpcClientInterceptors = options.getGrpcClientInterceptors();
+    if (grpcClientInterceptors != null) {
+      for (ClientInterceptor interceptor : grpcClientInterceptors) {
+        channel = ClientInterceptors.intercept(channel, interceptor);
+      }
     }
-    this.futureStub = fs;
-    log.info(String.format("Created GRPC client for channel: %s", channel));
+    return channel;
   }
 
   private Runnable enterGrpcIdleChannelStateTask() {

@@ -65,17 +65,21 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     timeLockingInterceptor = new TimeLockingInterceptor(service);
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
 
+    WorkflowServiceStubsOptions.Builder stubsOptionsBuilder =
+        testEnvironmentOptions.getWorkflowServiceStubsOptions() != null
+            ? WorkflowServiceStubsOptions.newBuilder(
+                testEnvironmentOptions.getWorkflowServiceStubsOptions())
+            : WorkflowServiceStubsOptions.newBuilder();
+
     if (testEnvironmentOptions.isUseExternalService()) {
       workflowServiceStubs =
           WorkflowServiceStubs.newInstance(
-              WorkflowServiceStubsOptions.newBuilder()
-                  .setTarget(testEnvironmentOptions.getTarget())
-                  .build());
+              stubsOptionsBuilder.setTarget(testEnvironmentOptions.getTarget()).build());
     } else {
       workflowServiceStubs =
           WorkflowServiceStubs.newInstance(
               service,
-              WorkflowServiceStubsOptions.newBuilder()
+              stubsOptionsBuilder
                   .setMetricsScope(options.getMetricsScope())
                   .setDisableHealthCheck(true)
                   .build());
