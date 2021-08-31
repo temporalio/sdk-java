@@ -46,7 +46,7 @@ public class NoQueryThreadLeakTest {
     int queryCount = 100;
     for (int i = 0; i < queryCount; i++) {
       Assert.assertEquals("some state", client.getState());
-      if (SDKTestWorkflowRule.useExternalService) {
+      if (testWorkflowRule.isUseExternalService()) {
         // Sleep a little bit to avoid server throttling error.
         Thread.sleep(50);
       }
