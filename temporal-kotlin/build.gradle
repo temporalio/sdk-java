@@ -1,18 +1,12 @@
 plugins {
-//    id 'org.jetbrains.kotlin.jvm' version '1.3.72'
+    id 'org.jetbrains.kotlin.jvm' version '1.3.72'
 //    id 'org.jetbrains.kotlin.jvm' version '1.4.21'
-    id 'org.jetbrains.kotlin.jvm' version '1.5.30'
+//    id 'org.jetbrains.kotlin.jvm' version '1.5.30'
 
     id 'org.jlleitschuh.gradle.ktlint' version '10.1.0'
 }
 
 description = '''Temporal Workflow Java SDK Kotlin'''
-
-ext {
-//    kotlinVersion = '1.3.72'
-//    kotlinVersion = '1.4.21'
-    kotlinVersion = '1.5.30'
-}
 
 compileKotlin {
     kotlinOptions {
@@ -27,8 +21,6 @@ compileTestKotlin {
 }
 
 dependencies {
-    compileOnly group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: kotlinVersion
-
     implementation project(':temporal-sdk')
 
     implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.12.5'
