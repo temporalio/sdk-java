@@ -111,8 +111,8 @@ public final class ActivityOptions {
      *
      * <p>Note that the Temporal Server doesn't detect Worker process failures directly. It relies
      * on this timeout to detect that an Activity that didn't complete on time. So this timeout
-     * should be as short as the longest possible execution of the Activity body. Potentially long
-     * running Activities must specify HeartbeatTimeout and call {@link
+     * should be as short as the longest possible execution of the Activity body. Potentially
+     * long-running Activities must specify HeartbeatTimeout and call {@link
      * ActivityExecutionContext#heartbeat(Object)} periodically for timely failure detection.
      *
      * <p>If ScheduleToClose is not provided then this timeout is required.
@@ -134,7 +134,7 @@ public final class ActivityOptions {
     }
 
     /**
-     * Task queue to use when dispatching activity task to a worker. By default it is the same task
+     * Task queue to use when dispatching activity task to a worker. By default, it is the same task
      * list name the workflow was started with.
      */
     public Builder setTaskQueue(String taskQueue) {

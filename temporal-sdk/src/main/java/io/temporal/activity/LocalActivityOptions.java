@@ -181,7 +181,7 @@ public final class LocalActivityOptions {
   private final Duration localRetryThreshold;
   private final Duration startToCloseTimeout;
   private final RetryOptions retryOptions;
-  private Boolean doNotIncludeArgumentsIntoMarker;
+  private final Boolean doNotIncludeArgumentsIntoMarker;
 
   private LocalActivityOptions(
       Duration startToCloseTimeout,
@@ -213,7 +213,7 @@ public final class LocalActivityOptions {
   }
 
   public boolean isDoNotIncludeArgumentsIntoMarker() {
-    return (doNotIncludeArgumentsIntoMarker == null) ? false : doNotIncludeArgumentsIntoMarker;
+    return doNotIncludeArgumentsIntoMarker != null && doNotIncludeArgumentsIntoMarker;
   }
 
   public Builder toBuilder() {

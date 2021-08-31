@@ -64,7 +64,7 @@ interface TestWorkflowStore {
         return true;
       }
 
-      if (o == null || !(o instanceof TaskQueueId)) {
+      if (!(o instanceof TaskQueueId)) {
         return false;
       }
 
@@ -152,7 +152,6 @@ interface TestWorkflowStore {
   Optional<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
       PollActivityTaskQueueRequest pollRequest, Deadline deadline);
 
-  /** @return queryId */
   void sendQueryTask(
       ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);
 

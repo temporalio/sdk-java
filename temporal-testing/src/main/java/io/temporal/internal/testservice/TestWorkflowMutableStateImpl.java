@@ -631,10 +631,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       .build();
               CancelExternalWorkflowExecutionCallerInfo info =
                   new CancelExternalWorkflowExecutionCallerInfo(
-                      ctx.getNamespace(),
-                      cancelStateMachine.getData().initiatedEventId,
-                      executionId.getExecution(),
-                      this);
+                      ctx.getNamespace(), cancelStateMachine.getData().initiatedEventId, this);
               try {
                 service.requestCancelWorkflowExecution(request, Optional.of(info));
               } catch (Exception e) {
@@ -1088,12 +1085,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processStartTimer(
       RequestContext ctx, StartTimerCommandAttributes a, long workflowTaskCompletedId) {
     String timerId = a.getTimerId();
-    if (timerId == null) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("A valid TimerId is not set on StartTimerCommand")
-          .asRuntimeException();
-    }
     StateMachine<TimerData> timer = timers.get(timerId);
+
     if (timer != null) {
       throw Status.FAILED_PRECONDITION
           .withDescription("Already open timer with " + timerId)
@@ -1409,15 +1402,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     workflow.action(Action.CONTINUE_AS_NEW, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
-    String runId =
-        service.continueAsNew(
-            startRequest,
-            event.getWorkflowExecutionContinuedAsNewEventAttributes(),
-            workflow.getData().retryState,
-            identity,
-            getExecutionId(),
-            parent,
-            parentChildInitiatedEventId);
+    service.continueAsNew(
+        startRequest,
+        event.getWorkflowExecutionContinuedAsNewEventAttributes(),
+        workflow.getData().retryState,
+        identity,
+        getExecutionId(),
+        parent,
+        parentChildInitiatedEventId);
   }
 
   private void processUpsertWorkflowSearchAttributes(
@@ -1453,7 +1445,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   backoffStartInterval,
                   () -> {
                     try {
-                      update(ctx1 -> scheduleWorkflowTask(ctx1));
+                      update(this::scheduleWorkflowTask);
                     } catch (StatusRuntimeException e) {
                       // NOT_FOUND is expected as timers are not removed
                       if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
@@ -1548,15 +1540,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public boolean isTerminalState() {
     State workflowState = workflow.getState();
     return isTerminalState(workflowState);
-  }
-
-  private void checkCompleted() {
-    State workflowState = workflow.getState();
-    if (isTerminalState(workflowState)) {
-      throw Status.NOT_FOUND
-          .withDescription("Workflow is already completed: " + workflowState)
-          .asRuntimeException();
-    }
   }
 
   private boolean isTerminalState(State workflowState) {
@@ -1874,10 +1857,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     private final TestWorkflowMutableState caller;
 
     CancelExternalWorkflowExecutionCallerInfo(
-        String namespace,
-        long externalInitiatedEventId,
-        WorkflowExecution workflowExecution,
-        TestWorkflowMutableState caller) {
+        String namespace, long externalInitiatedEventId, TestWorkflowMutableState caller) {
       this.namespace = namespace;
       this.externalInitiatedEventId = externalInitiatedEventId;
       this.caller = caller;

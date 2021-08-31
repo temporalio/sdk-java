@@ -87,12 +87,6 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public void setContinueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
     public Optional<String> getContinuedExecutionRunId() {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -129,11 +123,6 @@ public class DummySyncWorkflowContext {
 
     @Override
     public long getRunStartedTimestampMillis() {
-      return 0;
-    }
-
-    @Override
-    public long getWorkflowExecutionExpirationTimestampMillis() {
       return 0;
     }
 
