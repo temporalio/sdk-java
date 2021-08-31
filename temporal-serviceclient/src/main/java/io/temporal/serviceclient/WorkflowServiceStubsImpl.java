@@ -19,7 +19,6 @@
 
 package io.temporal.serviceclient;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptor;
@@ -28,7 +27,6 @@ import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.Server;
-import io.grpc.StatusRuntimeException;
 import io.grpc.health.v1.HealthCheckRequest;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
@@ -77,7 +75,6 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private final AtomicBoolean shutdownRequested = new AtomicBoolean();
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
-  private final HealthGrpc.HealthBlockingStub healthBlockingStub;
   private final Server inProcessServer;
   private final ScheduledExecutorService grpcConnectionManager;
 
@@ -161,9 +158,6 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       channelNeedsShutdown = true;
     }
 
-    healthBlockingStub = HealthGrpc.newBlockingStub(channel);
-    checkHealth();
-
     Channel interceptedChannel = channel;
 
     interceptedChannel = applyCustomInterceptors(interceptedChannel);
@@ -171,6 +165,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
     this.blockingStub = WorkflowServiceGrpc.newBlockingStub(interceptedChannel);
     this.futureStub = WorkflowServiceGrpc.newFutureStub(interceptedChannel);
+    if (!options.getDisableHealthCheck()) {
+      checkHealth(interceptedChannel);
+    }
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
@@ -179,7 +176,6 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
         new GrpcMetricsInterceptor(options.getMetricsScope());
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
     GrpcTracingInterceptor tracingInterceptor = new GrpcTracingInterceptor();
-
     Metadata headers = new Metadata();
     headers.merge(options.getHeaders());
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
@@ -248,7 +244,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
             .build());
   }
 
-  /**
+  /*
    * Checks service health using gRPC health check:
    * https://github.com/grpc/grpc/blob/master/doc/health-checking.md
    *
@@ -256,33 +252,27 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
    * @throws RuntimeException if the check returns unhealthy status.
    * @return true if server is up.
    */
-  private void checkHealth() {
-    checkHealth(HEALTH_CHECK_SERVICE_NAME);
-  }
-
-  @VisibleForTesting
-  void checkHealth(String serviceName) {
-    if (!options.getDisableHealthCheck()) {
-      RpcRetryOptions retryOptions =
-          RpcRetryOptions.newBuilder()
-              .setExpiration(getOptions().getHealthCheckTimeout())
-              .validateBuildWithDefaults();
-
-      HealthCheckResponse response =
-          GrpcRetryer.retryWithResult(
-              retryOptions,
-              () -> {
-                return healthBlockingStub
+  private void checkHealth(Channel channel) {
+    RpcRetryOptions retryOptions =
+        RpcRetryOptions.newBuilder()
+            .setExpiration(getOptions().getHealthCheckTimeout())
+            .validateBuildWithDefaults();
+    HealthGrpc.HealthBlockingStub healthBlockingStub = HealthGrpc.newBlockingStub(channel);
+    HealthCheckResponse response =
+        GrpcRetryer.retryWithResult(
+            retryOptions,
+            () ->
+                healthBlockingStub
                     .withDeadline(
                         Deadline.after(
                             options.getHealthCheckAttemptTimeout().getSeconds(), TimeUnit.SECONDS))
-                    .check(HealthCheckRequest.newBuilder().setService(serviceName).build());
-              });
+                    .check(
+                        HealthCheckRequest.newBuilder()
+                            .setService(WorkflowServiceStubsImpl.HEALTH_CHECK_SERVICE_NAME)
+                            .build()));
 
-      if (!HealthCheckResponse.ServingStatus.SERVING.equals(response.getStatus())) {
-        throw new RuntimeException(
-            "Health check returned unhealthy status: " + response.getStatus());
-      }
+    if (!HealthCheckResponse.ServingStatus.SERVING.equals(response.getStatus())) {
+      throw new RuntimeException("Health check returned unhealthy status: " + response.getStatus());
     }
   }
 
