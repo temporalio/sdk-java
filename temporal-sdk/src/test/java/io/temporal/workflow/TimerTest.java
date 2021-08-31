@@ -41,7 +41,7 @@ public class TimerTest {
   @Test
   public void testTimer() {
     WorkflowOptions options;
-    if (SDKTestWorkflowRule.useExternalService) {
+    if (testWorkflowRule.isUseExternalService()) {
       options = SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
     } else {
       options =
@@ -54,7 +54,7 @@ public class TimerTest {
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestTraceWorkflow.class, options);
     String result = client.execute(SDKTestWorkflowRule.useExternalService);
     Assert.assertEquals("testTimer", result);
-    if (SDKTestWorkflowRule.useExternalService) {
+    if (testWorkflowRule.isUseExternalService()) {
       testWorkflowRule
           .getInterceptor(TracingWorkerInterceptor.class)
           .setExpected(
