@@ -227,6 +227,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       log.debug("shutdown interrupted", e);
     }
     store.close();
+    forkJoinPool.shutdown();
+    try {
+      forkJoinPool.awaitTermination(1000, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+    forkJoinPool.shutdownNow();
   }
 
   private TestWorkflowMutableState getMutableState(ExecutionId executionId) {
