@@ -59,7 +59,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -169,11 +168,6 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     return !activities.isEmpty() || dynamicActivity != null;
   }
 
-  @VisibleForTesting
-  public Set<String> getRegisteredActivityTypes() {
-    return activities.keySet();
-  }
-
   public void registerActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
       registerActivityImplementation(activity, POJOActivityImplementation::new);
@@ -196,7 +190,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
       if (dynamicActivity != null) {
-        return dynamicActivity.execute(activityInfo, metricsScope);
+        return dynamicActivity.execute(activityInfo, metricsScope, activityTask.getIdentity());
       }
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
@@ -209,11 +203,12 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
           metricsScope,
           localActivity);
     }
-    return activity.execute(activityInfo, metricsScope);
+    return activity.execute(activityInfo, metricsScope, activityTask.getIdentity());
   }
 
   private interface ActivityTaskExecutor {
-    ActivityTaskHandler.Result execute(ActivityInfoInternal task, Scope metricsScope);
+    ActivityTaskHandler.Result execute(
+        ActivityInfoInternal task, Scope metricsScope, String identity);
   }
 
   private class POJOActivityImplementation implements ActivityTaskExecutor {
@@ -226,7 +221,8 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
+    public ActivityTaskHandler.Result execute(
+        ActivityInfoInternal info, Scope metricsScope, String identity) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
               service,
@@ -235,7 +231,8 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
               dataConverter,
               heartbeatExecutor,
               info.getCompletionHandle(),
-              metricsScope);
+              metricsScope,
+              identity);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new POJOActivityInboundCallsInterceptor(activity, method);
@@ -306,7 +303,8 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
+    public ActivityTaskHandler.Result execute(
+        ActivityInfoInternal info, Scope metricsScope, String identity) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
               service,
@@ -315,7 +313,8 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
               dataConverter,
               heartbeatExecutor,
               info.getCompletionHandle(),
-              metricsScope);
+              metricsScope,
+              identity);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new DynamicActivityInboundCallsInterceptor(activity);
@@ -411,7 +410,8 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
+    public ActivityTaskHandler.Result execute(
+        ActivityInfoInternal info, Scope metricsScope, String ignored) {
       ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =

@@ -25,10 +25,13 @@ import io.temporal.workflow.Functions;
 public final class ActivityTask {
   private final PollActivityTaskQueueResponse response;
   private final Functions.Proc completionHandle;
+  private final String identity;
 
-  public ActivityTask(PollActivityTaskQueueResponse response, Functions.Proc completionHandle) {
+  public ActivityTask(
+      PollActivityTaskQueueResponse response, Functions.Proc completionHandle, String identity) {
     this.response = response;
     this.completionHandle = completionHandle;
+    this.identity = identity;
   }
 
   public PollActivityTaskQueueResponse getResponse() {
@@ -41,5 +44,9 @@ public final class ActivityTask {
    */
   public Functions.Proc getCompletionHandle() {
     return completionHandle;
+  }
+
+  public String getIdentity() {
+    return identity;
   }
 }

@@ -64,7 +64,6 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private static final long MAX_HEARTBEAT_INTERVAL_MILLIS = 30000;
 
   private final WorkflowServiceStubs service;
-  private final String namespace;
   private final ActivityInfo info;
   private final DataConverter dataConverter;
   private boolean doNotCompleteOnReturn;
@@ -77,8 +76,9 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private ScheduledFuture future;
   private ActivityCompletionException lastException;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
-  private Functions.Proc completionHandle;
+  private final Functions.Proc completionHandle;
   private boolean useLocalManualCompletion;
+  private final String identity;
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
@@ -88,8 +88,8 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
       Functions.Proc completionHandle,
-      Scope metricsScope) {
-    this.namespace = namespace;
+      Scope metricsScope,
+      String identity) {
     this.service = service;
     this.info = info;
     this.dataConverter = dataConverter;
@@ -102,6 +102,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     this.manualCompletionClientFactory =
         new ManualActivityCompletionClientFactoryImpl(
             service, namespace, dataConverter, metricsScope);
+    this.identity = identity;
   }
 
   /** @see ActivityExecutionContext#heartbeat(Object) */
@@ -201,11 +202,10 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private void sendHeartbeatRequest(Object details) {
     RecordActivityTaskHeartbeatRequest.Builder r =
         RecordActivityTaskHeartbeatRequest.newBuilder()
-            .setTaskToken(OptionsUtils.toByteString(info.getTaskToken()));
+            .setTaskToken(OptionsUtils.toByteString(info.getTaskToken()))
+            .setIdentity(this.identity);
     Optional<Payloads> payloads = dataConverter.toPayloads(details);
-    if (payloads.isPresent()) {
-      r.setDetails(payloads.get());
-    }
+    payloads.ifPresent(r::setDetails);
     RecordActivityTaskHeartbeatResponse status;
     try {
       status =
