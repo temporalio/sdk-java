@@ -324,11 +324,23 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
       RequestContext ctx = new RequestContext(clock, this, nextEventId);
       updater.apply(ctx);
-      if (concurrentWorkflowTask && workflow.getState() != State.TIMED_OUT) {
+
+      if (StateUtils.isWorkflowExecutionForcefullyCompleted(workflow.getState())) {
+        // if we completed the workflow "externally", not through the result of workflow task
+        // (timed out or got a termination request) -
+        // we don't buffer the events and don't wait till the finish of the workflow task
+        // in-progress even if there is one,
+        // but instead we apply them to the history immediately.
+        nextEventId = ctx.commitChanges(store);
+      } else if (concurrentWorkflowTask) {
+        // if there is a concurrent workflow task in progress and the workflow wasn't terminated and
+        // considered timed out,
+        // we buffer the events and wait till the finish of the workflow task
         workflowTaskStateMachine.getData().bufferedEvents.add(ctx);
         ctx.fireCallbacks(0);
         store.applyTimersAndLocks(ctx);
       } else {
+        // if there is no concurrent workflow task in progress - apply events to the history
         nextEventId = ctx.commitChanges(store);
       }
     } catch (StatusRuntimeException e) {
