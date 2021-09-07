@@ -24,6 +24,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.internal.common.converter.EncodingKeys;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;

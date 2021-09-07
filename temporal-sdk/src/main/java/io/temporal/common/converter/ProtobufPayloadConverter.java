@@ -21,6 +21,7 @@ package io.temporal.common.converter;
 
 import com.google.protobuf.MessageLite;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.internal.common.converter.EncodingKeys;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;

@@ -49,7 +49,6 @@ public interface WorkflowStub {
       throw new IllegalArgumentException(
           "arguments must be created through WorkflowClient.newWorkflowStub");
     }
-    @SuppressWarnings("unchecked")
     StubMarker supplier = (StubMarker) typed;
     return (WorkflowStub) supplier.__getUntypedStub();
   }

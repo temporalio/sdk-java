@@ -83,7 +83,7 @@ import java.util.Map;
  * }</pre>
  *
  * <br>
- * If you want to have override the {@code ContextPropagator} instances for your activities, you can
+ * If you want to override the {@code ContextPropagator} instances for your activities, you can
  * specify them at the {@link io.temporal.activity.ActivityOptions} level like so:
  *
  * <pre>{@code

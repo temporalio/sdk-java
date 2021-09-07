@@ -30,11 +30,9 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.api.history.v1.WorkflowTaskFailedEventAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -52,7 +50,7 @@ import java.util.Random;
 import java.util.UUID;
 
 /**
- * TODO(maxim): callbacks usage is non consistent. It accepts Optional and Exception which can be
+ * TODO(maxim): callbacks usage is not consistent. It accepts Optional and Exception which can be
  * null. Either switch both to Optional or both to nullable.
  */
 final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
@@ -192,6 +190,12 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public void upsertSearchAttributes(SearchAttributes searchAttributes) {
+    workflowStateMachines.upsertSearchAttributes(searchAttributes);
+    workflowContext.mergeSearchAttributes(searchAttributes);
+  }
+
+  @Override
   public List<ContextPropagator> getContextPropagators() {
     return workflowContext.getContextPropagators();
   }
@@ -319,20 +323,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public long currentTimeMillis() {
     return workflowStateMachines.currentTimeMillis();
-  }
-
-  public void handleWorkflowTaskFailed(HistoryEvent event) {
-    WorkflowTaskFailedEventAttributes attr = event.getWorkflowTaskFailedEventAttributes();
-    if (attr != null
-        && attr.getCause() == WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_WORKFLOW) {
-      workflowContext.setCurrentRunId(attr.getNewRunId());
-    }
-  }
-
-  @Override
-  public void upsertSearchAttributes(SearchAttributes searchAttributes) {
-    workflowStateMachines.upsertSearchAttributes(searchAttributes);
-    workflowContext.mergeSearchAttributes(searchAttributes);
   }
 
   @Override

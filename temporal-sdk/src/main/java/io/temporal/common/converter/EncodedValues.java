@@ -37,11 +37,11 @@ public final class EncodedValues implements Values {
 
   public EncodedValues(Object... values) {
     this.values = values;
-    this.payloads = null;
+    this.payloads = Optional.empty();
   }
 
   public Optional<Payloads> toPayloads() {
-    if (payloads == null) {
+    if (!payloads.isPresent()) {
       if (values == null || values.length == 0) {
         payloads = Optional.empty();
       } else if (converter == null) {
@@ -62,11 +62,7 @@ public final class EncodedValues implements Values {
     if (values != null) {
       return values.length;
     } else {
-      if (payloads.isPresent()) {
-        return payloads.get().getPayloadsCount();
-      } else {
-        return 0;
-      }
+      return payloads.map(Payloads::getPayloadsCount).orElse(0);
     }
   }
 

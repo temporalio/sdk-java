@@ -25,6 +25,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -107,7 +108,7 @@ public final class WorkflowClientOptions {
     }
 
     /**
-     * Override human readable identity of the worker. Identity is used to identify a worker and is
+     * Override human-readable identity of the worker. Identity is used to identify a worker and is
      * recorded in the workflow history events. For example when a worker gets an activity task the
      * correspondent ActivityTaskStarted event contains the worker identity as a field. Default is
      * whatever <code>(ManagementFactory.getRuntimeMXBean().getName()
@@ -172,7 +173,7 @@ public final class WorkflowClientOptions {
   private static final WorkflowClientInterceptor[] EMPTY_INTERCEPTOR_ARRAY =
       new WorkflowClientInterceptor[0];
 
-  private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Arrays.asList();
+  private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Collections.emptyList();
 
   private final String namespace;
 

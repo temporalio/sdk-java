@@ -56,8 +56,6 @@ import org.slf4j.LoggerFactory;
 
 public class DescribeTest {
 
-  private static final Logger log = LoggerFactory.getLogger(DescribeTest.class);
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -93,13 +91,12 @@ public class DescribeTest {
     StatusRuntimeException e =
         Assert.assertThrows(
             io.grpc.StatusRuntimeException.class,
-            () -> {
-              describe(
-                  WorkflowExecution.newBuilder()
-                      .setWorkflowId("627ecd0c-688b-3fc5-927e-0f7ab7eec09b")
-                      .setRunId("8f493dbf-205d-4142-8e0b-dc5cdff404b8")
-                      .build());
-            });
+            () ->
+                describe(
+                    WorkflowExecution.newBuilder()
+                        .setWorkflowId("627ecd0c-688b-3fc5-927e-0f7ab7eec09b")
+                        .setRunId("8f493dbf-205d-4142-8e0b-dc5cdff404b8")
+                        .build()));
 
     Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
   }
@@ -112,7 +109,7 @@ public class DescribeTest {
         .setWorkflowExecutionTimeout(Duration.ofMinutes(3))
         .setWorkflowRunTimeout(Duration.ofMinutes(2))
         .setWorkflowTaskTimeout(Duration.ofMinutes(1))
-        .setMemo(ImmutableMap.of("memo", "randum"))
+        .setMemo(ImmutableMap.of("memo", "random"))
         .build();
   }
 
@@ -124,9 +121,9 @@ public class DescribeTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub("TestDescribeWorkflow", options);
-    WorkflowExecution execution = stub.start(token, null, Boolean.TRUE, Integer.valueOf(0));
+    WorkflowExecution execution = stub.start(token, null, Boolean.TRUE, 0);
 
-    // Wait for the activity so we know what status to expect
+    // Wait for the activity, so we know what status to expect
     ThreadUtils.waitForWorkflow(token + "-start");
 
     DescribeWorkflowAsserter asserter =
@@ -187,7 +184,7 @@ public class DescribeTest {
     // Let the activity finish, which will let the workflow finish.
     ThreadUtils.waitForWorkflow(token + "-finish");
 
-    // Wait for the workflow to finish so we know what state to expect
+    // Wait for the workflow to finish, so we know what state to expect
     stub.getResult(Void.class);
     describe(execution)
         .assertMatchesOptions(options)
@@ -205,9 +202,9 @@ public class DescribeTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub("TestDescribeWorkflow", options);
-    WorkflowExecution execution = stub.start(token, null, Boolean.FALSE, Integer.valueOf(2));
+    WorkflowExecution execution = stub.start(token, null, Boolean.FALSE, 2);
 
-    // Fast forward until the retry after the failure
+    // Fast-forward until the retry after the failure
     ThreadUtils.waitForWorkflow(token + "-start");
     ThreadUtils.waitForWorkflow(token + "-fail");
     ThreadUtils.waitForWorkflow(token + "-start");
@@ -262,8 +259,7 @@ public class DescribeTest {
       String token,
       Consumer<WorkflowStub> killer,
       WorkflowExecutionStatus expectedWorkflowStatus,
-      PendingActivityState expectedActivityStatus,
-      int expectedHistoryLength)
+      PendingActivityState expectedActivityStatus)
       throws InterruptedException {
     WorkflowOptions options = options();
     WorkflowStub stub =
@@ -272,7 +268,7 @@ public class DescribeTest {
             .newUntypedWorkflowStub("TestDescribeWorkflow", options);
     // Set the execution up so that it will fail due to activity failures if it isn't otherwise
     // killed
-    WorkflowExecution execution = stub.start(token, null, Boolean.FALSE, Integer.valueOf(3));
+    WorkflowExecution execution = stub.start(token, null, Boolean.FALSE, 3);
 
     // Let the activity start so we can cancel it
     ThreadUtils.waitForWorkflow(token + "-start");
@@ -280,11 +276,7 @@ public class DescribeTest {
 
     // Wait for the kill (whatever it was) to get noticed (we don't try to assert intermediate
     // states - those are hard to catch).
-    Assert.assertThrows(
-        WorkflowFailedException.class,
-        () -> {
-          stub.getResult(Void.class);
-        });
+    Assert.assertThrows(WorkflowFailedException.class, () -> stub.getResult(Void.class));
 
     // Previous test cases have made boilerplate assertions - let's only focus on what's novel
     DescribeWorkflowAsserter asserter =
@@ -325,8 +317,7 @@ public class DescribeTest {
         "testCanceledWorkflow",
         WorkflowStub::cancel,
         WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CANCELED,
-        PendingActivityState.PENDING_ACTIVITY_STATE_CANCEL_REQUESTED,
-        11);
+        PendingActivityState.PENDING_ACTIVITY_STATE_CANCEL_REQUESTED);
   }
 
   @Test
@@ -335,8 +326,7 @@ public class DescribeTest {
         "testTerminatedWorkflow",
         stub -> stub.terminate("testing"),
         WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED,
-        PendingActivityState.PENDING_ACTIVITY_STATE_STARTED,
-        6);
+        PendingActivityState.PENDING_ACTIVITY_STATE_STARTED);
   }
 
   @Test
@@ -357,8 +347,7 @@ public class DescribeTest {
           }
         },
         WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED,
-        null,
-        11);
+        null);
   }
 
   @Test
@@ -369,7 +358,7 @@ public class DescribeTest {
         testWorkflowRule
             .getWorkflowClient()
             .newUntypedWorkflowStub("TestDescribeWorkflow", options);
-    WorkflowExecution parentExecution = stub.start(null, token, Boolean.FALSE, Integer.valueOf(0));
+    WorkflowExecution parentExecution = stub.start(null, token, Boolean.FALSE, 0);
 
     // This unblocks the child workflow's activity
     ThreadUtils.waitForWorkflow(token + "-start");
@@ -413,7 +402,7 @@ public class DescribeTest {
         .assertPendingActivityCount(1)
         .assertPendingChildrenCount(0);
 
-    // Unblock the child and wait for the parent to finish so we know what expected states are
+    // Unblock the child and wait for the parent to finish, so we know what expected states are
     ThreadUtils.waitForWorkflow(token + "-finish");
     stub.getResult(Void.class);
 
@@ -433,9 +422,7 @@ public class DescribeTest {
   }
 
   /*
-   * We don't test things that require the passage of time here to avoid sleepy tests
-   * against the real temporal service. A future commit could introduce a test-
-   * environment-only suite that locks timeskipping and exercises time-based scenarios.
+   * We don't test things that require the passage of time here to avoid sleepy tests against the real Temporal service. A future commit could introduce a test-environment-only suite that locks time skipping and exercises time-based scenarios.
    */
 
   @WorkflowInterface
@@ -520,7 +507,7 @@ public class DescribeTest {
   public static class ThreadUtils {
     private static final Logger log = LoggerFactory.getLogger(ThreadUtils.class);
 
-    private static Map<String, CyclicBarrier> queues = new ConcurrentHashMap<>();
+    private static final Map<String, CyclicBarrier> queues = new ConcurrentHashMap<>();
 
     public static void waitForTestCase(String token) throws InterruptedException {
       log.info("Workflow is waiting to meet test case: {}", token);

@@ -99,9 +99,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
           RespondActivityTaskCompletedRequest.newBuilder()
               .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedResult.isPresent()) {
-        request.setResult(convertedResult.get());
-      }
+      convertedResult.ifPresent(request::setResult);
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
@@ -129,9 +127,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId());
-      if (convertedResult.isPresent()) {
-        request.setResult(convertedResult.get());
-      }
+      convertedResult.ifPresent(request::setResult);
       try {
         service
             .blockingStub()
@@ -221,9 +217,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
           RecordActivityTaskHeartbeatRequest.newBuilder()
               .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedDetails.isPresent()) {
-        request.setDetails(convertedDetails.get());
-      }
+      convertedDetails.ifPresent(request::setDetails);
+      // TODO(vkoby): record identity
       RecordActivityTaskHeartbeatResponse status;
       try {
         status =
@@ -250,10 +245,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setNamespace(namespace)
               .setRunId(execution.getRunId())
               .setActivityId(activityId);
-      if (convertedDetails.isPresent()) {
-        request.setDetails(convertedDetails.get());
-      }
-      RecordActivityTaskHeartbeatByIdResponse status = null;
+      convertedDetails.ifPresent(request::setDetails);
+      RecordActivityTaskHeartbeatByIdResponse status;
       try {
         status =
             service
@@ -282,9 +275,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
           RespondActivityTaskCanceledRequest.newBuilder()
               .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedDetails.isPresent()) {
-        request.setDetails(convertedDetails.get());
-      }
+      convertedDetails.ifPresent(request::setDetails);
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
@@ -309,9 +300,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(OptionsUtils.safeGet(execution.getRunId()))
               .setActivityId(activityId);
-      if (convertedDetails.isPresent()) {
-        request.setDetails(convertedDetails.get());
-      }
+      convertedDetails.ifPresent(request::setDetails);
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()

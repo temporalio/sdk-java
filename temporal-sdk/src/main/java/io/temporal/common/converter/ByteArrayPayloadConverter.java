@@ -21,6 +21,7 @@ package io.temporal.common.converter;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.internal.common.converter.EncodingKeys;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -43,7 +44,6 @@ public final class ByteArrayPayloadConverter implements PayloadConverter {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> T fromData(Payload content, Class<T> valueClass, Type valueType)
       throws DataConverterException {
     ByteString data = content.getData();

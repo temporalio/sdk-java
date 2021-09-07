@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Indicates that {@link WorkerFactory#shutdown()} or {@link WorkerFactory#shutdownNow()} was
- * called. It is OK to ignore the exception to let activity to complete. It assumes that {@link
+ * called. It is OK to ignore the exception to let activity complete. It assumes that {@link
  * WorkerFactory#awaitTermination(long, TimeUnit)} is called with a timeout larger than the activity
  * execution time.
  */
