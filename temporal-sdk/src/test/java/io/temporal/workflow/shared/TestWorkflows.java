@@ -114,8 +114,8 @@ public class TestWorkflows {
   @WorkflowInterface
   public interface TestTraceWorkflow {
 
-    @WorkflowMethod(name = "testActivity")
-    String execute(boolean useExternalService);
+    @WorkflowMethod(name = "execute")
+    String execute();
 
     @QueryMethod(name = "getTrace")
     List<String> getTrace();

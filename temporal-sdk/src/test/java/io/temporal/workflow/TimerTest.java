@@ -52,7 +52,7 @@ public class TimerTest {
     }
     TestTraceWorkflow client =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestTraceWorkflow.class, options);
-    String result = client.execute(SDKTestWorkflowRule.useExternalService);
+    String result = client.execute();
     Assert.assertEquals("testTimer", result);
     if (testWorkflowRule.isUseExternalService()) {
       testWorkflowRule
@@ -88,9 +88,10 @@ public class TimerTest {
   public static class TestTimerWorkflowImpl implements TestTraceWorkflow {
 
     @Override
-    public String execute(boolean useExternalService) {
+    public String execute() {
       Promise<Void> timer1;
       Promise<Void> timer2;
+      boolean useExternalService = SDKTestWorkflowRule.useExternalService;
       Duration timeout1 = useExternalService ? Duration.ofMillis(700) : Duration.ofSeconds(700);
       Duration timeout2 = useExternalService ? Duration.ofMillis(1300) : Duration.ofSeconds(1300);
       timer1 = Workflow.newTimer(timeout1);
