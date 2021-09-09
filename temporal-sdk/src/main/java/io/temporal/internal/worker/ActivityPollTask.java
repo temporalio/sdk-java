@@ -117,6 +117,6 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     } finally {
       if (!isSuccessful) pollSemaphore.release();
     }
-    return new ActivityTask(response, pollSemaphore::release, options.getIdentity());
+    return new ActivityTask(response, pollSemaphore::release);
   }
 }

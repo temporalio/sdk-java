@@ -20,7 +20,6 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -55,7 +54,6 @@ public class SyncWorkflowWorker
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
   private final POJOActivityTaskHandler laTaskHandler;
-  private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
 
   public SyncWorkflowWorker(
       WorkflowServiceStubs service,
@@ -75,9 +73,11 @@ public class SyncWorkflowWorker
         new POJOWorkflowImplementationFactory(
             singleWorkerOptions, workflowThreadPool, workerInterceptors, cache);
 
+    ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
     laTaskHandler =
         new POJOActivityTaskHandler(
             service,
+            localActivityOptions.getIdentity(),
             namespace,
             localActivityOptions.getDataConverter(),
             heartbeatExecutor,
@@ -176,19 +176,6 @@ public class SyncWorkflowWorker
   @Override
   public boolean isSuspended() {
     return workflowWorker.isSuspended() && laWorker.isSuspended();
-  }
-
-  public <R> R queryWorkflowExecution(
-      WorkflowExecution execution,
-      String queryType,
-      Class<R> resultClass,
-      Type resultType,
-      Object[] args)
-      throws Exception {
-    Optional<Payloads> serializedArgs = dataConverter.toPayloads(args);
-    Optional<Payloads> result =
-        workflowWorker.queryWorkflowExecution(execution, queryType, serializedArgs);
-    return dataConverter.fromPayloads(0, result, resultClass, resultType);
   }
 
   public <R> R queryWorkflowExecution(

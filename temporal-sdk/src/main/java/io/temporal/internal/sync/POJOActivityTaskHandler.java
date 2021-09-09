@@ -72,6 +72,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
   private final WorkflowServiceStubs service;
+  private final String identity;
   private final String namespace;
   private final WorkerInterceptor[] interceptors;
   private final Map<String, ActivityTaskExecutor> activities =
@@ -81,11 +82,13 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   @VisibleForTesting
   public POJOActivityTaskHandler(
       WorkflowServiceStubs service,
+      String identity,
       String namespace,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
       WorkerInterceptor[] interceptors) {
     this.service = Objects.requireNonNull(service);
+    this.identity = identity;
     this.namespace = Objects.requireNonNull(namespace);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.heartbeatExecutor = Objects.requireNonNull(heartbeatExecutor);
@@ -190,7 +193,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
       if (dynamicActivity != null) {
-        return dynamicActivity.execute(activityInfo, metricsScope, activityTask.getIdentity());
+        return dynamicActivity.execute(activityInfo, metricsScope, identity);
       }
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
@@ -203,7 +206,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
           metricsScope,
           localActivity);
     }
-    return activity.execute(activityInfo, metricsScope, activityTask.getIdentity());
+    return activity.execute(activityInfo, metricsScope, identity);
   }
 
   private interface ActivityTaskExecutor {

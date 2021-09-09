@@ -27,8 +27,8 @@ import io.temporal.common.converter.KotlinObjectMapperFactory
 import io.temporal.internal.async.FunctionWrappingUtil
 import io.temporal.internal.sync.AsyncInternal
 import io.temporal.testing.TestWorkflowRule
-import junit.framework.Assert.assertTrue
 import org.junit.Assert
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
