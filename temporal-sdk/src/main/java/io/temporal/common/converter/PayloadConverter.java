@@ -19,6 +19,7 @@
 
 package io.temporal.common.converter;
 
+import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -31,6 +32,15 @@ import java.util.Optional;
  */
 public interface PayloadConverter {
 
+  /**
+   * Each {@link PayloadConverter} has an Encoding Type that it handles. Each {@link
+   * PayloadConverter} should add the information about its Encoding Type into the {@link Payload} it
+   * produces inside {@link #toData(Object)} by associating it with the {@link
+   * EncodingKeys#METADATA_ENCODING_KEY} key attached to the {@code Payload}'s Metadata using {@link
+   * Payload.Builder#putMetadata(String, ByteString)}.
+   *
+   * @return encoding type that this converter handles.
+   */
   String getEncodingType();
 
   /**
@@ -40,6 +50,7 @@ public interface PayloadConverter {
    * @return converted value
    * @throws DataConverterException if conversion of the value passed as parameter failed for any
    *     reason.
+   * @see #getEncodingType() getEncodingType javadoc for an important implementation detail
    */
   Optional<Payload> toData(Object value) throws DataConverterException;
 
