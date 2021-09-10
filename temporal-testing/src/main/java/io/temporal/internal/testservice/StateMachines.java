@@ -137,7 +137,6 @@ import io.temporal.serviceclient.StatusUtils;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -166,9 +165,7 @@ class StateMachines {
   enum State {
     NONE,
     INITIATED,
-    INITIATED_QUERY_ONLY,
     STARTED,
-    STARTED_QUERY_ONLY,
     FAILED,
     TIMED_OUT,
     CANCELLATION_REQUESTED,
@@ -328,6 +325,7 @@ class StateMachines {
     long lastHeartbeatTime;
     TestServiceRetryState retryState;
     Duration nextBackoffInterval;
+    String identity;
 
     ActivityTaskData(
         TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
@@ -509,7 +507,7 @@ class StateMachines {
             CANCELLATION_REQUESTED,
             StateMachines::requestActivityCancellation)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeActivityTask)
-        // Transitions to initiated in case of the a retry
+        // Transitions to initiated in case of a retry
         .add(STARTED, FAIL, new State[] {FAILED, INITIATED}, StateMachines::failActivityTask)
         // Transitions to initiated in case of a retry
         .add(
@@ -1282,7 +1280,7 @@ class StateMachines {
             events.add(startedEvent);
             task.setStartedEventId(lastEventId + 2);
           }
-          // get it from pervious started event id.
+          // get it from previous started event id.
           task.setHistory(History.newBuilder().addAllEvents(events));
           // Transfer the queries
           Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queries =
@@ -1396,15 +1394,9 @@ class StateMachines {
 
   private static void failQueryWorkflowTask(
       RequestContext ctx, WorkflowTaskData data, Object unused, long notUsed) {
-    Iterator<Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery>> iterator =
-        data.consistentQueryRequests.entrySet().iterator();
-    while (iterator.hasNext()) {
-      Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery> entry = iterator.next();
-      if (entry.getValue().getResult().isCancelled()) {
-        iterator.remove();
-        continue;
-      }
-    }
+    data.consistentQueryRequests
+        .entrySet()
+        .removeIf(entry -> entry.getValue().getResult().isCancelled());
     if (!data.consistentQueryRequests.isEmpty()) {
       ctx.setNeedWorkflowTask(true);
     }
