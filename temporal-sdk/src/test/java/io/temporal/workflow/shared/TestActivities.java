@@ -63,7 +63,7 @@ public class TestActivities {
   }
 
   @ActivityInterface
-  public interface TestActivity2 {
+  public interface NoArgsReturnsStringActivity {
     String execute();
   }
 
