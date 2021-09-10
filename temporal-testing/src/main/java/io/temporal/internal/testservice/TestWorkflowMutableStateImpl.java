@@ -2198,17 +2198,23 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     // Some ids are only present in the schedule event...
-    populatePendingActivityInfoFromScheduledEvent(builder, activityTaskData.scheduledEvent);
+    if (activityTaskData.scheduledEvent != null) {
+      populatePendingActivityInfoFromScheduledEvent(builder, activityTaskData.scheduledEvent);
+    }
 
     // A few bits of timing are only present on the poll response...
-    PollActivityTaskQueueResponseOrBuilder pollResponse = activityTaskData.activityTask.getTask();
-    populatePendingActivityInfoFromPollResponse(builder, pollResponse);
+    if (activityTaskData.activityTask != null) {
+      PollActivityTaskQueueResponseOrBuilder pollResponse = activityTaskData.activityTask.getTask();
+      populatePendingActivityInfoFromPollResponse(builder, pollResponse);
+    }
 
     // Heartbeat details are housed directly in the activityTaskData
     populatePendingActivityInfoFromHeartbeatDetails(builder, activityTaskData);
 
     // Retry data is housed under .retryState
-    populatePendingActivityInfoFromRetryData(builder, activityTaskData.retryState);
+    if (activityTaskData.retryState != null) {
+      populatePendingActivityInfoFromRetryData(builder, activityTaskData.retryState);
+    }
 
     return builder.build();
   }
