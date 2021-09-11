@@ -19,6 +19,7 @@
 
 package io.temporal.internal;
 
+import io.grpc.Context;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -110,7 +111,9 @@ public final class AsyncBackoffThrottler {
     long delay = calculateSleepTime();
     @SuppressWarnings({"FutureReturnValueIgnored", "unused"})
     ScheduledFuture<?> ignored =
-        executor.schedule(() -> result.complete(null), delay, TimeUnit.MILLISECONDS);
+        executor.schedule(
+            // preserving gRPC context between threads
+            Context.current().wrap(() -> result.complete(null)), delay, TimeUnit.MILLISECONDS);
     return result;
   }
 
