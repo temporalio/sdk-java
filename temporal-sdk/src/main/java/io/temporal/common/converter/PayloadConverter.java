@@ -34,8 +34,8 @@ public interface PayloadConverter {
 
   /**
    * Each {@link PayloadConverter} has an Encoding Type that it handles. Each {@link
-   * PayloadConverter} should add the information about its Encoding Type into the {@link Payload} it
-   * produces inside {@link #toData(Object)} by associating it with the {@link
+   * PayloadConverter} should add the information about its Encoding Type into the {@link Payload}
+   * it produces inside {@link #toData(Object)} by associating it with the {@link
    * EncodingKeys#METADATA_ENCODING_KEY} key attached to the {@code Payload}'s Metadata using {@link
    * Payload.Builder#putMetadata(String, ByteString)}.
    *

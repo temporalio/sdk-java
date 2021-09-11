@@ -19,6 +19,8 @@
 
 package io.temporal.internal.retryer;
 
+import io.grpc.Context;
+import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.AsyncBackoffThrottler;
 import io.temporal.serviceclient.RpcRetryOptions;
@@ -46,8 +48,9 @@ class GrpcAsyncRetryer {
             options.getInitialInterval(),
             options.getMaximumInterval(),
             options.getBackoffCoefficient());
+    options.validate();
     CompletableFuture<R> resultCF = new CompletableFuture<>();
-    retry(options, function, 1, startTime, null, throttler, resultCF);
+    retry(options, function, 1, startTime, throttler, null, resultCF);
     return resultCF;
   }
 
@@ -56,10 +59,9 @@ class GrpcAsyncRetryer {
       Supplier<CompletableFuture<R>> function,
       int attempt,
       long startTime,
-      StatusRuntimeException previousException,
       AsyncBackoffThrottler throttler,
+      StatusRuntimeException previousException,
       CompletableFuture<R> resultCF) {
-    options.validate();
     throttler
         .throttle()
         .thenAccept(
@@ -137,21 +139,24 @@ class GrpcAsyncRetryer {
 
     StatusRuntimeException statusRuntimeException = (StatusRuntimeException) currentException;
 
+    Deadline grpcContextDeadline = Context.current().getDeadline();
     RuntimeException finalException =
         GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
-            statusRuntimeException, previousException, options);
+            statusRuntimeException, previousException, options, grpcContextDeadline);
     if (finalException != null) {
       resultCF.completeExceptionally(finalException);
       return;
     }
 
-    if (GrpcRetryerUtils.ranOutOfRetries(options, startTime, clock.millis(), attempt)) {
+    if (GrpcRetryerUtils.ranOutOfRetries(
+        options, startTime, clock.millis(), attempt, grpcContextDeadline)) {
       resultCF.completeExceptionally(statusRuntimeException);
       return;
     }
 
     log.debug("Retrying after failure", currentException);
-    retry(options, function, attempt + 1, startTime, statusRuntimeException, throttler, resultCF);
+
+    retry(options, function, attempt + 1, startTime, throttler, statusRuntimeException, resultCF);
   }
 
   private static Throwable unwrapCompletionException(Throwable e) {

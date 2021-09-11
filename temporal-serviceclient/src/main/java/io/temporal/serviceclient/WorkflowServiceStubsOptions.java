@@ -19,6 +19,7 @@
 
 package io.temporal.serviceclient;
 
+import com.google.common.base.Preconditions;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.grpc.*;
@@ -445,10 +446,19 @@ public class WorkflowServiceStubsOptions {
 
     /**
      * Sets the rpc timeout value for the following long poll based operations:
-     * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory. Should never be
-     * below 60 seconds as this is server side timeout for the long poll. Default is 70 seconds.
+     * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory.
+     *
+     * <p>Server side timeout for the long poll is 60s. This parameter should never be below 70
+     * seconds (server timeout + additional delay). Default is 70 seconds.
+     *
+     * @throws IllegalArgumentException if {@code timeout} is less than 70s
+     * @deprecated exposing of this option for users configuration deemed non-beneficial and
+     *     dangerous
      */
+    @Deprecated
     public Builder setRpcLongPollTimeout(Duration timeout) {
+      Preconditions.checkArgument(
+          timeout.toMillis() > 70_000, "rpcLongPollTimeout has to be longer 70s");
       this.rpcLongPollTimeout = Objects.requireNonNull(timeout);
       return this;
     }
