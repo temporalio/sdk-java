@@ -62,11 +62,9 @@ class GrpcRetryerUtils {
           // we try to preserve the previous exception if it's present
           return previousException != null ? previousException : currentException;
         } else {
-          // If the deadline of the specific request has been setup on a lower level than
-          // GrpcRetryer and it's
-          // fired, but we are not run out of GrpcRetryer attempts, GrpcRetryer timeout or
-          // GrpcContext deadline,
-          // we should retry.
+          // If this specific request's deadline has expired, but the higher-level deadline
+          // that was established when GrpcRetryer was initialized not been exceeded, we
+          // should keep retrying.
           break;
         }
       default:
