@@ -34,7 +34,7 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
-import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.client.WorkflowClientHelper;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
@@ -88,7 +88,7 @@ public class MemoTest {
     WorkflowExecution executionF = WorkflowClient.start(stubF::func);
 
     GetWorkflowExecutionHistoryResponse historyResp =
-        WorkflowExecutionUtils.getHistoryPage(
+        WorkflowClientHelper.getHistoryPage(
             testWorkflowRule.getTestEnvironment().getWorkflowService(),
             SDKTestWorkflowRule.NAMESPACE,
             executionF,
