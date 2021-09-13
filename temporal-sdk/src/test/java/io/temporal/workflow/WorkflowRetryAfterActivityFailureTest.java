@@ -29,7 +29,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TerminatedFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities.TestActivity1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
@@ -42,8 +42,8 @@ public class WorkflowRetryAfterActivityFailureTest {
   private static AtomicInteger failureCounter = new AtomicInteger(1);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new FailingActivityImpl())
           .build();

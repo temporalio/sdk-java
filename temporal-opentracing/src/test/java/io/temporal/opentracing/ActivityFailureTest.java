@@ -19,7 +19,7 @@
 
 package io.temporal.opentracing;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import io.opentracing.Scope;
 import io.opentracing.mock.MockSpan;
@@ -34,7 +34,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
@@ -53,8 +53,8 @@ public class ActivityFailureTest {
       new MockTracer(new ThreadLocalScopeManager(), MockTracer.Propagator.TEXT_MAP);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
                   .setInterceptors(new OpenTracingClientInterceptor())

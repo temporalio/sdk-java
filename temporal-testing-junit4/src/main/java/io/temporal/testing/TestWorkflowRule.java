@@ -25,6 +25,8 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.worker.Worker;
@@ -68,8 +70,6 @@ import org.junit.runners.model.Statement;
  */
 public class TestWorkflowRule implements TestRule {
 
-  private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
-
   private final String namespace;
   private final boolean useExternalService;
   private final boolean doNotStart;
@@ -112,11 +112,8 @@ public class TestWorkflowRule implements TestRule {
             ? WorkflowImplementationOptions.getDefaultInstance()
             : builder.workflowImplementationOptions;
     globalTimeout =
-        !DebugModeUtils.isTemporalDebugModeOn()
-            ? Timeout.seconds(
-                builder.testTimeoutSeconds == 0
-                    ? DEFAULT_TEST_TIMEOUT_SECONDS
-                    : builder.testTimeoutSeconds)
+        !DebugModeUtils.isTemporalDebugModeOn() && builder.testTimeoutSeconds != 0
+            ? Timeout.seconds(builder.testTimeoutSeconds)
             : null;
 
     WorkflowClientOptions clientOptions =
@@ -145,7 +142,6 @@ public class TestWorkflowRule implements TestRule {
     private String target;
     private boolean useExternalService;
     private boolean doNotStart;
-    private long testTimeoutSeconds;
     private long initialTimeMillis;
 
     private Class<?>[] workflowTypes;
@@ -154,6 +150,7 @@ public class TestWorkflowRule implements TestRule {
     private WorkflowClientOptions workflowClientOptions;
     private WorkerFactoryOptions workerFactoryOptions;
     private WorkerOptions workerOptions;
+    private long testTimeoutSeconds;
 
     protected Builder() {}
 
@@ -221,7 +218,11 @@ public class TestWorkflowRule implements TestRule {
       return this;
     }
 
-    /** Global test timeout. Default is 10 seconds. */
+    /**
+     * @deprecated Temporal test rule shouldn't be responsible for enforcing test timeouts. Use
+     *     toolchain of your test framework to enforce timeouts.
+     */
+    @Deprecated
     public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
       this.testTimeoutSeconds = testTimeoutSeconds;
       return this;
@@ -368,5 +369,19 @@ public class TestWorkflowRule implements TestRule {
    */
   public Worker getWorker() {
     return testEnvironment.getWorkerFactory().getWorker(getTaskQueue());
+  }
+
+  public <T> T newWorkflowStub(Class<T> workflow) {
+    return getWorkflowClient()
+        .newWorkflowStub(workflow, newWorkflowOptionsForTaskQueue(getTaskQueue()));
+  }
+
+  public WorkflowStub newUntypedWorkflowStub(String workflow) {
+    return getWorkflowClient()
+        .newUntypedWorkflowStub(workflow, newWorkflowOptionsForTaskQueue(getTaskQueue()));
+  }
+
+  private static WorkflowOptions newWorkflowOptionsForTaskQueue(String taskQueue) {
+    return WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
   }
 }
