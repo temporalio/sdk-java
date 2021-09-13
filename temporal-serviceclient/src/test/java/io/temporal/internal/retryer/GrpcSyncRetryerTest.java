@@ -21,19 +21,38 @@ package io.temporal.internal.retryer;
 
 import static org.junit.Assert.*;
 
+import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class GrpcSyncRetryerTest {
 
   private static final GrpcSyncRetryer DEFAULT_SYNC_RETRYER =
       new GrpcSyncRetryer(Clock.systemUTC());
+
+  private static ScheduledExecutorService scheduledExecutor;
+
+  @BeforeClass
+  public static void beforeClass() {
+    scheduledExecutor = Executors.newScheduledThreadPool(1);
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    scheduledExecutor.shutdownNow();
+  }
 
   @Test
   public void testExpiration() {
@@ -135,59 +154,111 @@ public class GrpcSyncRetryerTest {
   }
 
   @Test
-  public void testDeadlineExceededException() {
+  public void testRetryDeadlineExceededException() {
     RpcRetryOptions options =
         RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
+            .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
+            .setExpiration(Duration.ofMillis(500))
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
-    try {
-      DEFAULT_SYNC_RETRYER.retry(
-          options,
-          () -> {
-            attempts.incrementAndGet();
-            throw new StatusRuntimeException(Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
-          });
-      fail("unreachable");
-    } catch (Exception e) {
-      assertTrue(e instanceof StatusRuntimeException);
-      assertEquals(
-          Status.Code.DEADLINE_EXCEEDED, ((StatusRuntimeException) e).getStatus().getCode());
-    }
-    assertTrue(
-        "If the exception is DEADLINE_EXCEEDED, we shouldn't retry",
-        System.currentTimeMillis() - start < 2_000);
 
-    assertEquals("If the exception is DEADLINE_EXCEEDED - we shouldn't retry", 1, attempts.get());
+    StatusRuntimeException e =
+        assertThrows(
+            StatusRuntimeException.class,
+            () -> {
+              DEFAULT_SYNC_RETRYER.retry(
+                  options,
+                  () -> {
+                    attempts.incrementAndGet();
+                    throw new StatusRuntimeException(
+                        Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
+                  });
+            });
+
+    assertEquals(Status.Code.DEADLINE_EXCEEDED, e.getStatus().getCode());
+    assertTrue(
+        "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
+        System.currentTimeMillis() - start > 400);
+
+    assertTrue(
+        "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
+        attempts.get() > 2);
   }
 
   @Test
-  public void testDeadlineExceededAfterAnotherException() {
+  public void testRespectGlobalDeadlineExceeded() {
     RpcRetryOptions options =
         RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
+            .setInitialInterval(Duration.ofMillis(100))
+            .setMaximumInterval(Duration.ofMillis(100))
+            .setExpiration(Duration.ofMillis(50000))
+            .validateBuildWithDefaults();
+    long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
+    final AtomicReference<StatusRuntimeException> exception = new AtomicReference<>();
+
+    Context.current()
+        .withDeadlineAfter(500, TimeUnit.MILLISECONDS, scheduledExecutor)
+        .run(
+            () ->
+                exception.set(
+                    assertThrows(
+                        StatusRuntimeException.class,
+                        () -> {
+                          DEFAULT_SYNC_RETRYER.retry(
+                              options,
+                              () -> {
+                                attempts.incrementAndGet();
+                                throw new StatusRuntimeException(
+                                    Status.fromCode(Status.Code.DATA_LOSS));
+                              });
+                        })));
+
+    assertEquals(Status.Code.DATA_LOSS, exception.get().getStatus().getCode());
+    assertTrue(
+        "We shouldn't retry after gRPC deadline from the context is expired",
+        System.currentTimeMillis() - start < 10_000);
+
+    assertTrue(
+        "We shouldn't retry after gRPC deadline from the context is expired", attempts.get() < 8);
+  }
+
+  @Test
+  public void testGlobalDeadlineExceededAfterAnotherException() {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .validateBuildWithDefaults();
-    final AtomicInteger attempts = new AtomicInteger();
-    try {
-      DEFAULT_SYNC_RETRYER.retry(
-          options,
-          () -> {
-            if (attempts.incrementAndGet() > 1) {
-              throw new StatusRuntimeException(Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
-            } else {
-              throw new StatusRuntimeException(Status.fromCode(Status.Code.DATA_LOSS));
-            }
-          });
-      fail("unreachable");
-    } catch (Exception e) {
-      assertTrue(e instanceof StatusRuntimeException);
-      assertEquals(
-          "We should get a previous exception in case of DEADLINE_EXCEEDED",
-          Status.Code.DATA_LOSS,
-          ((StatusRuntimeException) e).getStatus().getCode());
-    }
+
+    final AtomicReference<StatusRuntimeException> exception = new AtomicReference<>();
+
+    Context.current()
+        .withDeadlineAfter(500, TimeUnit.MILLISECONDS, scheduledExecutor)
+        .run(
+            () ->
+                exception.set(
+                    assertThrows(
+                        StatusRuntimeException.class,
+                        () -> {
+                          DEFAULT_SYNC_RETRYER.retry(
+                              options,
+                              () -> {
+                                if (Context.current().getDeadline().isExpired()) {
+                                  throw new StatusRuntimeException(
+                                      Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
+                                } else {
+                                  throw new StatusRuntimeException(
+                                      Status.fromCode(Status.Code.DATA_LOSS));
+                                }
+                              });
+                        })));
+
+    assertEquals(
+        "We should get a previous exception in case of DEADLINE_EXCEEDED",
+        Status.Code.DATA_LOSS,
+        exception.get().getStatus().getCode());
   }
 }

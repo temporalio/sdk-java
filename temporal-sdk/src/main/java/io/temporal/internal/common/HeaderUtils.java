@@ -41,9 +41,9 @@ public class HeaderUtils {
   }
 
   /**
-   * Converts a {@code Map<String, Object>} into a {@code Map<String, Payload>} by applying specified converter on
-   * each value. This util should be used for things like search attributes and memo that need to be
-   * converted back from bytes on the server.
+   * Converts a {@code Map<String, Object>} into a {@code Map<String, Payload>} by applying
+   * specified converter on each value. This util should be used for things like search attributes
+   * and memo that need to be converted back from bytes on the server.
    */
   public static Map<String, Payload> intoPayloadMap(
       DataConverter converter, Map<String, Object> map) {
