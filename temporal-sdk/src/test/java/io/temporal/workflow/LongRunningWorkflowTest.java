@@ -40,7 +40,9 @@ public class LongRunningWorkflowTest {
           .setWorkflowTypes(LongRunningWorkflowImpl.class)
           .setActivityImplementations(sleepActivities)
           .setTestTimeoutSeconds(
-              WorkflowServiceStubsOptions.DEFAULT_POLL_RPC_TIMEOUT.plus(Duration.ofSeconds(20)).toMillis())
+              WorkflowServiceStubsOptions.DEFAULT_POLL_RPC_TIMEOUT
+                  .plus(Duration.ofSeconds(20))
+                  .toMillis())
           .build();
 
   /**
