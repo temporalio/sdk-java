@@ -41,7 +41,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.TestActivities.TestActivity2;
+import io.temporal.workflow.shared.TestActivities.NoArgsReturnsStringActivity;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import java.time.Duration;
 import java.util.List;
@@ -296,9 +296,9 @@ public class CleanWorkerShutdownTest {
 
   public static class TestWorkflowImpl implements TestWorkflowReturnString {
 
-    private final TestActivity2 activities =
+    private final NoArgsReturnsStringActivity activities =
         Workflow.newActivityStub(
-            TestActivity2.class,
+            NoArgsReturnsStringActivity.class,
             ActivityOptions.newBuilder()
                 .setScheduleToCloseTimeout(Duration.ofSeconds(100))
                 .build());
@@ -309,7 +309,7 @@ public class CleanWorkerShutdownTest {
     }
   }
 
-  public static class ActivitiesImpl implements TestActivity2 {
+  public static class ActivitiesImpl implements NoArgsReturnsStringActivity {
     private final CompletableFuture<Boolean> started;
 
     public ActivitiesImpl(CompletableFuture<Boolean> started) {
@@ -329,7 +329,7 @@ public class CleanWorkerShutdownTest {
     }
   }
 
-  public static class HeartbeatingActivitiesImpl implements TestActivity2 {
+  public static class HeartbeatingActivitiesImpl implements NoArgsReturnsStringActivity {
     private final CompletableFuture<Boolean> started;
 
     public HeartbeatingActivitiesImpl(CompletableFuture<Boolean> started) {

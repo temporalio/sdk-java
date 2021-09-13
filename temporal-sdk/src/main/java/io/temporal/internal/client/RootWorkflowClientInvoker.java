@@ -27,7 +27,6 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
-import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -91,7 +90,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   @Override
   public <R> GetResultOutput<R> getResult(GetResultInput<R> input) throws TimeoutException {
     Optional<Payloads> resultValue =
-        WorkflowExecutionUtils.getWorkflowExecutionResult(
+        WorkflowClientLongPollHelper.getWorkflowExecutionResult(
             genericClient.getService(),
             genericClient.getNamespace(),
             input.getWorkflowExecution(),
@@ -107,7 +106,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   @Override
   public <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input) {
     CompletableFuture<Optional<Payloads>> resultValue =
-        WorkflowExecutionUtils.getWorkflowExecutionResultAsync(
+        WorkflowClientLongPollAsyncHelper.getWorkflowExecutionResultAsync(
             genericClient.getService(),
             genericClient.getNamespace(),
             input.getWorkflowExecution(),
