@@ -33,20 +33,26 @@ import java.util.Objects;
 
 public class WorkflowServiceStubsOptions {
 
-  private static final String LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
+  public static final String DEFAULT_LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
   /** Default RPC timeout used for all non-long-poll calls. */
-  private static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofSeconds(10);
+  public static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofSeconds(10);
+  /**
+   * RPC timeout used for all long poll calls on Temporal Server side. Long poll returns with an
+   * empty result after this server timeout.
+   */
+  public static final Duration DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT = Duration.ofSeconds(60);
   /** Default RPC timeout used for all long poll calls. */
-  private static final Duration DEFAULT_POLL_RPC_TIMEOUT = Duration.ofSeconds(70);
+  public static final Duration DEFAULT_POLL_RPC_TIMEOUT =
+      DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.plus(Duration.ofSeconds(10));
   /** Default RPC timeout for QueryWorkflow */
-  private static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
+  public static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
   /** Default timeout that will be used to reset connection backoff. */
-  private static final Duration DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY = Duration.ofSeconds(10);
+  public static final Duration DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY = Duration.ofSeconds(10);
   /**
    * Default timeout that will be used to enter idle channel state and reconnect to temporal server.
    */
-  private static final Duration DEFAULT_GRPC_RECONNECT_FREQUENCY = Duration.ofMinutes(1);
+  public static final Duration DEFAULT_GRPC_RECONNECT_FREQUENCY = Duration.ofMinutes(1);
 
   private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE =
       WorkflowServiceStubsOptions.newBuilder().build();
@@ -185,7 +191,9 @@ public class WorkflowServiceStubsOptions {
     }
 
     this.target =
-        builder.target == null && builder.channel == null ? LOCAL_DOCKER_TARGET : builder.target;
+        builder.target == null && builder.channel == null
+            ? DEFAULT_LOCAL_DOCKER_TARGET
+            : builder.target;
     this.sslContext = builder.sslContext;
     this.enableHttps = builder.enableHttps;
     this.channel = builder.channel;

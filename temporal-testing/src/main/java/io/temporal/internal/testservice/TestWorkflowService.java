@@ -130,7 +130,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final TestWorkflowStore store;
   private final Client client;
 
-  private class Client {
+  private static class Client {
     public Client() {
       serverName = InProcessServerBuilder.generateName();
       channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
@@ -413,7 +413,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     forkJoinPool.execute(
         () -> {
           try {
-            Deadline deadline = Context.current().getDeadline();
+            Deadline deadline = getLongPollDeadline();
             responseObserver.onNext(
                 store.getWorkflowExecutionHistory(
                     mutableState.getExecutionId(), getRequest, deadline));
@@ -434,7 +434,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void pollWorkflowTaskQueue(
       PollWorkflowTaskQueueRequest pollRequest,
       StreamObserver<PollWorkflowTaskQueueResponse> responseObserver) {
-    Deadline deadline = Context.current().getDeadline();
+    Deadline deadline = getLongPollDeadline();
     Optional<PollWorkflowTaskQueueResponse.Builder> optionalTask =
         store.pollWorkflowTaskQueue(pollRequest, deadline);
     if (!optionalTask.isPresent()) {
@@ -521,7 +521,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       PollActivityTaskQueueRequest pollRequest,
       StreamObserver<PollActivityTaskQueueResponse> responseObserver) {
     while (true) {
-      Deadline deadline = Context.current().getDeadline();
+      Deadline deadline = getLongPollDeadline();
       Optional<PollActivityTaskQueueResponse.Builder> optionalTask =
           store.pollActivityTaskQueue(pollRequest, deadline);
       if (!optionalTask.isPresent()) {
@@ -1136,5 +1136,21 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (ExecutionException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * Temporal server times out long poll calls after 1 minute and returns an empty result. After
+   * which the request has to be retried by the client if it wants to continue waiting. We emulate
+   * this behavior here.
+   *
+   * @return minimum between the context deadline and maximum long poll deadline.
+   */
+  private Deadline getLongPollDeadline() {
+    Deadline deadline = Context.current().getDeadline();
+    Deadline maximumDeadline =
+        Deadline.after(
+            WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.toMillis(),
+            TimeUnit.MILLISECONDS);
+    return deadline != null ? deadline.minimum(maximumDeadline) : maximumDeadline;
   }
 }
