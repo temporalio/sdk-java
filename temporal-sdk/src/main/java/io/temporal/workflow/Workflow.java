@@ -630,9 +630,8 @@ public final class Workflow {
   /**
    * Extract Memo associated with the given key and deserialized into an object of generic type as
    * is done here: {@link DataConverter#fromPayloads(int, java.util.Optional, java.lang.Class,
-   * java.lang.reflect.Type)} Ex: To deserialize into {@code HashMap<String, Integer>} <code>
-   *  Workflow.getMemo(key, Map.class, new TypeToken<HashMap<String, Integer>>() {}.getType());
-   * </code>
+   * java.lang.reflect.Type)} Ex: To deserialize into {@code HashMap<String, Integer>} {@code
+   * Workflow.getMemo(key, Map.class, new TypeToken<HashMap<String, Integer>>() {}.getType())}
    *
    * @param key memo key
    * @param valueClass Java class to deserialize into
