@@ -19,9 +19,8 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.DeterministicRunner.getDeadlockDetectionTimeout;
-
 import com.google.common.base.Throwables;
+import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.workflow.Functions;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -216,11 +215,15 @@ public class WorkflowThreadContext {
   }
 
   /**
+   * @param deadlockDetectionTimeoutMs maximum time in milliseconds the thread can run before
+   *     calling yield. Discarded if {@code TEMPORAL_DEBUG} env variable is set.
    * @return true if thread made some progress. Which is await was unblocked and some code after it
-   *     was executed.
-   * @param deadlockDetectionTimeout
+   *     * was executed.
    */
-  public boolean runUntilBlocked(long deadlockDetectionTimeout) {
+  public boolean runUntilBlocked(long deadlockDetectionTimeoutMs) {
+    if (DebugModeUtils.isTemporalDebugModeOn()) {
+      deadlockDetectionTimeoutMs = Long.MAX_VALUE;
+    }
     lock.lock();
     try {
       if (status == Status.DONE) {
@@ -237,7 +240,7 @@ public class WorkflowThreadContext {
       yieldCondition.signal();
       while (potentialDeadlockStatesLocked()) {
         boolean awaitTimedOut =
-            !runCondition.await(deadlockDetectionTimeout, TimeUnit.MILLISECONDS);
+            !runCondition.await(deadlockDetectionTimeoutMs, TimeUnit.MILLISECONDS);
         if (awaitTimedOut
             // check that the condition is still true after acquiring the lock back
             // (it could be moved into DONE meanwhile)
@@ -306,7 +309,7 @@ public class WorkflowThreadContext {
         (r) -> {
           throw new DestroyWorkflowThreadError();
         });
-    runUntilBlocked(getDeadlockDetectionTimeout());
+    runUntilBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
   }
 
   /** To be called only from a workflow thread. */

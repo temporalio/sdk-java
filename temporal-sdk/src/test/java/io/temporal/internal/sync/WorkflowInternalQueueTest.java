@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.DeterministicRunner.getDeadlockDetectionTimeout;
 import static org.junit.Assert.*;
 
 import io.temporal.client.WorkflowOptions;
@@ -84,7 +83,7 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",
@@ -121,9 +120,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -156,9 +155,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -314,9 +313,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -350,9 +349,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -388,9 +387,9 @@ public class WorkflowInternalQueueTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -430,9 +429,9 @@ public class WorkflowInternalQueueTest {
               result[1] = queue.poll();
               result[2] = queue.poll();
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     int[] expected = new int[] {1, 2, 3};
     assertArrayEquals(expected, result);

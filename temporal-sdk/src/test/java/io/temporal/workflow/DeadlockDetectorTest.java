@@ -31,10 +31,21 @@ import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowLongArg;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(value = Parameterized.class)
 public class DeadlockDetectorTest {
+
+  private final boolean debugMode;
+
+  public DeadlockDetectorTest(boolean debugMode) {
+    this.debugMode = debugMode;
+  }
 
   private final WorkflowImplementationOptions workflowImplementationOptions =
       WorkflowImplementationOptions.newBuilder()
@@ -57,6 +68,7 @@ public class DeadlockDetectorTest {
 
   @Test
   public void testDefaultDeadlockDetector() {
+    initDebugMode();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     TestWorkflowLongArg workflow =
         workflowClient.newWorkflowStub(
@@ -85,6 +97,7 @@ public class DeadlockDetectorTest {
 
   @Test
   public void testSetDeadlockDetector() {
+    initDebugMode();
     WorkflowClient workflowClient = testWorkflowRuleWithDDDTimeout.getWorkflowClient();
     TestWorkflowLongArg workflow =
         workflowClient.newWorkflowStub(
@@ -124,5 +137,21 @@ public class DeadlockDetectorTest {
         throw Workflow.wrap(e);
       }
     }
+  }
+
+  private void initDebugMode() {
+    DebugModeUtils.initializeForTests(
+        name -> {
+          if ("TEMPORAL_DEBUG".equals(name)) {
+            return debugMode ? "true" : null;
+          } else {
+            return System.getenv(name);
+          }
+        });
+  }
+
+  @Parameterized.Parameters
+  public static Collection<Boolean> debugModeParams() {
+    return Arrays.asList(true, false);
   }
 }
