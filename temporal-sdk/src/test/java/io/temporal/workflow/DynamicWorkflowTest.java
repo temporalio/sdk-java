@@ -20,14 +20,17 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.DynamicActivity;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
@@ -64,6 +67,10 @@ public class DynamicWorkflowTest {
                       + "-"
                       + signals.get(signals.size() - 1));
       String arg0 = args.get(0, String.class);
+      Boolean fail = args.get(1, Boolean.class);
+      if (fail != null && fail) {
+        throw ApplicationFailure.newFailure("Simulated failure", "simulated");
+      }
       ActivityStub activity =
           Workflow.newUntypedActivityStub(
               ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
@@ -118,5 +125,27 @@ public class DynamicWorkflowTest {
     assertEquals("query1-queryArg0-signal1-signalArg0", queryResult);
     String result = workflow.getResult(String.class);
     assertEquals("activityType2-activityType1-startArg0-workflowFoo", result);
+  }
+
+  @Test
+  public void testDynamicWorkflowFailure() {
+    TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
+    testEnvironment
+        .getWorkerFactory()
+        .getWorker(testWorkflowRule.getTaskQueue())
+        .registerWorkflowImplementationTypes(DynamicWorkflowImpl.class);
+    testEnvironment.start();
+
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
+    WorkflowStub workflow =
+        testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("workflowFoo", workflowOptions);
+    workflow.start("startArg0", true /* fail */);
+    try {
+      workflow.getResult(String.class);
+      fail("failure expected");
+    } catch (WorkflowFailedException e) {
+      // expected
+    }
   }
 }
