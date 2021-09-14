@@ -19,20 +19,30 @@
 
 package io.temporal.internal.common;
 
+import com.google.common.annotations.VisibleForTesting;
+import io.temporal.internal.common.env.EnvironmentVariablesProvider;
+import io.temporal.internal.common.env.SystemEnvironmentVariablesProvider;
+
 public class DebugModeUtils {
-  private static final boolean TEMPORAL_DEBUG_MODE = readTemporalDebugModeFromEnvVar();
+  private static boolean TEMPORAL_DEBUG_MODE =
+      readTemporalDebugMode(SystemEnvironmentVariablesProvider.INSTANCE);
 
   public static boolean isTemporalDebugModeOn() {
     return TEMPORAL_DEBUG_MODE;
   }
 
-  private static boolean readTemporalDebugModeFromEnvVar() {
-    String temporalDebugValue = System.getenv("TEMPORAL_DEBUG");
+  private static boolean readTemporalDebugMode(EnvironmentVariablesProvider envProvider) {
+    String temporalDebugValue = envProvider.getenv("TEMPORAL_DEBUG");
     if (temporalDebugValue == null) {
       return false;
     }
     temporalDebugValue = temporalDebugValue.trim();
     return (!Boolean.FALSE.toString().equalsIgnoreCase(temporalDebugValue)
         && !"0".equals(temporalDebugValue));
+  }
+
+  @VisibleForTesting
+  public static void initializeForTests(EnvironmentVariablesProvider environmentVariableProvider) {
+    TEMPORAL_DEBUG_MODE = readTemporalDebugMode(environmentVariableProvider);
   }
 }
