@@ -82,7 +82,12 @@ public interface WorkflowThread extends CancellationScope {
 
   SyncWorkflowContext getWorkflowContext();
 
-  boolean runUntilBlocked(long deadlockDetectionTimeout);
+  /**
+   * @param deadlockDetectionTimeoutMs maximum time in milliseconds the thread can run before
+   *     calling yield.
+   * @return true if coroutine made some progress.
+   */
+  boolean runUntilBlocked(long deadlockDetectionTimeoutMs);
 
   Throwable getUnhandledException();
 

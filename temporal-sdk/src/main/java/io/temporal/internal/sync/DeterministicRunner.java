@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
 import java.util.concurrent.ExecutorService;
@@ -32,13 +31,7 @@ import javax.annotation.Nullable;
  */
 interface DeterministicRunner {
 
-  long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
-
-  static long getDeadlockDetectionTimeout() {
-    return DebugModeUtils.isTemporalDebugModeOn()
-        ? Long.MAX_VALUE
-        : DEFAULT_DEADLOCK_DETECTION_TIMEOUT;
-  }
+  long DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS = 1000;
 
   /**
    * Create new instance of DeterministicRunner
