@@ -312,17 +312,12 @@ class WorkflowThreadImpl implements WorkflowThread {
     return priority;
   }
 
-  /**
-   * @return true if coroutine made some progress.
-   * @param deadlockDetectionTimeout maximum time in milliseconds the thread can run before calling
-   *     yield.
-   */
   @Override
-  public boolean runUntilBlocked(long deadlockDetectionTimeout) {
+  public boolean runUntilBlocked(long deadlockDetectionTimeoutMs) {
     if (taskFuture == null) {
       start();
     }
-    return context.runUntilBlocked(deadlockDetectionTimeout);
+    return context.runUntilBlocked(deadlockDetectionTimeoutMs);
   }
 
   @Override
