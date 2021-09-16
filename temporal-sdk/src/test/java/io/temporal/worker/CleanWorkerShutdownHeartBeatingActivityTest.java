@@ -21,6 +21,7 @@ package io.temporal.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.temporal.activity.Activity;
 import io.temporal.api.common.v1.Payloads;
@@ -106,16 +107,20 @@ public class CleanWorkerShutdownHeartBeatingActivityTest {
 
     @Override
     public String execute() {
+      started.complete(true);
       try {
-        started.complete(true);
         Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        // we ignore interrupted exception here, because the main goal of
+        // `testShutdownHeartBeatingActivity` test is to check that heartbeat returns a
+        // ActivityWorkerShutdownException
+      }
+      try {
         Activity.getExecutionContext().heartbeat("foo");
       } catch (ActivityWorkerShutdownException e) {
         return EXPECTED_RESULT;
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return "interrupted";
       }
+      fail();
       return "completed";
     }
   }

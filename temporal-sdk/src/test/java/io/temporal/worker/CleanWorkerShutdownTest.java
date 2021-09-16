@@ -131,14 +131,17 @@ public class CleanWorkerShutdownTest {
 
     @Override
     public String execute(String now) {
+      if (now == null) {
+        shutdownLatch.countDown();
+      } else {
+        shutdownNowLatch.countDown();
+      }
       try {
-        if (now == null) {
-          shutdownLatch.countDown();
-        } else {
-          shutdownNowLatch.countDown();
-        }
         Thread.sleep(10000);
       } catch (InterruptedException e) {
+        // We ignore the interrupted exception here to let the activity complete and return the
+        // result. Otherwise, the result is not reported:
+        // https://github.com/temporalio/sdk-java/issues/731
         return INTERRUPTED;
       }
       return COMPLETED;
