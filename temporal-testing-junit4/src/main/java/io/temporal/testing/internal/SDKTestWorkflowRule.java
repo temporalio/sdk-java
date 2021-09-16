@@ -26,6 +26,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
+import io.micrometer.core.lang.NonNull;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
@@ -179,7 +180,7 @@ public class SDKTestWorkflowRule implements TestRule {
     }
   }
 
-  public Statement apply(Statement base, Description description) {
+  public Statement apply(@NonNull Statement base, @NonNull Description description) {
     return testWorkflowRule.apply(base, description);
   }
 
@@ -288,6 +289,7 @@ public class SDKTestWorkflowRule implements TestRule {
           break;
         }
       } catch (WorkflowQueryException e) {
+        // Ignore
       }
     }
   }
