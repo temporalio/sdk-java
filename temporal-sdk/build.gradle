@@ -26,7 +26,7 @@ dependencies {
 }
 
 task registerNamespace(type: JavaExec) {
-    main = 'io.temporal.RegisterTestNamespace'
+    main = 'io.temporal.internal.docker.RegisterTestNamespace'
     classpath = sourceSets.test.runtimeClasspath
 }
 
