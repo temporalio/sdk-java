@@ -38,6 +38,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -52,18 +53,25 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.junit.Test;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Intended to be used only in the Java SDK test code. This Rule duplicates {@link TestWorkflowRule}
+ * and provides additional convenience methods for SDK development
+ */
 public class SDKTestWorkflowRule implements TestRule {
+  private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
+
+  private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
 
   public static final String NAMESPACE = "UnitTest";
   public static final String BINARY_CHECKSUM = "testChecksum";
@@ -78,17 +86,28 @@ public class SDKTestWorkflowRule implements TestRule {
   private static final List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
   private static final ScheduledExecutorService scheduledExecutor =
       new ScheduledThreadPoolExecutor(1);
-  private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
+
+  @Nullable private final Timeout globalTimeout;
+
   private final TestWorkflowRule testWorkflowRule;
 
-  private SDKTestWorkflowRule(TestWorkflowRule.Builder testWorkflowRuleBuilder) {
+  private SDKTestWorkflowRule(SDKTestWorkflowRule.Builder builder) {
     if (useExternalService) {
-      testWorkflowRuleBuilder.setUseExternalService(true);
+      builder.testWorkflowRuleBuilder.setUseExternalService(true);
       if (temporalServiceAddress != null) {
-        testWorkflowRuleBuilder.setTarget(temporalServiceAddress);
+        builder.testWorkflowRuleBuilder.setTarget(temporalServiceAddress);
       }
     }
-    testWorkflowRule = testWorkflowRuleBuilder.build();
+
+    globalTimeout =
+        !DebugModeUtils.isTemporalDebugModeOn()
+            ? Timeout.seconds(
+                builder.testTimeoutSeconds == 0
+                    ? DEFAULT_TEST_TIMEOUT_SECONDS
+                    : builder.testTimeoutSeconds)
+            : null;
+
+    testWorkflowRule = builder.testWorkflowRuleBuilder.build();
   }
 
   public static Builder newBuilder() {
@@ -96,6 +115,7 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public static class Builder {
+    private long testTimeoutSeconds;
 
     private boolean workerFactoryOptionsAreSet = false;
     TestWorkflowRule.Builder testWorkflowRuleBuilder;
@@ -158,8 +178,9 @@ public class SDKTestWorkflowRule implements TestRule {
       return this;
     }
 
+    /** Global test timeout. Default is 10 seconds. */
     public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
-      testWorkflowRuleBuilder.setTestTimeoutSeconds(testTimeoutSeconds);
+      this.testTimeoutSeconds = testTimeoutSeconds;
       return this;
     }
 
@@ -176,12 +197,20 @@ public class SDKTestWorkflowRule implements TestRule {
                     new TracingWorkerInterceptor(new TracingWorkerInterceptor.FilteredTrace()))
                 .build());
       }
-      return new SDKTestWorkflowRule(testWorkflowRuleBuilder);
+      return new SDKTestWorkflowRule(this);
     }
   }
 
-  public Statement apply(Statement base, Description description) {
-    return testWorkflowRule.apply(base, description);
+  public Statement apply(@Nonnull Statement base, Description description) {
+    Statement testWorkflowStatement = base;
+
+    Test annotation = description.getAnnotation(Test.class);
+    boolean timeoutIsOverriddenOnTestAnnotation = annotation != null && annotation.timeout() > 0;
+    if (globalTimeout != null && !timeoutIsOverriddenOnTestAnnotation) {
+      testWorkflowStatement = globalTimeout.apply(testWorkflowStatement, description);
+    }
+
+    return testWorkflowRule.apply(testWorkflowStatement, description);
   }
 
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
@@ -258,8 +287,7 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public <T> T newWorkflowStub(Class<T> workflow) {
-    return getWorkflowClient()
-        .newWorkflowStub(workflow, SDKTestOptions.newWorkflowOptionsForTaskQueue(getTaskQueue()));
+    return testWorkflowRule.newWorkflowStub(workflow);
   }
 
   public <T> T newWorkflowStubTimeoutOptions(Class<T> workflow) {
@@ -273,10 +301,8 @@ public class SDKTestWorkflowRule implements TestRule {
             workflow, SDKTestOptions.newWorkflowOptionsForTaskQueue200sTimeout(getTaskQueue()));
   }
 
-  public <T> WorkflowStub newUntypedWorkflowStub(String workflow) {
-    return getWorkflowClient()
-        .newUntypedWorkflowStub(
-            workflow, SDKTestOptions.newWorkflowOptionsForTaskQueue(getTaskQueue()));
+  public WorkflowStub newUntypedWorkflowStub(String workflow) {
+    return testWorkflowRule.newUntypedWorkflowStub(workflow);
   }
 
   public <T> WorkflowStub newUntypedWorkflowStubTimeoutOptions(String workflow) {
