@@ -92,7 +92,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     Optional<Payloads> resultValue =
         WorkflowClientLongPollHelper.getWorkflowExecutionResult(
             genericClient.getService(),
-            genericClient.getNamespace(),
+            requestsHelper,
             input.getWorkflowExecution(),
             input.getWorkflowType(),
             metricsScope,
@@ -108,7 +108,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     CompletableFuture<Optional<Payloads>> resultValue =
         WorkflowClientLongPollAsyncHelper.getWorkflowExecutionResultAsync(
             genericClient.getService(),
-            genericClient.getNamespace(),
+            requestsHelper,
             input.getWorkflowExecution(),
             input.getWorkflowType(),
             input.getTimeout(),

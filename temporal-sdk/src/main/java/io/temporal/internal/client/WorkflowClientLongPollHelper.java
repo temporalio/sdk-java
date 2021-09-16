@@ -19,7 +19,6 @@
 
 package io.temporal.internal.client;
 
-import static io.temporal.internal.common.WorkflowExecutionUtils.getCloseStatus;
 import static io.temporal.serviceclient.MetricsTag.HISTORY_LONG_POLL_CALL_OPTIONS_KEY;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
@@ -46,10 +45,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /** This class encapsulates sync long poll logic of {@link RootWorkflowClientInvoker} */
-class WorkflowClientLongPollHelper {
+final class WorkflowClientLongPollHelper {
   /**
    * Returns result of a workflow instance execution or throws an exception if workflow did not
-   * complete successfully.
+   * complete successfully. Will wait for continue-as-new executions of the original workflow
+   * execution if present.
    *
    * @param workflowType is optional.
    * @param metricsScope metrics with NAMESPACE tag populated
@@ -59,7 +59,7 @@ class WorkflowClientLongPollHelper {
    */
   static Optional<Payloads> getWorkflowExecutionResult(
       WorkflowServiceStubs service,
-      String namespace,
+      RootWorkflowClientHelper workflowClientHelper,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       Scope metricsScope,
@@ -69,62 +69,44 @@ class WorkflowClientLongPollHelper {
       throws TimeoutException {
     // getInstanceCloseEvent waits for workflow completion including new runs.
     HistoryEvent closeEvent =
-        getInstanceCloseEvent(service, namespace, workflowExecution, metricsScope, timeout, unit);
+        getInstanceCloseEvent(
+            service, workflowClientHelper, workflowExecution, metricsScope, timeout, unit);
     return WorkflowExecutionUtils.getResultFromCloseEvent(
         workflowExecution, workflowType, closeEvent, converter);
   }
 
   /**
-   * Waits up to specified timeout for workflow instance completion. <strong>Never</strong> use in
-   * production setting as polling for worklow instance status is an expensive operation.
+   * Waits up to specified timeout for workflow instance completion.
    *
    * @param workflowExecution workflowId and optional runId
    * @param metricsScope to use when reporting service calls
    * @param timeout maximum time to wait for completion. 0 means wait forever.
    * @return instance close status
    */
-  private static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
+  static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
       WorkflowServiceStubs service,
-      String namespace,
+      RootWorkflowClientHelper workflowClientHelper,
       WorkflowExecution workflowExecution,
       Scope metricsScope,
       long timeout,
       TimeUnit unit)
       throws TimeoutException {
     HistoryEvent closeEvent =
-        getInstanceCloseEvent(service, namespace, workflowExecution, metricsScope, timeout, unit);
-    return getCloseStatus(closeEvent);
-  }
-
-  /**
-   * Blocks until workflow instance completes. <strong>Never</strong> use in production setting as
-   * polling for workflow instance status is an expensive operation.
-   *
-   * @param workflowExecution workflowId and optional runId
-   * @return instance close status
-   */
-  private static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope) {
-    try {
-      return waitForWorkflowInstanceCompletion(
-          service, namespace, workflowExecution, metricsScope, 0, TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      throw new Error("should never happen", e);
-    }
+        getInstanceCloseEvent(
+            service, workflowClientHelper, workflowExecution, metricsScope, timeout, unit);
+    return WorkflowExecutionUtils.getCloseStatus(closeEvent);
   }
 
   /**
    * @param timeout timeout to retrieve InstanceCloseEvent in {@code unit} units. If 0 - MAX_INTEGER
    *     will be used
    * @param unit time unit of {@code timeout}
-   * @return an instance closing event, potentially waiting for workflow to complete.
+   * @return an instance closing event, potentially waiting for workflow or continue-as-new
+   *     executions to complete.
    */
   private static HistoryEvent getInstanceCloseEvent(
       WorkflowServiceStubs service,
-      String namespace,
+      RootWorkflowClientHelper workflowClientHelper,
       WorkflowExecution workflowExecution,
       Scope metricsScope,
       long timeout,
@@ -135,16 +117,8 @@ class WorkflowClientLongPollHelper {
     // TODO: Interrupt service long poll call on timeout and on interrupt
     long start = System.currentTimeMillis();
     do {
-      GetWorkflowExecutionHistoryRequest r =
-          GetWorkflowExecutionHistoryRequest.newBuilder()
-              .setNamespace(namespace)
-              .setExecution(workflowExecution)
-              .setHistoryEventFilterType(
-                  HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
-              .setWaitNewEvent(true)
-              .setNextPageToken(pageToken)
-              .build();
-
+      GetWorkflowExecutionHistoryRequest request =
+          workflowClientHelper.newHistoryLongPollRequest(workflowExecution, pageToken);
       long elapsed = System.currentTimeMillis() - start;
       long millisRemaining = unit.toMillis(timeout != 0 ? timeout : Integer.MAX_VALUE) - elapsed;
 
@@ -166,7 +140,7 @@ class WorkflowClientLongPollHelper {
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                       .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
                       .withDeadline(expirationInRetry)
-                      .getWorkflowExecutionHistory(r);
+                      .getWorkflowExecutionHistory(request);
                 });
         if (response == null || !response.hasHistory()) {
           continue;
@@ -190,7 +164,7 @@ class WorkflowClientLongPollHelper {
         if (!WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
           throw new RuntimeException("Last history event is not completion event: " + event);
         }
-        // Workflow called continueAsNew. Start polling the new generation with new runId.
+        // Workflow called continueAsNew. Start polling the new execution with new runId.
         if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW) {
           pageToken = ByteString.EMPTY;
           workflowExecution =
@@ -206,81 +180,5 @@ class WorkflowClientLongPollHelper {
         return event;
       }
     } while (true);
-  }
-
-  /**
-   * Like {@link #waitForWorkflowInstanceCompletion(WorkflowServiceStubs, String, WorkflowExecution,
-   * Scope, long, TimeUnit)} , except will wait for continued generations of the original workflow
-   * execution too.
-   *
-   * @see #waitForWorkflowInstanceCompletion(WorkflowServiceStubs, String, WorkflowExecution, Scope,
-   *     long, TimeUnit)
-   */
-  private static WorkflowExecutionStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope,
-      long timeout,
-      TimeUnit unit)
-      throws TimeoutException {
-
-    WorkflowExecution lastExecutionToRun = workflowExecution;
-    long millisecondsAtFirstWait = System.currentTimeMillis();
-    WorkflowExecutionStatus lastExecutionToRunCloseStatus =
-        waitForWorkflowInstanceCompletion(
-            service, namespace, lastExecutionToRun, metricsScope, timeout, unit);
-
-    // keep waiting if the instance continued as new
-    while (lastExecutionToRunCloseStatus
-        == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW) {
-      // get the new execution's information
-      HistoryEvent closeEvent =
-          getInstanceCloseEvent(
-              service, namespace, lastExecutionToRun, metricsScope, timeout, unit);
-      WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewAttributes =
-          closeEvent.getWorkflowExecutionContinuedAsNewEventAttributes();
-
-      WorkflowExecution newGenerationExecution =
-          WorkflowExecution.newBuilder()
-              .setRunId(continuedAsNewAttributes.getNewExecutionRunId())
-              .setWorkflowId(lastExecutionToRun.getWorkflowId())
-              .build();
-
-      // and wait for it
-      long currentTime = System.currentTimeMillis();
-      long millisecondsSinceFirstWait = currentTime - millisecondsAtFirstWait;
-      long timeoutInSecondsForNextWait =
-          unit.toMillis(timeout) - (millisecondsSinceFirstWait / 1000L);
-
-      lastExecutionToRunCloseStatus =
-          waitForWorkflowInstanceCompletion(
-              service,
-              namespace,
-              newGenerationExecution,
-              metricsScope,
-              timeoutInSecondsForNextWait,
-              TimeUnit.MILLISECONDS);
-      lastExecutionToRun = newGenerationExecution;
-    }
-
-    return lastExecutionToRunCloseStatus;
-  }
-
-  /**
-   * Like {@link #waitForWorkflowInstanceCompletion(WorkflowServiceStubs, String, WorkflowExecution,
-   * Scope, long, TimeUnit)} , but with no timeout.*
-   */
-  private static WorkflowExecutionStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope) {
-    try {
-      return waitForWorkflowInstanceCompletionAcrossGenerations(
-          service, namespace, workflowExecution, metricsScope, 0L, TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      throw new Error("should never happen", e);
-    }
   }
 }

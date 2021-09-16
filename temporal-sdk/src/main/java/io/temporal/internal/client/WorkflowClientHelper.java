@@ -40,7 +40,7 @@ import java.util.Iterator;
  * WorkflowClient}, mostly because they shouldn't be a part of normal usage and exist for tests /
  * debug only.
  */
-public class WorkflowClientHelper {
+public final class WorkflowClientHelper {
 
   /** Returns workflow instance history in a human readable format. */
   public static String prettyPrintHistory(
