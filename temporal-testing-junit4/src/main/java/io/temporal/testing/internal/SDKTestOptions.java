@@ -29,10 +29,6 @@ public class SDKTestOptions {
   // stepping through code in a debugger without timing out.
   private static final boolean DEBUGGER_TIMEOUTS = false;
 
-  public static WorkflowOptions newWorkflowOptionsForTaskQueue(String taskQueue) {
-    return WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-  }
-
   public static WorkflowOptions newWorkflowOptionsForTaskQueue200sTimeout(String taskQueue) {
     return WorkflowOptions.newBuilder()
         .setWorkflowRunTimeout(Duration.ofSeconds(200))
