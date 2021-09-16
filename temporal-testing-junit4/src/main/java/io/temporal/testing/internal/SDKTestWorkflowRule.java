@@ -32,7 +32,6 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -53,7 +52,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.Test;
@@ -213,10 +216,6 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.apply(testWorkflowStatement, description);
   }
 
-  public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
-    return testWorkflowRule.blockingStub();
-  }
-
   public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
     return testWorkflowRule.getInterceptor(type);
   }
@@ -243,7 +242,6 @@ public class SDKTestWorkflowRule implements TestRule {
 
   /** Returns the first event of the given EventType found in the history. */
   public HistoryEvent getHistoryEvent(WorkflowExecution execution, EventType eventType) {
-    List<HistoryEvent> result = new ArrayList<>();
     History history = getHistory(execution);
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
@@ -279,7 +277,7 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public boolean isUseExternalService() {
-    return testWorkflowRule.isUseExternalService();
+    return useExternalService;
   }
 
   public TestWorkflowEnvironment getTestEnvironment() {
@@ -305,7 +303,7 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.newUntypedWorkflowStub(workflow);
   }
 
-  public <T> WorkflowStub newUntypedWorkflowStubTimeoutOptions(String workflow) {
+  public WorkflowStub newUntypedWorkflowStubTimeoutOptions(String workflow) {
     return getWorkflowClient()
         .newUntypedWorkflowStub(
             workflow, SDKTestOptions.newWorkflowOptionsWithTimeouts(getTaskQueue()));
@@ -320,6 +318,7 @@ public class SDKTestWorkflowRule implements TestRule {
           break;
         }
       } catch (WorkflowQueryException e) {
+        // Ignore
       }
     }
   }
