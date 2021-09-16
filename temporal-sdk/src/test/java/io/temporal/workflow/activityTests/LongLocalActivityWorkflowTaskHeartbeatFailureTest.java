@@ -69,8 +69,6 @@ public class LongLocalActivityWorkflowTaskHeartbeatFailureTest {
             .getWorkflowClient()
             .newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class, options);
     String result = workflowStub.execute();
-    // Shouldn't this workflow never successfully finish, because local activity suppose the fail
-    // the hearbeat every single time?
     Assert.assertEquals("sleepActivity123", result);
     Assert.assertEquals(activitiesImpl.toString(), REPLAY_COUNT, activitiesImpl.invocations.size());
   }

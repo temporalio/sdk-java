@@ -24,11 +24,9 @@ import static io.temporal.internal.common.WorkflowExecutionUtils.getResultFromCl
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import io.grpc.Deadline;
-import io.grpc.Status;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
@@ -39,22 +37,24 @@ import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.rpcretry.DefaultStubLongPollRpcRetryOptions;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.*;
 
 /** This class encapsulates async long poll logic of {@link RootWorkflowClientInvoker} */
-class WorkflowClientLongPollAsyncHelper {
+final class WorkflowClientLongPollAsyncHelper {
 
   static CompletableFuture<Optional<Payloads>> getWorkflowExecutionResultAsync(
       WorkflowServiceStubs service,
-      String namespace,
+      RootWorkflowClientHelper workflowClientHelper,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       long timeout,
       TimeUnit unit,
       DataConverter converter) {
-    return getInstanceCloseEventAsync(service, namespace, workflowExecution, timeout, unit)
+    return getInstanceCloseEventAsync(
+            service, workflowClientHelper, workflowExecution, ByteString.EMPTY, timeout, unit)
         .thenApply(
             (closeEvent) ->
                 getResultFromCloseEvent(workflowExecution, workflowType, closeEvent, converter));
@@ -63,17 +63,7 @@ class WorkflowClientLongPollAsyncHelper {
   /** Returns an instance closing event, potentially waiting for workflow to complete. */
   private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
       WorkflowServiceStubs service,
-      String namespace,
-      final WorkflowExecution workflowExecution,
-      long timeout,
-      TimeUnit unit) {
-    return getInstanceCloseEventAsync(
-        service, namespace, workflowExecution, ByteString.EMPTY, timeout, unit);
-  }
-
-  private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
-      WorkflowServiceStubs service,
-      String namespace,
+      RootWorkflowClientHelper workflowClientHelper,
       final WorkflowExecution workflowExecution,
       ByteString pageToken,
       long timeout,
@@ -81,12 +71,7 @@ class WorkflowClientLongPollAsyncHelper {
     // TODO: Interrupt service long poll call on timeout and on interrupt
     long start = System.currentTimeMillis();
     GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(namespace)
-            .setExecution(workflowExecution)
-            .setHistoryEventFilterType(HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
-            .setNextPageToken(pageToken)
-            .build();
+        workflowClientHelper.newHistoryLongPollRequest(workflowExecution, pageToken);
     CompletableFuture<GetWorkflowExecutionHistoryResponse> response =
         getWorkflowExecutionHistoryAsync(service, request, timeout, unit);
     return response.thenComposeAsync(
@@ -107,7 +92,7 @@ class WorkflowClientLongPollAsyncHelper {
           if (history.getEventsCount() == 0) {
             // Empty poll returned
             return getInstanceCloseEventAsync(
-                service, namespace, workflowExecution, pageToken, timeout, unit);
+                service, workflowClientHelper, workflowExecution, pageToken, timeout, unit);
           }
           HistoryEvent event = history.getEvents(0);
           if (!WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
@@ -124,7 +109,12 @@ class WorkflowClientLongPollAsyncHelper {
                             .getNewExecutionRunId())
                     .build();
             return getInstanceCloseEventAsync(
-                service, namespace, nextWorkflowExecution, r.getNextPageToken(), timeout, unit);
+                service,
+                workflowClientHelper,
+                nextWorkflowExecution,
+                r.getNextPageToken(),
+                timeout,
+                unit);
           }
           return CompletableFuture.completedFuture(event);
         });
@@ -137,16 +127,10 @@ class WorkflowClientLongPollAsyncHelper {
           long timeout,
           TimeUnit unit) {
     long start = System.currentTimeMillis();
-    Deadline expiration = Deadline.after(timeout, TimeUnit.MILLISECONDS);
+
     RpcRetryOptions retryOptions =
-        RpcRetryOptions.newBuilder()
-            .setBackoffCoefficient(1.5)
-            .setInitialInterval(Duration.ofMillis(1))
-            .setMaximumInterval(Duration.ofSeconds(1))
-            .setMaximumAttempts(Integer.MAX_VALUE)
-            .setExpiration(Duration.ofMillis(expiration.timeRemaining(TimeUnit.MILLISECONDS)))
-            .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
-            .addDoNotRetry(Status.Code.NOT_FOUND, null)
+        DefaultStubLongPollRpcRetryOptions.getBuilder()
+            .setExpiration(Duration.ofMillis(unit.toMillis(timeout)))
             .build();
 
     return GrpcRetryer.retryWithResultAsync(
