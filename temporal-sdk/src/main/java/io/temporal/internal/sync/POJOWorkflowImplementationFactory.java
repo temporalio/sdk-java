@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.WorkflowInternal.unwrap;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import com.google.common.base.Preconditions;
@@ -47,8 +46,6 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInfo;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -316,52 +313,15 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
       @Override
       public WorkflowOutput execute(WorkflowInput input) {
-        WorkflowInfo info = Workflow.getInfo();
         try {
           Object result = workflowMethod.invoke(workflow, input.getArguments());
           return new WorkflowOutput(result);
         } catch (IllegalAccessException e) {
-          throw new Error(mapToWorkflowExecutionException(e, dataConverter));
+          throw wrap(e);
         } catch (InvocationTargetException e) {
           Throwable target = e.getTargetException();
-          if (target instanceof DestroyWorkflowThreadError) {
-            throw (DestroyWorkflowThreadError) target;
-          }
-          Throwable exception = unwrap(target);
-
-          WorkflowImplementationOptions options = implementationOptions.get(info.getWorkflowType());
-          Class<? extends Throwable>[] failTypes = options.getFailWorkflowExceptionTypes();
-          if (exception instanceof TemporalFailure) {
-            logWorkflowExecutionException(info, exception);
-            throw mapToWorkflowExecutionException(exception, dataConverter);
-          }
-          for (Class<? extends Throwable> failType : failTypes) {
-            if (failType.isAssignableFrom(exception.getClass())) {
-              // fail workflow
-              if (log.isErrorEnabled()) {
-                boolean cancelRequested =
-                    WorkflowInternal.getRootWorkflowContext().getContext().isCancelRequested();
-                if (!cancelRequested || !FailureConverter.isCanceledCause(exception)) {
-                  logWorkflowExecutionException(info, exception);
-                }
-              }
-              throw mapToWorkflowExecutionException(exception, dataConverter);
-            }
-          }
-          throw wrap(exception);
+          throw wrap(target);
         }
-      }
-
-      private void logWorkflowExecutionException(WorkflowInfo info, Throwable exception) {
-        log.error(
-            "Workflow execution failure "
-                + "WorkflowId="
-                + info.getWorkflowId()
-                + ", RunId="
-                + info.getRunId()
-                + ", WorkflowType="
-                + info.getWorkflowType(),
-            exception);
       }
 
       protected void newInstance() {
