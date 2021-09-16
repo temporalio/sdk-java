@@ -19,6 +19,7 @@
 
 package io.temporal.workflow.activityTests;
 
+import com.google.common.base.Preconditions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -35,46 +36,56 @@ public class LongLocalActivityWorkflowTaskHeartbeatFailureTest {
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
+  private static final int REPLAY_COUNT = 2;
+  private static final int ACTIVITY_SLEEP_SEC = 3;
+  private static final int WORKFLOW_TASK_TIMEOUT_SEC = 2;
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestLongLocalActivityWorkflowTaskHeartbeatFailureWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setTestTimeoutSeconds(15)
+          .setTestTimeoutSeconds(REPLAY_COUNT * ACTIVITY_SLEEP_SEC + 10)
           .build();
 
   /**
-   * Test that local activity is not lost during replay if it was started before forced
-   * WorkflowTask.
+   * Test that local activity that failed to heartbeat and executed longer than Workflow Task
+   * Timeout will be repeated during replay
    */
   @Test
   public void testLongLocalActivityWorkflowTaskHeartbeatFailure() {
+    Preconditions.checkState(
+        ACTIVITY_SLEEP_SEC > WORKFLOW_TASK_TIMEOUT_SEC,
+        "We make sure that activity sleeps longer than the workflow task timeout to emulate heartbeat failure");
+
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofMinutes(5))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(WORKFLOW_TASK_TIMEOUT_SEC))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflows.TestWorkflow1 workflowStub =
+    TestWorkflows.TestWorkflowReturnString workflowStub =
         testWorkflowRule
             .getWorkflowClient()
-            .newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
-    String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
+            .newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class, options);
+    String result = workflowStub.execute();
+    // Shouldn't this workflow never successfully finish, because local activity suppose the fail
+    // the hearbeat every single time?
     Assert.assertEquals("sleepActivity123", result);
-    Assert.assertEquals(activitiesImpl.toString(), 2, activitiesImpl.invocations.size());
+    Assert.assertEquals(activitiesImpl.toString(), REPLAY_COUNT, activitiesImpl.invocations.size());
   }
 
   public static class TestLongLocalActivityWorkflowTaskHeartbeatFailureWorkflowImpl
-      implements TestWorkflows.TestWorkflow1 {
+      implements TestWorkflows.TestWorkflowReturnString {
 
     static boolean invoked;
 
     @Override
-    public String execute(String taskQueue) {
+    public String execute() {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
               VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
-      String result = localActivities.sleepActivity(5000, 123);
+      String result = localActivities.sleepActivity(ACTIVITY_SLEEP_SEC, 123);
       if (!invoked) {
         invoked = true;
         throw new Error("Simulate decision failure to force replay");

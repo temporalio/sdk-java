@@ -38,10 +38,12 @@ public final class WorkflowExecutionHistory {
   }
 
   public static WorkflowExecutionHistory fromJson(String serialized) {
+    String protoJson = HistoryJsonUtils.historyFormatJsonToProtoJson(serialized);
+
     JsonFormat.Parser parser = JsonFormat.parser();
     History.Builder historyBuilder = History.newBuilder();
     try {
-      parser.merge(serialized, historyBuilder);
+      parser.merge(protoJson, historyBuilder);
     } catch (InvalidProtocolBufferException e) {
       throw new DataConverterException(e);
     }
@@ -68,14 +70,11 @@ public final class WorkflowExecutionHistory {
   public String toJson() {
     JsonFormat.Printer printer = JsonFormat.printer();
     try {
-      return printer.print(history);
+      String protoJson = printer.print(history);
+      return HistoryJsonUtils.protoJsonToHistoryFormatJson(protoJson);
     } catch (InvalidProtocolBufferException e) {
       throw new DataConverterException(e);
     }
-  }
-
-  public String toPrettyPrintedJson() {
-    return toJson();
   }
 
   public WorkflowExecution getWorkflowExecution() {

@@ -2,7 +2,7 @@
   "events": [{
     "eventId": "1",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
+    "eventType": "WorkflowExecutionStarted",
     "version": "-24",
     "taskId": "1051760",
     "workflowExecutionStartedEventAttributes": {
@@ -11,7 +11,7 @@
       },
       "taskQueue": {
         "name": "WorkflowTest-testChildWorkflowRetry-c5c598cd-05d6-4790-b43e-ebf149aee65b",
-        "kind": "TASK_QUEUE_KIND_NORMAL"
+        "kind": "Normal"
       },
       "input": {
         "payloads": [{
@@ -32,7 +32,7 @@
   }, {
     "eventId": "2",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+    "eventType": "WorkflowTaskScheduled",
     "version": "-24",
     "taskId": "1051761",
     "workflowTaskScheduledEventAttributes": {
@@ -44,7 +44,7 @@
   }, {
     "eventId": "3",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+    "eventType": "WorkflowTaskStarted",
     "version": "-24",
     "taskId": "1051766",
     "workflowTaskStartedEventAttributes": {
@@ -55,7 +55,7 @@
   }, {
     "eventId": "4",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+    "eventType": "WorkflowTaskCompleted",
     "version": "-24",
     "taskId": "1051769",
     "workflowTaskCompletedEventAttributes": {
@@ -66,7 +66,7 @@
   }, {
     "eventId": "5",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED",
+    "eventType": "StartChildWorkflowExecutionInitiated",
     "version": "-24",
     "taskId": "1051770",
     "startChildWorkflowExecutionInitiatedEventAttributes": {
@@ -106,7 +106,7 @@
   }, {
     "eventId": "6",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED",
+    "eventType": "ChildWorkflowExecutionStarted",
     "version": "-24",
     "taskId": "1051773",
     "childWorkflowExecutionStartedEventAttributes": {
@@ -122,7 +122,7 @@
   }, {
     "eventId": "7",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+    "eventType": "WorkflowTaskScheduled",
     "version": "-24",
     "taskId": "1051775",
     "workflowTaskScheduledEventAttributes": {
@@ -134,7 +134,7 @@
   }, {
     "eventId": "8",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+    "eventType": "WorkflowTaskStarted",
     "version": "-24",
     "taskId": "1051779",
     "workflowTaskStartedEventAttributes": {
@@ -145,7 +145,7 @@
   }, {
     "eventId": "9",
     "eventTime": "2020-07-14T15:05:35Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+    "eventType": "WorkflowTaskCompleted",
     "version": "-24",
     "taskId": "1051782",
     "workflowTaskCompletedEventAttributes": {
@@ -156,7 +156,7 @@
   }, {
     "eventId": "10",
     "eventTime": "2020-07-14T15:05:37Z",
-    "eventType": "EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED",
+    "eventType": "ChildWorkflowExecutionFailed",
     "version": "-24",
     "taskId": "1051784",
     "childWorkflowExecutionFailedEventAttributes": {
@@ -182,7 +182,7 @@
   }, {
     "eventId": "11",
     "eventTime": "2020-07-14T15:05:37Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+    "eventType": "WorkflowTaskScheduled",
     "version": "-24",
     "taskId": "1051786",
     "workflowTaskScheduledEventAttributes": {
@@ -194,7 +194,7 @@
   }, {
     "eventId": "12",
     "eventTime": "2020-07-14T15:05:37Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+    "eventType": "WorkflowTaskStarted",
     "version": "-24",
     "taskId": "1051790",
     "workflowTaskStartedEventAttributes": {
@@ -205,7 +205,7 @@
   }, {
     "eventId": "13",
     "eventTime": "2020-07-14T15:05:37Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+    "eventType": "WorkflowTaskCompleted",
     "version": "-24",
     "taskId": "1051793",
     "workflowTaskCompletedEventAttributes": {
@@ -216,7 +216,7 @@
   }, {
     "eventId": "14",
     "eventTime": "2020-07-14T15:05:37Z",
-    "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_FAILED",
+    "eventType": "WorkflowExecutionFailed",
     "version": "-24",
     "taskId": "1051794",
     "workflowExecutionFailedEventAttributes": {
