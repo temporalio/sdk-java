@@ -21,7 +21,10 @@ package io.temporal.internal.testservice;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,51 +38,60 @@ import org.junit.Test;
 
 public class SelfAdvancingTimerImplTest {
 
-  public static final int INITIAL_TIME = 1;
-  private SelfAdvancingTimer timer;
-  private LongSupplier clock;
+  private static final int INITIAL_TIME = 1;
+  private static long INITIAL_SYSTEM_TIME;
+
+  private Clock mockedSystemClock;
+  private SelfAdvancingTimer fixedTimer;
+  private LongSupplier timerBasedClock;
 
   @Before
   public void setUp() throws Exception {
-    timer = new SelfAdvancingTimerImpl(INITIAL_TIME);
-    clock = timer.getClock();
+    INITIAL_SYSTEM_TIME = System.currentTimeMillis();
+    this.mockedSystemClock = mock(Clock.class);
+    when(mockedSystemClock.millis()).thenReturn(INITIAL_SYSTEM_TIME);
+    this.fixedTimer = new SelfAdvancingTimerImpl(INITIAL_TIME, mockedSystemClock);
+    this.timerBasedClock = fixedTimer.getClock();
   }
 
   @After
   public void tearDown() throws Exception {
-    timer.shutdown();
+    fixedTimer.shutdown();
   }
 
   @Test
   public void testSchedule() throws InterruptedException {
     AtomicLong captured = new AtomicLong();
-    timer.schedule(Duration.ofDays(1), () -> captured.set(clock.getAsLong()));
+    fixedTimer.schedule(Duration.ofDays(1), () -> captured.set(timerBasedClock.getAsLong()));
     Thread.sleep(100);
     assertTrue(Duration.ofDays(1).toMillis() + INITIAL_TIME <= captured.get());
-    assertTrue(Duration.ofDays(1).toMillis() + INITIAL_TIME <= clock.getAsLong());
-    long start = clock.getAsLong();
-    timer.schedule(Duration.ofSeconds(123), () -> captured.set(clock.getAsLong()));
-    assertTrue(clock.getAsLong() - start >= Duration.ofSeconds(123).toMillis());
+    assertTrue(Duration.ofDays(1).toMillis() + INITIAL_TIME <= timerBasedClock.getAsLong());
+    long start = timerBasedClock.getAsLong();
+    fixedTimer.schedule(Duration.ofSeconds(123), () -> captured.set(timerBasedClock.getAsLong()));
+    assertTrue(timerBasedClock.getAsLong() - start >= Duration.ofSeconds(123).toMillis());
   }
 
   @Test
   public void testOrdering() throws InterruptedException {
     List<Long> captured = Collections.synchronizedList(new ArrayList<>());
-    timer.lockTimeSkipping("unit test");
-    timer.schedule(Duration.ofSeconds(100), () -> captured.add(clock.getAsLong()));
-    timer.schedule(Duration.ofSeconds(20), () -> captured.add(clock.getAsLong()));
-    timer.schedule(Duration.ofSeconds(10), () -> captured.add(clock.getAsLong()));
-    timer.schedule(Duration.ofSeconds(1), () -> captured.add(clock.getAsLong()));
-    timer.unlockTimeSkipping("unit test");
+    fixedTimer.lockTimeSkipping("unit test");
+    fixedTimer.schedule(Duration.ofSeconds(100), () -> captured.add(timerBasedClock.getAsLong()));
+    when(mockedSystemClock.millis()).thenReturn(INITIAL_SYSTEM_TIME + 5);
+    fixedTimer.schedule(Duration.ofSeconds(20), () -> captured.add(timerBasedClock.getAsLong()));
+    when(mockedSystemClock.millis()).thenReturn(INITIAL_SYSTEM_TIME + 10);
+    fixedTimer.schedule(Duration.ofSeconds(10), () -> captured.add(timerBasedClock.getAsLong()));
+    when(mockedSystemClock.millis()).thenReturn(INITIAL_SYSTEM_TIME + 15);
+    fixedTimer.schedule(Duration.ofSeconds(1), () -> captured.add(timerBasedClock.getAsLong()));
+    fixedTimer.unlockTimeSkipping("unit test");
     Thread.sleep(100);
     List<Long> expected =
         Arrays.asList(
-            Duration.ofSeconds(1).toMillis(),
-            Duration.ofSeconds(10).toMillis(),
-            Duration.ofSeconds(20).toMillis(),
-            Duration.ofSeconds(100).toMillis());
+            INITIAL_TIME + Duration.ofSeconds(1).toMillis() + 15,
+            INITIAL_TIME + Duration.ofSeconds(10).toMillis() + 10,
+            INITIAL_TIME + Duration.ofSeconds(20).toMillis() + 5,
+            INITIAL_TIME + Duration.ofSeconds(100).toMillis());
     for (int i = 0; i < captured.size(); i++) {
-      assertEquals(expected.get(i), captured.get(i), 50.0);
+      assertEquals(expected.get(i), captured.get(i));
     }
   }
 }

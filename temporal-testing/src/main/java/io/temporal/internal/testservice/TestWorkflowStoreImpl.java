@@ -42,6 +42,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.workflow.Functions;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -177,7 +178,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   public TestWorkflowStoreImpl(long initialTimeMillis) {
-    timerService = new SelfAdvancingTimerImpl(initialTimeMillis);
+    timerService = new SelfAdvancingTimerImpl(initialTimeMillis, Clock.systemDefaultZone());
     // locked until the first save
     emptyHistoryLockHandle = timerService.lockTimeSkipping("TestWorkflowStoreImpl constructor");
   }
