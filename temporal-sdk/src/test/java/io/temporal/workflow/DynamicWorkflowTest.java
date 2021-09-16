@@ -127,7 +127,7 @@ public class DynamicWorkflowTest {
     assertEquals("activityType2-activityType1-startArg0-workflowFoo", result);
   }
 
-  @Test
+  @Test(expected = WorkflowFailedException.class)
   public void testDynamicWorkflowFailure() {
     TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
     testEnvironment
@@ -141,11 +141,6 @@ public class DynamicWorkflowTest {
     WorkflowStub workflow =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("workflowFoo", workflowOptions);
     workflow.start("startArg0", true /* fail */);
-    try {
-      workflow.getResult(String.class);
-      fail("failure expected");
-    } catch (WorkflowFailedException e) {
-      // expected
-    }
+    workflow.getResult(String.class);
   }
 }
