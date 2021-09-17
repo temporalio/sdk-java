@@ -193,7 +193,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
       if (dynamicActivity != null) {
-        return dynamicActivity.execute(activityInfo, metricsScope, identity);
+        return dynamicActivity.execute(activityInfo, metricsScope);
       }
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
@@ -206,12 +206,11 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
           metricsScope,
           localActivity);
     }
-    return activity.execute(activityInfo, metricsScope, identity);
+    return activity.execute(activityInfo, metricsScope);
   }
 
   private interface ActivityTaskExecutor {
-    ActivityTaskHandler.Result execute(
-        ActivityInfoInternal task, Scope metricsScope, String identity);
+    ActivityTaskHandler.Result execute(ActivityInfoInternal task, Scope metricsScope);
   }
 
   private class POJOActivityImplementation implements ActivityTaskExecutor {
@@ -224,8 +223,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(
-        ActivityInfoInternal info, Scope metricsScope, String identity) {
+    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
               service,
@@ -306,8 +304,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(
-        ActivityInfoInternal info, Scope metricsScope, String identity) {
+    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
               service,
@@ -413,8 +410,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(
-        ActivityInfoInternal info, Scope metricsScope, String ignored) {
+    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
