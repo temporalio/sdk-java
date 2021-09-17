@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
 
 class GrpcRetryerUtils {
   /**
@@ -100,5 +101,20 @@ class GrpcRetryerUtils {
     return (maxAttempts > 0 && attempt >= maxAttempts)
         || (expirationDuration != null && currentTimeMillis - startTimeMs >= expirationInterval)
         || (grpcContextDeadline != null && grpcContextDeadline.isExpired());
+  }
+
+  static void logWithLevel(Logger log, RpcRetryOptions.LogLevel logLevel, Throwable lastException) {
+    String message = "Retrying after failure";
+    if (logLevel == RpcRetryOptions.LogLevel.TRACE) {
+      log.trace(message, lastException);
+    } else if (logLevel == RpcRetryOptions.LogLevel.DEBUG) {
+      log.debug(message, lastException);
+    } else if (logLevel == RpcRetryOptions.LogLevel.INFO) {
+      log.info(message, lastException);
+    } else if (logLevel == RpcRetryOptions.LogLevel.WARN) {
+      log.warn(message, lastException);
+    } else if (logLevel == RpcRetryOptions.LogLevel.ERROR) {
+      log.error(message, lastException);
+    }
   }
 }

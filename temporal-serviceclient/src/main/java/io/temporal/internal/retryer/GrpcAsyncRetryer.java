@@ -19,6 +19,8 @@
 
 package io.temporal.internal.retryer;
 
+import static io.temporal.internal.retryer.GrpcRetryerUtils.logWithLevel;
+
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
@@ -154,7 +156,7 @@ class GrpcAsyncRetryer {
       return;
     }
 
-    log.debug("Retrying after failure", currentException);
+    logWithLevel(log, options.getLogLevel(), currentException);
 
     retry(options, function, attempt + 1, startTime, throttler, statusRuntimeException, resultCF);
   }

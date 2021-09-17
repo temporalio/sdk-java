@@ -47,6 +47,18 @@ public final class RpcRetryOptions {
 
   private static final RpcRetryOptions DEFAULT_INSTANCE;
 
+  public LogLevel getLogLevel() {
+    return logLevel;
+  }
+
+  public enum LogLevel {
+    TRACE,
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR;
+  }
+
   static {
     DEFAULT_INSTANCE = RpcRetryOptions.newBuilder().build();
   }
@@ -95,6 +107,8 @@ public final class RpcRetryOptions {
 
     private List<DoNotRetryItem> doNotRetry = new ArrayList<>();
 
+    private LogLevel logLevel = LogLevel.WARN;
+
     private Builder() {}
 
     private Builder(RpcRetryOptions options) {
@@ -107,6 +121,7 @@ public final class RpcRetryOptions {
       this.initialInterval = options.getInitialInterval();
       this.maximumInterval = options.getMaximumInterval();
       this.doNotRetry = options.getDoNotRetry();
+      this.logLevel = options.getLogLevel();
     }
 
     /**
@@ -201,6 +216,11 @@ public final class RpcRetryOptions {
       return this;
     }
 
+    public Builder setLogLevel(LogLevel logLevel) {
+      this.logLevel = logLevel;
+      return this;
+    }
+
     /** The parameter options takes precedence. */
     public Builder setRetryOptions(RpcRetryOptions o) {
       if (o == null) {
@@ -244,7 +264,8 @@ public final class RpcRetryOptions {
           expiration,
           maximumAttempts,
           maximumInterval,
-          doNotRetry);
+          doNotRetry,
+          logLevel);
     }
 
     public RpcRetryOptions buildWithDefaultsFrom(RpcRetryOptions rpcRetryOptions) {
@@ -273,7 +294,13 @@ public final class RpcRetryOptions {
       }
       RpcRetryOptions result =
           new RpcRetryOptions(
-              initialInterval, backoff, expiration, maximumAttempts, maximumInterval, doNotRetry);
+              initialInterval,
+              backoff,
+              expiration,
+              maximumAttempts,
+              maximumInterval,
+              doNotRetry,
+              logLevel);
       result.validate();
       return result;
     }
@@ -291,19 +318,23 @@ public final class RpcRetryOptions {
 
   private final List<DoNotRetryItem> doNotRetry;
 
+  private final LogLevel logLevel;
+
   private RpcRetryOptions(
       Duration initialInterval,
       double backoffCoefficient,
       Duration expiration,
       int maximumAttempts,
       Duration maximumInterval,
-      List<DoNotRetryItem> doNotRetry) {
+      List<DoNotRetryItem> doNotRetry,
+      LogLevel logLevel) {
     this.initialInterval = initialInterval;
     this.backoffCoefficient = backoffCoefficient;
     this.expiration = expiration;
     this.maximumAttempts = maximumAttempts;
     this.maximumInterval = maximumInterval;
     this.doNotRetry = doNotRetry != null ? Collections.unmodifiableList(doNotRetry) : null;
+    this.logLevel = logLevel;
   }
 
   public Duration getInitialInterval() {

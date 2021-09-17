@@ -19,6 +19,8 @@
 
 package io.temporal.internal.retryer;
 
+import static io.temporal.internal.retryer.GrpcRetryerUtils.logWithLevel;
+
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
@@ -53,7 +55,7 @@ class GrpcSyncRetryer {
     do {
       attempt++;
       if (lastException != null) {
-        log.warn("Retrying after failure", lastException);
+        logWithLevel(log, options.getLogLevel(), lastException);
       }
 
       try {

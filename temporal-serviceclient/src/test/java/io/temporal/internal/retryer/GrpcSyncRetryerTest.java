@@ -80,6 +80,37 @@ public class GrpcSyncRetryerTest {
     assertTrue(System.currentTimeMillis() - start > 500);
   }
 
+  // We don't verify that logging is actually happening with different level, but rather that all levels can be passed
+  // and don't lead to errors.
+  @Test
+  public void testDifferentLogLevels() {
+    final Status.Code STATUS_CODE = Status.Code.DATA_LOSS;
+
+    for (RpcRetryOptions.LogLevel l : RpcRetryOptions.LogLevel.values()) {
+      RpcRetryOptions options =
+          RpcRetryOptions.newBuilder()
+              .setInitialInterval(Duration.ofMillis(10))
+              .setMaximumInterval(Duration.ofMillis(100))
+              .setExpiration(Duration.ofMillis(500))
+              .setLogLevel(l)
+              .validateBuildWithDefaults();
+      long start = System.currentTimeMillis();
+      try {
+        DEFAULT_SYNC_RETRYER.retry(
+            options,
+            () -> {
+              throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
+            });
+        fail("unreachable");
+      } catch (Exception e) {
+        assertTrue(e instanceof StatusRuntimeException);
+        assertEquals(STATUS_CODE, ((StatusRuntimeException) e).getStatus().getCode());
+      }
+
+      assertTrue(System.currentTimeMillis() - start > 500);
+    }
+  }
+
   @Test
   public void testDoNotRetry() {
     final Status.Code STATUS_CODE = Status.Code.DATA_LOSS;
