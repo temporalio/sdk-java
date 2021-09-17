@@ -32,3 +32,10 @@ dependencies {
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
 }
+
+task registerNamespace(type: JavaExec) {
+    main = 'io.temporal.internal.docker.RegisterTestNamespace'
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+test.dependsOn 'registerNamespace'

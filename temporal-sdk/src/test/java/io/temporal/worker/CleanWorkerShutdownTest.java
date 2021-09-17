@@ -19,131 +19,53 @@
 
 package io.temporal.worker;
 
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.TestActivities.NoArgsReturnsStringActivity;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
+import io.temporal.workflow.shared.TestActivities.TestActivity1;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestName;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-@RunWith(Parameterized.class)
 public class CleanWorkerShutdownTest {
 
-  private static final boolean useDockerService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-  private static WorkflowServiceStubs service;
-  @Parameterized.Parameter public boolean useExternalService;
+  private static final String COMPLETED = "Completed";
+  private static final String INTERRUPTED = "Interrupted";
+  private static final CountDownLatch shutdownLatch = new CountDownLatch(1);
+  private static final CountDownLatch shutdownNowLatch = new CountDownLatch(1);
+  private static final ActivitiesImpl activitiesImpl =
+      new ActivitiesImpl(shutdownLatch, shutdownNowLatch);
 
-  @Parameterized.Parameter(1)
-  public String testType;
-
-  @Rule public TestName testName = new TestName();
-
-  @Parameterized.Parameters(name = "{1}")
-  public static Object[] data() {
-    if (!useDockerService) {
-      return new Object[][] {{false, "TestService"}};
-    } else {
-      return new Object[][] {{true, "Docker"}};
-    }
-  }
-
-  @Before
-  public void setUp() {
-    if (useExternalService) {
-      service =
-          WorkflowServiceStubs.newInstance(
-              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
-    }
-  }
-
-  @After
-  public void tearDown() {
-    service.shutdownNow();
-    service.awaitTermination(1, TimeUnit.SECONDS);
-  }
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(TestWorkflowImpl.class)
+          .setActivityImplementations(activitiesImpl)
+          .setTestTimeoutSeconds(15)
+          .build();
 
   @Test
-  public void testShutdown() throws ExecutionException, InterruptedException {
-    String taskQueue =
-        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID();
-    WorkflowClient workflowClient;
-    WorkerFactory workerFactory = null;
-    TestWorkflowEnvironment testEnvironment = null;
-    CompletableFuture<Boolean> started = new CompletableFuture<>();
-    WorkflowClientOptions clientOptions =
-        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
-    if (useExternalService) {
-      workflowClient = WorkflowClient.newInstance(service, clientOptions);
-      workerFactory = WorkerFactory.newInstance(workflowClient);
-      Worker worker = workerFactory.newWorker(taskQueue);
-      worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
-      worker.registerActivitiesImplementations(new ActivitiesImpl(started));
-      workerFactory.start();
-    } else {
-      TestEnvironmentOptions testOptions =
-          TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
-      testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
-      service = testEnvironment.getWorkflowService();
-      Worker worker = testEnvironment.newWorker(taskQueue);
-      workflowClient = testEnvironment.getWorkflowClient();
-      worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
-      worker.registerActivitiesImplementations(new ActivitiesImpl(started));
-      testEnvironment.start();
-    }
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-    TestWorkflowReturnString workflow =
-        workflowClient.newWorkflowStub(TestWorkflowReturnString.class, options);
-    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
-    started.get();
-    if (useExternalService) {
-      workerFactory.shutdown();
-      workerFactory.awaitTermination(10, TimeUnit.MINUTES);
-    } else {
-      testEnvironment.shutdown();
-      testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
-    }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse result =
-        service.blockingStub().getWorkflowExecutionHistory(request);
-    List<HistoryEvent> events = result.getHistory().getEventsList();
+  public void testShutdown() throws InterruptedException {
+    TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
+    WorkflowExecution execution = WorkflowClient.start(workflow::execute, null);
+    shutdownLatch.await();
+    testWorkflowRule.getTestEnvironment().shutdown();
+    testWorkflowRule.getTestEnvironment().awaitTermination(10, TimeUnit.MINUTES);
+    List<HistoryEvent> events = testWorkflowRule.getHistory(execution).getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
       if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
@@ -152,60 +74,22 @@ public class CleanWorkerShutdownTest {
         String r =
             DataConverter.getDefaultInstance()
                 .fromPayloads(0, Optional.of(ar), String.class, String.class);
-        assertEquals("completed", r);
+        assertEquals(COMPLETED, r);
       }
     }
     assertTrue("Contains ActivityTaskCompleted", found);
   }
 
   @Test
-  public void testShutdownNow() throws ExecutionException, InterruptedException {
-    String taskQueue =
-        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID();
-    WorkflowClient workflowClient;
-    WorkerFactory workerFactory = null;
-    TestWorkflowEnvironment testEnvironment = null;
-    CompletableFuture<Boolean> started = new CompletableFuture<>();
-    WorkflowClientOptions clientOptions =
-        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
-    if (useExternalService) {
-      workflowClient = WorkflowClient.newInstance(service, clientOptions);
-      workerFactory = WorkerFactory.newInstance(workflowClient);
-      Worker worker = workerFactory.newWorker(taskQueue);
-      worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
-      worker.registerActivitiesImplementations(new ActivitiesImpl(started));
-      workerFactory.start();
-    } else {
-      TestEnvironmentOptions testOptions =
-          TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
-      testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
-      service = testEnvironment.getWorkflowService();
-      Worker worker = testEnvironment.newWorker(taskQueue);
-      workflowClient = testEnvironment.getWorkflowClient();
-      worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
-      worker.registerActivitiesImplementations(new ActivitiesImpl(started));
-      testEnvironment.start();
-    }
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-    TestWorkflowReturnString workflow =
-        workflowClient.newWorkflowStub(TestWorkflowReturnString.class, options);
-    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
-    started.get();
-    if (useExternalService) {
-      workerFactory.shutdownNow();
-      workerFactory.awaitTermination(10, TimeUnit.MINUTES);
-    } else {
-      testEnvironment.shutdownNow();
-      testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
-    }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse result =
-        service.blockingStub().getWorkflowExecutionHistory(request);
-    List<HistoryEvent> events = result.getHistory().getEventsList();
+  public void testShutdownNow() throws InterruptedException {
+    TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
+    WorkflowExecution execution = WorkflowClient.start(workflow::execute, "now");
+    shutdownNowLatch.await();
+    Thread.sleep(3000);
+    testWorkflowRule.getTestEnvironment().shutdownNow();
+    testWorkflowRule.getTestEnvironment().awaitTermination(10, TimeUnit.MINUTES);
+    List<HistoryEvent> events = testWorkflowRule.getHistory(execution).getEventsList();
+    events.forEach(System.out::println);
     boolean found = false;
     for (HistoryEvent e : events) {
       if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
@@ -214,141 +98,53 @@ public class CleanWorkerShutdownTest {
         String r =
             DataConverter.getDefaultInstance()
                 .fromPayloads(0, Optional.of(ar), String.class, String.class);
-        assertEquals(r, "interrupted", r);
+        assertEquals(INTERRUPTED, r);
       }
     }
     assertTrue("Contains ActivityTaskCompleted", found);
-    if (useExternalService) {
-      service.shutdownNow();
-      service.awaitTermination(10, TimeUnit.MINUTES);
-    }
   }
 
-  /**
-   * Tests that Activity#heartbeat throws ActivityWorkerShutdownException after {@link
-   * WorkerFactory#shutdown()} is closed.
-   */
-  @Test
-  public void testShutdownHeartbeatingActivity() throws ExecutionException, InterruptedException {
-    String taskQueue =
-        "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID();
-    WorkflowClient workflowClient;
-    WorkerFactory workerFactory = null;
-    TestWorkflowEnvironment testEnvironment = null;
-    CompletableFuture<Boolean> started = new CompletableFuture<>();
-    WorkflowClientOptions clientOptions =
-        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
-    if (useExternalService) {
-      workflowClient = WorkflowClient.newInstance(service, clientOptions);
-      workerFactory = WorkerFactory.newInstance(workflowClient);
-      Worker worker = workerFactory.newWorker(taskQueue);
-      worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
-      worker.registerActivitiesImplementations(new HeartbeatingActivitiesImpl(started));
-      workerFactory.start();
-    } else {
-      TestEnvironmentOptions testOptions =
-          TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
-      testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
-      service = testEnvironment.getWorkflowService();
-      Worker worker = testEnvironment.newWorker(taskQueue);
-      workflowClient = testEnvironment.getWorkflowClient();
-      worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
-      worker.registerActivitiesImplementations(new HeartbeatingActivitiesImpl(started));
-      testEnvironment.start();
-    }
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
-    TestWorkflowReturnString workflow =
-        workflowClient.newWorkflowStub(TestWorkflowReturnString.class, options);
-    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
-    started.get();
-    if (useExternalService) {
-      workerFactory.shutdown();
-      workerFactory.awaitTermination(10, TimeUnit.MINUTES);
-    } else {
-      testEnvironment.shutdown();
-      testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
-    }
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(NAMESPACE)
-            .setExecution(execution)
-            .build();
-    GetWorkflowExecutionHistoryResponse result =
-        service.blockingStub().getWorkflowExecutionHistory(request);
-    List<HistoryEvent> events = result.getHistory().getEventsList();
-    boolean found = false;
-    for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
-        found = true;
-        Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
-        String r =
-            DataConverter.getDefaultInstance()
-                .fromPayloads(0, Optional.of(ar), String.class, String.class);
-        assertEquals("workershutdown", r);
-      }
-    }
-    assertTrue("Contains ActivityTaskCompleted", found);
-    if (useExternalService) {
-      service.shutdownNow();
-      service.awaitTermination(10, TimeUnit.MINUTES);
-    }
-  }
+  public static class TestWorkflowImpl implements TestWorkflow1 {
 
-  public static class TestWorkflowImpl implements TestWorkflowReturnString {
-
-    private final NoArgsReturnsStringActivity activities =
+    private final TestActivity1 activities =
         Workflow.newActivityStub(
-            NoArgsReturnsStringActivity.class,
+            TestActivity1.class,
             ActivityOptions.newBuilder()
                 .setScheduleToCloseTimeout(Duration.ofSeconds(100))
                 .build());
 
     @Override
-    public String execute() {
-      return activities.execute();
+    public String execute(String now) {
+      return activities.execute(now);
     }
   }
 
-  public static class ActivitiesImpl implements NoArgsReturnsStringActivity {
-    private final CompletableFuture<Boolean> started;
+  public static class ActivitiesImpl implements TestActivity1 {
 
-    public ActivitiesImpl(CompletableFuture<Boolean> started) {
-      this.started = started;
+    private final CountDownLatch shutdownLatch;
+    private final CountDownLatch shutdownNowLatch;
+
+    public ActivitiesImpl(CountDownLatch shutdownLatch, CountDownLatch shutdownNowLatch) {
+      this.shutdownLatch = shutdownLatch;
+      this.shutdownNowLatch = shutdownNowLatch;
     }
 
     @Override
-    public String execute() {
-      try {
-        started.complete(true);
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return "interrupted";
+    public String execute(String now) {
+      if (now == null) {
+        shutdownLatch.countDown();
+      } else {
+        shutdownNowLatch.countDown();
       }
-      return "completed";
-    }
-  }
-
-  public static class HeartbeatingActivitiesImpl implements NoArgsReturnsStringActivity {
-    private final CompletableFuture<Boolean> started;
-
-    public HeartbeatingActivitiesImpl(CompletableFuture<Boolean> started) {
-      this.started = started;
-    }
-
-    @Override
-    public String execute() {
       try {
-        started.complete(true);
-        Thread.sleep(1000);
-        Activity.getExecutionContext().heartbeat("foo");
-      } catch (ActivityWorkerShutdownException e) {
-        return "workershutdown";
+        Thread.sleep(10000);
       } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        return "interrupted";
+        // We ignore the interrupted exception here to let the activity complete and return the
+        // result. Otherwise, the result is not reported:
+        // https://github.com/temporalio/sdk-java/issues/731
+        return INTERRUPTED;
       }
-      return "completed";
+      return COMPLETED;
     }
   }
 }

@@ -26,7 +26,7 @@ import io.temporal.common.converter.JacksonJsonPayloadConverter
 import io.temporal.common.converter.KotlinObjectMapperFactory
 import io.temporal.internal.async.FunctionWrappingUtil
 import io.temporal.internal.sync.AsyncInternal
-import io.temporal.testing.TestWorkflowRule
+import io.temporal.testing.internal.SDKTestWorkflowRule
 import org.junit.Assert
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -46,7 +46,7 @@ class KotlinAsyncCompanionFunctionTest {
 
   @Rule
   @JvmField
-  var testWorkflowRule: TestWorkflowRule = TestWorkflowRule.newBuilder()
+  var testWorkflowRule: SDKTestWorkflowRule = SDKTestWorkflowRule.newBuilder()
     .setWorkflowTypes(CompanionFunctionReferenceWorkflowImpl::class.java)
     .setWorkflowClientOptions(
       WorkflowClientOptions.newBuilder()
