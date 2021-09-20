@@ -116,13 +116,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskCompleted(request.build()));
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(e);
-        }
-        throw new ActivityCompletionFailureException(e);
       } catch (Exception e) {
-        throw new ActivityCompletionFailureException(e);
+        processException(e);
       }
     } else {
       if (activityId == null) {
@@ -142,13 +137,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
             .blockingStub()
             .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
             .respondActivityTaskCompletedById(request.build());
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(activityId, e);
-        }
-        throw new ActivityCompletionFailureException(activityId, e);
       } catch (Exception e) {
-        throw new ActivityCompletionFailureException(activityId, e);
+        processException(e);
       }
     }
   }
@@ -207,13 +197,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskFailedById(request));
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(activityId, e);
-        }
-        throw new ActivityCompletionFailureException(activityId, e);
       } catch (Exception e) {
-        throw new ActivityCompletionFailureException(activityId, e);
+        processException(e);
       }
     }
   }
@@ -240,11 +225,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         }
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(activityId, e);
-        }
-        throw new ActivityCompletionFailureException(activityId, e);
+      } catch (Exception e) {
+        processException(e);
       }
     } else {
       if (activityId == null) {
@@ -269,13 +251,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         }
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(activityId, e);
-        }
-        throw new ActivityCompletionFailureException(activityId, e);
       } catch (Exception e) {
-        throw new ActivityCompletionFailureException(activityId, e);
+        processException(e);
       }
     }
   }
@@ -333,5 +310,15 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         log.warn("reportCancellation", e);
       }
     }
+  }
+
+  private void processException(Exception e) {
+    if (e instanceof StatusRuntimeException) {
+      StatusRuntimeException sre = (StatusRuntimeException) e;
+      if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
+        throw new ActivityNotExistsException(activityId, sre);
+      }
+    }
+    throw new ActivityCompletionFailureException(activityId, e);
   }
 }
