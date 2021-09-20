@@ -181,8 +181,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   /**
    * @param retryState present if workflow is a retry
-   * @param backoffStartInterval
-   * @param lastCompletionResult
    * @param parentChildInitiatedEventId id of the child initiated event in the parent history
    */
   TestWorkflowMutableStateImpl(
@@ -2142,11 +2140,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     populateWorkflowExecutionInfoFromHistory(executionInfo, fullHistory);
 
     this.parent.ifPresent(
-        p -> {
-          executionInfo
-              .setParentNamespaceId(p.getExecutionId().getNamespace())
-              .setParentExecution(p.getExecutionId().getExecution());
-        });
+        p ->
+            executionInfo
+                .setParentNamespaceId(p.getExecutionId().getNamespace())
+                .setParentExecution(p.getExecutionId().getExecution()));
 
     List<PendingActivityInfo> pendingActivities =
         this.activities.values().stream()
@@ -2182,10 +2179,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private static PendingActivityInfo constructPendingActivityInfo(
       StateMachine<ActivityTaskData> sm) {
-    /*
-     * Working on this code? Read StateMachines.scheduleActivityTask to get answers to questions
-     * like 'why does some of the information come from the scheduledEvent?'
-     */
+    // Working on this code? Read StateMachines.scheduleActivityTask answer questions like 'Why does
+    // some of the information come from the scheduledEvent?'
     ActivityTaskData activityTaskData = sm.getData();
 
     State state = sm.getState();
@@ -2298,10 +2293,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             });
 
     getCompletionEvent(fullHistory)
-        .ifPresent(
-            completionEvent -> {
-              executionInfo.setCloseTime(completionEvent.getEventTime());
-            });
+        .ifPresent(completionEvent -> executionInfo.setCloseTime(completionEvent.getEventTime()));
   }
 
   // Has an analog in the golang codebase: MutableState.GetStartEvent(). This could become public

@@ -57,12 +57,14 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final DataConverter dataConverter;
   private final String namespace;
   private final WorkflowExecution execution;
+  private final String identity;
   private final String activityId;
   private final Scope metricsScope;
 
   ManualActivityCompletionClientImpl(
       WorkflowServiceStubs service,
       String namespace,
+      String identity,
       byte[] taskToken,
       DataConverter dataConverter,
       Scope metricsScope) {
@@ -71,6 +73,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.dataConverter = dataConverter;
     this.namespace = namespace;
     this.execution = null;
+    this.identity = identity;
     this.activityId = null;
     this.metricsScope = metricsScope;
   }
@@ -78,6 +81,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   ManualActivityCompletionClientImpl(
       WorkflowServiceStubs service,
       String namespace,
+      String identity,
       WorkflowExecution execution,
       String activityId,
       DataConverter dataConverter,
@@ -85,6 +89,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.service = service;
     this.taskToken = null;
     this.namespace = namespace;
+    this.identity = identity;
     this.execution = execution;
     this.activityId = activityId;
     this.dataConverter = dataConverter;
@@ -220,6 +225,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       RecordActivityTaskHeartbeatRequest.Builder request =
           RecordActivityTaskHeartbeatRequest.newBuilder()
               .setNamespace(namespace)
+              .setIdentity(identity)
               .setTaskToken(ByteString.copyFrom(taskToken));
       if (convertedDetails.isPresent()) {
         request.setDetails(convertedDetails.get());
@@ -253,7 +259,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       if (convertedDetails.isPresent()) {
         request.setDetails(convertedDetails.get());
       }
-      RecordActivityTaskHeartbeatByIdResponse status = null;
+      RecordActivityTaskHeartbeatByIdResponse status;
       try {
         status =
             service

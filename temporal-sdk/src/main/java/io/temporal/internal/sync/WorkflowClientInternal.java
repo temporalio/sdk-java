@@ -99,7 +99,11 @@ public final class WorkflowClientInternal implements WorkflowClient {
     this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
         new ManualActivityCompletionClientFactoryImpl(
-            workflowServiceStubs, options.getNamespace(), dataConverter, metricsScope);
+            workflowServiceStubs,
+            options.getNamespace(),
+            options.getIdentity(),
+            dataConverter,
+            metricsScope);
   }
 
   private WorkflowClientCallsInterceptor initializeClientInvoker() {

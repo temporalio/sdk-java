@@ -66,6 +66,8 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private final WorkflowServiceStubs service;
   private final ActivityInfo info;
   private final DataConverter dataConverter;
+  private final String namespace;
+  private final String identity;
   private boolean doNotCompleteOnReturn;
   private final long heartbeatIntervalMillis;
   private Optional<Object> lastDetails;
@@ -78,7 +80,6 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
   private boolean useLocalManualCompletion;
-  private final String identity;
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
@@ -93,6 +94,8 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     this.service = service;
     this.info = info;
     this.dataConverter = dataConverter;
+    this.namespace = namespace;
+    this.identity = identity;
     this.heartbeatIntervalMillis =
         Math.min(
             (long) (0.8 * info.getHeartbeatTimeout().toMillis()), MAX_HEARTBEAT_INTERVAL_MILLIS);
@@ -101,8 +104,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     this.metricsScope = metricsScope;
     this.manualCompletionClientFactory =
         new ManualActivityCompletionClientFactoryImpl(
-            service, namespace, dataConverter, metricsScope);
-    this.identity = identity;
+            service, namespace, identity, dataConverter, metricsScope);
   }
 
   /** @see ActivityExecutionContext#heartbeat(Object) */
@@ -203,6 +205,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     RecordActivityTaskHeartbeatRequest.Builder r =
         RecordActivityTaskHeartbeatRequest.newBuilder()
             .setTaskToken(OptionsUtils.toByteString(info.getTaskToken()))
+            .setNamespace(namespace)
             .setIdentity(this.identity);
     Optional<Payloads> payloads = dataConverter.toPayloads(details);
     payloads.ifPresent(r::setDetails);

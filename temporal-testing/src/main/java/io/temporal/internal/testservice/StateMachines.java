@@ -1595,7 +1595,7 @@ class StateMachines {
     if (data.retryState == null) {
       throw new IllegalStateException("RetryPolicy is always present");
     }
-    Optional<ApplicationFailureInfo> info = failure.map(f -> f.getApplicationFailureInfo());
+    Optional<ApplicationFailureInfo> info = failure.map(Failure::getApplicationFailureInfo);
     if (info.isPresent()) {
       if (info.get().getNonRetryable()) {
         return RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
@@ -1604,7 +1604,7 @@ class StateMachines {
     TestServiceRetryState nextAttempt = data.retryState.getNextAttempt(failure);
     TestServiceRetryState.BackoffInterval backoffInterval =
         data.retryState.getBackoffIntervalInSeconds(
-            info.map(i -> i.getType()), data.store.currentTime());
+            info.map(ApplicationFailureInfo::getType), data.store.currentTime());
     if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
       data.nextBackoffInterval = ProtobufTimeUtils.toProtoDuration(backoffInterval.getInterval());
       PollActivityTaskQueueResponse.Builder task = data.activityTask.getTask();
