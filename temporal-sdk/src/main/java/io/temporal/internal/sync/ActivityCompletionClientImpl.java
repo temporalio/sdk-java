@@ -105,10 +105,6 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
     factory.getClient(toExecution(workflowId, runId), activityId).recordHeartbeat(details);
   }
 
-  Functions.Proc getCompletionHandle() {
-    return completionHandle;
-  }
-
   private static WorkflowExecution toExecution(String workflowId, Optional<String> runId) {
     return WorkflowExecution.newBuilder()
         .setWorkflowId(workflowId)

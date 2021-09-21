@@ -19,8 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
-
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -28,15 +26,12 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -63,23 +58,20 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
   private static final long MAX_HEARTBEAT_INTERVAL_MILLIS = 30000;
 
-  private final WorkflowServiceStubs service;
-  private final ActivityInfo info;
-  private final DataConverter dataConverter;
-  private final String namespace;
-  private final String identity;
-  private boolean doNotCompleteOnReturn;
-  private final long heartbeatIntervalMillis;
-  private Optional<Object> lastDetails;
-  private boolean hasOutstandingHeartbeat;
-  private final ScheduledExecutorService heartbeatExecutor;
-  private final Scope metricsScope;
   private final Lock lock = new ReentrantLock();
-  private ScheduledFuture future;
-  private ActivityCompletionException lastException;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
+  private final ScheduledExecutorService heartbeatExecutor;
+  private final long heartbeatIntervalMillis;
+  private final DataConverter dataConverter;
+  private final Scope metricsScope;
+  private final ActivityInfo info;
   private boolean useLocalManualCompletion;
+  private boolean doNotCompleteOnReturn;
+  private boolean hasOutstandingHeartbeat;
+  private ActivityCompletionException lastException;
+  private Optional<Object> lastDetails;
+  private ScheduledFuture future;
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
@@ -91,17 +83,14 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       Functions.Proc completionHandle,
       Scope metricsScope,
       String identity) {
-    this.service = service;
-    this.info = info;
     this.dataConverter = dataConverter;
-    this.namespace = namespace;
-    this.identity = identity;
+    this.metricsScope = metricsScope;
+    this.info = info;
+    this.heartbeatExecutor = heartbeatExecutor;
     this.heartbeatIntervalMillis =
         Math.min(
             (long) (0.8 * info.getHeartbeatTimeout().toMillis()), MAX_HEARTBEAT_INTERVAL_MILLIS);
-    this.heartbeatExecutor = heartbeatExecutor;
     this.completionHandle = completionHandle;
-    this.metricsScope = metricsScope;
     this.manualCompletionClientFactory =
         new ManualActivityCompletionClientFactoryImpl(
             service, namespace, identity, dataConverter, metricsScope);
@@ -201,26 +190,14 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     }
   }
 
-  private void sendHeartbeatRequest(Object details) {
-    RecordActivityTaskHeartbeatRequest.Builder r =
-        RecordActivityTaskHeartbeatRequest.newBuilder()
-            .setTaskToken(OptionsUtils.toByteString(info.getTaskToken()))
-            .setNamespace(namespace)
-            .setIdentity(this.identity);
-    Optional<Payloads> payloads = dataConverter.toPayloads(details);
-    payloads.ifPresent(r::setDetails);
-    RecordActivityTaskHeartbeatResponse status;
+  public void sendHeartbeatRequest(Object details) {
+    ManualActivityCompletionClient completionClient =
+        manualCompletionClientFactory.getClient(getTaskToken());
     try {
-      status =
-          service
-              .blockingStub()
-              .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-              .recordActivityTaskHeartbeat(r.build());
-      if (status.getCancelRequested()) {
-        lastException = new ActivityCanceledException(info);
-      } else {
-        lastException = null;
-      }
+      completionClient.sendHeartbeatRequest(details);
+      lastException = null;
+    } catch (ActivityCanceledException e) {
+      lastException = new ActivityCanceledException(info);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         lastException = new ActivityNotExistsException(info, e);
@@ -253,6 +230,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     }
   }
 
+  @Override
   public boolean isUseLocalManualCompletion() {
     lock.lock();
     try {

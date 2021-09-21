@@ -51,15 +51,13 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
 
   private final WorkflowServiceStubs service;
-
-  private final byte[] taskToken;
-
+  private final WorkflowExecution execution;
   private final DataConverter dataConverter;
   private final String namespace;
-  private final WorkflowExecution execution;
   private final String identity;
   private final String activityId;
   private final Scope metricsScope;
+  private final byte[] taskToken;
 
   ManualActivityCompletionClientImpl(
       WorkflowServiceStubs service,
@@ -69,13 +67,13 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       DataConverter dataConverter,
       Scope metricsScope) {
     this.service = service;
-    this.taskToken = taskToken;
+    this.execution = null;
     this.dataConverter = dataConverter;
     this.namespace = namespace;
-    this.execution = null;
     this.identity = identity;
     this.activityId = null;
     this.metricsScope = metricsScope;
+    this.taskToken = taskToken;
   }
 
   ManualActivityCompletionClientImpl(
@@ -98,15 +96,14 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void complete(Object result) {
-    Optional<Payloads> convertedResult = dataConverter.toPayloads(result);
+    Optional<Payloads> payloads = dataConverter.toPayloads(result);
     if (taskToken != null) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder()
               .setNamespace(namespace)
+              .setIdentity(identity)
               .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedResult.isPresent()) {
-        request.setResult(convertedResult.get());
-      }
+      payloads.ifPresent(request::setResult);
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
@@ -129,9 +126,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId());
-      if (convertedResult.isPresent()) {
-        request.setResult(convertedResult.get());
-      }
+      payloads.ifPresent(request::setResult);
       try {
         service
             .blockingStub()
@@ -204,31 +199,38 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   }
 
   @Override
+  public void sendHeartbeatRequest(Object details) {
+    RecordActivityTaskHeartbeatRequest.Builder request =
+        RecordActivityTaskHeartbeatRequest.newBuilder()
+            .setTaskToken(ByteString.copyFrom(taskToken))
+            .setNamespace(namespace)
+            .setIdentity(identity);
+    Optional<Payloads> payloads = dataConverter.toPayloads(details);
+    payloads.ifPresent(request::setDetails);
+    RecordActivityTaskHeartbeatResponse status;
+    status =
+        service
+            .blockingStub()
+            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+            .recordActivityTaskHeartbeat(request.build());
+    if (status.getCancelRequested()) {
+      throw new ActivityCanceledException();
+    }
+  }
+
+  @Override
   public void recordHeartbeat(Object details) throws CanceledFailure {
-    Optional<Payloads> convertedDetails = dataConverter.toPayloads(details);
     if (taskToken != null) {
-      RecordActivityTaskHeartbeatRequest.Builder request =
-          RecordActivityTaskHeartbeatRequest.newBuilder()
-              .setNamespace(namespace)
-              .setIdentity(identity)
-              .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedDetails.isPresent()) {
-        request.setDetails(convertedDetails.get());
-      }
-      RecordActivityTaskHeartbeatResponse status;
       try {
-        status =
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .recordActivityTaskHeartbeat(request.build());
-        if (status.getCancelRequested()) {
-          throw new ActivityCanceledException();
-        }
+        sendHeartbeatRequest(details);
       } catch (Exception e) {
+        if (e instanceof ActivityCanceledException) {
+          throw e;
+        }
         processException(e);
       }
     } else {
+      Optional<Payloads> payloads = dataConverter.toPayloads(details);
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
@@ -238,8 +240,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setNamespace(namespace)
               .setRunId(execution.getRunId())
               .setActivityId(activityId);
-      if (convertedDetails.isPresent()) {
-        request.setDetails(convertedDetails.get());
+      if (payloads.isPresent()) {
+        request.setDetails(payloads.get());
       }
       RecordActivityTaskHeartbeatByIdResponse status;
       try {
