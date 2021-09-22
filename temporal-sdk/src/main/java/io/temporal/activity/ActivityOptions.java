@@ -262,58 +262,42 @@ public final class ActivityOptions {
     this.cancellationType = cancellationType;
   }
 
-  /**
-   * @see ActivityOptions.Builder#setHeartbeatTimeout(Duration)
-   */
+  /** @see ActivityOptions.Builder#setHeartbeatTimeout(Duration) */
   public Duration getHeartbeatTimeout() {
     return heartbeatTimeout;
   }
 
-  /**
-   * @see ActivityOptions.Builder#setScheduleToCloseTimeout(Duration)
-   */
+  /** @see ActivityOptions.Builder#setScheduleToCloseTimeout(Duration) */
   public Duration getScheduleToCloseTimeout() {
     return scheduleToCloseTimeout;
   }
 
-  /**
-   * @see ActivityOptions.Builder#setScheduleToStartTimeout(Duration)
-   */
+  /** @see ActivityOptions.Builder#setScheduleToStartTimeout(Duration) */
   public Duration getScheduleToStartTimeout() {
     return scheduleToStartTimeout;
   }
 
-  /**
-   * @see ActivityOptions.Builder#setStartToCloseTimeout(Duration)
-   */
+  /** @see ActivityOptions.Builder#setStartToCloseTimeout(Duration) */
   public Duration getStartToCloseTimeout() {
     return startToCloseTimeout;
   }
 
-  /**
-   * @see ActivityOptions.Builder#setTaskQueue(String)
-   */
+  /** @see ActivityOptions.Builder#setTaskQueue(String) */
   public String getTaskQueue() {
     return taskQueue;
   }
 
-  /**
-   * @see ActivityOptions.Builder#setRetryOptions(RetryOptions)
-   */
+  /** @see ActivityOptions.Builder#setRetryOptions(RetryOptions) */
   public RetryOptions getRetryOptions() {
     return retryOptions;
   }
 
-  /**
-   * @see ActivityOptions.Builder#setContextPropagators(List)
-   */
+  /** @see ActivityOptions.Builder#setContextPropagators(List) */
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
   }
 
-  /**
-   * @see ActivityOptions.Builder#setCancellationType(ActivityCancellationType)
-   */
+  /** @see ActivityOptions.Builder#setCancellationType(ActivityCancellationType) */
   public ActivityCancellationType getCancellationType() {
     return cancellationType;
   }
