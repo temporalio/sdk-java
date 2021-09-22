@@ -181,8 +181,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   /**
    * @param retryState present if workflow is a retry
-   * @param backoffStartInterval
-   * @param lastCompletionResult
    * @param parentChildInitiatedEventId id of the child initiated event in the parent history
    */
   TestWorkflowMutableStateImpl(
@@ -214,7 +212,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             startRequest.getCronSchedule(),
             lastCompletionResult,
             lastFailure,
-            runId, // Test service doesn't support reset. Thus originalRunId is always the same as
+            runId, // Test service doesn't support reset. Thus, originalRunId is always the same as
             // runId.
             continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
@@ -282,7 +280,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
     if (!request.hasTaskQueue() || request.getTaskQueue().getName().isEmpty()) {
-      throw Status.INVALID_ARGUMENT.withDescription("Missing Taskqueue.").asRuntimeException();
+      throw Status.INVALID_ARGUMENT.withDescription("Missing TaskQueue.").asRuntimeException();
     }
     if (!request.hasWorkflowType() || request.getWorkflowType().getName().isEmpty()) {
       throw Status.INVALID_ARGUMENT.withDescription("Missing WorkflowType.").asRuntimeException();
@@ -502,7 +500,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   case UNRECOGNIZED:
                     throw Status.INVALID_ARGUMENT
                         .withDescription(
-                            "URECOGNIZED query result type for =" + resultEntry.getKey())
+                            "UNRECOGNIZED query result type for =" + resultEntry.getKey())
                         .asRuntimeException();
                 }
               }
@@ -625,7 +623,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (externalCancellations.containsKey(attr.getWorkflowId())) {
       // TODO: validate that this matches the service behavior
       throw Status.FAILED_PRECONDITION
-          .withDescription("cancellation aready requested for workflowId=" + attr.getWorkflowId())
+          .withDescription("cancellation already requested for workflowId=" + attr.getWorkflowId())
           .asRuntimeException();
     }
     StateMachine<CancelExternalData> cancelStateMachine =
@@ -1707,7 +1705,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean heartbeatActivityTask(long scheduledEventId, Payloads details) {
+  public boolean heartbeatActivityTask(long scheduledEventId, Payloads details, String identity) {
     AtomicBoolean result = new AtomicBoolean();
     update(
         ctx -> {
@@ -1724,6 +1722,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
           ActivityTaskData data = activity.getData();
           data.lastHeartbeatTime = clock.getAsLong();
+          data.identity = identity;
           Duration startToCloseTimeout =
               ProtobufTimeUtils.toJavaDuration(data.scheduledEvent.getStartToCloseTimeout());
           Duration heartbeatTimeout =
@@ -1735,9 +1734,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean heartbeatActivityTaskById(String id, Payloads details) {
+  public boolean heartbeatActivityTaskById(String id, Payloads details, String identity) {
     StateMachine<ActivityTaskData> activity = getActivityById(id);
-    return heartbeatActivityTask(activity.getData().scheduledEventId, details);
+    return heartbeatActivityTask(activity.getData().scheduledEventId, details, identity);
   }
 
   private void timeoutActivity(long scheduledEventId, TimeoutType timeoutType, int timeoutAttempt) {
@@ -2141,11 +2140,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     populateWorkflowExecutionInfoFromHistory(executionInfo, fullHistory);
 
     this.parent.ifPresent(
-        p -> {
-          executionInfo
-              .setParentNamespaceId(p.getExecutionId().getNamespace())
-              .setParentExecution(p.getExecutionId().getExecution());
-        });
+        p ->
+            executionInfo
+                .setParentNamespaceId(p.getExecutionId().getNamespace())
+                .setParentExecution(p.getExecutionId().getExecution()));
 
     List<PendingActivityInfo> pendingActivities =
         this.activities.values().stream()
@@ -2181,33 +2179,37 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private static PendingActivityInfo constructPendingActivityInfo(
       StateMachine<ActivityTaskData> sm) {
-    /*
-     * Working on this code? Read StateMachines.scheduleActivityTask to get answers to questions
-     * like 'why does some of the information come from the scheduledEvent?'
-     */
+    // Working on this code? Read StateMachines.scheduleActivityTask to get answers to questions
+    // like 'why does some of the information come from the scheduledEvent?'
     ActivityTaskData activityTaskData = sm.getData();
 
     State state = sm.getState();
     PendingActivityInfo.Builder builder = PendingActivityInfo.newBuilder();
 
     // The oddballs - these don't obviously come from any one part of the structure
-    builder
-        .setState(computeActivityState(state, activityTaskData))
-        // We don't track this in the test environment right now, but we could.
-        .setLastWorkerIdentity("test-environment-worker-identity");
+    builder.setState(computeActivityState(state, activityTaskData));
+    if (activityTaskData.identity != null) {
+      builder.setLastWorkerIdentity(activityTaskData.identity);
+    }
 
     // Some ids are only present in the schedule event...
-    populatePendingActivityInfoFromScheduledEvent(builder, activityTaskData.scheduledEvent);
+    if (activityTaskData.scheduledEvent != null) {
+      populatePendingActivityInfoFromScheduledEvent(builder, activityTaskData.scheduledEvent);
+    }
 
     // A few bits of timing are only present on the poll response...
-    PollActivityTaskQueueResponseOrBuilder pollResponse = activityTaskData.activityTask.getTask();
-    populatePendingActivityInfoFromPollResponse(builder, pollResponse);
+    if (activityTaskData.activityTask != null) {
+      PollActivityTaskQueueResponseOrBuilder pollResponse = activityTaskData.activityTask.getTask();
+      populatePendingActivityInfoFromPollResponse(builder, pollResponse);
+    }
 
     // Heartbeat details are housed directly in the activityTaskData
     populatePendingActivityInfoFromHeartbeatDetails(builder, activityTaskData);
 
     // Retry data is housed under .retryState
-    populatePendingActivityInfoFromRetryData(builder, activityTaskData.retryState);
+    if (activityTaskData.retryState != null) {
+      populatePendingActivityInfoFromRetryData(builder, activityTaskData.retryState);
+    }
 
     return builder.build();
   }
@@ -2291,10 +2293,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             });
 
     getCompletionEvent(fullHistory)
-        .ifPresent(
-            completionEvent -> {
-              executionInfo.setCloseTime(completionEvent.getEventTime());
-            });
+        .ifPresent(completionEvent -> executionInfo.setCloseTime(completionEvent.getEventTime()));
   }
 
   // Has an analog in the golang codebase: MutableState.GetStartEvent(). This could become public

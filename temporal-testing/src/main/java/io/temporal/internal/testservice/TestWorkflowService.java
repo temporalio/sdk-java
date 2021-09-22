@@ -184,8 +184,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     this(0);
   }
 
-  // Creates an out-of-process rather than in-process server, and does not set up a client.
-  // Useful, for example, if you want to use the test service from other SDKs.
+  /**
+   * Creates an out-of-process rather than in-process server, and does not set up a client. Useful,
+   * for example, if you want to use the test service from other SDKs.
+   */
   public static TestWorkflowService createServerOnly(int port) {
     log.info("Server started, listening on " + port);
     return new TestWorkflowService(true, port);
@@ -565,7 +567,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
       boolean cancelRequested =
           mutableState.heartbeatActivityTask(
-              activityId.getScheduledEventId(), heartbeatRequest.getDetails());
+              activityId.getScheduledEventId(),
+              heartbeatRequest.getDetails(),
+              heartbeatRequest.getIdentity());
       responseObserver.onNext(
           RecordActivityTaskHeartbeatResponse.newBuilder()
               .setCancelRequested(cancelRequested)
@@ -592,7 +596,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       TestWorkflowMutableState mutableState = getMutableState(execution);
       boolean cancelRequested =
           mutableState.heartbeatActivityTaskById(
-              heartbeatRequest.getActivityId(), heartbeatRequest.getDetails());
+              heartbeatRequest.getActivityId(),
+              heartbeatRequest.getDetails(),
+              heartbeatRequest.getIdentity());
       responseObserver.onNext(
           RecordActivityTaskHeartbeatByIdResponse.newBuilder()
               .setCancelRequested(cancelRequested)

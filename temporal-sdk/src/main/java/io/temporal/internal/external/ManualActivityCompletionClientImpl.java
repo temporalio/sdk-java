@@ -36,6 +36,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
@@ -51,33 +52,35 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
 
   private final WorkflowServiceStubs service;
-
-  private final byte[] taskToken;
-
+  private final WorkflowExecution execution;
   private final DataConverter dataConverter;
   private final String namespace;
-  private final WorkflowExecution execution;
+  private final String identity;
   private final String activityId;
   private final Scope metricsScope;
+  private final byte[] taskToken;
 
   ManualActivityCompletionClientImpl(
       WorkflowServiceStubs service,
       String namespace,
+      String identity,
       byte[] taskToken,
       DataConverter dataConverter,
       Scope metricsScope) {
     this.service = service;
-    this.taskToken = taskToken;
+    this.execution = null;
     this.dataConverter = dataConverter;
     this.namespace = namespace;
-    this.execution = null;
+    this.identity = identity;
     this.activityId = null;
     this.metricsScope = metricsScope;
+    this.taskToken = taskToken;
   }
 
   ManualActivityCompletionClientImpl(
       WorkflowServiceStubs service,
       String namespace,
+      String identity,
       WorkflowExecution execution,
       String activityId,
       DataConverter dataConverter,
@@ -85,6 +88,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.service = service;
     this.taskToken = null;
     this.namespace = namespace;
+    this.identity = identity;
     this.execution = execution;
     this.activityId = activityId;
     this.dataConverter = dataConverter;
@@ -93,15 +97,14 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void complete(Object result) {
-    Optional<Payloads> convertedResult = dataConverter.toPayloads(result);
+    Optional<Payloads> payloads = dataConverter.toPayloads(result);
     if (taskToken != null) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder()
               .setNamespace(namespace)
+              .setIdentity(identity)
               .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedResult.isPresent()) {
-        request.setResult(convertedResult.get());
-      }
+      payloads.ifPresent(request::setResult);
       try {
         GrpcRetryer.retry(
             RpcRetryOptions.newBuilder()
@@ -111,13 +114,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskCompleted(request.build()));
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(e);
-        }
-        throw new ActivityCompletionFailureException(e);
       } catch (Exception e) {
-        throw new ActivityCompletionFailureException(e);
+        processException(e);
       }
     } else {
       if (activityId == null) {
@@ -129,21 +127,14 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId());
-      if (convertedResult.isPresent()) {
-        request.setResult(convertedResult.get());
-      }
+      payloads.ifPresent(request::setResult);
       try {
         service
             .blockingStub()
             .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
             .respondActivityTaskCompletedById(request.build());
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(activityId, e);
-        }
-        throw new ActivityCompletionFailureException(activityId, e);
       } catch (Exception e) {
-        throw new ActivityCompletionFailureException(activityId, e);
+        processException(e);
       }
     }
   }
@@ -202,75 +193,32 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskFailedById(request));
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(activityId, e);
-        }
-        throw new ActivityCompletionFailureException(activityId, e);
       } catch (Exception e) {
-        throw new ActivityCompletionFailureException(activityId, e);
+        processException(e);
       }
     }
   }
 
   @Override
   public void recordHeartbeat(Object details) throws CanceledFailure {
-    Optional<Payloads> convertedDetails = dataConverter.toPayloads(details);
-    if (taskToken != null) {
-      RecordActivityTaskHeartbeatRequest.Builder request =
-          RecordActivityTaskHeartbeatRequest.newBuilder()
-              .setNamespace(namespace)
-              .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedDetails.isPresent()) {
-        request.setDetails(convertedDetails.get());
-      }
-      RecordActivityTaskHeartbeatResponse status;
-      try {
-        status =
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .recordActivityTaskHeartbeat(request.build());
+    try {
+      if (taskToken != null) {
+        RecordActivityTaskHeartbeatResponse status =
+            ActivityClientHelper.sendHeartbeatRequest(
+                dataConverter, identity, metricsScope, namespace, service, taskToken, details);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         }
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(activityId, e);
-        }
-        throw new ActivityCompletionFailureException(activityId, e);
-      }
-    } else {
-      if (activityId == null) {
-        throw new IllegalArgumentException("Either activity id or task token are required");
-      }
-      RecordActivityTaskHeartbeatByIdRequest.Builder request =
-          RecordActivityTaskHeartbeatByIdRequest.newBuilder()
-              .setWorkflowId(execution.getWorkflowId())
-              .setNamespace(namespace)
-              .setRunId(execution.getRunId())
-              .setActivityId(activityId);
-      if (convertedDetails.isPresent()) {
-        request.setDetails(convertedDetails.get());
-      }
-      RecordActivityTaskHeartbeatByIdResponse status = null;
-      try {
-        status =
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .recordActivityTaskHeartbeatById(request.build());
+      } else {
+        RecordActivityTaskHeartbeatByIdResponse status =
+            ActivityClientHelper.recordActivityTaskHeartbeatById(
+                activityId, dataConverter, execution, metricsScope, namespace, service, details);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         }
-      } catch (StatusRuntimeException e) {
-        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-          throw new ActivityNotExistsException(activityId, e);
-        }
-        throw new ActivityCompletionFailureException(activityId, e);
-      } catch (Exception e) {
-        throw new ActivityCompletionFailureException(activityId, e);
       }
+    } catch (Exception e) {
+      processException(e);
     }
   }
 
@@ -327,5 +275,15 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         log.warn("reportCancellation", e);
       }
     }
+  }
+
+  private void processException(Exception e) {
+    if (e instanceof StatusRuntimeException) {
+      StatusRuntimeException sre = (StatusRuntimeException) e;
+      if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
+        throw new ActivityNotExistsException(activityId, sre);
+      }
+    }
+    throw new ActivityCompletionFailureException(activityId, e);
   }
 }
