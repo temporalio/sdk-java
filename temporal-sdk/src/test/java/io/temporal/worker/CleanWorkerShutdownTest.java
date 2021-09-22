@@ -55,7 +55,6 @@ public class CleanWorkerShutdownTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
-          .setTestTimeoutSeconds(15)
           .build();
 
   @Test
@@ -85,7 +84,6 @@ public class CleanWorkerShutdownTest {
     TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute, "now");
     shutdownNowLatch.await();
-    Thread.sleep(3000);
     testWorkflowRule.getTestEnvironment().shutdownNow();
     testWorkflowRule.getTestEnvironment().awaitTermination(10, TimeUnit.MINUTES);
     List<HistoryEvent> events = testWorkflowRule.getHistory(execution).getEventsList();
@@ -137,7 +135,7 @@ public class CleanWorkerShutdownTest {
         shutdownNowLatch.countDown();
       }
       try {
-        Thread.sleep(10000);
+        Thread.sleep(1000);
       } catch (InterruptedException e) {
         // We ignore the interrupted exception here to let the activity complete and return the
         // result. Otherwise, the result is not reported:
