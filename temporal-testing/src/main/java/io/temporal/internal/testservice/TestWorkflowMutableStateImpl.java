@@ -2179,8 +2179,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private static PendingActivityInfo constructPendingActivityInfo(
       StateMachine<ActivityTaskData> sm) {
-    // Working on this code? Read StateMachines.scheduleActivityTask answer questions like 'Why does
-    // some of the information come from the scheduledEvent?'
+    // Working on this code? Read StateMachines.scheduleActivityTask to get answers to questions
+    // like 'why does some of the information come from the scheduledEvent?'
     ActivityTaskData activityTaskData = sm.getData();
 
     State state = sm.getState();
