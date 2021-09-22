@@ -26,6 +26,7 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.ActivityCompletionFailureException;
@@ -199,11 +200,20 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   public void sendHeartbeatRequest(Object details) {
     try {
-      ActivityClientHelper.sendHeartbeatRequest(
-          dataConverter, identity, metricsScope, namespace, service, info.getTaskToken(), details);
-      lastException = null;
-    } catch (ActivityCanceledException e) {
-      lastException = new ActivityCanceledException(info);
+      RecordActivityTaskHeartbeatResponse status =
+          ActivityClientHelper.sendHeartbeatRequest(
+              dataConverter,
+              identity,
+              metricsScope,
+              namespace,
+              service,
+              info.getTaskToken(),
+              details);
+      if (status.getCancelRequested()) {
+        lastException = new ActivityCanceledException(info);
+      } else {
+        lastException = null;
+      }
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         lastException = new ActivityNotExistsException(info, e);

@@ -30,7 +30,6 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Optional;
@@ -41,7 +40,7 @@ import java.util.Optional;
  * directly.
  */
 public class ActivityClientHelper {
-  public static void sendHeartbeatRequest(
+  public static RecordActivityTaskHeartbeatResponse sendHeartbeatRequest(
       DataConverter dataConverter,
       String identity,
       Scope metricsScope,
@@ -56,18 +55,13 @@ public class ActivityClientHelper {
             .setIdentity(identity);
     Optional<Payloads> payloads = dataConverter.toPayloads(details);
     payloads.ifPresent(request::setDetails);
-    RecordActivityTaskHeartbeatResponse status;
-    status =
-        service
-            .blockingStub()
-            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-            .recordActivityTaskHeartbeat(request.build());
-    if (status.getCancelRequested()) {
-      throw new ActivityCanceledException();
-    }
+    return service
+        .blockingStub()
+        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+        .recordActivityTaskHeartbeat(request.build());
   }
 
-  public static void recordActivityTaskHeartbeatById(
+  public static RecordActivityTaskHeartbeatByIdResponse recordActivityTaskHeartbeatById(
       String activityId,
       DataConverter dataConverter,
       WorkflowExecution execution,
@@ -86,14 +80,9 @@ public class ActivityClientHelper {
             .setActivityId(activityId);
     Optional<Payloads> payloads = dataConverter.toPayloads(details);
     payloads.ifPresent(request::setDetails);
-    RecordActivityTaskHeartbeatByIdResponse status;
-    status =
-        service
-            .blockingStub()
-            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-            .recordActivityTaskHeartbeatById(request.build());
-    if (status.getCancelRequested()) {
-      throw new ActivityCanceledException();
-    }
+    return service
+        .blockingStub()
+        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+        .recordActivityTaskHeartbeatById(request.build());
   }
 }

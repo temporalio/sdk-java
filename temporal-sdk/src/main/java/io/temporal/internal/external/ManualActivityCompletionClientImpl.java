@@ -201,23 +201,24 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void recordHeartbeat(Object details) throws CanceledFailure {
-    if (taskToken != null) {
-      try {
-        ActivityClientHelper.sendHeartbeatRequest(
-            dataConverter, identity, metricsScope, namespace, service, taskToken, details);
-      } catch (Exception e) {
-        if (e instanceof ActivityCanceledException) {
-          throw e;
+    try {
+      if (taskToken != null) {
+        RecordActivityTaskHeartbeatResponse status =
+            ActivityClientHelper.sendHeartbeatRequest(
+                dataConverter, identity, metricsScope, namespace, service, taskToken, details);
+        if (status.getCancelRequested()) {
+          throw new ActivityCanceledException();
         }
-        processException(e);
+      } else {
+        RecordActivityTaskHeartbeatByIdResponse status =
+            ActivityClientHelper.recordActivityTaskHeartbeatById(
+                activityId, dataConverter, execution, metricsScope, namespace, service, details);
+        if (status.getCancelRequested()) {
+          throw new ActivityCanceledException();
+        }
       }
-    } else {
-      try {
-        ActivityClientHelper.recordActivityTaskHeartbeatById(
-            activityId, dataConverter, execution, metricsScope, namespace, service, details);
-      } catch (Exception e) {
-        processException(e);
-      }
+    } catch (Exception e) {
+      processException(e);
     }
   }
 
