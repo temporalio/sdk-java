@@ -104,6 +104,10 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       options =
           WorkflowServiceStubsOptions.newBuilder(options)
               .setChannel(InProcessChannelBuilder.forName(serverName).directExecutor().build())
+              // target might be set already, especially if options were built with defaults. Need
+              // to set it to null since we don't allow both channel and target be set at the same
+              // time.
+              .setTarget(null)
               .build();
     } else {
       inProcessServer = null;
