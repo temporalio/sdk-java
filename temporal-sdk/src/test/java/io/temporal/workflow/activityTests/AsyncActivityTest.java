@@ -37,7 +37,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class AsyncActivityTest {
-  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
+  private static final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -48,8 +48,6 @@ public class AsyncActivityTest {
 
   @Test
   public void testAsyncActivity() {
-    activitiesImpl.completionClient =
-        testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
     TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
@@ -69,6 +67,7 @@ public class AsyncActivityTest {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class, SDKTestOptions.newActivityOptions20sScheduleToClose());
+
       Promise<String> a = Async.function(testActivities::activity);
       Promise<Integer> a1 = Async.function(testActivities::activity1, 1);
       Promise<String> a2 = Async.function(testActivities::activity2, "1", 2);
