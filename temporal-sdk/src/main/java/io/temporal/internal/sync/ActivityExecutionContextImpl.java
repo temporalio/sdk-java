@@ -32,6 +32,7 @@ import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -58,12 +59,15 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
   private static final long MAX_HEARTBEAT_INTERVAL_MILLIS = 30000;
 
+  private final WorkflowServiceStubs service;
   private final Lock lock = new ReentrantLock();
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
   private final ScheduledExecutorService heartbeatExecutor;
   private final long heartbeatIntervalMillis;
   private final DataConverter dataConverter;
+  private final String namespace;
+  private final String identity;
   private final Scope metricsScope;
   private final ActivityInfo info;
   private boolean useLocalManualCompletion;
@@ -83,7 +87,10 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       Functions.Proc completionHandle,
       Scope metricsScope,
       String identity) {
+    this.service = service;
     this.dataConverter = dataConverter;
+    this.namespace = namespace;
+    this.identity = identity;
     this.metricsScope = metricsScope;
     this.info = info;
     this.heartbeatExecutor = heartbeatExecutor;
@@ -191,10 +198,9 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   public void sendHeartbeatRequest(Object details) {
-    ManualActivityCompletionClient completionClient =
-        manualCompletionClientFactory.getClient(getTaskToken());
     try {
-      completionClient.sendHeartbeatRequest(details);
+      ActivityClientHelper.sendHeartbeatRequest(
+          dataConverter, identity, metricsScope, namespace, service, info.getTaskToken(), details);
       lastException = null;
     } catch (ActivityCanceledException e) {
       lastException = new ActivityCanceledException(info);

@@ -52,11 +52,6 @@ public final class CompletionAwareManualCompletionClient implements ManualActivi
   }
 
   @Override
-  public void sendHeartbeatRequest(Object details) {
-    client.sendHeartbeatRequest(details);
-  }
-
-  @Override
   public void recordHeartbeat(Object details) throws CanceledFailure {
     client.recordHeartbeat(details);
   }

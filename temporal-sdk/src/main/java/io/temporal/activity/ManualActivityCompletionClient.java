@@ -27,8 +27,6 @@ public interface ManualActivityCompletionClient {
 
   void fail(Throwable failure);
 
-  void sendHeartbeatRequest(Object details);
-
   void recordHeartbeat(Object details) throws CanceledFailure;
 
   void reportCancellation(Object details);

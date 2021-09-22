@@ -36,6 +36,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
@@ -199,30 +200,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   }
 
   @Override
-  public void sendHeartbeatRequest(Object details) {
-    RecordActivityTaskHeartbeatRequest.Builder request =
-        RecordActivityTaskHeartbeatRequest.newBuilder()
-            .setTaskToken(ByteString.copyFrom(taskToken))
-            .setNamespace(namespace)
-            .setIdentity(identity);
-    Optional<Payloads> payloads = dataConverter.toPayloads(details);
-    payloads.ifPresent(request::setDetails);
-    RecordActivityTaskHeartbeatResponse status;
-    status =
-        service
-            .blockingStub()
-            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-            .recordActivityTaskHeartbeat(request.build());
-    if (status.getCancelRequested()) {
-      throw new ActivityCanceledException();
-    }
-  }
-
-  @Override
   public void recordHeartbeat(Object details) throws CanceledFailure {
     if (taskToken != null) {
       try {
-        sendHeartbeatRequest(details);
+        ActivityClientHelper.sendHeartbeatRequest(
+            dataConverter, identity, metricsScope, namespace, service, taskToken, details);
       } catch (Exception e) {
         if (e instanceof ActivityCanceledException) {
           throw e;
@@ -230,29 +212,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         processException(e);
       }
     } else {
-      Optional<Payloads> payloads = dataConverter.toPayloads(details);
-      if (activityId == null) {
-        throw new IllegalArgumentException("Either activity id or task token are required");
-      }
-      RecordActivityTaskHeartbeatByIdRequest.Builder request =
-          RecordActivityTaskHeartbeatByIdRequest.newBuilder()
-              .setWorkflowId(execution.getWorkflowId())
-              .setNamespace(namespace)
-              .setRunId(execution.getRunId())
-              .setActivityId(activityId);
-      if (payloads.isPresent()) {
-        request.setDetails(payloads.get());
-      }
-      RecordActivityTaskHeartbeatByIdResponse status;
       try {
-        status =
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .recordActivityTaskHeartbeatById(request.build());
-        if (status.getCancelRequested()) {
-          throw new ActivityCanceledException();
-        }
+        ActivityClientHelper.recordActivityTaskHeartbeatById(
+            activityId, dataConverter, execution, metricsScope, namespace, service, details);
       } catch (Exception e) {
         processException(e);
       }
