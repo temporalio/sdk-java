@@ -104,6 +104,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       options =
           WorkflowServiceStubsOptions.newBuilder(options)
               .setChannel(InProcessChannelBuilder.forName(serverName).directExecutor().build())
+              .setTarget(null)
               .build();
     } else {
       inProcessServer = null;
