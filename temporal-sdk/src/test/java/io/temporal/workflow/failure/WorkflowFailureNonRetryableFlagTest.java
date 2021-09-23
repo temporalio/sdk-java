@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.failure;
 
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
@@ -45,7 +45,7 @@ public class WorkflowFailureNonRetryableFlagTest {
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestWorkflowNonRetryableFlag.class).build();
 
   @Test
-  public void testWorkflowFailureNonRetryableFlag() {
+  public void nonRetryableFlag() {
     RetryOptions workflowRetryOptions =
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(1))
@@ -81,11 +81,7 @@ public class WorkflowFailureNonRetryableFlagTest {
 
     @Override
     public String execute(String testName) {
-      AtomicInteger count = retryCount.get(testName);
-      if (count == null) {
-        count = new AtomicInteger();
-        retryCount.put(testName, count);
-      }
+      AtomicInteger count = retryCount.computeIfAbsent(testName, ignore -> new AtomicInteger());
       int c = count.incrementAndGet();
       ApplicationFailure f =
           ApplicationFailure.newFailure("simulated " + c, "foo", "details1", 123);

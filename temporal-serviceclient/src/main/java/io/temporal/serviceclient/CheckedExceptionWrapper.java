@@ -53,7 +53,7 @@ public final class CheckedExceptionWrapper extends RuntimeException {
     if (e instanceof RuntimeException) {
       return (RuntimeException) e;
     }
-    return new CheckedExceptionWrapper((Exception) e);
+    return new CheckedExceptionWrapper(e);
   }
 
   /**
@@ -64,7 +64,7 @@ public final class CheckedExceptionWrapper extends RuntimeException {
     return e instanceof CheckedExceptionWrapper ? e.getCause() : e;
   }
 
-  private CheckedExceptionWrapper(Exception e) {
+  private CheckedExceptionWrapper(Throwable e) {
     super(e);
   }
 }

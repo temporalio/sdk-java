@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import static org.junit.Assert.assertTrue;
+
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.Workflow;
 import org.junit.Assert;
@@ -57,4 +59,13 @@ public class CheckedExceptionWrapperTest {
     Throwable eu = CheckedExceptionWrapper.unwrap(e);
     Assert.assertEquals(e, eu);
   }
+
+  @Test
+  public void customThrowable() {
+    RuntimeException wrapped = CheckedExceptionWrapper.wrap(new CustomThrowable());
+    Throwable unwrapped = CheckedExceptionWrapper.unwrap(wrapped);
+    assertTrue(unwrapped instanceof CustomThrowable);
+  }
+
+  private static class CustomThrowable extends Throwable {}
 }
