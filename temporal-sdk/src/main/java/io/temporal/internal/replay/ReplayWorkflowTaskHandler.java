@@ -157,7 +157,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               + execution.getWorkflowId()
               + ", RunId="
               + execution.getRunId()
-              + ". If see continuously the workflow might be stuck.",
+              + ". If seen continuously the workflow might be stuck.",
           e);
     }
     Failure failure = FailureConverter.exceptionToFailure(e);

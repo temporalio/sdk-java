@@ -149,6 +149,10 @@ final class WorkflowContext {
     return startedAttributes.getHeader().getFieldsMap();
   }
 
+  public Payload getMemo(String key) {
+    return startedAttributes.getMemo().getFieldsMap().get(key);
+  }
+
   SearchAttributes getSearchAttributes() {
     return searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0
         ? null

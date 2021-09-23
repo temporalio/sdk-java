@@ -36,9 +36,9 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
+import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.internal.worker.activity.ActivityWorkerHelper;
-import io.temporal.serviceclient.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -198,7 +198,6 @@ public final class ActivityWorker implements SuspendableWorker {
         Duration duration =
             ProtobufTimeUtils.toM3DurationSinceNow(r.getCurrentAttemptScheduledTime());
         metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
-
       } catch (FailureWrapperException e) {
         Failure failure = e.getFailure();
         if (failure.hasCanceledFailureInfo()) {

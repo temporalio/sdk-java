@@ -22,6 +22,7 @@ package io.temporal.internal.replay;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -62,9 +63,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
 
-  /** Set the attributes to request continue as new upon workflow code completion. */
-  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
-
   /**
    * RunId of the first run in the continue-as-new chain. Empty if this workflow never called
    * continue as new.
@@ -87,12 +85,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   long getRunStartedTimestampMillis();
 
-  /**
-   * The time that is calculated as the start time of the first run plus workflow execution timeout.
-   */
-  long getWorkflowExecutionExpirationTimestampMillis();
-
   Duration getWorkflowTaskTimeout();
+
+  Payload getMemo(String key);
 
   /**
    * Used to retrieve search attributes.

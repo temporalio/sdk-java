@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.DeterministicRunner.getDeadlockDetectionTimeout;
 import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
@@ -62,21 +61,28 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 public class DeterministicRunnerTest {
 
   @Rule public final Tracer trace = new Tracer();
 
+  private static ExecutorService threadPool;
+
   private String status;
   private boolean unblock1;
   private boolean unblock2;
   private Throwable failure;
-  private ExecutorService threadPool;
+
+  @BeforeClass
+  public static void beforeClass() {
+    threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    threadPool.shutdown();
+  }
 
   @Before
   public void setUp() {
@@ -84,19 +90,13 @@ public class DeterministicRunnerTest {
     unblock2 = false;
     failure = null;
     status = "initial";
-    threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-  }
-
-  @After
-  public void tearDown() throws InterruptedException {
-    threadPool.shutdown();
-    threadPool.awaitTermination(10, TimeUnit.SECONDS);
   }
 
   @Test
   public void testYield() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -106,17 +106,17 @@ public class DeterministicRunnerTest {
               status = "done";
             });
     assertEquals("initial", status);
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("started", status);
     assertFalse(d.isDone());
     unblock1 = true;
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("after1", status);
     // Just check that running again doesn't make any progress.
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("after1", status);
     unblock2 = true;
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("done", status);
     assertTrue(d.isDone());
   }
@@ -156,7 +156,7 @@ public class DeterministicRunnerTest {
             });
     try {
       for (int i = 0; i < Duration.ofSeconds(400).toMillis(); i += 10) {
-        d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+        d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
       }
       fail("failure expected");
     } catch (IllegalThreadStateException e) {
@@ -181,6 +181,7 @@ public class DeterministicRunnerTest {
   public void testRootFailure() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -188,12 +189,12 @@ public class DeterministicRunnerTest {
               throw new RuntimeException("simulated");
             });
     assertEquals("initial", status);
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("started", status);
     assertFalse(d.isDone());
     unblock1 = true;
     try {
-      d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+      d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
       fail("exception expected");
     } catch (Exception ignored) {
     }
@@ -204,6 +205,7 @@ public class DeterministicRunnerTest {
   public void testDispatcherStop() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -218,11 +220,11 @@ public class DeterministicRunnerTest {
               status = "done";
             });
     assertEquals("initial", status);
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("started", status);
     assertFalse(d.isDone());
     unblock1 = true;
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("after1", status);
     d.close();
     assertTrue(d.isDone());
@@ -233,6 +235,7 @@ public class DeterministicRunnerTest {
   public void testDispatcherExit() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -256,10 +259,10 @@ public class DeterministicRunnerTest {
               thread2.get();
               trace.add("root done");
             });
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertFalse(d.isDone());
     unblock2 = true;
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(d.isDone());
     assertEquals("exitValue", d.getExitValue());
     String[] expected =
@@ -274,6 +277,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -284,10 +288,10 @@ public class DeterministicRunnerTest {
                   "reason1", () -> CancellationScope.current().isCancelRequested());
               trace.add("root done");
             });
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertFalse(d.isDone());
     d.cancel("I just feel like it");
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(d.isDone());
     String[] expected =
         new String[] {
@@ -301,6 +305,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -323,7 +328,7 @@ public class DeterministicRunnerTest {
               }
               trace.add("root done");
             });
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(trace.toString(), d.isDone());
     String[] expected =
         new String[] {
@@ -340,10 +345,11 @@ public class DeterministicRunnerTest {
   }
 
   @Test
-  public void testExplicitDetachedScopeCancellation() throws Throwable {
+  public void testExplicitDetachedScopeCancellation() {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -366,7 +372,7 @@ public class DeterministicRunnerTest {
               }
               trace.add("root done");
             });
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(trace.toString(), d.isDone());
     String[] expected =
         new String[] {
@@ -400,6 +406,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -425,7 +432,7 @@ public class DeterministicRunnerTest {
               trace.add("root done");
             });
 
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(d.stackTrace(), d.isDone());
     String[] expected =
         new String[] {
@@ -444,6 +451,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -482,7 +490,7 @@ public class DeterministicRunnerTest {
               trace.add("root done");
             });
 
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(d.stackTrace(), d.isDone());
     String[] expected =
         new String[] {
@@ -503,6 +511,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -532,10 +541,10 @@ public class DeterministicRunnerTest {
               }
               trace.add("root done");
             });
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertFalse(trace.toString(), d.isDone());
     d.cancel("I just feel like it");
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertFalse(d.isDone());
     String[] expected =
         new String[] {
@@ -544,7 +553,7 @@ public class DeterministicRunnerTest {
     trace.setExpected(expected);
     trace.assertExpected();
     unblock1 = true;
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(d.stackTrace(), d.isDone());
     expected =
         new String[] {
@@ -557,6 +566,7 @@ public class DeterministicRunnerTest {
   public void testChild() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               Promise<Void> async =
@@ -571,17 +581,17 @@ public class DeterministicRunnerTest {
               async.get();
             });
     assertEquals("initial", status);
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("started", status);
     assertFalse(d.isDone());
     unblock1 = true;
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("after1", status);
     // Just check that running again doesn't make any progress.
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("after1", status);
     unblock2 = true;
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals("done", status);
     assertTrue(d.isDone());
   }
@@ -614,11 +624,12 @@ public class DeterministicRunnerTest {
   public void testChildTree() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             new TestChildTreeRunnable(0)::apply);
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     unblock1 = true;
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(d.isDone());
     List<String> expected = new ArrayList<>();
     for (int i = 0; i <= CHILDREN; i++) {
@@ -679,7 +690,7 @@ public class DeterministicRunnerTest {
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowRunTaskHandler);
     cache.addToCache(response.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
 
@@ -700,7 +711,7 @@ public class DeterministicRunnerTest {
             },
             cache);
     // Act: This should kick out threads consumed by 'd'
-    d2.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d2.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     // Assert: Cache is evicted and only threads consumed by d2 remain.
     assertEquals(2, threadPool.getActiveCount());
@@ -741,7 +752,7 @@ public class DeterministicRunnerTest {
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowRunTaskHandler);
     cache.addToCache(response.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
-    d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
 
@@ -762,7 +773,7 @@ public class DeterministicRunnerTest {
             cache);
 
     // Act: This should not kick out threads consumed by 'd' since there's enough capacity
-    d2.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    d2.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     // Assert: Cache is not evicted and all threads remain.
     assertEquals(4, threadPool.getActiveCount());
@@ -812,7 +823,7 @@ public class DeterministicRunnerTest {
     assertEquals("initial", status);
 
     try {
-      d.runUntilAllBlocked(getDeadlockDetectionTimeout());
+      d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     } catch (Throwable t) {
       assertTrue(t instanceof WorkflowRejectedExecutionError);
     }

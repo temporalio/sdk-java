@@ -17,9 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal;
-
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
+package io.temporal.internal.docker;
 
 import com.google.protobuf.util.Durations;
 import io.grpc.Status;
@@ -30,6 +28,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 
 /** Waits for local service to become available and registers UnitTest namespace. */
 public class RegisterTestNamespace {
+  public static final String NAMESPACE = "UnitTest";
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
@@ -60,7 +59,6 @@ public class RegisterTestNamespace {
           e.printStackTrace();
           Thread.sleep(500);
         }
-        continue;
       } catch (Throwable e) {
         e.printStackTrace();
         System.exit(1);

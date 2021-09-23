@@ -33,21 +33,19 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class AsyncUntypedActivityTest {
+public class AsyncUsingAsyncUntypedActivityTest {
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestAsyncUtypedActivityWorkflowImpl.class)
+          .setWorkflowTypes(TestAsyncUsingAsyncUntypedActivityWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test
-  public void testAsyncUntypedActivity() {
-    activitiesImpl.completionClient =
-        testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
+  public void usingAsync() {
     TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
@@ -55,10 +53,9 @@ public class AsyncUntypedActivityTest {
     Assert.assertEquals("1", activitiesImpl.procResult.get(1));
     Assert.assertEquals("12", activitiesImpl.procResult.get(2));
     Assert.assertEquals("123", activitiesImpl.procResult.get(3));
-    Assert.assertEquals("1234", activitiesImpl.procResult.get(4));
   }
 
-  public static class TestAsyncUtypedActivityWorkflowImpl implements TestWorkflow1 {
+  public static class TestAsyncUsingAsyncUntypedActivityWorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
@@ -75,13 +72,10 @@ public class AsyncUntypedActivityTest {
           Async.function(testActivities::<String>execute, "Activity2", String.class, "1", 2);
       Promise<String> a3 =
           Async.function(testActivities::<String>execute, "Activity3", String.class, "1", 2, 3);
-      Promise<String> a4 =
-          Async.function(testActivities::<String>execute, "Activity4", String.class, "1", 2, 3, 4);
       assertEquals("activity", a.get());
       assertEquals("1", a1.get());
       assertEquals("12", a2.get());
       assertEquals("123", a3.get());
-      assertEquals("1234", a4.get());
 
       Async.procedure(testActivities::<Void>execute, "Proc", Void.class).get();
       Async.procedure(testActivities::<Void>execute, "Proc1", Void.class, "1").get();

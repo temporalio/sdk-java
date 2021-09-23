@@ -58,7 +58,6 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final GenericWorkflowClientExternalImpl genericClient;
   private final WorkflowClientOptions options;
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
-  private final DataConverter dataConverter;
   private final WorkflowClientInterceptor[] interceptors;
   private final WorkflowClientCallsInterceptor workflowClientCallsInvoker;
   private final WorkflowServiceStubs workflowServiceStubs;
@@ -94,12 +93,16 @@ public final class WorkflowClientInternal implements WorkflowClient {
     this.genericClient =
         new GenericWorkflowClientExternalImpl(
             workflowServiceStubs, options.getNamespace(), options.getIdentity(), metricsScope);
-    this.dataConverter = options.getDataConverter();
+    DataConverter dataConverter = options.getDataConverter();
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
         new ManualActivityCompletionClientFactoryImpl(
-            workflowServiceStubs, options.getNamespace(), dataConverter, metricsScope);
+            workflowServiceStubs,
+            options.getNamespace(),
+            options.getIdentity(),
+            dataConverter,
+            metricsScope);
   }
 
   private WorkflowClientCallsInterceptor initializeClientInvoker() {
@@ -282,10 +285,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   public static <R> WorkflowExecution start(Functions.Func<R> workflow) {
-    return start(
-        () -> { // Need {} to call start(Proc...)
-          workflow.apply();
-        });
+    return start((Functions.Proc) workflow::apply);
   }
 
   public static <A1, R> WorkflowExecution start(Functions.Func1<A1, R> workflow, A1 arg1) {
@@ -377,12 +377,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @SuppressWarnings("unchecked")
   public static <R> CompletableFuture<R> execute(Functions.Func<R> workflow) {
-    return (CompletableFuture<R>)
-        execute(
-            () -> {
-              // Need {} to call execute(Proc...)
-              workflow.apply();
-            });
+    return (CompletableFuture<R>) execute((Functions.Proc) workflow::apply);
   }
 
   public static <A1, R> CompletableFuture<R> execute(Functions.Func1<A1, R> workflow, A1 arg1) {

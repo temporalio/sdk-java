@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.DeterministicRunner.getDeadlockDetectionTimeout;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -39,19 +38,30 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.IllegalFormatCodePointException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import org.junit.Rule;
-import org.junit.Test;
+import java.util.concurrent.*;
+import org.junit.*;
 
 public class PromiseTest {
 
   @Rule public final Tracer trace = new Tracer();
 
+  private static ExecutorService threadPool;
+
+  @BeforeClass
+  public static void beforeClass() {
+    threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    threadPool.shutdown();
+  }
+
   @Test
   public void testFailure() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<Boolean> f = Workflow.newPromise();
@@ -74,7 +84,7 @@ public class PromiseTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin", "root done", "thread1 get failure",
@@ -86,6 +96,7 @@ public class PromiseTest {
   public void testGet() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
@@ -94,7 +105,7 @@ public class PromiseTest {
               trace.add(f.get());
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin", "thread1", "root done",
@@ -106,6 +117,7 @@ public class PromiseTest {
   public void testCancellableGet() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
@@ -114,7 +126,7 @@ public class PromiseTest {
               trace.add(f.cancellableGet());
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin", "thread1", "root done",
@@ -126,6 +138,7 @@ public class PromiseTest {
   public void testCancellableGetCancellation() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
@@ -137,9 +150,9 @@ public class PromiseTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin", "root CanceledException", "root done",
@@ -200,6 +213,7 @@ public class PromiseTest {
   public void testMultiple() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -233,7 +247,7 @@ public class PromiseTest {
               assertTrue(f3.get());
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",
@@ -254,6 +268,7 @@ public class PromiseTest {
   public void tstAsync() {
     DeterministicRunner runner =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -278,7 +293,7 @@ public class PromiseTest {
               f1.complete("value1");
               trace.add("root done");
             });
-    runner.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    runner.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected = new String[] {"root begin", "value1.thenApply.f2Handle", "root done"};
 
     trace.setExpected(expected);
@@ -288,6 +303,7 @@ public class PromiseTest {
   public void testAsyncFailure() {
     DeterministicRunner runner =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -321,7 +337,7 @@ public class PromiseTest {
               }
               trace.add("root done");
             });
-    runner.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    runner.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected = new String[] {"root begin", "exceptionally", "failure caught", "root done"};
 
     trace.setExpected(expected);
@@ -331,6 +347,7 @@ public class PromiseTest {
   public void testAllOf() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -371,7 +388,7 @@ public class PromiseTest {
               assertTrue(f1.isCompleted() && f2.isCompleted() && f3.isCompleted());
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",
@@ -391,6 +408,7 @@ public class PromiseTest {
   public void testAllOfImmediatelyReady() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -416,7 +434,7 @@ public class PromiseTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",
@@ -433,6 +451,7 @@ public class PromiseTest {
   public void testAnyOf() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -474,7 +493,7 @@ public class PromiseTest {
               assertEquals("value1", any.get());
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",
@@ -494,6 +513,7 @@ public class PromiseTest {
   public void testAllOfArray() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -535,7 +555,7 @@ public class PromiseTest {
               assertTrue(f1.isCompleted());
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",
@@ -555,6 +575,7 @@ public class PromiseTest {
   public void testAnyOfArray() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -597,7 +618,7 @@ public class PromiseTest {
               assertTrue(f3.isCompleted());
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",
@@ -617,6 +638,7 @@ public class PromiseTest {
   public void testAnyOfImmediatelyReady() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -641,7 +663,7 @@ public class PromiseTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",

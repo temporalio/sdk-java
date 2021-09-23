@@ -42,6 +42,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.workflow.Functions;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,7 +178,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   public TestWorkflowStoreImpl(long initialTimeMillis) {
-    timerService = new SelfAdvancingTimerImpl(initialTimeMillis);
+    timerService = new SelfAdvancingTimerImpl(initialTimeMillis, Clock.systemDefaultZone());
     // locked until the first save
     emptyHistoryLockHandle = timerService.lockTimeSkipping("TestWorkflowStoreImpl constructor");
   }
@@ -431,12 +433,23 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     lock.lock();
     try {
       history = getHistoryStore(executionId);
-      if (!getRequest.getWaitNewEvent()
-          && getRequest.getHistoryEventFilterType()
-              != HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT) {
+      if (!getRequest.getWaitNewEvent()) {
         List<HistoryEvent> events = history.getEventsLocked();
         // Copy the list as it is mutable. Individual events assumed immutable.
-        ArrayList<HistoryEvent> eventsCopy = new ArrayList<>(events);
+        List<HistoryEvent> eventsCopy =
+            events.stream()
+                .filter(
+                    e -> {
+                      if (getRequest.getHistoryEventFilterType()
+                          != HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT) {
+                        return true;
+                      }
+
+                      // They asked for only the close event. There are a variety of ways a workflow
+                      // can close.
+                      return WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(e);
+                    })
+                .collect(Collectors.toList());
         return GetWorkflowExecutionHistoryResponse.newBuilder()
             .setHistory(History.newBuilder().addAllEvents(eventsCopy))
             .build();

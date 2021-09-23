@@ -45,7 +45,12 @@ public class SyncActivityWorker implements SuspendableWorker {
       SingleWorkerOptions options) {
     taskHandler =
         new POJOActivityTaskHandler(
-            service, namespace, options.getDataConverter(), heartbeatExecutor, workerInterceptors);
+            service,
+            options.getIdentity(),
+            namespace,
+            options.getDataConverter(),
+            heartbeatExecutor,
+            workerInterceptors);
     worker =
         new ActivityWorker(
             service, namespace, taskQueue, taskQueueActivitiesPerSecond, options, taskHandler);

@@ -39,9 +39,6 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nonnull;
@@ -130,10 +127,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private Object exitValue;
   private WorkflowThread rootWorkflowThread;
   private final CancellationScopeImpl runnerCancellationScope;
-
-  DeterministicRunnerImpl(@Nonnull SyncWorkflowContext workflowContext, Runnable root) {
-    this(getDefaultThreadPool(), workflowContext, root, null);
-  }
 
   DeterministicRunnerImpl(
       ExecutorService threadPool, @Nonnull SyncWorkflowContext workflowContext, Runnable root) {
@@ -505,13 +498,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     } else {
       return workflowContext.getContext().getContextPropagators();
     }
-  }
-
-  private static ThreadPoolExecutor getDefaultThreadPool() {
-    ThreadPoolExecutor result =
-        new ThreadPoolExecutor(0, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-    result.setThreadFactory(r -> new Thread(r, "deterministic runner thread"));
-    return result;
   }
 
   private static class WorkflowThreadMarkerAccessor extends WorkflowThreadMarker {

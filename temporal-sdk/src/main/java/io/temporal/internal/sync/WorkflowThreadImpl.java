@@ -41,6 +41,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -76,7 +77,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       this.threadContext = threadContext;
       this.replayWorkflowContext = replayWorkflowContext;
       this.name = name;
-      cancellationScope = new CancellationScopeImpl(detached, runnable, parent);
+      this.cancellationScope = new CancellationScopeImpl(detached, runnable, parent);
       if (context.getStatus() != Status.CREATED) {
         throw new IllegalStateException("threadContext not in CREATED state");
       }
@@ -86,11 +87,13 @@ class WorkflowThreadImpl implements WorkflowThread {
 
     @Override
     public void run() {
-      thread = Thread.currentThread();
-      threadContext.setCurrentThread(thread);
+      Thread thread = Thread.currentThread();
       originalName = thread.getName();
       thread.setName(name);
+
+      threadContext.initializeCurrentThread(thread);
       DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadImpl.this);
+
       MDC.put(LoggerTag.WORKFLOW_ID, replayWorkflowContext.getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, replayWorkflowContext.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, replayWorkflowContext.getRunId());
@@ -124,8 +127,6 @@ class WorkflowThreadImpl implements WorkflowThread {
         DeterministicRunnerImpl.setCurrentThreadInternal(null);
         threadContext.setStatus(Status.DONE);
         thread.setName(originalName);
-        thread = null;
-        threadContext.setCurrentThread(null);
         MDC.clear();
       }
     }
@@ -135,6 +136,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     }
 
     StackTraceElement[] getStackTrace() {
+      @Nullable Thread thread = threadContext.getCurrentThread();
       if (thread != null) {
         return thread.getStackTrace();
       }
@@ -143,6 +145,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
     public void setName(String name) {
       this.name = name;
+      @Nullable Thread thread = threadContext.getCurrentThread();
       if (thread != null) {
         thread.setName(name);
       }
@@ -157,7 +160,6 @@ class WorkflowThreadImpl implements WorkflowThread {
   private final DeterministicRunnerImpl runner;
   private final RunnableWrapper task;
   private final int priority;
-  private Thread thread;
   private Future<?> taskFuture;
   private final Map<WorkflowThreadLocalInternal<?>, Object> threadLocalMap = new HashMap<>();
 
@@ -310,17 +312,12 @@ class WorkflowThreadImpl implements WorkflowThread {
     return priority;
   }
 
-  /**
-   * @return true if coroutine made some progress.
-   * @param deadlockDetectionTimeout maximum time in milliseconds the thread can run before calling
-   *     yield.
-   */
   @Override
-  public boolean runUntilBlocked(long deadlockDetectionTimeout) {
+  public boolean runUntilBlocked(long deadlockDetectionTimeoutMs) {
     if (taskFuture == null) {
       start();
     }
-    return context.runUntilBlocked(deadlockDetectionTimeout);
+    return context.runUntilBlocked(deadlockDetectionTimeoutMs);
   }
 
   @Override
@@ -360,7 +357,8 @@ class WorkflowThreadImpl implements WorkflowThread {
   @Override
   public Future<?> stopNow() {
     // Cannot call destroy() on itself
-    if (thread == Thread.currentThread()) {
+    @Nullable Thread thread = context.getCurrentThread();
+    if (Thread.currentThread().equals(thread)) {
       throw new Error("Cannot call destroy on itself: " + thread.getName());
     }
     context.destroy();
@@ -383,6 +381,7 @@ class WorkflowThreadImpl implements WorkflowThread {
   @Override
   public void addStackTrace(StringBuilder result) {
     result.append(getName());
+    @Nullable Thread thread = context.getCurrentThread();
     if (thread == null) {
       result.append("(NEW)");
       return;
@@ -447,7 +446,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     StackTraceElement[] st = task.getStackTrace();
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
-    pw.append(thread.getName());
+    pw.append(task.getName());
     pw.append("\n");
     for (StackTraceElement se : st) {
       pw.println("\tat " + se);

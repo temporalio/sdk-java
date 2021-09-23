@@ -25,6 +25,7 @@ import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandA
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -137,12 +138,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public void setContinueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-    workflowContext.setContinueAsNewOnCompletion(attributes);
-  }
-
-  @Override
   public Duration getWorkflowTaskTimeout() {
     return workflowContext.getWorkflowTaskTimeout();
   }
@@ -187,8 +182,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public long getWorkflowExecutionExpirationTimestampMillis() {
-    return workflowContext.getWorkflowExecutionExpirationTimestampMillis();
+  public Payload getMemo(String key) {
+    return workflowContext.getMemo(key);
   }
 
   @Override

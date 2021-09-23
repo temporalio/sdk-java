@@ -35,15 +35,18 @@ public class ManualActivityCompletionClientFactoryImpl
   private final WorkflowServiceStubs service;
   private final DataConverter dataConverter;
   private final String namespace;
+  private final String identity;
   private final Scope metricsScope;
 
   public ManualActivityCompletionClientFactoryImpl(
       WorkflowServiceStubs service,
       String namespace,
+      String identity,
       DataConverter dataConverter,
       Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
+    this.identity = Objects.requireNonNull(identity);
     this.dataConverter = Objects.requireNonNull(dataConverter);
 
     Map<String, String> tags =
@@ -71,7 +74,7 @@ public class ManualActivityCompletionClientFactoryImpl
       throw new IllegalArgumentException("null or empty task token");
     }
     return new ManualActivityCompletionClientImpl(
-        service, namespace, taskToken, dataConverter, metricsScope);
+        service, namespace, identity, taskToken, dataConverter, metricsScope);
   }
 
   @Override
@@ -83,6 +86,6 @@ public class ManualActivityCompletionClientFactoryImpl
       throw new IllegalArgumentException("null activityId");
     }
     return new ManualActivityCompletionClientImpl(
-        service, namespace, execution, activityId, dataConverter, metricsScope);
+        service, namespace, identity, execution, activityId, dataConverter, metricsScope);
   }
 }

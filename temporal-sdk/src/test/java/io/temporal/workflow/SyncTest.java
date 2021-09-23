@@ -30,10 +30,12 @@ import io.temporal.failure.TerminatedFailure;
 import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,16 +44,24 @@ public class SyncTest {
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
+  private static final TestActivities.CompletionClientActivitiesImpl
+      completionClientActivitiesImpl = new TestActivities.CompletionClientActivitiesImpl();
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSyncWorkflowImpl.class)
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(activitiesImpl, completionClientActivitiesImpl)
           .build();
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    completionClientActivitiesImpl.close();
+  }
 
   @Test
   public void testSync() {
-    activitiesImpl.setCompletionClient(
+    completionClientActivitiesImpl.setCompletionClient(
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
     TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
@@ -72,7 +82,7 @@ public class SyncTest {
 
   @Test
   public void testSyncUntypedAndStackTrace() {
-    activitiesImpl.setCompletionClient(
+    completionClientActivitiesImpl.setCompletionClient(
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
     WorkflowStub workflowStub =
         testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow1");
@@ -131,10 +141,17 @@ public class SyncTest {
           Workflow.newActivityStub(
               VariousTestActivities.class,
               SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
+
+      TestActivities.CompletionClientActivities completionClientActivities =
+          Workflow.newActivityStub(
+              TestActivities.CompletionClientActivities.class,
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
+
       // Invoke synchronously in a separate thread for testing purposes only.
       // In real workflows use
       // Async.procedure(activities::activityWithDelay, 1000, true)
-      Promise<String> a1 = Async.function(() -> activities.activityWithDelay(1000, true));
+      Promise<String> a1 =
+          Async.function(() -> completionClientActivities.activityWithDelay(1000, true));
       Workflow.sleep(2000);
       return activities.activity2(a1.get(), 10);
     }

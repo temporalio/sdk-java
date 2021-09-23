@@ -204,7 +204,7 @@ public class WorkflowTestingTest {
     TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
     try {
       workflow.execute("input1");
-      fail("unreacheable");
+      fail("unreachable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       TimeoutFailure te = (TimeoutFailure) e.getCause().getCause();

@@ -19,41 +19,43 @@
 
 package io.temporal.serviceclient;
 
+import com.google.common.base.Preconditions;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Metadata;
-import io.grpc.NameResolver;
+import io.grpc.*;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
-import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Function;
 
 public class WorkflowServiceStubsOptions {
 
-  private static final String LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
+  public static final String DEFAULT_LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
-  /** Default RPC timeout used for all non long poll calls. */
-  private static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofSeconds(10);
+  /** Default RPC timeout used for all non-long-poll calls. */
+  public static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofSeconds(10);
+  /**
+   * RPC timeout used for all long poll calls on Temporal Server side. Long poll returns with an
+   * empty result after this server timeout.
+   */
+  public static final Duration DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT = Duration.ofSeconds(60);
   /** Default RPC timeout used for all long poll calls. */
-  private static final Duration DEFAULT_POLL_RPC_TIMEOUT = Duration.ofSeconds(70);
+  public static final Duration DEFAULT_POLL_RPC_TIMEOUT =
+      DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.plus(Duration.ofSeconds(10));
   /** Default RPC timeout for QueryWorkflow */
-  private static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
+  public static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
   /** Default timeout that will be used to reset connection backoff. */
-  private static final Duration DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY = Duration.ofSeconds(10);
+  public static final Duration DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY = Duration.ofSeconds(10);
   /**
    * Default timeout that will be used to enter idle channel state and reconnect to temporal server.
    */
-  private static final Duration DEFAULT_GRPC_RECONNECT_FREQUENCY = Duration.ofMinutes(1);
+  public static final Duration DEFAULT_GRPC_RECONNECT_FREQUENCY = Duration.ofMinutes(1);
 
-  private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE;
-
-  static {
-    DEFAULT_INSTANCE = WorkflowServiceStubsOptions.newBuilder().build();
-  }
+  private static final WorkflowServiceStubsOptions DEFAULT_INSTANCE =
+      WorkflowServiceStubsOptions.newBuilder().build();
 
   public static Builder newBuilder() {
     return new Builder();
@@ -138,17 +140,15 @@ public class WorkflowServiceStubsOptions {
   /** Optional gRPC headers */
   private final Metadata headers;
 
+  /**
+   * gRPC metadata/headers providers to be called on each gRPC request to supply additional headers
+   */
+  private final Collection<GrpcMetadataProvider> grpcMetadataProviders;
+
+  /** gRPC client interceptors to be added to gRPC channel */
+  private final Collection<ClientInterceptor> grpcClientInterceptors;
+
   private final Scope metricsScope;
-
-  private final Function<
-          WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-          WorkflowServiceGrpc.WorkflowServiceBlockingStub>
-      blockingStubInterceptor;
-
-  private final Function<
-          WorkflowServiceGrpc.WorkflowServiceFutureStub,
-          WorkflowServiceGrpc.WorkflowServiceFutureStub>
-      futureStubInterceptor;
 
   private WorkflowServiceStubsOptions(Builder builder) {
     this.target = builder.target;
@@ -161,9 +161,9 @@ public class WorkflowServiceStubsOptions {
     this.rpcRetryOptions = builder.rpcRetryOptions;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
-    this.blockingStubInterceptor = builder.blockingStubInterceptor;
-    this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
+    this.grpcMetadataProviders = builder.grpcMetadataProviders;
+    this.grpcClientInterceptors = builder.grpcClientInterceptors;
     this.metricsScope = builder.metricsScope;
     this.disableHealthCheck = builder.disableHealthCheck;
     this.healthCheckAttemptTimeout = builder.healthCheckAttemptTimeout;
@@ -191,7 +191,9 @@ public class WorkflowServiceStubsOptions {
     }
 
     this.target =
-        builder.target == null && builder.channel == null ? LOCAL_DOCKER_TARGET : builder.target;
+        builder.target == null && builder.channel == null
+            ? DEFAULT_LOCAL_DOCKER_TARGET
+            : builder.target;
     this.sslContext = builder.sslContext;
     this.enableHttps = builder.enableHttps;
     this.channel = builder.channel;
@@ -200,12 +202,20 @@ public class WorkflowServiceStubsOptions {
     this.rpcTimeout = builder.rpcTimeout;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
-    this.blockingStubInterceptor = builder.blockingStubInterceptor;
-    this.futureStubInterceptor = builder.futureStubInterceptor;
     if (builder.headers != null) {
       this.headers = builder.headers;
     } else {
       this.headers = new Metadata();
+    }
+    if (builder.grpcMetadataProviders != null) {
+      this.grpcMetadataProviders = builder.grpcMetadataProviders;
+    } else {
+      this.grpcMetadataProviders = Collections.emptyList();
+    }
+    if (builder.grpcClientInterceptors != null) {
+      this.grpcClientInterceptors = builder.grpcClientInterceptors;
+    } else {
+      this.grpcClientInterceptors = Collections.emptyList();
     }
     this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
     this.disableHealthCheck = builder.disableHealthCheck;
@@ -298,7 +308,11 @@ public class WorkflowServiceStubsOptions {
     return rpcQueryTimeout;
   }
 
-  /** @return Returns rpc retry options for outgoing requests to the temporal server. */
+  /**
+   * @return Returns rpc retry options for outgoing requests to the temporal server that supposed to
+   *     be processed and returned fast, like start workflow (not long polls or awaits for workflow
+   *     finishing).
+   */
   public RpcRetryOptions getRpcRetryOptions() {
     return rpcRetryOptions;
   }
@@ -316,24 +330,22 @@ public class WorkflowServiceStubsOptions {
     return grpcReconnectFrequency;
   }
 
+  /** @return gRPC headers to be added to every call. */
   public Metadata getHeaders() {
     return headers;
   }
 
-  public Optional<
-          Function<
-              WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-              WorkflowServiceGrpc.WorkflowServiceBlockingStub>>
-      getBlockingStubInterceptor() {
-    return Optional.ofNullable(blockingStubInterceptor);
+  /**
+   * @return gRPC metadata/headers providers to be called on each gRPC request to supply additional
+   *     headers.
+   */
+  public Collection<GrpcMetadataProvider> getGrpcMetadataProviders() {
+    return grpcMetadataProviders;
   }
 
-  public Optional<
-          Function<
-              WorkflowServiceGrpc.WorkflowServiceFutureStub,
-              WorkflowServiceGrpc.WorkflowServiceFutureStub>>
-      getFutureStubInterceptor() {
-    return Optional.ofNullable(futureStubInterceptor);
+  /** @return gRPC client interceptors to be added to gRPC channel. */
+  public Collection<ClientInterceptor> getGrpcClientInterceptors() {
+    return grpcClientInterceptors;
   }
 
   public Scope getMetricsScope() {
@@ -362,19 +374,12 @@ public class WorkflowServiceStubsOptions {
     private Duration rpcTimeout = DEFAULT_RPC_TIMEOUT;
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
-    private RpcRetryOptions rpcRetryOptions =
-        RpcRetryOptions.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+    private RpcRetryOptions rpcRetryOptions = DefaultStubServiceOperationRpcRetryOptions.INSTANCE;
     private Duration connectionBackoffResetFrequency = DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY;
     private Duration grpcReconnectFrequency = DEFAULT_GRPC_RECONNECT_FREQUENCY;
     private Metadata headers;
-    private Function<
-            WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-            WorkflowServiceGrpc.WorkflowServiceBlockingStub>
-        blockingStubInterceptor;
-    private Function<
-            WorkflowServiceGrpc.WorkflowServiceFutureStub,
-            WorkflowServiceGrpc.WorkflowServiceFutureStub>
-        futureStubInterceptor;
+    private Collection<GrpcMetadataProvider> grpcMetadataProviders = new ArrayList<>(0);
+    private Collection<ClientInterceptor> grpcClientInterceptors = new ArrayList<>(0);
     private Scope metricsScope;
 
     private Builder() {}
@@ -390,9 +395,9 @@ public class WorkflowServiceStubsOptions {
       this.rpcRetryOptions = options.rpcRetryOptions;
       this.connectionBackoffResetFrequency = options.connectionBackoffResetFrequency;
       this.grpcReconnectFrequency = options.grpcReconnectFrequency;
-      this.blockingStubInterceptor = options.blockingStubInterceptor;
-      this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
+      this.grpcMetadataProviders = new ArrayList<>(options.grpcMetadataProviders);
+      this.grpcClientInterceptors = new ArrayList<>(options.grpcClientInterceptors);
       this.metricsScope = options.metricsScope;
       this.disableHealthCheck = options.disableHealthCheck;
       this.healthCheckAttemptTimeout = options.healthCheckAttemptTimeout;
@@ -441,7 +446,7 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    /** Sets the rpc timeout value for non query and non long poll calls. Default is 10 seconds. */
+    /** Sets the rpc timeout value for non query and non-long-poll calls. Default is 10 seconds. */
     public Builder setRpcTimeout(Duration timeout) {
       this.rpcTimeout = Objects.requireNonNull(timeout);
       return this;
@@ -449,10 +454,19 @@ public class WorkflowServiceStubsOptions {
 
     /**
      * Sets the rpc timeout value for the following long poll based operations:
-     * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory. Should never be
-     * below 60 seconds as this is server side timeout for the long poll. Default is 70 seconds.
+     * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory.
+     *
+     * <p>Server side timeout for the long poll is 60s. This parameter should never be below 70
+     * seconds (server timeout + additional delay). Default is 70 seconds.
+     *
+     * @throws IllegalArgumentException if {@code timeout} is less than 70s
+     * @deprecated exposing of this option for users configuration deemed non-beneficial and
+     *     dangerous
      */
+    @Deprecated
     public Builder setRpcLongPollTimeout(Duration timeout) {
+      Preconditions.checkArgument(
+          timeout.toMillis() > 70_000, "rpcLongPollTimeout has to be longer 70s");
       this.rpcLongPollTimeout = Objects.requireNonNull(timeout);
       return this;
     }
@@ -513,26 +527,51 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
+    /**
+     * @param headers gRPC headers to be added to every call.
+     * @return {@code this}
+     */
     public Builder setHeaders(Metadata headers) {
       this.headers = headers;
       return this;
     }
 
-    public Builder setBlockingStubInterceptor(
-        Function<
-                WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-                WorkflowServiceGrpc.WorkflowServiceBlockingStub>
-            blockingStubInterceptor) {
-      this.blockingStubInterceptor = blockingStubInterceptor;
+    /**
+     * @param grpcMetadataProvider gRPC metadata/headers provider to be called on each gRPC request
+     *     to supply additional headers
+     * @return {@code this}
+     */
+    public Builder addGrpcMetadataProvider(GrpcMetadataProvider grpcMetadataProvider) {
+      this.grpcMetadataProviders.add(grpcMetadataProvider);
       return this;
     }
 
-    public Builder setFutureStubInterceptor(
-        Function<
-                WorkflowServiceGrpc.WorkflowServiceFutureStub,
-                WorkflowServiceGrpc.WorkflowServiceFutureStub>
-            futureStubInterceptor) {
-      this.futureStubInterceptor = futureStubInterceptor;
+    /**
+     * @param grpcMetadataProviders gRPC metadata/headers providers to be called on each gRPC
+     *     request to supply additional headers.
+     * @return {@code this}
+     */
+    public Builder setGrpcMetadataProviders(
+        Collection<GrpcMetadataProvider> grpcMetadataProviders) {
+      this.grpcMetadataProviders = grpcMetadataProviders;
+      return this;
+    }
+
+    /**
+     * @param grpcClientInterceptor gRPC client interceptor to be added to gRPC channel
+     * @return {@code this}
+     */
+    public Builder addGrpcClientInterceptor(ClientInterceptor grpcClientInterceptor) {
+      this.grpcClientInterceptors.add(grpcClientInterceptor);
+      return this;
+    }
+
+    /**
+     * @param grpcClientInterceptors gRPC client interceptors to be added to gRPC channel
+     * @return {@code this}
+     */
+    public Builder setGrpcClientInterceptors(Collection<ClientInterceptor> grpcClientInterceptors) {
+      this.grpcClientInterceptors = grpcClientInterceptors;
       return this;
     }
 

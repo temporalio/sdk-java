@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
+import com.google.common.base.Preconditions;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
@@ -34,6 +35,7 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -63,7 +65,7 @@ public class TestActivities {
   }
 
   @ActivityInterface
-  public interface TestActivity2 {
+  public interface NoArgsReturnsStringActivity {
     String execute();
   }
 
@@ -91,8 +93,6 @@ public class TestActivities {
   public interface VariousTestActivities {
 
     String sleepActivity(long milliseconds, int input);
-
-    String activityWithDelay(long milliseconds, boolean heartbeatMoreThanOnce);
 
     String activity();
 
@@ -135,6 +135,13 @@ public class TestActivities {
     void throwIOAnnotated();
 
     List<UUID> activityUUIDList(List<UUID> arg);
+  }
+
+  @ActivityInterface
+  public interface CompletionClientActivities {
+    String activityWithDelay(long milliseconds, boolean heartbeatMoreThanOnce);
+
+    String activity1(String a1);
   }
 
   /** IMPLEMENTATIONS * */
@@ -189,19 +196,7 @@ public class TestActivities {
     public final List<String> procResult = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger heartbeatCounter = new AtomicInteger();
     public final AtomicInteger applicationFailureCounter = new AtomicInteger();
-    private final ThreadPoolExecutor executor =
-        new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
-    public ActivityCompletionClient completionClient;
     int lastAttempt;
-
-    public void setCompletionClient(ActivityCompletionClient completionClient) {
-      this.completionClient = completionClient;
-    }
-
-    public void close() throws InterruptedException {
-      executor.shutdownNow();
-      executor.awaitTermination(1, TimeUnit.MINUTES);
-    }
 
     public void assertInvocations(String... expected) {
       assertEquals(Arrays.asList(expected), invocations);
@@ -213,43 +208,10 @@ public class TestActivities {
         Thread.sleep(milliseconds);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw Activity.wrap(new RuntimeException("interrupted", new Throwable("simulated")));
+        throw Activity.wrap(e);
       }
       invocations.add("sleepActivity");
       return "sleepActivity" + input;
-    }
-
-    @Override
-    public String activityWithDelay(long delay, boolean heartbeatMoreThanOnce) {
-      ActivityExecutionContext ctx = Activity.getExecutionContext();
-      byte[] taskToken = ctx.getInfo().getTaskToken();
-      executor.execute(
-          () -> {
-            invocations.add("activityWithDelay");
-            long start = System.currentTimeMillis();
-            try {
-              int count = 0;
-              while (System.currentTimeMillis() - start < delay) {
-                if (heartbeatMoreThanOnce || count == 0) {
-                  completionClient.heartbeat(taskToken, "heartbeatValue");
-                }
-                count++;
-                Thread.sleep(100);
-              }
-              completionClient.complete(taskToken, "activity");
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            } catch (ActivityNotExistsException | ActivityCanceledException e) {
-              try {
-                Thread.sleep(500);
-              } catch (InterruptedException interruptedException) {
-                Thread.currentThread().interrupt();
-              }
-              completionClient.reportCancellation(taskToken, null);
-            }
-          });
-      ctx.doNotCompleteOnReturn();
-      return "ignored";
     }
 
     @Override
@@ -278,28 +240,14 @@ public class TestActivities {
 
     @Override
     public String activity4(String a1, int a2, int a3, int a4) {
-      byte[] taskToken = Activity.getExecutionContext().getInfo().getTaskToken();
-      executor.execute(
-          () -> {
-            invocations.add("activity4");
-            completionClient.complete(taskToken, a1 + a2 + a3 + a4);
-          });
-      Activity.getExecutionContext().doNotCompleteOnReturn();
-      return "ignored";
+      invocations.add("activity4");
+      return a1 + a2 + a3 + a4;
     }
 
     @Override
     public String activity5(String a1, int a2, int a3, int a4, int a5) {
-      ActivityInfo activityInfo = Activity.getExecutionContext().getInfo();
-      String workflowId = activityInfo.getWorkflowId();
-      String id = activityInfo.getActivityId();
-      executor.execute(
-          () -> {
-            invocations.add("activity5");
-            completionClient.complete(workflowId, Optional.empty(), id, a1 + a2 + a3 + a4 + a5);
-          });
-      Activity.getExecutionContext().doNotCompleteOnReturn();
-      return "ignored";
+      invocations.add("activity5");
+      return a1 + a2 + a3 + a4 + a5;
     }
 
     @Override
@@ -415,6 +363,74 @@ public class TestActivities {
 
     public int getLastAttempt() {
       return lastAttempt;
+    }
+  }
+
+  public static class CompletionClientActivitiesImpl
+      implements CompletionClientActivities, Closeable {
+    public final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
+    private final ThreadPoolExecutor executor =
+        new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+    public ActivityCompletionClient completionClient;
+
+    public void setCompletionClient(ActivityCompletionClient completionClient) {
+      this.completionClient = completionClient;
+    }
+
+    public void assertInvocations(String... expected) {
+      assertEquals(Arrays.asList(expected), invocations);
+    }
+
+    @Override
+    public String activity1(String a1) {
+      Preconditions.checkNotNull(completionClient, "completionClient");
+      byte[] taskToken = Activity.getExecutionContext().getInfo().getTaskToken();
+      executor.execute(
+          () -> {
+            invocations.add("activity1");
+            completionClient.complete(taskToken, a1);
+          });
+      Activity.getExecutionContext().doNotCompleteOnReturn();
+      return "ignored";
+    }
+
+    @Override
+    public String activityWithDelay(long delay, boolean heartbeatMoreThanOnce) {
+      Preconditions.checkNotNull(completionClient, "completionClient");
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
+      byte[] taskToken = ctx.getInfo().getTaskToken();
+      executor.execute(
+          () -> {
+            invocations.add("activityWithDelay");
+            long start = System.currentTimeMillis();
+            try {
+              int count = 0;
+              while (System.currentTimeMillis() - start < delay) {
+                if (heartbeatMoreThanOnce || count == 0) {
+                  completionClient.heartbeat(taskToken, "heartbeatValue");
+                }
+                count++;
+                Thread.sleep(100);
+              }
+              completionClient.complete(taskToken, "activity");
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } catch (ActivityNotExistsException | ActivityCanceledException e) {
+              try {
+                Thread.sleep(500);
+              } catch (InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+              }
+              completionClient.reportCancellation(taskToken, null);
+            }
+          });
+      ctx.doNotCompleteOnReturn();
+      return "ignored";
+    }
+
+    @Override
+    public void close() throws IOException {
+      executor.shutdownNow();
     }
   }
 }

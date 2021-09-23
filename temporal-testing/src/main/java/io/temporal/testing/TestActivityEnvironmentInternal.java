@@ -78,18 +78,25 @@ import org.slf4j.LoggerFactory;
 public final class TestActivityEnvironmentInternal implements TestActivityEnvironment {
   private static final Logger log = LoggerFactory.getLogger(TestActivityEnvironmentInternal.class);
 
-  private final POJOActivityTaskHandler activityTaskHandler;
-  private final TestEnvironmentOptions testEnvironmentOptions;
-  private final AtomicInteger idSequencer = new AtomicInteger();
-  private ClassConsumerPair<Object> activityHeartbetListener;
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
   private static final ExecutorService activityWorkerExecutor =
       Executors.newSingleThreadExecutor(r -> new Thread(r, "test-service-activity-worker"));
-  private final WorkflowServiceStubs workflowServiceStubs;
-  private final Server mockServer;
+  private static final ExecutorService deterministicRunnerExecutor =
+      new ThreadPoolExecutor(
+          1,
+          1000,
+          1,
+          TimeUnit.SECONDS,
+          new SynchronousQueue<>(),
+          r -> new Thread(r, "test-service-deterministic-runner"));
   private final AtomicBoolean cancellationRequested = new AtomicBoolean();
+  private final AtomicInteger idSequencer = new AtomicInteger();
+  private final Server mockServer;
   private final ManagedChannel channel;
+  private final POJOActivityTaskHandler activityTaskHandler;
+  private final TestEnvironmentOptions testEnvironmentOptions;
+  private ClassConsumerPair<Object> activityHeartbeatListener;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     this.testEnvironmentOptions =
@@ -109,7 +116,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       throw new RuntimeException(e);
     }
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    workflowServiceStubs =
+    WorkflowServiceStubs workflowServiceStubs =
         WorkflowServiceStubs.newInstance(
             WorkflowServiceStubsOptions.newBuilder()
                 .setChannel(channel)
@@ -120,6 +127,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     activityTaskHandler =
         new POJOActivityTaskHandler(
             workflowServiceStubs,
+            testEnvironmentOptions.getWorkflowClientOptions().getIdentity(),
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor,
@@ -132,7 +140,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         RecordActivityTaskHeartbeatRequest request,
         StreamObserver<RecordActivityTaskHeartbeatResponse> responseObserver) {
       try {
-        if (activityHeartbetListener != null) {
+        if (activityHeartbeatListener != null) {
           Optional<Payloads> requestDetails =
               request.hasDetails() ? Optional.of(request.getDetails()) : Optional.empty();
 
@@ -143,9 +151,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                   .fromPayloads(
                       0,
                       requestDetails,
-                      activityHeartbetListener.valueClass,
-                      activityHeartbetListener.valueType);
-          activityHeartbetListener.consumer.apply(details);
+                      activityHeartbeatListener.valueClass,
+                      activityHeartbeatListener.valueType);
+          activityHeartbeatListener.consumer.apply(details);
         }
         responseObserver.onNext(
             RecordActivityTaskHeartbeatResponse.newBuilder()
@@ -188,7 +196,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface, options, null, new TestActivityExecutor());
-    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    invocationHandler =
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -203,7 +212,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface, options, null, new TestActivityExecutor());
-    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    invocationHandler =
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -222,7 +232,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(
             activityInterface, options, activityMethodOptions, new TestActivityExecutor());
-    invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
+    invocationHandler =
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -240,13 +251,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   @SuppressWarnings("unchecked")
   public <T> void setActivityHeartbeatListener(
       Class<T> detailsClass, Type detailsType, Functions.Proc1<T> listener) {
-    activityHeartbetListener = new ClassConsumerPair(detailsClass, detailsType, listener);
+    activityHeartbeatListener = new ClassConsumerPair(detailsClass, detailsType, listener);
   }
 
   @Override
   public void close() {
     heartbeatExecutor.shutdownNow();
     activityWorkerExecutor.shutdownNow();
+    deterministicRunnerExecutor.shutdownNow();
     channel.shutdownNow();
     try {
       channel.awaitTermination(100, TimeUnit.MILLISECONDS);
@@ -289,9 +301,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       .setRunId(UUID.randomUUID().toString())
                       .build())
               .setActivityType(ActivityType.newBuilder().setName(i.getActivityName()).build());
-      if (payloads.isPresent()) {
-        taskBuilder.setInput(payloads.get());
-      }
+      payloads.ifPresent(taskBuilder::setInput);
       PollActivityTaskQueueResponse task = taskBuilder.build();
       return new ActivityOutput<>(
           Workflow.newPromise(
@@ -322,9 +332,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       .setRunId(UUID.randomUUID().toString())
                       .build())
               .setActivityType(ActivityType.newBuilder().setName(i.getActivityName()).build());
-      if (payloads.isPresent()) {
-        taskBuilder.setInput(payloads.get());
-      }
+      payloads.ifPresent(taskBuilder::setInput);
       PollActivityTaskQueueResponse task = taskBuilder.build();
       return new LocalActivityOutput<>(
           Workflow.newPromise(

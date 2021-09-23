@@ -48,7 +48,7 @@ public class AsyncRetryTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestTraceWorkflow.class);
     String result = null;
     try {
-      result = client.execute(SDKTestWorkflowRule.useExternalService);
+      result = client.execute();
       Assert.fail("unreachable");
     } catch (WorkflowException e) {
       Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
@@ -76,7 +76,7 @@ public class AsyncRetryTest {
     private final List<String> trace = new ArrayList<>();
 
     @Override
-    public String execute(boolean useExternalService) {
+    public String execute() {
       trace.clear(); // clear because of replay
       trace.add("started");
       Async.retry(

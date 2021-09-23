@@ -59,7 +59,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -73,6 +72,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
   private final WorkflowServiceStubs service;
+  private final String identity;
   private final String namespace;
   private final WorkerInterceptor[] interceptors;
   private final Map<String, ActivityTaskExecutor> activities =
@@ -82,11 +82,13 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   @VisibleForTesting
   public POJOActivityTaskHandler(
       WorkflowServiceStubs service,
+      String identity,
       String namespace,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
       WorkerInterceptor[] interceptors) {
     this.service = Objects.requireNonNull(service);
+    this.identity = identity;
     this.namespace = Objects.requireNonNull(namespace);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.heartbeatExecutor = Objects.requireNonNull(heartbeatExecutor);
@@ -169,11 +171,6 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     return !activities.isEmpty() || dynamicActivity != null;
   }
 
-  @VisibleForTesting
-  public Set<String> getRegisteredActivityTypes() {
-    return activities.keySet();
-  }
-
   public void registerActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
       registerActivityImplementation(activity, POJOActivityImplementation::new);
@@ -235,7 +232,8 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
               dataConverter,
               heartbeatExecutor,
               info.getCompletionHandle(),
-              metricsScope);
+              metricsScope,
+              identity);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new POJOActivityInboundCallsInterceptor(activity, method);
@@ -258,16 +256,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, null, context.isUseLocalManualCompletion());
         }
-        RespondActivityTaskCompletedRequest.Builder request =
-            RespondActivityTaskCompletedRequest.newBuilder();
-        if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
-          if (serialized.isPresent()) {
-            request.setResult(serialized.get());
-          }
-        }
-        return new ActivityTaskHandler.Result(
-            info.getActivityId(), request.build(), null, null, null, false);
+        return constructActivityResultValue(info, result, method);
       } catch (Throwable e) {
         return activityFailureToResult(info, metricsScope, e);
       }
@@ -324,7 +313,8 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
               dataConverter,
               heartbeatExecutor,
               info.getCompletionHandle(),
-              metricsScope);
+              metricsScope,
+              identity);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new DynamicActivityInboundCallsInterceptor(activity);
@@ -347,9 +337,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
-        if (serialized.isPresent()) {
-          request.setResult(serialized.get());
-        }
+        serialized.ifPresent(request::setResult);
         return new ActivityTaskHandler.Result(
             info.getActivityId(), request.build(), null, null, null, false);
       } catch (Throwable e) {
@@ -442,18 +430,9 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
             inboundCallsInterceptor.execute(
                 new ActivityInboundCallsInterceptor.ActivityInput(
                     new Header(info.getHeader()), args));
-        RespondActivityTaskCompletedRequest.Builder request =
-            RespondActivityTaskCompletedRequest.newBuilder();
-        if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
-          if (serialized.isPresent()) {
-            request.setResult(serialized.get());
-          }
-        }
-        return new ActivityTaskHandler.Result(
-            info.getActivityId(), request.build(), null, null, null, false);
+        return constructActivityResultValue(info, result, method);
       } catch (Throwable e) {
-        e = CheckedExceptionWrapper.unwrap(e);
+        Throwable unwrappedException = CheckedExceptionWrapper.unwrap(e);
         if (log.isWarnEnabled()) {
           log.warn(
               "Local activity failure. ActivityId="
@@ -462,10 +441,24 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
                   + info.getActivityType()
                   + ", attempt="
                   + info.getAttempt(),
-              e);
+              unwrappedException);
         }
-        return mapToActivityFailure(e, info.getActivityId(), metricsScope, info.isLocal());
+        return mapToActivityFailure(
+            unwrappedException, info.getActivityId(), metricsScope, info.isLocal());
       }
     }
+  }
+
+  private ActivityTaskHandler.Result constructActivityResultValue(
+      ActivityInfoInternal info,
+      ActivityInboundCallsInterceptor.ActivityOutput result,
+      Method method) {
+    RespondActivityTaskCompletedRequest.Builder request =
+        RespondActivityTaskCompletedRequest.newBuilder();
+    if (method.getReturnType() != Void.TYPE) {
+      Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
+      serialized.ifPresent(request::setResult);
+    }
+    return new Result(info.getActivityId(), request.build(), null, null, null, false);
   }
 }

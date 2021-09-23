@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.sync.DeterministicRunner.getDeadlockDetectionTimeout;
 import static org.junit.Assert.*;
 
 import io.temporal.client.WorkflowOptions;
@@ -35,17 +34,33 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.junit.Rule;
-import org.junit.Test;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.junit.*;
 
 public class WorkflowInternalQueueTest {
 
   @Rule public final Tracer trace = new Tracer();
 
+  private static ExecutorService threadPool;
+
+  @BeforeClass
+  public static void beforeClass() {
+    threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    threadPool.shutdown();
+  }
+
   @Test
   public void testTakeBlocking() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -68,7 +83,7 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     String[] expected =
         new String[] {
           "root begin",
@@ -86,6 +101,7 @@ public class WorkflowInternalQueueTest {
   public void testTakeCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -104,9 +120,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -120,6 +136,7 @@ public class WorkflowInternalQueueTest {
   public void testCancellableTakeCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -138,9 +155,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -276,6 +293,7 @@ public class WorkflowInternalQueueTest {
   public void testPutCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -295,9 +313,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -311,6 +329,7 @@ public class WorkflowInternalQueueTest {
   public void testCancellablePutCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -330,9 +349,9 @@ public class WorkflowInternalQueueTest {
                   .start();
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -346,6 +365,7 @@ public class WorkflowInternalQueueTest {
   public void testMap() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Integer> queue = WorkflowInternal.newWorkflowQueue(1);
@@ -367,9 +387,9 @@ public class WorkflowInternalQueueTest {
               }
               trace.add("root done");
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     String[] expected =
         new String[] {
@@ -399,6 +419,7 @@ public class WorkflowInternalQueueTest {
     int[] result = new int[3];
     DeterministicRunner r =
         DeterministicRunner.newRunner(
+            threadPool,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               queue.put(1);
@@ -408,9 +429,9 @@ public class WorkflowInternalQueueTest {
               result[1] = queue.poll();
               result[2] = queue.poll();
             });
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     r.cancel("test");
-    r.runUntilAllBlocked(getDeadlockDetectionTimeout());
+    r.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
     int[] expected = new int[] {1, 2, 3};
     assertArrayEquals(expected, result);

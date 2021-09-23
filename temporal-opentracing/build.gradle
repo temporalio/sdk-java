@@ -14,8 +14,8 @@ dependencies {
     testImplementation project(":temporal-testing")
     testImplementation project(':temporal-testing-junit4')
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.5'
-    testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.11.2'
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+    testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.12.4'
     testImplementation group: 'io.opentracing', name: 'opentracing-mock', version: "$opentracingVersion"
     testImplementation group: 'io.jaegertracing', name: 'jaeger-client', version: '1.6.0'
 }

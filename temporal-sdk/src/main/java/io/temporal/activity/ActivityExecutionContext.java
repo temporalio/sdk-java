@@ -37,7 +37,7 @@ public interface ActivityExecutionContext {
   ActivityInfo getInfo();
 
   /**
-   * Use to notify the Workflow Execution that the Activity Execution is alive.
+   * Used to notify the Workflow Execution that the Activity Execution is alive.
    *
    * @param details In case the Activity Execution times out details are returned as a field of the
    *     exception that is thrown. The details are also accessible through {@link
@@ -55,9 +55,8 @@ public interface ActivityExecutionContext {
    * io.temporal.common.RetryOptions} via {@link io.temporal.activity.ActivityOptions}. If an
    * Activity Execution failed then the server would attempt to dispatch another Activity Task to
    * retry the execution according to the retry options. If there were Heartbeat details reported by
-   * the last Activity Execution that failed, the details would be delivered along with the Activity
-   * Task for the next retry attempt. The Activity implementation can extract the details via {@link
-   * #getHeartbeatDetails(Class)}() and resume progress.
+   * the last Activity Execution that failed, they would be delivered along with the Activity Task
+   * for the next retry attempt and can be extracted by the Activity implementation.
    *
    * @param detailsClass Class of the Heartbeat details
    */
@@ -73,8 +72,8 @@ public interface ActivityExecutionContext {
    * Task for the next retry attempt. The Activity implementation can extract the details via {@link
    * #getHeartbeatDetails(Class)}() and resume progress.
    *
-   * @param detailsClass Class of the heartbeat details
-   * @param detailsType Type of the Heatbeat details
+   * @param detailsClass Class of the Heartbeat details
+   * @param detailsType Type of the Heartbeat details
    */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType);
 

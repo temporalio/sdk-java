@@ -19,18 +19,22 @@
 
 package io.temporal.internal.client;
 
-import static io.temporal.internal.common.HeaderUtils.intoPayloadMapWithDefaultConverter;
+import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
 import com.google.common.base.Strings;
+import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.*;
+import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.util.*;
@@ -66,9 +70,7 @@ final class RootWorkflowClientHelper {
     }
     Optional<Payloads> inputArgs =
         clientOptions.getDataConverter().toPayloads(input.getArguments());
-    if (inputArgs.isPresent()) {
-      request.setInput(inputArgs.get());
-    }
+    inputArgs.ifPresent(request::setInput);
     if (options.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     }
@@ -85,13 +87,15 @@ final class RootWorkflowClientHelper {
     }
     if (options.getMemo() != null) {
       request.setMemo(
-          Memo.newBuilder().putAllFields(intoPayloadMapWithDefaultConverter(options.getMemo())));
+          Memo.newBuilder()
+              .putAllFields(intoPayloadMap(clientOptions.getDataConverter(), options.getMemo())));
     }
     if (options.getSearchAttributes() != null) {
       request.setSearchAttributes(
           SearchAttributes.newBuilder()
               .putAllIndexedFields(
-                  intoPayloadMapWithDefaultConverter(options.getSearchAttributes())));
+                  intoPayloadMap(
+                      DataConverter.getDefaultInstance(), options.getSearchAttributes())));
     }
 
     Header grpcHeader =
@@ -100,6 +104,17 @@ final class RootWorkflowClientHelper {
     request.setHeader(grpcHeader);
 
     return request.build();
+  }
+
+  public GetWorkflowExecutionHistoryRequest newHistoryLongPollRequest(
+      WorkflowExecution workflowExecution, ByteString pageToken) {
+    return GetWorkflowExecutionHistoryRequest.newBuilder()
+        .setNamespace(clientOptions.getNamespace())
+        .setExecution(workflowExecution)
+        .setHistoryEventFilterType(HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
+        .setWaitNewEvent(true)
+        .setNextPageToken(pageToken)
+        .build();
   }
 
   private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(

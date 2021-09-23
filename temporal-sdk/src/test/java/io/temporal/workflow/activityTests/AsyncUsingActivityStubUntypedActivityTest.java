@@ -32,21 +32,19 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class AsyncUntyped2ActivityTest {
+public class AsyncUsingActivityStubUntypedActivityTest {
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestAsyncUtypedActivity2WorkflowImpl.class)
+          .setWorkflowTypes(TestAsyncUsingActivityStubUntypedActivityWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
           .build();
 
   @Test
-  public void testAsyncUntyped2Activity() {
-    activitiesImpl.completionClient =
-        testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
+  public void usingActivityStub() {
     TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
@@ -59,7 +57,8 @@ public class AsyncUntyped2ActivityTest {
     Assert.assertEquals("123456", activitiesImpl.procResult.get(6));
   }
 
-  public static class TestAsyncUtypedActivity2WorkflowImpl implements TestWorkflow1 {
+  public static class TestAsyncUsingActivityStubUntypedActivityWorkflowImpl
+      implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {

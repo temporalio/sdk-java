@@ -27,10 +27,11 @@ import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
-import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
+import io.temporal.workflow.shared.TestActivities.CompletionClientActivities;
+import io.temporal.workflow.shared.TestActivities.CompletionClientActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,7 +41,9 @@ import org.slf4j.LoggerFactory;
 public class HeartbeatTimeoutDetailsTest {
 
   private static final Logger log = LoggerFactory.getLogger(HeartbeatTimeoutDetailsTest.class);
-  private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
+
+  private static final CompletionClientActivitiesImpl activitiesImpl =
+      new CompletionClientActivitiesImpl();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -48,6 +51,11 @@ public class HeartbeatTimeoutDetailsTest {
           .setWorkflowTypes(TestHeartbeatTimeoutDetails.class)
           .setActivityImplementations(activitiesImpl)
           .build();
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    activitiesImpl.close();
+  }
 
   @Test
   public void testHeartbeatTimeoutDetails() {
@@ -70,8 +78,8 @@ public class HeartbeatTimeoutDetailsTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .build();
 
-      VariousTestActivities activities =
-          Workflow.newActivityStub(VariousTestActivities.class, options);
+      CompletionClientActivities activities =
+          Workflow.newActivityStub(CompletionClientActivities.class, options);
       try {
         // false for second argument means to heartbeat once to set details and then stop.
         activities.activityWithDelay(5000, false);

@@ -111,8 +111,8 @@ public final class ActivityOptions {
      *
      * <p>Note that the Temporal Server doesn't detect Worker process failures directly. It relies
      * on this timeout to detect that an Activity that didn't complete on time. So this timeout
-     * should be as short as the longest possible execution of the Activity body. Potentially long
-     * running Activities must specify HeartbeatTimeout and call {@link
+     * should be as short as the longest possible execution of the Activity body. Potentially
+     * long-running Activities must specify HeartbeatTimeout and call {@link
      * ActivityExecutionContext#heartbeat(Object)} periodically for timely failure detection.
      *
      * <p>If ScheduleToClose is not provided then this timeout is required.
@@ -134,7 +134,7 @@ public final class ActivityOptions {
     }
 
     /**
-     * Task queue to use when dispatching activity task to a worker. By default it is the same task
+     * Task queue to use when dispatching activity task to a worker. By default, it is the same task
      * list name the workflow was started with.
      */
     public Builder setTaskQueue(String taskQueue) {
@@ -159,10 +159,11 @@ public final class ActivityOptions {
     }
 
     /**
-     * In case of an activity cancellation it fails with a {@link CanceledFailure}. If this flag is
-     * set to false then the exception is thrown not immediately but only after an activity
-     * completes its cleanup. If true a {@link CanceledFailure} is thrown immediately and an
-     * activity cancellation is going to happen in the background.
+     * In case of an activity's scope cancellation the corresponding activity stub call fails with a
+     * {@link CanceledFailure}.
+     *
+     * @param cancellationType Defines a mode of the activity's stub call cancellation.
+     * @see ActivityCancellationType
      */
     public Builder setCancellationType(ActivityCancellationType cancellationType) {
       this.cancellationType = cancellationType;
@@ -261,34 +262,42 @@ public final class ActivityOptions {
     this.cancellationType = cancellationType;
   }
 
+  /** @see ActivityOptions.Builder#setHeartbeatTimeout(Duration) */
   public Duration getHeartbeatTimeout() {
     return heartbeatTimeout;
   }
 
+  /** @see ActivityOptions.Builder#setScheduleToCloseTimeout(Duration) */
   public Duration getScheduleToCloseTimeout() {
     return scheduleToCloseTimeout;
   }
 
+  /** @see ActivityOptions.Builder#setScheduleToStartTimeout(Duration) */
   public Duration getScheduleToStartTimeout() {
     return scheduleToStartTimeout;
   }
 
+  /** @see ActivityOptions.Builder#setStartToCloseTimeout(Duration) */
   public Duration getStartToCloseTimeout() {
     return startToCloseTimeout;
   }
 
+  /** @see ActivityOptions.Builder#setTaskQueue(String) */
   public String getTaskQueue() {
     return taskQueue;
   }
 
+  /** @see ActivityOptions.Builder#setRetryOptions(RetryOptions) */
   public RetryOptions getRetryOptions() {
     return retryOptions;
   }
 
+  /** @see ActivityOptions.Builder#setContextPropagators(List) */
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
   }
 
+  /** @see ActivityOptions.Builder#setCancellationType(ActivityCancellationType) */
   public ActivityCancellationType getCancellationType() {
     return cancellationType;
   }
