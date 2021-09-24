@@ -28,7 +28,7 @@ public class AuthorizationGrpcMetadataProvider implements GrpcMetadataProvider {
 
   private final AuthorizationTokenSupplier authorizationTokenSupplier;
 
-  protected AuthorizationGrpcMetadataProvider(
+  public AuthorizationGrpcMetadataProvider(
       AuthorizationTokenSupplier authorizationTokenSupplier) {
     this.authorizationTokenSupplier = authorizationTokenSupplier;
   }
