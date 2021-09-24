@@ -21,10 +21,13 @@ package io.temporal.testing;
 
 import static org.junit.Assert.*;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowServiceException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.worker.Worker;
@@ -33,7 +36,10 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -84,6 +90,7 @@ public class TestWorkflowEnvironmentSleepTest {
     worker = testEnv.newWorker(WORKFLOW_TASK_QUEUE);
     client = testEnv.getWorkflowClient();
     worker.registerWorkflowImplementationTypes(HangingWorkflowWithSignalImpl.class);
+    worker.registerWorkflowImplementationTypes(ConfigurableSleepWorkflowImpl.class);
     testEnv.start();
   }
 
@@ -126,6 +133,104 @@ public class TestWorkflowEnvironmentSleepTest {
       assertTrue(cause instanceof TimeoutFailure);
       assertEquals(
           TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, ((TimeoutFailure) cause).getTimeoutType());
+    }
+  }
+
+  /**
+   * The test service skips ahead for timers, but (correctly) does not skip ahead for timeouts. We
+   * used to have a bug that's best explained by example.
+   *
+   * <p>Start workflow A with an execution timeout of T. Start workflow B that sleeps for X, which
+   * is after T. This will leave SelfAdvancingTimerImpl's internal task queue as follows:
+   *
+   * <pre>
+   *   [@ now+T] workflow execution timeout, canceled = true
+   *   [@ now+X] fire timer, canceled = false
+   * </pre>
+   *
+   * <p>The test service will let real-time pass until T, then skip time to T+X. This blocks all
+   * forward progress for however long X is.
+   *
+   * <p>If you're thinking "That's silly - the first task is canceled, it should obviously be
+   * skipped!" then congratulations, you identified the bug and the fix!
+   */
+  @Test
+  public void timeoutDoesNotBlockTimer() {
+    // This is T from the example
+    Duration workflowExecutionTimeout = Duration.ofMinutes(5);
+
+    // This is X from the example.
+    Duration sleepDuration = workflowExecutionTimeout.multipliedBy(2);
+
+    // This test verifies time-skipping by waiting a small amount of real time for the workflows to
+    // complete. In bug-land, they wouldn't complete on time.
+    Duration howLongWeWaitForFutures = Duration.ofSeconds(5);
+
+    WorkflowOptions workflowAOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(WORKFLOW_TASK_QUEUE)
+            .setWorkflowExecutionTimeout(workflowExecutionTimeout)
+            .build();
+
+    WorkflowStub workflowAStub =
+        client.newUntypedWorkflowStub("ConfigurableSleepWorkflow", workflowAOptions);
+
+    // workflowA completes immediately, even in bug-land
+    workflowAStub.start(0);
+    waitForWorkflow(workflowAStub, "A", howLongWeWaitForFutures);
+
+    // Workflow B's execution timeout needs to be longer than its sleep.
+    WorkflowOptions workflowBOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(WORKFLOW_TASK_QUEUE)
+            .setWorkflowExecutionTimeout(sleepDuration.multipliedBy(2))
+            .build();
+    WorkflowStub workflowBStub =
+        client.newUntypedWorkflowStub("ConfigurableSleepWorkflow", workflowBOptions);
+
+    // In bug land, workflow B wouldn't complete until workflowExecutionTimeout real seconds from
+    // now (minus epsilon). Without the bug, it should complete immediately.
+    workflowBStub.start(sleepDuration.toMillis());
+    waitForWorkflow(workflowBStub, "B", howLongWeWaitForFutures);
+  }
+
+  private void waitForWorkflow(WorkflowStub workflowStub, String workflowName, Duration waitTime) {
+    try {
+      workflowStub.getResult(waitTime.toMillis(), TimeUnit.MILLISECONDS, Void.class);
+    } catch (TimeoutException e) {
+      // I haven't seen this happen (instead, the thing below happens), but it's a checked
+      // exception, and it _means_ the same thing as below, so we treat it the same
+      Assert.fail(
+          String.format(
+              "Workflow %s didn't return within %s, timeskipping must be broken",
+              workflowName, waitTime));
+    } catch (WorkflowServiceException e) {
+      if (e.getCause() instanceof StatusRuntimeException) {
+        if (((StatusRuntimeException) e.getCause()).getStatus().getCode()
+            == Status.Code.DEADLINE_EXCEEDED) {
+          Assert.fail(
+              String.format(
+                  "Workflow %s didn't return within %s, timeskipping must be broken",
+                  workflowName, waitTime));
+        }
+      }
+
+      throw e;
+    }
+  }
+
+  @WorkflowInterface
+  public interface ConfigurableSleepWorkflow {
+
+    @WorkflowMethod
+    public void execute(long sleepMillis);
+  }
+
+  public static class ConfigurableSleepWorkflowImpl implements ConfigurableSleepWorkflow {
+
+    @Override
+    public void execute(long sleepMillis) {
+      Workflow.sleep(sleepMillis);
     }
   }
 }
