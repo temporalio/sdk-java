@@ -96,6 +96,7 @@ import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -118,7 +119,7 @@ import org.slf4j.LoggerFactory;
  * use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
  */
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
-    implements AutoCloseable {
+    implements Closeable {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
@@ -130,7 +131,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final TestWorkflowStore store;
   private final Client client;
 
-  private static class Client {
+  private static class Client implements Closeable {
     public Client() {
       serverName = InProcessServerBuilder.generateName();
       channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
@@ -145,6 +146,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     public final String serverName;
     public final ManagedChannel channel;
     public final WorkflowServiceStubs stubs;
+
+    @Override
+    public void close() {
+      stubs.shutdown();
+      channel.shutdown();
+    }
   }
 
   public WorkflowServiceStubs newClientStub() {
@@ -164,7 +171,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  // TODO: Shutdown.
   public TestWorkflowService(long initialTimeMillis) {
     store = new TestWorkflowStoreImpl(initialTimeMillis);
     client = new Client();
@@ -213,13 +219,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   @Override
   public void close() {
-    log.info("Shutting down GRPC server");
-    if (client != null) {
-      client.channel.shutdown();
-    }
+    log.debug("Shutting down TestWorkflowService");
+    client.close();
 
     try {
       if (outOfProcessServer != null) {
+        outOfProcessServer.shutdown();
         outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
       } else {
         client.channel.awaitTermination(1, TimeUnit.SECONDS);
@@ -229,6 +234,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       log.debug("shutdown interrupted", e);
     }
     store.close();
+    forkJoinPool.shutdown();
   }
 
   private TestWorkflowMutableState getMutableState(ExecutionId executionId) {

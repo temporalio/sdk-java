@@ -33,13 +33,18 @@ public class HealthCheckTest {
 
   @Test
   public void testHealthCheck() {
+    WorkflowServiceStubs workflowServiceStubs = null;
     if (useDockerService) {
       try {
         // Stub creation triggers health check by default, unless disableHealthCheck flag is set in
         // the WorkflowServiceStubsOptions.
-        WorkflowServiceStubs.newInstance();
+        workflowServiceStubs = WorkflowServiceStubs.newInstance();
       } catch (Exception e) {
         Assert.fail("Health check failed");
+      } finally {
+        if (workflowServiceStubs != null) {
+          workflowServiceStubs.shutdown();
+        }
       }
     }
   }

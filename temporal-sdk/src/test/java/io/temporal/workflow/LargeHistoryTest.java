@@ -46,6 +46,10 @@ public class LargeHistoryTest {
 
   @Test
   public void testLargeHistory() {
+    // this test fails with external docker and needs much larger timeouts
+    if (testWorkflowRule.isUseExternalService()) {
+      return;
+    }
     final int activityCount = 1000;
     TestWorkflow3 workflowStub =
         testWorkflowRule
