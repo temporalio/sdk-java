@@ -96,6 +96,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final ManagedChannel channel;
   private final POJOActivityTaskHandler activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
+  private final WorkflowServiceStubs workflowServiceStubs;
   private ClassConsumerPair<Object> activityHeartbeatListener;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
@@ -116,7 +117,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       throw new RuntimeException(e);
     }
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    WorkflowServiceStubs workflowServiceStubs =
+    workflowServiceStubs =
         WorkflowServiceStubs.newInstance(
             WorkflowServiceStubsOptions.newBuilder()
                 .setChannel(channel)
@@ -259,6 +260,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     heartbeatExecutor.shutdownNow();
     activityWorkerExecutor.shutdownNow();
     deterministicRunnerExecutor.shutdownNow();
+    workflowServiceStubs.shutdown();
     channel.shutdownNow();
     try {
       channel.awaitTermination(100, TimeUnit.MILLISECONDS);

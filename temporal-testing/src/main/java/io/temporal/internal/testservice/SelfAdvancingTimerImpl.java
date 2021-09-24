@@ -114,7 +114,8 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                   + ", canceled="
                   + peekedTask.isCanceled());
         }
-        if (peekedTask != null && peekedTask.getExecutionTime() <= currentTime) {
+        if (peekedTask != null
+            && (peekedTask.getExecutionTime() <= currentTime || peekedTask.isCanceled())) {
           try {
             LockHandle lockHandle = lockTimeSkippingLocked("runnable " + peekedTask.getTaskInfo());
             TimerTask polledTask = tasks.poll();
@@ -124,7 +125,10 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                     + ", executionTime="
                     + peekedTask.getExecutionTime());
 
-            if (!polledTask.isCanceled()) {
+            if (polledTask.isCanceled()) {
+              log.trace("Removed canceled task from the task queue: {}", polledTask.getTaskInfo());
+              lockHandle.unlock();
+            } else {
               Runnable runnable = polledTask.getRunnable();
               executor.execute(
                   () -> {
@@ -144,6 +148,18 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
         }
         long timeToAwait =
             peekedTask == null ? Long.MAX_VALUE : peekedTask.getExecutionTime() - currentTime;
+
+        if (log.isTraceEnabled()) {
+          log.trace("Waiting for {}", Duration.ofMillis(timeToAwait));
+          for (TimerTask task : tasks) {
+            log.trace(
+                "Outstanding task: +{} {} {}",
+                Duration.ofMillis(task.executionTime - currentTime),
+                task.taskInfo,
+                task.canceled);
+          }
+        }
+
         try {
           condition.await(timeToAwait, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
