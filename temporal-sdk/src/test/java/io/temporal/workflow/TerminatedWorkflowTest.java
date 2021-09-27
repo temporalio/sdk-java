@@ -56,7 +56,7 @@ public class TerminatedWorkflowTest {
     WorkflowOptions options =
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(1))
+            .setWorkflowRunTimeout(Duration.ofMillis(200))
             .build();
     TestTraceWorkflow workflow =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestTraceWorkflow.class, options);

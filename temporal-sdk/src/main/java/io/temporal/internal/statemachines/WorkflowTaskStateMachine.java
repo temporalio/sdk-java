@@ -55,6 +55,8 @@ final class WorkflowTaskStateMachine
   private long currentTimeMillis;
   private long startedEventId;
 
+  private boolean workflowTaskStarted = false;
+
   public static WorkflowTaskStateMachine newInstance(
       long workflowTaskStartedEventId, Listener listener) {
     return new WorkflowTaskStateMachine(workflowTaskStartedEventId, listener);
@@ -108,24 +110,28 @@ final class WorkflowTaskStateMachine
   private void handleStarted() {
     currentTimeMillis = Timestamps.toMillis(currentEvent.getEventTime());
     startedEventId = currentEvent.getEventId();
-    // The last started event in the history. So no completed is expected.
-    if (currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent) {
-      handleCompleted();
-    }
+    startWorkflowTaskOnce(true);
   }
 
   /** Only update current time if a decision task has completed successfully. */
   private void handleCompleted() {
     boolean lastTaskInHistory =
         currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent;
-    listener.workflowTaskStarted(startedEventId, currentTimeMillis, lastTaskInHistory);
+    startWorkflowTaskOnce(lastTaskInHistory);
+  }
+
+  private synchronized void startWorkflowTaskOnce(boolean lastTaskInHistory) {
+    if (!workflowTaskStarted) {
+      listener.workflowTaskStarted(startedEventId, currentTimeMillis, lastTaskInHistory);
+      workflowTaskStarted = true;
+    }
   }
 
   private void handleFailed() {
-    // Reset creates a new run of a workflow. The tricky part is that that the replay
-    // of the reset workflow has to use the original runId up to the reset point to
-    // maintain the same results. This code resets the id to the new one after the reset to
-    // ensure that the new random and UUID are generated form this point.
+    // Reset creates a new run of a workflow. The tricky part is that the replay of the reset
+    // workflow has to use the original runId up to the reset point to maintain the same results.
+    // This code resets the id to the new one after the reset to ensure that the new random and UUID
+    // are generated form this point.
     WorkflowTaskFailedEventAttributes attr = currentEvent.getWorkflowTaskFailedEventAttributes();
     if (attr.getCause() == WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_WORKFLOW) {
       this.listener.updateRunId(attr.getNewRunId());
