@@ -23,7 +23,6 @@ import static java.util.stream.Collectors.joining;
 import static org.junit.Assert.*;
 
 import com.google.common.math.StatsAccumulator;
-import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.StatsReporter;
 import java.time.Duration;
@@ -140,22 +139,24 @@ public final class TestStatsReporter implements StatsReporter {
     value.add(interval.toMillis());
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public void reportHistogramValueSamples(
       String name,
       Map<String, String> tags,
-      Buckets buckets,
+      com.uber.m3.tally.Buckets buckets,
       double bucketLowerBound,
       double bucketUpperBound,
       long samples) {
     throw new UnsupportedOperationException();
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public void reportHistogramDurationSamples(
       String name,
       Map<String, String> tags,
-      Buckets buckets,
+      com.uber.m3.tally.Buckets buckets,
       com.uber.m3.util.Duration bucketLowerBound,
       com.uber.m3.util.Duration bucketUpperBound,
       long samples) {
