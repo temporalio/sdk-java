@@ -110,14 +110,12 @@ final class WorkflowTaskStateMachine
   private void handleStarted() {
     currentTimeMillis = Timestamps.toMillis(currentEvent.getEventTime());
     startedEventId = currentEvent.getEventId();
-    startWorkflowTaskOnce(true);
+    startWorkflowTaskOnce(currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent);
   }
 
   /** Only update current time if a decision task has completed successfully. */
   private void handleCompleted() {
-    boolean lastTaskInHistory =
-        currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent;
-    startWorkflowTaskOnce(lastTaskInHistory);
+    startWorkflowTaskOnce(currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent);
   }
 
   private synchronized void startWorkflowTaskOnce(boolean lastTaskInHistory) {
