@@ -57,7 +57,7 @@ final class TimerStateMachine
       Functions.Proc1<HistoryEvent> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink, attributes.getTimerId());
     this.startAttributes = attributes;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);

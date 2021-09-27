@@ -27,6 +27,9 @@
         </encoder>
     </appender>
     <logger name="io.grpc.netty" level="INFO"/>
+
+    <!--    <logger name="io.temporal.internal.statemachines.StateMachine" level="TRACE"/>-->
+
     <!-- Modify root log level to get more info -->
     <root level="INFO">
         <appender-ref ref="STDOUT" />

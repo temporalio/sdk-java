@@ -195,7 +195,7 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
     checkFinalState(from);
     add(
         new Transition<>(from, new TransitionEvent<>(eventType)),
-        new DynamicTransitionAction<State, Data>(toStates, action));
+        new DynamicTransitionAction<>(toStates, action));
     validEventTypes.add(eventType);
     return this;
   }

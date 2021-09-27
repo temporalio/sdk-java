@@ -42,10 +42,7 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
-import io.temporal.api.history.v1.StartChildWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.api.history.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
@@ -73,6 +70,7 @@ public final class WorkflowStateMachines {
   enum HandleEventStatus {
     OK,
     NON_MATCHING_EVENT,
+    COMMAND_CANCELLED,
   }
 
   private final DataConverter dataConverter = DataConverter.getDefaultInstance();
@@ -276,6 +274,9 @@ public final class WorkflowStateMachines {
                     + " match command "
                     + command.getCommandType());
           }
+        case COMMAND_CANCELLED:
+          throw new IllegalStateException(
+              "This should never happen as we filter out and discard cancelled commands before matching");
         default:
           throw new IllegalStateException(
               "Got " + status + " value from command.handleEvent which is not handled");
@@ -801,11 +802,7 @@ public final class WorkflowStateMachines {
     public void workflowTaskStarted(
         long startedEventId, long currentTimeMillis, boolean nonProcessedWorkflowTask) {
       setCurrentTimeMillis(currentTimeMillis);
-      // If some new commands are pending and there are no more command events.
       for (CancellableCommand cancellableCommand : commands) {
-        if (cancellableCommand == null) {
-          break;
-        }
         cancellableCommand.handleWorkflowTaskStarted();
       }
       // Give local activities a chance to recreate their requests if they were lost due
