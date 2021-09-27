@@ -77,7 +77,6 @@ public class SDKTestWorkflowRule implements TestRule {
   private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
 
   public static final String NAMESPACE = "UnitTest";
-  public static final String BINARY_CHECKSUM = "testChecksum";
   public static final String UUID_REGEXP =
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   // Enable to regenerate JsonFiles used for replay testing.
