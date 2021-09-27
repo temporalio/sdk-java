@@ -10,7 +10,7 @@ dependencies {
     api 'io.grpc:grpc-protobuf:1.40.1'
     api 'io.grpc:grpc-stub:1.40.1'
     api 'io.grpc:grpc-core:1.40.1'
-    api 'io.grpc:grpc-netty-shaded:1.40.1'
+    api 'io.grpc:grpc-netty-shaded:1.41.0'
     api 'io.grpc:grpc-services:1.40.1'
     api group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.18.0'
     api group: 'com.uber.m3', name: 'tally-core', version: '0.6.1'
