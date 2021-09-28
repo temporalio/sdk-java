@@ -25,7 +25,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Counter;
 import com.uber.m3.tally.Gauge;
 import com.uber.m3.tally.Histogram;
@@ -62,7 +61,8 @@ public class ReplayAwareScopeTest {
     Timer timer = mock(Timer.class);
     Histogram histogram = mock(Histogram.class);
 
-    Buckets buckets = ValueBuckets.linear(0, 10, 10);
+    @SuppressWarnings("deprecation")
+    com.uber.m3.tally.Buckets buckets = ValueBuckets.linear(0, 10, 10);
     when(scope.counter("test-counter")).thenReturn(counter);
     when(scope.gauge("test-gauge")).thenReturn(gauge);
     when(scope.timer("test-timer")).thenReturn(timer);
@@ -92,7 +92,8 @@ public class ReplayAwareScopeTest {
     Timer timer = mock(Timer.class);
     Histogram histogram = mock(Histogram.class);
 
-    Buckets buckets = ValueBuckets.linear(0, 10, 10);
+    @SuppressWarnings("deprecation")
+    com.uber.m3.tally.Buckets buckets = ValueBuckets.linear(0, 10, 10);
     when(scope.counter("test-counter")).thenReturn(counter);
     when(scope.gauge("test-gauge")).thenReturn(gauge);
     when(scope.timer("test-timer")).thenReturn(timer);
@@ -133,7 +134,8 @@ public class ReplayAwareScopeTest {
     Timer timer = mock(Timer.class);
     Histogram histogram = mock(Histogram.class);
 
-    Buckets buckets = ValueBuckets.linear(0, 10, 10);
+    @SuppressWarnings("deprecation")
+    com.uber.m3.tally.Buckets buckets = ValueBuckets.linear(0, 10, 10);
     when(scope.timer("test-timer")).thenReturn(timer);
     when(scope.histogram("test-histogram", buckets)).thenReturn(histogram);
 

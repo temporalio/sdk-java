@@ -9,6 +9,8 @@ plugins {
 
 ext {
     logbackVersion = '1.2.6'
+    grpcVersion = '1.41.0'
+    guavaVersion = '31.0.1-jre'
 }
 
 apply from: "$rootDir/gradle/versioning.gradle"
