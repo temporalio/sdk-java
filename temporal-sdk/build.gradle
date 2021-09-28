@@ -16,8 +16,8 @@ dependencies {
     // which shouldn't be needed for any production usage of temporal-sdk.
     // It's useful only for unit tests and debugging.
     // For these use-cases Temporal users can add this dep in the classpath temporary or permanently themselves.
-    compileOnly group: 'com.jayway.jsonpath', name: 'json-path', version: '2.6.0'
-    testImplementation group: 'com.jayway.jsonpath', name: 'json-path', version: '2.6.0'
+    compileOnly "com.jayway.jsonpath:json-path:$jsonPathVersion"
+    testImplementation "com.jayway.jsonpath:json-path:$jsonPathVersion"
 
     testImplementation project(':temporal-testing-junit4')
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"

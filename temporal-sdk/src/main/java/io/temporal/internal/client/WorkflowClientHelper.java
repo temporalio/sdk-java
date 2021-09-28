@@ -24,6 +24,7 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
@@ -31,7 +32,7 @@ import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
-import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Iterator;
 
@@ -65,7 +66,8 @@ public final class WorkflowClientHelper {
       boolean showWorkflowTasks,
       Scope metricsScope) {
     Iterator<HistoryEvent> events = getHistory(service, namespace, workflowExecution, metricsScope);
-    return WorkflowExecutionUtils.prettyPrintHistory(events, showWorkflowTasks);
+    History history = History.newBuilder().addAllEvents(() -> events).build();
+    return new WorkflowExecutionHistory(history).toProtoText(showWorkflowTasks);
   }
 
   public static Iterator<HistoryEvent> getHistory(
