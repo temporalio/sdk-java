@@ -341,7 +341,7 @@ public class SDKTestWorkflowRule implements TestRule {
       GetWorkflowExecutionHistoryResponse response =
           service.blockingStub().getWorkflowExecutionHistory(request);
       WorkflowExecutionHistory history = new WorkflowExecutionHistory(response.getHistory());
-      String json = history.toJson();
+      String json = history.toJson(true);
       String projectPath = System.getProperty("user.dir");
       String resourceFile = projectPath + "/src/test/resources/" + fileName + ".json";
       File file = new File(resourceFile);
