@@ -83,7 +83,7 @@ public class LongLocalActivityWorkflowTaskHeartbeatFailureTest {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
               VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
-      String result = localActivities.sleepActivity(ACTIVITY_SLEEP_SEC, 123);
+      String result = localActivities.sleepActivity(ACTIVITY_SLEEP_SEC * 1000, 123);
       if (!invoked) {
         invoked = true;
         throw new Error("Simulate decision failure to force replay");
