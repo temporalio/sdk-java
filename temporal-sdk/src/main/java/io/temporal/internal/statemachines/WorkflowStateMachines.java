@@ -76,8 +76,8 @@ public final class WorkflowStateMachines {
   private final DataConverter dataConverter = DataConverter.getDefaultInstance();
 
   /**
-   * The eventId of the last event in the history which is expected to be startedEventId unless it
-   * is replay from a JSON file.
+   * The eventId of the last event in the history is expected to be startedEventId unless it is
+   * replaying from a JSON file.
    */
   private long workflowTaskStartedEventId;
 
@@ -355,14 +355,13 @@ public final class WorkflowStateMachines {
   }
 
   /**
-   * Local activity is different from all other entities. It don't schedule a marker command when
+   * Local activity is different from all other entities. It doesn't schedule a marker command when
    * the {@link #scheduleLocalActivityTask(ExecuteLocalActivityParameters, Functions.Proc2)} is
    * called. The marker is scheduled only when activity completes through ({@link
-   * #handleLocalActivityCompletion(ActivityTaskHandler.Result)}).
-   *
-   * <p>That's why the normal logic of {@link #handleCommandEvent(HistoryEvent)}, which assumes that
-   * each event has a correspondent command during replay, doesn't work. Instead local activities
-   * are matched by their id using localActivityMap.
+   * #handleLocalActivityCompletion(ActivityTaskHandler.Result)}). That's why the normal logic of
+   * {@link #handleCommandEvent(HistoryEvent)}, which assumes that each event has a correspondent
+   * command during replay, doesn't work. Instead, local activities are matched by their id using
+   * localActivityMap.
    *
    * @return true if matched and false if normal event handling should continue.
    */
