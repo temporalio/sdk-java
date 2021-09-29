@@ -67,6 +67,7 @@ public class ActivityClientHelper {
       WorkflowExecution execution,
       Scope metricsScope,
       String namespace,
+      String identity,
       WorkflowServiceStubs service,
       Object details) {
     if (activityId == null) {
@@ -76,6 +77,7 @@ public class ActivityClientHelper {
         RecordActivityTaskHeartbeatByIdRequest.newBuilder()
             .setWorkflowId(execution.getWorkflowId())
             .setNamespace(namespace)
+            .setIdentity(identity)
             .setRunId(execution.getRunId())
             .setActivityId(activityId);
     Optional<Payloads> payloads = dataConverter.toPayloads(details);
