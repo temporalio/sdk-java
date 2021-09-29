@@ -41,12 +41,12 @@ import java.util.Optional;
  */
 public class ActivityClientHelper {
   public static RecordActivityTaskHeartbeatResponse sendHeartbeatRequest(
-      DataConverter dataConverter,
-      String identity,
-      Scope metricsScope,
-      String namespace,
       WorkflowServiceStubs service,
+      String namespace,
+      String identity,
       byte[] taskToken,
+      DataConverter dataConverter,
+      Scope metricsScope,
       Object details) {
     RecordActivityTaskHeartbeatRequest.Builder request =
         RecordActivityTaskHeartbeatRequest.newBuilder()
@@ -62,24 +62,24 @@ public class ActivityClientHelper {
   }
 
   public static RecordActivityTaskHeartbeatByIdResponse recordActivityTaskHeartbeatById(
-      String activityId,
-      DataConverter dataConverter,
-      WorkflowExecution execution,
-      Scope metricsScope,
+      WorkflowServiceStubs service,
       String namespace,
       String identity,
-      WorkflowServiceStubs service,
+      WorkflowExecution execution,
+      String activityId,
+      DataConverter dataConverter,
+      Scope metricsScope,
       Object details) {
     if (activityId == null) {
       throw new IllegalArgumentException("Either activity id or task token are required");
     }
     RecordActivityTaskHeartbeatByIdRequest.Builder request =
         RecordActivityTaskHeartbeatByIdRequest.newBuilder()
-            .setWorkflowId(execution.getWorkflowId())
-            .setNamespace(namespace)
-            .setIdentity(identity)
             .setRunId(execution.getRunId())
-            .setActivityId(activityId);
+            .setWorkflowId(execution.getWorkflowId())
+            .setActivityId(activityId)
+            .setNamespace(namespace)
+            .setIdentity(identity);
     Optional<Payloads> payloads = dataConverter.toPayloads(details);
     payloads.ifPresent(request::setDetails);
     return service

@@ -205,20 +205,20 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       if (taskToken != null) {
         RecordActivityTaskHeartbeatResponse status =
             ActivityClientHelper.sendHeartbeatRequest(
-                dataConverter, identity, metricsScope, namespace, service, taskToken, details);
+                service, namespace, identity, taskToken, dataConverter, metricsScope, details);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         }
       } else {
         RecordActivityTaskHeartbeatByIdResponse status =
             ActivityClientHelper.recordActivityTaskHeartbeatById(
-                activityId,
-                dataConverter,
-                execution,
-                metricsScope,
+                service,
                 namespace,
                 identity,
-                service,
+                execution,
+                activityId,
+                dataConverter,
+                metricsScope,
                 details);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
