@@ -22,21 +22,25 @@ package io.temporal.internal.statemachines;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.workflow.Functions;
+import javax.annotation.Nullable;
 
 class EntityStateMachineBase<State, ExplicitEvent, Data> implements EntityStateMachine {
-
-  private final StateMachine<State, ExplicitEvent, Data> stateMachine;
-
+  protected final StateMachine<State, ExplicitEvent, Data> stateMachine;
   protected final Functions.Proc1<CancellableCommand> commandSink;
 
   protected HistoryEvent currentEvent;
   protected boolean hasNextEvent;
 
+  /**
+   * @param entityName name or id of the entity this state machine represents. For debug purposes
+   *     only. Can be null.
+   */
   public EntityStateMachineBase(
       StateMachineDefinition<State, ExplicitEvent, Data> stateMachineDefinition,
       Functions.Proc1<CancellableCommand> commandSink,
-      Functions.Proc1<StateMachine> stateMachineSink) {
-    this.stateMachine = StateMachine.newInstance(stateMachineDefinition);
+      Functions.Proc1<StateMachine> stateMachineSink,
+      @Nullable String entityName) {
+    this.stateMachine = StateMachine.newInstance(stateMachineDefinition, entityName);
     this.commandSink = commandSink;
     stateMachineSink.apply(this.stateMachine);
   }

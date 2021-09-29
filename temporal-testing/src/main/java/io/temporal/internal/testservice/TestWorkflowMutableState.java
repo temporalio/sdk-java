@@ -103,7 +103,7 @@ interface TestWorkflowMutableState {
   void failActivityTaskById(String id, RespondActivityTaskFailedByIdRequest failRequest);
 
   /** @return is cancel requested? */
-  boolean heartbeatActivityTask(long scheduledEventId, Payloads details, String identity);
+  boolean heartbeatActivityTask(long scheduledEventId, Payloads details);
 
   boolean heartbeatActivityTaskById(String id, Payloads details, String identity);
 

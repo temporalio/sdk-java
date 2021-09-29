@@ -573,9 +573,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
       boolean cancelRequested =
           mutableState.heartbeatActivityTask(
-              activityId.getScheduledEventId(),
-              heartbeatRequest.getDetails(),
-              heartbeatRequest.getIdentity());
+              activityId.getScheduledEventId(), heartbeatRequest.getDetails());
       responseObserver.onNext(
           RecordActivityTaskHeartbeatResponse.newBuilder()
               .setCancelRequested(cancelRequested)
