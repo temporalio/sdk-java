@@ -31,14 +31,23 @@ public class HealthCheckTest {
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
+  public static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+
   @Test
   public void testHealthCheck() {
     WorkflowServiceStubs workflowServiceStubs = null;
     if (useDockerService) {
       try {
+        WorkflowServiceStubsOptions stubsOptions = WorkflowServiceStubsOptions.getDefaultInstance();
+        if (temporalServiceAddress != null) {
+          stubsOptions =
+              WorkflowServiceStubsOptions.newBuilder(stubsOptions)
+                  .setTarget(temporalServiceAddress)
+                  .build();
+        }
         // Stub creation triggers health check by default, unless disableHealthCheck flag is set in
         // the WorkflowServiceStubsOptions.
-        workflowServiceStubs = WorkflowServiceStubs.newInstance();
+        workflowServiceStubs = WorkflowServiceStubs.newInstance(stubsOptions);
       } catch (Exception e) {
         Assert.fail("Health check failed");
       } finally {

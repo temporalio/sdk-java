@@ -408,7 +408,11 @@ public class WorkflowServiceStubsOptions {
       this.keepAlivePermitWithoutStream = options.keepAlivePermitWithoutStream;
     }
 
-    /** Sets gRPC channel to use. Exclusive with target and sslContext. */
+    /**
+     * Sets gRPC channel to use.
+     *
+     * <p>Exclusive with {@link #setTarget(String)} and {@link #setSslContext(SslContext)}.
+     */
     public Builder setChannel(ManagedChannel channel) {
       this.channel = channel;
       return this;
@@ -437,9 +441,9 @@ public class WorkflowServiceStubsOptions {
     /**
      * Sets a target string, which can be either a valid {@link NameResolver}-compliant URI, or an
      * authority string. See {@link ManagedChannelBuilder#forTarget(String)} for more information
-     * about parameter format.
+     * about parameter format. Default is {@link #DEFAULT_LOCAL_DOCKER_TARGET}
      *
-     * <p>Exclusive with channel.
+     * <p>Exclusive with {@link #setChannel(ManagedChannel)}.
      */
     public Builder setTarget(String target) {
       this.target = target;
