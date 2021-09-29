@@ -39,6 +39,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.workflow.Functions;
@@ -491,10 +492,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       {
         for (Entry<ExecutionId, HistoryStore> entry : this.histories.entrySet()) {
           result.append(entry.getKey());
-          result.append("\n");
+          result.append("\n\n");
           result.append(
-              WorkflowExecutionUtils.prettyPrintHistory(
-                  entry.getValue().getEventsLocked().iterator(), true));
+              new WorkflowExecutionHistory(
+                      History.newBuilder().addAllEvents(entry.getValue().getEventsLocked()).build())
+                  .toProtoText(true));
           result.append("\n");
         }
       }

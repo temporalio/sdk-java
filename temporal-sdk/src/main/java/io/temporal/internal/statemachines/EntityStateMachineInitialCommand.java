@@ -22,6 +22,7 @@ package io.temporal.internal.statemachines;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.workflow.Functions;
+import javax.annotation.Nullable;
 
 class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
     extends EntityStateMachineBase<State, ExplicitEvent, Data> {
@@ -34,7 +35,15 @@ class EntityStateMachineInitialCommand<State, ExplicitEvent, Data>
       StateMachineDefinition<State, ExplicitEvent, Data> stateMachineDefinition,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    super(stateMachineDefinition, commandSink, stateMachineSink);
+    this(stateMachineDefinition, commandSink, stateMachineSink, null);
+  }
+
+  public EntityStateMachineInitialCommand(
+      StateMachineDefinition<State, ExplicitEvent, Data> stateMachineDefinition,
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink,
+      @Nullable String entityName) {
+    super(stateMachineDefinition, commandSink, stateMachineSink, entityName);
   }
 
   protected final void addCommand(Command command) {

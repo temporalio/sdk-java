@@ -61,16 +61,19 @@ public class TestActivities {
 
   @ActivityInterface
   public interface TestActivity1 {
+    @ActivityMethod
     String execute(String input);
   }
 
   @ActivityInterface
   public interface NoArgsReturnsStringActivity {
+    @ActivityMethod
     String execute();
   }
 
   @ActivityInterface
   public interface TestActivity3 {
+    @ActivityMethod
     int execute(int input);
   }
 

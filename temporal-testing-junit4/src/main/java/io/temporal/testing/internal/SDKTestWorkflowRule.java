@@ -43,6 +43,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -77,7 +78,6 @@ public class SDKTestWorkflowRule implements TestRule {
   private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
 
   public static final String NAMESPACE = "UnitTest";
-  public static final String BINARY_CHECKSUM = "testChecksum";
   public static final String UUID_REGEXP =
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   // Enable to regenerate JsonFiles used for replay testing.
@@ -224,8 +224,16 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getTaskQueue();
   }
 
+  public Worker getWorker() {
+    return testWorkflowRule.getWorker();
+  }
+
   public History getHistory(WorkflowExecution execution) {
     return testWorkflowRule.getWorkflowExecutionHistory(execution);
+  }
+
+  public String getHistoryJsonForReplay(WorkflowExecution execution) {
+    return new WorkflowExecutionHistory(getHistory(execution)).toJson(true);
   }
 
   /** Returns list of all events of the given EventType found in the history. */
@@ -342,7 +350,7 @@ public class SDKTestWorkflowRule implements TestRule {
       GetWorkflowExecutionHistoryResponse response =
           service.blockingStub().getWorkflowExecutionHistory(request);
       WorkflowExecutionHistory history = new WorkflowExecutionHistory(response.getHistory());
-      String json = history.toJson();
+      String json = history.toJson(true);
       String projectPath = System.getProperty("user.dir");
       String resourceFile = projectPath + "/src/test/resources/" + fileName + ".json";
       File file = new File(resourceFile);

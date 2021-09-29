@@ -34,7 +34,6 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.HistoryEventOrBuilder;
 import io.temporal.api.history.v1.WorkflowExecutionCanceledEventAttributes;
@@ -53,7 +52,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -235,30 +233,6 @@ public class WorkflowExecutionUtils {
       default:
         throw new IllegalArgumentException("Not a close event: " + event);
     }
-  }
-
-  /**
-   * Returns workflow instance history in a human readable format.
-   *
-   * @param showWorkflowTasks when set to false workflow task events (command events) are not
-   *     included
-   * @param history Workflow instance history
-   */
-  public static String prettyPrintHistory(History history, boolean showWorkflowTasks) {
-    return prettyPrintHistory(history.getEventsList().iterator(), showWorkflowTasks);
-  }
-
-  public static String prettyPrintHistory(
-      Iterator<HistoryEvent> events, boolean showWorkflowTasks) {
-    StringBuilder result = new StringBuilder();
-    while (events.hasNext()) {
-      HistoryEvent event = events.next();
-      if (!showWorkflowTasks && event.getEventType().toString().startsWith("WorkflowTask")) {
-        continue;
-      }
-      result.append(prettyPrintObject(event));
-    }
-    return result.toString();
   }
 
   public static String prettyPrintCommands(Iterable<Command> commands) {

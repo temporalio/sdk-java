@@ -26,7 +26,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.client.WorkflowServiceException;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -40,10 +40,7 @@ public class GrpcRetryerFunctionalTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setTestTimeoutSeconds(10)
-          .setWorkflowTypes(FiveSecondsSleepingWorkflow.class)
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(FiveSecondsSleepingWorkflow.class).build();
 
   private static ScheduledExecutorService scheduledExecutor;
 
@@ -59,13 +56,12 @@ public class GrpcRetryerFunctionalTest {
 
   /**
    * This test verifies that if GRPC Deadline in GRPC Context is reached even before the request, we
-   * return fast and with the correct DEADLINE_EXCEEDED error and we don't try to retry the
+   * return fast and with the correct DEADLINE_EXCEEDED error, and we don't try to retry the
    * DEADLINE_EXCEEDED.
    */
   @Test(timeout = 2000)
   public void contextDeadlineExpiredAtStart() {
-    TestWorkflows.NoArgsWorkflow workflow =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.NoArgsWorkflow.class);
+    NoArgsWorkflow workflow = testWorkflowRule.newWorkflowStub(NoArgsWorkflow.class);
 
     AtomicReference<Exception> exRef = new AtomicReference<>();
     Context.current()
@@ -91,13 +87,12 @@ public class GrpcRetryerFunctionalTest {
 
   /**
    * This test verifies that if GRPC Deadline reached in the middle of workflow execution, we return
-   * fast and with the correct DEADLINE_EXCEEDED error and we don't try to retry the
+   * fast and with the correct DEADLINE_EXCEEDED error, and we don't try to retry the
    * DEADLINE_EXCEEDED.
    */
   @Test(timeout = 2500)
   public void contextDeadlineExpiredBeforeWorkflowFinish() {
-    TestWorkflows.NoArgsWorkflow workflow =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.NoArgsWorkflow.class);
+    NoArgsWorkflow workflow = testWorkflowRule.newWorkflowStub(NoArgsWorkflow.class);
 
     AtomicReference<Exception> exRef = new AtomicReference<>();
     Context.current()
@@ -121,7 +116,7 @@ public class GrpcRetryerFunctionalTest {
         Status.DEADLINE_EXCEEDED.getCode(), ((StatusRuntimeException) cause).getStatus().getCode());
   }
 
-  public static class FiveSecondsSleepingWorkflow implements TestWorkflows.NoArgsWorkflow {
+  public static class FiveSecondsSleepingWorkflow implements NoArgsWorkflow {
 
     @Override
     public void execute() {

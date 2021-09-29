@@ -431,6 +431,10 @@ public final class WorkflowInternal {
 
   public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
     Payload memo = getRootWorkflowContext().getContext().getMemo(key);
+    if (memo == null) {
+      return null;
+    }
+
     return getDataConverter().fromPayload(memo, valueClass, valueType);
   }
 
