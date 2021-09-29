@@ -37,7 +37,7 @@ class FixedTransitionAction<State, Data> implements TransitionAction<State, Data
 
   @Override
   public String toString() {
-    return "FixedTransitionAction{" + "state=" + state + ", callback=" + action + '}';
+    return "FixedTransitionAction{" + "toState=" + state + "}";
   }
 
   @Override

@@ -43,6 +43,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.TracingWorkerInterceptor;
+import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -223,8 +224,16 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getTaskQueue();
   }
 
+  public Worker getWorker() {
+    return testWorkflowRule.getWorker();
+  }
+
   public History getHistory(WorkflowExecution execution) {
     return testWorkflowRule.getWorkflowExecutionHistory(execution);
+  }
+
+  public String getHistoryJsonForReplay(WorkflowExecution execution) {
+    return new WorkflowExecutionHistory(getHistory(execution)).toJson(true);
   }
 
   /** Returns list of all events of the given EventType found in the history. */
