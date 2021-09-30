@@ -202,12 +202,12 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     try {
       RecordActivityTaskHeartbeatResponse status =
           ActivityClientHelper.sendHeartbeatRequest(
-              dataConverter,
-              identity,
-              metricsScope,
-              namespace,
               service,
+              namespace,
+              identity,
               info.getTaskToken(),
+              dataConverter,
+              metricsScope,
               details);
       if (status.getCancelRequested()) {
         lastException = new ActivityCanceledException(info);

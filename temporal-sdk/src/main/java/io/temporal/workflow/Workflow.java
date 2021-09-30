@@ -621,7 +621,7 @@ public final class Workflow {
    *
    * @param key memo key
    * @param valueClass Java class to deserialize into
-   * @return deserialized Memo
+   * @return deserialized Memo or null if the key is not present in the memo
    */
   public static <T> Object getMemo(String key, Class<T> valueClass) {
     return getMemo(key, valueClass, valueClass);
@@ -636,7 +636,7 @@ public final class Workflow {
    * @param key memo key
    * @param valueClass Java class to deserialize into
    * @param genericType type parameter for the generic class
-   * @return deserialized Memo
+   * @return deserialized Memo or null if the key is not present in the memo
    */
   public static <T> T getMemo(String key, Class<T> valueClass, Type genericType) {
     return WorkflowInternal.getMemo(key, valueClass, genericType);

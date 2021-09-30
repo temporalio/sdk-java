@@ -1705,7 +1705,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean heartbeatActivityTask(long scheduledEventId, Payloads details, String identity) {
+  public boolean heartbeatActivityTask(long scheduledEventId, Payloads details) {
     AtomicBoolean result = new AtomicBoolean();
     update(
         ctx -> {
@@ -1722,7 +1722,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
           ActivityTaskData data = activity.getData();
           data.lastHeartbeatTime = clock.getAsLong();
-          data.identity = identity;
           Duration startToCloseTimeout =
               ProtobufTimeUtils.toJavaDuration(data.scheduledEvent.getStartToCloseTimeout());
           Duration heartbeatTimeout =
@@ -1736,7 +1735,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Override
   public boolean heartbeatActivityTaskById(String id, Payloads details, String identity) {
     StateMachine<ActivityTaskData> activity = getActivityById(id);
-    return heartbeatActivityTask(activity.getData().scheduledEventId, details, identity);
+    return heartbeatActivityTask(activity.getData().scheduledEventId, details);
   }
 
   private void timeoutActivity(long scheduledEventId, TimeoutType timeoutType, int timeoutAttempt) {
