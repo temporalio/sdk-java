@@ -9,7 +9,16 @@ steps:
       - docker-compose#v3.0.0:
           run: unit-test-test-service
           config: docker/buildkite/docker-compose.yaml
-
+  - label: ":java: Unit test with docker service"
+    agents:
+      queue: "default"
+      docker: "*"
+    command: "./gradlew --no-daemon test"
+    timeout_in_minutes: 15
+    plugins:
+      - docker-compose#v3.0.0:
+          run: unit-test-docker
+          config: docker/buildkite/docker-compose.yaml
   - label: ":alien: Fossa scan"
     agents:
       queue: "default"
