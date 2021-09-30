@@ -46,7 +46,7 @@ public class SDKTestOptions {
           .build();
     } else {
       return WorkflowOptions.newBuilder()
-          .setWorkflowRunTimeout(Duration.ofHours(30))
+          .setWorkflowRunTimeout(Duration.ofSeconds(200))
           .setWorkflowTaskTimeout(Duration.ofSeconds(5))
           .setTaskQueue(taskQueue)
           .build();
