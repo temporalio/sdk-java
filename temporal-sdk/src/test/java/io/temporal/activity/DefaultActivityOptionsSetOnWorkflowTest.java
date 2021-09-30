@@ -21,6 +21,7 @@ package io.temporal.activity;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -70,7 +71,11 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
   @Test
   public void testSetWorkflowImplementationOptions() {
     TestWorkflowReturnMap workflowStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowReturnMap.class);
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflowReturnMap.class,
+                WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build());
     Map<String, Map<String, Duration>> result = workflowStub.execute();
 
     // Check that activity1 has default workerOptions options that were partially overwritten with

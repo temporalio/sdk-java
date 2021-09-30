@@ -23,9 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.ActivityOptions;
-import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
@@ -37,7 +35,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -45,7 +42,6 @@ import org.junit.rules.TestName;
 public class ActivityThrowingErrorTest {
 
   public static final String FAILURE_TYPE = "fail";
-  private static WorkflowOptions options;
 
   @Rule public TestName testName = new TestName();
 
@@ -56,24 +52,10 @@ public class ActivityThrowingErrorTest {
           .setActivityImplementations(new ApplicationFailureActivity())
           .build();
 
-  @Before
-  public void setUp() {
-    options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setMaximumAttempts(1)
-                    .setInitialInterval(Duration.ofMinutes(2))
-                    .build())
-            .build();
-  }
-
   @Test
   public void activityThrowsError() {
     String name = testName.getMethodName();
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
+    TestWorkflow4 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow4.class);
 
     try {
       workflow.execute(name, true);
@@ -88,8 +70,7 @@ public class ActivityThrowingErrorTest {
   @Test
   public void activityThrowsNonRetryableError() {
     String name = testName.getMethodName();
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
+    TestWorkflow4 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow4.class);
 
     try {
       workflow.execute(name, false);
@@ -110,8 +91,9 @@ public class ActivityThrowingErrorTest {
                 .setRetryOptions(
                     RetryOptions.newBuilder()
                         .setMaximumAttempts(3)
-                        .setInitialInterval(Duration.ofSeconds(1))
-                        .setMaximumInterval(Duration.ofMinutes(2))
+                        .setInitialInterval(Duration.ofMillis(100))
+                        .setMaximumInterval(Duration.ofMillis(100))
+                        .setBackoffCoefficient(1.0)
                         .build())
                 .setStartToCloseTimeout(Duration.ofMinutes(2))
                 .build());
