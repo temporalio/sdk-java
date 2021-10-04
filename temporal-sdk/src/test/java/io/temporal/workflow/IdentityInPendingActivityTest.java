@@ -20,6 +20,7 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeFalse;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
@@ -44,7 +45,8 @@ public class IdentityInPendingActivityTest {
           .build();
 
   @Test
-  public void testActivityHeartbeatHasIdentity() throws InterruptedException {
+  public void testPendingActivityHasIdentity() throws InterruptedException {
+    assumeFalse(testWorkflowRule.isUseExternalService());
     NoArgsWorkflow workflow = testWorkflowRule.newWorkflowStub(NoArgsWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     DescribeWorkflowExecutionResponse response =
@@ -52,7 +54,6 @@ public class IdentityInPendingActivityTest {
     // Call describeWorkflowExecution until we see pending activities.
     // We see a pending activity without an identity first before the worker picks it up.
     while (response.getPendingActivitiesCount() == 0) {
-      // System.out.println(response.getPendingActivitiesList());
       Thread.sleep(50);
       response =
           testWorkflowRule
