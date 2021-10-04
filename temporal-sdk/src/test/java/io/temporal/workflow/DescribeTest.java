@@ -142,15 +142,12 @@ public class DescribeTest {
             .setActivityId(actual.getActivityId())
             .setActivityType(ActivityType.newBuilder().setName("TestDescribeActivity").build())
             .setState(PendingActivityState.PENDING_ACTIVITY_STATE_STARTED)
-            // TODO: Uncomment when the server is fixed. We should always expect to see an identity
-            //  here because any activity that has been picked up by the worker is pending until it
-            //  is completed/cancelled/terminated.
-            //            .setLastWorkerIdentity(
-            //                testWorkflowRule
-            //                    .getTestEnvironment()
-            //                    .getWorkflowClient()
-            //                    .getOptions()
-            //                    .getIdentity())
+            .setLastWorkerIdentity(
+                testWorkflowRule
+                    .getTestEnvironment()
+                    .getWorkflowClient()
+                    .getOptions()
+                    .getIdentity())
             .setAttempt(1)
             .setMaximumAttempts(2)
             // times should be present, but we can't know what the expected value is if this test is
