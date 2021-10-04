@@ -19,7 +19,6 @@
 
 package io.temporal.common.reporter;
 
-import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.StatsReporter;
@@ -75,10 +74,11 @@ public class MicrometerClientStatsReporter implements StatsReporter {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public void reportHistogramValueSamples(
       String name,
       Map<String, String> tags,
-      Buckets buckets,
+      com.uber.m3.tally.Buckets buckets,
       double bucketLowerBound,
       double bucketUpperBound,
       long samples) {
@@ -86,10 +86,11 @@ public class MicrometerClientStatsReporter implements StatsReporter {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public void reportHistogramDurationSamples(
       String name,
       Map<String, String> tags,
-      Buckets buckets,
+      com.uber.m3.tally.Buckets buckets,
       Duration bucketLowerBound,
       Duration bucketUpperBound,
       long samples) {

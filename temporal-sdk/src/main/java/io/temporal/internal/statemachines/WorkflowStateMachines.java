@@ -42,10 +42,7 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
-import io.temporal.api.history.v1.StartChildWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.api.history.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
@@ -73,13 +70,14 @@ public final class WorkflowStateMachines {
   enum HandleEventStatus {
     OK,
     NON_MATCHING_EVENT,
+    COMMAND_CANCELLED,
   }
 
   private final DataConverter dataConverter = DataConverter.getDefaultInstance();
 
   /**
-   * The eventId of the last event in the history which is expected to be startedEventId unless it
-   * is replay from a JSON file.
+   * The eventId of the last event in the history is expected to be startedEventId unless it is
+   * replaying from a JSON file.
    */
   private long workflowTaskStartedEventId;
 
@@ -276,6 +274,9 @@ public final class WorkflowStateMachines {
                     + " match command "
                     + command.getCommandType());
           }
+        case COMMAND_CANCELLED:
+          throw new IllegalStateException(
+              "This should never happen as we filter out and discard cancelled commands before matching");
         default:
           throw new IllegalStateException(
               "Got " + status + " value from command.handleEvent which is not handled");
@@ -354,14 +355,13 @@ public final class WorkflowStateMachines {
   }
 
   /**
-   * Local activity is different from all other entities. It don't schedule a marker command when
+   * Local activity is different from all other entities. It doesn't schedule a marker command when
    * the {@link #scheduleLocalActivityTask(ExecuteLocalActivityParameters, Functions.Proc2)} is
    * called. The marker is scheduled only when activity completes through ({@link
-   * #handleLocalActivityCompletion(ActivityTaskHandler.Result)}).
-   *
-   * <p>That's why the normal logic of {@link #handleCommandEvent(HistoryEvent)}, which assumes that
-   * each event has a correspondent command during replay, doesn't work. Instead local activities
-   * are matched by their id using localActivityMap.
+   * #handleLocalActivityCompletion(ActivityTaskHandler.Result)}). That's why the normal logic of
+   * {@link #handleCommandEvent(HistoryEvent)}, which assumes that each event has a correspondent
+   * command during replay, doesn't work. Instead, local activities are matched by their id using
+   * localActivityMap.
    *
    * @return true if matched and false if normal event handling should continue.
    */
@@ -801,11 +801,7 @@ public final class WorkflowStateMachines {
     public void workflowTaskStarted(
         long startedEventId, long currentTimeMillis, boolean nonProcessedWorkflowTask) {
       setCurrentTimeMillis(currentTimeMillis);
-      // If some new commands are pending and there are no more command events.
       for (CancellableCommand cancellableCommand : commands) {
-        if (cancellableCommand == null) {
-          break;
-        }
         cancellableCommand.handleWorkflowTaskStarted();
       }
       // Give local activities a chance to recreate their requests if they were lost due

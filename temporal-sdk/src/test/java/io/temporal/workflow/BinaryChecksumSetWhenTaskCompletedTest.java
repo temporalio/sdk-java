@@ -19,9 +19,13 @@
 
 package io.temporal.workflow;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
@@ -33,14 +37,13 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class BinaryChecksumSetWhenTaskCompletedTest {
+  private static final String BINARY_CHECKSUM = "testChecksum";
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
-              WorkflowClientOptions.newBuilder()
-                  .setBinaryChecksum(SDKTestWorkflowRule.BINARY_CHECKSUM)
-                  .build())
+              WorkflowClientOptions.newBuilder().setBinaryChecksum(BINARY_CHECKSUM).build())
           .setWorkflowTypes(SimpleTestWorkflow.class)
           .build();
 
@@ -52,7 +55,12 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     SDKTestWorkflowRule.waitForOKQuery(stub);
 
-    testWorkflowRule.assertHistoryEvent(execution, EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED);
+    HistoryEvent completionEvent =
+        testWorkflowRule.getHistoryEvent(execution, EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED);
+    assertNotNull(completionEvent);
+    assertEquals(
+        BINARY_CHECKSUM,
+        completionEvent.getWorkflowTaskCompletedEventAttributes().getBinaryChecksum());
   }
 
   public static class SimpleTestWorkflow implements TestWorkflow1 {

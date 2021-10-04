@@ -25,6 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * State machine instance of a single server side entity like activity, workflow task or the whole
@@ -33,26 +36,33 @@ import java.util.Set;
  * @see StateMachineDefinition
  */
 final class StateMachine<State, ExplicitEvent, Data> {
+  private static final Logger log = LoggerFactory.getLogger(StateMachine.class);
 
   private final StateMachineDefinition<State, ExplicitEvent, Data> definition;
 
-  private State state;
-
   private final List<Transition<State, TransitionEvent<ExplicitEvent>>> transitionHistory =
       new ArrayList<>();
+
+  @Nullable private final String entityName;
+
+  private State state;
 
   /**
    * Create a new instance of the StateMachine.
    *
    * @param definition State machine definition.
+   * @param entityName name or id of the entity this state machine represents. For debug purposes
+   *     only. Can be null.
    */
   public static <State, ExplicitEvent, Data> StateMachine<State, ExplicitEvent, Data> newInstance(
-      StateMachineDefinition<State, ExplicitEvent, Data> definition) {
-    return new StateMachine<>(definition);
+      StateMachineDefinition<State, ExplicitEvent, Data> definition, @Nullable String entityName) {
+    return new StateMachine<>(definition, entityName);
   }
 
-  private StateMachine(StateMachineDefinition<State, ExplicitEvent, Data> definition) {
+  private StateMachine(
+      StateMachineDefinition<State, ExplicitEvent, Data> definition, @Nullable String entityName) {
     this.definition = Objects.requireNonNull(definition);
+    this.entityName = entityName;
     this.state = definition.getInitialState();
   }
 
@@ -135,6 +145,7 @@ final class StateMachine<State, ExplicitEvent, Data> {
     }
     try {
       state = destination.apply(data);
+      logTransition(transition);
     } catch (RuntimeException e) {
       throw new RuntimeException(
           definition.getName()
@@ -145,5 +156,20 @@ final class StateMachine<State, ExplicitEvent, Data> {
           e);
     }
     transitionHistory.add(transition);
+  }
+
+  private void logTransition(Transition<State, TransitionEvent<ExplicitEvent>> transition) {
+    if (log.isTraceEnabled()) {
+      log.trace(
+          "State Machine "
+              + definition.getName()
+              + (entityName != null && !entityName.isEmpty() ? "[" + entityName + "]" : "")
+              + ": "
+              + transition.from
+              + " --:"
+              + transition.event
+              + ":--> "
+              + state);
+    }
   }
 }

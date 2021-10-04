@@ -33,7 +33,8 @@ final class WorkflowTaskStateMachine
 
   public interface Listener {
     /**
-     * Called for each WorkflowTaskStarted event.
+     * Called for each WorkflowTaskStarted event that should be handled. This listener is not called
+     * for WorkflowTaskStarted that are finished unsuccessfully.
      *
      * @param startEventId eventId of the WorkflowTaskStarted event.
      * @param currentTimeMillis time of the workflow taken from the WorkflowTaskStarted event
@@ -52,7 +53,9 @@ final class WorkflowTaskStateMachine
   private final long workflowTaskStartedEventId;
   private final Listener listener;
 
-  private long currentTimeMillis;
+  private long eventTimeOfTheLastWorkflowStartTask;
+  // TODO write a comment describing the difference between workflowTaskStartedEventId and
+  // startedEventId
   private long startedEventId;
 
   public static WorkflowTaskStateMachine newInstance(
@@ -106,7 +109,7 @@ final class WorkflowTaskStateMachine
               .add(State.STARTED, EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT, State.TIMED_OUT);
 
   private void handleStarted() {
-    currentTimeMillis = Timestamps.toMillis(currentEvent.getEventTime());
+    eventTimeOfTheLastWorkflowStartTask = Timestamps.toMillis(currentEvent.getEventTime());
     startedEventId = currentEvent.getEventId();
     // The last started event in the history. So no completed is expected.
     if (currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent) {
@@ -114,11 +117,14 @@ final class WorkflowTaskStateMachine
     }
   }
 
-  /** Only update current time if a decision task has completed successfully. */
   private void handleCompleted() {
     boolean lastTaskInHistory =
         currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent;
-    listener.workflowTaskStarted(startedEventId, currentTimeMillis, lastTaskInHistory);
+    // we trigger listener.workflowTaskStarted from handleCompleted by design.
+    // If the workflow task has FAILED or other unsuccessful finish event, we don't replay such
+    // workflow tasks
+    listener.workflowTaskStarted(
+        startedEventId, eventTimeOfTheLastWorkflowStartTask, lastTaskInHistory);
   }
 
   private void handleFailed() {
