@@ -130,8 +130,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
             options,
             metricsScope);
 
-    replayWorkflowExecutor =
-        new ReplayWorkflowExecutor(workflow, metricsScope, workflowStateMachines, context);
+    replayWorkflowExecutor = new ReplayWorkflowExecutor(workflow, workflowStateMachines, context);
 
     localActivityCompletionSink = historyEvent -> localActivityCompletionQueue.add(historyEvent);
   }

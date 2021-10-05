@@ -39,11 +39,11 @@ final class ReplayWorkflowExecutor {
 
   private final ReplayWorkflow workflow;
 
-  private final Scope metricsScope;
-
   private final WorkflowStateMachines workflowStateMachines;
 
   private final ReplayWorkflowContextImpl context;
+
+  private final Scope metricsScope;
 
   private boolean completed;
 
@@ -53,13 +53,12 @@ final class ReplayWorkflowExecutor {
 
   public ReplayWorkflowExecutor(
       ReplayWorkflow workflow,
-      Scope metricsScope,
       WorkflowStateMachines workflowStateMachines,
       ReplayWorkflowContextImpl context) {
     this.workflow = workflow;
-    this.metricsScope = metricsScope;
     this.workflowStateMachines = workflowStateMachines;
     this.context = context;
+    this.metricsScope = context.getMetricsScope();
   }
 
   public boolean isCompleted() {
@@ -89,28 +88,20 @@ final class ReplayWorkflowExecutor {
   private void completeWorkflow() {
     if (cancelRequested) {
       workflowStateMachines.cancelWorkflow();
-      if (!workflowStateMachines.isReplaying()) {
-        metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
-      }
+      metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
     } else if (failure != null) {
       workflowStateMachines.failWorkflow(failure.getFailure());
-      if (!workflowStateMachines.isReplaying()) {
-        metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
-      }
+      metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
     } else {
       ContinueAsNewWorkflowExecutionCommandAttributes attributes =
           context.getContinueAsNewOnCompletion();
       if (attributes != null) {
         workflowStateMachines.continueAsNewWorkflow(attributes);
-        if (!workflowStateMachines.isReplaying()) {
-          metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
-        }
+        metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
         workflowStateMachines.completeWorkflow(workflowOutput);
-        if (!workflowStateMachines.isReplaying()) {
-          metricsScope.counter(MetricsType.WORKFLOW_COMPLETED_COUNTER).inc(1);
-        }
+        metricsScope.counter(MetricsType.WORKFLOW_COMPLETED_COUNTER).inc(1);
       }
     }
 
