@@ -95,11 +95,9 @@ class WorkflowMethodNameTest {
 
     @QueryMethod(name = "customQueryType")
     fun query2(): Long
-
   }
 
   abstract class NotAWorkflow {
     abstract fun aMethod()
   }
-
 }
