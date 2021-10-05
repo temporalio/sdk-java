@@ -46,6 +46,39 @@ public final class WorkflowReplayer {
   }
 
   /**
+   * Replays workflow from a resource that contains a json serialized history.
+   *
+   * @param resourceName name of the resource.
+   * @param worker worker existing worker with the correct task queue and registered
+   *     implementations.
+   * @throws Exception if replay failed for any reason.
+   */
+  public static void replayWorkflowExecutionFromResource(String resourceName, Worker worker)
+      throws Exception {
+    WorkflowExecutionHistory history = WorkflowExecutionUtils.readHistoryFromResource(resourceName);
+    replayWorkflowExecution(history, worker);
+  }
+
+  /**
+   * Replays workflow from a resource that contains a json serialized history.
+   *
+   * @param resourceName name of the resource.
+   * @param testWorkflowEnvironment to be used to create a worker on a task queue.
+   * @param workflowClass s workflow implementation class to replay
+   * @param moreWorkflowClasses optional additional workflow implementation classes
+   * @throws Exception if replay failed for any reason.
+   */
+  public static void replayWorkflowExecutionFromResource(
+      String resourceName,
+      TestWorkflowEnvironment testWorkflowEnvironment,
+      Class<?> workflowClass,
+      Class<?>... moreWorkflowClasses)
+      throws Exception {
+    WorkflowExecutionHistory history = WorkflowExecutionUtils.readHistoryFromResource(resourceName);
+    replayWorkflowExecution(history, testWorkflowEnvironment, workflowClass, moreWorkflowClasses);
+  }
+
+  /**
    * Replays workflow from a file
    *
    * @param historyFile file that contains a json serialized history.
@@ -98,13 +131,44 @@ public final class WorkflowReplayer {
   public static void replayWorkflowExecution(
       WorkflowExecutionHistory history, Class<?> workflowClass, Class<?>... moreWorkflowClasses)
       throws Exception {
+    TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
+    replayWorkflowExecution(history, testEnv, workflowClass, moreWorkflowClasses);
+  }
+
+  /**
+   * Replays workflow from a {@link WorkflowExecutionHistory}. RunId <b>must</b> match the one used
+   * to generate the serialized history.
+   *
+   * @param history object that contains the workflow ids and the events.
+   * @param testWorkflowEnvironment to be used to create a worker on a task queue.
+   * @param workflowClass s workflow implementation class to replay
+   * @param moreWorkflowClasses optional additional workflow implementation classes
+   * @throws Exception if replay failed for any reason.
+   */
+  public static void replayWorkflowExecution(
+      WorkflowExecutionHistory history,
+      TestWorkflowEnvironment testWorkflowEnvironment,
+      Class<?> workflowClass,
+      Class<?>... moreWorkflowClasses)
+      throws Exception {
     WorkflowExecutionStartedEventAttributes attr =
         history.getEvents().get(0).getWorkflowExecutionStartedEventAttributes();
     TaskQueue taskQueue = attr.getTaskQueue();
-    TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
-    Worker worker = testEnv.newWorker(taskQueue.getName());
+    Worker worker = testWorkflowEnvironment.newWorker(taskQueue.getName());
     worker.registerWorkflowImplementationTypes(
         ObjectArrays.concat(moreWorkflowClasses, workflowClass));
+    replayWorkflowExecution(history, worker);
+  }
+
+  /**
+   * Replays workflow from a resource that contains a json serialized history.
+   *
+   * @param history object that contains the workflow ids and the events.
+   * @param worker existing worker with registered workflow implementations.
+   * @throws Exception if replay failed for any reason.
+   */
+  public static void replayWorkflowExecution(WorkflowExecutionHistory history, Worker worker)
+      throws Exception {
     worker.replayWorkflowExecution(history);
   }
 }

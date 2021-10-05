@@ -727,22 +727,27 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processScheduleActivityTask(
-      RequestContext ctx, ScheduleActivityTaskCommandAttributes a, long workflowTaskCompletedId) {
-    a = validateScheduleActivityTask(a);
-    String activityId = a.getActivityId();
+      RequestContext ctx,
+      ScheduleActivityTaskCommandAttributes attributes,
+      long workflowTaskCompletedId) {
+    attributes = validateScheduleActivityTask(attributes);
+    String activityId = attributes.getActivityId();
     Long activityScheduledEventId = activityById.get(activityId);
     if (activityScheduledEventId != null) {
       throw Status.FAILED_PRECONDITION
           .withDescription("Already open activity with " + activityId)
           .asRuntimeException();
     }
-    StateMachine<ActivityTaskData> activity = newActivityStateMachine(store, this.startRequest);
+    StateMachine<ActivityTaskData> activityStateMachine =
+        newActivityStateMachine(store, this.startRequest);
     long activityScheduleId = ctx.getNextEventId();
-    activities.put(activityScheduleId, activity);
+    activities.put(activityScheduleId, activityStateMachine);
     activityById.put(activityId, activityScheduleId);
-    activity.action(StateMachines.Action.INITIATE, ctx, a, workflowTaskCompletedId);
-    ActivityTaskScheduledEventAttributes scheduledEvent = activity.getData().scheduledEvent;
-    int attempt = activity.getData().getAttempt();
+    activityStateMachine.action(
+        StateMachines.Action.INITIATE, ctx, attributes, workflowTaskCompletedId);
+    ActivityTaskScheduledEventAttributes scheduledEvent =
+        activityStateMachine.getData().scheduledEvent;
+    int attempt = activityStateMachine.getData().getAttempt();
     ctx.addTimer(
         ProtobufTimeUtils.toJavaDuration(scheduledEvent.getScheduleToCloseTimeout()),
         () ->
@@ -1524,14 +1529,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           String activityId = task.getActivityId();
-          StateMachine<ActivityTaskData> activity = getActivityById(activityId);
-          activity.action(StateMachines.Action.START, ctx, pollRequest, 0);
-          ActivityTaskData data = activity.getData();
+          StateMachine<ActivityTaskData> activityStateMachine = getActivityById(activityId);
+          activityStateMachine.action(StateMachines.Action.START, ctx, pollRequest, 0);
+          ActivityTaskData data = activityStateMachine.getData();
+          data.identity = pollRequest.getIdentity();
           Duration startToCloseTimeout =
               ProtobufTimeUtils.toJavaDuration(data.scheduledEvent.getStartToCloseTimeout());
           Duration heartbeatTimeout =
               ProtobufTimeUtils.toJavaDuration(data.scheduledEvent.getHeartbeatTimeout());
-          long scheduledEventId = activity.getData().scheduledEventId;
+          long scheduledEventId = activityStateMachine.getData().scheduledEventId;
           if (startToCloseTimeout.compareTo(Duration.ZERO) > 0) {
             int attempt = data.getAttempt();
             ctx.addTimer(
@@ -1542,7 +1548,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(
-              ctx, scheduledEventId, activity, startToCloseTimeout, heartbeatTimeout);
+              ctx, scheduledEventId, activityStateMachine, startToCloseTimeout, heartbeatTimeout);
         });
   }
 
@@ -1705,7 +1711,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean heartbeatActivityTask(long scheduledEventId, Payloads details, String identity) {
+  public boolean heartbeatActivityTask(long scheduledEventId, Payloads details) {
     AtomicBoolean result = new AtomicBoolean();
     update(
         ctx -> {
@@ -1722,7 +1728,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
           ActivityTaskData data = activity.getData();
           data.lastHeartbeatTime = clock.getAsLong();
-          data.identity = identity;
           Duration startToCloseTimeout =
               ProtobufTimeUtils.toJavaDuration(data.scheduledEvent.getStartToCloseTimeout());
           Duration heartbeatTimeout =
@@ -1736,7 +1741,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Override
   public boolean heartbeatActivityTaskById(String id, Payloads details, String identity) {
     StateMachine<ActivityTaskData> activity = getActivityById(id);
-    return heartbeatActivityTask(activity.getData().scheduledEventId, details, identity);
+    return heartbeatActivityTask(activity.getData().scheduledEventId, details);
   }
 
   private void timeoutActivity(long scheduledEventId, TimeoutType timeoutType, int timeoutAttempt) {

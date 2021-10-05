@@ -22,6 +22,7 @@ package io.temporal.workflow.versionTests;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
+import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
@@ -56,7 +57,14 @@ public class GetVersionAndTimerTest {
   }
 
   private void testTimedWorkflow(SDKTestWorkflowRule rule) {
-    TimedWorkflow workflowStub = rule.newWorkflowStubTimeoutOptions(TimedWorkflow.class);
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofDays(1))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(5))
+            .setTaskQueue(rule.getTaskQueue())
+            .build();
+    TimedWorkflow workflowStub =
+        rule.getWorkflowClient().newWorkflowStub(TimedWorkflow.class, workflowOptions);
 
     Instant startInstant = Instant.ofEpochMilli(rule.getTestEnvironment().currentTimeMillis());
 

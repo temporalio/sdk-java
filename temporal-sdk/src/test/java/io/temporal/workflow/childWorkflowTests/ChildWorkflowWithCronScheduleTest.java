@@ -19,11 +19,11 @@
 
 package io.temporal.workflow.childWorkflowTests;
 
-import static io.temporal.testing.internal.SDKTestOptions.newWorkflowOptionsWithTimeouts;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeFalse;
 
 import io.temporal.client.WorkflowFailedException;
+import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -53,11 +53,17 @@ public class ChildWorkflowWithCronScheduleTest {
     // Feel free to uncomment the line below and test in local.
     assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
 
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofDays(1))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(5))
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .build();
+
     WorkflowStub client =
         testWorkflowRule
             .getWorkflowClient()
-            .newUntypedWorkflowStub(
-                "TestWorkflow1", newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
+            .newUntypedWorkflowStub("TestWorkflow1", workflowOptions);
     client.start(testName.getMethodName());
     testWorkflowRule.getTestEnvironment().sleep(Duration.ofHours(3));
     client.cancel();

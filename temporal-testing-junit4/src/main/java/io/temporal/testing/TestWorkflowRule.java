@@ -92,7 +92,6 @@ public class TestWorkflowRule implements TestRule {
       };
 
   private TestWorkflowRule(Builder builder) {
-
     doNotStart = builder.doNotStart;
     useExternalService = builder.useExternalService;
     namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;

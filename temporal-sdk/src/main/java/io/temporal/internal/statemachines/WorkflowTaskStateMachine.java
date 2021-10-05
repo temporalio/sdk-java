@@ -33,7 +33,8 @@ final class WorkflowTaskStateMachine
 
   public interface Listener {
     /**
-     * Called for each WorkflowTaskStarted event.
+     * Called for each WorkflowTaskStarted event that should be handled. This listener is not called
+     * for WorkflowTaskStarted that are finished unsuccessfully.
      *
      * @param startEventId eventId of the WorkflowTaskStarted event.
      * @param currentTimeMillis time of the workflow taken from the WorkflowTaskStarted event
@@ -52,9 +53,10 @@ final class WorkflowTaskStateMachine
   private final long workflowTaskStartedEventId;
   private final Listener listener;
 
-  private long currentTimeMillis;
+  // TODO write a comment describing the difference between workflowTaskStartedEventId and
+  //  startedEventId
   private long startedEventId;
-
+  private long eventTimeOfTheLastWorkflowStartTask;
   private boolean workflowTaskStarted = false;
 
   public static WorkflowTaskStateMachine newInstance(
@@ -107,22 +109,22 @@ final class WorkflowTaskStateMachine
                   WorkflowTaskStateMachine::handleFailed)
               .add(State.STARTED, EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT, State.TIMED_OUT);
 
+  private synchronized void startWorkflowTaskOnce(boolean lastTaskInHistory) {
+    if (!workflowTaskStarted) {
+      listener.workflowTaskStarted(
+          startedEventId, eventTimeOfTheLastWorkflowStartTask, lastTaskInHistory);
+      workflowTaskStarted = true;
+    }
+  }
+
   private void handleStarted() {
-    currentTimeMillis = Timestamps.toMillis(currentEvent.getEventTime());
+    eventTimeOfTheLastWorkflowStartTask = Timestamps.toMillis(currentEvent.getEventTime());
     startedEventId = currentEvent.getEventId();
     startWorkflowTaskOnce(currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent);
   }
 
-  /** Only update current time if a decision task has completed successfully. */
   private void handleCompleted() {
     startWorkflowTaskOnce(currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent);
-  }
-
-  private synchronized void startWorkflowTaskOnce(boolean lastTaskInHistory) {
-    if (!workflowTaskStarted) {
-      listener.workflowTaskStarted(startedEventId, currentTimeMillis, lastTaskInHistory);
-      workflowTaskStarted = true;
-    }
   }
 
   private void handleFailed() {
