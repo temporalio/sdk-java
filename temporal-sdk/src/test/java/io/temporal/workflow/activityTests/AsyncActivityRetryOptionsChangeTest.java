@@ -19,6 +19,9 @@
 
 package io.temporal.workflow.activityTests;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
@@ -55,8 +58,8 @@ public class AsyncActivityRetryOptionsChangeTest {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
     } catch (WorkflowException e) {
-      Assert.assertTrue(e.getCause() instanceof ActivityFailure);
-      Assert.assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertThat(e.getCause(), instanceOf(ActivityFailure.class));
+      assertThat(e.getCause().getCause(), instanceOf(ApplicationFailure.class));
       Assert.assertEquals(
           IOException.class.getName(), ((ApplicationFailure) e.getCause().getCause()).getType());
     }
@@ -72,17 +75,14 @@ public class AsyncActivityRetryOptionsChangeTest {
       ActivityOptions.Builder options =
           ActivityOptions.newBuilder()
               .setTaskQueue(taskQueue)
-              .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-              .setScheduleToStartTimeout(Duration.ofSeconds(5))
-              .setStartToCloseTimeout(Duration.ofSeconds(10));
+              .setScheduleToCloseTimeout(Duration.ofSeconds(8));
       if (Workflow.isReplaying()) {
         options.setRetryOptions(
             RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
-                .setDoNotRetry(NullPointerException.class.getName())
                 .setMaximumAttempts(3)
+                .setDoNotRetry(NullPointerException.class.getName())
                 .build());
       } else {
         options.setRetryOptions(
