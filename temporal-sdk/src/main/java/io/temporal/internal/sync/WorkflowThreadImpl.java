@@ -249,12 +249,8 @@ class WorkflowThreadImpl implements WorkflowThread {
         taskFuture = threadPool.submit(task);
         return;
       } catch (RejectedExecutionException e) {
-        getWorkflowContext()
-            .getMetricsScope()
-            .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
-            .inc(1);
         if (cache != null) {
-          SyncWorkflowContext workflowContext = this.runner.getWorkflowContext();
+          SyncWorkflowContext workflowContext = getWorkflowContext();
           ReplayWorkflowContext context = workflowContext.getContext();
           boolean evicted =
               cache.evictAnyNotInProcessing(
