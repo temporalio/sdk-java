@@ -20,7 +20,6 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeFalse;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
@@ -46,7 +45,6 @@ public class IdentityInPendingActivityTest {
 
   @Test
   public void testPendingActivityHasIdentity() throws InterruptedException {
-    assumeFalse(testWorkflowRule.isUseExternalService());
     NoArgsWorkflow workflow = testWorkflowRule.newWorkflowStub(NoArgsWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     DescribeWorkflowExecutionResponse response =
