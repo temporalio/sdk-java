@@ -22,6 +22,7 @@ package io.temporal.internal.testservice;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.temporal.workflow.Functions;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -113,7 +114,8 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                   + ", canceled="
                   + peekedTask.isCanceled());
         }
-        if (peekedTask != null && peekedTask.getExecutionTime() <= currentTime) {
+        if (peekedTask != null
+            && (peekedTask.getExecutionTime() <= currentTime || peekedTask.isCanceled())) {
           try {
             LockHandle lockHandle = lockTimeSkippingLocked("runnable " + peekedTask.getTaskInfo());
             TimerTask polledTask = tasks.poll();
@@ -123,7 +125,10 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                     + ", executionTime="
                     + peekedTask.getExecutionTime());
 
-            if (!polledTask.isCanceled()) {
+            if (polledTask.isCanceled()) {
+              log.trace("Removed canceled task from the task queue: {}", polledTask.getTaskInfo());
+              lockHandle.unlock();
+            } else {
               Runnable runnable = polledTask.getRunnable();
               executor.execute(
                   () -> {
@@ -143,6 +148,18 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
         }
         long timeToAwait =
             peekedTask == null ? Long.MAX_VALUE : peekedTask.getExecutionTime() - currentTime;
+
+        if (log.isTraceEnabled()) {
+          log.trace("Waiting for {}", Duration.ofMillis(timeToAwait));
+          for (TimerTask task : tasks) {
+            log.trace(
+                "Outstanding task: +{} {} {}",
+                Duration.ofMillis(task.executionTime - currentTime),
+                task.taskInfo,
+                task.canceled);
+          }
+        }
+
         try {
           condition.await(timeToAwait, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -153,15 +170,15 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     }
   }
 
-  private static class LockEvent {
-    String caller;
-    LockEventType lockType;
-    long timestamp;
+  private class LockEvent {
+    final String caller;
+    final LockEventType lockType;
+    final long timestamp;
 
     public LockEvent(String caller, LockEventType lockType) {
       this.caller = caller;
       this.lockType = lockType;
-      timestamp = System.currentTimeMillis();
+      this.timestamp = systemClock.millis();
     }
   }
 
@@ -209,6 +226,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   }
 
   private static final Logger log = LoggerFactory.getLogger(SelfAdvancingTimerImpl.class);
+  private final Clock systemClock;
   private final LongSupplier clock =
       () -> {
         long timeMillis = this.currentTimeMillis();
@@ -235,8 +253,9 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   private final Thread timerPump = new Thread(new TimerPump(), "SelfAdvancingTimer Pump");
   private LockHandle timeLockOnEmptyQueueHandle;
 
-  public SelfAdvancingTimerImpl(long initialTime) {
-    currentTime = initialTime == 0 ? System.currentTimeMillis() : initialTime;
+  public SelfAdvancingTimerImpl(long initialTime, Clock systemClock) {
+    this.systemClock = systemClock;
+    currentTime = initialTime == 0 ? systemClock.millis() : initialTime;
     executor.setRejectedExecutionHandler(new CallerRunsPolicy());
     // Queue is initially empty. The code assumes that in this case skipping is already locked.
     timeLockOnEmptyQueueHandle = lockTimeSkipping("SelfAdvancingTimerImpl constructor empty-queue");
@@ -248,7 +267,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
       if (timeLastLocked < 0 || systemTimeLastLocked < 0) {
         throw new IllegalStateException("Invalid timeLastLocked or systemTimeLastLocked");
       }
-      currentTime = timeLastLocked + (System.currentTimeMillis() - systemTimeLastLocked);
+      currentTime = timeLastLocked + (systemClock.millis() - systemTimeLastLocked);
     } else {
       TimerTask task = tasks.peek();
       if (task != null && !task.isCanceled() && task.getExecutionTime() > currentTime) {
@@ -280,6 +299,9 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     Functions.Proc cancellationHandle;
     lock.lock();
     try {
+      // get a last time in case the last TimePump update was relatively long time ago
+      updateTimeLocked();
+
       long executionTime = delay.toMillis() + currentTime;
       TimerTask timerTask = new TimerTask(executionTime, task, taskInfo);
       cancellationHandle = () -> timerTask.cancel();
@@ -321,7 +343,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   private LockHandle lockTimeSkippingLocked(String caller) {
     if (lockCount++ == 0) {
       timeLastLocked = currentTime;
-      systemTimeLastLocked = System.currentTimeMillis();
+      systemTimeLastLocked = systemClock.millis();
     }
     LockEvent event = new LockEvent(caller, LockEventType.LOCK);
     lockEvents.add(event);

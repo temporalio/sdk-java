@@ -19,9 +19,7 @@
 
 package io.temporal.opentracing;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -37,9 +35,11 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.*;
+import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import org.junit.After;
 import org.junit.Before;
@@ -54,8 +54,8 @@ public class SpanContextPropagationTest {
       new MockTracer(new ThreadLocalScopeManager(), MockTracer.Propagator.TEXT_MAP);
 
   @Rule
-  public TestWorkflowRule testWorkflowRule =
-      TestWorkflowRule.newBuilder()
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
                   .setInterceptors(new OpenTracingClientInterceptor())

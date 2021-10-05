@@ -24,7 +24,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.internal.common.converter.EncodingKeys;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -173,12 +172,12 @@ public class DefaultDataConverter implements DataConverter {
       int index, Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
       throws DataConverterException {
     if (!content.isPresent()) {
-      return (T) Defaults.defaultValue((Class<?>) parameterType);
+      return Defaults.defaultValue(parameterType);
     }
     int count = content.get().getPayloadsCount();
     // To make adding arguments a backwards compatible change
     if (index >= count) {
-      return (T) Defaults.defaultValue((Class<?>) parameterType);
+      return Defaults.defaultValue(parameterType);
     }
     return fromPayload(content.get().getPayloads(index), parameterType, genericParameterType);
   }

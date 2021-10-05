@@ -47,6 +47,14 @@ public interface WorkflowInfo {
    */
   long getRunStartedTimestampMillis();
 
+  /**
+   * This method is used to get Search Attributes from workflow info, however it has been deprecated
+   * with a more useful method on the Workflow that returns the original Map<String, Object> instead
+   * of protobuf.
+   *
+   * @deprecated please use {@link Workflow#getSearchAttributes()}
+   * @return Search Attributes protobuf
+   */
   @Deprecated
   SearchAttributes getSearchAttributes();
 

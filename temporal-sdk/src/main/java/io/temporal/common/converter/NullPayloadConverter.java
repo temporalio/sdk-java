@@ -20,7 +20,6 @@
 package io.temporal.common.converter;
 
 import io.temporal.api.common.v1.Payload;
-import io.temporal.internal.common.converter.EncodingKeys;
 import java.lang.reflect.Type;
 import java.util.Optional;
 

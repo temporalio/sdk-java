@@ -137,7 +137,6 @@ import io.temporal.serviceclient.StatusUtils;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -153,22 +152,20 @@ class StateMachines {
 
   private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
 
-  static final int NO_EVENT_ID = -1;
-  static final Duration DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL = Durations.fromSeconds(1);
-  static final double DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT = 2.0;
-  static final int DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS = 0;
-  static final int DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT = 100;
   public static final long DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS =
       10L * 365 * 24 * 3600 * 1000;
   public static final long DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS = 10L * 1000;
   public static final long MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS = 60L * 1000;
+  static final Duration DEFAULT_ACTIVITY_RETRY_INITIAL_INTERVAL = Durations.fromSeconds(1);
+  static final double DEFAULT_ACTIVITY_RETRY_BACKOFF_COEFFICIENT = 2.0;
+  static final int DEFAULT_ACTIVITY_RETRY_MAXIMUM_ATTEMPTS = 0;
+  static final int DEFAULT_ACTIVITY_MAXIMUM_INTERVAL_COEFFICIENT = 100;
+  static final int NO_EVENT_ID = -1;
 
   enum State {
     NONE,
     INITIATED,
-    INITIATED_QUERY_ONLY,
     STARTED,
-    STARTED_QUERY_ONLY,
     FAILED,
     TIMED_OUT,
     CANCELLATION_REQUESTED,
@@ -328,6 +325,7 @@ class StateMachines {
     long lastHeartbeatTime;
     TestServiceRetryState retryState;
     Duration nextBackoffInterval;
+    String identity;
 
     ActivityTaskData(
         TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
@@ -509,7 +507,7 @@ class StateMachines {
             CANCELLATION_REQUESTED,
             StateMachines::requestActivityCancellation)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeActivityTask)
-        // Transitions to initiated in case of the a retry
+        // Transitions to initiated in case of a retry
         .add(STARTED, FAIL, new State[] {FAILED, INITIATED}, StateMachines::failActivityTask)
         // Transitions to initiated in case of a retry
         .add(
@@ -1282,7 +1280,7 @@ class StateMachines {
             events.add(startedEvent);
             task.setStartedEventId(lastEventId + 2);
           }
-          // get it from pervious started event id.
+          // get it from previous started event id.
           task.setHistory(History.newBuilder().addAllEvents(events));
           // Transfer the queries
           Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queries =
@@ -1396,15 +1394,9 @@ class StateMachines {
 
   private static void failQueryWorkflowTask(
       RequestContext ctx, WorkflowTaskData data, Object unused, long notUsed) {
-    Iterator<Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery>> iterator =
-        data.consistentQueryRequests.entrySet().iterator();
-    while (iterator.hasNext()) {
-      Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery> entry = iterator.next();
-      if (entry.getValue().getResult().isCancelled()) {
-        iterator.remove();
-        continue;
-      }
-    }
+    data.consistentQueryRequests
+        .entrySet()
+        .removeIf(entry -> entry.getValue().getResult().isCancelled());
     if (!data.consistentQueryRequests.isEmpty()) {
       ctx.setNeedWorkflowTask(true);
     }
@@ -1603,7 +1595,7 @@ class StateMachines {
     if (data.retryState == null) {
       throw new IllegalStateException("RetryPolicy is always present");
     }
-    Optional<ApplicationFailureInfo> info = failure.map(f -> f.getApplicationFailureInfo());
+    Optional<ApplicationFailureInfo> info = failure.map(Failure::getApplicationFailureInfo);
     if (info.isPresent()) {
       if (info.get().getNonRetryable()) {
         return RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
@@ -1612,7 +1604,7 @@ class StateMachines {
     TestServiceRetryState nextAttempt = data.retryState.getNextAttempt(failure);
     TestServiceRetryState.BackoffInterval backoffInterval =
         data.retryState.getBackoffIntervalInSeconds(
-            info.map(i -> i.getType()), data.store.currentTime());
+            info.map(ApplicationFailureInfo::getType), data.store.currentTime());
     if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
       data.nextBackoffInterval = ProtobufTimeUtils.toProtoDuration(backoffInterval.getInterval());
       PollActivityTaskQueueResponse.Builder task = data.activityTask.getTask();

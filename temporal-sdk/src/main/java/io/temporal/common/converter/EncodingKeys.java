@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.common.converter;
+package io.temporal.common.converter;
 
 import com.google.protobuf.ByteString;
 import java.nio.charset.StandardCharsets;
@@ -26,23 +26,23 @@ public class EncodingKeys {
   public static final String METADATA_ENCODING_KEY = "encoding";
   public static final String METADATA_TYPE_KEY = "type";
 
-  public static final String METADATA_ENCODING_NULL_NAME = "binary/null";
-  public static final ByteString METADATA_ENCODING_NULL =
+  static final String METADATA_ENCODING_NULL_NAME = "binary/null";
+  static final ByteString METADATA_ENCODING_NULL =
       ByteString.copyFrom(METADATA_ENCODING_NULL_NAME, StandardCharsets.UTF_8);
 
-  public static final String METADATA_ENCODING_RAW_NAME = "binary/plain";
-  public static final ByteString METADATA_ENCODING_RAW =
+  static final String METADATA_ENCODING_RAW_NAME = "binary/plain";
+  static final ByteString METADATA_ENCODING_RAW =
       ByteString.copyFrom(METADATA_ENCODING_RAW_NAME, StandardCharsets.UTF_8);
 
-  public static final String METADATA_ENCODING_JSON_NAME = "json/plain";
+  static final String METADATA_ENCODING_JSON_NAME = "json/plain";
   public static final ByteString METADATA_ENCODING_JSON =
       ByteString.copyFrom(METADATA_ENCODING_JSON_NAME, StandardCharsets.UTF_8);
 
-  public static final String METADATA_ENCODING_PROTOBUF_JSON_NAME = "json/protobuf";
-  public static final ByteString METADATA_ENCODING_PROTOBUF_JSON =
+  static final String METADATA_ENCODING_PROTOBUF_JSON_NAME = "json/protobuf";
+  static final ByteString METADATA_ENCODING_PROTOBUF_JSON =
       ByteString.copyFrom(METADATA_ENCODING_PROTOBUF_JSON_NAME, StandardCharsets.UTF_8);
 
-  public static final String METADATA_ENCODING_PROTOBUF_NAME = "binary/protobuf";
-  public static final ByteString METADATA_ENCODING_PROTOBUF =
+  static final String METADATA_ENCODING_PROTOBUF_NAME = "binary/protobuf";
+  static final ByteString METADATA_ENCODING_PROTOBUF =
       ByteString.copyFrom(METADATA_ENCODING_PROTOBUF_NAME, StandardCharsets.UTF_8);
 }

@@ -1,0 +1,29 @@
+Highlights:
+* Improved Kotlin support (#319) Kotlin users should include temporal-kotlin module in the classpath.
+* Context deadline exceeded gRPC error will be considered as non-retryable (#654) and will include details from the previous exception when possible (#674). Normal behavior for most other retryable server errors would be to retry them until deadline is exceeded.
+* Added support for JWT tokens (#678)
+* Allowed using custom headers during health check (#690)
+* Multiple bug fixes
+
+All changes:
+2021-08-10 - 15ca5083 - Refactor how DeterministicRunnerImpl and SyncWorkflowContext handle creation of workflow root and method threads (#557)
+2021-08-10 - 6f75b677 - Added configurable OpenTracerSpanContextCodec to OpenTracingOptions (#624)
+2021-08-13 - 58f02fe4 - Code style improvements around DataConverters and WorkflowContext (#627)
+2021-08-14 - 759526e9 - Add temporal-kotlin module that provides correct Kotlin support for Async (#319)
+2021-08-16 - 35dae76c - Stop enforcing TestWorkflowRule timeout when run in Temporal debug mode, respect JUnit(timeout) over TestRule timeout (#633)
+2021-08-16 - 5d8734be - SDKTestWorkflowRule is moved into temporal-testing-junit4 to allow reusing by other modules (#635)
+2021-08-16 - 6d98270e - Fix misc thread safety issues with WorkflowThreadContext (#642)
+2021-08-16 - 762e5711 - Do not retry local activity when non-retryable ApplicationFailure is thrown (#638)
+2021-08-18 - 25da5d20 - Add newFailureWithCause and newNonRetryableFailureWithCause to ApplicationFailure that allow to setup cause field (#649)
+2021-08-18 - 9f53c132 - Fix handling of Version events in WorkflowStateMachines in case of cancelled commands in a queue (#614)
+2021-08-24 - 0c09e62a - GrpcRetryer now respects DEADLINE_EXCEEDED as non-retryable (#654)
+2021-08-26 - 6d551808 - Add backoff to WorkflowExecutionUtils#getInstanceCloseEvent (#667)
+2021-08-26 - 73d7fbd0 - Preserve a previous exception in GrpcRetryer in case of DEADLINE_EXCEEDED (#674)
+2021-08-26 - b034a0fa - Add getMemo to Workflow (#611)
+2021-08-30 - 206d758d - Add DescribeWorkflowExecution to TestWorkflowService (#670)
+2021-08-31 - 1e77577c - Refactored HeaderUtils#intoPayloadMapWithDefaultConverter to accept converter as parameter. (#686)
+2021-08-31 - 3d0be059 - Cleanup naming inside AuthorizationGrpcMetadataProvider (#691)
+2021-08-31 - 914ecf17 - Refactored TestWorkflowMutableState and removed unused methods from ReplayWorkflowContext (#679)
+2021-08-31 - 95d7e0a9 - Add support for JWT tokens for Temporal server authorization (#678)
+2021-08-31 - d8377807 - Call health check on intercepted channel (#690)
+2021-09-08 - b077ec10 - Fix getResult hang after termination using test service (#700)

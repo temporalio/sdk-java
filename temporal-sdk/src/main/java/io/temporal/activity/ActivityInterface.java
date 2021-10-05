@@ -30,7 +30,7 @@ import java.lang.annotation.Target;
  * annotation can be used as parameters to {@link Workflow#newActivityStub(Class)} methods.
  *
  * <p>Each method of the interface annotated with <code>ActivityInterface</code> including inherited
- * from interfaces is a separate activity. By default the name of an activity type is its method
+ * from interfaces is a separate activity. By default, the name of an activity type is its method
  * name with the first letter capitalized. Use {@link ActivityInterface#namePrefix()} or {{@link
  * ActivityMethod#name()}} to make sure that activity type names are distinct.
  *

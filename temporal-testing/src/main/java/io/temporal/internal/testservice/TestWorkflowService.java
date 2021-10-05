@@ -44,6 +44,8 @@ import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
@@ -94,6 +96,7 @@ import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -116,7 +119,7 @@ import org.slf4j.LoggerFactory;
  * use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
  */
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
-    implements AutoCloseable {
+    implements Closeable {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
@@ -128,7 +131,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final TestWorkflowStore store;
   private final Client client;
 
-  private class Client {
+  private static class Client implements Closeable {
     public Client() {
       serverName = InProcessServerBuilder.generateName();
       channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
@@ -143,6 +146,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     public final String serverName;
     public final ManagedChannel channel;
     public final WorkflowServiceStubs stubs;
+
+    @Override
+    public void close() {
+      stubs.shutdown();
+      channel.shutdown();
+    }
   }
 
   public WorkflowServiceStubs newClientStub() {
@@ -162,7 +171,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  // TODO: Shutdown.
   public TestWorkflowService(long initialTimeMillis) {
     store = new TestWorkflowStoreImpl(initialTimeMillis);
     client = new Client();
@@ -182,8 +190,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     this(0);
   }
 
-  // Creates an out-of-process rather than in-process server, and does not set up a client.
-  // Useful, for example, if you want to use the test service from other SDKs.
+  /**
+   * Creates an out-of-process rather than in-process server, and does not set up a client. Useful,
+   * for example, if you want to use the test service from other SDKs.
+   */
   public static TestWorkflowService createServerOnly(int port) {
     log.info("Server started, listening on " + port);
     return new TestWorkflowService(true, port);
@@ -209,13 +219,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   @Override
   public void close() {
-    log.info("Shutting down GRPC server");
-    if (client != null) {
-      client.channel.shutdown();
-    }
+    log.debug("Shutting down TestWorkflowService");
+    client.close();
 
     try {
       if (outOfProcessServer != null) {
+        outOfProcessServer.shutdown();
         outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
       } else {
         client.channel.awaitTermination(1, TimeUnit.SECONDS);
@@ -225,6 +234,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       log.debug("shutdown interrupted", e);
     }
     store.close();
+    forkJoinPool.shutdown();
   }
 
   private TestWorkflowMutableState getMutableState(ExecutionId executionId) {
@@ -411,7 +421,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     forkJoinPool.execute(
         () -> {
           try {
-            Deadline deadline = Context.current().getDeadline();
+            Deadline deadline = getLongPollDeadline();
             responseObserver.onNext(
                 store.getWorkflowExecutionHistory(
                     mutableState.getExecutionId(), getRequest, deadline));
@@ -432,7 +442,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void pollWorkflowTaskQueue(
       PollWorkflowTaskQueueRequest pollRequest,
       StreamObserver<PollWorkflowTaskQueueResponse> responseObserver) {
-    Deadline deadline = Context.current().getDeadline();
+    Deadline deadline = getLongPollDeadline();
     Optional<PollWorkflowTaskQueueResponse.Builder> optionalTask =
         store.pollWorkflowTaskQueue(pollRequest, deadline);
     if (!optionalTask.isPresent()) {
@@ -519,7 +529,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       PollActivityTaskQueueRequest pollRequest,
       StreamObserver<PollActivityTaskQueueResponse> responseObserver) {
     while (true) {
-      Deadline deadline = Context.current().getDeadline();
+      Deadline deadline = getLongPollDeadline();
       Optional<PollActivityTaskQueueResponse.Builder> optionalTask =
           store.pollActivityTaskQueue(pollRequest, deadline);
       if (!optionalTask.isPresent()) {
@@ -590,7 +600,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       TestWorkflowMutableState mutableState = getMutableState(execution);
       boolean cancelRequested =
           mutableState.heartbeatActivityTaskById(
-              heartbeatRequest.getActivityId(), heartbeatRequest.getDetails());
+              heartbeatRequest.getActivityId(),
+              heartbeatRequest.getDetails(),
+              heartbeatRequest.getIdentity());
       responseObserver.onNext(
           RecordActivityTaskHeartbeatByIdResponse.newBuilder()
               .setCancelRequested(cancelRequested)
@@ -1049,6 +1061,28 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @Override
+  public void describeWorkflowExecution(
+      DescribeWorkflowExecutionRequest request,
+      StreamObserver<io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse>
+          responseObserver) {
+    String namespace = requireNotNull("Namespace", request.getNamespace());
+    WorkflowExecution execution = requireNotNull("Execution", request.getExecution());
+    ExecutionId executionId = new ExecutionId(namespace, execution);
+
+    try {
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      DescribeWorkflowExecutionResponse result = mutableState.describeWorkflowExecution();
+      responseObserver.onNext(result);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
+        log.error("unexpected", e);
+      }
+      responseObserver.onError(e);
+    }
+  }
+
   private <R> R requireNotNull(String fieldName, R value) {
     if (value == null) {
       throw Status.INVALID_ARGUMENT
@@ -1116,5 +1150,21 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (ExecutionException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * Temporal server times out long poll calls after 1 minute and returns an empty result. After
+   * which the request has to be retried by the client if it wants to continue waiting. We emulate
+   * this behavior here.
+   *
+   * @return minimum between the context deadline and maximum long poll deadline.
+   */
+  private Deadline getLongPollDeadline() {
+    Deadline deadline = Context.current().getDeadline();
+    Deadline maximumDeadline =
+        Deadline.after(
+            WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.toMillis(),
+            TimeUnit.MILLISECONDS);
+    return deadline != null ? deadline.minimum(maximumDeadline) : maximumDeadline;
   }
 }

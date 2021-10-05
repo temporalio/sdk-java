@@ -19,6 +19,8 @@
 
 package io.temporal.internal.retryer;
 
+import io.grpc.Context;
+import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.BackoffThrottler;
 import io.temporal.serviceclient.RpcRetryOptions;
@@ -45,11 +47,11 @@ class GrpcSyncRetryer {
             options.getInitialInterval(),
             options.getMaximumInterval(),
             options.getBackoffCoefficient());
+    Deadline grpcContextDeadline = Context.current().getDeadline();
 
     StatusRuntimeException lastException = null;
-    while (!GrpcRetryerUtils.ranOutOfRetries(options, startTime, clock.millis(), attempt)) {
+    do {
       attempt++;
-
       if (lastException != null) {
         log.warn("Retrying after failure", lastException);
       }
@@ -64,7 +66,8 @@ class GrpcSyncRetryer {
         throw new CancellationException();
       } catch (StatusRuntimeException e) {
         RuntimeException finalException =
-            GrpcRetryerUtils.createFinalExceptionIfNotRetryable(e, lastException, options);
+            GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
+                e, lastException, options, grpcContextDeadline);
         if (finalException != null) {
           throw finalException;
         }
@@ -74,7 +77,8 @@ class GrpcSyncRetryer {
       // It's designed this way because it's GrpcRetryer, not general purpose retryer.
 
       throttler.failure();
-    }
+    } while (!GrpcRetryerUtils.ranOutOfRetries(
+        options, startTime, clock.millis(), attempt, grpcContextDeadline));
 
     rethrow(lastException);
     throw new IllegalStateException("unreachable");

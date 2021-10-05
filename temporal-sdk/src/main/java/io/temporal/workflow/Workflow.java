@@ -621,7 +621,7 @@ public final class Workflow {
    *
    * @param key memo key
    * @param valueClass Java class to deserialize into
-   * @return deserialized Memo
+   * @return deserialized Memo or null if the key is not present in the memo
    */
   public static <T> Object getMemo(String key, Class<T> valueClass) {
     return getMemo(key, valueClass, valueClass);
@@ -630,14 +630,13 @@ public final class Workflow {
   /**
    * Extract Memo associated with the given key and deserialized into an object of generic type as
    * is done here: {@link DataConverter#fromPayloads(int, java.util.Optional, java.lang.Class,
-   * java.lang.reflect.Type)} Ex: To deserialize into HashMap<String, Integer> <code>
-   *  Workflow.getMemo(key, Map.class, new TypeToken<HashMap<String, Integer>>() {}.getType());
-   * </code>
+   * java.lang.reflect.Type)} Ex: To deserialize into {@code HashMap<String, Integer>} {@code
+   * Workflow.getMemo(key, Map.class, new TypeToken<HashMap<String, Integer>>() {}.getType())}
    *
    * @param key memo key
    * @param valueClass Java class to deserialize into
    * @param genericType type parameter for the generic class
-   * @return deserialized Memo
+   * @return deserialized Memo or null if the key is not present in the memo
    */
   public static <T> T getMemo(String key, Class<T> valueClass, Type genericType) {
     return WorkflowInternal.getMemo(key, valueClass, genericType);
@@ -1284,6 +1283,10 @@ public final class Workflow {
     return WorkflowInternal.getLastCompletionResult(resultClass, resultType);
   }
 
+  public static Map<String, Object> getSearchAttributes() {
+    return WorkflowInternal.getSearchAttributes();
+  }
+
   /**
    * {@code upsertSearchAttributes} is used to add or update workflow search attributes. The search
    * attributes can be used in query of List/Scan/Count workflow APIs. The key and value type must
@@ -1315,10 +1318,6 @@ public final class Workflow {
    */
   public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
     WorkflowInternal.upsertSearchAttributes(searchAttributes);
-  }
-
-  public static Map<String, Object> getSearchAttributes() {
-    return WorkflowInternal.getSearchAttributes();
   }
 
   /** Prohibit instantiation. */

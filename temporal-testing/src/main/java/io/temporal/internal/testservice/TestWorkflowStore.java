@@ -28,7 +28,6 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.internal.common.converter.SearchAttributesUtil.Pair;
 import io.temporal.internal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import java.time.Duration;
 import java.util.List;
@@ -67,7 +66,7 @@ interface TestWorkflowStore {
         return true;
       }
 
-      if (o == null || !(o instanceof TaskQueueId)) {
+      if (!(o instanceof TaskQueueId)) {
         return false;
       }
 
@@ -149,7 +148,7 @@ interface TestWorkflowStore {
 
   void registerSearchAttribute(String name, Class<?> type);
 
-  Map<String, Pair<String, SearchAttributeType>> getRegisteredSearchAttribute();
+  Map<String, SearchAttributeType> getRegisteredSearchAttributes();
 
   /** @return empty if deadline expired */
   Optional<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
@@ -159,7 +158,6 @@ interface TestWorkflowStore {
   Optional<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
       PollActivityTaskQueueRequest pollRequest, Deadline deadline);
 
-  /** @return queryId */
   void sendQueryTask(
       ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);
 

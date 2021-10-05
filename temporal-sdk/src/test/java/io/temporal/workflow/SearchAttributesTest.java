@@ -36,7 +36,7 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowServiceException;
-import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.client.WorkflowClientHelper;
 import io.temporal.internal.common.converter.SearchAttributesUtil;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -65,6 +65,8 @@ public class SearchAttributesTest {
   private static final Double TEST_VALUE_DOUBLE = 1.23;
   private static final String TEST_KEY_BOOL = "CustomBoolField";
   private static final Boolean TEST_VALUE_BOOL = true;
+  private static final String TEST_NEW_KEY = "NewKey";
+  private static final String TEST_NEW_VALUE = "NewVal";
   private static final String TEST_UNKNOWN_KEY = "UnknownKey";
   private static final String TEST_UNKNOWN_VALUE = "val";
   private static final Duration TEST_UNSUPPORTED_TYPE_VALUE = Duration.ZERO;
@@ -73,16 +75,13 @@ public class SearchAttributesTest {
   @Before
   public void setUp() {
     TestWorkflowEnvironment testEnv = testWorkflowRule.getTestEnvironment();
-    testEnv.registerSearchAttribute(TEST_KEY_STRING, String.class);
-    testEnv.registerSearchAttribute(TEST_KEY_INTEGER, Integer.class);
-    testEnv.registerSearchAttribute(TEST_KEY_DOUBLE, Double.class);
-    testEnv.registerSearchAttribute(TEST_KEY_BOOL, Boolean.class);
-    testEnv.registerSearchAttribute(TEST_KEY_DATE_TIME, LocalDateTime.class);
+    testEnv.registerSearchAttribute(TEST_NEW_KEY, String.class);
     searchAttributes.put(TEST_KEY_STRING, TEST_VALUE_STRING);
     searchAttributes.put(TEST_KEY_INTEGER, TEST_VALUE_INTEGER);
     searchAttributes.put(TEST_KEY_DOUBLE, TEST_VALUE_DOUBLE);
     searchAttributes.put(TEST_KEY_BOOL, TEST_VALUE_BOOL);
     searchAttributes.put(TEST_KEY_DATE_TIME, TEST_VALUE_DATE_TIME);
+    searchAttributes.put(TEST_NEW_KEY, TEST_NEW_VALUE);
     options =
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
             .toBuilder()
@@ -95,16 +94,20 @@ public class SearchAttributesTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
               TestMultiArgWorkflowImpl.class, TestParentWorkflow.class, TestChild.class)
+          .setTestTimeoutSeconds(10000)
           .build();
 
   @Test
   public void testSearchAttributes() {
+    if (SDKTestWorkflowRule.useExternalService) {
+      searchAttributes.remove(TEST_NEW_KEY);
+    }
     TestNoArgsWorkflowFunc stubF =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
     WorkflowExecution executionF = WorkflowClient.start(stubF::func);
 
     GetWorkflowExecutionHistoryResponse historyResp =
-        WorkflowExecutionUtils.getHistoryPage(
+        WorkflowClientHelper.getHistoryPage(
             testWorkflowRule.getTestEnvironment().getWorkflowService(),
             NAMESPACE,
             executionF,
@@ -141,7 +144,6 @@ public class SearchAttributesTest {
     searchAttributes.replace(TEST_KEY_INTEGER, TEST_UNSUPPORTED_TYPE_VALUE);
     TestNoArgsWorkflowFunc unsupportedTypeStub =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
-    WorkflowClient.start(unsupportedTypeStub::func);
     try {
       WorkflowClient.start(unsupportedTypeStub::func);
       fail();

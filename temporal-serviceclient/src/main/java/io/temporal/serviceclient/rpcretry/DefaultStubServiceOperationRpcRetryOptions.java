@@ -39,7 +39,9 @@ public class DefaultStubServiceOperationRpcRetryOptions {
   public static final List<RpcRetryOptions.DoNotRetryItem> TEMPORAL_SERVER_DEFAULT_NON_RETRY =
       new ArrayList<RpcRetryOptions.DoNotRetryItem>() {
         {
-          // CANCELLED and DEADLINE_EXCEEDED are always considered non-retryable
+          // CANCELLED is always considered non-retryable
+          // DEADLINE_EXCEEDED is handled in a special way (retry till the root gRPC context is
+          // expired)
           add(new RpcRetryOptions.DoNotRetryItem(Status.Code.INVALID_ARGUMENT, null));
           add(new RpcRetryOptions.DoNotRetryItem(Status.Code.NOT_FOUND, null));
           add(new RpcRetryOptions.DoNotRetryItem(Status.Code.ALREADY_EXISTS, null));

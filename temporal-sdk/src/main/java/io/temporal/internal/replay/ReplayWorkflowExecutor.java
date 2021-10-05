@@ -89,20 +89,28 @@ final class ReplayWorkflowExecutor {
   private void completeWorkflow() {
     if (cancelRequested) {
       workflowStateMachines.cancelWorkflow();
-      metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
+      if (!workflowStateMachines.isReplaying()) {
+        metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
+      }
     } else if (failure != null) {
       workflowStateMachines.failWorkflow(failure.getFailure());
-      metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
+      if (!workflowStateMachines.isReplaying()) {
+        metricsScope.counter(MetricsType.WORKFLOW_FAILED_COUNTER).inc(1);
+      }
     } else {
       ContinueAsNewWorkflowExecutionCommandAttributes attributes =
           context.getContinueAsNewOnCompletion();
       if (attributes != null) {
         workflowStateMachines.continueAsNewWorkflow(attributes);
-        metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
+        if (!workflowStateMachines.isReplaying()) {
+          metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
+        }
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
         workflowStateMachines.completeWorkflow(workflowOutput);
-        metricsScope.counter(MetricsType.WORKFLOW_COMPLETED_COUNTER).inc(1);
+        if (!workflowStateMachines.isReplaying()) {
+          metricsScope.counter(MetricsType.WORKFLOW_COMPLETED_COUNTER).inc(1);
+        }
       }
     }
 

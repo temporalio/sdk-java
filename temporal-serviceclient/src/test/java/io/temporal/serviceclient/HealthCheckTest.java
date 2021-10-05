@@ -30,32 +30,30 @@ public class HealthCheckTest {
 
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-  private static final String HEALTH_CHECK_SERVICE_NAME =
-      "temporal.api.workflowservice.v1.WorkflowService";
+
+  public static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Test
   public void testHealthCheck() {
+    WorkflowServiceStubs workflowServiceStubs = null;
     if (useDockerService) {
       try {
-        WorkflowServiceStubsImpl service =
-            (WorkflowServiceStubsImpl) WorkflowServiceStubs.newInstance();
-        service.checkHealth(HEALTH_CHECK_SERVICE_NAME);
+        WorkflowServiceStubsOptions stubsOptions = WorkflowServiceStubsOptions.getDefaultInstance();
+        if (temporalServiceAddress != null) {
+          stubsOptions =
+              WorkflowServiceStubsOptions.newBuilder(stubsOptions)
+                  .setTarget(temporalServiceAddress)
+                  .build();
+        }
+        // Stub creation triggers health check by default, unless disableHealthCheck flag is set in
+        // the WorkflowServiceStubsOptions.
+        workflowServiceStubs = WorkflowServiceStubs.newInstance(stubsOptions);
       } catch (Exception e) {
         Assert.fail("Health check failed");
-      }
-    }
-  }
-
-  @Test
-  public void testUnhealthyStatus() {
-    if (useDockerService) {
-      try {
-        WorkflowServiceStubsImpl service =
-            (WorkflowServiceStubsImpl) WorkflowServiceStubs.newInstance();
-        service.checkHealth("IncorrectServiceName");
-        Assert.fail("Health check for IncorrectServiceName should fail");
-      } catch (RuntimeException e) {
-        Assert.assertTrue(e.getMessage().startsWith("Health check returned unhealthy status: "));
+      } finally {
+        if (workflowServiceStubs != null) {
+          workflowServiceStubs.shutdown();
+        }
       }
     }
   }

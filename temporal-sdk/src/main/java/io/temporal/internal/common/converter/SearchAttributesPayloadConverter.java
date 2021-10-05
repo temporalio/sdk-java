@@ -29,6 +29,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.converter.EncodingKeys;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
@@ -85,18 +86,18 @@ public final class SearchAttributesPayloadConverter {
 
   public Object fromData(Payload payload) throws DataConverterException {
     ByteString data = payload.getData();
-    ByteString type = payload.getMetadataMap().get(EncodingKeys.METADATA_TYPE_KEY);
-    Type javaType = (type == null) ? null : encodedTypeToJavaType(type.toStringUtf8());
+    ByteString dataType = payload.getMetadataMap().get(EncodingKeys.METADATA_TYPE_KEY);
+    Type type = (dataType == null) ? null : encodedTypeToJavaType(dataType.toStringUtf8());
     if (data.isEmpty()) {
       log.warn("No data in payload: {}", payload);
       return payload;
-    } else if (javaType == null) {
+    } else if (type == null) {
       log.warn("Absent type metadata or invalid search attribute type: {}", payload);
       return payload;
     } else {
       try {
-        JavaType reference = mapper.getTypeFactory().constructType(javaType);
-        return mapper.readValue(data.toByteArray(), reference);
+        JavaType javaType = mapper.getTypeFactory().constructType(type);
+        return mapper.readValue(data.toByteArray(), javaType);
       } catch (IOException e) {
         throw new DataConverterException(e);
       }

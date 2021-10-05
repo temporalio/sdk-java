@@ -116,7 +116,9 @@ class SyncWorkflow implements ReplayWorkflow {
             result,
             lastFailure);
 
-    workflowProc = new WorkflowExecuteRunnable(syncContext, workflow, startEvent);
+    workflowProc =
+        new WorkflowExecuteRunnable(
+            syncContext, workflow, startEvent, workflowImplementationOptions);
     // The following order is ensured by this code and DeterministicRunner implementation:
     // 1. workflow.initialize
     // 2. signal handler (if signalWithStart was called)

@@ -41,11 +41,12 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.common.converter.SearchAttributesUtil.Pair;
 import io.temporal.internal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.workflow.Functions;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -59,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,9 +69,25 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowStoreImpl.class);
   private static final int TASK_QUEUE_POLLER_TIMEOUT = 500;
 
+  private static final String TEST_KEY_STRING = "CustomStringField";
+  private static final String TEST_KEY_INTEGER = "CustomIntField";
+  private static final String TEST_KEY_DATE_TIME = "CustomDatetimeField";
+  private static final String TEST_KEY_DOUBLE = "CustomDoubleField";
+  private static final String TEST_KEY_BOOL = "CustomBoolField";
+
   private final Lock lock = new ReentrantLock();
   private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
-  private final Map<String, Pair<String, SearchAttributeType>> searchAttributes = new HashMap<>();
+  private final Map<String, SearchAttributeType> searchAttributes =
+      new HashMap<String, SearchAttributeType>() {
+        {
+          put(TEST_KEY_STRING, SearchAttributeType.String);
+          put(TEST_KEY_INTEGER, SearchAttributeType.Int);
+          put(TEST_KEY_DOUBLE, SearchAttributeType.Double);
+          put(TEST_KEY_BOOL, SearchAttributeType.Bool);
+          put(TEST_KEY_DATE_TIME, SearchAttributeType.Datetime);
+        }
+      };
+
   private final Map<TaskQueueId, BlockingQueue<PollActivityTaskQueueResponse.Builder>>
       activityTaskQueues = new HashMap<>();
   private final Map<TaskQueueId, BlockingQueue<PollWorkflowTaskQueueResponse.Builder>>
@@ -181,7 +199,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   public TestWorkflowStoreImpl(long initialTimeMillis) {
-    timerService = new SelfAdvancingTimerImpl(initialTimeMillis);
+    timerService = new SelfAdvancingTimerImpl(initialTimeMillis, Clock.systemDefaultZone());
     // locked until the first save
     emptyHistoryLockHandle = timerService.lockTimeSkipping("TestWorkflowStoreImpl constructor");
   }
@@ -301,11 +319,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
           .withDescription("Unable to read search attribute type: " + type)
           .asRuntimeException();
     }
-    searchAttributes.put(name, new Pair(null, encodedType));
+    searchAttributes.put(name, encodedType);
   }
 
   @Override
-  public Map<String, Pair<String, SearchAttributeType>> getRegisteredSearchAttribute() {
+  public Map<String, SearchAttributeType> getRegisteredSearchAttributes() {
     return searchAttributes;
   }
 
@@ -452,12 +470,23 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     lock.lock();
     try {
       history = getHistoryStore(executionId);
-      if (!getRequest.getWaitNewEvent()
-          && getRequest.getHistoryEventFilterType()
-              != HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT) {
+      if (!getRequest.getWaitNewEvent()) {
         List<HistoryEvent> events = history.getEventsLocked();
         // Copy the list as it is mutable. Individual events assumed immutable.
-        ArrayList<HistoryEvent> eventsCopy = new ArrayList<>(events);
+        List<HistoryEvent> eventsCopy =
+            events.stream()
+                .filter(
+                    e -> {
+                      if (getRequest.getHistoryEventFilterType()
+                          != HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT) {
+                        return true;
+                      }
+
+                      // They asked for only the close event. There are a variety of ways a workflow
+                      // can close.
+                      return WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(e);
+                    })
+                .collect(Collectors.toList());
         return GetWorkflowExecutionHistoryResponse.newBuilder()
             .setHistory(History.newBuilder().addAllEvents(eventsCopy))
             .build();
@@ -499,10 +528,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       {
         for (Entry<ExecutionId, HistoryStore> entry : this.histories.entrySet()) {
           result.append(entry.getKey());
-          result.append("\n");
+          result.append("\n\n");
           result.append(
-              WorkflowExecutionUtils.prettyPrintHistory(
-                  entry.getValue().getEventsLocked().iterator(), true));
+              new WorkflowExecutionHistory(
+                      History.newBuilder().addAllEvents(entry.getValue().getEventsLocked()).build())
+                  .toProtoText(true));
           result.append("\n");
         }
       }

@@ -26,9 +26,9 @@ import io.temporal.common.converter.JacksonJsonPayloadConverter
 import io.temporal.common.converter.KotlinObjectMapperFactory
 import io.temporal.internal.async.FunctionWrappingUtil
 import io.temporal.internal.sync.AsyncInternal
-import io.temporal.testing.TestWorkflowRule
-import junit.framework.Assert.assertTrue
-import org.junit.Assert
+import io.temporal.testing.internal.SDKTestWorkflowRule
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicBoolean
@@ -46,7 +46,7 @@ class KotlinAsyncCompanionFunctionTest {
 
   @Rule
   @JvmField
-  var testWorkflowRule: TestWorkflowRule = TestWorkflowRule.newBuilder()
+  var testWorkflowRule: SDKTestWorkflowRule = SDKTestWorkflowRule.newBuilder()
     .setWorkflowTypes(CompanionFunctionReferenceWorkflowImpl::class.java)
     .setWorkflowClientOptions(
       WorkflowClientOptions.newBuilder()
@@ -63,14 +63,14 @@ class KotlinAsyncCompanionFunctionTest {
 
   class CompanionFunctionReferenceWorkflowImpl : ParentWorkflow {
     override fun execute() {
-      Assert.assertFalse(
+      assertFalse(
         "This is a reference to companion object static function," +
           " it's shouldn't be recognized as a method reference to a" +
           " Temporal async stub",
         AsyncInternal.isAsync((KotlinAsyncCompanionFunctionTest)::setSuccess)
       )
 
-      Assert.assertFalse(
+      assertFalse(
         "This is a reference to companion object static function," +
           " it's shouldn't be recognized as a method reference to a" +
           " Temporal async stub",

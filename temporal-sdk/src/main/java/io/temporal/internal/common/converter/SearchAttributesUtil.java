@@ -79,26 +79,4 @@ public class SearchAttributesUtil {
     Bool,
     Datetime
   }
-
-  public static class Pair<D, T> {
-    private D data;
-    private T type;
-
-    public Pair(D data, T type) {
-      this.data = data;
-      this.type = type;
-    }
-
-    public void setData(D first) {
-      this.data = first;
-    }
-
-    public D getData() {
-      return data;
-    }
-
-    public T getType() {
-      return type;
-    }
-  }
 }

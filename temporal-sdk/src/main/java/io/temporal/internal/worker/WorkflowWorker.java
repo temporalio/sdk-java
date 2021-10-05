@@ -39,8 +39,8 @@ import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
+import io.temporal.internal.client.WorkflowClientHelper;
 import io.temporal.internal.common.WorkflowExecutionHistory;
-import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -151,7 +151,7 @@ public final class WorkflowWorker
   public Optional<Payloads> queryWorkflowExecution(
       WorkflowExecution exec, String queryType, Optional<Payloads> args) throws Exception {
     GetWorkflowExecutionHistoryResponse historyResponse =
-        WorkflowExecutionUtils.getHistoryPage(
+        WorkflowClientHelper.getHistoryPage(
             service, namespace, exec, ByteString.EMPTY, options.getMetricsScope());
     History history = historyResponse.getHistory();
     WorkflowExecutionHistory workflowExecutionHistory = new WorkflowExecutionHistory(history);

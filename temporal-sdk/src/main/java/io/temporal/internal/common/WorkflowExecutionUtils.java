@@ -19,43 +19,28 @@
 
 package io.temporal.internal.common;
 
-import static io.temporal.serviceclient.MetricsTag.HISTORY_LONG_POLL_CALL_OPTIONS_KEY;
-import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.io.CharStreams;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
-import com.uber.m3.tally.Scope;
-import io.grpc.Deadline;
-import io.grpc.Status;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.HistoryEventOrBuilder;
 import io.temporal.api.history.v1.WorkflowExecutionCanceledEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionCompletedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionTerminatedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionTimedOutEventAttributes;
-import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
@@ -63,30 +48,17 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
-import io.temporal.internal.retryer.GrpcRetryer;
-import io.temporal.serviceclient.CheckedExceptionWrapper;
-import io.temporal.serviceclient.RpcRetryOptions;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.rpcretry.DefaultStubLongPollRpcRetryOptions;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
-import java.time.Duration;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
- * Convenience methods to be used by unit tests and during development.
- *
- * @author fateev
+ * Convenience methods to be used by unit tests and during development. Intended to be a collection
+ * of relatively small static utility methods.
  */
 public class WorkflowExecutionUtils {
 
@@ -97,47 +69,7 @@ public class WorkflowExecutionUtils {
    */
   private static final String INDENTATION = "  ";
 
-  /**
-   * Returns result of a workflow instance execution or throws an exception if workflow did not
-   * complete successfully.
-   *
-   * @param workflowType is optional.
-   * @param metricsScope metrics with NAMESPACE tag populated
-   * @throws TimeoutException if workflow didn't complete within specified timeout
-   * @throws CanceledFailure if workflow was canceled
-   * @throws WorkflowExecutionFailedException if workflow execution failed
-   */
-  public static Optional<Payloads> getWorkflowExecutionResult(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Optional<String> workflowType,
-      Scope metricsScope,
-      DataConverter converter,
-      long timeout,
-      TimeUnit unit)
-      throws TimeoutException {
-    // getIntanceCloseEvent waits for workflow completion including new runs.
-    HistoryEvent closeEvent =
-        getInstanceCloseEvent(service, namespace, workflowExecution, metricsScope, timeout, unit);
-    return getResultFromCloseEvent(workflowExecution, workflowType, closeEvent, converter);
-  }
-
-  public static CompletableFuture<Optional<Payloads>> getWorkflowExecutionResultAsync(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Optional<String> workflowType,
-      long timeout,
-      TimeUnit unit,
-      DataConverter converter) {
-    return getInstanceCloseEventAsync(service, namespace, workflowExecution, timeout, unit)
-        .thenApply(
-            (closeEvent) ->
-                getResultFromCloseEvent(workflowExecution, workflowType, closeEvent, converter));
-  }
-
-  private static Optional<Payloads> getResultFromCloseEvent(
+  public static Optional<Payloads> getResultFromCloseEvent(
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       HistoryEvent closeEvent,
@@ -190,213 +122,9 @@ public class WorkflowExecutionUtils {
             new TimeoutFailure(null, null, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE));
       default:
         throw new RuntimeException(
-            "Workflow end state is not completed: " + prettyPrintObject(closeEvent));
+            "Workflow end state is not completed: "
+                + WorkflowExecutionUtils.prettyPrintObject(closeEvent));
     }
-  }
-
-  /**
-   * @param timeout timeout to retrieve InstanceCloseEvent in {@code unit} units. If 0 - MAX_INTEGER
-   *     will be used
-   * @param unit time unit of {@code timeout}
-   * @return an instance closing event, potentially waiting for workflow to complete.
-   */
-  public static HistoryEvent getInstanceCloseEvent(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope,
-      long timeout,
-      TimeUnit unit)
-      throws TimeoutException {
-    ByteString pageToken = ByteString.EMPTY;
-    GetWorkflowExecutionHistoryResponse response;
-    // TODO: Interrupt service long poll call on timeout and on interrupt
-    long start = System.currentTimeMillis();
-    do {
-      GetWorkflowExecutionHistoryRequest r =
-          GetWorkflowExecutionHistoryRequest.newBuilder()
-              .setNamespace(namespace)
-              .setExecution(workflowExecution)
-              .setHistoryEventFilterType(
-                  HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
-              .setWaitNewEvent(true)
-              .setNextPageToken(pageToken)
-              .build();
-
-      long elapsed = System.currentTimeMillis() - start;
-      long millisRemaining = unit.toMillis(timeout != 0 ? timeout : Integer.MAX_VALUE) - elapsed;
-
-      if (millisRemaining > 0) {
-        RpcRetryOptions retryOptions =
-            DefaultStubLongPollRpcRetryOptions.getBuilder()
-                .setExpiration(Duration.ofMillis(millisRemaining))
-                .build();
-        response =
-            GrpcRetryer.retryWithResult(
-                retryOptions,
-                () -> {
-                  long elapsedInRetry = System.currentTimeMillis() - start;
-                  Deadline expirationInRetry =
-                      Deadline.after(
-                          unit.toMillis(timeout) - elapsedInRetry, TimeUnit.MILLISECONDS);
-                  return service
-                      .blockingStub()
-                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                      .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
-                      .withDeadline(expirationInRetry)
-                      .getWorkflowExecutionHistory(r);
-                });
-        if (response == null || !response.hasHistory()) {
-          continue;
-        }
-      } else {
-        throw new TimeoutException(
-            "WorkflowId="
-                + workflowExecution.getWorkflowId()
-                + ", runId="
-                + workflowExecution.getRunId()
-                + ", timeout="
-                + timeout
-                + ", unit="
-                + unit);
-      }
-
-      pageToken = response.getNextPageToken();
-      History history = response.getHistory();
-      if (history.getEventsCount() > 0) {
-        HistoryEvent event = history.getEvents(0);
-        if (!isWorkflowExecutionCompletedEvent(event)) {
-          throw new RuntimeException("Last history event is not completion event: " + event);
-        }
-        // Workflow called continueAsNew. Start polling the new generation with new runId.
-        if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW) {
-          pageToken = ByteString.EMPTY;
-          workflowExecution =
-              WorkflowExecution.newBuilder()
-                  .setWorkflowId(workflowExecution.getWorkflowId())
-                  .setRunId(
-                      event
-                          .getWorkflowExecutionContinuedAsNewEventAttributes()
-                          .getNewExecutionRunId())
-                  .build();
-          continue;
-        }
-        return event;
-      }
-    } while (true);
-  }
-
-  /** Returns an instance closing event, potentially waiting for workflow to complete. */
-  private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
-      WorkflowServiceStubs service,
-      String namespace,
-      final WorkflowExecution workflowExecution,
-      long timeout,
-      TimeUnit unit) {
-    return getInstanceCloseEventAsync(
-        service, namespace, workflowExecution, ByteString.EMPTY, timeout, unit);
-  }
-
-  private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
-      WorkflowServiceStubs service,
-      String namespace,
-      final WorkflowExecution workflowExecution,
-      ByteString pageToken,
-      long timeout,
-      TimeUnit unit) {
-    // TODO: Interrupt service long poll call on timeout and on interrupt
-    long start = System.currentTimeMillis();
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(namespace)
-            .setExecution(workflowExecution)
-            .setHistoryEventFilterType(HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
-            .setNextPageToken(pageToken)
-            .build();
-    CompletableFuture<GetWorkflowExecutionHistoryResponse> response =
-        getWorkflowExecutionHistoryAsync(service, request, timeout, unit);
-    return response.thenComposeAsync(
-        (r) -> {
-          if (timeout != 0 && System.currentTimeMillis() - start > unit.toMillis(timeout)) {
-            throw CheckedExceptionWrapper.wrap(
-                new TimeoutException(
-                    "WorkflowId="
-                        + workflowExecution.getWorkflowId()
-                        + ", runId="
-                        + workflowExecution.getRunId()
-                        + ", timeout="
-                        + timeout
-                        + ", unit="
-                        + unit));
-          }
-          History history = r.getHistory();
-          if (history.getEventsCount() == 0) {
-            // Empty poll returned
-            return getInstanceCloseEventAsync(
-                service, namespace, workflowExecution, pageToken, timeout, unit);
-          }
-          HistoryEvent event = history.getEvents(0);
-          if (!isWorkflowExecutionCompletedEvent(event)) {
-            throw new RuntimeException("Last history event is not completion event: " + event);
-          }
-          // Workflow called continueAsNew. Start polling the new generation with new runId.
-          if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW) {
-            WorkflowExecution nextWorkflowExecution =
-                WorkflowExecution.newBuilder()
-                    .setWorkflowId(workflowExecution.getWorkflowId())
-                    .setRunId(
-                        event
-                            .getWorkflowExecutionContinuedAsNewEventAttributes()
-                            .getNewExecutionRunId())
-                    .build();
-            return getInstanceCloseEventAsync(
-                service, namespace, nextWorkflowExecution, r.getNextPageToken(), timeout, unit);
-          }
-          return CompletableFuture.completedFuture(event);
-        });
-  }
-
-  private static CompletableFuture<GetWorkflowExecutionHistoryResponse>
-      getWorkflowExecutionHistoryAsync(
-          WorkflowServiceStubs service,
-          GetWorkflowExecutionHistoryRequest r,
-          long timeout,
-          TimeUnit unit) {
-    long start = System.currentTimeMillis();
-    Deadline expiration = Deadline.after(timeout, TimeUnit.MILLISECONDS);
-    RpcRetryOptions retryOptions =
-        RpcRetryOptions.newBuilder()
-            .setBackoffCoefficient(1.5)
-            .setInitialInterval(Duration.ofMillis(1))
-            .setMaximumInterval(Duration.ofSeconds(1))
-            .setMaximumAttempts(Integer.MAX_VALUE)
-            .setExpiration(Duration.ofMillis(expiration.timeRemaining(TimeUnit.MILLISECONDS)))
-            .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
-            .addDoNotRetry(Status.Code.NOT_FOUND, null)
-            .build();
-
-    return GrpcRetryer.retryWithResultAsync(
-        retryOptions,
-        () -> {
-          CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
-          long elapsedInRetry = System.currentTimeMillis() - start;
-          Deadline expirationInRetry =
-              Deadline.after(unit.toMillis(timeout) - elapsedInRetry, TimeUnit.MILLISECONDS);
-          ListenableFuture<GetWorkflowExecutionHistoryResponse> resultFuture =
-              service.futureStub().withDeadline(expirationInRetry).getWorkflowExecutionHistory(r);
-          resultFuture.addListener(
-              () -> {
-                try {
-                  result.complete(resultFuture.get());
-                } catch (ExecutionException e) {
-                  result.completeExceptionally(e.getCause());
-                } catch (Exception e) {
-                  result.completeExceptionally(e);
-                }
-              },
-              ForkJoinPool.commonPool());
-          return result;
-        });
   }
 
   public static boolean isWorkflowExecutionCompletedEvent(HistoryEventOrBuilder event) {
@@ -488,48 +216,6 @@ public class WorkflowExecutionUtils {
     return failureCause;
   }
 
-  /**
-   * Blocks until workflow instance completes. <strong>Never</strong> use in production setting as
-   * polling for worklow instance status is an expensive operation.
-   *
-   * @param workflowExecution workflowId and optional runId
-   * @return instance close status
-   */
-  public static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope) {
-    try {
-      return waitForWorkflowInstanceCompletion(
-          service, namespace, workflowExecution, metricsScope, 0, TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      throw new Error("should never happen", e);
-    }
-  }
-
-  /**
-   * Waits up to specified timeout for workflow instance completion. <strong>Never</strong> use in
-   * production setting as polling for worklow instance status is an expensive operation.
-   *
-   * @param workflowExecution workflowId and optional runId
-   * @param metricsScope to use when reporting service calls
-   * @param timeout maximum time to wait for completion. 0 means wait forever.
-   * @return instance close status
-   */
-  public static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope,
-      long timeout,
-      TimeUnit unit)
-      throws TimeoutException {
-    HistoryEvent closeEvent =
-        getInstanceCloseEvent(service, namespace, workflowExecution, metricsScope, timeout, unit);
-    return getCloseStatus(closeEvent);
-  }
-
   public static WorkflowExecutionStatus getCloseStatus(HistoryEvent event) {
     switch (event.getEventType()) {
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
@@ -547,205 +233,6 @@ public class WorkflowExecutionUtils {
       default:
         throw new IllegalArgumentException("Not a close event: " + event);
     }
-  }
-
-  /**
-   * Like {@link #waitForWorkflowInstanceCompletion(WorkflowServiceStubs, String, WorkflowExecution,
-   * Scope, long, TimeUnit)} , except will wait for continued generations of the original workflow
-   * execution too.
-   *
-   * @see #waitForWorkflowInstanceCompletion(WorkflowServiceStubs, String, WorkflowExecution, Scope,
-   *     long, TimeUnit)
-   */
-  public static WorkflowExecutionStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope,
-      long timeout,
-      TimeUnit unit)
-      throws TimeoutException {
-
-    WorkflowExecution lastExecutionToRun = workflowExecution;
-    long millisecondsAtFirstWait = System.currentTimeMillis();
-    WorkflowExecutionStatus lastExecutionToRunCloseStatus =
-        waitForWorkflowInstanceCompletion(
-            service, namespace, lastExecutionToRun, metricsScope, timeout, unit);
-
-    // keep waiting if the instance continued as new
-    while (lastExecutionToRunCloseStatus
-        == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW) {
-      // get the new execution's information
-      HistoryEvent closeEvent =
-          getInstanceCloseEvent(
-              service, namespace, lastExecutionToRun, metricsScope, timeout, unit);
-      WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewAttributes =
-          closeEvent.getWorkflowExecutionContinuedAsNewEventAttributes();
-
-      WorkflowExecution newGenerationExecution =
-          WorkflowExecution.newBuilder()
-              .setRunId(continuedAsNewAttributes.getNewExecutionRunId())
-              .setWorkflowId(lastExecutionToRun.getWorkflowId())
-              .build();
-
-      // and wait for it
-      long currentTime = System.currentTimeMillis();
-      long millisecondsSinceFirstWait = currentTime - millisecondsAtFirstWait;
-      long timeoutInSecondsForNextWait =
-          unit.toMillis(timeout) - (millisecondsSinceFirstWait / 1000L);
-
-      lastExecutionToRunCloseStatus =
-          waitForWorkflowInstanceCompletion(
-              service,
-              namespace,
-              newGenerationExecution,
-              metricsScope,
-              timeoutInSecondsForNextWait,
-              TimeUnit.MILLISECONDS);
-      lastExecutionToRun = newGenerationExecution;
-    }
-
-    return lastExecutionToRunCloseStatus;
-  }
-
-  /**
-   * Like {@link #waitForWorkflowInstanceCompletion(WorkflowServiceStubs, String, WorkflowExecution,
-   * Scope, long, TimeUnit)} , but with no timeout.*
-   */
-  public static WorkflowExecutionStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope)
-      throws InterruptedException {
-    try {
-      return waitForWorkflowInstanceCompletionAcrossGenerations(
-          service, namespace, workflowExecution, metricsScope, 0L, TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      throw new Error("should never happen", e);
-    }
-  }
-
-  public static WorkflowExecutionInfo describeWorkflowInstance(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope) {
-    DescribeWorkflowExecutionRequest describeRequest =
-        DescribeWorkflowExecutionRequest.newBuilder()
-            .setNamespace(namespace)
-            .setExecution(workflowExecution)
-            .build();
-    DescribeWorkflowExecutionResponse executionDetail =
-        service
-            .blockingStub()
-            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-            .describeWorkflowExecution(describeRequest);
-    WorkflowExecutionInfo instanceMetadata = executionDetail.getWorkflowExecutionInfo();
-    return instanceMetadata;
-  }
-
-  public static GetWorkflowExecutionHistoryResponse getHistoryPage(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      ByteString nextPageToken,
-      Scope metricsScope) {
-    GetWorkflowExecutionHistoryRequest getHistoryRequest =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(namespace)
-            .setExecution(workflowExecution)
-            .setNextPageToken(nextPageToken)
-            .build();
-    return service
-        .blockingStub()
-        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-        .getWorkflowExecutionHistory(getHistoryRequest);
-  }
-
-  /** Returns workflow instance history in a human readable format. */
-  public static String prettyPrintHistory(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope) {
-    return prettyPrintHistory(service, namespace, workflowExecution, true, metricsScope);
-  }
-  /**
-   * Returns workflow instance history in a human readable format.
-   *
-   * @param showWorkflowTasks when set to false workflow task events (command events) are not
-   *     included
-   * @param metricsScope
-   */
-  public static String prettyPrintHistory(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      boolean showWorkflowTasks,
-      Scope metricsScope) {
-    Iterator<HistoryEvent> events = getHistory(service, namespace, workflowExecution, metricsScope);
-    return prettyPrintHistory(events, showWorkflowTasks);
-  }
-
-  public static Iterator<HistoryEvent> getHistory(
-      WorkflowServiceStubs service,
-      String namespace,
-      WorkflowExecution workflowExecution,
-      Scope metricsScope) {
-    return new Iterator<HistoryEvent>() {
-      ByteString nextPageToken = ByteString.EMPTY;
-      Iterator<HistoryEvent> current;
-
-      {
-        getNextPage();
-      }
-
-      @Override
-      public boolean hasNext() {
-        return current.hasNext() || !nextPageToken.isEmpty();
-      }
-
-      @Override
-      public HistoryEvent next() {
-        if (current.hasNext()) {
-          return current.next();
-        }
-        getNextPage();
-        return current.next();
-      }
-
-      private void getNextPage() {
-        GetWorkflowExecutionHistoryResponse history =
-            getHistoryPage(service, namespace, workflowExecution, nextPageToken, metricsScope);
-        current = history.getHistory().getEventsList().iterator();
-        nextPageToken = history.getNextPageToken();
-      }
-    };
-  }
-
-  /**
-   * Returns workflow instance history in a human readable format.
-   *
-   * @param showWorkflowTasks when set to false workflow task events (command events) are not
-   *     included
-   * @param history Workflow instance history
-   */
-  public static String prettyPrintHistory(History history, boolean showWorkflowTasks) {
-    return prettyPrintHistory(history.getEventsList().iterator(), showWorkflowTasks);
-  }
-
-  public static String prettyPrintHistory(
-      Iterator<HistoryEvent> events, boolean showWorkflowTasks) {
-    StringBuilder result = new StringBuilder();
-    while (events.hasNext()) {
-      HistoryEvent event = events.next();
-      if (!showWorkflowTasks && event.getEventType().toString().startsWith("WorkflowTask")) {
-        continue;
-      }
-      result.append(prettyPrintObject(event));
-    }
-    return result.toString();
   }
 
   public static String prettyPrintCommands(Iterable<Command> commands) {

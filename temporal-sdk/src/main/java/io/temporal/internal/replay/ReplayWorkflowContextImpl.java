@@ -138,12 +138,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public void setContinueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-    workflowContext.setContinueAsNewOnCompletion(attributes);
-  }
-
-  @Override
   public Duration getWorkflowTaskTimeout() {
     return workflowContext.getWorkflowTaskTimeout();
   }
@@ -185,11 +179,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public long getRunStartedTimestampMillis() {
     return workflowContext.getRunStartedTimestampMillis();
-  }
-
-  @Override
-  public long getWorkflowExecutionExpirationTimestampMillis() {
-    return workflowContext.getWorkflowExecutionExpirationTimestampMillis();
   }
 
   @Override

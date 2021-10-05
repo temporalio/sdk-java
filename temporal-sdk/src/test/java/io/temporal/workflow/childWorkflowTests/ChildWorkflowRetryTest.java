@@ -66,7 +66,6 @@ public class ChildWorkflowRetryTest {
           .setActivityImplementations(angryChildActivity)
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
-                  .setBinaryChecksum(SDKTestWorkflowRule.BINARY_CHECKSUM)
                   .setInterceptors(
                       new WorkflowClientInterceptorBase() {
                         @Override
@@ -137,8 +136,6 @@ public class ChildWorkflowRetryTest {
 
   public static class TestChildWorkflowRetryWorkflow implements TestWorkflow1 {
 
-    private ITestChild child;
-
     public TestChildWorkflowRetryWorkflow() {}
 
     @Override
@@ -155,7 +152,7 @@ public class ChildWorkflowRetryTest {
                       .setMaximumAttempts(3)
                       .build())
               .build();
-      child = Workflow.newChildWorkflowStub(ITestChild.class, options);
+      ITestChild child = Workflow.newChildWorkflowStub(ITestChild.class, options);
 
       return child.execute(taskQueue, 0);
     }

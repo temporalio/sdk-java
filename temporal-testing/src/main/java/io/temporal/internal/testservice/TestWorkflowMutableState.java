@@ -31,6 +31,7 @@ import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.api.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
@@ -104,7 +105,7 @@ interface TestWorkflowMutableState {
   /** @return is cancel requested? */
   boolean heartbeatActivityTask(long scheduledEventId, Payloads details);
 
-  boolean heartbeatActivityTaskById(String id, Payloads details);
+  boolean heartbeatActivityTaskById(String id, Payloads details, String identity);
 
   void signal(SignalWorkflowExecutionRequest signalRequest);
 
@@ -122,6 +123,8 @@ interface TestWorkflowMutableState {
   void cancelActivityTaskById(String id, RespondActivityTaskCanceledByIdRequest canceledRequest);
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline);
+
+  DescribeWorkflowExecutionResponse describeWorkflowExecution();
 
   void completeQuery(QueryId queryId, RespondQueryTaskCompletedRequest completeRequest);
 

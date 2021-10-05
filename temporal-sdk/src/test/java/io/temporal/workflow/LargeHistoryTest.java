@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -46,8 +45,11 @@ public class LargeHistoryTest {
           .build();
 
   @Test
-  @Ignore // Requires DEBUG_TIMEOUTS=true
   public void testLargeHistory() {
+    // this test fails with external docker and needs much larger timeouts
+    if (testWorkflowRule.isUseExternalService()) {
+      return;
+    }
     final int activityCount = 1000;
     TestWorkflow3 workflowStub =
         testWorkflowRule

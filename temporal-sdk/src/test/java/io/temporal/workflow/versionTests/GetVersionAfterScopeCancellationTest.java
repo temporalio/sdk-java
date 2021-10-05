@@ -42,29 +42,6 @@ import org.junit.Test;
  */
 public class GetVersionAfterScopeCancellationTest {
 
-  public static final class ReminderWorkflowImpl implements ReminderWorkflow {
-
-    @Override
-    public void start() {
-      Workflow.sleep(Duration.ofDays(1));
-    }
-
-    @Override
-    public void signal() {
-      CancellationScope activeScope1 =
-          Workflow.newCancellationScope(() -> Workflow.newTimer(Duration.ofHours(4)));
-      activeScope1.run();
-
-      Workflow.getVersion("some-change", Workflow.DEFAULT_VERSION, 1);
-
-      activeScope1.cancel();
-
-      // it's critical for this duration to be short for the test to fail originally (4s or less)
-      Duration secondScopeTimerDuration = Duration.ofSeconds(4);
-      Workflow.newTimer(secondScopeTimerDuration);
-    }
-  }
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -95,5 +72,28 @@ public class GetVersionAfterScopeCancellationTest {
 
     @SignalMethod
     void signal();
+  }
+
+  public static final class ReminderWorkflowImpl implements ReminderWorkflow {
+
+    @Override
+    public void start() {
+      Workflow.sleep(Duration.ofSeconds(7));
+    }
+
+    @Override
+    public void signal() {
+      CancellationScope activeScope1 =
+          Workflow.newCancellationScope(() -> Workflow.newTimer(Duration.ofHours(4)));
+      activeScope1.run();
+
+      Workflow.getVersion("some-change", Workflow.DEFAULT_VERSION, 1);
+
+      activeScope1.cancel();
+
+      // it's critical for this duration to be short for the test to fail originally (4s or less)
+      Duration secondScopeTimerDuration = Duration.ofSeconds(2);
+      Workflow.newTimer(secondScopeTimerDuration);
+    }
   }
 }

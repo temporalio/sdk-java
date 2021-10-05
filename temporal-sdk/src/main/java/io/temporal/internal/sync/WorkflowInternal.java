@@ -384,7 +384,6 @@ public final class WorkflowInternal {
     return new AllOfPromise(promises);
   }
 
-  @SuppressWarnings("unchecked")
   public static Promise<Void> promiseAllOf(Promise<?>... promises) {
     return new AllOfPromise(promises);
   }
@@ -433,6 +432,10 @@ public final class WorkflowInternal {
 
   public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
     Payload memo = getRootWorkflowContext().getContext().getMemo(key);
+    if (memo == null) {
+      return null;
+    }
+
     return getDataConverter().fromPayload(memo, valueClass, valueType);
   }
 

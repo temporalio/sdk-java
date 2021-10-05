@@ -19,6 +19,10 @@
 
 package io.temporal.internal.common;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -30,6 +34,8 @@ import java.util.List;
 
 /** Contains workflow execution ids and the history */
 public final class WorkflowExecutionHistory {
+  private static final Gson PRETTY_PRINTER = new GsonBuilder().setPrettyPrinting().create();
+
   private final History history;
 
   public WorkflowExecutionHistory(History history) {
@@ -38,10 +44,12 @@ public final class WorkflowExecutionHistory {
   }
 
   public static WorkflowExecutionHistory fromJson(String serialized) {
+    String protoJson = HistoryJsonUtils.historyFormatJsonToProtoJson(serialized);
+
     JsonFormat.Parser parser = JsonFormat.parser();
     History.Builder historyBuilder = History.newBuilder();
     try {
-      parser.merge(serialized, historyBuilder);
+      parser.merge(protoJson, historyBuilder);
     } catch (InvalidProtocolBufferException e) {
       throw new DataConverterException(e);
     }
@@ -65,17 +73,32 @@ public final class WorkflowExecutionHistory {
     }
   }
 
-  public String toJson() {
+  /** @return full json that can be used for replay and which is compatible with tctl */
+  public String toJson(boolean prettyPrint) {
     JsonFormat.Printer printer = JsonFormat.printer();
     try {
-      return printer.print(history);
+      String protoJson = printer.print(history);
+      String historyFormatJson = HistoryJsonUtils.protoJsonToHistoryFormatJson(protoJson);
+
+      if (prettyPrint) {
+        JsonElement je = JsonParser.parseString(historyFormatJson);
+        return PRETTY_PRINTER.toJson(je);
+      } else {
+        return historyFormatJson;
+      }
     } catch (InvalidProtocolBufferException e) {
       throw new DataConverterException(e);
     }
   }
 
-  public String toPrettyPrintedJson() {
-    return toJson();
+  /**
+   * Returns workflow instance history in a human readable format.
+   *
+   * @param showWorkflowTasks when set to false workflow task events (command events) are not
+   *     included
+   */
+  public String toProtoText(boolean showWorkflowTasks) {
+    return HistoryProtoTextUtils.toProtoText(history, showWorkflowTasks);
   }
 
   public WorkflowExecution getWorkflowExecution() {

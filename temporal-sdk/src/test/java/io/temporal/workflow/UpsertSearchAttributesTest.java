@@ -19,7 +19,6 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -44,10 +43,8 @@ public class UpsertSearchAttributesTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setNamespace(NAMESPACE)
           .setWorkflowTypes(TestUpsertSearchAttributesImpl.class)
           .setActivityImplementations(new TestActivitiesImpl())
-          .setNamespace(NAMESPACE)
           .build();
 
   @Test

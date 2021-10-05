@@ -32,8 +32,9 @@ import com.cronutils.model.definition.CronDefinition;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
@@ -54,9 +55,11 @@ import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.PendingActivityState;
 import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
@@ -82,6 +85,12 @@ import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.api.query.v1.QueryRejected;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.workflow.v1.PendingActivityInfo;
+import io.temporal.api.workflow.v1.PendingChildExecutionInfo;
+import io.temporal.api.workflow.v1.WorkflowExecutionConfig;
+import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
@@ -103,9 +112,7 @@ import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.common.converter.EncodingKeys;
 import io.temporal.internal.common.converter.SearchAttributesUtil;
-import io.temporal.internal.common.converter.SearchAttributesUtil.SearchAttributeType;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
 import io.temporal.internal.testservice.StateMachines.CancelExternalData;
@@ -137,6 +144,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -250,40 +258,25 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       request.setWorkflowTaskTimeout(Durations.fromMillis(taskTimeoutMillis));
     }
 
-    request.setSearchAttributes(getValidSearchAttributes(request));
+    validateSearchAttributesInRequest(request);
     return request.build();
   }
 
-  private SearchAttributes.Builder getValidSearchAttributes(
-      StartWorkflowExecutionRequest.Builder request) {
+  private void validateSearchAttributesInRequest(StartWorkflowExecutionRequest.Builder request) {
 
     SearchAttributes.Builder searchAttributes = request.getSearchAttributes().toBuilder();
-    Map<String, SearchAttributesUtil.Pair<String, SearchAttributeType>> registeredAttributes =
-        store.getRegisteredSearchAttribute();
+    Map<String, SearchAttributesUtil.SearchAttributeType> registeredAttributes =
+        store.getRegisteredSearchAttributes();
 
     for (Map.Entry<String, Payload> searchAttribute :
         searchAttributes.getIndexedFieldsMap().entrySet()) {
-
       String key = searchAttribute.getKey();
-      Payload val = searchAttribute.getValue();
-
       if (!registeredAttributes.containsKey(key)) {
         throw Status.INVALID_ARGUMENT
             .withDescription(key + " is not a valid search attribute name")
             .asRuntimeException();
-      } else {
-        SearchAttributeType type = registeredAttributes.get(key).getType();
-        searchAttributes.putIndexedFields(
-            key,
-            val.toBuilder()
-                .putMetadata(
-                    EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
-                .putMetadata(EncodingKeys.METADATA_TYPE_KEY, ByteString.copyFromUtf8(type.name()))
-                .build());
       }
     }
-
-    return searchAttributes;
   }
 
   /** Based on validateStartWorkflowExecutionRequest from historyEngine.go */
@@ -351,11 +344,23 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
       RequestContext ctx = new RequestContext(clock, this, nextEventId);
       updater.apply(ctx);
-      if (concurrentWorkflowTask && workflow.getState() != State.TIMED_OUT) {
+
+      if (StateUtils.isWorkflowExecutionForcefullyCompleted(workflow.getState())) {
+        // if we completed the workflow "externally", not through the result of workflow task
+        // (timed out or got a termination request) -
+        // we don't buffer the events and don't wait till the finish of the workflow task
+        // in-progress even if there is one,
+        // but instead we apply them to the history immediately.
+        nextEventId = ctx.commitChanges(store);
+      } else if (concurrentWorkflowTask) {
+        // if there is a concurrent workflow task in progress and the workflow wasn't terminated and
+        // considered timed out,
+        // we buffer the events and wait till the finish of the workflow task
         workflowTaskStateMachine.getData().bufferedEvents.add(ctx);
         ctx.fireCallbacks(0);
         store.applyTimersAndLocks(ctx);
       } else {
+        // if there is no concurrent workflow task in progress - apply events to the history
         nextEventId = ctx.commitChanges(store);
       }
     } catch (StatusRuntimeException e) {
@@ -658,10 +663,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       .build();
               CancelExternalWorkflowExecutionCallerInfo info =
                   new CancelExternalWorkflowExecutionCallerInfo(
-                      ctx.getNamespace(),
-                      cancelStateMachine.getData().initiatedEventId,
-                      executionId.getExecution(),
-                      this);
+                      ctx.getNamespace(), cancelStateMachine.getData().initiatedEventId, this);
               try {
                 service.requestCancelWorkflowExecution(request, Optional.of(info));
               } catch (Exception e) {
@@ -747,22 +749,27 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processScheduleActivityTask(
-      RequestContext ctx, ScheduleActivityTaskCommandAttributes a, long workflowTaskCompletedId) {
-    a = validateScheduleActivityTask(a);
-    String activityId = a.getActivityId();
+      RequestContext ctx,
+      ScheduleActivityTaskCommandAttributes attributes,
+      long workflowTaskCompletedId) {
+    attributes = validateScheduleActivityTask(attributes);
+    String activityId = attributes.getActivityId();
     Long activityScheduledEventId = activityById.get(activityId);
     if (activityScheduledEventId != null) {
       throw Status.FAILED_PRECONDITION
           .withDescription("Already open activity with " + activityId)
           .asRuntimeException();
     }
-    StateMachine<ActivityTaskData> activity = newActivityStateMachine(store, this.startRequest);
+    StateMachine<ActivityTaskData> activityStateMachine =
+        newActivityStateMachine(store, this.startRequest);
     long activityScheduleId = ctx.getNextEventId();
-    activities.put(activityScheduleId, activity);
+    activities.put(activityScheduleId, activityStateMachine);
     activityById.put(activityId, activityScheduleId);
-    activity.action(StateMachines.Action.INITIATE, ctx, a, workflowTaskCompletedId);
-    ActivityTaskScheduledEventAttributes scheduledEvent = activity.getData().scheduledEvent;
-    int attempt = activity.getData().getAttempt();
+    activityStateMachine.action(
+        StateMachines.Action.INITIATE, ctx, attributes, workflowTaskCompletedId);
+    ActivityTaskScheduledEventAttributes scheduledEvent =
+        activityStateMachine.getData().scheduledEvent;
+    int attempt = activityStateMachine.getData().getAttempt();
     ctx.addTimer(
         ProtobufTimeUtils.toJavaDuration(scheduledEvent.getScheduleToCloseTimeout()),
         () ->
@@ -1115,12 +1122,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processStartTimer(
       RequestContext ctx, StartTimerCommandAttributes a, long workflowTaskCompletedId) {
     String timerId = a.getTimerId();
-    if (timerId == null) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("A valid TimerId is not set on StartTimerCommand")
-          .asRuntimeException();
-    }
     StateMachine<TimerData> timer = timers.get(timerId);
+
     if (timer != null) {
       throw Status.FAILED_PRECONDITION
           .withDescription("Already open timer with " + timerId)
@@ -1436,15 +1439,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     workflow.action(Action.CONTINUE_AS_NEW, ctx, d, workflowTaskCompletedId);
     workflowTaskStateMachine.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
-    String runId =
-        service.continueAsNew(
-            startRequest,
-            event.getWorkflowExecutionContinuedAsNewEventAttributes(),
-            workflow.getData().retryState,
-            identity,
-            getExecutionId(),
-            parent,
-            parentChildInitiatedEventId);
+    service.continueAsNew(
+        startRequest,
+        event.getWorkflowExecutionContinuedAsNewEventAttributes(),
+        workflow.getData().retryState,
+        identity,
+        getExecutionId(),
+        parent,
+        parentChildInitiatedEventId);
   }
 
   private void processUpsertWorkflowSearchAttributes(
@@ -1480,7 +1482,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   backoffStartInterval,
                   () -> {
                     try {
-                      update(ctx1 -> scheduleWorkflowTask(ctx1));
+                      update(this::scheduleWorkflowTask);
                     } catch (StatusRuntimeException e) {
                       // NOT_FOUND is expected as timers are not removed
                       if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
@@ -1549,14 +1551,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           String activityId = task.getActivityId();
-          StateMachine<ActivityTaskData> activity = getActivityById(activityId);
-          activity.action(StateMachines.Action.START, ctx, pollRequest, 0);
-          ActivityTaskData data = activity.getData();
+          StateMachine<ActivityTaskData> activityStateMachine = getActivityById(activityId);
+          activityStateMachine.action(StateMachines.Action.START, ctx, pollRequest, 0);
+          ActivityTaskData data = activityStateMachine.getData();
+          data.identity = pollRequest.getIdentity();
           Duration startToCloseTimeout =
               ProtobufTimeUtils.toJavaDuration(data.scheduledEvent.getStartToCloseTimeout());
           Duration heartbeatTimeout =
               ProtobufTimeUtils.toJavaDuration(data.scheduledEvent.getHeartbeatTimeout());
-          long scheduledEventId = activity.getData().scheduledEventId;
+          long scheduledEventId = activityStateMachine.getData().scheduledEventId;
           if (startToCloseTimeout.compareTo(Duration.ZERO) > 0) {
             int attempt = data.getAttempt();
             ctx.addTimer(
@@ -1567,7 +1570,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(
-              ctx, scheduledEventId, activity, startToCloseTimeout, heartbeatTimeout);
+              ctx, scheduledEventId, activityStateMachine, startToCloseTimeout, heartbeatTimeout);
         });
   }
 
@@ -1575,15 +1578,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public boolean isTerminalState() {
     State workflowState = workflow.getState();
     return isTerminalState(workflowState);
-  }
-
-  private void checkCompleted() {
-    State workflowState = workflow.getState();
-    if (isTerminalState(workflowState)) {
-      throw Status.NOT_FOUND
-          .withDescription("Workflow is already completed: " + workflowState)
-          .asRuntimeException();
-    }
   }
 
   private boolean isTerminalState(State workflowState) {
@@ -1767,7 +1761,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean heartbeatActivityTaskById(String id, Payloads details) {
+  public boolean heartbeatActivityTaskById(String id, Payloads details, String identity) {
     StateMachine<ActivityTaskData> activity = getActivityById(id);
     return heartbeatActivityTask(activity.getData().scheduledEventId, details);
   }
@@ -1901,10 +1895,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     private final TestWorkflowMutableState caller;
 
     CancelExternalWorkflowExecutionCallerInfo(
-        String namespace,
-        long externalInitiatedEventId,
-        WorkflowExecution workflowExecution,
-        TestWorkflowMutableState caller) {
+        String namespace, long externalInitiatedEventId, TestWorkflowMutableState caller) {
       this.namespace = namespace;
       this.externalInitiatedEventId = externalInitiatedEventId;
       this.caller = caller;
@@ -2140,6 +2131,230 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 QueryFailedFailure.getDefaultInstance());
         result.completeExceptionally(error);
         break;
+    }
+  }
+
+  @Override
+  public DescribeWorkflowExecutionResponse describeWorkflowExecution() {
+    WorkflowExecutionConfig.Builder executionConfig =
+        WorkflowExecutionConfig.newBuilder()
+            .setTaskQueue(this.startRequest.getTaskQueue())
+            .setWorkflowExecutionTimeout(this.startRequest.getWorkflowExecutionTimeout())
+            .setWorkflowRunTimeout(this.startRequest.getWorkflowRunTimeout())
+            .setDefaultWorkflowTaskTimeout(this.startRequest.getWorkflowTaskTimeout());
+
+    GetWorkflowExecutionHistoryRequest getRequest =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(this.startRequest.getNamespace())
+            .setExecution(this.executionId.getExecution())
+            .build();
+    List<HistoryEvent> fullHistory =
+        store
+            .getWorkflowExecutionHistory(this.executionId, getRequest, null)
+            .getHistory()
+            .getEventsList();
+
+    WorkflowExecutionInfo.Builder executionInfo = WorkflowExecutionInfo.newBuilder();
+    executionInfo
+        .setExecution(this.executionId.getExecution())
+        .setType(this.getStartRequest().getWorkflowType())
+        .setMemo(this.startRequest.getMemo())
+        // No setAutoResetPoints - the test environment doesn't support that feature
+        .setSearchAttributes(this.startRequest.getSearchAttributes())
+        .setStatus(this.getWorkflowExecutionStatus())
+        .setHistoryLength(fullHistory.size());
+
+    populateWorkflowExecutionInfoFromHistory(executionInfo, fullHistory);
+
+    this.parent.ifPresent(
+        p ->
+            executionInfo
+                .setParentNamespaceId(p.getExecutionId().getNamespace())
+                .setParentExecution(p.getExecutionId().getExecution()));
+
+    List<PendingActivityInfo> pendingActivities =
+        this.activities.values().stream()
+            .filter(sm -> !isTerminalState(sm.getState()))
+            .map(TestWorkflowMutableStateImpl::constructPendingActivityInfo)
+            .collect(Collectors.toList());
+
+    List<PendingChildExecutionInfo> pendingChildren =
+        this.childWorkflows.values().stream()
+            .filter(sm -> !isTerminalState(sm.getState()))
+            .map(TestWorkflowMutableStateImpl::constructPendingChildExecutionInfo)
+            .collect(Collectors.toList());
+
+    return DescribeWorkflowExecutionResponse.newBuilder()
+        .setExecutionConfig(executionConfig)
+        .setWorkflowExecutionInfo(executionInfo)
+        .addAllPendingActivities(pendingActivities)
+        .addAllPendingChildren(pendingChildren)
+        .build();
+  }
+
+  private static PendingChildExecutionInfo constructPendingChildExecutionInfo(
+      StateMachine<ChildWorkflowData> sm) {
+    ChildWorkflowData data = sm.getData();
+    return PendingChildExecutionInfo.newBuilder()
+        .setWorkflowId(data.execution.getWorkflowId())
+        .setRunId(data.execution.getRunId())
+        .setWorkflowTypeName(data.initiatedEvent.getWorkflowType().getName())
+        .setInitiatedId(data.initiatedEventId)
+        .setParentClosePolicy(data.initiatedEvent.getParentClosePolicy())
+        .build();
+  }
+
+  private static PendingActivityInfo constructPendingActivityInfo(
+      StateMachine<ActivityTaskData> sm) {
+    // Working on this code? Read StateMachines.scheduleActivityTask to get answers to questions
+    // like 'why does some of the information come from the scheduledEvent?'
+    ActivityTaskData activityTaskData = sm.getData();
+
+    State state = sm.getState();
+    PendingActivityInfo.Builder builder = PendingActivityInfo.newBuilder();
+
+    // The oddballs - these don't obviously come from any one part of the structure
+    builder.setState(computeActivityState(state, activityTaskData));
+    if (activityTaskData.identity != null) {
+      builder.setLastWorkerIdentity(activityTaskData.identity);
+    }
+
+    // Some ids are only present in the schedule event...
+    if (activityTaskData.scheduledEvent != null) {
+      populatePendingActivityInfoFromScheduledEvent(builder, activityTaskData.scheduledEvent);
+    }
+
+    // A few bits of timing are only present on the poll response...
+    if (activityTaskData.activityTask != null) {
+      PollActivityTaskQueueResponseOrBuilder pollResponse = activityTaskData.activityTask.getTask();
+      populatePendingActivityInfoFromPollResponse(builder, pollResponse);
+    }
+
+    // Heartbeat details are housed directly in the activityTaskData
+    populatePendingActivityInfoFromHeartbeatDetails(builder, activityTaskData);
+
+    // Retry data is housed under .retryState
+    if (activityTaskData.retryState != null) {
+      populatePendingActivityInfoFromRetryData(builder, activityTaskData.retryState);
+    }
+
+    return builder.build();
+  }
+
+  // Mimics golang in HistoryEngine.DescribeWorkflowExecution. Note that this only covers pending
+  // states, so there's quite a bit of state-space that doesn't need to be mapped.
+  private static PendingActivityState computeActivityState(
+      State state, ActivityTaskData pendingActivity) {
+    if (state == State.CANCELLATION_REQUESTED) {
+      return PendingActivityState.PENDING_ACTIVITY_STATE_CANCEL_REQUESTED;
+    } else if (pendingActivity.startedEvent != null) {
+      return PendingActivityState.PENDING_ACTIVITY_STATE_STARTED;
+    } else {
+      return PendingActivityState.PENDING_ACTIVITY_STATE_SCHEDULED;
+    }
+  }
+
+  private static void populatePendingActivityInfoFromScheduledEvent(
+      PendingActivityInfo.Builder builder, ActivityTaskScheduledEventAttributes scheduledEvent) {
+    builder
+        .setActivityId(scheduledEvent.getActivityId())
+        .setActivityType(scheduledEvent.getActivityType());
+  }
+
+  private static void populatePendingActivityInfoFromPollResponse(
+      PendingActivityInfo.Builder builder, PollActivityTaskQueueResponseOrBuilder task) {
+    // In golang, we set one but never both of these fields, depending on the activity state
+    if (builder.getState() == PendingActivityState.PENDING_ACTIVITY_STATE_SCHEDULED) {
+      builder.setScheduledTime(task.getScheduledTime());
+    } else {
+      builder.setLastStartedTime(task.getStartedTime());
+      builder.setLastHeartbeatTime(task.getStartedTime());
+    }
+  }
+
+  private static void populatePendingActivityInfoFromHeartbeatDetails(
+      PendingActivityInfo.Builder builder, ActivityTaskData activityTaskData) {
+    if (activityTaskData.lastHeartbeatTime > 0) {
+      // This may overwrite the heartbeat time we just set - that's fine
+      builder.setLastHeartbeatTime(Timestamps.fromMillis(activityTaskData.lastHeartbeatTime));
+
+      if (activityTaskData.heartbeatDetails != null) {
+        builder.setHeartbeatDetails(activityTaskData.heartbeatDetails);
+      }
+    }
+  }
+
+  private static void populatePendingActivityInfoFromRetryData(
+      PendingActivityInfo.Builder builder, TestServiceRetryState retryState) {
+    builder.setAttempt(retryState.getAttempt());
+    builder.setExpirationTime(retryState.getExpirationTime());
+    retryState.getPreviousRunFailure().ifPresent(builder::setLastFailure);
+
+    RetryPolicy retryPolicy =
+        Preconditions.checkNotNull(
+            retryState.getRetryPolicy(), "retryPolicy should always be present");
+    builder.setMaximumAttempts(retryPolicy.getMaximumAttempts());
+  }
+
+  private static void populateWorkflowExecutionInfoFromHistory(
+      WorkflowExecutionInfo.Builder executionInfo, List<HistoryEvent> fullHistory) {
+    getStartEvent(fullHistory)
+        .ifPresent(
+            startEvent -> {
+              Timestamp startTime = startEvent.getEventTime();
+              executionInfo.setStartTime(startEvent.getEventTime());
+
+              if (startEvent
+                  .getWorkflowExecutionStartedEventAttributes()
+                  .hasFirstWorkflowTaskBackoff()) {
+                executionInfo.setExecutionTime(
+                    Timestamps.add(
+                        startTime,
+                        startEvent
+                            .getWorkflowExecutionStartedEventAttributes()
+                            .getFirstWorkflowTaskBackoff()));
+              } else {
+                // Some (most) workflows don't have firstWorkflowTaskBackoff.
+                executionInfo.setExecutionTime(startTime);
+              }
+            });
+
+    getCompletionEvent(fullHistory)
+        .ifPresent(completionEvent -> executionInfo.setCloseTime(completionEvent.getEventTime()));
+  }
+
+  // Has an analog in the golang codebase: MutableState.GetStartEvent(). This could become public
+  // if needed.
+  private static Optional<HistoryEvent> getStartEvent(List<HistoryEvent> history) {
+    if (history.size() == 0) {
+      // It's theoretically possible for the TestWorkflowMutableState to exist, but
+      // for the history to still be empty. This is the case between construction and
+      // the ctx.commitChanges at the end of startWorkflow.
+      return Optional.empty();
+    }
+
+    HistoryEvent firstEvent = history.get(0);
+
+    // This is true today (see StateMachines.startWorkflow), even in the signalWithStartCase (signal
+    // is the _second_ event). But if it becomes untrue in the future, we'd rather fail than lie.
+    Preconditions.checkState(
+        firstEvent.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+        "The first event in a workflow's history should be %s, but was %s",
+        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED.name(),
+        firstEvent.getEventType().name());
+
+    return Optional.of(firstEvent);
+  }
+
+  // Has an analog in the golang codebase: MutableState.GetCompletionEvent(). This could become
+  // public if needed.
+  private static Optional<HistoryEvent> getCompletionEvent(List<HistoryEvent> history) {
+    HistoryEvent lastEvent = history.get(history.size() - 1);
+
+    if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(lastEvent)) {
+      return Optional.of(lastEvent);
+    } else {
+      return Optional.empty();
     }
   }
 

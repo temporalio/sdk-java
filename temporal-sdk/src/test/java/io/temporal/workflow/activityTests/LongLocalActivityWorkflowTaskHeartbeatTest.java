@@ -42,6 +42,15 @@ public class LongLocalActivityWorkflowTaskHeartbeatTest {
           .setActivityImplementations(activitiesImpl)
           .build();
 
+  /**
+   * Emulates a workflow that triggers a long local activity, that sleeps longer than Workflow Task
+   * Timeout.
+   *
+   * <p>This test makes sure than such a workflow and workflow task is not getting timed out by
+   * performing heartbeats even while it takes longer than Workflow Task Timeout.
+   *
+   * @see LocalActivitiesWorkflowTaskHeartbeatTest
+   */
   @Test
   public void testLongLocalActivityWorkflowTaskHeartbeat() {
     WorkflowOptions options =
