@@ -215,7 +215,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             startRequest.getCronSchedule(),
             lastCompletionResult,
             lastFailure,
-            runId, // Test service doesn't support reset, thus originalRunId is always the same as
+            runId, // Test service doesn't support reset. Thus, originalRunId is always the same as
             // runId.
             continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);

@@ -39,6 +39,8 @@ import io.temporal.client.WorkflowServiceException;
 import io.temporal.internal.client.WorkflowClientHelper;
 import io.temporal.internal.common.converter.SearchAttributesUtil;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.client.WorkflowClientHelper;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
@@ -157,6 +159,10 @@ public class SearchAttributesTest {
 
   @Test
   public void testSearchAttributesPresentInChildWorkflow() {
+    // see testSearchAttributes() for explanation
+    if (testWorkflowRule.isUseExternalService()) {
+      searchAttributes.remove(testKeyDateTime);
+    }
     NoArgsWorkflow client = testWorkflowRule.newWorkflowStubTimeoutOptions(NoArgsWorkflow.class);
     client.execute();
   }

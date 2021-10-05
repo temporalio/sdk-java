@@ -39,11 +39,11 @@ final class ReplayWorkflowExecutor {
 
   private final ReplayWorkflow workflow;
 
-  private final Scope metricsScope;
-
   private final WorkflowStateMachines workflowStateMachines;
 
   private final ReplayWorkflowContextImpl context;
+
+  private final Scope metricsScope;
 
   private boolean completed;
 
@@ -53,13 +53,12 @@ final class ReplayWorkflowExecutor {
 
   public ReplayWorkflowExecutor(
       ReplayWorkflow workflow,
-      Scope metricsScope,
       WorkflowStateMachines workflowStateMachines,
       ReplayWorkflowContextImpl context) {
     this.workflow = workflow;
-    this.metricsScope = metricsScope;
     this.workflowStateMachines = workflowStateMachines;
     this.context = context;
+    this.metricsScope = context.getMetricsScope();
   }
 
   public boolean isCompleted() {
