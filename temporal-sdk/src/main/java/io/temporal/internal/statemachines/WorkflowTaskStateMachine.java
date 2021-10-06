@@ -57,7 +57,7 @@ final class WorkflowTaskStateMachine
   //  startedEventId
   private long startedEventId;
   private long eventTimeOfTheLastWorkflowStartTask;
-  private boolean workflowTaskStarted = false;
+  private boolean workflowTaskStarted;
 
   public static WorkflowTaskStateMachine newInstance(
       long workflowTaskStartedEventId, Listener listener) {
@@ -109,7 +109,7 @@ final class WorkflowTaskStateMachine
                   WorkflowTaskStateMachine::handleFailed)
               .add(State.STARTED, EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT, State.TIMED_OUT);
 
-  private synchronized void startWorkflowTaskOnce(boolean lastTaskInHistory) {
+  private void listenerNotifiedWorkflowTaskStarted(boolean lastTaskInHistory) {
     if (!workflowTaskStarted) {
       listener.workflowTaskStarted(
           startedEventId, eventTimeOfTheLastWorkflowStartTask, lastTaskInHistory);
@@ -120,11 +120,13 @@ final class WorkflowTaskStateMachine
   private void handleStarted() {
     eventTimeOfTheLastWorkflowStartTask = Timestamps.toMillis(currentEvent.getEventTime());
     startedEventId = currentEvent.getEventId();
-    startWorkflowTaskOnce(currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent);
+    listenerNotifiedWorkflowTaskStarted(
+        currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent);
   }
 
   private void handleCompleted() {
-    startWorkflowTaskOnce(currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent);
+    listenerNotifiedWorkflowTaskStarted(
+        currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent);
   }
 
   private void handleFailed() {
