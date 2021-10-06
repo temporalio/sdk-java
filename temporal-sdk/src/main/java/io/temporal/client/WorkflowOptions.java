@@ -29,6 +29,7 @@ import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public final class WorkflowOptions {
 
@@ -218,8 +219,12 @@ public final class WorkflowOptions {
       return this;
     }
 
-    /** Specifies the list of context propagators to use during this workflow. */
-    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+    /**
+     * @param contextPropagators specifies the list of context propagators to use during this
+     *     workflow. This list overrides the list specified on {@link
+     *     WorkflowClientOptions#getContextPropagators()}, {@code null} means no overriding
+     */
+    public Builder setContextPropagators(@Nullable List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
       return this;
     }
@@ -345,7 +350,12 @@ public final class WorkflowOptions {
     return searchAttributes;
   }
 
-  public List<ContextPropagator> getContextPropagators() {
+  /**
+   * @return the list of context propagators to use during this workflow. This list overrides the
+   *     list specified on {@link WorkflowClientOptions#getContextPropagators()}, {@code null} means
+   *     no overriding
+   */
+  public @Nullable List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
   }
 

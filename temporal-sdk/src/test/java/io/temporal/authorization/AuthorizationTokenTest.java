@@ -23,9 +23,7 @@ import static org.junit.Assert.*;
 
 import io.grpc.*;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.internal.testing.WorkflowTestingTest;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -42,11 +40,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class AuthorizationTokenTest {
-  private static final Logger log = LoggerFactory.getLogger(AuthorizationTokenTest.class);
   private static final String TASK_QUEUE = "test-workflow";
   private static final String AUTH_TOKEN = "Bearer <token>";
 
@@ -102,14 +97,7 @@ public class AuthorizationTokenTest {
             .build();
 
     TestEnvironmentOptions options =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkflowClientOptions(
-                WorkflowClientOptions.newBuilder()
-                    .setContextPropagators(
-                        Collections.singletonList(new WorkflowTestingTest.TestContextPropagator()))
-                    .build())
-            .setWorkflowServiceStubsOptions(stubOptions)
-            .build();
+        TestEnvironmentOptions.newBuilder().setWorkflowServiceStubsOptions(stubOptions).build();
 
     testEnvironment = TestWorkflowEnvironment.newInstance(options);
   }

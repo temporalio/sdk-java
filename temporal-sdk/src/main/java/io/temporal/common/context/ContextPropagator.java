@@ -31,71 +31,75 @@ import java.util.Map;
  *
  * <pre>{@code
  * public class MDCContextPropagator implements ContextPropagator {
+ *   public String getName() {
+ *     return this.getClass().getName();
+ *   }
  *
- *     public String getName() {
- *         return this.getClass().getName();
+ *   public Object getCurrentContext() {
+ *     Map<String, String> context = new HashMap<>();
+ *     for (Map.Entry<String, String> entry : MDC.getCopyOfContextMap().entrySet()) {
+ *       if (entry.getKey().startsWith("X-")) {
+ *         context.put(entry.getKey(), entry.getValue());
+ *       }
  *     }
+ *     return context;
+ *   }
  *
- *     public Object getCurrentContext() {
- *         Map<String, String> context = new HashMap<>();
- *         for (Map.Entry<String, String> entry : MDC.getCopyOfContextMap().entrySet()) {
- *             if (entry.getKey().startsWith("X-")) {
- *                 context.put(entry.getKey(), entry.getValue());
- *             }
- *         }
- *         return context;
+ *   public void setCurrentContext(Object context) {
+ *     Map<String, String> contextMap = (Map<String, String>) context;
+ *     for (Map.Entry<String, String> entry : contextMap.entrySet()) {
+ *       MDC.put(entry.getKey(), entry.getValue());
  *     }
+ *   }
  *
- *     public void setCurrentContext(Object context) {
- *         Map<String, String> contextMap = (Map<String, String>)context;
- *         for (Map.Entry<String, String> entry : contextMap.entrySet()) {
- *             MDC.put(entry.getKey(), entry.getValue());
- *         }
+ *   public Map<String, Payload> serializeContext(Object context) {
+ *     Map<String, String> contextMap = (Map<String, String>) context;
+ *     Map<String, Payload> serializedContext = new HashMap<>();
+ *     for (Map.Entry<String, String> entry : contextMap.entrySet()) {
+ *       serializedContext.put(entry.getKey(), DataConverter.getDefaultInstance().toPayload(entry.getValue()).get());
  *     }
+ *     return serializedContext;
+ *   }
  *
- *     public Map<String, byte[]> serializeContext(Object context) {
- *         Map<String, String> contextMap = (Map<String, String>)context;
- *         Map<String, byte[]> serializedContext = new HashMap<>();
- *         for (Map.Entry<String, String> entry : contextMap.entrySet()) {
- *             serializedContext.put(entry.getKey(), entry.getValue().getBytes(StandardCharsets.UTF_8));
- *         }
- *         return serializedContext;
+ *   public Object deserializeContext(Map<String, Payload> context) {
+ *     Map<String, String> contextMap = new HashMap<>();
+ *     for (Map.Entry<String, Payload> entry : context.entrySet()) {
+ *       contextMap.put(entry.getKey(), DataConverter.getDefaultInstance().fromPayload(entry.getValue(), String.class, String.class));
  *     }
- *
- *     public Object deserializeContext(Map<String, Payload> context) {
- *         Map<String, String> contextMap = new HashMap<>();
- *         for (Map.Entry<String, byte[]> entry : context.entrySet()) {
- *             contextMap.put(entry.getKey(), new String(entry.getValue(), StandardCharsets.UTF_8));
- *         }
- *         return contextMap;
- *     }
+ *     return contextMap;
+ *   }
  * }
  * }</pre>
  *
- * To set up the context propagators, you must configure them when: <br>
- * Creating WorkflowClient:
+ * To set up the context propagators, you must configure them during creation of WorkflowClient on
+ * both client/stubs and worker side: <br>
  *
  * <pre>{@code
  * WorkflowClientOptions options = WorkflowClientOptions.newBuilder()
  *                 .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
  *                 .build();
  * WorkflowClient client = WorkflowClient.newInstance(service, factoryOptions);
+ *
+ * Workflow workflow = client.newWorkflowStub(Workflow.class,
+ *                WorkflowOptions.newBuilder().setTaskQueue("taskQueue").build());
+ * //or
+ * WorkerFactory workerFactory = WorkerFactory.newInstance(client);
  * }</pre>
  *
  * <br>
- * If you want to have override the {@code ContextPropagator} instances for your activities, you can
- * specify them at the {@link io.temporal.activity.ActivityOptions} level like so:
+ * If you wish to override them for a workflow stub or a child workflow, you can do so when creating
+ * a <br>
+ * {@link io.temporal.client.WorkflowStub}:
  *
  * <pre>{@code
- * activities = Workflow.newActivityStub(Activity.class,
- *                 ActivityOptions.newBuilder()
- *                         .setScheduleToCloseTimeout(Duration.ofSeconds(60))
- *                         .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
- *                         .build());
+ * Workflow workflow = client.newWorkflowStub(Workflow.class,
+ *                WorkflowOptions.newBuilder()
+ *                        //...
+ *                        .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
+ *                        .build());
  * }</pre>
  *
  * <br>
- * And similarly, if you wish to override them for child workflows, you can do so when creating a
  * {@link io.temporal.workflow.ChildWorkflowStub}:
  *
  * <pre>{@code
@@ -104,22 +108,33 @@ import java.util.Map;
  *                        .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
  *                        .build());
  * }</pre>
+ *
+ * <br>
  */
 public interface ContextPropagator {
 
   /**
-   * Returns the name of the context propagator (for use in serialization and transfer).
-   * ContextPropagators will only be given context information
+   * Returns the unique name of the context propagator. This name is used to store and address
+   * context objects to pass them between threads. This name is not used for serialization,
+   * serialization is fully controlled by {@link #serializeContext(Object)}
    *
-   * @return The name of this propagator
+   * @return The unique name of this propagator.
    */
   String getName();
 
-  /** Given context data, serialize it for transmission in the RPC header */
+  /**
+   * Given context data, serialize it for transmission in the RPC header.
+   *
+   * <p>Note: keys of the result map should have unique values across all propagators and
+   * interceptors, because they all share the same single keyspace of a single instance of {@code
+   * temporal.api.common.v1.Header}
+   *
+   * @return serialized representation to be sent in request {@code temporal.api.common.v1.Header}
+   */
   Map<String, Payload> serializeContext(Object context);
 
   /** Turn the serialized header data into context object(s) */
-  Object deserializeContext(Map<String, Payload> context);
+  Object deserializeContext(Map<String, Payload> header);
 
   /** Returns the current context in object form */
   Object getCurrentContext();
