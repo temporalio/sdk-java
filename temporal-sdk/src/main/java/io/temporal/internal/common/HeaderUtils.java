@@ -25,12 +25,13 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public class HeaderUtils {
 
   public static Header toHeaderGrpc(
       io.temporal.common.interceptors.Header header,
-      io.temporal.common.interceptors.Header overrides) {
+      @Nullable io.temporal.common.interceptors.Header overrides) {
     Header.Builder builder = Header.newBuilder().putAllFields(header.getValues());
     if (overrides != null) {
       for (Map.Entry<String, Payload> item : overrides.getValues().entrySet()) {
