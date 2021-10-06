@@ -9,12 +9,12 @@ description = '''Temporal Workflow Java SDK'''
 dependencies {
     api "io.grpc:grpc-api:$grpcVersion" //Classes like io.grpc.Metadata are used as a part of our API
     api "io.grpc:grpc-stub:$grpcVersion" //Part of WorkflowServiceStubs API
+    api "io.grpc:grpc-netty-shaded:$grpcVersion" //Part of WorkflowServiceStubs API, specifically SslContext
     api "com.google.protobuf:protobuf-java-util:3.18.0" //proto request and response objects are a part of this module's API
     api "com.uber.m3:tally-core:0.11.1"
 
     implementation "io.grpc:grpc-core:$grpcVersion"
     implementation "io.grpc:grpc-services:$grpcVersion"
-    implementation "io.grpc:grpc-netty-shaded:$grpcVersion"
 
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.32'
     if (!JavaVersion.current().isJava8()) {
