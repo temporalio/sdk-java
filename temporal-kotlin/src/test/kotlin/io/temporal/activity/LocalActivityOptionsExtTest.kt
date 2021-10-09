@@ -54,4 +54,35 @@ class LocalActivityOptionsExtTest {
 
     assertEquals(builderActivityOptions, dslActivityOptions)
   }
+
+  @Test
+  fun `LocalActivityOptions copy() DSL should merge override options`() {
+    val sourceOptions = LocalActivityOptions {
+      setStartToCloseTimeout(Duration.ofMinutes(1))
+      setScheduleToCloseTimeout(Duration.ofHours(1))
+      setRetryOptions {
+        setInitialInterval(Duration.ofMillis(100))
+        setMaximumInterval(Duration.ofSeconds(1))
+        setBackoffCoefficient(1.5)
+      }
+    }
+
+    val overriddenOptions = sourceOptions.copy {
+      setStartToCloseTimeout(Duration.ofSeconds(30))
+      setDoNotIncludeArgumentsIntoMarker(true)
+    }
+
+    val expectedOptions = LocalActivityOptions {
+      setStartToCloseTimeout(Duration.ofSeconds(30))
+      setScheduleToCloseTimeout(Duration.ofHours(1))
+      setDoNotIncludeArgumentsIntoMarker(true)
+      setRetryOptions {
+        setInitialInterval(Duration.ofMillis(100))
+        setMaximumInterval(Duration.ofSeconds(1))
+        setBackoffCoefficient(1.5)
+      }
+    }
+
+    assertEquals(expectedOptions, overriddenOptions)
+  }
 }
