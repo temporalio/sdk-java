@@ -28,6 +28,12 @@ inline fun WorkflowOptions(
   return WorkflowOptions.newBuilder().apply(options).build()
 }
 
+inline fun WorkflowOptions.copy(
+  overrides: @TemporalDsl WorkflowOptions.Builder.() -> Unit
+): WorkflowOptions {
+  return toBuilder().apply(overrides).build()
+}
+
 inline fun WorkflowOptions.Builder.setRetryOptions(
   retryOptions: @TemporalDsl RetryOptions.Builder.() -> Unit
 ) {

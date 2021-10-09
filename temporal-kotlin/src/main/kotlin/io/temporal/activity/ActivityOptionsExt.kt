@@ -31,6 +31,12 @@ inline fun ActivityOptions(
   return ActivityOptions.newBuilder().apply(options).build()
 }
 
+inline fun ActivityOptions.copy(
+  overrides: @TemporalDsl ActivityOptions.Builder.() -> Unit
+): ActivityOptions {
+  return toBuilder().apply(overrides).build()
+}
+
 /**
  * [RetryOptions] that define how Activity is retried in case of failure. If this is not set, then
  * the server-defined default Activity retry policy will be used. To ensure zero retries, set

@@ -32,6 +32,12 @@ inline fun LocalActivityOptions(
   return LocalActivityOptions.newBuilder().apply(options).build()
 }
 
+inline fun LocalActivityOptions.copy(
+  overrides: @TemporalDsl LocalActivityOptions.Builder.() -> Unit
+): LocalActivityOptions {
+  return toBuilder().apply(overrides).build()
+}
+
 /**
  * [RetryOptions] that define how an Activity is retried in case of failure. Activities
  * use a default [RetryPolicy] if not provided.

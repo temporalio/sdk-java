@@ -26,3 +26,9 @@ inline fun RetryOptions(
 ): RetryOptions {
   return RetryOptions.newBuilder().apply(options).build()
 }
+
+inline fun RetryOptions.copy(
+  overrides: @TemporalDsl RetryOptions.Builder.() -> Unit
+): RetryOptions {
+  return toBuilder().apply(overrides).build()
+}

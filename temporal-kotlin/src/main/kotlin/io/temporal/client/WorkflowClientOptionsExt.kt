@@ -29,3 +29,9 @@ inline fun WorkflowClientOptions(
 ): WorkflowClientOptions {
   return WorkflowClientOptions.newBuilder().apply(options).build()
 }
+
+inline fun WorkflowClientOptions.copy(
+  overrides: @TemporalDsl WorkflowClientOptions.Builder.() -> Unit
+): WorkflowClientOptions {
+  return toBuilder().apply(overrides).build()
+}

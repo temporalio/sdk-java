@@ -26,3 +26,9 @@ inline fun WorkerFactoryOptions(
 ): WorkerFactoryOptions {
   return WorkerFactoryOptions.newBuilder().apply(options).build()
 }
+
+inline fun WorkerFactoryOptions.copy(
+  overrides: @TemporalDsl WorkerFactoryOptions.Builder.() -> Unit
+): WorkerFactoryOptions {
+  return toBuilder().apply(overrides).build()
+}

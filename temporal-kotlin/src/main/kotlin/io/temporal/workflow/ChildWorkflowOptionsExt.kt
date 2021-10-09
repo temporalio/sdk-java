@@ -28,6 +28,12 @@ inline fun ChildWorkflowOptions(
   return ChildWorkflowOptions.newBuilder().apply(options).build()
 }
 
+inline fun ChildWorkflowOptions.copy(
+  overrides: @TemporalDsl ChildWorkflowOptions.Builder.() -> Unit
+): ChildWorkflowOptions {
+  return toBuilder().apply(overrides).build()
+}
+
 /**
  * [RetryOptions] that define how child workflow is retried in case of failure. Default is no
  * reties.

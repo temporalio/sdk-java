@@ -26,3 +26,9 @@ inline fun RpcRetryOptions(
 ): RpcRetryOptions {
   return RpcRetryOptions.newBuilder().apply(options).build()
 }
+
+inline fun RpcRetryOptions.copy(
+  overrides: @TemporalDsl RpcRetryOptions.Builder.() -> Unit
+): RpcRetryOptions {
+  return RpcRetryOptions.newBuilder(this).apply(overrides).build()
+}

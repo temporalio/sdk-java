@@ -26,3 +26,9 @@ inline fun ContinueAsNewOptions(
 ): ContinueAsNewOptions {
   return ContinueAsNewOptions.newBuilder().apply(options).build()
 }
+
+inline fun ContinueAsNewOptions.copy(
+  overrides: @TemporalDsl ContinueAsNewOptions.Builder.() -> Unit
+): ContinueAsNewOptions {
+  return ContinueAsNewOptions.newBuilder(this).apply(overrides).build()
+}

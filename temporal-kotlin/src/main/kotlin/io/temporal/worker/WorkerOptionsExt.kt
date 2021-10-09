@@ -26,3 +26,9 @@ inline fun WorkerOptions(
 ): WorkerOptions {
   return WorkerOptions.newBuilder().apply(options).build()
 }
+
+inline fun WorkerOptions.copy(
+  overrides: @TemporalDsl WorkerOptions.Builder.() -> Unit
+): WorkerOptions {
+  return WorkerOptions.newBuilder(this).apply(overrides).build()
+}

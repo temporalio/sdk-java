@@ -26,3 +26,9 @@ inline fun WorkflowServiceStubsOptions(
 ): WorkflowServiceStubsOptions {
   return WorkflowServiceStubsOptions.newBuilder().apply(options).build()
 }
+
+inline fun WorkflowServiceStubsOptions.copy(
+  overrides: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit
+): WorkflowServiceStubsOptions {
+  return WorkflowServiceStubsOptions.newBuilder(this).apply(overrides).build()
+}
