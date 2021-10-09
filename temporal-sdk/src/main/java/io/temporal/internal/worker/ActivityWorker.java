@@ -168,7 +168,8 @@ public final class ActivityWorker implements SuspendableWorker {
                       r.getActivityType().getName(),
                       MetricsTag.WORKFLOW_TYPE,
                       r.getWorkflowType().getName()));
-      ActivityTaskHandler.Result response = null;
+
+      ActivityTaskHandler.Result result = null;
       try {
         metricsScope
             .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
@@ -189,15 +190,16 @@ public final class ActivityWorker implements SuspendableWorker {
 
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
         try {
-          response = handler.handle(task, metricsScope, false);
+          result = handler.handle(task, metricsScope, false);
         } finally {
           sw.stop();
         }
-        sendReply(r, response, metricsScope);
+        sendReply(r, result, metricsScope);
 
-        Duration duration =
-            ProtobufTimeUtils.toM3DurationSinceNow(r.getCurrentAttemptScheduledTime());
-        metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
+        if (result.getTaskCompleted() != null) {
+          Duration e2eDuration = ProtobufTimeUtils.toM3DurationSinceNow(r.getScheduledTime());
+          metricsScope.timer(MetricsType.ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
+        }
       } catch (FailureWrapperException e) {
         Failure failure = e.getFailure();
         if (failure.hasCanceledFailureInfo()) {
@@ -209,9 +211,8 @@ public final class ActivityWorker implements SuspendableWorker {
           if (info.hasDetails()) {
             canceledRequest.setDetails(info.getDetails());
           }
-          response =
-              new Result(r.getActivityId(), null, null, canceledRequest.build(), null, false);
-          sendReply(r, response, metricsScope);
+          result = new Result(r.getActivityId(), null, null, canceledRequest.build(), null, false);
+          sendReply(r, result, metricsScope);
         }
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
@@ -220,7 +221,7 @@ public final class ActivityWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.RUN_ID);
         // Apply completion handle if task has been completed synchronously or is async and manual
         // completion hasn't been requested.
-        if (response != null && !response.isManualCompletion()) {
+        if (result != null && !result.isManualCompletion()) {
           task.getCompletionHandle().apply();
         }
       }

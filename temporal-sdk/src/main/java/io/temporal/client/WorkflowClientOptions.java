@@ -25,6 +25,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -127,6 +128,9 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * @param contextPropagators specifies the list of context propagators to use with the client.
+     */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
       return this;
@@ -172,7 +176,7 @@ public final class WorkflowClientOptions {
   private static final WorkflowClientInterceptor[] EMPTY_INTERCEPTOR_ARRAY =
       new WorkflowClientInterceptor[0];
 
-  private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Arrays.asList();
+  private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Collections.emptyList();
 
   private final String namespace;
 
@@ -225,6 +229,7 @@ public final class WorkflowClientOptions {
     return binaryChecksum;
   }
 
+  /** @return the list of context propagators to use with the client. */
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
   }
