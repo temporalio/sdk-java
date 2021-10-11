@@ -49,7 +49,7 @@ protobuf {
     // version/variables substitution is not supported in protobuf section.
     // protoc and protoc-gen-grpc-java versions should be aligned with protobuf and grpc versions of the project
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.18.0'
+        artifact = 'com.google.protobuf:protoc:3.18.1'
     }
     plugins {
         grpc {
