@@ -29,8 +29,6 @@ import static org.mockito.Mockito.when;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.LocalActivityOptions;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
@@ -39,14 +37,11 @@ import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsResponse;
 import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsRequest;
 import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
@@ -56,7 +51,6 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.Async;
-import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
@@ -67,9 +61,7 @@ import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow2;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -83,7 +75,6 @@ import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 public class WorkflowTestingTest {
   private static final Logger log = LoggerFactory.getLogger(WorkflowTestingTest.class);
@@ -101,13 +92,7 @@ public class WorkflowTestingTest {
 
   @Before
   public void setUp() {
-    TestEnvironmentOptions options =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkflowClientOptions(
-                WorkflowClientOptions.newBuilder()
-                    .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-                    .build())
-            .build();
+    TestEnvironmentOptions options = TestEnvironmentOptions.newBuilder().build();
     testEnvironment = TestWorkflowEnvironment.newInstance(options);
   }
 
@@ -506,132 +491,6 @@ public class WorkflowTestingTest {
     }
   }
 
-  @Test
-  public void testWorkflowContextPropagation() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(ContextPropagationWorkflowImpl.class);
-    testEnvironment.start();
-    MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-            .build();
-    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
-    String result = workflow.execute("input1");
-    assertEquals("testing123", result);
-  }
-
-  @Test
-  public void testChildWorkflowContextPropagation() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(
-        ContextPropagationParentWorkflowImpl.class, ContextPropagationChildWorkflowImpl.class);
-    testEnvironment.start();
-    MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-            .build();
-    ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
-    String result = workflow.workflow("input1");
-    assertEquals("testing123testing123", result);
-  }
-
-  @Test
-  public void testThreadContextPropagation() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(ContextPropagationThreadWorkflowImpl.class);
-    testEnvironment.start();
-    MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-            .setTaskQueue(TASK_QUEUE)
-            .build();
-    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
-    String result = workflow.execute("input1");
-    assertEquals("asynctesting123", result);
-  }
-
-  @Test
-  public void testActivityContextPropagation() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(ContextPropagationActivityWorkflowImpl.class);
-    worker.registerActivitiesImplementations(new ContextActivityImpl());
-    testEnvironment.start();
-    MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-            .build();
-    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
-    String result = workflow.execute("input1");
-    assertEquals("activitytesting123", result);
-  }
-
-  @Test
-  public void testDefaultActivityContextPropagation() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(DefaultContextPropagationActivityWorkflowImpl.class);
-    worker.registerActivitiesImplementations(new ContextActivityImpl());
-    testEnvironment.start();
-    MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-            .build();
-    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
-    String result = workflow.execute("input1");
-    assertEquals("activitytesting123", result);
-  }
-
-  @Test
-  public void testDefaultLocalActivityContextPropagation() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(
-        DefaultContextPropagationLocalActivityWorkflowImpl.class);
-    worker.registerActivitiesImplementations(new ContextActivityImpl());
-    testEnvironment.start();
-    MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-            .build();
-    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
-    String result = workflow.execute("input1");
-    assertEquals("activitytesting123", result);
-  }
-
-  @Test
-  public void testDefaultChildWorkflowContextPropagation() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(
-        DefaultContextPropagationParentWorkflowImpl.class,
-        ContextPropagationChildWorkflowImpl.class);
-    testEnvironment.start();
-    MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(TASK_QUEUE)
-            .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-            .build();
-    ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
-    String result = workflow.workflow("input1");
-    assertEquals("testing123testing123", result);
-  }
-
   @WorkflowInterface
   public interface TestActivityTimeoutWorkflow {
     @WorkflowMethod
@@ -981,163 +840,5 @@ public class WorkflowTestingTest {
       Workflow.sleep(Duration.ofHours(2));
       throw new TimeoutFailure("simulated", null, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE);
     }
-  }
-
-  public static class TestContextPropagator implements ContextPropagator {
-
-    @Override
-    public String getName() {
-      return this.getClass().getName();
-    }
-
-    @Override
-    public Map<String, Payload> serializeContext(Object context) {
-      String testKey = (String) context;
-      if (testKey != null) {
-        return Collections.singletonMap(
-            "test", DataConverter.getDefaultInstance().toPayload(testKey).get());
-      } else {
-        return Collections.emptyMap();
-      }
-    }
-
-    @Override
-    public Object deserializeContext(Map<String, Payload> context) {
-      if (context.containsKey("test")) {
-        return DataConverter.getDefaultInstance()
-            .fromPayload(context.get("test"), String.class, String.class);
-
-      } else {
-        return null;
-      }
-    }
-
-    @Override
-    public Object getCurrentContext() {
-      return MDC.get("test");
-    }
-
-    @Override
-    public void setCurrentContext(Object context) {
-      MDC.put("test", String.valueOf(context));
-    }
-  }
-
-  public static class ContextPropagationWorkflowImpl implements TestWorkflow1 {
-
-    @Override
-    public String execute(String input) {
-      // The test value should be in the MDC
-      return MDC.get("test");
-    }
-  }
-
-  public static class ContextPropagationParentWorkflowImpl implements ParentWorkflow {
-
-    @Override
-    public String workflow(String input) {
-      // Get the MDC value
-      String mdcValue = MDC.get("test");
-
-      // Fire up a child workflow
-      ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder()
-              .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-              .build();
-      TestWorkflow2 child = Workflow.newChildWorkflowStub(TestWorkflow2.class, options);
-
-      String result = child.execute(mdcValue, Workflow.getInfo().getWorkflowId());
-      return result;
-    }
-
-    @Override
-    public void signal(String value) {}
-  }
-
-  public static class ContextPropagationChildWorkflowImpl implements TestWorkflow2 {
-
-    @Override
-    public String execute(String input, String parentId) {
-      String mdcValue = MDC.get("test");
-      return input + mdcValue;
-    }
-  }
-
-  public static class ContextPropagationThreadWorkflowImpl implements TestWorkflow1 {
-
-    @Override
-    public String execute(String input) {
-      Promise<String> asyncPromise = Async.function(this::async);
-      return asyncPromise.get();
-    }
-
-    private String async() {
-      return "async" + MDC.get("test");
-    }
-  }
-
-  public static class ContextActivityImpl implements TestActivity1 {
-    @Override
-    public String execute(String input) {
-      return "activity" + MDC.get("test");
-    }
-  }
-
-  public static class ContextPropagationActivityWorkflowImpl implements TestWorkflow1 {
-    @Override
-    public String execute(String input) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-              .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
-              .build();
-      TestActivity1 activity =
-          Workflow.newActivityStub(
-              TestActivity1.class,
-              ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
-
-      return activity.execute("foo");
-    }
-  }
-
-  public static class DefaultContextPropagationActivityWorkflowImpl implements TestWorkflow1 {
-    @Override
-    public String execute(String input) {
-      ActivityOptions options =
-          ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build();
-      TestActivity1 activity = Workflow.newActivityStub(TestActivity1.class, options);
-      return activity.execute("foo");
-    }
-  }
-
-  public static class DefaultContextPropagationLocalActivityWorkflowImpl implements TestWorkflow1 {
-    @Override
-    public String execute(String input) {
-      LocalActivityOptions options =
-          LocalActivityOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-              .build();
-      TestActivity1 activity = Workflow.newLocalActivityStub(TestActivity1.class, options);
-      return activity.execute("foo");
-    }
-  }
-
-  public static class DefaultContextPropagationParentWorkflowImpl implements ParentWorkflow {
-
-    @Override
-    public String workflow(String input) {
-      // Get the MDC value
-      String mdcValue = MDC.get("test");
-
-      // Fire up a child workflow
-      ChildWorkflowOptions options = ChildWorkflowOptions.newBuilder().build();
-      TestWorkflow2 child = Workflow.newChildWorkflowStub(TestWorkflow2.class, options);
-
-      String result = child.execute(mdcValue, Workflow.getInfo().getWorkflowId());
-      return result;
-    }
-
-    @Override
-    public void signal(String value) {}
   }
 }

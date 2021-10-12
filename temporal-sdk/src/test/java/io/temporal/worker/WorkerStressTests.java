@@ -20,7 +20,7 @@
 package io.temporal.worker;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertEquals;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
@@ -99,7 +99,7 @@ public class WorkerStressTests {
         wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
 
     // Act
-    // This will yeild around 10000 events which is above the page limit returned by the server.
+    // This will yield around 10000 events which is above the page limit returned by the server.
     WorkflowParams w = new WorkflowParams();
     w.TemporalSleepSeconds = 0;
     w.ChainSequence = 50;
@@ -108,7 +108,7 @@ public class WorkerStressTests {
     w.TaskQueueName = taskQueueName;
 
     workflow.start(w);
-    assertNotNull("I'm done.", workflow.getResult(String.class));
+    assertEquals("I'm done", workflow.getResult(String.class));
     wrapper.close();
   }
 
@@ -156,7 +156,7 @@ public class WorkerStressTests {
         wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
     w.ConcurrentCount = 1;
     workflow2.start(w);
-    assertNotNull("I'm done.", workflow2.getResult(String.class));
+    assertEquals("I'm done", workflow2.getResult(String.class));
     wrapper.close();
   }
 
@@ -219,7 +219,7 @@ public class WorkerStressTests {
   @WorkflowInterface
   public interface ActivitiesWorkflow {
 
-    @WorkflowMethod()
+    @WorkflowMethod
     String execute(WorkflowParams params);
   }
 

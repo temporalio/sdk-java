@@ -234,6 +234,13 @@ public final class LocalActivityWorker implements SuspendableWorker {
         return result;
       }
 
+      if (result.getTaskCompleted() != null) {
+        com.uber.m3.util.Duration e2eDuration =
+            ProtobufTimeUtils.toM3DurationSinceNow(
+                task.params.getActivityTask().getScheduledTime());
+        metricsScope.timer(MetricsType.LOCAL_ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
+      }
+
       if (result.getTaskCompleted() != null
           || result.getTaskCanceled() != null
           || !activityTask.hasRetryPolicy()) {
