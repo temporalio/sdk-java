@@ -24,14 +24,9 @@ import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_TA
 import static io.temporal.internal.testservice.StateMachines.MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
 import static io.temporal.internal.testservice.StateMachines.NO_EVENT_ID;
 import static io.temporal.internal.testservice.StateMachines.newActivityStateMachine;
+import static io.temporal.internal.testservice.StateUtils.getBackoffInterval;
 import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
 
-import com.cronutils.model.Cron;
-import com.cronutils.model.CronType;
-import com.cronutils.model.definition.CronDefinition;
-import com.cronutils.model.definition.CronDefinitionBuilder;
-import com.cronutils.model.time.ExecutionTime;
-import com.cronutils.parser.CronParser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.Timestamp;
@@ -121,9 +116,6 @@ import io.temporal.internal.testservice.StateMachines.WorkflowData;
 import io.temporal.internal.testservice.StateMachines.WorkflowTaskData;
 import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1322,24 +1314,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       Payloads lastCompletionResult,
       Optional<Failure> lastFailure) {
     Objects.requireNonNull(lastFailure);
-    Cron cron = parseCron(data.cronSchedule);
 
-    Instant i = Instant.ofEpochMilli(Timestamps.toMillis(store.currentTime()));
-    ZonedDateTime now = ZonedDateTime.ofInstant(i, ZoneOffset.UTC);
-
-    ExecutionTime executionTime = ExecutionTime.forCron(cron);
-    Optional<Duration> backoff = executionTime.timeToNextExecution(now);
-    Duration backoffInterval = Duration.ZERO;
-
-    if (backoff.isPresent()) {
-      backoffInterval = backoff.get();
-    }
-
-    if (backoffInterval == Duration.ZERO) {
-      backoff = executionTime.timeToNextExecution(now.plusSeconds(1));
-      backoffInterval = backoff.get();
-    }
-
+    Duration backoffInterval = getBackoffInterval(data.cronSchedule, store.currentTime());
     ContinueAsNewWorkflowExecutionCommandAttributes.Builder builder =
         ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder()
             .setInput(startRequest.getInput())
@@ -1365,12 +1341,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         getExecutionId(),
         parent,
         parentChildInitiatedEventId);
-  }
-
-  static Cron parseCron(String schedule) {
-    CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
-    CronParser parser = new CronParser(cronDefinition);
-    return parser.parse(schedule);
   }
 
   private void processCancelWorkflowExecution(

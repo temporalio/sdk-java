@@ -548,7 +548,6 @@ public final class WorkflowStateMachines {
   }
 
   /**
-   * @param attributes
    * @param completionCallback invoked when signal delivery completes of fails. The following types
    */
   public Functions.Proc signalExternalWorkflowExecution(
