@@ -19,12 +19,12 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_MILLISECONDS;
 import static io.temporal.internal.testservice.StateMachines.DEFAULT_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
 import static io.temporal.internal.testservice.StateMachines.MAX_WORKFLOW_TASK_TIMEOUT_MILLISECONDS;
 import static io.temporal.internal.testservice.StateMachines.NO_EVENT_ID;
 import static io.temporal.internal.testservice.StateMachines.newActivityStateMachine;
-import static io.temporal.internal.testservice.StateUtils.getBackoffInterval;
 import static io.temporal.internal.testservice.TestServiceRetryState.validateAndOverrideRetryPolicy;
 
 import com.google.common.base.Preconditions;

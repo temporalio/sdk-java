@@ -34,6 +34,8 @@ interface SelfAdvancingTimer {
   /**
    * Schedule a task with a specified delay. The actual wait time is defined by the internal clock
    * that might advance much faster than the wall clock.
+   *
+   * @return cancellation handle
    */
   Functions.Proc schedule(Duration delay, Runnable task);
 

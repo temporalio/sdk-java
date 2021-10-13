@@ -19,7 +19,7 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.testservice.StateUtils.getBackoffInterval;
+import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.Timestamp;

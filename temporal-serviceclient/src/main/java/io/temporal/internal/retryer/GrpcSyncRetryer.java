@@ -39,7 +39,7 @@ class GrpcSyncRetryer {
   }
 
   public <R, T extends Throwable> R retry(
-      RpcRetryOptions options, GrpcRetryer.RetryableFunc<R, T> retryableFunc) throws T {
+      RpcRetryOptions options, GrpcRetryer.RetryableFunc<R, T> r) throws T {
     int attempt = 0;
     long startTime = clock.millis();
     BackoffThrottler throttler =
@@ -58,7 +58,7 @@ class GrpcSyncRetryer {
 
       try {
         throttler.throttle();
-        R result = retryableFunc.apply();
+        R result = r.apply();
         throttler.success();
         return result;
       } catch (InterruptedException e) {
