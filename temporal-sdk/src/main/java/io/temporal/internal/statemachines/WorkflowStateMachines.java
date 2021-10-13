@@ -27,7 +27,7 @@ import static io.temporal.internal.statemachines.VersionStateMachine.MARKER_CHAN
 import static io.temporal.internal.statemachines.VersionStateMachine.VERSION_MARKER_NAME;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.unwrap;
 
-import com.cronutils.utils.VisibleForTesting;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.Command;
