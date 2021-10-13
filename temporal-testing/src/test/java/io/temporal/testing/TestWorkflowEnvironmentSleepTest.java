@@ -197,7 +197,7 @@ public class TestWorkflowEnvironmentSleepTest {
   }
 
   @Test
-  public void timeskippingIsAlwaysOn() {
+  public void timeskippingWorksForBothTypesOfUntypedStubs() {
     WorkflowOptions workflowAOptions =
         WorkflowOptions.newBuilder()
             .setTaskQueue(WORKFLOW_TASK_QUEUE)
