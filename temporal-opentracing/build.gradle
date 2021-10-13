@@ -8,7 +8,11 @@ dependencies {
     api project(':temporal-sdk')
     api group: 'io.opentracing', name: 'opentracing-api', version: "$opentracingVersion"
 
-    implementation "com.google.guava:guava:$guavaVersion"
+    implementation ("com.google.guava:guava:$guavaVersion") {
+        exclude group: 'com.google.code.findbugs'
+        exclude group: 'com.google.errorprone'
+        exclude group: 'com.google.j2objc'
+    }
     implementation group: 'io.opentracing', name: 'opentracing-util', version: "$opentracingVersion"
 
     testImplementation project(":temporal-testing")
