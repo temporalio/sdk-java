@@ -201,13 +201,14 @@ public class TestWorkflowEnvironmentSleepTest {
     WorkflowOptions workflowAOptions =
         WorkflowOptions.newBuilder()
             .setTaskQueue(WORKFLOW_TASK_QUEUE)
-            .setWorkflowExecutionTimeout(Duration.ofSeconds(30))
+            .setWorkflowExecutionTimeout(Duration.ofMinutes(30))
             .build();
 
     WorkflowStub stubA =
         client.newUntypedWorkflowStub("ConfigurableSleepWorkflow", workflowAOptions);
 
-    // The workflow sleeps for 10 minutes, which will take less than 10 seconds if timeskipping works
+    // The workflow sleeps for 10 minutes, which will take less than 10 seconds if timeskipping
+    // works
     long durationToSleep = Duration.ofMinutes(10).toMillis();
     Duration durationToWait = Duration.ofSeconds(10);
 
