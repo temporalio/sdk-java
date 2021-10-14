@@ -19,6 +19,8 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
+
 import com.google.common.base.Throwables;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
@@ -285,16 +287,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StartWorkflowExecutionRequest request,
       StreamObserver<StartWorkflowExecutionResponse> responseObserver) {
     try {
+      Duration backoffInterval = getBackoffInterval(request.getCronSchedule(), store.currentTime());
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionImpl(
-              request, Duration.ZERO, Optional.empty(), OptionalLong.empty(), Optional.empty());
+              request, backoffInterval, Optional.empty(), OptionalLong.empty(), Optional.empty());
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -493,10 +493,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondWorkflowTaskCompletedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     } catch (Throwable e) {
       responseObserver.onError(
           Status.INTERNAL
@@ -517,10 +514,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondWorkflowTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -580,10 +574,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .build());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -609,10 +600,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .build());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -627,10 +615,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondActivityTaskCompletedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -649,10 +634,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondActivityTaskCompletedByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -667,10 +649,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondActivityTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -687,10 +666,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondActivityTaskFailedByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -705,10 +681,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondActivityTaskCanceledResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -727,10 +700,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondActivityTaskCanceledByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -743,10 +713,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RequestCancelWorkflowExecutionResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -768,10 +735,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(TerminateWorkflowExecutionResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -794,10 +758,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(SignalWorkflowExecutionResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -877,10 +838,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .build());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -991,10 +949,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           ListOpenWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -1016,10 +971,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           ListClosedWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -1034,10 +986,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(RespondQueryTaskCompletedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -1054,10 +1003,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(result);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -1076,10 +1022,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onNext(result);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-        log.error("unexpected", e);
-      }
-      responseObserver.onError(e);
+      handleStatusRuntimeException(e, responseObserver);
     }
   }
 
@@ -1162,5 +1105,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.toMillis(),
             TimeUnit.MILLISECONDS);
     return deadline != null ? deadline.minimum(maximumDeadline) : maximumDeadline;
+  }
+
+  private void handleStatusRuntimeException(
+      StatusRuntimeException e, StreamObserver<?> responseObserver) {
+    if (e.getStatus().getCode() == Status.Code.INTERNAL) {
+      log.error("unexpected", e);
+    }
+    responseObserver.onError(e);
   }
 }

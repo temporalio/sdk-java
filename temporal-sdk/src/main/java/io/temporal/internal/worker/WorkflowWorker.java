@@ -355,10 +355,10 @@ public final class WorkflowWorker
         Scope metricsScope,
         ByteString taskToken,
         WorkflowTaskHandler.Result response) {
-      RpcRetryOptions ro = response.getRequestRetryOptions();
+      RpcRetryOptions retryOptions = response.getRequestRetryOptions();
       RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
+        retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
 
         RespondWorkflowTaskCompletedRequest request =
             taskCompleted
@@ -374,7 +374,7 @@ public final class WorkflowWorker
                 .build();
         AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
         GrpcRetryer.retry(
-            ro,
+            retryOptions,
             () ->
                 nextTask.set(
                     service
@@ -387,7 +387,7 @@ public final class WorkflowWorker
       } else {
         RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
+          retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
 
           RespondWorkflowTaskFailedRequest request =
               taskFailed
@@ -397,7 +397,7 @@ public final class WorkflowWorker
                   .setTaskToken(taskToken)
                   .build();
           GrpcRetryer.retry(
-              ro,
+              retryOptions,
               () ->
                   service
                       .blockingStub()

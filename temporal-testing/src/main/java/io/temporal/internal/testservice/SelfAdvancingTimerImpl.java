@@ -227,11 +227,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
   private static final Logger log = LoggerFactory.getLogger(SelfAdvancingTimerImpl.class);
   private final Clock systemClock;
-  private final LongSupplier clock =
-      () -> {
-        long timeMillis = this.currentTimeMillis();
-        return timeMillis;
-      };
+  private final LongSupplier clock = this::currentTimeMillis;
   private final Lock lock = new ReentrantLock();
   private final Condition condition = lock.newCondition();
 
@@ -304,7 +300,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
       long executionTime = delay.toMillis() + currentTime;
       TimerTask timerTask = new TimerTask(executionTime, task, taskInfo);
-      cancellationHandle = () -> timerTask.cancel();
+      cancellationHandle = timerTask::cancel;
       tasks.add(timerTask);
       // Locked when queue became empty
       if (tasks.size() == 1 && emptyQueue) {
