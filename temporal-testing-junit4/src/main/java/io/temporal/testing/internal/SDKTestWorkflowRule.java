@@ -232,6 +232,10 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getWorkflowExecutionHistory(execution);
   }
 
+  public WorkflowExecutionHistory getExecutionHistory(WorkflowExecution execution) {
+    return new WorkflowExecutionHistory(testWorkflowRule.getWorkflowExecutionHistory(execution));
+  }
+
   public String getHistoryJsonForReplay(WorkflowExecution execution) {
     return new WorkflowExecutionHistory(getHistory(execution)).toJson(true);
   }

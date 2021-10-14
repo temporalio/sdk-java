@@ -24,8 +24,12 @@ import static org.junit.Assert.*;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.*;
 import io.temporal.failure.*;
+import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.testUtils.Signal;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
@@ -35,6 +39,7 @@ import org.junit.*;
 
 public class ActivityCancellationTest {
   private static final AtomicBoolean timeSkipping = new AtomicBoolean();
+  private static final Signal activityStarted = new Signal();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -47,18 +52,28 @@ public class ActivityCancellationTest {
   public void testActivityCancellation() {
     timeSkipping.set(!testWorkflowRule.isUseExternalService());
     TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
+    WorkflowExecution execution = null;
     try {
-      WorkflowClient.start(workflow::execute, "input1");
+      execution = WorkflowClient.start(workflow::execute, "input1");
       WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
       // While activity is running time skipping is disabled.
       // So sleep for 1 second after it is scheduled.
-      testWorkflowRule.sleep(Duration.ofSeconds((timeSkipping.get() ? 3600 : 0) + 1));
+      if (timeSkipping.get()) {
+        testWorkflowRule.sleep(Duration.ofSeconds(3600));
+      }
+
+      activityStarted.waitForSignal();
+
       untyped.cancel();
       untyped.getResult(String.class);
       fail("unreacheable");
-    } catch (WorkflowFailedException e) {
+    } catch (WorkflowFailedException | InterruptedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
+
+    WorkflowExecutionHistory history = testWorkflowRule.getExecutionHistory(execution);
+    assertEquals(
+        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED, history.getLastEvent().getEventType());
   }
 
   @ActivityInterface
@@ -70,6 +85,7 @@ public class ActivityCancellationTest {
 
     @Override
     public String activity1(String input) {
+      activityStarted.signal();
       long start = System.currentTimeMillis();
       while (true) {
         Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
