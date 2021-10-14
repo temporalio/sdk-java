@@ -12,6 +12,7 @@ ext {
     grpcVersion = '1.41.0'
     guavaVersion = '[10.0,)!!31.0.1-jre'
     jsonPathVersion = '2.6.0'
+    mockitoVersion = '4.0.0'
 }
 
 apply from: "$rootDir/gradle/versioning.gradle"

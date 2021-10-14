@@ -28,6 +28,7 @@ import static io.temporal.internal.statemachines.VersionStateMachine.VERSION_MAR
 import static io.temporal.serviceclient.CheckedExceptionWrapper.unwrap;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.Command;
@@ -735,7 +736,11 @@ public final class WorkflowStateMachines {
     // TODO(maxim): Add more thorough validation logic. For example check if activity IDs are
     // matching.
     assertMatch(
-        command, event, getEventTypeForCommand(command.getCommandType()), event.getEventType());
+        command,
+        event,
+        "eventType",
+        getEventTypeForCommand(command.getCommandType()),
+        event.getEventType());
     switch (command.getCommandType()) {
       case COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK:
         {
@@ -744,10 +749,15 @@ public final class WorkflowStateMachines {
           ActivityTaskScheduledEventAttributes eventAttributes =
               event.getActivityTaskScheduledEventAttributes();
           assertMatch(
-              command, event, commandAttributes.getActivityId(), eventAttributes.getActivityId());
+              command,
+              event,
+              "activityId",
+              commandAttributes.getActivityId(),
+              eventAttributes.getActivityId());
           assertMatch(
               command,
               event,
+              "activityType",
               commandAttributes.getActivityType(),
               eventAttributes.getActivityType());
         }
@@ -759,10 +769,15 @@ public final class WorkflowStateMachines {
           StartChildWorkflowExecutionInitiatedEventAttributes eventAttributes =
               event.getStartChildWorkflowExecutionInitiatedEventAttributes();
           assertMatch(
-              command, event, commandAttributes.getWorkflowId(), eventAttributes.getWorkflowId());
+              command,
+              event,
+              "workflowId",
+              commandAttributes.getWorkflowId(),
+              eventAttributes.getWorkflowId());
           assertMatch(
               command,
               event,
+              "workflowType",
               commandAttributes.getWorkflowType(),
               eventAttributes.getWorkflowType());
         }
@@ -785,15 +800,18 @@ public final class WorkflowStateMachines {
     }
   }
 
-  private void assertMatch(Command command, HistoryEvent event, Object expected, Object actual) {
-    if (!expected.equals(actual)) {
-      throw new IllegalStateException(
-          command.getCommandType()
-              + " doesn't match "
-              + event.getEventType()
-              + " with EventId="
-              + event.getEventId());
-    }
+  private void assertMatch(
+      Command command, HistoryEvent event, String checkType, Object expected, Object actual) {
+    Preconditions.checkState(
+        expected.equals(actual),
+        "Command %s doesn't match event %s with EventId=%s on check %s "
+            + "with an expected value %s and an actual value %s",
+        command.getCommandType(),
+        event.getEventType(),
+        event.getEventId(),
+        checkType,
+        expected,
+        actual);
   }
 
   private class WorkflowTaskCommandsListener implements WorkflowTaskStateMachine.Listener {
