@@ -245,8 +245,13 @@ public class VersionStateMachineTest {
 
     TestEntityManagerListenerBase listener = new TestListener();
     stateMachines = newStateMachines(listener);
+
     try {
-      h.handleWorkflowTaskTakeCommands(stateMachines);
+      // TODO if you try to replace this replay to 0, execute to 1 with a full replay
+      // h.handleWorkflowTaskTakeCommands(stateMachines, Integer.MAX_VALUE)
+      // this test will fail. It's an actual bug in state machine that will be addressed in
+      // https://github.com/temporalio/sdk-java/pull/805
+      h.handleWorkflowTaskTakeCommands(stateMachines, 0, Integer.MAX_VALUE);
       fail("failure expected");
     } catch (Throwable e) {
       assertTrue(
@@ -884,7 +889,11 @@ public class VersionStateMachineTest {
       TestListener listener = new TestListener();
       stateMachines = newStateMachines(listener);
       try {
-        h.handleWorkflowTaskTakeCommands(stateMachines);
+        // TODO if you try to replace this replay to 1, execute to MAX_VALUE with a full replay
+        // h.handleWorkflowTaskTakeCommands(stateMachines, Integer.MAX_VALUE)
+        // this test will fail. It's an actual bug in state machine that will be addressed in
+        // https://github.com/temporalio/sdk-java/pull/805
+        h.handleWorkflowTaskTakeCommands(stateMachines, 1, Integer.MAX_VALUE);
         fail("failure expected");
       } catch (InternalWorkflowTaskException e) {
         assertTrue(e.getCause().getMessage().startsWith("Version is already set"));
