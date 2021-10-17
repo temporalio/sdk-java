@@ -22,6 +22,7 @@ package io.temporal.internal.statemachines;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 import com.google.protobuf.util.Timestamps;
@@ -188,11 +189,30 @@ class TestHistoryBuilder {
     }
   }
 
+  /** @return HistoryInfo for a full replay from history */
   public HistoryInfo getHistoryInfo() {
     return getHistoryInfo(Integer.MAX_VALUE);
   }
 
-  public HistoryInfo getHistoryInfo(int toTaskIndex) {
+  /**
+   * @param replayToIndex index (starting from 1, 0 means no replays) of workflow task that should
+   *     be last for replay. Indexes start from 1. 0 means no replay, {@code Integer.MAX_VALUE}
+   *     means full replay
+   * @return {@link HistoryInfo#previousStartedEventId} contains an EventId of WorkflowTaskStated
+   *     event with {@code replayToIndex} index. {@link HistoryInfo#workflowTaskStartedEventId}
+   *     contains an EventId of WorkflowTaskStated event with {@code replayToIndex + 1} index. <br>
+   *     If the history is a full workflow execution, and it's shorter than requested {@code
+   *     replayToIndex}, {@link HistoryInfo#workflowTaskStartedEventId} will be {@code
+   *     Integer.MAX_VALUE} and {@link HistoryInfo#previousStartedEventId} will be an EventId of the
+   *     last WorkflowTaskStarted in the history. <br>
+   *     If the history is a non-finished workflow execution, and it's shorter than requested {@code
+   *     replayToIndex}, {@link HistoryInfo#workflowTaskStartedEventId} will be an EventId of the
+   *     last WorkflowTaskStarted in the history and {@link HistoryInfo#previousStartedEventId} will
+   *     be an EventId of the previous WorkflowTaskStarted.
+   */
+  public HistoryInfo getHistoryInfo(int replayToIndex) {
+    int executeFromIndex =
+        replayToIndex < Integer.MAX_VALUE ? replayToIndex + 1 : Integer.MAX_VALUE;
     PeekingIterator<HistoryEvent> history = Iterators.peekingIterator(events.iterator());
     long previous = 0;
     long started = 0;
@@ -201,6 +221,13 @@ class TestHistoryBuilder {
     while (true) {
       if (!history.hasNext()) {
         if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
+          // we didn't reach replayToIndex for replays before the end of the history, return "full
+          // replay"
+          return new HistoryInfo(started, Integer.MAX_VALUE);
+        }
+        if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED) {
+          // the history ends with WorkflowTaskStarted event, in that case the last WFT that we can
+          // replay is previous
           return new HistoryInfo(previous, started);
         }
         if (started != event.getEventId()) {
@@ -219,7 +246,7 @@ class TestHistoryBuilder {
             throw new IllegalStateException("equal started and previous: " + started);
           }
           count++;
-          if (count == toTaskIndex || !history.hasNext()) {
+          if (count == executeFromIndex) {
             return new HistoryInfo(previous, started);
           }
         } else if (history.hasNext()
@@ -264,8 +291,14 @@ class TestHistoryBuilder {
   }
 
   public List<Command> handleWorkflowTaskTakeCommands(
-      WorkflowStateMachines stateMachines, int toTaskIndex) {
-    handleWorkflowTask(stateMachines, toTaskIndex);
+      WorkflowStateMachines stateMachines, int executeToTaskIndex) {
+    handleWorkflowTask(stateMachines, executeToTaskIndex);
+    return stateMachines.takeCommands();
+  }
+
+  public List<Command> handleWorkflowTaskTakeCommands(
+      WorkflowStateMachines stateMachines, int replayToTaskIndex, int executeToTaskIndex) {
+    handleWorkflowTask(stateMachines, replayToTaskIndex, executeToTaskIndex);
     return stateMachines.takeCommands();
   }
 
@@ -273,14 +306,20 @@ class TestHistoryBuilder {
     handleWorkflowTask(stateMachines, Integer.MAX_VALUE);
   }
 
-  public void handleWorkflowTask(WorkflowStateMachines stateMachines, int toTaskIndex) {
+  public void handleWorkflowTask(WorkflowStateMachines stateMachines, int executeToTaskIndex) {
+    handleWorkflowTask(stateMachines, executeToTaskIndex - 1, executeToTaskIndex);
+  }
+
+  public void handleWorkflowTask(
+      WorkflowStateMachines stateMachines, int replayToTaskIndex, int executeToTaskIndex) {
+    Preconditions.checkState(replayToTaskIndex <= executeToTaskIndex);
     List<HistoryEvent> events =
         this.events.subList((int) stateMachines.getLastStartedEventId(), this.events.size());
     PeekingIterator<HistoryEvent> history = Iterators.peekingIterator(events.iterator());
-    HistoryInfo info = getHistoryInfo(toTaskIndex);
+    HistoryInfo info = getHistoryInfo(replayToTaskIndex);
     stateMachines.setStartedIds(
         info.getPreviousStartedEventId(), info.getWorkflowTaskStartedEventId());
-    long started = info.getPreviousStartedEventId();
+    long wftStartedEventId = -1;
     HistoryEvent event = null;
     int count =
         stateMachines.getLastStartedEventId() > 0
@@ -291,9 +330,9 @@ class TestHistoryBuilder {
         if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
           return;
         }
-        if (started != event.getEventId()) {
+        if (wftStartedEventId != -1 && wftStartedEventId != event.getEventId()) {
           throw new IllegalArgumentException(
-              "The last event in the history is not WorkflowTaskStarted");
+              "The last event in the history is not WorkflowTaskStarted and not completed");
         }
         throw new IllegalStateException("unreachable");
       }
@@ -301,9 +340,9 @@ class TestHistoryBuilder {
       if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED) {
         if (!history.hasNext()
             || history.peek().getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
-          started = event.getEventId();
+          wftStartedEventId = event.getEventId();
           count++;
-          if (count == toTaskIndex || !history.hasNext()) {
+          if (count == executeToTaskIndex || !history.hasNext()) {
             stateMachines.handleEvent(event, false);
             return;
           }

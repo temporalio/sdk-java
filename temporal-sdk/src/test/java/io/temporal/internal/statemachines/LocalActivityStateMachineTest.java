@@ -159,9 +159,9 @@ public class LocalActivityStateMachineTest {
                     .putDetails(MARKER_ACTIVITY_ID_KEY, converter.toPayloads("id1").get())
                     .build())
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
-    assertEquals(new TestHistoryBuilder.HistoryInfo(0, 3), h.getHistoryInfo(1));
-    assertEquals(new TestHistoryBuilder.HistoryInfo(3, 8), h.getHistoryInfo(2));
-    assertEquals(new TestHistoryBuilder.HistoryInfo(3, 8), h.getHistoryInfo());
+    assertEquals(new TestHistoryBuilder.HistoryInfo(0, 3), h.getHistoryInfo(0));
+    assertEquals(new TestHistoryBuilder.HistoryInfo(3, 8), h.getHistoryInfo(1));
+    assertEquals(new TestHistoryBuilder.HistoryInfo(8, Integer.MAX_VALUE), h.getHistoryInfo());
 
     TestListener listener = new TestListener();
     stateMachines = newStateMachines(listener);
@@ -315,8 +315,8 @@ public class LocalActivityStateMachineTest {
             .addWorkflowTaskTimedOut()
             .addWorkflowTaskScheduled()
             .addWorkflowTaskStarted();
-    assertEquals(new TestHistoryBuilder.HistoryInfo(0, 3), h.getHistoryInfo(1));
-    assertEquals(new TestHistoryBuilder.HistoryInfo(3, 6), h.getHistoryInfo(2));
+    assertEquals(new TestHistoryBuilder.HistoryInfo(0, 3), h.getHistoryInfo(0));
+    assertEquals(new TestHistoryBuilder.HistoryInfo(3, 6), h.getHistoryInfo(1));
     assertEquals(new TestHistoryBuilder.HistoryInfo(6, 12), h.getHistoryInfo());
 
     TestListener listener = new TestListener();

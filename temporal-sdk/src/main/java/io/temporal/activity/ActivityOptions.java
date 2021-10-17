@@ -190,8 +190,8 @@ public final class ActivityOptions {
      * In case of an activity's scope cancellation the corresponding activity stub call fails with a
      * {@link CanceledFailure}.
      *
-     * @param cancellationType Defines the activity's stub cancellation mode. The default
-     *     value is {@link ActivityCancellationType#TRY_CANCEL}
+     * @param cancellationType Defines the activity's stub cancellation mode. The default value is
+     *     {@link ActivityCancellationType#TRY_CANCEL}
      * @see ActivityCancellationType
      */
     public Builder setCancellationType(ActivityCancellationType cancellationType) {
