@@ -20,7 +20,7 @@ dependencies {
 task testServiceServer(type: CreateStartScripts) {
     mainClassName = 'io.temporal.internal.testservice.TestServiceServer'
     applicationName = 'test-service-server'
-    outputDir = new File(project.buildDir, 'tmp')
+    outputDir = new File(project.buildDir, 'dist')
     classpath = startScripts.classpath
     dependsOn 'sourcesJar'
 }
