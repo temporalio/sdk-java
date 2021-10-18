@@ -23,8 +23,11 @@ compileTestKotlin {
 dependencies {
     implementation project(':temporal-sdk')
 
-    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.13.0'
-    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.13.0'
+    implementation "org.jetbrains.kotlin:kotlin-reflect"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.13.0"
+    implementation ("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.0") {
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
+    }
 
     testImplementation project(':temporal-testing')
     testImplementation project(':temporal-testing-junit4')
