@@ -211,9 +211,15 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
-    return new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, execution);
+    WorkflowStub result =
+        new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, execution);
+    for (WorkflowClientInterceptor i : interceptors) {
+      result = i.newUntypedWorkflowStub(execution, workflowType, result);
+    }
+    return result;
   }
 
   @Override

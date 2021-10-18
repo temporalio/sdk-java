@@ -28,6 +28,7 @@ import io.grpc.Status;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
@@ -512,48 +513,45 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       WorkflowState state, Optional<String> filterWorkflowId) {
     List<WorkflowExecutionInfo> result = new ArrayList<>();
     for (Entry<ExecutionId, HistoryStore> entry : this.histories.entrySet()) {
+      ExecutionId executionId = entry.getKey();
+      String workflowId = executionId.getWorkflowId().getWorkflowId();
+      if (filterWorkflowId.isPresent() && !workflowId.equals(filterWorkflowId.get())) {
+        continue;
+      }
+
       if (state == WorkflowState.OPEN) {
         if (entry.getValue().isCompleted()) {
           continue;
         }
-        ExecutionId executionId = entry.getKey();
-        String workflowId = executionId.getWorkflowId().getWorkflowId();
-        if (filterWorkflowId.isPresent() && !workflowId.equals(filterWorkflowId.get())) {
-          continue;
-        }
-        List<HistoryEvent> history = entry.getValue().getHistory();
-        WorkflowExecutionInfo info =
-            WorkflowExecutionInfo.newBuilder()
-                .setExecution(executionId.getExecution())
-                .setHistoryLength(history.size())
-                .setStartTime(history.get(0).getEventTime())
-                .setType(
-                    history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
-                .build();
-        result.add(info);
+        result.add(constructWorkflowExecutionInfo(entry, executionId, null));
       } else {
         if (!entry.getValue().isCompleted()) {
           continue;
         }
-        ExecutionId executionId = entry.getKey();
-        String workflowId = executionId.getWorkflowId().getWorkflowId();
-        if (filterWorkflowId.isPresent() && !workflowId.equals(filterWorkflowId.get())) {
-          continue;
-        }
         List<HistoryEvent> history = entry.getValue().getHistory();
-        WorkflowExecutionInfo info =
-            WorkflowExecutionInfo.newBuilder()
-                .setExecution(executionId.getExecution())
-                .setHistoryLength(history.size())
-                .setStartTime(history.get(0).getEventTime())
-                .setType(
-                    history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
-                .setStatus(WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1)))
-                .build();
-        result.add(info);
+        WorkflowExecutionStatus status =
+            WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1));
+        result.add(constructWorkflowExecutionInfo(entry, executionId, status));
       }
     }
     return result;
+  }
+
+  private WorkflowExecutionInfo constructWorkflowExecutionInfo(
+      Entry<ExecutionId, HistoryStore> entry,
+      ExecutionId executionId,
+      WorkflowExecutionStatus status) {
+    List<HistoryEvent> history = entry.getValue().getHistory();
+    WorkflowExecutionInfo.Builder info =
+        WorkflowExecutionInfo.newBuilder()
+            .setExecution(executionId.getExecution())
+            .setHistoryLength(history.size())
+            .setStartTime(history.get(0).getEventTime())
+            .setType(history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType());
+    if (status != null) {
+      info.setStatus(status);
+    }
+    return info.build();
   }
 
   @Override

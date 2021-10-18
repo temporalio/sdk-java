@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
@@ -38,13 +37,10 @@ import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsRequest;
 import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
-import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -62,7 +58,6 @@ import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow2;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -341,29 +336,6 @@ public class WorkflowTestingTest {
     CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow1, "input1");
     workflow.ProcessSignal("signalInput");
     assertEquals("signalInput-input1", result.get());
-  }
-
-  @Test(timeout = 5000)
-  public void testActivityCancellation() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(TestCancellationWorkflow.class);
-    worker.registerActivitiesImplementations(new TestCancellationActivityImpl());
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, options);
-    try {
-      WorkflowExecution execution = WorkflowClient.start(workflow::execute, "input1");
-      WorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
-      // While activity is running time skipping is disabled.
-      // So sleep for 1 second after it is scheduled.
-      testEnvironment.sleep(Duration.ofSeconds(3601));
-      untyped.cancel();
-      untyped.getResult(String.class);
-      fail("unreacheable");
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof CanceledFailure);
-    }
   }
 
   @Test
@@ -730,39 +702,6 @@ public class WorkflowTestingTest {
     @Override
     public void ProcessSignal(String input) {
       signalInput = input;
-    }
-  }
-
-  private static class TestCancellationActivityImpl implements TestCancellationActivity {
-
-    @Override
-    public String activity1(String input) {
-      long start = System.currentTimeMillis();
-      while (true) {
-        Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
-        try {
-          Thread.sleep(50);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-      }
-    }
-  }
-
-  public static class TestCancellationWorkflow implements TestWorkflow1 {
-
-    private final TestCancellationActivity activity =
-        Workflow.newActivityStub(
-            TestCancellationActivity.class,
-            ActivityOptions.newBuilder()
-                .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
-                .setHeartbeatTimeout(Duration.ofSeconds(1))
-                .build());
-
-    @Override
-    public String execute(String input) {
-      Workflow.sleep(Duration.ofHours(1)); // test time skipping
-      return activity.activity1(input);
     }
   }
 

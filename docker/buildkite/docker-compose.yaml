@@ -19,7 +19,7 @@ services:
       - "8126:8126"
 
   temporal:
-    image: temporaliotest/auto-setup:latest
+    image: temporaliotest/auto-setup:13fef8a745eff25ccedb04e2e3cd5c33d4c8abdd
     logging:
       driver: none
     ports:
