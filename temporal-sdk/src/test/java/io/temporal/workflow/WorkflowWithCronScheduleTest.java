@@ -45,7 +45,7 @@ public class WorkflowWithCronScheduleTest {
           .build();
 
   @Test
-  public void testWorkflowWithCronSchedule() {
+  public void testCronWorkflowWithIncrementSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
     assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);
@@ -58,9 +58,12 @@ public class WorkflowWithCronScheduleTest {
                 newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
                     .setWorkflowRunTimeout(Duration.ofHours(1))
-                    .setCronSchedule("0 * * * *")
+                    // Slash is used to describe increments of n here so this cron executes every
+                    // 1st and 28th of the month. We picked 27 here, so that this test doesn't fail
+                    // around the month of Feb :)
+                    .setCronSchedule("0 5 */27 * *")
                     .build());
-    testWorkflowRule.registerDelayedCallback(Duration.ofHours(3), client::cancel);
+    testWorkflowRule.registerDelayedCallback(Duration.ofDays(60), client::cancel);
     client.start(testName.getMethodName());
 
     try {
@@ -70,9 +73,10 @@ public class WorkflowWithCronScheduleTest {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
 
-    // Run 3 failed. So on run 4 we get the last completion result from run 2.
     Map<Integer, String> lastCompletionResults =
         TestWorkflowWithCronScheduleImpl.lastCompletionResults.get(testName.getMethodName());
+    assertEquals(4, lastCompletionResults.size());
+    // Run 3 failed. So on run 4 we get the last completion result from run 2.
     assertEquals("run 2", lastCompletionResults.get(4));
     // The last failure ought to be the one from run 3
     assertTrue(TestWorkflowWithCronScheduleImpl.lastFail.isPresent());

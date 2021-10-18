@@ -3,22 +3,35 @@ steps:
     agents:
       queue: "default"
       docker: "*"
-    command: "./gradlew --no-daemon check"
+    command: "./gradlew --no-daemon test"
     timeout_in_minutes: 15
     plugins:
-      - docker-compose#v3.0.0:
+      - docker-compose#v3.8.0:
           run: unit-test-test-service
           config: docker/buildkite/docker-compose.yaml
-  - label: ":java: Unit test with docker service"
+
+  - label: ":docker: Unit test with docker service"
     agents:
       queue: "default"
       docker: "*"
     command: "./gradlew --no-daemon test"
     timeout_in_minutes: 15
     plugins:
-      - docker-compose#v3.0.0:
+      - docker-compose#v3.8.0:
           run: unit-test-docker
           config: docker/buildkite/docker-compose.yaml
+
+  - label: ":copyright: Copyright and code format"
+    agents:
+      queue: "default"
+      docker: "*"
+    command: "/bin/sh -c 'docker/buildkite/copyright-and-code-format.sh'"
+    timeout_in_minutes: 15
+    plugins:
+      - docker-compose#v3.8.0:
+          run: unit-test-test-service
+          config: docker/buildkite/docker-compose.yaml
+
   - label: ":alien: Fossa scan"
     agents:
       queue: "default"
@@ -26,7 +39,7 @@ steps:
     command: "fossa init --include-all --no-ansi; fossa analyze --no-ansi -b $${BUILDKITE_BRANCH:-$$(git branch --show-current)}; fossa test --timeout 1800 --no-ansi"
     timeout_in_minutes: 60
     plugins:
-      - docker-compose#v3.0.0:
+      - docker-compose#v3.8.0:
           run: fossa
           config: docker/buildkite/docker-compose.yaml
 

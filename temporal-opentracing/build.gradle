@@ -8,14 +8,18 @@ dependencies {
     api project(':temporal-sdk')
     api group: 'io.opentracing', name: 'opentracing-api', version: "$opentracingVersion"
 
-    implementation "com.google.guava:guava:$guavaVersion"
+    implementation ("com.google.guava:guava:$guavaVersion") {
+        exclude group: 'com.google.code.findbugs'
+        exclude group: 'com.google.errorprone'
+        exclude group: 'com.google.j2objc'
+    }
     implementation group: 'io.opentracing', name: 'opentracing-util', version: "$opentracingVersion"
 
     testImplementation project(":temporal-testing")
     testImplementation project(':temporal-testing-junit4')
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
-    testImplementation group: 'org.mockito', name: 'mockito-core', version: '3.12.4'
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation group: 'io.opentracing', name: 'opentracing-mock', version: "$opentracingVersion"
     testImplementation group: 'io.jaegertracing', name: 'jaeger-client', version: '1.6.0'
 }

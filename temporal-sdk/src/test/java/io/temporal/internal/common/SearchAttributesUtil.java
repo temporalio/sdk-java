@@ -19,7 +19,6 @@
 
 package io.temporal.internal.common;
 
-import com.cronutils.utils.StringUtils;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
 
@@ -28,7 +27,7 @@ public class SearchAttributesUtil {
 
   public static <T> T getValueFromSearchAttributes(
       SearchAttributes searchAttributes, String key, Class<T> classType) {
-    if (searchAttributes == null || StringUtils.isEmpty(key)) {
+    if (searchAttributes == null || key == null || key.isEmpty()) {
       return null;
     }
     return jsonConverter.fromPayload(

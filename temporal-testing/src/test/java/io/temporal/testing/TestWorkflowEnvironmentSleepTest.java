@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
@@ -36,6 +37,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.After;
@@ -192,6 +194,36 @@ public class TestWorkflowEnvironmentSleepTest {
     // now (minus epsilon). Without the bug, it should complete immediately.
     workflowBStub.start(sleepDuration.toMillis());
     waitForWorkflow(workflowBStub, "B", howLongWeWaitForFutures);
+  }
+
+  @Test
+  public void timeskippingWorksForBothTypesOfUntypedStubs() {
+    WorkflowOptions workflowAOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(WORKFLOW_TASK_QUEUE)
+            .setWorkflowExecutionTimeout(Duration.ofMinutes(30))
+            .build();
+
+    WorkflowStub stubA =
+        client.newUntypedWorkflowStub("ConfigurableSleepWorkflow", workflowAOptions);
+
+    // The workflow sleeps for 10 minutes, which will take less than 10 seconds if timeskipping
+    // works
+    long durationToSleep = Duration.ofMinutes(10).toMillis();
+    Duration durationToWait = Duration.ofSeconds(10);
+
+    stubA.start(durationToSleep);
+    waitForWorkflow(stubA, "newUntypedStubWithOptions", durationToWait);
+
+    // Now use one stub to start the workflow and create another stub using its WorkflowExecution.
+    // This simulates the scenario where someone stored a WorkflowExecution in their database,
+    // looked it up, and wants to check status.
+    WorkflowStub stubB =
+        client.newUntypedWorkflowStub("ConfigurableSleepWorkflow", workflowAOptions);
+    WorkflowExecution executionB = stubB.start(durationToSleep);
+
+    WorkflowStub stubBPrime = client.newUntypedWorkflowStub(executionB, Optional.empty());
+    waitForWorkflow(stubBPrime, "newUntypedStubForWorkflowExecution", durationToWait);
   }
 
   private void waitForWorkflow(WorkflowStub workflowStub, String workflowName, Duration waitTime) {
