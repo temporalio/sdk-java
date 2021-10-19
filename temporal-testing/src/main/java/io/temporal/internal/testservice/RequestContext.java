@@ -177,7 +177,7 @@ final class RequestContext {
           .asRuntimeException();
     }
     long eventId = initialEventId + events.size();
-    if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
+    if (WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
       workflowCompletedAtEventId = eventId;
     } else {
       if (workflowCompletedAtEventId > 0 && workflowCompletedAtEventId < eventId) {

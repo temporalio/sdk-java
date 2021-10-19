@@ -118,7 +118,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
           eBuilder.setEventTime(eventTime);
         }
         history.add(eBuilder.build());
-        completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(eBuilder);
+        completed = completed || WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(eBuilder);
       }
       newEventsCondition.signal();
     }
@@ -400,7 +400,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             previousStaredEventId = startedEventId;
             startedEventId = event.getEventId();
           }
-        } else if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
+        } else if (WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
           previousStaredEventId = startedEventId;
           startedEventId = 0;
           if (iterator.hasNext()) {
@@ -449,7 +449,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
                       // They asked for only the close event. There are a variety of ways a workflow
                       // can close.
-                      return WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(e);
+                      return WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(e);
                     })
                 .collect(Collectors.toList());
         return GetWorkflowExecutionHistoryResponse.newBuilder()

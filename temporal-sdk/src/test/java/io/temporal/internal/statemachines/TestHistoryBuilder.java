@@ -220,7 +220,7 @@ class TestHistoryBuilder {
     int count = 0;
     while (true) {
       if (!history.hasNext()) {
-        if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
+        if (WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
           // we didn't reach replayToIndex for replays before the end of the history, return "full
           // replay"
           return new HistoryInfo(started, Integer.MAX_VALUE);
@@ -327,7 +327,7 @@ class TestHistoryBuilder {
             : 0;
     while (true) {
       if (!history.hasNext()) {
-        if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
+        if (WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
           return;
         }
         if (wftStartedEventId != -1 && wftStartedEventId != event.getEventId()) {
