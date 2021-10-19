@@ -127,7 +127,14 @@ public class WorkflowExecutionUtils {
     }
   }
 
-  public static boolean isWorkflowExecutionCompletedEvent(HistoryEventOrBuilder event) {
+  public static boolean isWorkflowTaskClosedEvent(HistoryEventOrBuilder event) {
+    return ((event != null)
+        && (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+            || event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED
+            || event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT));
+  }
+
+  public static boolean isWorkflowExecutionClosedEvent(HistoryEventOrBuilder event) {
     return ((event != null)
         && (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
             || event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED

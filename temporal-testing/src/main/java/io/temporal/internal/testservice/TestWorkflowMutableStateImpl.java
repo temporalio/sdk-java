@@ -2299,7 +2299,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private static Optional<HistoryEvent> getCompletionEvent(List<HistoryEvent> history) {
     HistoryEvent lastEvent = history.get(history.size() - 1);
 
-    if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(lastEvent)) {
+    if (WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(lastEvent)) {
       return Optional.of(lastEvent);
     } else {
       return Optional.empty();
