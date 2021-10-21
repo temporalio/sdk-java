@@ -54,6 +54,7 @@ public class ContextAccessor {
     if (payload == null) {
       return null;
     }
+    @SuppressWarnings("unchecked")
     Map<String, String> serializedSpanContext =
         DataConverter.getDefaultInstance()
             .fromPayload(payload, HashMap.class, HASH_MAP_STRING_STRING_TYPE);

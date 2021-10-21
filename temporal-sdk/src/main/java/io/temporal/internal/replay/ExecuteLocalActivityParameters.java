@@ -23,7 +23,6 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import java.time.Duration;
 
 public class ExecuteLocalActivityParameters {
-
   private final PollActivityTaskQueueResponse.Builder activityTask;
   private final Duration localRetryThreshold;
   private boolean doNotIncludeArgumentsIntoMarker;

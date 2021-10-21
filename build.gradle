@@ -9,9 +9,12 @@ plugins {
 
 ext {
     logbackVersion = '1.2.6'
-    grpcVersion = '1.41.0'
-    guavaVersion = '31.0.1-jre'
+    grpcVersion = '[1.34.0,)!!1.41.0'
+    protoVersion = '[3.10.0,)!!3.18.1'
+    guavaVersion = '[10.0,)!!31.0.1-jre'
     jsonPathVersion = '2.6.0'
+    mockitoVersion = '4.0.0'
+    micrometerVersion = '[1.0.0,)!!1.7.5'
 }
 
 apply from: "$rootDir/gradle/versioning.gradle"

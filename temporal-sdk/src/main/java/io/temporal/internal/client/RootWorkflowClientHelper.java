@@ -23,6 +23,7 @@ import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.*;
@@ -117,12 +118,20 @@ final class RootWorkflowClientHelper {
   }
 
   private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
-      List<ContextPropagator> contextPropagators) {
-    if (contextPropagators == null) {
+      List<ContextPropagator> workflowOptionsContextPropagators) {
+    List<ContextPropagator> workflowClientContextPropagators =
+        clientOptions.getContextPropagators();
+    if ((workflowClientContextPropagators.isEmpty() && workflowOptionsContextPropagators == null)
+        || (workflowOptionsContextPropagators != null
+            && workflowOptionsContextPropagators.isEmpty())) {
       return null;
     }
+
+    List<ContextPropagator> listToUse =
+        MoreObjects.firstNonNull(
+            workflowOptionsContextPropagators, workflowClientContextPropagators);
     Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : contextPropagators) {
+    for (ContextPropagator propagator : listToUse) {
       result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
     }
     return new io.temporal.common.interceptors.Header(result);

@@ -95,7 +95,7 @@ final class WorkflowClientLongPollAsyncHelper {
                 service, workflowClientHelper, workflowExecution, pageToken, timeout, unit);
           }
           HistoryEvent event = history.getEvents(0);
-          if (!WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
+          if (!WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
             throw new RuntimeException("Last history event is not completion event: " + event);
           }
           // Workflow called continueAsNew. Start polling the new generation with new runId.

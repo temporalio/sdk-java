@@ -152,7 +152,35 @@ public final class ActivityOptions {
       return this;
     }
 
-    /** ContextPropagators help propagate the context from the workflow to the activities */
+    /**
+     * Note: <br>
+     * This method has an extremely limited usage.
+     *
+     * <p>Both "client" (workflow worker) and "server" (activity worker) sides of context
+     * propagation from a workflow to an activity exist in a worker process (potentially the same
+     * one), so they typically share the same worker options. Specifically, {@code
+     * ContextPropagator}s specified on {@link
+     * io.temporal.client.WorkflowClientOptions#getContextPropagators()}. {@link
+     * io.temporal.client.WorkflowClientOptions.Builder#setContextPropagators(List)} is the right
+     * place to specify {@code ContextPropagator}s between Workflow and an Activity. <br>
+     * Specifying context propagators with this method overrides them only on the "client"
+     * (workflow) side and can't be automatically promoted to the "server" (activity worker), which
+     * always uses {@code ContextPropagator}s from {@link
+     * io.temporal.client.WorkflowClientOptions#getContextPropagators()} <br>
+     * The only legitimate usecase for this method is probably a situation when the specific
+     * activity is implemented in a different language and in a completely different worker codebase
+     * and in that case setting a {@code ContextPropagator} that is applied only on a "client" side
+     * could make sense. <br>
+     * This is also why there is no equivalent method on {@link LocalActivityOptions}.
+     *
+     * @see <a href="https://github.com/temporalio/sdk-java/issues/490">Rejected feature reqest for
+     *     LocalActivityOption#contextPropagators</a>
+     * @param contextPropagators specifies the list of context propagators to use during propagation
+     *     from a workflow to the activity with these {@link ActivityOptions}. This list overrides
+     *     the list specified on {@link
+     *     io.temporal.client.WorkflowClientOptions#getContextPropagators()}, {@code null} means no
+     *     overriding
+     */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
       return this;
@@ -162,7 +190,8 @@ public final class ActivityOptions {
      * In case of an activity's scope cancellation the corresponding activity stub call fails with a
      * {@link CanceledFailure}.
      *
-     * @param cancellationType Defines a mode of the activity's stub call cancellation.
+     * @param cancellationType Defines the activity's stub cancellation mode. The default value is
+     *     {@link ActivityCancellationType#TRY_CANCEL}
      * @see ActivityCancellationType
      */
     public Builder setCancellationType(ActivityCancellationType cancellationType) {

@@ -127,7 +127,14 @@ public class WorkflowExecutionUtils {
     }
   }
 
-  public static boolean isWorkflowExecutionCompletedEvent(HistoryEventOrBuilder event) {
+  public static boolean isWorkflowTaskClosedEvent(HistoryEventOrBuilder event) {
+    return ((event != null)
+        && (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+            || event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED
+            || event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT));
+  }
+
+  public static boolean isWorkflowExecutionClosedEvent(HistoryEventOrBuilder event) {
     return ((event != null)
         && (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
             || event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED
@@ -274,26 +281,27 @@ public class WorkflowExecutionUtils {
     }
   }
 
-  /** Is this an event that was created to mirror a command? */
+  /** Command event is an event that is created to mirror a command issued by a workflow task */
   public static boolean isCommandEvent(HistoryEvent event) {
     EventType eventType = event.getEventType();
-    boolean result =
-        ((event != null)
-            && (eventType == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
-                || eventType == EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED
-                || eventType == EventType.EVENT_TYPE_TIMER_STARTED
-                || eventType == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
-                || eventType == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED
-                || eventType == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED
-                || eventType == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW
-                || eventType == EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED
-                || eventType == EventType.EVENT_TYPE_TIMER_CANCELED
-                || eventType
-                    == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED
-                || eventType == EventType.EVENT_TYPE_MARKER_RECORDED
-                || eventType == EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED
-                || eventType == EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES));
-    return result;
+    switch (eventType) {
+      case EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+      case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
+      case EVENT_TYPE_TIMER_STARTED:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW:
+      case EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED:
+      case EVENT_TYPE_TIMER_CANCELED:
+      case EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
+      case EVENT_TYPE_MARKER_RECORDED:
+      case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
+      case EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
+        return true;
+      default:
+        return false;
+    }
   }
 
   /** Returns event that corresponds to a command. */

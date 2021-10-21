@@ -8,18 +8,8 @@ services:
     ports:
       - "9042:9042"
 
-  statsd:
-    image: hopsoft/graphite-statsd
-    logging:
-      driver: none
-    ports:
-      - "8080:80"
-      - "2003:2003"
-      - "8125:8125"
-      - "8126:8126"
-
   temporal:
-    image: temporaliotest/auto-setup:latest
+    image: temporaliotest/auto-setup:13fef8a745eff25ccedb04e2e3cd5c33d4c8abdd
     logging:
       driver: none
     ports:
@@ -33,17 +23,14 @@ services:
       - "6939:6939"
     environment:
       - "CASSANDRA_SEEDS=cassandra"
-      - "STATSD_ENDPOINT=statsd:8125"
       - "DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml"
     depends_on:
       - cassandra
-      - statsd
 
   unit-test-docker:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: /bin/sh -c "docker/buildkite/run-tests.sh"
     environment:
       - "USER=unittest"
       - "TEMPORAL_SERVICE_ADDRESS=temporal:7233"
@@ -57,7 +44,6 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: /bin/sh -c "docker/buildkite/run-tests.sh"
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
@@ -74,4 +60,3 @@ services:
       - FOSSA_API_KEY
     volumes:
       - "../../:/temporal-java-client"
-

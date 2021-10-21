@@ -66,8 +66,8 @@ public class MetricsType {
       TEMPORAL_METRICS_PREFIX + "activity_canceled";
   public static final String ACTIVITY_EXEC_LATENCY =
       TEMPORAL_METRICS_PREFIX + "activity_execution_latency";
-  public static final String ACTIVITY_E2E_LATENCY =
-      TEMPORAL_METRICS_PREFIX + "activity_endtoend_latency";
+  public static final String ACTIVITY_SUCCEED_E2E_LATENCY =
+      TEMPORAL_METRICS_PREFIX + "activity_succeed_endtoend_latency";
   public static final String LOCAL_ACTIVITY_TOTAL_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_total";
   public static final String LOCAL_ACTIVITY_CANCELED_COUNTER =
@@ -76,6 +76,8 @@ public class MetricsType {
       TEMPORAL_METRICS_PREFIX + "local_activity_failed";
   public static final String LOCAL_ACTIVITY_EXECUTION_LATENCY =
       TEMPORAL_METRICS_PREFIX + "local_activity_execution_latency";
+  public static final String LOCAL_ACTIVITY_SUCCEED_E2E_LATENCY =
+      TEMPORAL_METRICS_PREFIX + "local_activity_succeed_endtoend_latency";
   public static final String CORRUPTED_SIGNALS_COUNTER =
       TEMPORAL_METRICS_PREFIX + "corrupted_signals";
 
