@@ -1,0 +1,26 @@
+{
+  "events": [{
+    "eventId": "1",
+    "eventTime": "2020-07-30T00:30:03.082421843Z",
+    "eventType": "WorkflowExecutionStarted",
+    "version": "-24",
+    "taskId": "5242897",
+    "workflowExecutionStartedEventAttributes": {
+      "workflowType": {
+        "name": "SomeName"
+      },
+      "taskQueue": {
+        "name": "SomeQueueName",
+        "kind": "Normal"
+      },
+      "input": null,
+      "workflowExecutionTimeout": "300s",
+      "workflowTaskTimeout": "60s",
+      "originalExecutionRunId": "1fd5d4c8-1590-4a0a-8027-535e8729de8e",
+      "identity":"",
+      "firstExecutionRunId": "1fd5d4c8-1590-4a0a-8027-535e8729de8e",
+      "attempt": 1,
+      "firstWorkflowTaskBackoff": "0s"
+    }
+  }]
+}
