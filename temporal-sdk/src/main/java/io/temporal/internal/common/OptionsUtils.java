@@ -22,6 +22,7 @@ package io.temporal.internal.common;
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
 import java.time.Duration;
+import java.util.Objects;
 
 public final class OptionsUtils {
 
@@ -50,20 +51,15 @@ public final class OptionsUtils {
     return value;
   }
 
-  /** Merges value from annotation and option. Option value takes precedence. */
-  public static <G> G merge(G annotation, G options, Class<G> type) {
+  public static <G> G merge(G value, G overrideValueIfNotDefault, Class<G> type) {
     G defaultValue = Defaults.defaultValue(type);
-    if (defaultValue == null) {
-      if (options != null) {
-        return options;
-      }
-    } else if (!defaultValue.equals(options)) {
-      return options;
+    if (!Objects.equals(defaultValue, overrideValueIfNotDefault)) {
+      return overrideValueIfNotDefault;
     }
     if (type.equals(String.class)) {
-      return ((String) annotation).isEmpty() ? null : annotation;
+      return ((String) value).isEmpty() ? null : value;
     }
-    return annotation;
+    return value;
   }
 
   /**
@@ -75,6 +71,13 @@ public final class OptionsUtils {
       return o;
     }
     return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
+  }
+
+  public static String[] merge(String[] fromAnnotation, String[] fromOptions) {
+    if (fromOptions != null) {
+      return fromOptions;
+    }
+    return fromAnnotation;
   }
 
   /**

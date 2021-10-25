@@ -9,7 +9,7 @@ services:
       - "9042:9042"
 
   temporal:
-    image: temporaliotest/auto-setup:13fef8a745eff25ccedb04e2e3cd5c33d4c8abdd
+    image: temporaliotest/auto-setup
     logging:
       driver: none
     ports:

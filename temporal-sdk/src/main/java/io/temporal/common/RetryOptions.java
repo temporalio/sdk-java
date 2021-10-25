@@ -19,11 +19,11 @@
 
 package io.temporal.common;
 
-import com.google.common.base.Defaults;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Objects;
@@ -71,24 +71,26 @@ public final class RetryOptions {
     if (o == null) {
       o = RetryOptions.getDefaultInstance();
     }
-    Duration initial = merge(r.initialIntervalSeconds(), o.getInitialInterval());
+    Duration initial = OptionsUtils.merge(r.initialIntervalSeconds(), o.getInitialInterval());
     RetryOptions.Builder builder = RetryOptions.newBuilder();
     if (initial != null) {
       builder.setInitialInterval(initial);
     }
-    Duration maximum = merge(r.maximumIntervalSeconds(), o.getMaximumInterval());
+    Duration maximum = OptionsUtils.merge(r.maximumIntervalSeconds(), o.getMaximumInterval());
     if (maximum != null) {
       builder.setMaximumInterval(maximum);
     }
-    double coefficient = merge(r.backoffCoefficient(), o.getBackoffCoefficient(), double.class);
+    double coefficient =
+        OptionsUtils.merge(r.backoffCoefficient(), o.getBackoffCoefficient(), double.class);
     if (coefficient != 0d) {
       builder.setBackoffCoefficient(coefficient);
     } else {
       builder.setBackoffCoefficient(DEFAULT_BACKOFF_COEFFICIENT);
     }
     return builder
-        .setMaximumAttempts(merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry()))
+        .setMaximumAttempts(
+            OptionsUtils.merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
+        .setDoNotRetry(OptionsUtils.merge(r.doNotRetry(), o.getDoNotRetry()))
         .build();
   }
 
@@ -98,12 +100,15 @@ public final class RetryOptions {
       return this;
     }
     return RetryOptions.newBuilder()
-        .setInitialInterval(merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
-        .setMaximumInterval(merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
+        .setInitialInterval(
+            OptionsUtils.merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
+        .setMaximumInterval(
+            OptionsUtils.merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
         .setBackoffCoefficient(
-            merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
-        .setMaximumAttempts(merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(merge(getDoNotRetry(), o.getDoNotRetry()))
+            OptionsUtils.merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
+        .setMaximumAttempts(
+            OptionsUtils.merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
+        .setDoNotRetry(OptionsUtils.merge(getDoNotRetry(), o.getDoNotRetry()))
         .build();
   }
 
@@ -157,11 +162,13 @@ public final class RetryOptions {
     }
 
     /**
-     * Maximum number of attempts. When exceeded the retries stop even if not expired yet. Must be 1
-     * or bigger. Default is unlimited.
+     * When exceeded the amount of attempt, stop. Even if expiration time is not reached. <br>
+     * Default is unlimited.
+     *
+     * @param maximumAttempts Maximum number of attempts. Default will be used if set to {@code 0}.
      */
     public Builder setMaximumAttempts(int maximumAttempts) {
-      if (maximumAttempts < 1) {
+      if (maximumAttempts < 0) {
         throw new IllegalArgumentException("Invalid maximumAttempts: " + maximumAttempts);
       }
       this.maximumAttempts = maximumAttempts;
@@ -170,11 +177,14 @@ public final class RetryOptions {
 
     /**
      * Maximum interval between retries. Exponential backoff leads to interval increase. This value
-     * is the cap of the increase. Default is 100x of initial interval.
+     * is the cap of the increase. <br>
+     * Default is 100x of initial interval.
+     *
+     * @param maximumInterval the maximum interval value. Default will be used if set to {@code
+     *     null}.
      */
     public Builder setMaximumInterval(Duration maximumInterval) {
-      Objects.requireNonNull(maximumInterval);
-      if (maximumInterval.isNegative() || maximumInterval.isZero()) {
+      if (maximumInterval != null && (maximumInterval.isNegative() || maximumInterval.isZero())) {
         throw new IllegalArgumentException("Invalid interval: " + maximumInterval);
       }
       this.maximumInterval = maximumInterval;
@@ -204,8 +214,7 @@ public final class RetryOptions {
      * <p>{@link Error} and {@link CanceledFailure} are never retried and are not even passed to
      * this filter.
      */
-    @SafeVarargs
-    public final Builder setDoNotRetry(String... doNotRetry) {
+    public Builder setDoNotRetry(String... doNotRetry) {
       if (doNotRetry != null) {
         this.doNotRetry = doNotRetry;
       }
@@ -325,27 +334,6 @@ public final class RetryOptions {
         maximumAttempts,
         maximumInterval,
         Arrays.hashCode(doNotRetry));
-  }
-
-  private static <G> G merge(G annotation, G options, Class<G> type) {
-    if (!Defaults.defaultValue(type).equals(options)) {
-      return options;
-    }
-    return annotation;
-  }
-
-  private static Duration merge(long aSeconds, Duration o) {
-    if (o != null) {
-      return o;
-    }
-    return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
-  }
-
-  private static String[] merge(String[] fromAnnotation, String[] fromOptions) {
-    if (fromOptions != null) {
-      return fromOptions;
-    }
-    return fromAnnotation;
   }
 
   public long calculateSleepTime(long attempt) {
