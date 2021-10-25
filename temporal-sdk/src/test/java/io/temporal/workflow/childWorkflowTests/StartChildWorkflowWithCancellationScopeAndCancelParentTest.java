@@ -36,7 +36,6 @@ import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowCancellationType;
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -48,10 +47,10 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
           .setWorkflowTypes(ParentThatStartsChildInCancellationScope.class, SleepyChild.class)
           .build();
 
-  @Ignore("flaky") // TODO address flakiness and enable
   @Test
   public void testStartChildWorkflowWithCancellationScopeAndCancelParent() {
-    WorkflowStub workflow = testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow");
+    WorkflowStub workflow =
+        testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflowCancellationType");
     workflow.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
     workflow.cancel();
     try {

@@ -47,7 +47,7 @@ public final class WorkflowExecutionHistory {
   public static WorkflowExecutionHistory fromJson(String serialized) {
     String protoJson = HistoryJsonUtils.historyFormatJsonToProtoJson(serialized);
 
-    JsonFormat.Parser parser = JsonFormat.parser();
+    JsonFormat.Parser parser = JsonFormat.parser().ignoringUnknownFields();
     History.Builder historyBuilder = History.newBuilder();
     try {
       parser.merge(protoJson, historyBuilder);
