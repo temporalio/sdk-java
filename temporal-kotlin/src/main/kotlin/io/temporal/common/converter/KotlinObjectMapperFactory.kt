@@ -34,7 +34,9 @@ class KotlinObjectMapperFactory {
       mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
       mapper.registerModule(JavaTimeModule())
       mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
-      val km = KotlinModule.Builder().build()
+      @Suppress("deprecation")
+      // use deprecated constructor instead of builder to maintain compatibility with old jackson versions
+      val km = KotlinModule()
       mapper.registerModule(km)
       return mapper
     }
