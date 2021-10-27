@@ -37,7 +37,7 @@ import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.statemachines.EntityManagerListener;
+import io.temporal.internal.statemachines.StatesMachinesCallback;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
@@ -47,7 +47,6 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,6 +88,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
   private final DataConverter converter;
 
+  private final StatesMachinesCallbackImpl statesMachinesCallback;
   private final WorkflowStateMachines workflowStateMachines;
 
   private final HistoryEvent firstEvent;
@@ -115,7 +115,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           "First event in the history is not WorkflowExecutionStarted");
     }
     startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
-    this.workflowStateMachines = new WorkflowStateMachines(new EntityManagerListenerImpl());
+    this.statesMachinesCallback = new StatesMachinesCallbackImpl();
+    this.workflowStateMachines = new WorkflowStateMachines(statesMachinesCallback);
     this.metricsScope = metricsScope;
     this.converter = options.getDataConverter();
     this.localActivityTaskPoller = localActivityTaskPoller;
@@ -133,10 +134,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     replayWorkflowExecutor = new ReplayWorkflowExecutor(workflow, workflowStateMachines, context);
 
     localActivityCompletionSink = historyEvent -> localActivityCompletionQueue.add(historyEvent);
-  }
-
-  private void handleEvent(HistoryEvent event, boolean hasNextEvent) {
-    workflowStateMachines.handleEvent(event, hasNextEvent);
   }
 
   @Override
@@ -167,16 +164,17 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     try {
       workflowStateMachines.setStartedIds(
           workflowTask.getPreviousStartedEventId(), workflowTask.getStartedEventId());
-      Iterator<HistoryEvent> historyEvents =
+      WorkflowHistoryIterator historyEvents =
           new WorkflowHistoryIterator(
               service,
               namespace,
               workflowTask,
               toJavaDuration(startedEvent.getWorkflowTaskTimeout()),
               metricsScope);
+      statesMachinesCallback.workflowHistoryIterator = historyEvents;
       while (historyEvents.hasNext()) {
         HistoryEvent event = historyEvents.next();
-        handleEvent(event, historyEvents.hasNext());
+        workflowStateMachines.handleEvent(event, historyEvents.hasNext());
         if (!timerStopped && !workflowStateMachines.isReplaying()) {
           sw.stop();
           timerStopped = true;
@@ -316,7 +314,9 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     workflowStateMachines.handleLocalActivityCompletion(laCompletion);
   }
 
-  private class EntityManagerListenerImpl implements EntityManagerListener {
+  private class StatesMachinesCallbackImpl implements StatesMachinesCallback {
+
+    private WorkflowHistoryIterator workflowHistoryIterator;
 
     @Override
     public void start(HistoryEvent startWorkflowEvent) {

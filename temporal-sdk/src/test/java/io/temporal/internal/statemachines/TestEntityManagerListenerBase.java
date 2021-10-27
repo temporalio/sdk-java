@@ -24,7 +24,7 @@ import io.temporal.workflow.Functions;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
-abstract class TestEntityManagerListenerBase implements EntityManagerListener {
+abstract class TestEntityManagerListenerBase implements StatesMachinesCallback {
 
   private final Queue<Functions.Proc> callbacks = new ArrayDeque<>();
 

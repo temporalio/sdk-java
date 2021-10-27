@@ -234,7 +234,10 @@ public class DummySyncWorkflowContext {
 
     @Override
     public void getVersion(
-        String changeId, int minSupported, int maxSupported, Functions.Proc1<Integer> callback) {
+        String changeId,
+        int minSupported,
+        int maxSupported,
+        Functions.Proc2<Integer, RuntimeException> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
