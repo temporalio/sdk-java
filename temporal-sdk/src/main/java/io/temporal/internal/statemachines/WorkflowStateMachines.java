@@ -235,7 +235,14 @@ public final class WorkflowStateMachines {
       // That's why peek is used instead of poll.
       CancellableCommand command = commands.peek();
       if (command == null) {
-        throw new IllegalStateException("No command scheduled that corresponds to " + event);
+        if (handleVersionMarker(event)) {
+          // this event is a version marker for removed getVersion call.
+          // Handle the version marker as unmatched and return even if there is no commands to match
+          // it against
+          return;
+        } else {
+          throw new IllegalStateException("No command scheduled that corresponds to " + event);
+        }
       }
 
       if (command.isCanceled()) {
@@ -263,7 +270,7 @@ public final class WorkflowStateMachines {
         case NON_MATCHING_EVENT:
           if (handleVersionMarker(event)) {
             // this event is a version marker for removed getVersion call.
-            // Return without consuming the command
+            // Handle the version marker as unmatched and return without consuming the command
             return;
           } else {
             throw new IllegalStateException(

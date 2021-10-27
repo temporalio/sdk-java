@@ -221,8 +221,8 @@ class TestHistoryBuilder {
     while (true) {
       if (!history.hasNext()) {
         if (WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
-          // we didn't reach replayToIndex for replays before the end of the history, return "full
-          // replay"
+          // we didn't reach replayToIndex for replays before the end of the history,
+          // return "full replay"
           return new HistoryInfo(started, Integer.MAX_VALUE);
         }
         if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED) {
@@ -232,7 +232,7 @@ class TestHistoryBuilder {
         }
         if (started != event.getEventId()) {
           throw new IllegalArgumentException(
-              "The last event in the history is not WorkflowTaskStarted");
+              "The last event in the history is not WorkflowTaskStarted and not one of Workflow Execution Closing events");
         }
         throw new IllegalStateException("unreachable");
       }

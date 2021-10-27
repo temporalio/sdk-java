@@ -821,6 +821,71 @@ public class VersionStateMachineTest {
     }
   }
 
+  /**
+   * This test simulates a situation when EVENT_TYPE_MARKER_RECORDED is the last event of WFT and
+   * the corresponded getVersion call is removed. This situation requires a special handling in
+   * states machines code because of the way how we process version events.
+   */
+  @Test
+  public void versionMarkerIsTheLastCommandEventOfWFTWithoutCommand() {
+    final int maxSupported = 12654;
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<HistoryEvent>add1(
+                (v, c) ->
+                    stateMachines.newTimer(
+                        StartTimerCommandAttributes.newBuilder()
+                            .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
+                            .build(),
+                        c))
+            .add(
+                (v) -> {
+                  stateMachines.completeWorkflow(converter.toPayloads(v));
+                });
+      }
+    }
+    /*
+      1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+      2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+      3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+      4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+      5: EVENT_TYPE_TIMER_STARTED
+      6: EVENT_TYPE_MARKER_RECORDED
+      7: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+    MarkerRecordedEventAttributes.Builder markerBuilder =
+        MarkerRecordedEventAttributes.newBuilder()
+            .setMarkerName(VERSION_MARKER_NAME)
+            .putDetails(MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+
+    long timerStartedEventId1 = h.addGetEventId(EventType.EVENT_TYPE_TIMER_STARTED);
+    h.add(
+            EventType.EVENT_TYPE_TIMER_FIRED,
+            TimerFiredEventAttributes.newBuilder()
+                .setStartedEventId(timerStartedEventId1)
+                .setTimerId("timer1"))
+        .add(
+            EventType.EVENT_TYPE_MARKER_RECORDED,
+            markerBuilder
+                .putDetails(MARKER_VERSION_KEY, converter.toPayloads(maxSupported).get())
+                .build())
+        .addWorkflowTask()
+        .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+    {
+      // Full replay
+      TestListener listener = new TestListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
+      assertTrue(commands.isEmpty());
+    }
+  }
+
   /** It is not allowed to add getVersion calls with existing changeId. */
   @Test
   public void testAddingGetVersionExistingIdFails() {
