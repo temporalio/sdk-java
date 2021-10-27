@@ -21,11 +21,14 @@ compileTestKotlin {
 }
 
 dependencies {
+    implementation(platform("com.fasterxml.jackson:jackson-bom:$jacksonVersion"))
+
     implementation project(':temporal-sdk')
 
     implementation "org.jetbrains.kotlin:kotlin-reflect"
-    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.13.0"
-    implementation ("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.0") {
+
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+    implementation ("com.fasterxml.jackson.module:jackson-module-kotlin") {
         exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
     }
 
