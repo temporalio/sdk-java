@@ -192,6 +192,11 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
+  public WorkflowStub newUntypedWorkflowStub(String workflowId) {
+    return newUntypedWorkflowStub(workflowId, Optional.empty(), Optional.empty());
+  }
+
+  @Override
   @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions workflowOptions) {
     WorkflowStub result =
