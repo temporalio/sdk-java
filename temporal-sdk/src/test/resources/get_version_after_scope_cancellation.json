@@ -1,0 +1,106 @@
+{
+  "events": [
+    {
+      "eventId": "1",
+      "eventTime": "2021-09-28T21:59:37.636Z",
+      "eventType": "WorkflowExecutionStarted",
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "NoArgsWorkflow"
+        },
+        "taskQueue": {
+          "name": "WorkflowTest-testGetVersionAndCancelTimer-20b5e5dd-06e4-4363-879a-292c42b61de2"
+        },
+        "input": {},
+        "workflowExecutionTimeout": "315360000s",
+        "workflowRunTimeout": "108000s",
+        "workflowTaskTimeout": "5s",
+        "originalExecutionRunId": "78ca96e4-cfdb-4302-bd50-ba23fd2e7206",
+        "identity": "7420@Dmitrys-Temporal-MacBook.local",
+        "attempt": 1,
+        "header": {}
+      }
+    },
+    {
+      "eventId": "2",
+      "eventTime": "2021-09-28T21:59:37.636Z",
+      "eventType": "WorkflowTaskScheduled",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "WorkflowTest-testGetVersionAndCancelTimer-20b5e5dd-06e4-4363-879a-292c42b61de2"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "3",
+      "eventTime": "2021-09-28T21:59:37.649Z",
+      "eventType": "WorkflowTaskStarted",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "7420@Dmitrys-Temporal-MacBook.local"
+      }
+    },
+    {
+      "eventId": "4",
+      "eventTime": "2021-09-28T21:59:37.888Z",
+      "eventType": "WorkflowTaskCompleted",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "7420@Dmitrys-Temporal-MacBook.local"
+      }
+    },
+    {
+      "eventId": "5",
+      "eventTime": "2021-09-28T21:59:37.888Z",
+      "eventType": "MarkerRecorded",
+      "markerRecordedEventAttributes": {
+        "markerName": "Version",
+        "details": {
+          "changeId": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "InNvbWUtY2hhbmdlIg\u003d\u003d"
+              }
+            ]
+          },
+          "version": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "MQ\u003d\u003d"
+              }
+            ]
+          }
+        },
+        "workflowTaskCompletedEventId": "3"
+      }
+    },
+    {
+      "eventId": "6",
+      "eventTime": "2021-09-28T21:59:37.888Z",
+      "eventType": "TimerStarted",
+      "timerStartedEventAttributes": {
+        "timerId": "3d37fe4d-e4fe-30b1-8394-6ab7397df04d",
+        "startToFireTimeout": "4s",
+        "workflowTaskCompletedEventId": "3"
+      }
+    },
+    {
+      "eventId": "7",
+      "eventTime": "2021-09-28T21:59:37.888Z",
+      "eventType": "TimerStarted",
+      "timerStartedEventAttributes": {
+        "timerId": "7f4ad4f2-24e5-3dfb-a2c2-78a9835e85a9",
+        "startToFireTimeout": "6s",
+        "workflowTaskCompletedEventId": "3"
+      }
+    }
+  ]
+}

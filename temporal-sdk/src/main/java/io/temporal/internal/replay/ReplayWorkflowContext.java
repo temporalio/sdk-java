@@ -241,7 +241,10 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @param callback used to return version
    */
   void getVersion(
-      String changeId, int minSupported, int maxSupported, Functions.Proc1<Integer> callback);
+      String changeId,
+      int minSupported,
+      int maxSupported,
+      Functions.Proc2<Integer, RuntimeException> callback);
 
   /** Replay safe random. */
   Random newRandom();
