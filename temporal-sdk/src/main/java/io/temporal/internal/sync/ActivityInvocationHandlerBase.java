@@ -67,7 +67,14 @@ public abstract class ActivityInvocationHandlerBase implements InvocationHandler
     if (function == null) {
       throw new IllegalArgumentException("Unexpected method: " + method);
     }
-    return getValueOrDefault(function.apply(args), method.getReturnType());
+    Object result = function.apply(args);
+    if (result == null
+        && method.getReturnType().isPrimitive()
+        && !method.getReturnType().getName().equals("void")) {
+      throw new NullPointerException(
+          "Activity returned null while a primitive return type was expected.");
+    }
+    return getValueOrDefault(result, method.getReturnType());
   }
 
   protected abstract Function<Object[], Object> getActivityFunc(

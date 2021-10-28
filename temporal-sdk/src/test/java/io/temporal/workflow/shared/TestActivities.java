@@ -60,15 +60,21 @@ public class TestActivities {
   }
 
   @ActivityInterface
-  public interface TestActivity1 {
+  public interface NoArgsReturnsIntActivity {
     @ActivityMethod
-    String execute(String input);
+    int execute();
   }
 
   @ActivityInterface
   public interface NoArgsReturnsStringActivity {
     @ActivityMethod
     String execute();
+  }
+
+  @ActivityInterface
+  public interface TestActivity1 {
+    @ActivityMethod
+    String execute(String input);
   }
 
   @ActivityInterface

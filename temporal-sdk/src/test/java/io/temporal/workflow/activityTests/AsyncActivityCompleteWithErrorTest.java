@@ -27,8 +27,8 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.TestActivities.NoArgsReturnsIntActivity;
+import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import java.util.concurrent.ForkJoinPool;
 import org.junit.Assert;
@@ -44,20 +44,13 @@ public class AsyncActivityCompleteWithErrorTest {
           .setActivityImplementations(new AsyncActivityWithManualCompletion())
           .build();
 
-  @WorkflowInterface
-  public interface TestWorkflow {
-
-    @WorkflowMethod
-    String execute(String taskQueue);
-  }
-
-  public static class TestWorkflowImpl implements TestWorkflow {
+  public static class TestWorkflowImpl implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
-      TestActivity activity =
+      NoArgsReturnsIntActivity activity =
           Workflow.newActivityStub(
-              TestActivity.class,
+              NoArgsReturnsIntActivity.class,
               ActivityOptions.newBuilder()
                   .setScheduleToStartTimeout(Duration.ofSeconds(1))
                   .setScheduleToCloseTimeout(Duration.ofSeconds(1))
@@ -75,14 +68,7 @@ public class AsyncActivityCompleteWithErrorTest {
     }
   }
 
-  @ActivityInterface
-  public interface TestActivity {
-
-    @ActivityMethod
-    int execute();
-  }
-
-  public static class AsyncActivityWithManualCompletion implements TestActivity {
+  public static class AsyncActivityWithManualCompletion implements NoArgsReturnsIntActivity {
     @Override
     public int execute() {
       ActivityExecutionContext context = Activity.getExecutionContext();
@@ -100,7 +86,7 @@ public class AsyncActivityCompleteWithErrorTest {
   @Test
   public void verifyActivityCompletionClientCompleteExceptionally() {
     String taskQueue = testWorkflowRule.getTaskQueue();
-    TestWorkflow workflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
+    TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
     String result = workflow.execute(taskQueue);
     Assert.assertEquals("success", result);
   }

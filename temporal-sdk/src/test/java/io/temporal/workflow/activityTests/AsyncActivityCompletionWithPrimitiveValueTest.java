@@ -19,25 +19,21 @@
 
 package io.temporal.workflow.activityTests;
 
-import static junit.framework.TestCase.assertNull;
+import static org.junit.Assert.fail;
 
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.ManualActivityCompletionClient;
-import io.temporal.common.RetryOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.Async;
-import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.TestActivities.NoArgsReturnsIntActivity;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class AsyncActivityCompletionWithPrimitiveValue {
+public class AsyncActivityCompletionWithPrimitiveValueTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -56,30 +52,24 @@ public class AsyncActivityCompletionWithPrimitiveValue {
 
     @Override
     public void execute() {
-      TestActivity activity =
+      NoArgsReturnsIntActivity activity =
           Workflow.newActivityStub(
-              TestActivity.class,
+              NoArgsReturnsIntActivity.class,
               ActivityOptions.newBuilder()
-                  .setScheduleToStartTimeout(Duration.ofSeconds(1))
                   .setScheduleToCloseTimeout(Duration.ofSeconds(1))
-                  .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());
-      Promise<Long> promise = Async.function(activity::execute);
-      Long result = promise.get();
-      assertNull(result);
+      try {
+        activity.execute();
+        fail();
+      } catch (NullPointerException e) {
+        // expected
+      }
     }
   }
 
-  @ActivityInterface
-  public interface TestActivity {
-
-    @ActivityMethod
-    long execute();
-  }
-
-  public static class AsyncActivityWithManualCompletion implements TestActivity {
+  public static class AsyncActivityWithManualCompletion implements NoArgsReturnsIntActivity {
     @Override
-    public long execute() {
+    public int execute() {
       ActivityExecutionContext context = Activity.getExecutionContext();
       ManualActivityCompletionClient completionClient = context.useLocalManualCompletion();
       completionClient.complete(null);
