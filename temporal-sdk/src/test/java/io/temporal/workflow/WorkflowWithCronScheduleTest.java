@@ -59,11 +59,10 @@ public class WorkflowWithCronScheduleTest {
                     .toBuilder()
                     .setWorkflowRunTimeout(Duration.ofHours(1))
                     // Slash is used to describe increments of n here so this cron executes every
-                    // 1st and 28th of the month. We picked 27 here, so that this test doesn't fail
-                    // around the month of Feb :)
-                    .setCronSchedule("0 5 */27 * *")
+                    // 6th hour.
+                    .setCronSchedule("0 */6 * * *")
                     .build());
-    testWorkflowRule.registerDelayedCallback(Duration.ofDays(60), client::cancel);
+    testWorkflowRule.registerDelayedCallback(Duration.ofDays(1), client::cancel);
     client.start(testName.getMethodName());
 
     try {
