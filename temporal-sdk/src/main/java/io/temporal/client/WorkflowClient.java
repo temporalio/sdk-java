@@ -39,7 +39,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Client to the Temporal service used to start and query workflows by external processes. Also it
+ * Client to the Temporal service used to start and query workflows by external processes. Also, it
  * supports creation of {@link ActivityCompletionClient} instances used to complete activities
  * asynchronously. Do not create this object for each request, keep it for the duration of the
  * process.
@@ -57,7 +57,7 @@ import java.util.concurrent.CompletableFuture;
  * There are two ways to start workflow execution: synchronously and asynchronously. Synchronous
  * invocation starts a workflow and then waits for its completion. If the process that started the
  * workflow crashes or stops waiting, the workflow continues executing. Because workflows are
- * potentially long running, and crashes of clients happen, it is not very commonly found in
+ * potentially long-running, and crashes of clients happen, it is not very commonly found in
  * production use. Asynchronous start initiates workflow execution and immediately returns to the
  * caller. This is the most common way to start workflows in production code.
  *
@@ -164,6 +164,16 @@ public interface WorkflowClient {
    * @return Stub that implements workflowInterface and can be used to signal or query it.
    */
   <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId, Optional<String> runId);
+
+  /**
+   * Creates workflow untyped client stub that can be used to start a single workflow execution. Use
+   * it to send signals or queries to a running workflow. Do not call methods annotated
+   * with @WorkflowMethod.
+   *
+   * @param workflowId Workflow id.
+   * @return Stub that can be used to start workflow and later to signal or query it.
+   */
+  WorkflowStub newUntypedWorkflowStub(String workflowId);
 
   /**
    * Creates workflow untyped client stub that can be used to start a single workflow execution.

@@ -30,4 +30,14 @@ public class UnsupportedVersion extends Error {
   public UnsupportedVersion(String message) {
     super(message);
   }
+
+  public UnsupportedVersion(UnsupportedVersionException e) {
+    super(e.getMessage(), e);
+  }
+
+  public static class UnsupportedVersionException extends RuntimeException {
+    public UnsupportedVersionException(String message) {
+      super(message);
+    }
+  }
 }
