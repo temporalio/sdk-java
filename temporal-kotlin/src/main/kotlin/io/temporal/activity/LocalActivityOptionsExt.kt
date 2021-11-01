@@ -19,7 +19,6 @@
 
 package io.temporal.activity
 
-import io.temporal.api.common.v1.RetryPolicy
 import io.temporal.common.RetryOptions
 import io.temporal.kotlin.TemporalDsl
 
