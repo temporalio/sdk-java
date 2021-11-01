@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 import io.opentracing.Scope;
 import io.opentracing.mock.MockSpan;
 import io.opentracing.mock.MockTracer;
-import io.opentracing.util.GlobalTracer;
+import io.opentracing.tag.Tags;
 import io.opentracing.util.ThreadLocalScopeManager;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -42,7 +42,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -51,25 +50,23 @@ public class WorkflowReplayTest {
   private final MockTracer mockTracer =
       new MockTracer(new ThreadLocalScopeManager(), MockTracer.Propagator.TEXT_MAP);
 
+  private final OpenTracingOptions OT_OPTIONS =
+      OpenTracingOptions.newBuilder().setTracer(mockTracer).build();
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
-                  .setInterceptors(new OpenTracingClientInterceptor())
+                  .setInterceptors(new OpenTracingClientInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
-                  .setWorkerInterceptors(new OpenTracingWorkerInterceptor())
+                  .setWorkerInterceptors(new OpenTracingWorkerInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new ActivityImpl())
           .build();
-
-  @Before
-  public void setUp() {
-    GlobalTracer.registerIfAbsent(mockTracer);
-  }
 
   @After
   public void tearDown() {
@@ -189,7 +186,7 @@ public class WorkflowReplayTest {
     MockSpan workflowFirstRunSpan = workflowRunSpans.get(0);
     assertEquals(workflowStartSpan.context().spanId(), workflowFirstRunSpan.parentId());
     assertEquals("RunWorkflow:TestWorkflow", workflowFirstRunSpan.operationName());
-    assertEquals(true, workflowFirstRunSpan.tags().get(StandardTagNames.FAILED));
+    assertEquals(true, workflowFirstRunSpan.tags().get(Tags.ERROR.getKey()));
 
     List<MockSpan> workflowFirstRunChildren = spansHelper.getByParentSpan(workflowFirstRunSpan);
     assertEquals(1, workflowFirstRunChildren.size());

@@ -24,5 +24,6 @@ public class StandardTagNames {
   public static final String RUN_ID = "runId";
   public static final String PARENT_WORKFLOW_ID = "parentWorkflowId";
   public static final String PARENT_RUN_ID = "parentRunId";
-  public static final String FAILED = "failed";
+  /** @deprecated use {@link io.opentracing.tag.Tags#ERROR} */
+  @Deprecated public static final String FAILED = "failed";
 }

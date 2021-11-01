@@ -22,7 +22,6 @@ package io.temporal.opentracing;
 import static org.junit.Assert.assertEquals;
 
 import io.opentracing.mock.MockTracer;
-import io.opentracing.util.GlobalTracer;
 import io.opentracing.util.ThreadLocalScopeManager;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -37,7 +36,6 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -46,25 +44,23 @@ public class NoClientSpanTest {
   private final MockTracer mockTracer =
       new MockTracer(new ThreadLocalScopeManager(), MockTracer.Propagator.TEXT_MAP);
 
+  private final OpenTracingOptions OT_OPTIONS =
+      OpenTracingOptions.newBuilder().setTracer(mockTracer).build();
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
-                  .setInterceptors(new OpenTracingClientInterceptor())
+                  .setInterceptors(new OpenTracingClientInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
-                  .setWorkerInterceptors(new OpenTracingWorkerInterceptor())
+                  .setWorkerInterceptors(new OpenTracingWorkerInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new ActivityImpl())
           .build();
-
-  @Before
-  public void setUp() {
-    GlobalTracer.registerIfAbsent(mockTracer);
-  }
 
   @After
   public void tearDown() {

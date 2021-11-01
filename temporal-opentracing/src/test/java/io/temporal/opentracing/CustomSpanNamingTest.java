@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 import io.opentracing.Scope;
 import io.opentracing.mock.MockSpan;
 import io.opentracing.mock.MockTracer;
-import io.opentracing.util.GlobalTracer;
+import io.opentracing.tag.Tags;
 import io.opentracing.util.ThreadLocalScopeManager;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -54,33 +53,26 @@ public class CustomSpanNamingTest {
   private final MockTracer mockTracer =
       new MockTracer(new ThreadLocalScopeManager(), MockTracer.Propagator.TEXT_MAP);
 
+  private final OpenTracingOptions OT_OPTIONS =
+      OpenTracingOptions.newBuilder()
+          .setSpanBuilderProvider(new TestSpanBuilderProvider())
+          .setTracer(mockTracer)
+          .build();
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
-                  .setInterceptors(
-                      new OpenTracingClientInterceptor(
-                          OpenTracingOptions.newBuilder()
-                              .setSpanBuilderProvider(new TestSpanBuilderProvider())
-                              .build()))
+                  .setInterceptors(new OpenTracingClientInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
-                  .setWorkerInterceptors(
-                      new OpenTracingWorkerInterceptor(
-                          OpenTracingOptions.newBuilder()
-                              .setSpanBuilderProvider(new TestSpanBuilderProvider())
-                              .build()))
+                  .setWorkerInterceptors(new OpenTracingWorkerInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new FailingActivityImpl())
           .build();
-
-  @Before
-  public void setUp() {
-    GlobalTracer.registerIfAbsent(mockTracer);
-  }
 
   @After
   public void tearDown() {
@@ -186,7 +178,7 @@ public class CustomSpanNamingTest {
     assertEquals(activityStartSpan.context().spanId(), activityFailRunSpan.parentId());
     assertEquals("RunActivity", activityFailRunSpan.operationName());
     assertEquals("Activity", activityFailRunSpan.tags().get("resource.name"));
-    assertEquals(true, activityFailRunSpan.tags().get(StandardTagNames.FAILED));
+    assertEquals(true, activityFailRunSpan.tags().get(Tags.ERROR.getKey()));
 
     MockSpan activitySuccessfulRunSpan = activityRunSpans.get(1);
     assertEquals(activityStartSpan.context().spanId(), activitySuccessfulRunSpan.parentId());

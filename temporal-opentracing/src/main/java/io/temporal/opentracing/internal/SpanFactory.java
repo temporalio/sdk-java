@@ -20,16 +20,18 @@
 package io.temporal.opentracing.internal;
 
 import com.google.common.base.MoreObjects;
-import com.uber.m3.util.ImmutableMap;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
+import io.opentracing.log.Fields;
+import io.opentracing.tag.Tags;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.SpanCreationContext;
 import io.temporal.opentracing.SpanOperationType;
-import io.temporal.opentracing.StandardLogNames;
 import io.temporal.opentracing.StandardTagNames;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -126,14 +128,24 @@ public class SpanFactory {
     return createSpan(context, tracer, startTimeMs, activityStartSpanContext, References.CHILD_OF);
   }
 
+  @SuppressWarnings("deprecation")
   public void logFail(Span toSpan, Throwable failReason) {
     toSpan.setTag(StandardTagNames.FAILED, true);
+    toSpan.setTag(Tags.ERROR, true);
+
     Map<String, Object> logPayload =
         ImmutableMap.of(
-            StandardLogNames.FAILURE_MESSAGE,
+            Fields.EVENT,
+            "error",
+            Fields.ERROR_KIND,
+            failReason.getClass().getName(),
+            Fields.ERROR_OBJECT,
+            failReason,
+            Fields.MESSAGE,
             failReason.getMessage(),
-            StandardLogNames.FAILURE_CAUSE,
-            failReason);
+            Fields.STACK,
+            Throwables.getStackTraceAsString(failReason));
+
     toSpan.log(System.currentTimeMillis(), logPayload);
   }
 
