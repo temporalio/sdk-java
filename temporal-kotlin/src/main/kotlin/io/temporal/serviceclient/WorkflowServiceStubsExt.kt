@@ -22,8 +22,9 @@ package io.temporal.serviceclient
 import io.temporal.kotlin.TemporalDsl
 
 /**
- * Create gRPC connection stubs using default options. The options default to the connection to
- * the locally running temporal service.
+ * Create gRPC connection stubs using default options.
+ *
+ * @see WorkflowServiceStubs.newInstance
  */
 fun WorkflowServiceStubs(): WorkflowServiceStubs {
   return WorkflowServiceStubs.newInstance()
@@ -31,6 +32,8 @@ fun WorkflowServiceStubs(): WorkflowServiceStubs {
 
 /**
  * Create gRPC connection stubs using provided [options].
+ *
+ * @see WorkflowServiceStubs.newInstance
  */
 inline fun WorkflowServiceStubs(
   options: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit

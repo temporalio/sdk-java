@@ -22,8 +22,10 @@ package io.temporal.worker
 import io.temporal.activity.ActivityOptions
 import io.temporal.common.metadata.activityName
 import io.temporal.kotlin.TemporalDsl
-import io.temporal.workflow.Workflow
 
+/**
+ * @see WorkflowImplementationOptions
+ */
 inline fun WorkflowImplementationOptions(
   options: @TemporalDsl WorkflowImplementationOptions.Builder.() -> Unit
 ): WorkflowImplementationOptions {
@@ -31,8 +33,7 @@ inline fun WorkflowImplementationOptions(
 }
 
 /**
- * Set individual Activity options per `activityType`. Will be merged with the map from
- * [Workflow.newActivityStub] which has highest precedence.
+ * Set individual Activity options per `activityType`.
  *
  * The [activityName] method could be used resolve activity method references to activity names:
  *
@@ -51,6 +52,8 @@ inline fun WorkflowImplementationOptions(
  * ```
  *
  * @param activityOptions map from activityType to [ActivityOptions]
+ * @see WorkflowImplementationOptions.Builder.setActivityOptions
+ * @see WorkflowImplementationOptions.getActivityOptions
  */
 fun WorkflowImplementationOptions.Builder.setActivityOptions(
   vararg activityOptions: Pair<String, ActivityOptions>
@@ -59,11 +62,8 @@ fun WorkflowImplementationOptions.Builder.setActivityOptions(
 }
 
 /**
- * These activity options have the lowest precedence across all activity options. Will be
- * overwritten entirely by [Workflow.newActivityStub] and then by the individual activity options
- * if any are set through [WorkflowImplementationOptions.Builder.setActivityOptions].
- *
- * @param defaultActivityOptions [ActivityOptions] for all activities in the workflow.
+ * @see WorkflowImplementationOptions.Builder.setDefaultActivityOptions
+ * @see WorkflowImplementationOptions.getDefaultActivityOptions
  */
 inline fun @TemporalDsl WorkflowImplementationOptions.Builder.setDefaultActivityOptions(
   defaultActivityOptions: @TemporalDsl ActivityOptions.Builder.() -> Unit

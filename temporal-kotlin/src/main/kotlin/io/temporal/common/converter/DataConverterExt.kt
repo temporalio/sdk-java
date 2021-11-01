@@ -25,22 +25,24 @@ import java.util.Optional
 import kotlin.reflect.javaType
 import kotlin.reflect.typeOf
 
+/**
+ * @see DataConverter.toPayload
+ */
 fun DataConverter.toPayloadOrNull(value: Any?): Payload? {
   return toPayload(value).orElse(null)
 }
 
+/**
+ * @param T type of the object
+ * @see DataConverter.fromPayload
+ */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> DataConverter.fromPayload(payload: Payload): T? {
   return fromPayload(payload, T::class.java, typeOf<T>().javaType)
 }
 
 /**
- * Implements conversion of a list of values.
- *
- * @param values Java values to convert to String.
- * @return converted value
- * @throws DataConverterException if conversion of the value passed as parameter failed for any
- * reason.
+ * @see DataConverter.toPayloads
  */
 fun DataConverter.toPayloadsOrNull(vararg values: Any?): Payloads? {
   return toPayloads(*values).orElse(null)
@@ -52,10 +54,8 @@ fun DataConverter.toPayloadsOrNull(vararg values: Any?): Payloads? {
  *
  * @param index index of the value in the payloads
  * @param content serialized value to convert to Java objects.
- * @param T type of the parameter stored in the content
- * @return converted Java object
- * @throws DataConverterException if conversion of the data passed as parameter failed for any
- * reason.
+ * @param T type of the parameter stored in the [content]
+ * @see DataConverter.fromPayloads
  */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> DataConverter.fromPayloads(index: Int, content: Payloads?): T? {

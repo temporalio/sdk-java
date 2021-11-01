@@ -20,11 +20,10 @@
 package io.temporal.worker
 
 import io.temporal.client.WorkflowClient
-import io.temporal.common.converter.DataConverter
 import io.temporal.kotlin.TemporalDsl
 
 /**
- * Maintains worker creation and lifecycle.
+ * @see WorkerFactory
  */
 fun WorkerFactory(
   workflowClient: WorkflowClient
@@ -33,7 +32,7 @@ fun WorkerFactory(
 }
 
 /**
- * Maintains worker creation and lifecycle.
+ * @see WorkerFactory
  */
 fun WorkerFactory(
   workflowClient: WorkflowClient,
@@ -43,13 +42,9 @@ fun WorkerFactory(
 }
 
 /**
- * Creates worker that connects to an instance of the Temporal Service. It uses the namespace
- * configured at the Factory level. New workers cannot be created after the
- * [start][WorkerFactory.start] has been called.
+ * Creates worker that connects to an instance of the Temporal Service.
  *
- * @param taskQueue task queue name worker uses to poll. It uses this name for both workflow and
- *     activity task queue polls.
- * @param options Options (like [DataConverter] override) for configuring worker.
+ * @see WorkerFactory.newWorker
  */
 inline fun WorkerFactory.newWorker(
   taskQueue: String,

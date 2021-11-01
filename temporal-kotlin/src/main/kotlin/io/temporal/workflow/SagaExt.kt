@@ -22,10 +22,7 @@ package io.temporal.workflow
 import io.temporal.kotlin.TemporalDsl
 
 /**
- * Builds an instance of [Saga] that implements the logic to execute
- * [compensation operations](https://en.wikipedia.org/wiki/Compensating_transaction) that is often
- * required in Saga applications. The following is a skeleton to show of how it is supposed to be
- * used in workflow code:
+ * Builds an instance of [Saga].
  *
  * ```kotlin
  * val saga = Saga {
@@ -45,6 +42,9 @@ import io.temporal.kotlin.TemporalDsl
  *    // Other error handling if needed.
  * }
  * ```
+ *
+ * @see Saga
+ * @see Saga.Options
  */
 inline fun Saga(options: @TemporalDsl Saga.Options.Builder.() -> Unit = {}): Saga {
   return Saga(Saga.Options.Builder().apply(options).build())

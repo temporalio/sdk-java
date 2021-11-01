@@ -24,17 +24,19 @@ import kotlin.reflect.javaType
 import kotlin.reflect.typeOf
 
 /**
- * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
- * call performs long poll on Temporal service waiting for workflow completion notification.
+ * Returns workflow result potentially waiting for workflow to complete.
  *
  * @param T type of the workflow return value
- * @return workflow return value
+ * @see WorkflowStub.getResult
  */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> WorkflowStub.getResult(): T {
   return getResult(T::class.java, typeOf<T>().javaType)
 }
 
+/**
+ * @see WorkflowStub.getResultAsync
+ */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> WorkflowStub.getResultAsync(): CompletableFuture<T> {
   return getResultAsync(T::class.java, typeOf<T>().javaType)

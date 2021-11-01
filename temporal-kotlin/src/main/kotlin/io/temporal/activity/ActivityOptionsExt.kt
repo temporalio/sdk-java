@@ -24,6 +24,8 @@ import io.temporal.kotlin.TemporalDsl
 
 /**
  * Options used to configure how an Activity is invoked.
+ *
+ * @see ActivityOptions
  */
 inline fun ActivityOptions(
   options: @TemporalDsl ActivityOptions.Builder.() -> Unit
@@ -31,6 +33,9 @@ inline fun ActivityOptions(
   return ActivityOptions.newBuilder().apply(options).build()
 }
 
+/**
+ * Create a new instance of [ActivityOptions], optionally overriding some of its properties.
+ */
 inline fun ActivityOptions.copy(
   overrides: @TemporalDsl ActivityOptions.Builder.() -> Unit
 ): ActivityOptions {
@@ -38,9 +43,8 @@ inline fun ActivityOptions.copy(
 }
 
 /**
- * [RetryOptions] that define how Activity is retried in case of failure. If this is not set, then
- * the server-defined default Activity retry policy will be used. To ensure zero retries, set
- * maximum attempts to 1.
+ * @see ActivityOptions.Builder.setRetryOptions
+ * @see ActivityOptions.getRetryOptions
  */
 inline fun ActivityOptions.Builder.setRetryOptions(
   retryOptions: @TemporalDsl RetryOptions.Builder.() -> Unit

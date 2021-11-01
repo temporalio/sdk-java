@@ -25,6 +25,8 @@ import io.temporal.kotlin.TemporalDsl
 
 /**
  * Options used to configure how a local Activity is invoked.
+ *
+ * @see LocalActivityOptions
  */
 inline fun LocalActivityOptions(
   options: @TemporalDsl LocalActivityOptions.Builder.() -> Unit
@@ -32,6 +34,9 @@ inline fun LocalActivityOptions(
   return LocalActivityOptions.newBuilder().apply(options).build()
 }
 
+/**
+ * Create a new instance of [LocalActivityOptions], optionally overriding some of its properties.
+ */
 inline fun LocalActivityOptions.copy(
   overrides: @TemporalDsl LocalActivityOptions.Builder.() -> Unit
 ): LocalActivityOptions {
@@ -39,8 +44,8 @@ inline fun LocalActivityOptions.copy(
 }
 
 /**
- * [RetryOptions] that define how an Activity is retried in case of failure. Activities
- * use a default [RetryPolicy] if not provided.
+ * @see LocalActivityOptions.Builder.setRetryOptions
+ * @see LocalActivityOptions.getRetryOptions
  */
 inline fun @TemporalDsl LocalActivityOptions.Builder.setRetryOptions(
   retryOptions: @TemporalDsl RetryOptions.Builder.() -> Unit

@@ -22,12 +22,18 @@ package io.temporal.workflow
 import io.temporal.common.RetryOptions
 import io.temporal.kotlin.TemporalDsl
 
+/**
+ * @see ChildWorkflowOptions
+ */
 inline fun ChildWorkflowOptions(
   options: @TemporalDsl ChildWorkflowOptions.Builder.() -> Unit
 ): ChildWorkflowOptions {
   return ChildWorkflowOptions.newBuilder().apply(options).build()
 }
 
+/**
+ * Create a new instance of [ChildWorkflowOptions], optionally overriding some of its properties.
+ */
 inline fun ChildWorkflowOptions.copy(
   overrides: @TemporalDsl ChildWorkflowOptions.Builder.() -> Unit
 ): ChildWorkflowOptions {
@@ -35,8 +41,8 @@ inline fun ChildWorkflowOptions.copy(
 }
 
 /**
- * [RetryOptions] that define how child workflow is retried in case of failure. Default is no
- * reties.
+ * @see ChildWorkflowOptions.Builder.setRetryOptions
+ * @see ChildWorkflowOptions.getRetryOptions
  */
 inline fun ChildWorkflowOptions.Builder.setRetryOptions(
   retryOptions: @TemporalDsl RetryOptions.Builder.() -> Unit

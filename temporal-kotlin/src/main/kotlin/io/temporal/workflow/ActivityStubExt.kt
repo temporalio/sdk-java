@@ -28,8 +28,7 @@ import kotlin.reflect.typeOf
  * @param activityName name of an activity type to execute.
  * @param T the expected return class of the activity. Use `Void` for activities that return void
  * type.
- * @param args arguments of the activity.
- * @return an activity result.
+ * @see ActivityStub.execute
  */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> ActivityStub.execute(activityName: String, vararg args: Any?): T {
@@ -42,8 +41,7 @@ inline fun <reified T> ActivityStub.execute(activityName: String, vararg args: A
  * @param activityName name of an activity type to execute.
  * @param T the expected return class of the activity. Use `Void` for activities that return void
  * type.
- * @param args arguments of the activity.
- * @return Promise to the activity result.
+ * @see ActivityStub.executeAsync
  */
 @OptIn(ExperimentalStdlibApi::class)
 inline fun <reified T> ActivityStub.executeAsync(

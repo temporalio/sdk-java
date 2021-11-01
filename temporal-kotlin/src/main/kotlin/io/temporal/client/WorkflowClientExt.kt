@@ -20,16 +20,14 @@
 package io.temporal.client
 
 import io.temporal.api.common.v1.WorkflowExecution
-import io.temporal.common.converter.DataConverter
 import io.temporal.kotlin.TemporalDsl
 import io.temporal.serviceclient.WorkflowServiceStubs
-import io.temporal.workflow.WorkflowMethod
 import java.util.Optional
 
 /**
  * Creates client that connects to an instance of the Temporal Service.
  *
- * @param service client to the Temporal Service endpoint.
+ * @see WorkflowClient.newInstance
  */
 fun WorkflowClient(
   service: WorkflowServiceStubs
@@ -40,8 +38,7 @@ fun WorkflowClient(
 /**
  * Creates client that connects to an instance of the Temporal Service.
  *
- * @param service client to the Temporal Service endpoint.
- * @param options Options (like [DataConverter] override) for configuring client.
+ * @see WorkflowClient.newInstance
  */
 inline fun WorkflowClient(
   service: WorkflowServiceStubs,
@@ -51,15 +48,10 @@ inline fun WorkflowClient(
 }
 
 /**
- * Creates workflow client stub that can be used to start a single workflow execution. The first
- * call must be to a method annotated with [WorkflowMethod]. After workflow is started it can be
- * also used to send signals or queries to it. IMPORTANT! Stub is per workflow instance. So new
- * stub should be created for each new one.
+ * Creates workflow client stub that can be used to start a single workflow execution.
  *
  * @param T interface that given workflow implements
- * @param options options used to start a workflow through returned stub
- * @return Stub that implements workflow interface [T] and can be used to start workflow and later
- * to signal or query it.
+ * @see WorkflowClient.newWorkflowStub
  */
 inline fun <reified T : Any> WorkflowClient.newWorkflowStub(
   options: WorkflowOptions
@@ -68,15 +60,10 @@ inline fun <reified T : Any> WorkflowClient.newWorkflowStub(
 }
 
 /**
- * Creates workflow client stub that can be used to start a single workflow execution. The first
- * call must be to a method annotated with [WorkflowMethod]. After workflow is started it can be
- * also used to send signals or queries to it. IMPORTANT! Stub is per workflow instance. So new
- * stub should be created for each new one.
+ * Creates workflow client stub that can be used to start a single workflow execution.
  *
  * @param T interface that given workflow implements
- * @param options options used to start a workflow through returned stub
- * @return Stub that implements workflow interface [T] and can be used to start workflow and later
- * to signal or query it.
+ * @see WorkflowClient.newWorkflowStub
  */
 inline fun <reified T : Any> WorkflowClient.newWorkflowStub(
   options: @TemporalDsl WorkflowOptions.Builder.() -> Unit
@@ -85,12 +72,10 @@ inline fun <reified T : Any> WorkflowClient.newWorkflowStub(
 }
 
 /**
- * Creates workflow client stub for a known execution. Use it to send signals or queries to a
- * running workflow. Do not call methods annotated with [WorkflowMethod].
+ * Creates workflow client stub for a known execution.
  *
  * @param T interface that given workflow implements.
- * @param workflowId Workflow id.
- * @return Stub that implements workflow interface [T] and can be used to signal or query it.
+ * @see WorkflowClient.newWorkflowStub
  */
 inline fun <reified T : Any> WorkflowClient.newWorkflowStub(
   workflowId: String
@@ -99,13 +84,10 @@ inline fun <reified T : Any> WorkflowClient.newWorkflowStub(
 }
 
 /**
- * Creates workflow client stub for a known execution. Use it to send signals or queries to a
- * running workflow. Do not call methods annotated with [WorkflowMethod].
+ * Creates workflow client stub for a known execution.
  *
  * @param T interface that given workflow implements.
- * @param workflowId Workflow id.
- * @param runId Run id of the workflow execution.
- * @return Stub that implements workflow interface [T] and can be used to signal or query it.
+ * @see WorkflowClient.newWorkflowStub
  */
 inline fun <reified T : Any> WorkflowClient.newWorkflowStub(
   workflowId: String,
@@ -116,12 +98,8 @@ inline fun <reified T : Any> WorkflowClient.newWorkflowStub(
 
 /**
  * Creates workflow untyped client stub that can be used to start a single workflow execution.
- * After workflow is started it can be also used to send signals or queries to it. IMPORTANT! Stub
- * is per workflow instance. So new stub should be created for each new one.
  *
- * @param workflowType name of the workflow type
- * @param options options used to start a workflow through returned stub
- * @return Stub that can be used to start workflow and later to signal or query it.
+ * @see WorkflowClient.newWorkflowStub
  */
 inline fun WorkflowClient.newUntypedWorkflowStub(
   workflowType: String,
@@ -140,9 +118,10 @@ inline fun WorkflowClient.newUntypedWorkflowStub(
  * }
  * ```
  *
- * @param signals Must include exactly two workflow operations.
+ * @param signals Must include exactly two `add` blocks with workflow operations.
  *        One annotated with `@WorkflowMethod` and another with `@SignalMethod`.
- * @return workflowId and runId of the signaled or started workflow.
+ * @see WorkflowClient.newSignalWithStartRequest
+ * @see WorkflowClient.signalWithStart
  */
 inline fun WorkflowClient.signalWithStart(
   signals: @TemporalDsl BatchRequest.() -> Unit

@@ -19,18 +19,11 @@
 
 package io.temporal.activity
 
-import io.temporal.common.RetryOptions
 import kotlin.reflect.javaType
 import kotlin.reflect.typeOf
 
 /**
- * Extracts Heartbeat details from the last failed attempt. This is used in combination with retry
- * options. An Activity Execution could be scheduled with optional [RetryOptions] via
- * [ActivityOptions]. If an Activity Execution failed then the server would attempt to dispatch
- * another Activity Task to retry the execution according to the retry options. If there were
- * Heartbeat details reported by the last Activity Execution that failed, the details would be
- * delivered along with the Activity Task for the next retry attempt. The Activity implementation
- * can extract the details via [getHeartbeatDetailsOrNull] and resume progress.
+ * Extracts Heartbeat details from the last failed attempt.
  *
  * @param T type of the Heartbeat details
  * @see ActivityExecutionContext.getHeartbeatDetails
