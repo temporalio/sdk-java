@@ -17,6 +17,7 @@ ext {
     micrometerVersion = '[1.0.0,)!!1.7.5'
     jacksonVersion = '[2.9.0,)!!2.13.0'
     tallyVersion = '[0.4.0,)!!0.11.1'
+    gsonVersion = '[2.0,)!!2.8.9'
 }
 
 apply from: "$rootDir/gradle/versioning.gradle"
