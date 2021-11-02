@@ -4,7 +4,7 @@ dependencies {
     implementation(platform("com.fasterxml.jackson:jackson-bom:$jacksonVersion"))
 
     api project(':temporal-serviceclient')
-    api group: 'com.google.code.gson', name: 'gson', version: '2.8.8'
+    api "com.google.code.gson:gson:$gsonVersion"
     api "io.micrometer:micrometer-core:$micrometerVersion"
 
     implementation ("com.google.guava:guava:$guavaVersion") {

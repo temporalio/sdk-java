@@ -35,7 +35,11 @@ import javax.annotation.Nullable;
 
 /** Contains workflow execution ids and the history */
 public final class WorkflowExecutionHistory {
-  private static final Gson PRETTY_PRINTER = new GsonBuilder().setPrettyPrinting().create();
+  private static final Gson GSON_PRETTY_PRINTER = new GsonBuilder().setPrettyPrinting().create();
+  // we stay on using the old API that uses a JsonParser instance instead of static methods
+  // to give users a larger range of supported version
+  @SuppressWarnings("deprecation")
+  private static final JsonParser GSON_PARSER = new JsonParser();
 
   private final History history;
 
@@ -82,8 +86,9 @@ public final class WorkflowExecutionHistory {
       String historyFormatJson = HistoryJsonUtils.protoJsonToHistoryFormatJson(protoJson);
 
       if (prettyPrint) {
-        JsonElement je = JsonParser.parseString(historyFormatJson);
-        return PRETTY_PRINTER.toJson(je);
+        @SuppressWarnings("deprecation")
+        JsonElement je = GSON_PARSER.parse(historyFormatJson);
+        return GSON_PRETTY_PRINTER.toJson(je);
       } else {
         return historyFormatJson;
       }
