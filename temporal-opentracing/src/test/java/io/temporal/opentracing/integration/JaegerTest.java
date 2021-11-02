@@ -29,7 +29,6 @@ import io.jaegertracing.spi.Sampler;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import io.opentracing.util.GlobalTracer;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
@@ -48,19 +47,21 @@ import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.List;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class JaegerTest {
-  private static final OpenTracingOptions JAEGER_COMPATIBLE_CONFIG =
+
+  private final InMemoryReporter reporter = new InMemoryReporter();
+  private final Sampler sampler = new ConstSampler(true);;
+  private final Tracer tracer =
+      new JaegerTracer.Builder("temporal-test").withReporter(reporter).withSampler(sampler).build();
+
+  private final OpenTracingOptions JAEGER_COMPATIBLE_CONFIG =
       OpenTracingOptions.newBuilder()
           .setSpanContextCodec(OpenTracingSpanContextCodec.TEXT_MAP_CODEC)
+          .setTracer(tracer)
           .build();
-
-  private InMemoryReporter reporter;
-  private Sampler sampler;
-  private Tracer tracer;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -76,19 +77,6 @@ public class JaegerTest {
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new ActivityImpl())
           .build();
-
-  @Before
-  public void setUp() {
-    reporter = new InMemoryReporter();
-    sampler = new ConstSampler(true);
-    tracer =
-        new JaegerTracer.Builder("temporal-test")
-            .withReporter(reporter)
-            .withSampler(sampler)
-            .build();
-
-    GlobalTracer.registerIfAbsent(tracer);
-  }
 
   @After
   public void tearDown() {

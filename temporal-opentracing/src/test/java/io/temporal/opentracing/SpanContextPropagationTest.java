@@ -23,10 +23,8 @@ import static org.junit.Assert.*;
 
 import io.opentracing.Scope;
 import io.opentracing.Span;
-import io.opentracing.Tracer;
 import io.opentracing.mock.MockSpan;
 import io.opentracing.mock.MockTracer;
-import io.opentracing.util.GlobalTracer;
 import io.opentracing.util.ThreadLocalScopeManager;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -42,7 +40,6 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -50,28 +47,26 @@ public class SpanContextPropagationTest {
 
   private static final String BAGGAGE_ITEM_KEY = "baggage-item-key";
 
-  private MockTracer mockTracer =
+  private static final MockTracer mockTracer =
       new MockTracer(new ThreadLocalScopeManager(), MockTracer.Propagator.TEXT_MAP);
+
+  private final OpenTracingOptions OT_OPTIONS =
+      OpenTracingOptions.newBuilder().setTracer(mockTracer).build();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
-                  .setInterceptors(new OpenTracingClientInterceptor())
+                  .setInterceptors(new OpenTracingClientInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
-                  .setWorkerInterceptors(new OpenTracingWorkerInterceptor())
+                  .setWorkerInterceptors(new OpenTracingWorkerInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkflowTypes(WorkflowImpl.class)
           .setActivityImplementations(new OpenTracingAwareActivityImpl())
           .build();
-
-  @Before
-  public void setUp() {
-    GlobalTracer.registerIfAbsent(mockTracer);
-  }
 
   @After
   public void tearDown() {
@@ -93,8 +88,7 @@ public class SpanContextPropagationTest {
   public static class OpenTracingAwareActivityImpl implements TestActivity {
     @Override
     public String activity1(String input) {
-      Tracer tracer = GlobalTracer.get();
-      Span activeSpan = tracer.scopeManager().activeSpan();
+      Span activeSpan = mockTracer.scopeManager().activeSpan();
 
       if ("fail".equals(input)) {
         throw ApplicationFailure.newFailure("fail", "fail");
@@ -116,8 +110,7 @@ public class SpanContextPropagationTest {
 
     @Override
     public String workflow1(String input) {
-      Tracer tracer = GlobalTracer.get();
-      Span activeSpan = tracer.scopeManager().activeSpan();
+      Span activeSpan = mockTracer.scopeManager().activeSpan();
 
       MockSpan mockSpan = (MockSpan) activeSpan;
       assertNotNull(activeSpan);
