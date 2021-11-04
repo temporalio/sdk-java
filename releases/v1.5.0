@@ -1,0 +1,31 @@
+Highlights:
+
+temporal-kotlin module gets extension functions that makes configuration of Temporal in Kotlin much cleaner
+Version State Machine went through a significant overhaul that addresses know issues with Workflow.getVersion
+OpenTracing module error reporting was redone to use conventional tag and log names
+Dependencies were relaxed to use largest possible version ranges.
+
+Changeset:
+2021-10-09 - 6f86b160 - Improve WorkerStressTests (#807)
+2021-10-13 - 360a5714 - Improve diagnostic message of workflow state machines when validation of command-event pair fails (#820)
+2021-10-13 - bbc40f22 - Respect WorkflowClientInterceptors in newUntypedWorkflowStub(WorkflowExecution) (#813)
+2021-10-13 - d67bc30b - Remove Error throwing from DeterministicRunner#executeInWorkflowThread is case if execution is closed (#817)
+2021-10-13 - e3f4b71f - Test service should not run cron workflow initially if it's not per cron schedule (#812)
+2021-10-13 - e5530c1a - Upgrade dependencies (#819)
+2021-10-14 - 6f402858 - Improve ActivityOptions#setCancellationType javadoc (#821)
+2021-10-14 - ec78d94c - Improve ActivityCancellationTest with additional checks and addressing flakiness (#822)
+2021-10-17 - 9b5531a7 - Allow more control in state machines test framework over replayTo, executeTo indexes (#823)
+2021-10-18 - 7eb36024 - Upgrade micrometer version and allow larger range of grpc and protobuf versions (#826)
+2021-10-18 - 94dd4224 - Improve structure of buildkite pipelines (#824)
+2021-10-19 - c9e9b3da - Reenable a bunch of previously disabled flaky tests (#829)
+2021-10-19 - d6100500 - WorkflowExecutionUtils method renaming and a new WFT helper method (#831)
+2021-10-24 - a7140f76 - Fix WorkflowExecutionHistory problem with deserializing history jsons from the new server versions (#837)
+2021-10-25 - eb92b93a - Fix NullPointer in RetryOptions#merge (#834)
+2021-10-27 - 346ddb2b - Fix VersionStateMachine vs Cancellation bug by introducing preloading of versions (#805)
+2021-10-27 - 3a435be9 - Use jackson-bom platform dependency management (#843)
+2021-10-27 - b3862662 - Fix handling of version marker if it's the last command event of WFT (#845)
+2021-10-27 - be997328 - Added a newUntypedWorkflowStub method to WorkflowClient (#841)
+2021-10-28 - 72ceb235 - changed to hour step function so that passing of the test doesn't depend on the number of days in the month (#848)
+2021-11-01 - ef636b5b - Kotlin extensions for Java SDK methods (#727)
+2021-11-02 - 82590b15 - Upgrade gson dep to the last version and switch on using a version range (#855)
+2021-11-02 - a2bc9373 - Rework OpenTracing module to use conventional error reporting (#854)
