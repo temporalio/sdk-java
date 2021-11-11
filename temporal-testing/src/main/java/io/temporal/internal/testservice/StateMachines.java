@@ -1625,19 +1625,20 @@ class StateMachines {
 
   private static void reportActivityTaskCancellation(
       RequestContext ctx, ActivityTaskData data, Object request, long notUsed) {
-    Optional<Payloads> details;
+    Payloads details = null;
     if (request instanceof RespondActivityTaskCanceledRequest) {
       {
         RespondActivityTaskCanceledRequest cr = (RespondActivityTaskCanceledRequest) request;
-        details = cr.hasDetails() ? Optional.of(cr.getDetails()) : Optional.empty();
+
+        details = cr.hasDetails() ? cr.getDetails() : null;
       }
     } else if (request instanceof RespondActivityTaskCanceledByIdRequest) {
       {
         RespondActivityTaskCanceledByIdRequest cr =
             (RespondActivityTaskCanceledByIdRequest) request;
-        details = cr.hasDetails() ? Optional.of(cr.getDetails()) : Optional.empty();
+        details = cr.hasDetails() ? cr.getDetails() : null;
       }
-    } else {
+    } else if (request != null) {
       throw Status.INTERNAL
           .withDescription("Unexpected request type: " + request)
           .asRuntimeException();
@@ -1646,8 +1647,8 @@ class StateMachines {
         ActivityTaskCanceledEventAttributes.newBuilder()
             .setScheduledEventId(data.scheduledEventId)
             .setStartedEventId(data.startedEventId);
-    if (details.isPresent()) {
-      a.setDetails(details.get());
+    if (details != null) {
+      a.setDetails(details);
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
