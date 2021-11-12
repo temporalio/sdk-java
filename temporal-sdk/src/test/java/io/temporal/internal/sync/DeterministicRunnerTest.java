@@ -689,7 +689,7 @@ public class DeterministicRunnerTest {
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowRunTaskHandler);
-    cache.addToCache(response.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
+    cache.addToCache(response.getWorkflowExecution(), workflowRunTaskHandler);
     d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
@@ -751,7 +751,7 @@ public class DeterministicRunnerTest {
     PollWorkflowTaskQueueResponse response = HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
     cache.getOrCreate(response, new com.uber.m3.tally.NoopScope(), () -> workflowRunTaskHandler);
-    cache.addToCache(response.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
+    cache.addToCache(response.getWorkflowExecution(), workflowRunTaskHandler);
     d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());

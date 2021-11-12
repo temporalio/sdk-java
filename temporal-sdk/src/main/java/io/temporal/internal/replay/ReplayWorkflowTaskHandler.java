@@ -194,7 +194,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Throwable {
     AtomicBoolean createdNew = new AtomicBoolean();
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
-    String runId = execution.getRunId();
     WorkflowRunTaskHandler workflowRunTaskHandler = null;
     try {
       workflowRunTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
@@ -202,7 +201,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       if (result.isFinalCommand()) {
         cache.invalidate(execution, metricsScope);
       } else if (stickyTaskQueueName != null && createdNew.get()) {
-        cache.addToCache(runId, workflowRunTaskHandler);
+        cache.addToCache(execution, workflowRunTaskHandler);
       }
       return createCompletedRequest(workflowTask.getWorkflowType().getName(), workflowTask, result);
     } catch (Throwable e) {
@@ -226,7 +225,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       if (stickyTaskQueueName == null && workflowRunTaskHandler != null) {
         workflowRunTaskHandler.close();
       } else {
-        cache.markProcessingDone(runId);
+        cache.markProcessingDone(execution);
       }
     }
   }
@@ -248,7 +247,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
             .setTaskToken(workflowTask.getTaskToken())
             .setNamespace(namespace);
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
-    String runId = execution.getRunId();
     WorkflowRunTaskHandler workflowRunTaskHandler = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
@@ -256,7 +254,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       Optional<Payloads> queryResult =
           workflowRunTaskHandler.handleQueryWorkflowTask(workflowTask, workflowTask.getQuery());
       if (stickyTaskQueueName != null && createdNew.get()) {
-        cache.addToCache(runId, workflowRunTaskHandler);
+        cache.addToCache(execution, workflowRunTaskHandler);
       }
       if (queryResult.isPresent()) {
         queryCompletedRequest.setQueryResult(queryResult.get());
@@ -273,7 +271,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       if (stickyTaskQueueName == null && workflowRunTaskHandler != null) {
         workflowRunTaskHandler.close();
       } else {
-        cache.markProcessingDone(runId);
+        cache.markProcessingDone(execution);
       }
     }
     return new Result(

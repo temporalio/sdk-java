@@ -99,7 +99,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
     WorkflowRunTaskHandler workflowRunTaskHandler =
         cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
+    cache.addToCache(workflowTask1.getWorkflowExecution(), workflowRunTaskHandler);
 
     PollWorkflowTaskQueueResponse workflowTask2 =
         HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
@@ -142,7 +142,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
       WorkflowRunTaskHandler workflowRunTaskHandler =
           cache.getOrCreate(workflowTask, scope, () -> createFakeExecutor(workflowTask));
-      cache.addToCache(workflowTask.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
+      cache.addToCache(workflowTask.getWorkflowExecution(), workflowRunTaskHandler);
 
       // Act
       PollWorkflowTaskQueueResponse workflowTask2 =
@@ -213,14 +213,14 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     // Act
     WorkflowRunTaskHandler workflowRunTaskHandler =
         cache.getOrCreate(workflowTask1, scope, () -> createFakeExecutor(workflowTask1));
-    cache.addToCache(workflowTask1.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
+    cache.addToCache(workflowTask1.getWorkflowExecution(), workflowRunTaskHandler);
     workflowRunTaskHandler =
         cache.getOrCreate(workflowTask2, scope, () -> createFakeExecutor(workflowTask2));
-    cache.addToCache(workflowTask2.getWorkflowExecution().getRunId(), workflowRunTaskHandler);
+    cache.addToCache(workflowTask2.getWorkflowExecution(), workflowRunTaskHandler);
     workflowRunTaskHandler =
         cache.getOrCreate(workflowTask3, scope, () -> createFakeExecutor(workflowTask3));
     WorkflowExecution execution = workflowTask3.getWorkflowExecution();
-    cache.addToCache(execution.getRunId(), workflowRunTaskHandler);
+    cache.addToCache(execution, workflowRunTaskHandler);
 
     assertEquals(3, cache.size());
 
@@ -245,7 +245,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     WorkflowRunTaskHandler workflowRunTaskHandler =
         cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
     WorkflowExecution execution = workflowTask1.getWorkflowExecution();
-    cache.addToCache(execution.getRunId(), workflowRunTaskHandler);
+    cache.addToCache(execution, workflowRunTaskHandler);
 
     assertEquals(1, cache.size());
 
