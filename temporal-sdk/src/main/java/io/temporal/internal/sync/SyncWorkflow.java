@@ -33,6 +33,8 @@ import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.internal.worker.workflow.ExecutionInfoStrategy;
+import io.temporal.internal.worker.workflow.WorkflowMethodThreadNameStrategy;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import java.util.Objects;
@@ -53,9 +55,11 @@ class SyncWorkflow implements ReplayWorkflow {
   private final List<ContextPropagator> contextPropagators;
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
-  WorkflowImplementationOptions workflowImplementationOptions;
+  private final WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkflowExecutorCache cache;
   private final long defaultDeadlockDetectionTimeout;
+  private final WorkflowMethodThreadNameStrategy workflowMethodThreadNameStrategy =
+      ExecutionInfoStrategy.INSTANCE;
   private WorkflowExecuteRunnable workflowProc;
   private DeterministicRunner runner;
 
@@ -130,7 +134,9 @@ class SyncWorkflow implements ReplayWorkflow {
             () -> {
               workflow.initialize();
               WorkflowInternal.newWorkflowMethodThread(
-                      () -> workflowProc.run(), DeterministicRunnerImpl.WORKFLOW_MAIN_THREAD_NAME)
+                      () -> workflowProc.run(),
+                      workflowMethodThreadNameStrategy.createThreadName(
+                          context.getWorkflowExecution()))
                   .start();
             },
             cache);

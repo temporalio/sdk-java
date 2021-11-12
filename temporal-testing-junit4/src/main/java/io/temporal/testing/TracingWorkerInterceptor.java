@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.interceptors.*;
+import io.temporal.internal.worker.workflow.WorkflowMethodThreadNameStrategy;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
@@ -108,7 +109,12 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
       @Override
       public Object newWorkflowMethodThread(Runnable runnable, String name) {
         if (!Workflow.isReplaying()) {
-          trace.add("newThread " + name);
+          if (name.startsWith(WorkflowMethodThreadNameStrategy.WORKFLOW_MAIN_THREAD_PREFIX)) {
+            // strip the IDs we add to identify WF thread method
+            trace.add("newThread " + WorkflowMethodThreadNameStrategy.WORKFLOW_MAIN_THREAD_PREFIX);
+          } else {
+            trace.add("newThread " + name);
+          }
         }
         return next.newWorkflowMethodThread(runnable, name);
       }

@@ -27,6 +27,7 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.worker.workflow.WorkflowMethodThreadNameStrategy;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import java.io.PrintWriter;
@@ -398,7 +399,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     if (DeterministicRunnerImpl.WORKFLOW_ROOT_THREAD_NAME.equals(getName())) {
       // TODO revisit this number
       omitBottom = 11;
-    } else if (DeterministicRunnerImpl.WORKFLOW_MAIN_THREAD_NAME.equals(getName())) {
+    } else if (getName().startsWith(WorkflowMethodThreadNameStrategy.WORKFLOW_MAIN_THREAD_PREFIX)) {
       // TODO revisit this number
       omitBottom = 11;
     }

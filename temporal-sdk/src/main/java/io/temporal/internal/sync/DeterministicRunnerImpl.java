@@ -56,7 +56,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private static final int WORKFLOW_THREAD_PRIORITY = 20000000;
 
   static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-root";
-  static final String WORKFLOW_MAIN_THREAD_NAME = "workflow-method";
 
   private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
   private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();

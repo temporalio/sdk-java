@@ -36,8 +36,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class WorkflowExecutorCache {
+  private final Logger log = LoggerFactory.getLogger(WorkflowExecutorCache.class);
+
   private final Scope metricsScope;
   private final LoadingCache<String, WorkflowRunTaskHandler> cache;
   private final Lock cacheLock = new ReentrantLock();
@@ -53,7 +57,13 @@ public final class WorkflowExecutorCache {
                 e -> {
                   WorkflowRunTaskHandler entry = (WorkflowRunTaskHandler) e.getValue();
                   if (entry != null) {
-                    entry.close();
+                    try {
+                      log.trace("Closing workflow execution for runId {}", e);
+                      entry.close();
+                    } catch (Throwable t) {
+                      log.error("Workflow execution closure failed with an exception", t);
+                      throw t;
+                    }
                   }
                 })
             .build(
@@ -76,20 +86,24 @@ public final class WorkflowExecutorCache {
       return workflowExecutorFn.call();
     }
 
-    WorkflowRunTaskHandler workflowRunTaskHandler =
-        getForProcessing(execution.getRunId(), metricsScope);
+    WorkflowRunTaskHandler workflowRunTaskHandler = getForProcessing(execution, metricsScope);
     if (workflowRunTaskHandler != null) {
       return workflowRunTaskHandler;
     }
     return workflowExecutorFn.call();
   }
 
-  private WorkflowRunTaskHandler getForProcessing(String runId, Scope metricsScope)
-      throws ExecutionException {
+  private WorkflowRunTaskHandler getForProcessing(
+      WorkflowExecution workflowExecution, Scope metricsScope) throws ExecutionException {
+    String runId = workflowExecution.getRunId();
     cacheLock.lock();
     try {
       WorkflowRunTaskHandler workflowRunTaskHandler = cache.get(runId);
       inProcessing.add(runId);
+      log.trace(
+          "Workflow Execution {}-{} has been marked as in-progress",
+          workflowExecution.getWorkflowId(),
+          workflowExecution.getRunId());
       metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
       return workflowRunTaskHandler;
     } catch (CacheLoader.InvalidCacheLoadException e) {
@@ -101,32 +115,51 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  void markProcessingDone(String runId) {
+  void markProcessingDone(WorkflowExecution workflowExecution) {
     cacheLock.lock();
     try {
-      inProcessing.remove(runId);
+      inProcessing.remove(workflowExecution.getRunId());
+      log.trace(
+          "Workflow Execution {}-{} has been marked as not in-progress",
+          workflowExecution.getWorkflowId(),
+          workflowExecution.getRunId());
     } finally {
       cacheLock.unlock();
     }
   }
 
-  public void addToCache(String runId, WorkflowRunTaskHandler workflowRunTaskHandler) {
-    cache.put(runId, workflowRunTaskHandler);
+  public void addToCache(
+      WorkflowExecution workflowExecution, WorkflowRunTaskHandler workflowRunTaskHandler) {
+    cache.put(workflowExecution.getRunId(), workflowRunTaskHandler);
+    log.trace(
+        "Workflow Execution {}-{} has been added to cache",
+        workflowExecution.getWorkflowId(),
+        workflowExecution.getRunId());
   }
 
-  public boolean evictAnyNotInProcessing(WorkflowExecution execution, Scope metricsScope) {
+  public boolean evictAnyNotInProcessing(WorkflowExecution inFavorOfExecution, Scope metricsScope) {
     cacheLock.lock();
     try {
       this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
+      String inFavorOfRunId = inFavorOfExecution.getRunId();
       for (String key : cache.asMap().keySet()) {
-        if (!key.equals(execution.getRunId()) && !inProcessing.contains(key)) {
+        if (!key.equals(inFavorOfRunId) && !inProcessing.contains(key)) {
           cache.invalidate(key);
           this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
           metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
+          log.trace(
+              "Workflow Execution {}-{} caused eviction of Workflow Execution with runId {}",
+              inFavorOfExecution.getWorkflowId(),
+              inFavorOfRunId,
+              key);
           return true;
         }
       }
 
+      log.trace(
+          "Failed to evict from Workflow Execution cache, cache size is {}, inProcessing collection size is {}",
+          cache.size(),
+          inProcessing.size());
       return false;
     } finally {
       cacheLock.unlock();
@@ -139,6 +172,7 @@ public final class WorkflowExecutorCache {
       String runId = execution.getRunId();
       cache.invalidate(runId);
       inProcessing.remove(runId);
+      log.trace("Evicting {}-{}", execution.getWorkflowId(), execution.getRunId());
       metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
     } finally {
       cacheLock.unlock();
