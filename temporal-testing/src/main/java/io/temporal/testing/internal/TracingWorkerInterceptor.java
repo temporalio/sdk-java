@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.testing;
+package io.temporal.testing.internal;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
