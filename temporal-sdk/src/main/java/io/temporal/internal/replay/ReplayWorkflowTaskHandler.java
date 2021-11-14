@@ -32,17 +32,11 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.QueryResultType;
+import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
-import io.temporal.api.workflowservice.v1.ResetStickyTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -53,6 +47,7 @@ import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.Functions;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -161,12 +156,16 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           e);
     }
     Failure failure = FailureConverter.exceptionToFailure(e);
-    RespondWorkflowTaskFailedRequest failedRequest =
+    RespondWorkflowTaskFailedRequest.Builder failedRequest =
         RespondWorkflowTaskFailedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())
-            .setFailure(failure)
-            .build();
-    return new WorkflowTaskHandler.Result(workflowType, null, failedRequest, null, null, false);
+            .setFailure(failure);
+    if (e instanceof NonDeterministicException) {
+      failedRequest.setCause(
+          WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR);
+    }
+    return new WorkflowTaskHandler.Result(
+        workflowType, null, failedRequest.build(), null, null, false);
   }
 
   private WorkflowRunTaskHandler getOrCreateWorkflowExecutor(

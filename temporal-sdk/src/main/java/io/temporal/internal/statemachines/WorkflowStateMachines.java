@@ -52,6 +52,7 @@ import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.nio.charset.StandardCharsets;
@@ -203,22 +204,24 @@ public final class WorkflowStateMachines {
     }
   }
 
-  private InternalWorkflowTaskException createEventProcessingException(
-      RuntimeException e, HistoryEvent event) {
-    return new InternalWorkflowTaskException(
-        "Failure handling event "
-            + event.getEventId()
-            + " of '"
-            + event.getEventType()
-            + "' type. IsReplaying="
-            + this.isReplaying()
-            + ", PreviousStartedEventId="
-            + this.getLastStartedEventId()
-            + ", workflowTaskStartedEventId="
-            + this.workflowTaskStartedEventId
-            + ", Currently Processing StartedEventId="
-            + this.currentStartedEventId,
-        unwrap(e));
+  private RuntimeException createEventProcessingException(RuntimeException e, HistoryEvent event) {
+    Throwable ex = unwrap(e);
+    if (ex instanceof NonDeterministicException) {
+      // just appending the message in front of an existing message, saving the original stacktrace
+      NonDeterministicException modifiedException =
+          new NonDeterministicException(
+              createEventHandlingMessage(event)
+                  + ". "
+                  + ex.getMessage()
+                  + ". "
+                  + createShortCurrentStateMessagePostfix(),
+              ex.getCause());
+      modifiedException.setStackTrace(ex.getStackTrace());
+      return modifiedException;
+    } else {
+      return new InternalWorkflowTaskException(
+          createEventHandlingMessage(event) + ". " + createShortCurrentStateMessagePostfix(), ex);
+    }
   }
 
   private void handleSingleEvent(HistoryEvent event, boolean hasNextEvent) {
@@ -283,7 +286,7 @@ public final class WorkflowStateMachines {
           // it against.
           return;
         } else {
-          throw new IllegalStateException("No command scheduled that corresponds to " + event);
+          throw new NonDeterministicException("No command scheduled that corresponds to " + event);
         }
       }
 
@@ -317,7 +320,7 @@ public final class WorkflowStateMachines {
             // Handle the version marker as unmatched and return without consuming the command
             return;
           } else {
-            throw new IllegalStateException(
+            throw new NonDeterministicException(
                 "Event "
                     + event.getEventId()
                     + " of "
@@ -433,7 +436,7 @@ public final class WorkflowStateMachines {
     String id = dataConverter.fromPayloads(0, idPayloads, String.class, String.class);
     LocalActivityStateMachine stateMachine = localActivityMap.remove(id);
     if (stateMachine == null) {
-      throw new IllegalStateException("Unexpected local activity id: " + id);
+      throw new NonDeterministicException("Unexpected local activity id: " + id);
     }
     // RESULT_NOTIFIED state means that there is outstanding command that has to be matched
     // using standard logic. So return false to let the handleCommand method to run its standard
@@ -870,16 +873,19 @@ public final class WorkflowStateMachines {
 
   private void assertMatch(
       Command command, HistoryEvent event, String checkType, Object expected, Object actual) {
-    Preconditions.checkState(
-        expected.equals(actual),
-        "Command %s doesn't match event %s with EventId=%s on check %s "
-            + "with an expected value %s and an actual value %s",
-        command.getCommandType(),
-        event.getEventType(),
-        event.getEventId(),
-        checkType,
-        expected,
-        actual);
+    if (!expected.equals(actual)) {
+      String message =
+          String.format(
+              "Command %s doesn't match event %s with EventId=%s on check %s "
+                  + "with an expected value %s and an actual value %s",
+              command.getCommandType(),
+              event.getEventType(),
+              event.getEventId(),
+              checkType,
+              expected,
+              actual);
+      throw new NonDeterministicException(message);
+    }
   }
 
   private class WorkflowTaskCommandsListener implements WorkflowTaskStateMachine.Listener {
@@ -998,5 +1004,20 @@ public final class WorkflowStateMachines {
     if (!eventLoopExecuting) {
       throw new IllegalStateException("Operation allowed only while eventLoop is running");
     }
+  }
+
+  private String createEventHandlingMessage(HistoryEvent event) {
+    return "Failure handling event "
+        + event.getEventId()
+        + " of type '"
+        + event.getEventType()
+        + "' "
+        + (this.isReplaying() ? "during replay" : "during execution");
+  }
+
+  private String createShortCurrentStateMessagePostfix() {
+    return String.format(
+        "{PreviousStartedEventId=%s, workflowTaskStartedEventId=%s, Currently Processing StartedEventId=%s}",
+        this.getLastStartedEventId(), this.workflowTaskStartedEventId, this.currentStartedEventId);
   }
 }

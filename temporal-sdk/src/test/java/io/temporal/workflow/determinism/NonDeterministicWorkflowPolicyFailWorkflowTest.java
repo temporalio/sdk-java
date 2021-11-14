@@ -17,32 +17,35 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.determinism;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertEquals;
 
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.failure.TimeoutFailure;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
-import io.temporal.workflow.shared.TestWorkflows.DeterminismFailingWorkflowImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadInfo;
 import java.time.Duration;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
+public class NonDeterministicWorkflowPolicyFailWorkflowTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(DeterminismFailingWorkflowImpl.class)
           .setActivityImplementations(new TestActivitiesImpl())
+          .setWorkflowTypes(
+              WorkflowImplementationOptions.newBuilder()
+                  .setFailWorkflowExceptionTypes(Throwable.class)
+                  .build(),
+              DeterminismFailingWorkflowImpl.class)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
@@ -50,10 +53,10 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
           .build();
 
   @Test
-  public void testNonDeterministicWorkflowPolicyBlockWorkflow() {
+  public void testNonDeterministicWorkflowPolicyFailWorkflow() {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofSeconds(5))
+            .setWorkflowRunTimeout(Duration.ofSeconds(1))
             .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
@@ -61,20 +64,12 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflowStringArg.class, options);
     try {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
-      fail("unreachable");
+      Assert.fail("unreachable");
     } catch (WorkflowFailedException e) {
-      // expected to timeout as workflow is going get blocked.
-      assertTrue(e.getCause() instanceof TimeoutFailure);
+      // expected to fail on non-deterministic error
+      Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
+      assertEquals(
+          NonDeterministicException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
     }
-
-    int workflowRootThreads = 0;
-    ThreadInfo[] threads = ManagementFactory.getThreadMXBean().dumpAllThreads(false, false);
-    for (ThreadInfo thread : threads) {
-      if (thread.getThreadName().contains("workflow-root")) {
-        workflowRootThreads++;
-      }
-    }
-
-    assertTrue("workflow threads might leak", workflowRootThreads < 10);
   }
 }
