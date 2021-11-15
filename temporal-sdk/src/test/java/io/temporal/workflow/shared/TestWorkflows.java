@@ -22,10 +22,8 @@ package io.temporal.workflow.shared;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.CronSchedule;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
-import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -195,20 +193,6 @@ public class TestWorkflows {
     @Override
     public String execute(String arg) {
       return arg.toUpperCase();
-    }
-  }
-
-  public static class DeterminismFailingWorkflowImpl implements TestWorkflowStringArg {
-
-    @Override
-    public void execute(String taskQueue) {
-      VariousTestActivities activities =
-          Workflow.newActivityStub(
-              VariousTestActivities.class,
-              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
-      if (!Workflow.isReplaying()) {
-        activities.activity1(1);
-      }
     }
   }
 }

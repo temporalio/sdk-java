@@ -17,26 +17,23 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.worker;
+package io.temporal.workflow.determinism;
 
-import io.temporal.api.enums.v1.CommandType;
-import io.temporal.api.failure.v1.Failure;
+import io.temporal.testing.internal.SDKTestOptions;
+import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.TestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 
-/**
- * Internal. Do not throw or catch in application level code.
- *
- * <p>This exception is used to signal that the workflow execution should be failed with {@link
- * CommandType#COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION}
- */
-public final class WorkflowExecutionException extends RuntimeException {
-  private final Failure failure;
+public class DeterminismFailingWorkflowImpl implements TestWorkflows.TestWorkflowStringArg {
 
-  public WorkflowExecutionException(Failure failure) {
-    super(failure.getMessage());
-    this.failure = failure;
-  }
-
-  public Failure getFailure() {
-    return failure;
+  @Override
+  public void execute(String taskQueue) {
+    TestActivities.VariousTestActivities activities =
+        Workflow.newActivityStub(
+            TestActivities.VariousTestActivities.class,
+            SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
+    if (!Workflow.isReplaying()) {
+      activities.activity1(1);
+    }
   }
 }

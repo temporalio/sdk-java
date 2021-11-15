@@ -188,11 +188,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           implementationOptions.getFailWorkflowExceptionTypes();
       for (Class<? extends Throwable> failType : failTypes) {
         if (failType.isAssignableFrom(e.getClass())) {
-          // Wrap any failure into InternalWorkflowTaskException to support specifying them
-          // in the implementation options.
-          if (!(e instanceof InternalWorkflowTaskException)) {
-            e = new InternalWorkflowTaskException(e);
-          }
           throw replayWorkflowExecutor.mapUnexpectedException(e);
         }
       }

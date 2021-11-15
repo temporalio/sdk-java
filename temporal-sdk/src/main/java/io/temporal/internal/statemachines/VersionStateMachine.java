@@ -29,6 +29,7 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.internal.history.VersionMarkerUtils;
+import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -299,27 +300,28 @@ final class VersionStateMachine {
       // Because either a matched event or earlier non-matched version marker supposed to already
       // flush the preloaded version, preloadedVersion != null means that this getVersion call
       // is added before the original getVersion call cause the creation of the marker
-      Preconditions.checkState(
-          preloadedVersion == null,
-          "getVersion call before the existing version marker event. "
-              + RETROACTIVE_ADDITION_ERROR_STRING);
+      if (preloadedVersion != null) {
+        throw new NonDeterministicException(
+            "getVersion call before the existing version marker event. "
+                + RETROACTIVE_ADDITION_ERROR_STRING);
+      }
       cancelCommand();
     }
   }
 
   private void updateVersionFromEvent(HistoryEvent event) {
-    Preconditions.checkState(
-        version == null,
-        "Version is already set to %s. " + RETROACTIVE_ADDITION_ERROR_STRING,
-        version);
+    if (version != null) {
+      throw new NonDeterministicException(
+          "Version is already set to " + version + ". " + RETROACTIVE_ADDITION_ERROR_STRING);
+    }
     version = getVersionFromEvent(event);
   }
 
   private void preloadVersionFromEvent(HistoryEvent event) {
-    Preconditions.checkState(
-        version == null,
-        "Version is already set to %s. " + RETROACTIVE_ADDITION_ERROR_STRING,
-        version);
+    if (version != null) {
+      throw new NonDeterministicException(
+          "Version is already set to " + version + ". " + RETROACTIVE_ADDITION_ERROR_STRING);
+    }
 
     Preconditions.checkState(
         preloadedVersion == null,

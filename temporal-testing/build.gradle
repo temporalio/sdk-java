@@ -18,7 +18,7 @@ dependencies {
 
     implementation "io.grpc:grpc-core:$grpcVersion"
     implementation "com.google.guava:guava:$guavaVersion"
-    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.5'
+    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
     implementation "com.jayway.jsonpath:json-path:$jsonPathVersion"
 
     junit4Api 'junit:junit:4.13.2'

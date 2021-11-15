@@ -24,9 +24,9 @@ dependencies {
     testImplementation "com.jayway.jsonpath:json-path:$jsonPathVersion"
 
     testImplementation project(':temporal-testing')
-    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
 
 task registerNamespace(type: JavaExec) {

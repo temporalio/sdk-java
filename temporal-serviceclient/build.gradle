@@ -22,9 +22,10 @@ dependencies {
     }
 
     testImplementation project(':temporal-testing')
-    testImplementation "ch.qos.logback:logback-classic:${logbackVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation "junit:junit:4.13.2"
+
+    testRuntimeOnly "ch.qos.logback:logback-classic:${logbackVersion}"
 }
 
 task initSubmodules(type: Exec) {

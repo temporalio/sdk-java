@@ -36,6 +36,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.replay.InternalWorkflowTaskException;
+import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.List;
@@ -1024,8 +1025,8 @@ public class VersionStateMachineTest {
       try {
         h.handleWorkflowTaskTakeCommands(stateMachines, 1, Integer.MAX_VALUE);
         fail("failure expected");
-      } catch (InternalWorkflowTaskException e) {
-        assertTrue(e.getCause().getMessage().startsWith("Version is already set"));
+      } catch (NonDeterministicException e) {
+        assertTrue(e.getMessage().contains("Version is already set"));
       }
     }
 
@@ -1036,8 +1037,8 @@ public class VersionStateMachineTest {
       try {
         h.handleWorkflowTaskTakeCommands(stateMachines);
         fail("failure expected");
-      } catch (InternalWorkflowTaskException e) {
-        assertTrue(e.getCause().getMessage().startsWith("Version is already set"));
+      } catch (NonDeterministicException e) {
+        assertTrue(e.getMessage().contains("Version is already set"));
       }
     }
   }
