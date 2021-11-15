@@ -20,9 +20,9 @@
 package io.temporal.workflow.activityTests;
 
 import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;

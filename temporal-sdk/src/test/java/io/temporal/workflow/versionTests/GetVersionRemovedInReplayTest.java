@@ -22,9 +22,9 @@ package io.temporal.workflow.versionTests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;

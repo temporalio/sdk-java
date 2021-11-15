@@ -44,8 +44,10 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
 /**
- * Test rule that sets up test environment, simplifying workflow worker creation and shutdown. Can
- * be used with both in-memory and standalone temporal service. (see {@link
+ * JUnit4
+ *
+ * <p>Test rule that sets up test environment, simplifying workflow worker creation and shutdown.
+ * Can be used with both in-memory and standalone temporal service. (see {@link
  * Builder#setUseExternalService(boolean)} and {@link Builder#setTarget(String)}})
  *
  * <p>Example of usage:
@@ -302,12 +304,6 @@ public class TestWorkflowRule implements TestRule {
 
   protected void shutdown() {
     testEnvironment.close();
-    if (getInterceptor(TracingWorkerInterceptor.class) != null) {
-      TracingWorkerInterceptor tracer = getInterceptor(TracingWorkerInterceptor.class);
-      if (tracer != null) {
-        tracer.assertExpected();
-      }
-    }
   }
 
   /**

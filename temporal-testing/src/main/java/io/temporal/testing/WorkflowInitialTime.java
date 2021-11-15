@@ -24,7 +24,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/** Overrides the initial timestamp used by the {@link TestWorkflowExtension} */
+/**
+ * JUnit5 only
+ *
+ * <p>Overrides the initial timestamp used by the {@link TestWorkflowExtension}
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface WorkflowInitialTime {

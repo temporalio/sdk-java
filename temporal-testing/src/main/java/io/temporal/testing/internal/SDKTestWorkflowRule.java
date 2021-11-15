@@ -42,7 +42,6 @@ import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
@@ -379,12 +378,14 @@ public class SDKTestWorkflowRule implements TestRule {
     }
   }
 
-  private void setTestWorkflowRuleShutdown() {
-    getTestEnvironment().shutdown();
-  }
-
   protected void shutdown() throws Throwable {
-    setTestWorkflowRuleShutdown();
+    getTestEnvironment().shutdown();
+
+    TracingWorkerInterceptor tracer = getInterceptor(TracingWorkerInterceptor.class);
+    if (tracer != null) {
+      tracer.assertExpected();
+    }
+
     for (ScheduledFuture<?> result : delayedCallbacks) {
       if (result.isDone() && !result.isCancelled()) {
         try {

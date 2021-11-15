@@ -20,9 +20,9 @@
 package io.temporal.workflow;
 
 import io.temporal.common.RetryOptions;
-import io.temporal.testing.TracingWorkerInterceptor;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
