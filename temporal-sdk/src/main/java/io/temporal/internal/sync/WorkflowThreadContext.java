@@ -99,7 +99,9 @@ public class WorkflowThreadContext {
     } catch (InterruptedException e) {
       // Throwing Error in workflow code aborts workflow task without failing workflow.
       Thread.currentThread().interrupt();
-      throw new Error("Unexpected interrupt", e);
+      if (!isDestroyRequested()) {
+        throw new Error("Unexpected interrupt", e);
+      }
     } finally {
       remainedBlocked = false;
       lock.unlock();
@@ -239,7 +241,7 @@ public class WorkflowThreadContext {
       }
       inRunUntilBlocked = true;
       if (status == Status.YIELDED) {
-        // we have to swap it here to allow potentialProgressStatesLocked to start return true
+        // we have to swap it here to allow potentialProgressStatesLocked to start returning true
         status = Status.RUNNING;
       }
       remainedBlocked = true;
@@ -305,7 +307,12 @@ public class WorkflowThreadContext {
     try {
       destroyRequested = true;
       if (status == Status.CREATED) {
+        // prevent from running
         status = Status.DONE;
+        return;
+      }
+      if (status == Status.RUNNING) {
+        // we don't want to trigger an event loop if we are running already
         return;
       }
     } finally {
