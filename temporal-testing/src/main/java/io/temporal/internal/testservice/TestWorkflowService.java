@@ -155,6 +155,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       stubs.shutdown();
       channel.shutdown();
     }
+
+    public void awaitTermination(long halfTheTimeout, TimeUnit unit) throws InterruptedException {
+      stubs.awaitTermination(halfTheTimeout, unit);
+      channel.awaitTermination(halfTheTimeout, unit);
+    }
   }
 
   public WorkflowServiceStubs newClientStub() {
@@ -264,7 +269,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     if (inProcessServer != null) {
       log.info("Shutting down in-process GRPC server");
       inProcessServer.shutdown();
-      client.channel.shutdown();
+      client.close();
     }
 
     forkJoinPool.shutdown();
@@ -273,13 +278,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       forkJoinPool.awaitTermination(1, TimeUnit.SECONDS);
 
       if (outOfProcessServer != null) {
-        outOfProcessServer.shutdown();
         outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
       }
 
       if (inProcessServer != null) {
         inProcessServer.awaitTermination(1, TimeUnit.SECONDS);
-        client.channel.awaitTermination(1, TimeUnit.SECONDS);
+        client.awaitTermination(1, TimeUnit.SECONDS);
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
