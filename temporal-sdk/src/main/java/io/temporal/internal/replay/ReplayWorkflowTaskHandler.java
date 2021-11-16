@@ -198,7 +198,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       workflowRunTaskHandler = getOrCreateWorkflowExecutor(workflowTask, metricsScope, createdNew);
       WorkflowTaskResult result = workflowRunTaskHandler.handleWorkflowTask(workflowTask);
       if (result.isFinalCommand()) {
-        cache.invalidate(execution, metricsScope);
+        cache.invalidate(execution, metricsScope, "FinalCommand", null);
       } else if (stickyTaskQueueName != null && createdNew.get()) {
         cache.addToCache(execution, workflowRunTaskHandler);
       }
@@ -208,11 +208,20 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       // case we need to close the executor explicitly. For items in the cache, invalidation
       // callback will try to close again, which should be ok.
       if (workflowRunTaskHandler != null) {
+        log.trace(
+            "Closing runner for {}-{} because of the exception during processing",
+            execution.getWorkflowId(),
+            execution.getRunId(),
+            e);
         workflowRunTaskHandler.close();
+        log.trace(
+            "Runner for {}-{} is closed because of the exception during processing",
+            execution.getWorkflowId(),
+            execution.getRunId());
       }
 
       if (stickyTaskQueueName != null) {
-        cache.invalidate(execution, metricsScope);
+        cache.invalidate(execution, metricsScope, "Exception", e);
         // If history if full and exception occurred then sticky session hasn't been established
         // yet and we can avoid doing a reset.
         if (!isFullHistory(workflowTask)) {
@@ -222,6 +231,10 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       throw e;
     } finally {
       if (stickyTaskQueueName == null && workflowRunTaskHandler != null) {
+        log.trace(
+            "Closing runner for {}-{} because of non-sticky worker configuration",
+            execution.getWorkflowId(),
+            execution.getRunId());
         workflowRunTaskHandler.close();
       } else {
         cache.markProcessingDone(execution);
