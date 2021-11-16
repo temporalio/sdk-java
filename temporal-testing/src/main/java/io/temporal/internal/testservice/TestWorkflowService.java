@@ -130,6 +130,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
   private final Lock lock = new ReentrantLock();
   private final Server outOfProcessServer;
+  private final Server inProcessServer;
   private final TestWorkflowStore store;
   private final Client client;
 
@@ -154,6 +155,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       stubs.shutdown();
       channel.shutdown();
     }
+
+    public void awaitTermination(long halfTheTimeout, TimeUnit unit) throws InterruptedException {
+      stubs.awaitTermination(halfTheTimeout, unit);
+      channel.awaitTermination(halfTheTimeout, unit);
+    }
   }
 
   public WorkflowServiceStubs newClientStub() {
@@ -163,42 +169,73 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
     return client.stubs;
   }
+  /*
+   * Creates an in-memory service along with client stubs for use in Java code.
+   * See also createServerOnly and createWithNoGrpcServer.
+   */
+  public TestWorkflowService() {
+    this(0, true);
+  }
 
-  // Creates an in-memory service along with client stubs for use in Java code.
-  // See also createServerOnly.
+  /*
+   * Creates an in-memory service along with client stubs for use in Java code.
+   * See also createServerOnly and createWithNoGrpcServer.
+   */
+  public TestWorkflowService(long initialTimeMillis) {
+    this(initialTimeMillis, true);
+  }
+
+  /*
+   * Creates an in-memory service along with client stubs for use in Java code.
+   * See also createServerOnly and createWithNoGrpcServer.
+   */
   public TestWorkflowService(boolean lockTimeSkipping) {
-    this(0);
+    this(0, true);
     if (lockTimeSkipping) {
       this.lockTimeSkipping("constructor");
     }
   }
 
-  public TestWorkflowService(long initialTimeMillis) {
-    store = new TestWorkflowStoreImpl(initialTimeMillis);
-    client = new Client();
-    try {
-      InProcessServerBuilder.forName(client.serverName)
-          .directExecutor()
-          .addService(this)
-          .build()
-          .start();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    outOfProcessServer = null;
+  /**
+   * Creates an instance of TestWorkflowService that does not manage its own gRPC server. Useful for
+   * including in an externally managed gRPC server.
+   */
+  public static TestWorkflowService createWithNoGrpcServer() {
+    return new TestWorkflowService(0, false);
   }
 
-  public TestWorkflowService() {
-    this(0);
+  private TestWorkflowService(long initialTimeMillis, boolean startInProcessServer) {
+    store = new TestWorkflowStoreImpl(initialTimeMillis);
+    outOfProcessServer = null;
+
+    if (startInProcessServer) {
+      client = new Client();
+      try {
+        inProcessServer =
+            InProcessServerBuilder.forName(client.serverName)
+                .directExecutor()
+                .addService(this)
+                .build()
+                .start();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      inProcessServer = null;
+      client = null;
+    }
   }
 
   /**
    * Creates an out-of-process rather than in-process server, and does not set up a client. Useful,
    * for example, if you want to use the test service from other SDKs.
+   *
+   * @param port the port to listen on
    */
   public static TestWorkflowService createServerOnly(int port) {
+    TestWorkflowService result = new TestWorkflowService(true, port);
     log.info("Server started, listening on " + port);
-    return new TestWorkflowService(true, port);
+    return result;
   }
 
   private TestWorkflowService(boolean isOutOfProc, int port) {
@@ -207,6 +244,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       throw new RuntimeException("Impossible.");
     }
     client = null;
+    inProcessServer = null;
     store = new TestWorkflowStoreImpl(0 /* 0 means use current time */);
     try {
       outOfProcessServer =
@@ -222,21 +260,37 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   @Override
   public void close() {
     log.debug("Shutting down TestWorkflowService");
-    client.close();
+
+    if (outOfProcessServer != null) {
+      log.info("Shutting down out-of-process GRPC server");
+      outOfProcessServer.shutdown();
+    }
+
+    if (inProcessServer != null) {
+      log.info("Shutting down in-process GRPC server");
+      inProcessServer.shutdown();
+      client.close();
+    }
+
+    forkJoinPool.shutdown();
 
     try {
+      forkJoinPool.awaitTermination(1, TimeUnit.SECONDS);
+
       if (outOfProcessServer != null) {
-        outOfProcessServer.shutdown();
         outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
-      } else {
-        client.channel.awaitTermination(1, TimeUnit.SECONDS);
+      }
+
+      if (inProcessServer != null) {
+        inProcessServer.awaitTermination(1, TimeUnit.SECONDS);
+        client.awaitTermination(1, TimeUnit.SECONDS);
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       log.debug("shutdown interrupted", e);
     }
+
     store.close();
-    forkJoinPool.shutdown();
   }
 
   private TestWorkflowMutableState getMutableState(ExecutionId executionId) {
