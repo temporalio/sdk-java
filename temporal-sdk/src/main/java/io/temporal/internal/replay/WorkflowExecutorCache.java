@@ -58,8 +58,12 @@ public final class WorkflowExecutorCache {
                   WorkflowRunTaskHandler entry = (WorkflowRunTaskHandler) e.getValue();
                   if (entry != null) {
                     try {
-                      log.trace("Closing workflow execution for runId {}", e);
+                      log.trace(
+                          "Closing workflow execution for runId {}, cause {}",
+                          e.getKey(),
+                          e.getCause());
                       entry.close();
+                      log.trace("Workflow execution for runId {} closed", e);
                     } catch (Throwable t) {
                       log.error("Workflow execution closure failed with an exception", t);
                       throw t;
@@ -82,7 +86,11 @@ public final class WorkflowExecutorCache {
       throws Exception {
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
     if (isFullHistory(workflowTask)) {
-      invalidate(execution, metricsScope);
+      invalidate(execution, metricsScope, "full history", null);
+      log.trace(
+          "New Workflow Executor {}-{} has been created for a full history run",
+          execution.getWorkflowId(),
+          execution.getRunId());
       return workflowExecutorFn.call();
     }
 
@@ -90,6 +98,11 @@ public final class WorkflowExecutorCache {
     if (workflowRunTaskHandler != null) {
       return workflowRunTaskHandler;
     }
+
+    log.trace(
+        "Workflow Executor {}-{} wasn't found in cache and a new executor has been created",
+        execution.getWorkflowId(),
+        execution.getRunId());
     return workflowExecutorFn.call();
   }
 
@@ -144,14 +157,14 @@ public final class WorkflowExecutorCache {
       String inFavorOfRunId = inFavorOfExecution.getRunId();
       for (String key : cache.asMap().keySet()) {
         if (!key.equals(inFavorOfRunId) && !inProcessing.contains(key)) {
-          cache.invalidate(key);
-          this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
-          metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
           log.trace(
               "Workflow Execution {}-{} caused eviction of Workflow Execution with runId {}",
               inFavorOfExecution.getWorkflowId(),
               inFavorOfRunId,
               key);
+          cache.invalidate(key);
+          this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
+          metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
           return true;
         }
       }
@@ -166,13 +179,20 @@ public final class WorkflowExecutorCache {
     }
   }
 
-  void invalidate(WorkflowExecution execution, Scope metricsScope) {
+  public void invalidate(
+      WorkflowExecution execution, Scope metricsScope, String reason, Throwable cause) {
     cacheLock.lock();
     try {
       String runId = execution.getRunId();
+      log.trace(
+          "Invalidating {}-{} because of {}, value is present in the cache: {}",
+          execution.getWorkflowId(),
+          runId,
+          reason,
+          cache.getIfPresent(runId),
+          cause);
       cache.invalidate(runId);
       inProcessing.remove(runId);
-      log.trace("Evicting {}-{}", execution.getWorkflowId(), execution.getRunId());
       metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
     } finally {
       cacheLock.unlock();
