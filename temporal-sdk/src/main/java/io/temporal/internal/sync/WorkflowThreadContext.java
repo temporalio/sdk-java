@@ -78,25 +78,30 @@ public class WorkflowThreadContext {
     // Evaluates unblockFunction out of the lock to avoid deadlocks.
     lock.lock();
     try {
+      if (destroyRequested) {
+        throw new DestroyWorkflowThreadError();
+      }
+      yieldReason = reason;
+
       // TODO: Verify that calling unblockFunction under the lock is a sane thing to do.
       while (!inRunUntilBlocked || !unblockFunction.get()) {
-        if (destroyRequested) {
-          throw new DestroyWorkflowThreadError();
-        }
         status = Status.YIELDED;
         runCondition.signal();
         yieldCondition.await();
+        if (destroyRequested) {
+          throw new DestroyWorkflowThreadError();
+        }
         maybeEvaluateLocked(reason);
-        yieldReason = reason;
       }
+
+      setStatus(Status.RUNNING);
+      yieldReason = null;
     } catch (InterruptedException e) {
       // Throwing Error in workflow code aborts workflow task without failing workflow.
       Thread.currentThread().interrupt();
       throw new Error("Unexpected interrupt", e);
     } finally {
-      setStatus(Status.RUNNING);
       remainedBlocked = false;
-      yieldReason = null;
       lock.unlock();
     }
   }
@@ -233,18 +238,19 @@ public class WorkflowThreadContext {
         throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
       }
       inRunUntilBlocked = true;
-      if (status != Status.CREATED) {
+      if (status == Status.YIELDED) {
+        // we have to swap it here to allow potentialProgressStatesLocked to start return true
         status = Status.RUNNING;
       }
       remainedBlocked = true;
       yieldCondition.signal();
-      while (potentialDeadlockStatesLocked()) {
+      while (potentialProgressStatesLocked()) {
         boolean awaitTimedOut =
             !runCondition.await(deadlockDetectionTimeoutMs, TimeUnit.MILLISECONDS);
         if (awaitTimedOut
             // check that the condition is still true after acquiring the lock back
             // (it could be moved into DONE meanwhile)
-            && potentialDeadlockStatesLocked()) {
+            && potentialProgressStatesLocked()) {
           if (currentThread != null) {
             throw new PotentialDeadlockException(
                 currentThread.getName(), currentThread.getStackTrace(), this);
@@ -281,7 +287,7 @@ public class WorkflowThreadContext {
    * @return true is current status is RUNNING or CREATED - two states we actively monitor for
    *     potential deadlocks
    */
-  private boolean potentialDeadlockStatesLocked() {
+  private boolean potentialProgressStatesLocked() {
     return status == Status.RUNNING || status == Status.CREATED;
   }
 
@@ -298,17 +304,14 @@ public class WorkflowThreadContext {
     lock.lock();
     try {
       destroyRequested = true;
-      if (status == Status.CREATED || status == Status.RUNNING || status == Status.DONE) {
+      if (status == Status.CREATED) {
         status = Status.DONE;
         return;
       }
     } finally {
       lock.unlock();
     }
-    evaluateInCoroutineContext(
-        (r) -> {
-          throw new DestroyWorkflowThreadError();
-        });
+
     runUntilBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
   }
 
