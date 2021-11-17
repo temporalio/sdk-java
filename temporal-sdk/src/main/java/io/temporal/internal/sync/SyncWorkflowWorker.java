@@ -27,11 +27,7 @@ import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.replay.WorkflowExecutorCache;
-import io.temporal.internal.worker.LocalActivityWorker;
-import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.internal.worker.SuspendableWorker;
-import io.temporal.internal.worker.WorkflowTaskHandler;
-import io.temporal.internal.worker.WorkflowWorker;
+import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -50,6 +46,7 @@ public class SyncWorkflowWorker
     implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
 
   private final WorkflowWorker workflowWorker;
+  private final QueryReplayHelper queryReplayHelper;
   private final LocalActivityWorker laWorker;
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
@@ -99,6 +96,22 @@ public class SyncWorkflowWorker
     workflowWorker =
         new WorkflowWorker(
             service, namespace, taskQueue, singleWorkerOptions, taskHandler, stickyTaskQueueName);
+
+    // Exists to support Worker#replayWorkflowExecution functionality.
+    // This handler has to be non-sticky to avoid evicting actual executions from the cache
+    WorkflowTaskHandler nonStickyReplayTaskHandler =
+        new ReplayWorkflowTaskHandler(
+            namespace,
+            factory,
+            null,
+            singleWorkerOptions,
+            null,
+            stickyWorkflowTaskScheduleToStartTimeout,
+            service,
+            this::isShutdown,
+            laWorker.getLocalActivityTaskPoller());
+
+    queryReplayHelper = new QueryReplayHelper(nonStickyReplayTaskHandler);
   }
 
   public void registerWorkflowImplementationTypes(
@@ -187,7 +200,7 @@ public class SyncWorkflowWorker
       throws Exception {
     Optional<Payloads> serializedArgs = dataConverter.toPayloads(args);
     Optional<Payloads> result =
-        workflowWorker.queryWorkflowExecution(history, queryType, serializedArgs);
+        queryReplayHelper.queryWorkflowExecution(history, queryType, serializedArgs);
     return dataConverter.fromPayloads(0, result, resultClass, resultType);
   }
 

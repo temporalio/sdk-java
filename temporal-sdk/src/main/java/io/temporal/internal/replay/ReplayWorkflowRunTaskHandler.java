@@ -53,7 +53,6 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
@@ -238,14 +237,13 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public Optional<Payloads> handleQueryWorkflowTask(
+  public QueryResult handleQueryWorkflowTask(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) {
     lock.lock();
     try {
-      AtomicReference<Optional<Payloads>> result = new AtomicReference<>();
       handleWorkflowTaskImpl(workflowTask);
-      result.set(replayWorkflowExecutor.query(query));
-      return result.get();
+      Optional<Payloads> resultPayloads = replayWorkflowExecutor.query(query);
+      return new QueryResult(resultPayloads, replayWorkflowExecutor.isCompleted());
     } finally {
       lock.unlock();
     }

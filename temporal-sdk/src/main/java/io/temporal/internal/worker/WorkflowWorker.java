@@ -26,16 +26,8 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.history.v1.History;
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.internal.client.WorkflowClientHelper;
-import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -43,7 +35,6 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -141,80 +132,6 @@ public final class WorkflowWorker
       return true;
     }
     return poller.isTerminated();
-  }
-
-  public Optional<Payloads> queryWorkflowExecution(
-      WorkflowExecution exec, String queryType, Optional<Payloads> args) throws Exception {
-    GetWorkflowExecutionHistoryResponse historyResponse =
-        WorkflowClientHelper.getHistoryPage(
-            service, namespace, exec, ByteString.EMPTY, options.getMetricsScope());
-    History history = historyResponse.getHistory();
-    WorkflowExecutionHistory workflowExecutionHistory = new WorkflowExecutionHistory(history);
-    return queryWorkflowExecution(
-        queryType, args, workflowExecutionHistory, historyResponse.getNextPageToken());
-  }
-
-  public Optional<Payloads> queryWorkflowExecution(
-      String jsonSerializedHistory, String queryType, Optional<Payloads> args) throws Exception {
-    WorkflowExecutionHistory history = WorkflowExecutionHistory.fromJson(jsonSerializedHistory);
-    return queryWorkflowExecution(queryType, args, history, ByteString.EMPTY);
-  }
-
-  public Optional<Payloads> queryWorkflowExecution(
-      WorkflowExecutionHistory history, String queryType, Optional<Payloads> args)
-      throws Exception {
-    return queryWorkflowExecution(queryType, args, history, ByteString.EMPTY);
-  }
-
-  private Optional<Payloads> queryWorkflowExecution(
-      String queryType,
-      Optional<Payloads> args,
-      WorkflowExecutionHistory history,
-      ByteString nextPageToken)
-      throws Exception {
-    WorkflowQuery.Builder query = WorkflowQuery.newBuilder().setQueryType(queryType);
-    if (args.isPresent()) {
-      query.setQueryArgs(args.get());
-    }
-    PollWorkflowTaskQueueResponse.Builder task =
-        PollWorkflowTaskQueueResponse.newBuilder()
-            .setWorkflowExecution(history.getWorkflowExecution())
-            .setStartedEventId(Long.MAX_VALUE)
-            .setPreviousStartedEventId(Long.MAX_VALUE)
-            .setNextPageToken(nextPageToken)
-            .setQuery(query);
-    List<HistoryEvent> events = history.getEvents();
-    HistoryEvent startedEvent = events.get(0);
-    WorkflowExecutionStartedEventAttributes started =
-        startedEvent.getWorkflowExecutionStartedEventAttributes();
-    if (started == null) {
-      throw new IllegalStateException(
-          "First event of the history is not WorkflowExecutionStarted: " + startedEvent);
-    }
-    WorkflowType workflowType = started.getWorkflowType();
-    task.setWorkflowType(workflowType);
-    task.setHistory(History.newBuilder().addAllEvents(events));
-    WorkflowTaskHandler.Result result = handler.handleWorkflowTask(task.build());
-    if (result.getQueryCompleted() != null) {
-      RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
-      if (!r.getErrorMessage().isEmpty()) {
-        throw new RuntimeException(
-            "query failure for "
-                + history.getWorkflowExecution()
-                + ", queryType="
-                + queryType
-                + ", args="
-                + args
-                + ", error="
-                + r.getErrorMessage());
-      }
-      if (r.hasQueryResult()) {
-        return Optional.of(r.getQueryResult());
-      } else {
-        return Optional.empty();
-      }
-    }
-    throw new RuntimeException("Query returned wrong response: " + result);
   }
 
   @Override
