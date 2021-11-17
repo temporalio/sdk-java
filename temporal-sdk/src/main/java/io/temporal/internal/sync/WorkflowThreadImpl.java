@@ -359,10 +359,6 @@ class WorkflowThreadImpl implements WorkflowThread {
       throw new Error("Cannot call destroy on itself: " + thread.getName());
     }
     context.destroy();
-    if (!context.isDone()) {
-      throw new RuntimeException(
-          "Couldn't destroy the thread. " + "The blocked thread stack trace: " + getStackTrace());
-    }
     if (taskFuture == null) {
       return getCompletedFuture();
     }
