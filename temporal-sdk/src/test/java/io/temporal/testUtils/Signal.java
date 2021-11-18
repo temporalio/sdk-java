@@ -19,6 +19,8 @@
 
 package io.temporal.testUtils;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * Represents a flag which can be set or waited for. Once signalled, threads waiting for it unblock
  * or will not be blocked if started to wait when flag is already set.
@@ -51,14 +53,16 @@ public class Signal {
    * Wait up to timeout for the signal
    *
    * @param timeout timeout in milliseconds - this will be honoured unless wait wakes up spuriously
+   * @return true if signaled, false if returned by timeout
    * @throws InterruptedException on interruption of awaiting thread
    */
-  public void waitForSignal(long timeout) throws InterruptedException {
+  public boolean waitForSignal(long timeout, TimeUnit timeUnit) throws InterruptedException {
     if (!isSignalled()) {
       synchronized (this) {
-        wait(timeout);
+        wait(timeUnit.toMillis(timeout));
       }
     }
+    return isSignalled();
   }
 
   /**
