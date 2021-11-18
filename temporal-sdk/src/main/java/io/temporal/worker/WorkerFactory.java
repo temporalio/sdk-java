@@ -168,19 +168,30 @@ public final class WorkerFactory {
     Preconditions.checkState(
         state == State.Initial,
         String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
-    Worker worker =
-        new Worker(
-            workflowClient,
-            taskQueue,
-            factoryOptions,
-            options,
-            metricsScope,
-            cache,
-            getStickyTaskQueueName(),
-            workflowThreadPool,
-            workflowClient.getOptions().getContextPropagators());
-    workers.put(taskQueue, worker);
-    return worker;
+
+    // Only one worker can exist for a task queue
+    Worker existingWorker = workers.get(taskQueue);
+    if (existingWorker == null) {
+      Worker worker =
+          new Worker(
+              workflowClient,
+              taskQueue,
+              factoryOptions,
+              options,
+              metricsScope,
+              cache,
+              getStickyTaskQueueName(),
+              workflowThreadPool,
+              workflowClient.getOptions().getContextPropagators());
+      workers.put(taskQueue, worker);
+      return worker;
+    } else {
+      log.warn(
+          "Only one worker can be registered for a task queue, "
+              + "subsequent calls to WorkerFactory#newWorker with the same task queue are ignored and "
+              + "initially created worker is returned");
+      return existingWorker;
+    }
   }
 
   /**
