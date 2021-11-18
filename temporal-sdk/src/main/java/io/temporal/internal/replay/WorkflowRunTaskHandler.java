@@ -19,10 +19,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
-import java.util.Optional;
 
 /**
  * Task handler that encapsulates a cached workflow and can handle multiple calls to
@@ -41,7 +39,7 @@ public interface WorkflowRunTaskHandler {
    */
   WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask);
 
-  Optional<Payloads> handleQueryWorkflowTask(
+  QueryResult handleQueryWorkflowTask(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query);
 
   void close();
