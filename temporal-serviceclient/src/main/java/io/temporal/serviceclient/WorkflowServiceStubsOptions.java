@@ -35,7 +35,7 @@ public class WorkflowServiceStubsOptions {
 
   public static final String DEFAULT_LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
-  /** Default RPC timeout used for all non-long-poll calls. */
+  /** Default RPC timeout used for all non-long-poll and non-query calls. */
   public static final Duration DEFAULT_RPC_TIMEOUT = Duration.ofSeconds(10);
   /**
    * RPC timeout used for all long poll calls on Temporal Server side. Long poll returns with an
@@ -45,7 +45,7 @@ public class WorkflowServiceStubsOptions {
   /** Default RPC timeout used for all long poll calls. */
   public static final Duration DEFAULT_POLL_RPC_TIMEOUT =
       DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.plus(Duration.ofSeconds(10));
-  /** Default RPC timeout for QueryWorkflow */
+  /** Default RPC timeout for workflow queries */
   public static final Duration DEFAULT_QUERY_RPC_TIMEOUT = Duration.ofSeconds(10);
   /** Default timeout that will be used to reset connection backoff. */
   public static final Duration DEFAULT_CONNECTION_BACKOFF_RESET_FREQUENCY = Duration.ofSeconds(10);
@@ -409,9 +409,18 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Sets gRPC channel to use.
+     * Sets custom user-configured gRPC channel to use.
      *
-     * <p>Exclusive with {@link #setTarget(String)} and {@link #setSslContext(SslContext)}.
+     * <p>This option is not intended for the majority of users as it disables some Temporal
+     * connection management features and can lead to outages if the channel is configured or
+     * managed improperly.
+     *
+     * <p>Mutually exclusive with
+     *
+     * <p>{@link #setTarget(String)}, {@link #setSslContext(SslContext)}, {@link
+     * #setGrpcReconnectFrequency(Duration)} and {@link
+     * #setConnectionBackoffResetFrequency(Duration)}. These options are ignored if the custom
+     * channel is supplied.
      */
     public Builder setChannel(ManagedChannel channel) {
       this.channel = channel;
@@ -430,8 +439,10 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Sets option to enable SSL/TLS/HTTPS for gRPC. Exclusive with channel; Ignored if SSLContext
-     * is specified
+     * Sets option to enable SSL/TLS/HTTPS for gRPC.
+     *
+     * <p>Mutually exclusive with channel; Ignored if {@link #setSslContext(SslContext)} is
+     * specified
      */
     public Builder setEnableHttps(boolean enableHttps) {
       this.enableHttps = enableHttps;
@@ -450,7 +461,7 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    /** Sets the rpc timeout value for non query and non-long-poll calls. Default is 10 seconds. */
+    /** Sets the rpc timeout value for non-query and non-long-poll calls. Default is 10 seconds. */
     public Builder setRpcTimeout(Duration timeout) {
       this.rpcTimeout = Objects.requireNonNull(timeout);
       return this;
@@ -498,8 +509,11 @@ public class WorkflowServiceStubsOptions {
      * performed and we'll rely on default gRPC backoff behavior defined in
      * ExponentialBackoffPolicy.
      *
+     * <p>Mutually exclusive with {@link #setChannel(ManagedChannel)}.
+     *
      * @param connectionBackoffResetFrequency frequency, defaults to once every 10 seconds. Set to
      *     null in order to disable this feature.
+     * @see ManagedChannel#resetConnectBackoff()
      */
     public Builder setConnectionBackoffResetFrequency(Duration connectionBackoffResetFrequency) {
       this.connectionBackoffResetFrequency = connectionBackoffResetFrequency;
@@ -513,8 +527,11 @@ public class WorkflowServiceStubsOptions {
      * allows worker to connect to a new temporal backend host periodically avoiding hot spots and
      * resulting in a more even connection distribution.
      *
+     * <p>Mutually exclusive with {@link #setChannel(ManagedChannel)}.
+     *
      * @param grpcReconnectFrequency frequency, defaults to once every 1 minute. Set to null in
      *     order to disable this feature.
+     * @see ManagedChannel#enterIdle()
      */
     public Builder setGrpcReconnectFrequency(Duration grpcReconnectFrequency) {
       this.grpcReconnectFrequency = grpcReconnectFrequency;

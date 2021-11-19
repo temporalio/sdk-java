@@ -139,8 +139,17 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
         builder.useTransportSecurity();
       }
 
+      // Disable built-in idleTimer until https://github.com/grpc/grpc-java/issues/8714 is resolved.
+      // jsdk force-idles channels often anyway, so this is not needed until we stop doing
+      // force-idling as a part of
+      // https://github.com/temporalio/sdk-java/issues/888
+
+      // Why 31 days? See ManagedChannelImplBuilder#IDLE_MODE_MAX_TIMEOUT_DAYS and
+      // https://github.com/grpc/grpc-java/issues/8714#issuecomment-974389414
+      builder.idleTimeout(31, TimeUnit.DAYS);
+
       this.channel = builder.build();
-      // Currently it is impossible to modify backoff policy on NettyChannelBuilder.
+      // Currently, it is impossible to modify backoff policy on NettyChannelBuilder.
       // For this reason we reset connection backoff every few seconds in order to limit maximum
       // retry interval, which by default equals to 2 minutes.
       // Once https://github.com/grpc/grpc-java/issues/7456 is done we should be able to define
@@ -294,14 +303,14 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   public void shutdown() {
     log.info("shutdown");
     shutdownRequested.set(true);
+    if (grpcConnectionManager != null) {
+      grpcConnectionManager.shutdown();
+    }
     if (channelNeedsShutdown) {
       channel.shutdown();
     }
     if (inProcessServer != null) {
       inProcessServer.shutdown();
-    }
-    if (grpcConnectionManager != null) {
-      grpcConnectionManager.shutdown();
     }
   }
 
@@ -309,14 +318,14 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   public void shutdownNow() {
     log.info("shutdownNow");
     shutdownRequested.set(true);
+    if (grpcConnectionManager != null) {
+      grpcConnectionManager.shutdownNow();
+    }
     if (channelNeedsShutdown) {
       channel.shutdownNow();
     }
     if (inProcessServer != null) {
       inProcessServer.shutdownNow();
-    }
-    if (grpcConnectionManager != null) {
-      grpcConnectionManager.shutdownNow();
     }
   }
 
@@ -324,16 +333,18 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   public boolean awaitTermination(long timeout, TimeUnit unit) {
     try {
       long start = System.currentTimeMillis();
-      if (channelNeedsShutdown) {
-        return channel.awaitTermination(timeout, unit);
-      }
-      long left = System.currentTimeMillis() - unit.toMillis(start);
-      if (inProcessServer != null) {
-        inProcessServer.awaitTermination(left, TimeUnit.MILLISECONDS);
-      }
-      left = System.currentTimeMillis() - unit.toMillis(start);
+      long deadline = start + unit.toMillis(timeout);
+      long left = deadline - System.currentTimeMillis();
       if (grpcConnectionManager != null) {
         grpcConnectionManager.awaitTermination(left, TimeUnit.MILLISECONDS);
+      }
+      left = deadline - System.currentTimeMillis();
+      if (channelNeedsShutdown) {
+        return channel.awaitTermination(left, unit);
+      }
+      left = deadline - System.currentTimeMillis();
+      if (inProcessServer != null) {
+        inProcessServer.awaitTermination(left, TimeUnit.MILLISECONDS);
       }
       return true;
     } catch (InterruptedException e) {
