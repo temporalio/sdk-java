@@ -471,10 +471,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       GetWorkflowExecutionHistoryRequest getRequest,
       StreamObserver<GetWorkflowExecutionHistoryResponse> responseObserver) {
     ExecutionId executionId = new ExecutionId(getRequest.getNamespace(), getRequest.getExecution());
-    TestWorkflowMutableState mutableState = getMutableState(executionId);
     forkJoinPool.execute(
         () -> {
           try {
+            TestWorkflowMutableState mutableState = getMutableState(executionId);
             Deadline deadline = getLongPollDeadline();
             responseObserver.onNext(
                 store.getWorkflowExecutionHistory(
