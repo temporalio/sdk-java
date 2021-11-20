@@ -19,6 +19,8 @@
 
 package io.temporal.workflow.activityTests;
 
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 
 import io.temporal.activity.ActivityOptions;
@@ -56,8 +58,8 @@ public class ActivityRetryWithExpirationTest {
       workflowStub.execute(testWorkflowRule.getTaskQueue());
       Assert.fail("unreachable");
     } catch (WorkflowException e) {
-      Assert.assertTrue(e.getCause() instanceof ActivityFailure);
-      Assert.assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertThat(e.getCause(), is(instanceOf(ActivityFailure.class)));
+      assertThat(e.getCause().getCause(), is(instanceOf(ApplicationFailure.class)));
       Assert.assertEquals(
           IOException.class.getName(), ((ApplicationFailure) e.getCause().getCause()).getType());
     }
