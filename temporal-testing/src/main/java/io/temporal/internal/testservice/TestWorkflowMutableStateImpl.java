@@ -451,6 +451,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             for (Command command : commands) {
               processCommand(ctx, command, request.getIdentity(), workflowTaskCompletedId);
             }
+
+            if (commands.isEmpty()) {
+              // RespondWorkflowTaskComplete with no commands corresponds to Workflow.await. We need
+              // to artificially lock timeskipping here, so that SelfAdvancingTimerImpl doesn't jump
+              // to the workflow execution timeout.
+              // REVIEW: If you uncomment the next line, the failure in the test moves.
+              // ctx.lockTimer("Workflow.await");
+            } else if (mostRecentWorkflowTaskCompletionHadNoCommands()) {
+              ctx.unlockTimer("Workflow.await");
+            }
+
             for (RequestContext deferredCtx : workflowTaskStateMachine.getData().bufferedEvents) {
               ctx.add(deferredCtx);
             }
@@ -530,6 +541,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
         },
         request.hasStickyAttributes() ? request.getStickyAttributes() : null);
+  }
+
+  private boolean mostRecentWorkflowTaskCompletionHadNoCommands() {
+    // TODO: What's the easiest way to do this?
+    return false;
   }
 
   private boolean hasCompletionCommand(List<Command> commands) {

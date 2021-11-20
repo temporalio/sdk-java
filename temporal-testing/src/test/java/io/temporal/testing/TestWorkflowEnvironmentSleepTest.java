@@ -25,6 +25,9 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TimeoutType;
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
@@ -38,6 +41,7 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.After;
@@ -63,7 +67,7 @@ public class TestWorkflowEnvironmentSleepTest {
       };
 
   @WorkflowInterface
-  public interface ExampleWorkflow {
+  public interface HangingWorkflowWithSignal {
     @WorkflowMethod
     void execute();
 
@@ -71,7 +75,7 @@ public class TestWorkflowEnvironmentSleepTest {
     void signal();
   }
 
-  public static class HangingWorkflowWithSignalImpl implements ExampleWorkflow {
+  public static class HangingWorkflowWithSignalImpl implements HangingWorkflowWithSignal {
     @Override
     public void execute() {
       Workflow.sleep(Duration.ofMinutes(20));
@@ -92,6 +96,7 @@ public class TestWorkflowEnvironmentSleepTest {
     worker = testEnv.newWorker(WORKFLOW_TASK_QUEUE);
     client = testEnv.getWorkflowClient();
     worker.registerWorkflowImplementationTypes(HangingWorkflowWithSignalImpl.class);
+    worker.registerWorkflowImplementationTypes(AwaitingWorkflowWithSignalImpl.class);
     worker.registerWorkflowImplementationTypes(ConfigurableSleepWorkflowImpl.class);
     testEnv.start();
   }
@@ -103,9 +108,9 @@ public class TestWorkflowEnvironmentSleepTest {
 
   @Test(timeout = 2000)
   public void testSignalAfterStartThenSleep() {
-    ExampleWorkflow workflow =
+    HangingWorkflowWithSignal workflow =
         client.newWorkflowStub(
-            ExampleWorkflow.class,
+            HangingWorkflowWithSignal.class,
             WorkflowOptions.newBuilder().setTaskQueue(WORKFLOW_TASK_QUEUE).build());
     WorkflowClient.start(workflow::execute);
     workflow.signal();
@@ -114,9 +119,9 @@ public class TestWorkflowEnvironmentSleepTest {
 
   @Test
   public void testWorkflowTimeoutDuringSleep() {
-    ExampleWorkflow workflow =
+    HangingWorkflowWithSignal workflow =
         client.newWorkflowStub(
-            ExampleWorkflow.class,
+            HangingWorkflowWithSignal.class,
             WorkflowOptions.newBuilder()
                 .setWorkflowExecutionTimeout(Duration.ofMinutes(3))
                 .setTaskQueue(WORKFLOW_TASK_QUEUE)
@@ -264,5 +269,79 @@ public class TestWorkflowEnvironmentSleepTest {
     public void execute(long sleepMillis) {
       Workflow.sleep(sleepMillis);
     }
+  }
+
+  @WorkflowInterface
+  public interface AwaitingWorkflowWithSignal {
+    @WorkflowMethod
+    void execute();
+
+    @SignalMethod
+    void signal();
+  }
+
+  public static class AwaitingWorkflowWithSignalImpl implements AwaitingWorkflowWithSignal {
+    private boolean done = false;
+
+    @Override
+    public void execute() {
+      // This should block timeskipping
+      Workflow.await(() -> done);
+      // This should not (and its presence helps us verify that timeskipping turns
+      // back on after an await
+      Workflow.sleep(Duration.ofMinutes(20));
+    }
+
+    @Override
+    public void signal() {
+      done = true;
+    }
+  }
+
+  @Test
+  public void testWorkflowsDoNotTimeoutDuringAwait()
+      throws InterruptedException, TimeoutException, ExecutionException {
+    WorkflowStub workflow =
+        client.newUntypedWorkflowStub(
+            "AwaitingWorkflowWithSignal",
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(WORKFLOW_TASK_QUEUE)
+                .setWorkflowExecutionTimeout(Duration.ofMinutes(30))
+                .build());
+    WorkflowExecution execution = workflow.start();
+
+    // Since the workflow just hangs via .await(), we expect this to time out. We have to
+    // call TimeLockingFuture.get() in order to remove that level of timeskipping-locking.
+    // If there is a bug, this will cause the workflow to time out, and .get() will throw
+    // an ExcutionException. If there weren't a bug, this would time out after 1 second.
+    //
+    // REVIEW: Without the artificial locking in TestWorkflowMutableStateImpl, the test fails here
+    Assert.assertThrows(
+        TimeoutException.class,
+        () -> {
+          workflow.getResultAsync(Void.class).get(1, TimeUnit.SECONDS);
+        });
+
+    assertEquals(
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING, getWorkflowStatus(execution));
+
+    // Signal it, then wait for it to complete, which involves skipping past a 20 minute
+    // sleep. This verifies that timeskipping unlocks again after await is over.
+    workflow.signal("signal");
+
+    // REVIEW: If you uncomment the artificial locking in TestWorkflowMutableStateImpl, the test fails
+    // here
+    workflow.getResultAsync(Void.class).get(30, TimeUnit.SECONDS);
+  }
+
+  private WorkflowExecutionStatus getWorkflowStatus(WorkflowExecution execution) {
+    DescribeWorkflowExecutionRequest request =
+        DescribeWorkflowExecutionRequest.newBuilder()
+            .setNamespace(client.getOptions().getNamespace())
+            .setExecution(execution)
+            .build();
+    DescribeWorkflowExecutionResponse result =
+        client.getWorkflowServiceStubs().blockingStub().describeWorkflowExecution(request);
+    return result.getWorkflowExecutionInfo().getStatus();
   }
 }
