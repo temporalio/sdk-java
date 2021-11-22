@@ -23,7 +23,7 @@ import io.temporal.activity.ActivityInfo;
 
 /**
  * Usually indicates that activity was already completed (duplicated request to complete) or timed
- * out or workflow is closed.
+ * out or workflow execution is closed (cancelled, terminated or timed out).
  */
 public final class ActivityNotExistsException extends ActivityCompletionException {
 
