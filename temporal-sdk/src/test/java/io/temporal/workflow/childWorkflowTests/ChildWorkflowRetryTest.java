@@ -20,7 +20,6 @@
 package io.temporal.workflow.childWorkflowTests;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
-import static io.temporal.testing.internal.SDKTestWorkflowRule.regenerateHistoryForReplay;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeFalse;
 
@@ -116,10 +115,7 @@ public class ChildWorkflowRetryTest {
     assertEquals("TestWorkflow1", lastStartedWorkflowType.get());
     assertEquals(3, angryChildActivity.getInvocationCount());
     WorkflowExecution execution = WorkflowStub.fromTyped(client).getExecution();
-    regenerateHistoryForReplay(
-        testWorkflowRule.getTestEnvironment().getWorkflowService(),
-        execution,
-        "testChildWorkflowRetryHistory");
+    testWorkflowRule.regenerateHistoryForReplay(execution, "testChildWorkflowRetryHistory");
   }
 
   /**

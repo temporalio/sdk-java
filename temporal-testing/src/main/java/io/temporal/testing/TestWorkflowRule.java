@@ -21,7 +21,6 @@ package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.History;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -29,6 +28,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.DebugModeUtils;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
@@ -346,14 +346,19 @@ public class TestWorkflowRule implements TestRule {
     return null;
   }
 
-  /** @return name of the task queue that test worker is polling. */
+  /** @return workflow execution history */
+  public History getHistory(WorkflowExecution execution) {
+    return testEnvironment.getWorkflowExecutionHistory(execution).getHistory();
+  }
+
+  /**
+   * @return name of the task queue that test worker is polling.
+   * @deprecated use {@link #getHistory}, this method will be reworked to return {@link
+   *     WorkflowExecutionHistory} in the upcoming releases
+   */
+  @Deprecated
   public History getWorkflowExecutionHistory(WorkflowExecution execution) {
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(namespace)
-            .setExecution(execution)
-            .build();
-    return this.blockingStub().getWorkflowExecutionHistory(request).getHistory();
+    return testEnvironment.getWorkflowExecutionHistory(execution).getHistory();
   }
 
   /**

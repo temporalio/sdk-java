@@ -21,12 +21,14 @@ package io.temporal.testing;
 
 import com.google.common.collect.ObjectArrays;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.sync.WorkflowClientInternal;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -139,6 +141,17 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     StringBuilder result = new StringBuilder();
     service.getDiagnostics(result);
     return result.toString();
+  }
+
+  @Override
+  public WorkflowExecutionHistory getWorkflowExecutionHistory(WorkflowExecution execution) {
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(getNamespace())
+            .setExecution(execution)
+            .build();
+    return new WorkflowExecutionHistory(
+        workflowServiceStubs.blockingStub().getWorkflowExecutionHistory(request).getHistory());
   }
 
   @Override
