@@ -19,7 +19,9 @@
 
 package io.temporal.testing;
 
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
@@ -159,6 +161,12 @@ public interface TestWorkflowEnvironment {
    * @return the diagnostic data about the internal service state.
    */
   String getDiagnostics();
+
+  /**
+   * @param execution identifies the workflowId and runId (optionally) to reach the history for
+   * @return history of the execution
+   */
+  WorkflowExecutionHistory getWorkflowExecutionHistory(WorkflowExecution execution);
 
   /** Calls {@link #shutdownNow()} and {@link #awaitTermination(long, TimeUnit)}. */
   void close();

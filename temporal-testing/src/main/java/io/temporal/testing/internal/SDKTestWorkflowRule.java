@@ -30,8 +30,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -39,7 +37,6 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.Worker;
@@ -228,15 +225,11 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   public History getHistory(WorkflowExecution execution) {
-    return testWorkflowRule.getWorkflowExecutionHistory(execution);
+    return testWorkflowRule.getHistory(execution);
   }
 
   public WorkflowExecutionHistory getExecutionHistory(WorkflowExecution execution) {
-    return new WorkflowExecutionHistory(testWorkflowRule.getWorkflowExecutionHistory(execution));
-  }
-
-  public String getHistoryJsonForReplay(WorkflowExecution execution) {
-    return new WorkflowExecutionHistory(getHistory(execution)).toJson(true);
+    return new WorkflowExecutionHistory(testWorkflowRule.getHistory(execution));
   }
 
   /** Returns list of all events of the given EventType found in the history. */
@@ -342,18 +335,9 @@ public class SDKTestWorkflowRule implements TestRule {
         .addWorkflowImplementationFactory(factoryImpl, factoryFunc);
   }
 
-  public static void regenerateHistoryForReplay(
-      WorkflowServiceStubs service, WorkflowExecution execution, String fileName) {
+  public void regenerateHistoryForReplay(WorkflowExecution execution, String fileName) {
     if (REGENERATE_JSON_FILES) {
-      GetWorkflowExecutionHistoryRequest request =
-          GetWorkflowExecutionHistoryRequest.newBuilder()
-              .setNamespace(NAMESPACE)
-              .setExecution(execution)
-              .build();
-      GetWorkflowExecutionHistoryResponse response =
-          service.blockingStub().getWorkflowExecutionHistory(request);
-      WorkflowExecutionHistory history = new WorkflowExecutionHistory(response.getHistory());
-      String json = history.toJson(true);
+      String json = getExecutionHistory(execution).toJson(true);
       String projectPath = System.getProperty("user.dir");
       String resourceFile = projectPath + "/src/test/resources/" + fileName + ".json";
       File file = new File(resourceFile);

@@ -33,7 +33,10 @@ import io.temporal.common.converter.DataConverterException;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/** Contains workflow execution ids and the history */
+/**
+ * Provides a wrapper with convenience methods over raw protobuf {@link History} object representing
+ * workflow history
+ */
 public final class WorkflowExecutionHistory {
   private static final Gson GSON_PRETTY_PRINTER = new GsonBuilder().setPrettyPrinting().create();
   // we stay on using the old API that uses a JsonParser instance instead of static methods
@@ -122,6 +125,10 @@ public final class WorkflowExecutionHistory {
   public HistoryEvent getLastEvent() {
     int eventsCount = history.getEventsCount();
     return eventsCount > 0 ? history.getEvents(eventsCount - 1) : null;
+  }
+
+  public History getHistory() {
+    return history;
   }
 
   @Override
