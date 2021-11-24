@@ -39,4 +39,12 @@ public class RetryOptionsTest {
 
     assertEquals(Duration.ofSeconds(2), o1.merge(o2).getInitialInterval());
   }
+
+  @Test(expected = IllegalStateException.class)
+  public void maximumIntervalCantBeLessThanInitial() {
+    RetryOptions.newBuilder()
+        .setInitialInterval(Duration.ofSeconds(5))
+        .setMaximumInterval(Duration.ofSeconds(1))
+        .validateBuildWithDefaults();
+  }
 }

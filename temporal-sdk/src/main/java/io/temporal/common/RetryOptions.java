@@ -112,6 +112,21 @@ public final class RetryOptions {
         .build();
   }
 
+  private void validate() {
+    if (initialInterval == null || initialInterval.isNegative()) {
+      throw new IllegalStateException(
+          "initialInterval has to be a positive value, an actual value " + initialInterval);
+    }
+    if (maximumInterval != null && maximumInterval.compareTo(initialInterval) < 0) {
+      throw new IllegalStateException(
+          "maximumInterval cannot be less than initialInterval if set. "
+              + "maximumInterval is "
+              + maximumInterval
+              + " while initialInterval is "
+              + initialInterval);
+    }
+  }
+
   public static final class Builder {
 
     private static final Duration DEFAULT_INITIAL_INTERVAL = Duration.ofSeconds(1);
@@ -143,7 +158,7 @@ public final class RetryOptions {
     public Builder setInitialInterval(Duration initialInterval) {
       Objects.requireNonNull(initialInterval);
       if (initialInterval.isNegative() || initialInterval.isZero()) {
-        throw new IllegalArgumentException("Invalid interval: " + initialInterval);
+        throw new IllegalArgumentException("Invalid initial interval: " + initialInterval);
       }
       this.initialInterval = initialInterval;
       return this;
@@ -178,14 +193,14 @@ public final class RetryOptions {
     /**
      * Maximum interval between retries. Exponential backoff leads to interval increase. This value
      * is the cap of the increase. <br>
-     * Default is 100x of initial interval.
+     * Default is 100x of initial interval. Can't be less than {@link #setInitialInterval(Duration)}
      *
      * @param maximumInterval the maximum interval value. Default will be used if set to {@code
      *     null}.
      */
     public Builder setMaximumInterval(Duration maximumInterval) {
       if (maximumInterval != null && (maximumInterval.isNegative() || maximumInterval.isZero())) {
-        throw new IllegalArgumentException("Invalid interval: " + maximumInterval);
+        throw new IllegalArgumentException("Invalid maximum interval: " + maximumInterval);
       }
       this.maximumInterval = maximumInterval;
       return this;
@@ -236,14 +251,17 @@ public final class RetryOptions {
       if (backoff == 0d) {
         backoff = DEFAULT_BACKOFF_COEFFICIENT;
       }
-      return new RetryOptions(
-          initialInterval == null || initialInterval.isZero()
-              ? DEFAULT_INITIAL_INTERVAL
-              : initialInterval,
-          backoff,
-          maximumAttempts,
-          maximumInterval,
-          doNotRetry == null ? new String[0] : doNotRetry);
+      RetryOptions options =
+          new RetryOptions(
+              initialInterval == null || initialInterval.isZero()
+                  ? DEFAULT_INITIAL_INTERVAL
+                  : initialInterval,
+              backoff,
+              maximumAttempts,
+              maximumInterval,
+              doNotRetry == null ? new String[0] : doNotRetry);
+      options.validate();
+      return options;
     }
   }
 
