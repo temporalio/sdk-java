@@ -19,9 +19,6 @@
 
 package io.temporal.internal.common;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
-import com.google.common.io.CharStreams;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 import com.google.protobuf.MessageOrBuilder;
@@ -48,10 +45,6 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
-import java.io.File;
-import java.io.IOException;
-import java.io.Reader;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -335,21 +328,6 @@ public class WorkflowExecutionUtils {
         return EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES;
     }
     throw new IllegalArgumentException("Unknown commandType");
-  }
-
-  public static WorkflowExecutionHistory readHistoryFromResource(String resourceFileName)
-      throws IOException {
-    ClassLoader classLoader = WorkflowExecutionUtils.class.getClassLoader();
-    String historyUrl = classLoader.getResource(resourceFileName).getFile();
-    File historyFile = new File(historyUrl);
-    return readHistory(historyFile);
-  }
-
-  public static WorkflowExecutionHistory readHistory(File historyFile) throws IOException {
-    try (Reader reader = Files.newBufferedReader(historyFile.toPath(), UTF_8)) {
-      String jsonHistory = CharStreams.toString(reader);
-      return WorkflowExecutionHistory.fromJson(jsonHistory);
-    }
   }
 
   public static boolean isFullHistory(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {

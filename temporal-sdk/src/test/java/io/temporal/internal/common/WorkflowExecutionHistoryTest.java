@@ -21,6 +21,7 @@ package io.temporal.internal.common;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.testing.WorkflowHistoryLoader;
 import java.io.IOException;
 import org.junit.Test;
 
@@ -36,9 +37,9 @@ public class WorkflowExecutionHistoryTest {
   public void addingANewFieldToHistoryJsonShouldProduceTheSameResult() throws IOException {
 
     WorkflowExecutionHistory originalHistory =
-        WorkflowExecutionUtils.readHistoryFromResource("simpleHistory1.json");
+        WorkflowHistoryLoader.readHistoryFromResource("simpleHistory1.json");
     WorkflowExecutionHistory historyWithAnAddedNewField =
-        WorkflowExecutionUtils.readHistoryFromResource(
+        WorkflowHistoryLoader.readHistoryFromResource(
             "simpleHistory1_withAddedNewRandomField.json");
 
     assertEquals(originalHistory.getLastEvent(), historyWithAnAddedNewField.getLastEvent());

@@ -23,7 +23,6 @@ import com.google.common.collect.ObjectArrays;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.internal.common.WorkflowExecutionHistory;
-import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.worker.Worker;
 import java.io.File;
 
@@ -41,7 +40,7 @@ public final class WorkflowReplayer {
   public static void replayWorkflowExecutionFromResource(
       String resourceName, Class<?> workflowClass, Class<?>... moreWorkflowClasses)
       throws Exception {
-    WorkflowExecutionHistory history = WorkflowExecutionUtils.readHistoryFromResource(resourceName);
+    WorkflowExecutionHistory history = WorkflowHistoryLoader.readHistoryFromResource(resourceName);
     replayWorkflowExecution(history, workflowClass, moreWorkflowClasses);
   }
 
@@ -55,7 +54,7 @@ public final class WorkflowReplayer {
    */
   public static void replayWorkflowExecutionFromResource(String resourceName, Worker worker)
       throws Exception {
-    WorkflowExecutionHistory history = WorkflowExecutionUtils.readHistoryFromResource(resourceName);
+    WorkflowExecutionHistory history = WorkflowHistoryLoader.readHistoryFromResource(resourceName);
     replayWorkflowExecution(history, worker);
   }
 
@@ -74,7 +73,7 @@ public final class WorkflowReplayer {
       Class<?> workflowClass,
       Class<?>... moreWorkflowClasses)
       throws Exception {
-    WorkflowExecutionHistory history = WorkflowExecutionUtils.readHistoryFromResource(resourceName);
+    WorkflowExecutionHistory history = WorkflowHistoryLoader.readHistoryFromResource(resourceName);
     replayWorkflowExecution(history, testWorkflowEnvironment, workflowClass, moreWorkflowClasses);
   }
 
@@ -88,7 +87,7 @@ public final class WorkflowReplayer {
    */
   public static void replayWorkflowExecution(
       File historyFile, Class<?> workflowClass, Class<?>... moreWorkflowClasses) throws Exception {
-    WorkflowExecutionHistory history = WorkflowExecutionUtils.readHistory(historyFile);
+    WorkflowExecutionHistory history = WorkflowHistoryLoader.readHistory(historyFile);
     replayWorkflowExecution(history, workflowClass, moreWorkflowClasses);
   }
 
@@ -136,8 +135,7 @@ public final class WorkflowReplayer {
   }
 
   /**
-   * Replays workflow from a {@link WorkflowExecutionHistory}. RunId <b>must</b> match the one used
-   * to generate the serialized history.
+   * Replays workflow from a {@link WorkflowExecutionHistory}.
    *
    * @param history object that contains the workflow ids and the events.
    * @param testWorkflowEnvironment to be used to create a worker on a task queue.
@@ -151,10 +149,7 @@ public final class WorkflowReplayer {
       Class<?> workflowClass,
       Class<?>... moreWorkflowClasses)
       throws Exception {
-    WorkflowExecutionStartedEventAttributes attr =
-        history.getEvents().get(0).getWorkflowExecutionStartedEventAttributes();
-    TaskQueue taskQueue = attr.getTaskQueue();
-    Worker worker = testWorkflowEnvironment.newWorker(taskQueue.getName());
+    Worker worker = testWorkflowEnvironment.newWorker(getQueueName((history)));
     worker.registerWorkflowImplementationTypes(
         ObjectArrays.concat(moreWorkflowClasses, workflowClass));
     replayWorkflowExecution(history, worker);
@@ -170,5 +165,12 @@ public final class WorkflowReplayer {
   public static void replayWorkflowExecution(WorkflowExecutionHistory history, Worker worker)
       throws Exception {
     worker.replayWorkflowExecution(history);
+  }
+
+  private static String getQueueName(WorkflowExecutionHistory history) {
+    WorkflowExecutionStartedEventAttributes attr =
+        history.getEvents().get(0).getWorkflowExecutionStartedEventAttributes();
+    TaskQueue taskQueue = attr.getTaskQueue();
+    return taskQueue.getName();
   }
 }

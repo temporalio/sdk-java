@@ -375,14 +375,21 @@ public final class Worker implements Suspendable {
   }
 
   /**
-   * This is an utility method to replay a workflow execution using this particular instance of a
-   * worker. This method is useful to troubleshoot workflows by running them in a debugger. To work
-   * the workflow implementation type must be registered with this worker. There is no need to call
-   * {@link #start()} to be able to call this method.
+   * This is a utility method to replay a workflow execution using this particular instance of a
+   * worker. This method is useful for troubleshooting workflows by running them in a debugger. The
+   * workflow implementation type must be already registered with this worker for this method to
+   * work.
+   *
+   * <p>There is no need to call {@link #start()} to be able to call this method <br>
+   * The worker doesn't have to be registered on the same task queue as the execution in the
+   * history. <br>
+   * This method shouldn't be a part of normal production usage. It's intended for testing and
+   * debugging only.
    *
    * @param history workflow execution history to replay
    * @throws Exception if replay failed for any reason
    */
+  @VisibleForTesting
   public void replayWorkflowExecution(WorkflowExecutionHistory history) throws Exception {
     workflowWorker.queryWorkflowExecution(
         history,
