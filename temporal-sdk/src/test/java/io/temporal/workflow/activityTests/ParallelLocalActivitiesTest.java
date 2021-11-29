@@ -46,14 +46,15 @@ public class ParallelLocalActivitiesTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestParallelLocalActivitiesWorkflowImpl.class)
           .setActivityImplementations(activitiesImpl)
+          .setTestTimeoutSeconds(20)
           .build();
 
   @Test
   public void testParallelLocalActivities() {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setWorkflowRunTimeout(Duration.ofMinutes(5))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(3))
+            .setWorkflowRunTimeout(Duration.ofMinutes(1))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(5))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
 

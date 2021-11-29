@@ -95,12 +95,13 @@ public interface WorkflowTaskHandler {
   }
 
   /**
-   * Handles a single workflow task. Shouldn't throw any exceptions. A compliant implementation
-   * should return any unexpected errors as RespondWorkflowTaskFailedRequest.
+   * Handles a single workflow task
    *
    * @param workflowTask The workflow task to handle.
    * @return One of the possible workflow task replies: RespondWorkflowTaskCompletedRequest,
    *     RespondQueryTaskCompletedRequest, RespondWorkflowTaskFailedRequest
+   * @throws Exception an original exception or error if the processing should be just abandoned
+   *     without replying to the server
    */
   Result handleWorkflowTask(PollWorkflowTaskQueueResponse workflowTask) throws Exception;
 

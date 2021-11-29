@@ -45,6 +45,7 @@ public class ActivityRetryOnTimeoutTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestActivityRetryOnTimeout.class)
           .setActivityImplementations(activitiesImpl)
+          .setTestTimeoutSeconds(15)
           .build();
 
   @Test

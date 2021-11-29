@@ -39,7 +39,6 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
@@ -47,7 +46,6 @@ import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.NonDeterministicException;
-import io.temporal.workflow.Functions;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
@@ -67,7 +65,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private final WorkflowExecutorCache cache;
   private final SingleWorkerOptions options;
   private final Duration stickyTaskQueueScheduleToStartTimeout;
-  private final Functions.Func<Boolean> shutdownFn;
   private final WorkflowServiceStubs service;
   private final String stickyTaskQueueName;
   private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller;
@@ -80,7 +77,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       String stickyTaskQueueName,
       Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
-      Functions.Func<Boolean> shutdownFn,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller) {
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
@@ -88,7 +84,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     this.options = options;
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.stickyTaskQueueScheduleToStartTimeout = stickyTaskQueueScheduleToStartTimeout;
-    this.shutdownFn = shutdownFn;
     this.service = Objects.requireNonNull(service);
     this.localActivityTaskPoller = localActivityTaskPoller;
   }
@@ -161,11 +156,9 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       if (legacyQuery) {
         return createLegacyQueryResult(workflowTask, null, e);
       } else {
-        metricsScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
         // this call rethrows an exception in some scenarios
         return failureToWFTResult(workflowTask, e);
       }
-
     } finally {
       if (useCache) {
         cache.markProcessingDone(execution);
@@ -247,27 +240,31 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               .build();
       return new WorkflowTaskHandler.Result(workflowType, response, null, null, null, false);
     }
+
+    WorkflowExecution execution = workflowTask.getWorkflowExecution();
+    log.warn(
+        "Workflow task processing failure. startedEventId={}, WorkflowId={}, RunId={}. If seen continuously the workflow might be stuck.",
+        workflowTask.getStartedEventId(),
+        execution.getWorkflowId(),
+        execution.getRunId(),
+        e);
+
     // Only fail workflow task on the first attempt, subsequent failures of the same workflow task
     // should timeout. This is to avoid spin on the failed workflow task as the service doesn't
     // yet increase the retry interval.
     if (workflowTask.getAttempt() > 1) {
+      /*
+       *TODO we probably shouldn't swallow Error even if workflowTask.getAttempt() == 1.
+       * But leaving as it is for now, because a trivial change to rethrow
+       * will leave us without reporting Errors as WorkflowTaskFailure to the server,
+       * which we probably should at least attempt to do for visibility that the Error occurs.
+       */
       if (e instanceof Error) {
         throw (Error) e;
       }
       throw (Exception) e;
     }
-    if (log.isErrorEnabled() && !shutdownFn.apply()) {
-      WorkflowExecution execution = workflowTask.getWorkflowExecution();
-      log.error(
-          "Workflow task failure. startedEventId="
-              + workflowTask.getStartedEventId()
-              + ", WorkflowId="
-              + execution.getWorkflowId()
-              + ", RunId="
-              + execution.getRunId()
-              + ". If seen continuously the workflow might be stuck.",
-          e);
-    }
+
     Failure failure = FailureConverter.exceptionToFailure(e);
     RespondWorkflowTaskFailedRequest.Builder failedRequest =
         RespondWorkflowTaskFailedRequest.newBuilder()
