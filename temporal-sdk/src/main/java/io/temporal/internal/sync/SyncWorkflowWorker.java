@@ -90,7 +90,6 @@ public class SyncWorkflowWorker
             stickyTaskQueueName,
             stickyWorkflowTaskScheduleToStartTimeout,
             service,
-            this::isShutdown,
             laWorker.getLocalActivityTaskPoller());
 
     workflowWorker =
@@ -108,7 +107,6 @@ public class SyncWorkflowWorker
             null,
             stickyWorkflowTaskScheduleToStartTimeout,
             service,
-            this::isShutdown,
             laWorker.getLocalActivityTaskPoller());
 
     queryReplayHelper = new QueryReplayHelper(nonStickyReplayTaskHandler);

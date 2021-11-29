@@ -35,16 +35,18 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 public final class WorkflowWorker
     implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
+  private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskQueue=";
 
@@ -55,6 +57,7 @@ public final class WorkflowWorker
   private final String namespace;
   private final String taskQueue;
   private final SingleWorkerOptions options;
+  private final Scope workerMetricScope;
   private final String stickyTaskQueueName;
   private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
 
@@ -85,6 +88,7 @@ public final class WorkflowWorker
               .build();
     }
     this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
+    this.workerMetricScope = options.getMetricsScope();
   }
 
   @Override
@@ -99,14 +103,14 @@ public final class WorkflowWorker
                   service,
                   namespace,
                   taskQueue,
-                  options.getMetricsScope(),
+                  workerMetricScope,
                   options.getIdentity(),
                   options.getBinaryChecksum()),
               pollTaskExecutor,
               options.getPollerOptions(),
-              options.getMetricsScope());
+              workerMetricScope);
       poller.start();
-      options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);
+      workerMetricScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
   }
 
@@ -199,10 +203,9 @@ public final class WorkflowWorker
 
     @Override
     public void handle(PollWorkflowTaskQueueResponse task) throws Exception {
-      Scope metricsScope =
-          options
-              .getMetricsScope()
-              .tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, task.getWorkflowType().getName()));
+      Scope workflowTypeMetricsScope =
+          workerMetricScope.tagged(
+              ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, task.getWorkflowType().getName()));
 
       MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, task.getWorkflowType().getName());
@@ -221,20 +224,53 @@ public final class WorkflowWorker
       }
 
       Stopwatch swTotal =
-          metricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
+          workflowTypeMetricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
       try {
         Optional<PollWorkflowTaskQueueResponse> nextTask = Optional.of(task);
         do {
-          Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
+          PollWorkflowTaskQueueResponse currentTask = nextTask.get();
+          WorkflowExecution execution = currentTask.getWorkflowExecution();
+          Stopwatch sw =
+              workflowTypeMetricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
           WorkflowTaskHandler.Result response;
           try {
-            response = handler.handleWorkflowTask(nextTask.get());
+            response = handler.handleWorkflowTask(currentTask);
+          } catch (Throwable e) {
+            // logged inside the handler
+            workflowTypeMetricsScope
+                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
+                .inc(1);
+            throw e;
           } finally {
             sw.stop();
           }
-          nextTask = sendReply(service, metricsScope, nextTask.get().getTaskToken(), response);
+
+          try {
+            nextTask =
+                sendReply(service, workflowTypeMetricsScope, currentTask.getTaskToken(), response);
+          } catch (Exception e) {
+            log.warn(
+                "Workflow task failure during replying to the server. startedEventId={}, WorkflowId={}, RunId={}. If seen continuously the workflow might be stuck.",
+                currentTask.getStartedEventId(),
+                execution.getWorkflowId(),
+                execution.getRunId(),
+                e);
+            workflowTypeMetricsScope
+                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
+                .inc(1);
+            throw e;
+          }
+
+          if (response.getTaskFailed() != null) {
+            // we don't trigger the counter in case of the legacy query (which never has taskFailed
+            // set)
+            workflowTypeMetricsScope
+                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
+                .inc(1);
+          }
+
           if (nextTask.isPresent()) {
-            metricsScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
+            workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
           }
         } while (nextTask.isPresent());
       } finally {
@@ -264,7 +300,7 @@ public final class WorkflowWorker
 
     private Optional<PollWorkflowTaskQueueResponse> sendReply(
         WorkflowServiceStubs service,
-        Scope metricsScope,
+        Scope workflowTypeWorkerMetricsScope,
         ByteString taskToken,
         WorkflowTaskHandler.Result response) {
       RpcRetryOptions retryOptions = response.getRequestRetryOptions();
@@ -280,10 +316,6 @@ public final class WorkflowWorker
                 .setBinaryChecksum(options.getBinaryChecksum())
                 .setTaskToken(taskToken)
                 .build();
-        Map<String, String> tags =
-            new ImmutableMap.Builder<String, String>(4)
-                .put(MetricsTag.WORKFLOW_TYPE, response.getWorkflowType())
-                .build();
         AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
         GrpcRetryer.retry(
             retryOptions,
@@ -291,7 +323,7 @@ public final class WorkflowWorker
                 nextTask.set(
                     service
                         .blockingStub()
-                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope.tagged(tags))
+                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeWorkerMetricsScope)
                         .respondWorkflowTaskCompleted(request)));
         if (nextTask.get().hasWorkflowTask()) {
           return Optional.of(nextTask.get().getWorkflowTask());
@@ -313,7 +345,7 @@ public final class WorkflowWorker
               () ->
                   service
                       .blockingStub()
-                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, options.getMetricsScope())
+                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeWorkerMetricsScope)
                       .respondWorkflowTaskFailed(request));
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
@@ -323,7 +355,7 @@ public final class WorkflowWorker
             // Do not retry query response.
             service
                 .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, options.getMetricsScope())
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeWorkerMetricsScope)
                 .respondQueryTaskCompleted(queryCompleted);
           }
         }

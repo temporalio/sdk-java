@@ -74,7 +74,6 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             null,
             Duration.ofSeconds(5),
             service,
-            () -> false,
             null);
 
     // Act
@@ -100,13 +99,11 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             "sticky",
             Duration.ofSeconds(5),
             service,
-            () -> false,
             null);
 
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    // Act
     WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask);
 
     assertTrue(result.isCompletionCommand());
