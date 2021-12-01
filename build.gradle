@@ -22,6 +22,7 @@ ext {
 
 apply from: "$rootDir/gradle/versioning.gradle"
 apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/errorprone.gradle"
 apply from: "$rootDir/gradle/licensing.gradle"
 apply from: "$rootDir/gradle/publishing.gradle"
 apply from: "$rootDir/gradle/dependencyManagement.gradle"

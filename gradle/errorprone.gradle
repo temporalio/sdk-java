@@ -1,0 +1,13 @@
+subprojects {
+    //https://github.com/tbroyer/gradle-errorprone-plugin
+    apply plugin: 'net.ltgt.errorprone'
+
+    dependencies {
+        errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
+        errorprone('com.google.errorprone:error_prone_core:2.9.0')
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.errorprone.disableWarningsInGeneratedCode = true
+    }
+}
