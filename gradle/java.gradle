@@ -1,7 +1,6 @@
 subprojects {
     apply plugin: 'java-library'
     apply plugin: 'com.github.sherter.google-java-format'
-    apply plugin: 'net.ltgt.errorprone'
 
     repositories {
         mavenCentral()
@@ -21,22 +20,15 @@ subprojects {
         exclude '**/.idea/**'
     }
 
-    dependencies {
-        errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
-        errorprone('com.google.errorprone:error_prone_core:2.9.0')
-    }
-
     compileJava {
         dependsOn 'googleJavaFormat'
         options.encoding = 'UTF-8'
         options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-        options.errorprone.excludedPaths = '.*/generated-sources/.*'
     }
 
     compileTestJava {
         options.encoding = 'UTF-8'
         options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-        options.errorprone.excludedPaths = '.*/generated-sources/.*'
     }
 
     javadoc {
