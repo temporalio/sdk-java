@@ -196,11 +196,11 @@ public class WorkerStressTests {
     }
 
     private void close() {
-      if (factory != null) {
-        factory.shutdown();
-        factory.awaitTermination(10, TimeUnit.SECONDS);
+      if (useExternalService) {
+        factory.shutdownNow();
+        factory.awaitTermination(5, TimeUnit.SECONDS);
         service.shutdownNow();
-        service.awaitTermination(10, TimeUnit.SECONDS);
+        service.awaitTermination(5, TimeUnit.SECONDS);
       } else {
         testEnv.close();
       }

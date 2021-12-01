@@ -213,29 +213,32 @@ public class WorkflowInternalQueueTest {
   @Test
   public void testPutBlocking() {
     TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
-    String testTaskQueue = "testTaskQueue";
-    Worker worker = testEnv.newWorker(testTaskQueue);
-    worker.registerWorkflowImplementationTypes(TestPutBlocking.class);
-    testEnv.start();
-    WorkflowQueueTestWorkflow workflow =
-        testEnv
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowQueueTestWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
-    List<String> trace = workflow.test();
-    List<String> expected =
-        Arrays.asList(
-            "root begin",
-            "root done",
-            "thread1 begin",
-            "thread2 begin",
-            "thread2 put1 success",
-            "thread1 take1 success",
-            "thread2 put2 success",
-            "thread1 take2 success");
-    assertEquals(expected, trace);
-    testEnv.close();
+    try {
+      String testTaskQueue = "testTaskQueue";
+      Worker worker = testEnv.newWorker(testTaskQueue);
+      worker.registerWorkflowImplementationTypes(TestPutBlocking.class);
+      testEnv.start();
+      WorkflowQueueTestWorkflow workflow =
+          testEnv
+              .getWorkflowClient()
+              .newWorkflowStub(
+                  WorkflowQueueTestWorkflow.class,
+                  WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
+      List<String> trace = workflow.test();
+      List<String> expected =
+          Arrays.asList(
+              "root begin",
+              "root done",
+              "thread1 begin",
+              "thread2 begin",
+              "thread2 put1 success",
+              "thread1 take1 success",
+              "thread2 put2 success",
+              "thread1 take2 success");
+      assertEquals(expected, trace);
+    } finally {
+      testEnv.close();
+    }
   }
 
   public static class TestOfferPollPeek implements WorkflowQueueTestWorkflow {
@@ -262,31 +265,34 @@ public class WorkflowInternalQueueTest {
   @Test
   public void testOfferPollPeek() {
     TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
-    String testTaskQueue = "testTaskQueue";
-    Worker worker = testEnv.newWorker(testTaskQueue);
-    worker.registerWorkflowImplementationTypes(TestOfferPollPeek.class);
-    testEnv.start();
-    WorkflowQueueTestWorkflow workflow =
-        testEnv
-            .getWorkflowClient()
-            .newWorkflowStub(
-                WorkflowQueueTestWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
-    List<String> trace = workflow.test();
-    List<String> expected =
-        Arrays.asList(
-            "root begin",
-            "peek null",
-            "offer true",
-            "offer false",
-            "peek 12",
-            "poll 12",
-            "offer true",
-            "offer false",
-            "take 23",
-            "root done");
-    assertEquals(expected, trace);
-    testEnv.close();
+    try {
+      String testTaskQueue = "testTaskQueue";
+      Worker worker = testEnv.newWorker(testTaskQueue);
+      worker.registerWorkflowImplementationTypes(TestOfferPollPeek.class);
+      testEnv.start();
+      WorkflowQueueTestWorkflow workflow =
+          testEnv
+              .getWorkflowClient()
+              .newWorkflowStub(
+                  WorkflowQueueTestWorkflow.class,
+                  WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
+      List<String> trace = workflow.test();
+      List<String> expected =
+          Arrays.asList(
+              "root begin",
+              "peek null",
+              "offer true",
+              "offer false",
+              "peek 12",
+              "poll 12",
+              "offer true",
+              "offer false",
+              "take 23",
+              "root done");
+      assertEquals(expected, trace);
+    } finally {
+      testEnv.close();
+    }
   }
 
   @Test

@@ -131,7 +131,11 @@ public final class WorkflowReplayer {
       WorkflowExecutionHistory history, Class<?> workflowClass, Class<?>... moreWorkflowClasses)
       throws Exception {
     TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
-    replayWorkflowExecution(history, testEnv, workflowClass, moreWorkflowClasses);
+    try {
+      replayWorkflowExecution(history, testEnv, workflowClass, moreWorkflowClasses);
+    } finally {
+      testEnv.close();
+    }
   }
 
   /**

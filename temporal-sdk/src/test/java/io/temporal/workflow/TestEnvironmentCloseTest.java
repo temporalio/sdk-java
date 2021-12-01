@@ -29,7 +29,7 @@ import org.junit.Test;
 public class TestEnvironmentCloseTest {
 
   @Test
-  public void testCloseNotHanging() throws InterruptedException {
+  public void testCloseNotHanging() {
     TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance();
     Worker worker = env.newWorker("WW");
     worker.registerWorkflowImplementationTypes(WW.class);

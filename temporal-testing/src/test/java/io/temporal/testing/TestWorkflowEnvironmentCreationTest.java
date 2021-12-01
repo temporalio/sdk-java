@@ -31,10 +31,12 @@ public class TestWorkflowEnvironmentCreationTest {
         WorkflowClientOptions.newBuilder().validateAndBuildWithDefaults();
     WorkerFactoryOptions workerFactoryOptions =
         WorkerFactoryOptions.newBuilder().validateAndBuildWithDefaults();
-    TestWorkflowEnvironment.newInstance(
-        TestEnvironmentOptions.newBuilder()
-            .setWorkflowClientOptions(workflowClientOptions)
-            .setWorkerFactoryOptions(workerFactoryOptions)
-            .validateAndBuildWithDefaults());
+    TestWorkflowEnvironment testEnv =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder()
+                .setWorkflowClientOptions(workflowClientOptions)
+                .setWorkerFactoryOptions(workerFactoryOptions)
+                .validateAndBuildWithDefaults());
+    testEnv.close();
   }
 }

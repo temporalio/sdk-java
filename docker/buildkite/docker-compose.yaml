@@ -9,7 +9,7 @@ services:
       - "9042:9042"
 
   temporal:
-    image: temporaliotest/auto-setup
+    image: temporaliotest/auto-setup:1edb0a6b1fb8152e19c26b03a62835434bcfa003
     ports:
       - "7233:7233"
       - "7234:7234"
