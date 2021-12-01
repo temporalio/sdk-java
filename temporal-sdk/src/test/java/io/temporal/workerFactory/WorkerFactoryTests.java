@@ -45,7 +45,6 @@ public class WorkerFactoryTests {
   }
 
   private WorkflowServiceStubs service;
-  private WorkflowClient client;
   private WorkerFactory factory;
 
   @Before
@@ -53,14 +52,16 @@ public class WorkerFactoryTests {
     service =
         WorkflowServiceStubs.newInstance(
             WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
-    client = WorkflowClient.newInstance(service);
+    WorkflowClient client = WorkflowClient.newInstance(service);
     factory = WorkerFactory.newInstance(client);
   }
 
   @After
   public void tearDown() throws InterruptedException {
+    factory.shutdownNow();
+    factory.awaitTermination(5, TimeUnit.SECONDS);
     service.shutdownNow();
-    service.awaitTermination(1, TimeUnit.SECONDS);
+    service.awaitTermination(5, TimeUnit.SECONDS);
   }
 
   @Test
@@ -138,7 +139,7 @@ public class WorkerFactoryTests {
   }
 
   @Test
-  public void factoryCanOnlyBeShutdownMoreThanOnce() {
+  public void factoryCanBeShutdownMoreThanOnce() {
     factory.newWorker("task1");
 
     factory.shutdown();

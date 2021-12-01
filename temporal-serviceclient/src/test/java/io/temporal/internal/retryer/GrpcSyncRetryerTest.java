@@ -77,7 +77,7 @@ public class GrpcSyncRetryerTest {
       assertEquals(STATUS_CODE, ((StatusRuntimeException) e).getStatus().getCode());
     }
 
-    assertTrue(System.currentTimeMillis() - start > 500);
+    assertTrue(System.currentTimeMillis() - start > 400);
   }
 
   @Test

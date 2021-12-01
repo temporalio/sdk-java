@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testUtils.Signal;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -37,18 +38,22 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class WorkflowAwaitWithDurationCancellationTest {
+  private static final Signal workflowStarted = new Signal();
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(AwaitingWorkflow.class).build();
 
   @Test
-  public void awaitWithDurationCancellation() {
+  public void awaitWithDurationCancellation() throws InterruptedException {
+    workflowStarted.clearSignal();
     TestWorkflows.TestWorkflow1 workflow =
         testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflow1.class);
     WorkflowExecution execution = null;
     try {
       execution = WorkflowClient.start(workflow::execute, "input1");
       WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
+      workflowStarted.waitForSignal();
       untyped.cancel();
       untyped.getResult(String.class);
       fail("unreacheable");
@@ -74,6 +79,7 @@ public class WorkflowAwaitWithDurationCancellationTest {
 
     @Override
     public String execute(String input) {
+      workflowStarted.signal();
       Workflow.await(Duration.ofHours(1), () -> false);
       return "success";
     }

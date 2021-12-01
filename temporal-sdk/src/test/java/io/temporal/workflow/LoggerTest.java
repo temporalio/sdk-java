@@ -35,6 +35,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,18 @@ public class LoggerTest {
   }
 
   private static final String taskQueue = "logger-test";
+
+  private TestWorkflowEnvironment env;
+
+  @Before
+  public void setUp() throws Exception {
+    env = TestWorkflowEnvironment.newInstance();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    env.close();
+  }
 
   @WorkflowInterface
   public interface TestWorkflow {
@@ -93,7 +107,6 @@ public class LoggerTest {
 
   @Test
   public void testWorkflowLogger() {
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance();
     Worker worker = env.newWorker(taskQueue);
     worker.registerWorkflowImplementationTypes(
         TestLoggingInWorkflow.class, TestLoggerInChildWorkflow.class);

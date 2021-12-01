@@ -29,34 +29,40 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class WorkerIsNotGettingStartedTest {
+  private static final int HOST_LOCAL_THREAD_COUNT = 22;
+  private static final int WORKFLOW_POLL_COUNT = 11;
+  private static final int ACTIVITY_POLL_COUNT = 18;
 
-  @Test
-  public void verifyThatWorkerIsNotGettingStarted() throws InterruptedException {
-    String TASK_QUEUE = "test-workflow";
-    String activityPollerThreadNamePrefix = "Activity Poller task";
-    String workflowPollerThreadNamePrefix = "Workflow Poller task";
-    String workflowHostLocalPollerThreadNamePrefix = "Host Local Workflow ";
-    int hostLocalThreadCount = 22;
-    int workflowPollCount = 11;
-    int activityPollCount = 18;
+  private static final String TASK_QUEUE = "test-workflow";
+  private static final String ACTIVITY_POLLER_THREAD_NAME_PREFIX = "Activity Poller task";
+  private static final String WORKFLOW_POLLER_THREAD_NAME_PREFIX = "Workflow Poller task";
+  private static final String WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX =
+      "Host Local Workflow ";
 
+  private TestWorkflowEnvironment env;
+  private Worker worker;
+
+  @Before
+  public void setUp() throws Exception {
     TestEnvironmentOptions options =
         TestEnvironmentOptions.newBuilder()
             .setWorkerFactoryOptions(
                 WorkerFactoryOptions.newBuilder()
-                    .setWorkflowHostLocalPollThreadCount(hostLocalThreadCount)
+                    .setWorkflowHostLocalPollThreadCount(HOST_LOCAL_THREAD_COUNT)
                     .build())
             .build();
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(options);
-    Worker worker =
+    env = TestWorkflowEnvironment.newInstance(options);
+    worker =
         env.newWorker(
             TASK_QUEUE,
             WorkerOptions.newBuilder()
-                .setWorkflowPollThreadCount(workflowPollCount)
-                .setActivityPollThreadCount(activityPollCount)
+                .setWorkflowPollThreadCount(WORKFLOW_POLL_COUNT)
+                .setActivityPollThreadCount(ACTIVITY_POLL_COUNT)
                 .setLocalActivityWorkerOnly(true)
                 .build());
     // Need to register something for workers to start
@@ -65,14 +71,24 @@ public class WorkerIsNotGettingStartedTest {
         LocalActivityWorkerOnlyTest.LocalActivityWorkflowImpl.class,
         LocalActivityWorkerOnlyTest.ActivityWorkflowImpl.class);
     env.start();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    env.close();
+  }
+
+  @Test
+  public void verifyThatWorkerIsNotGettingStarted() throws InterruptedException {
     Thread.sleep(1000);
     Map<String, Long> threads =
         Thread.getAllStackTraces().keySet().stream()
             .map((t) -> t.getName().substring(0, Math.min(20, t.getName().length())))
             .collect(groupingBy(Function.identity(), Collectors.counting()));
-    assertEquals(hostLocalThreadCount, (long) threads.get(workflowHostLocalPollerThreadNamePrefix));
-    assertEquals(workflowPollCount, (long) threads.get(workflowPollerThreadNamePrefix));
-    assertFalse(threads.containsKey(activityPollerThreadNamePrefix));
+    assertEquals(
+        HOST_LOCAL_THREAD_COUNT, (long) threads.get(WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX));
+    assertEquals(WORKFLOW_POLL_COUNT, (long) threads.get(WORKFLOW_POLLER_THREAD_NAME_PREFIX));
+    assertFalse(threads.containsKey(ACTIVITY_POLLER_THREAD_NAME_PREFIX));
     assertNull(worker.activityWorker);
   }
 }

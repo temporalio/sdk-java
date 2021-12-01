@@ -158,13 +158,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   public void close() {
     workerFactory.shutdownNow();
     workerFactory.awaitTermination(10, TimeUnit.SECONDS);
-    service.close();
-    if (Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"))) {
-      workflowServiceStubs.shutdown();
-    } else {
-      workflowServiceStubs.shutdownNow();
-    }
+    workflowServiceStubs.shutdownNow();
     workflowServiceStubs.awaitTermination(10, TimeUnit.SECONDS);
+    service.close();
   }
 
   @Override

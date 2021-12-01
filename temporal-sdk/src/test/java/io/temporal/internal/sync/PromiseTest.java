@@ -191,22 +191,25 @@ public class PromiseTest {
   }
 
   @Test
-  public void testGetTimeout() throws Throwable {
+  public void testGetTimeout() {
     TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
-    String testTaskQueue = "testTaskQueue";
-    Worker worker = testEnv.newWorker(testTaskQueue);
-    worker.registerWorkflowImplementationTypes(TestGetTimeout.class);
-    testEnv.start();
-    PromiseTestWorkflow workflow =
-        testEnv
-            .getWorkflowClient()
-            .newWorkflowStub(
-                PromiseTestWorkflow.class,
-                WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
-    List<String> result = workflow.test();
-    List<String> expected = Arrays.asList("thread1 begin", "thread1 get timeout");
-    assertEquals(expected, result);
-    testEnv.close();
+    try {
+      String testTaskQueue = "testTaskQueue";
+      Worker worker = testEnv.newWorker(testTaskQueue);
+      worker.registerWorkflowImplementationTypes(TestGetTimeout.class);
+      testEnv.start();
+      PromiseTestWorkflow workflow =
+          testEnv
+              .getWorkflowClient()
+              .newWorkflowStub(
+                  PromiseTestWorkflow.class,
+                  WorkflowOptions.newBuilder().setTaskQueue(testTaskQueue).build());
+      List<String> result = workflow.test();
+      List<String> expected = Arrays.asList("thread1 begin", "thread1 get timeout");
+      assertEquals(expected, result);
+    } finally {
+      testEnv.close();
+    }
   }
 
   @Test

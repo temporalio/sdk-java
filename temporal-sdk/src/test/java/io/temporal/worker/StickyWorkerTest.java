@@ -533,8 +533,10 @@ public class StickyWorkerTest {
 
     private void close() {
       if (useExternalService) {
-        factory.shutdown();
-        factory.awaitTermination(1, TimeUnit.SECONDS);
+        factory.shutdownNow();
+        factory.awaitTermination(10, TimeUnit.SECONDS);
+        service.shutdownNow();
+        service.awaitTermination(10, TimeUnit.SECONDS);
       } else {
         testEnv.close();
       }

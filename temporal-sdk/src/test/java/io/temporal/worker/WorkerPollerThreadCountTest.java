@@ -30,9 +30,49 @@ import io.temporal.workflow.WorkflowMethod;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class WorkerPollerThreadCountTest {
+
+  private static final String ACTIVITY_POLLER_THREAD_NAME_PREFIX = "Activity Poller task";
+  private static final String WORKFLOW_POLLER_THREAD_NAME_PREFIX = "Workflow Poller task";
+  private static final String WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX =
+      "Host Local Workflow ";
+  private static final int HOST_LOCAL_THREAD_COUNT = 22;
+  private static final int WORKFLOW_POLL_COUNT = 11;
+  private static final int ACTIVITY_POLL_COUNT = 18;
+
+  private TestWorkflowEnvironment env;
+
+  @Before
+  public void setUp() throws Exception {
+    TestEnvironmentOptions options =
+        TestEnvironmentOptions.newBuilder()
+            .setWorkerFactoryOptions(
+                WorkerFactoryOptions.newBuilder()
+                    .setWorkflowHostLocalPollThreadCount(HOST_LOCAL_THREAD_COUNT)
+                    .build())
+            .build();
+    env = TestWorkflowEnvironment.newInstance(options);
+    Worker worker =
+        env.newWorker(
+            "tl1",
+            WorkerOptions.newBuilder()
+                .setWorkflowPollThreadCount(WORKFLOW_POLL_COUNT)
+                .setActivityPollThreadCount(ACTIVITY_POLL_COUNT)
+                .build());
+    // Need to register something for workers to start
+    worker.registerActivitiesImplementations(new ActivityImpl());
+    worker.registerWorkflowImplementationTypes(WorkflowImpl.class);
+    env.start();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    env.close();
+  }
 
   @ActivityInterface
   public interface Activity {
@@ -58,39 +98,14 @@ public class WorkerPollerThreadCountTest {
 
   @Test
   public void testPollThreadCount() throws InterruptedException {
-    String activityPollerThreadNamePrefix = "Activity Poller task";
-    String workflowPollerThreadNamePrefix = "Workflow Poller task";
-    String workflowHostLocalPollerThreadNamePrefix = "Host Local Workflow ";
-    int hostLocalThreadCount = 22;
-    int workflowPollCount = 11;
-    int activityPollCount = 18;
-
-    TestEnvironmentOptions options =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkerFactoryOptions(
-                WorkerFactoryOptions.newBuilder()
-                    .setWorkflowHostLocalPollThreadCount(hostLocalThreadCount)
-                    .build())
-            .build();
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(options);
-    Worker worker =
-        env.newWorker(
-            "tl1",
-            WorkerOptions.newBuilder()
-                .setWorkflowPollThreadCount(workflowPollCount)
-                .setActivityPollThreadCount(activityPollCount)
-                .build());
-    // Need to register something for workers to start
-    worker.registerActivitiesImplementations(new ActivityImpl());
-    worker.registerWorkflowImplementationTypes(WorkflowImpl.class);
-    env.start();
     Thread.sleep(1000);
     Map<String, Long> threads =
         Thread.getAllStackTraces().keySet().stream()
             .map((t) -> t.getName().substring(0, Math.min(20, t.getName().length())))
             .collect(groupingBy(Function.identity(), Collectors.counting()));
-    assertEquals(hostLocalThreadCount, (long) threads.get(workflowHostLocalPollerThreadNamePrefix));
-    assertEquals(workflowPollCount, (long) threads.get(workflowPollerThreadNamePrefix));
-    assertEquals(activityPollCount, (long) threads.get(activityPollerThreadNamePrefix));
+    assertEquals(
+        HOST_LOCAL_THREAD_COUNT, (long) threads.get(WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX));
+    assertEquals(WORKFLOW_POLL_COUNT, (long) threads.get(WORKFLOW_POLLER_THREAD_NAME_PREFIX));
+    assertEquals(ACTIVITY_POLL_COUNT, (long) threads.get(ACTIVITY_POLLER_THREAD_NAME_PREFIX));
   }
 }
