@@ -127,7 +127,7 @@ public class SpanContextPropagationTest {
    */
   @Test
   public void testBaggageItemPropagation() {
-    Span span = mockTracer.buildSpan("clientFunction").start();
+    Span span = mockTracer.buildSpan("ClientFunction").start();
 
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     try (Scope scope = mockTracer.scopeManager().activate(span)) {

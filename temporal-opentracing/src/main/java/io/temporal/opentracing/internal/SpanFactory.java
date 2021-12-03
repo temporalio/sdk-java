@@ -21,7 +21,6 @@ package io.temporal.opentracing.internal;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -33,6 +32,7 @@ import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.SpanCreationContext;
 import io.temporal.opentracing.SpanOperationType;
 import io.temporal.opentracing.StandardTagNames;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -134,17 +134,19 @@ public class SpanFactory {
     toSpan.setTag(Tags.ERROR, true);
 
     Map<String, Object> logPayload =
-        ImmutableMap.of(
-            Fields.EVENT,
-            "error",
-            Fields.ERROR_KIND,
-            failReason.getClass().getName(),
-            Fields.ERROR_OBJECT,
-            failReason,
-            Fields.MESSAGE,
-            failReason.getMessage(),
-            Fields.STACK,
-            Throwables.getStackTraceAsString(failReason));
+        new HashMap<String, Object>() {
+          {
+            put(Fields.EVENT, "error");
+            put(Fields.ERROR_KIND, failReason.getClass().getName());
+            put(Fields.ERROR_OBJECT, failReason);
+            put(Fields.STACK, Throwables.getStackTraceAsString(failReason));
+          }
+        };
+
+    String message = failReason.getMessage();
+    if (message != null) {
+      logPayload.put(Fields.MESSAGE, message);
+    }
 
     toSpan.log(System.currentTimeMillis(), logPayload);
   }

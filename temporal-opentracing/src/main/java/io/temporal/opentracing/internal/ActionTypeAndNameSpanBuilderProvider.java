@@ -19,6 +19,7 @@
 
 package io.temporal.opentracing.internal;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.opentracing.Tracer;
 import io.temporal.opentracing.SpanBuilderProvider;
@@ -69,8 +70,10 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
    * @return The map of tags for the span
    */
   protected Map<String, String> getSpanTags(SpanCreationContext context) {
-    switch (context.getSpanOperationType()) {
+    SpanOperationType operationType = context.getSpanOperationType();
+    switch (operationType) {
       case START_WORKFLOW:
+      case SIGNAL_WITH_START_WORKFLOW:
         return ImmutableMap.of(StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
       case START_CHILD_WORKFLOW:
         return ImmutableMap.of(
@@ -80,7 +83,9 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
       case RUN_WORKFLOW:
       case START_ACTIVITY:
       case RUN_ACTIVITY:
-      case SIGNAL_WITH_START_WORKFLOW:
+        String runId = context.getRunId();
+        Preconditions.checkNotNull(
+            runId, "runId is expected to be not null for span operation type %s", operationType);
         return ImmutableMap.of(
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.RUN_ID, context.getRunId());
