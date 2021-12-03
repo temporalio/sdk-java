@@ -74,7 +74,8 @@ public class Signal {
   public boolean waitForSignalSafe(long timeout, TimeUnit timeUnit) {
     try {
       return waitForSignal(timeout, timeUnit);
-    } catch (InterruptedException intEx) {}
+    } catch (InterruptedException intEx) {
+    }
     return isSignalled();
   }
 
@@ -96,7 +97,8 @@ public class Signal {
   public boolean waitForSignalSafe() {
     try {
       waitForSignal();
-    } catch (InterruptedException intEx) {}
+    } catch (InterruptedException intEx) {
+    }
     return isSignalled();
   }
 

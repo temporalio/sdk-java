@@ -75,11 +75,9 @@ public class SpinAndWaitWorkflow {
       printDebug(
           "updateValue(value="
               + value
-              + ")"
-              + "\n    WorkflowId:                      "
+              + ")\n    WorkflowId:                      "
               + Workflow.getInfo().getWorkflowId()
-              + ";"
-              + "\n    RunId:                           "
+              + ";\n    RunId:                           "
               + Workflow.getInfo().getRunId()
               + ";");
 
@@ -94,8 +92,7 @@ public class SpinAndWaitWorkflow {
             "executeWorkflow(): Started."
                 + "\n    WorkflowId:                     "
                 + Workflow.getInfo().getWorkflowId()
-                + ";"
-                + "\n    RunId:                          "
+                + ";\n    RunId:                          "
                 + Workflow.getInfo().getRunId()
                 + ";");
 
@@ -108,8 +105,7 @@ public class SpinAndWaitWorkflow {
             "executeWorkflow(): Exiting."
                 + "\n    WorkflowId:      "
                 + Workflow.getInfo().getWorkflowId()
-                + ";"
-                + "\n    RunId:           "
+                + ";\n    RunId:           "
                 + Workflow.getInfo().getRunId()
                 + ";");
 
