@@ -19,6 +19,8 @@
 
 package io.temporal.opentracing;
 
+import javax.annotation.Nullable;
+
 /**
  * Used when creating an OpenTracing span and provides contextual information used for naming and
  * tagging OT spans.
@@ -64,7 +66,7 @@ public class SpanCreationContext {
     return workflowId;
   }
 
-  public String getRunId() {
+  public @Nullable String getRunId() {
     return runId;
   }
 

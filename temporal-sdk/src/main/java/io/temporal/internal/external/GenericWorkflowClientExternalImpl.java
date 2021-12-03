@@ -150,6 +150,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
       request.setRetryPolicy(startParameters.getRetryPolicy());
     }
 
+    if (startParameters.hasHeader()) {
+      request.setHeader(startParameters.getHeader());
+    }
+
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.WORKFLOW_TYPE, request.getWorkflowType().getName())
