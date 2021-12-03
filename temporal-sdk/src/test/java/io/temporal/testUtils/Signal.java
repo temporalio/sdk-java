@@ -72,15 +72,9 @@ public class Signal {
    * @return true if signaled, false if returned by timeout
    */
   public boolean waitForSignalSafe(long timeout, TimeUnit timeUnit) {
-    if (!isSignalled()) {
-      synchronized (this) {
-        try {
-          wait(timeUnit.toMillis(timeout));
-        } catch (InterruptedException intEx) {
-          return isSignalled();
-        }
-      }
-    }
+    try {
+      return waitForSignal(timeout, timeUnit);
+    } catch (InterruptedException intEx) {}
     return isSignalled();
   }
 
@@ -100,16 +94,9 @@ public class Signal {
 
   /** Wait indefinitely for the done signal */
   public boolean waitForSignalSafe() {
-    // as wait can wake up spuriously, put this in a loop
-    while (!isSignalled()) {
-      synchronized (this) {
-        try {
-          wait();
-        } catch (InterruptedException intEx) {
-          return isSignalled();
-        }
-      }
-    }
+    try {
+      waitForSignal();
+    } catch (InterruptedException intEx) {}
     return isSignalled();
   }
 
