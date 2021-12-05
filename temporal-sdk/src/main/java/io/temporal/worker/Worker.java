@@ -35,6 +35,7 @@ import io.temporal.internal.sync.SyncActivityWorker;
 import io.temporal.internal.sync.SyncWorkflowWorker;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.PollerOptions;
+import io.temporal.internal.worker.ShutdownManager;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.Suspendable;
 import io.temporal.serviceclient.MetricsTag;
@@ -44,6 +45,7 @@ import io.temporal.workflow.WorkflowMethod;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,7 +65,6 @@ public final class Worker implements Suspendable {
   private final WorkflowExecutorCache cache;
   private final String stickyTaskQueueName;
   private final Scope metricsScope;
-  private final ThreadPoolExecutor threadPoolExecutor;
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
@@ -73,6 +74,7 @@ public final class Worker implements Suspendable {
    *     activity task queue polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
    * @param stickyTaskQueueName
+   * @param workflowThreadPool thread pool to be used for workflow method threads
    */
   Worker(
       WorkflowClient client,
@@ -82,7 +84,7 @@ public final class Worker implements Suspendable {
       Scope metricsScope,
       WorkflowExecutorCache cache,
       String stickyTaskQueueName,
-      ThreadPoolExecutor threadPoolExecutor,
+      ThreadPoolExecutor workflowThreadPool,
       List<ContextPropagator> contextPropagators) {
 
     Objects.requireNonNull(client, "client should not be null");
@@ -90,7 +92,6 @@ public final class Worker implements Suspendable {
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.cache = cache;
     this.stickyTaskQueueName = stickyTaskQueueName;
-    this.threadPoolExecutor = Objects.requireNonNull(threadPoolExecutor);
 
     this.taskQueue = taskQueue;
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
@@ -148,7 +149,7 @@ public final class Worker implements Suspendable {
             this.cache,
             this.stickyTaskQueueName,
             this.factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeout(),
-            this.threadPoolExecutor);
+            workflowThreadPool);
   }
 
   private static SingleWorkerOptions toActivityOptions(
@@ -339,18 +340,16 @@ public final class Worker implements Suspendable {
     }
   }
 
-  void shutdown() {
+  CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptUserTasks) {
+    CompletableFuture<Void> workflowWorkerShutdownFuture =
+        workflowWorker.shutdown(shutdownManager, interruptUserTasks);
     if (activityWorker != null) {
-      activityWorker.shutdown();
+      return CompletableFuture.allOf(
+          activityWorker.shutdown(shutdownManager, interruptUserTasks),
+          workflowWorkerShutdownFuture);
+    } else {
+      return workflowWorkerShutdownFuture;
     }
-    workflowWorker.shutdown();
-  }
-
-  void shutdownNow() {
-    if (activityWorker != null) {
-      activityWorker.shutdownNow();
-    }
-    workflowWorker.shutdownNow();
   }
 
   boolean isTerminated() {

@@ -37,12 +37,11 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 
 public final class LocalActivityWorker implements SuspendableWorker {
-
-  private static final String POLL_THREAD_NAME_PREFIX = "Local Activity Poller taskQueue=";
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
@@ -66,12 +65,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       pollerOptions =
           PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
-                  POLL_THREAD_NAME_PREFIX
-                      + "\""
-                      + taskQueue
-                      + "\", namespace=\""
-                      + namespace
-                      + "\"")
+                  WorkerThreadsNameHelper.getLocalActivityPollerThreadPrefix(namespace, taskQueue))
               .build();
     }
     this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
@@ -121,19 +115,12 @@ public final class LocalActivityWorker implements SuspendableWorker {
   }
 
   @Override
-  public void shutdown() {
-    if (poller == null) {
-      return;
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    if (poller != null) {
+      return poller.shutdown(shutdownManager, interruptTasks);
+    } else {
+      return CompletableFuture.completedFuture(null);
     }
-    poller.shutdown();
-  }
-
-  @Override
-  public void shutdownNow() {
-    if (poller == null) {
-      return;
-    }
-    poller.shutdownNow();
   }
 
   @Override

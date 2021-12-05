@@ -19,6 +19,7 @@
 
 package io.temporal.internal.worker;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -41,13 +42,9 @@ class NoopSuspendableWorker implements SuspendableWorker {
   }
 
   @Override
-  public void shutdown() {
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     shutdown.set(true);
-  }
-
-  @Override
-  public void shutdownNow() {
-    shutdown.set(true);
+    return CompletableFuture.completedFuture(null);
   }
 
   @Override

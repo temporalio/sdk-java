@@ -22,14 +22,13 @@ package io.temporal.internal.worker;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-class ExecutorThreadFactory implements ThreadFactory {
+public class ExecutorThreadFactory implements ThreadFactory {
+  private final String threadPrefix;
 
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
   private final AtomicInteger threadIndex = new AtomicInteger();
 
-  private final String threadPrefix;
-
-  ExecutorThreadFactory(String threadPrefix, Thread.UncaughtExceptionHandler eh) {
+  public ExecutorThreadFactory(String threadPrefix, Thread.UncaughtExceptionHandler eh) {
     this.threadPrefix = threadPrefix;
     this.uncaughtExceptionHandler = eh;
   }

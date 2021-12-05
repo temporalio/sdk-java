@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.worker;
+package io.temporal.worker.shutdown;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -33,6 +33,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.NoArgsReturnsStringActivity;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
