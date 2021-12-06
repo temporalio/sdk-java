@@ -2,3 +2,11 @@
 subprojects {
     apply plugin: "name.remal.check-updates"
 }
+
+subprojects {
+    configurations.all {
+        //comes through grpc-api:gauava
+        exclude group: 'org.checkerframework', module: 'checker-qual'
+        exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
+    }
+}
