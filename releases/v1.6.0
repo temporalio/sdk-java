@@ -1,0 +1,35 @@
+Highlights:
+
+This release contains important fixes that improve the stability of workers.
+Numerous fixes for worker thread leaks and handling of failure cases.
+There is a race condition in gRPC-java that may break workers. This release contains a workaround until the issue is fixed.
+temporal-testing-junit4, temporal-testing-junit5, and temporal-testing  merged into one temporal-testing module with Gradle "capabilities." This change should affect only Gradle users. See https://github.com/temporalio/sdk-java/tree/master/temporal-testing#usage for Gradle instructions.
+
+Changeset:
+2021-11-04 - 126b999e - Upgrade proto to the latest server API (#859)
+2021-11-11 - 116bf92e - Updates temporal-sdk dep in temporal-kotlin (#867)
+2021-11-11 - 8a6a7c74 - Fix test service state machines to handle situation when activity get cancelled from SCHEDULED state before being picked up (#866)
+2021-11-12 - 160d1801 - Add workflowId and runId into workflow thread name (#868)
+2021-11-15 - 2cc04ef5 - Merge 3 existing testing modules into one temporal-testing (#870)
+2021-11-15 - 6eab072a - Improve trace logging around WorkflowExecutorCache (#876)
+2021-11-15 - e81b96a7 - Report WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR status (#869)
+2021-11-16 - 25bd314c - Memory/resource leak improvements in TestWorkflowService (#877)
+2021-11-17 - 42d197dc - Polish WorkflowThreadContext thread status switching (#879)
+2021-11-18 - 0e76cce0 - Adds warning message for subsequent calls to WorkerFactory#newWorker for the same task queue (#885)
+2021-11-18 - 5526425a - Adds more details into WorkflowCancellationRunningActivityTest (#884)
+2021-11-18 - ad496ea4 - Fix thread leak in legacy query path (#881)
+2021-11-19 - 40ca1e87 - Fix the type of an exception from the test service (#890)
+2021-11-19 - a64411a0 - Disable grpc idleTimer as a temporary solution to race condition in gRPC-java (#889)
+2021-11-22 - 5fa382b2 - Modify test assertions to give more information for flakes investigation (#892)
+2021-11-22 - ae44a62b - Cleanup Activity exception javadocs (#891)
+2021-11-24 - 2aea174e - Exposes getWorkflowExecutionHistory on TestWorkflowEnvironment (#897)
+2021-11-24 - 35fa4e0d - Add validation for maximumInterval vs minimumInterval (#899)
+2021-11-29 - a6710cb4 - Rearrange WFT handle logging and metrics to accommodate all failure modes (#905)
+2021-11-29 - e72b71b5 - Expose methods for loading history from files as WorkflowExecutionHistoryLoader (#903)
+2021-11-30 - 4928f7dc - Improve documentation on the Signal method to emphasize the possibility of getting a signal before the first workflow task. (#907)
+2021-11-30 - 7710f329 - Move errorprone settings into a separate script (#909)
+2021-12-01 - 4925d5ba - Cleanup resource management in tests (#910)
+2021-12-03 - 7626553d - Fix signalWithStart integration with tracing (#913)
+2021-12-06 - 439aafd1 - Upgrade grpc-java 1.42.1 (#920)
+2021-12-06 - 89988799 - Doc describing building test-server into a native binary using GraalVM native-image (#917)
+2021-12-06 - a92803c1 - Add @bergundy and @mmcshane to CODEOWNERS (#919)
