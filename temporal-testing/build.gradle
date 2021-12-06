@@ -16,7 +16,7 @@ java {
 dependencies {
     api project(':temporal-sdk')
 
-    implementation "io.grpc:grpc-core:$grpcVersion"
+    implementation("io.grpc:grpc-core:$grpcVersion")
     implementation "com.google.guava:guava:$guavaVersion"
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
     implementation "com.jayway.jsonpath:json-path:$jsonPathVersion"
@@ -28,6 +28,21 @@ dependencies {
 
     testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter'
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
+
+application {
+    mainClassName = 'io.temporal.internal.testservice.TestServiceServer'
+}
+
+task copyDependencies(type: Copy) {
+    from configurations.runtimeClasspath
+    into 'build/dependencies'
+}
+
+jar {
+    manifest {
+        attributes("Main-Class": application.mainClassName)
+    }
 }
 
 task testServiceServer(type: CreateStartScripts) {
