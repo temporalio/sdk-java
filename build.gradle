@@ -9,7 +9,7 @@ plugins {
 
 ext {
     logbackVersion = '1.2.7'
-    grpcVersion = '[1.34.0,)!!1.41.1'
+    grpcVersion = '[1.34.0,)!!1.42.1'
     protoVersion = '[3.10.0,)!!3.19.1'
     guavaVersion = '[10.0,)!!31.0.1-jre'
     jsonPathVersion = '2.6.0'

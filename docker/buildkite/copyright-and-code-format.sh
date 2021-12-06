@@ -1,6 +1,5 @@
-#!/usr/bin/env sh
-set -eou pipefail
-set -x
+#!/bin/bash
+set -xeou pipefail
 
 ./gradlew --no-daemon check -x test
 

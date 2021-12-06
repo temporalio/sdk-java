@@ -2,10 +2,11 @@ description = '''Temporal Workflow Java SDK'''
 
 dependencies {
     implementation(platform("com.fasterxml.jackson:jackson-bom:$jacksonVersion"))
+    api(platform("io.micrometer:micrometer-bom:$micrometerVersion"))
 
     api project(':temporal-serviceclient')
     api "com.google.code.gson:gson:$gsonVersion"
-    api "io.micrometer:micrometer-core:$micrometerVersion"
+    api "io.micrometer:micrometer-core"
 
     implementation ("com.google.guava:guava:$guavaVersion") {
         exclude group: 'com.google.code.findbugs'
