@@ -24,7 +24,6 @@ import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
-import io.temporal.common.converter.DataConverter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,8 +32,6 @@ import javax.annotation.Nullable;
 public class VersionMarkerUtils {
   public static final String MARKER_CHANGE_ID_KEY = "changeId";
   public static final String MARKER_VERSION_KEY = "version";
-
-  private static final DataConverter DATA_CONVERTER = DataConverter.getDefaultInstance();
 
   /**
    * @param event {@code HistoryEvent} to parse
@@ -48,7 +45,7 @@ public class VersionMarkerUtils {
     }
     Map<String, Payloads> detailsMap = event.getMarkerRecordedEventAttributes().getDetailsMap();
     Optional<Payloads> oid = Optional.ofNullable(detailsMap.get(MARKER_CHANGE_ID_KEY));
-    String changeId = DATA_CONVERTER.fromPayloads(0, oid, String.class, String.class);
+    String changeId = MarkerUtils.DATA_CONVERTER.fromPayloads(0, oid, String.class, String.class);
     return changeId;
   }
 
@@ -62,26 +59,20 @@ public class VersionMarkerUtils {
 
   @Nullable
   public static String getChangeId(MarkerRecordedEventAttributes markerAttributes) {
-    Optional<Payloads> payloads =
-        Optional.ofNullable(markerAttributes.getDetailsMap().get(MARKER_CHANGE_ID_KEY));
-    String changeId = DATA_CONVERTER.fromPayloads(0, payloads, String.class, String.class);
-    return changeId;
+    return MarkerUtils.getValueFromMarker(markerAttributes, MARKER_CHANGE_ID_KEY, String.class);
   }
 
   @Nullable
   public static Integer getVersion(MarkerRecordedEventAttributes markerAttributes) {
-    Optional<Payloads> payloads =
-        Optional.ofNullable(markerAttributes.getDetailsMap().get(MARKER_VERSION_KEY));
-    Integer versionId = DATA_CONVERTER.fromPayloads(0, payloads, Integer.class, Integer.class);
-    return versionId;
+    return MarkerUtils.getValueFromMarker(markerAttributes, MARKER_VERSION_KEY, Integer.class);
   }
 
   public static RecordMarkerCommandAttributes createMarkerAttributes(
       String changeId, Integer version) {
     Preconditions.checkNotNull(version, "version");
     Map<String, Payloads> details = new HashMap<>();
-    details.put(MARKER_CHANGE_ID_KEY, DATA_CONVERTER.toPayloads(changeId).get());
-    details.put(MARKER_VERSION_KEY, DATA_CONVERTER.toPayloads(version).get());
+    details.put(MARKER_CHANGE_ID_KEY, MarkerUtils.DATA_CONVERTER.toPayloads(changeId).get());
+    details.put(MARKER_VERSION_KEY, MarkerUtils.DATA_CONVERTER.toPayloads(version).get());
     return RecordMarkerCommandAttributes.newBuilder()
         .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
         .putAllDetails(details)

@@ -19,12 +19,16 @@
 
 package io.temporal.internal.history;
 
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.common.converter.DataConverter;
+import java.util.Optional;
 
 public class MarkerUtils {
   public static final String VERSION_MARKER_NAME = "Version";
+  public static final DataConverter DATA_CONVERTER = DataConverter.getDefaultInstance();
 
   /**
    * @param event {@code HistoryEvent} to inspect
@@ -37,5 +41,18 @@ public class MarkerUtils {
     }
     MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
     return markerName.equals(attributes.getMarkerName());
+  }
+
+  /**
+   * @param markerAttributes
+   * @param key
+   * @param simpleValueType
+   * @param <T>
+   * @return
+   */
+  public static <T> T getValueFromMarker(
+      MarkerRecordedEventAttributes markerAttributes, String key, Class<T> simpleValueType) {
+    Optional<Payloads> payloads = Optional.ofNullable(markerAttributes.getDetailsMap().get(key));
+    return DATA_CONVERTER.fromPayloads(0, payloads, simpleValueType, simpleValueType);
   }
 }

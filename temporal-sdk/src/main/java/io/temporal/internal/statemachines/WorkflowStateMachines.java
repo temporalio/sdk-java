@@ -21,8 +21,7 @@ package io.temporal.internal.statemachines;
 
 import static io.temporal.internal.common.WorkflowExecutionUtils.getEventTypeForCommand;
 import static io.temporal.internal.common.WorkflowExecutionUtils.isCommandEvent;
-import static io.temporal.internal.statemachines.LocalActivityStateMachine.LOCAL_ACTIVITY_MARKER_NAME;
-import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKER_ACTIVITY_ID_KEY;
+import static io.temporal.internal.statemachines.LocalActivityStateMachine.*;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.unwrap;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -323,10 +322,10 @@ public final class WorkflowStateMachines {
             throw new NonDeterministicException(
                 "Event "
                     + event.getEventId()
-                    + " of "
+                    + " of type "
                     + event.getEventType()
                     + " does not"
-                    + " match command "
+                    + " match command type "
                     + command.getCommandType());
           }
         default:
@@ -431,12 +430,18 @@ public final class WorkflowStateMachines {
     if (!MarkerUtils.verifyMarkerName(event, LOCAL_ACTIVITY_MARKER_NAME)) {
       return false;
     }
-    Map<String, Payloads> detailsMap = event.getMarkerRecordedEventAttributes().getDetailsMap();
-    Optional<Payloads> idPayloads = Optional.ofNullable(detailsMap.get(MARKER_ACTIVITY_ID_KEY));
-    String id = dataConverter.fromPayloads(0, idPayloads, String.class, String.class);
+
+    MarkerRecordedEventAttributes markerAttributes = event.getMarkerRecordedEventAttributes();
+    String id =
+        MarkerUtils.getValueFromMarker(markerAttributes, MARKER_ACTIVITY_ID_KEY, String.class);
     LocalActivityStateMachine stateMachine = localActivityMap.remove(id);
     if (stateMachine == null) {
-      throw new NonDeterministicException("Unexpected local activity id: " + id);
+      String activityType =
+          MarkerUtils.getValueFromMarker(markerAttributes, MARKER_ACTIVITY_TYPE_KEY, String.class);
+      throw new NonDeterministicException(
+          String.format(
+              "Local activity of type %s is recorded in the history with id %s but not expected by the execution",
+              activityType, id));
     }
     // RESULT_NOTIFIED state means that there is outstanding command that has to be matched
     // using standard logic. So return false to let the handleCommand method to run its standard
