@@ -440,7 +440,7 @@ public final class WorkflowStateMachines {
           MarkerUtils.getValueFromMarker(markerAttributes, MARKER_ACTIVITY_TYPE_KEY, String.class);
       throw new NonDeterministicException(
           String.format(
-              "Local activity of type %s is recorded in the history with id %s but not expected by the execution",
+              "Local activity of type %s is recorded in the history with id %s but was not expected by the execution",
               activityType, id));
     }
     // RESULT_NOTIFIED state means that there is outstanding command that has to be matched
