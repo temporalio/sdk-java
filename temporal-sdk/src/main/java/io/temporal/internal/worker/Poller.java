@@ -25,12 +25,9 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.internal.BackoffThrottler;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.metrics.MetricsType;
+import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,9 +88,8 @@ public final class Poller<T> implements SuspendableWorker {
 
   @Override
   public void start() {
-    if (log.isInfoEnabled()) {
-      log.info("start(): " + this);
-    }
+    log.info("start: {}", this);
+
     if (pollerOptions.getMaximumPollRatePerSecond() > 0.0) {
       pollRateThrottler =
           new Throttler(
@@ -143,30 +139,21 @@ public final class Poller<T> implements SuspendableWorker {
   }
 
   @Override
-  public void shutdown() {
-    log.info("shutdown");
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    log.info("shutdown: {}", this);
     if (!isStarted()) {
-      return;
+      return CompletableFuture.completedFuture(null);
     }
-    // shutdownNow and then await to stop long polling and ensure that no new tasks are dispatched
-    // to the taskExecutor.
-    pollExecutor.shutdownNow();
-    try {
-      pollExecutor.awaitTermination(1, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-    taskExecutor.shutdown();
-  }
-
-  @Override
-  public void shutdownNow() {
-    log.info("shutdownNow poller={}", this.pollerOptions.getPollThreadNamePrefix());
-    if (!isStarted()) {
-      return;
-    }
-    pollExecutor.shutdownNow();
-    taskExecutor.shutdownNow();
+    return shutdownManager
+        // it's ok to forcefully shutdown pollers, especially because they stuck in a long poll call
+        // we don't lose any progress doing that
+        .shutdownExecutorNow(pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1))
+        .thenCompose(ignore -> taskExecutor.shutdown(shutdownManager, interruptTasks))
+        .exceptionally(
+            e -> {
+              log.error("Unexpected exception during shutdown", e);
+              return null;
+            });
   }
 
   @Override
@@ -181,13 +168,13 @@ public final class Poller<T> implements SuspendableWorker {
 
   @Override
   public void suspendPolling() {
-    log.info("suspendPolling");
+    log.info("suspendPolling: {}", this);
     suspendLatch.set(new CountDownLatch(1));
   }
 
   @Override
   public void resumePolling() {
-    log.info("resumePolling");
+    log.info("resumePolling {}", this);
     CountDownLatch existing = suspendLatch.getAndSet(null);
     if (existing != null) {
       existing.countDown();
@@ -201,7 +188,12 @@ public final class Poller<T> implements SuspendableWorker {
 
   @Override
   public String toString() {
-    return "Poller{" + "options=" + pollerOptions + ", identity=" + identity + '}';
+    // TODO using pollThreadNamePrefix here is ugly. We should consider introducing some concept of
+    // WorkerContext [workerIdentity, namespace, queue, local/non-local if applicable] and pass it
+    // around
+    // that will simplify such kind of logging through workers.
+    return String.format(
+        "Poller{name=%s, identity=%s}", pollerOptions.getPollThreadNamePrefix(), identity);
   }
 
   private class PollLoopTask implements Runnable {
@@ -246,7 +238,7 @@ public final class Poller<T> implements SuspendableWorker {
           // Resubmit itself back to pollExecutor
           pollExecutor.execute(this);
         } else {
-          log.info("poll loop is terminated");
+          log.info("poll loop is terminated: {}", this);
         }
       }
     }

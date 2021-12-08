@@ -20,6 +20,7 @@
 package io.temporal.workflow.determinism;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
@@ -62,14 +63,14 @@ public class NonDeterministicWorkflowPolicyFailWorkflowTest {
             .build();
     TestWorkflowStringArg workflowStub =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflowStringArg.class, options);
-    try {
-      workflowStub.execute(testWorkflowRule.getTaskQueue());
-      Assert.fail("unreachable");
-    } catch (WorkflowFailedException e) {
-      // expected to fail on non-deterministic error
-      Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
-      assertEquals(
-          NonDeterministicException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
-    }
+    WorkflowFailedException e =
+        assertThrows(
+            WorkflowFailedException.class,
+            () -> {
+              workflowStub.execute(testWorkflowRule.getTaskQueue());
+            });
+    Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
+    assertEquals(
+        NonDeterministicException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
   }
 }

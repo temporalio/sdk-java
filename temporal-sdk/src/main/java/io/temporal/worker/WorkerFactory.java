@@ -29,15 +29,13 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.WorkflowExecutorCache;
-import io.temporal.internal.worker.PollWorkflowTaskDispatcher;
-import io.temporal.internal.worker.Poller;
-import io.temporal.internal.worker.PollerOptions;
-import io.temporal.internal.worker.WorkflowPollTaskFactory;
+import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -47,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 /** Maintains worker creation and lifecycle. */
 public final class WorkerFactory {
+  private static final Logger log = LoggerFactory.getLogger(WorkerFactory.class);
 
   private final Scope metricsScope;
 
@@ -77,7 +76,6 @@ public final class WorkerFactory {
 
   private final String statusErrorMessage =
       "attempted to %s while in %s state. Acceptable States: %s";
-  private static final Logger log = LoggerFactory.getLogger(WorkerFactory.class);
 
   /**
    * Creates a factory. Workers will connect to the temporal server using the workflowService client
@@ -270,46 +268,59 @@ public final class WorkerFactory {
 
   /**
    * Initiates an orderly shutdown in which polls are stopped and already received workflow and
-   * activity tasks are executed. After the shutdown calls to {@link
+   * activity tasks are executed. <br>
+   * After the shutdown, calls to {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
-   * io.temporal.client.ActivityWorkerShutdownException}. Invocation has no additional effect if
-   * already shut down. This method does not wait for previously received tasks to complete
-   * execution. Use {@link #awaitTermination(long, TimeUnit)} to do that.
+   * io.temporal.client.ActivityWorkerShutdownException}.<br>
+   * This method does not wait for the shutdown to complete. Use {@link #awaitTermination(long,
+   * TimeUnit)} to do that.<br>
+   * Invocation has no additional effect if already shut down.
    */
   public synchronized void shutdown() {
-    log.info("shutdown");
-    state = State.Shutdown;
-    if (stickyPoller != null) {
-      stickyPoller.shutdown();
-      // To ensure that it doesn't get new tasks before workers are shutdown.
-      stickyPoller.awaitTermination(1, TimeUnit.SECONDS);
-    }
-    for (Worker worker : workers.values()) {
-      worker.shutdown();
-    }
+    log.info("shutdown: {}", this);
+    shutdownInternal(false);
   }
 
   /**
    * Initiates an orderly shutdown in which polls are stopped and already received workflow and
-   * activity tasks are attempted to be stopped. This implementation cancels tasks via
-   * Thread.interrupt(), so any task that fails to respond to interrupts may never terminate. Also
-   * after the shutdownNow calls to {@link
+   * activity tasks are attempted to be stopped. </>This implementation cancels tasks via
+   * Thread.interrupt(), so any task that fails to respond to interrupts may never terminate.<br>
+   * After the shutdownNow calls to {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
-   * io.temporal.client.ActivityWorkerShutdownException}. Invocation has no additional effect if
-   * already shut down. This method does not wait for previously received tasks to complete
-   * execution. Use {@link #awaitTermination(long, TimeUnit)} to do that.
+   * io.temporal.client.ActivityWorkerShutdownException}.<br>
+   * This method does not wait for the shutdown to complete. Use {@link #awaitTermination(long,
+   * TimeUnit)} to do that.<br>
+   * Invocation has no additional effect if already shut down.
    */
   public synchronized void shutdownNow() {
-    log.info("shutdownNow");
+    log.info("shutdownNow: {}", this);
+    shutdownInternal(true);
+  }
+
+  private void shutdownInternal(boolean interruptUserTasks) {
     state = State.Shutdown;
-    if (stickyPoller != null) {
-      stickyPoller.shutdownNow();
-      // To ensure that it doesn't get new tasks before workers are shutdown.
-      stickyPoller.awaitTermination(1, TimeUnit.SECONDS);
-    }
-    for (Worker worker : workers.values()) {
-      worker.shutdownNow();
-    }
+    ShutdownManager shutdownManager = new ShutdownManager();
+    stickyPoller
+        .shutdown(shutdownManager, interruptUserTasks)
+        .thenCompose(
+            ignore ->
+                CompletableFuture.allOf(
+                    workers.values().stream()
+                        .map(worker -> worker.shutdown(shutdownManager, interruptUserTasks))
+                        .toArray(CompletableFuture[]::new)))
+        .thenApply(
+            r -> {
+              cache.invalidateAll();
+              workflowThreadPool.shutdownNow();
+              return null;
+            })
+        .whenComplete(
+            (r, e) -> {
+              if (e != null) {
+                log.error("[BUG] Unexpected exception during shutdown", e);
+              }
+              shutdownManager.close();
+            });
   }
 
   /**
@@ -317,7 +328,7 @@ public final class WorkerFactory {
    * occurs, or the current thread is interrupted, whichever happens first.
    */
   public void awaitTermination(long timeout, TimeUnit unit) {
-    log.info("awaitTermination begin");
+    log.info("awaitTermination begin: {}", this);
     long timeoutMillis = unit.toMillis(timeout);
     timeoutMillis = InternalUtils.awaitTermination(stickyPoller, timeoutMillis);
     for (Worker worker : workers.values()) {
@@ -326,7 +337,7 @@ public final class WorkerFactory {
           InternalUtils.awaitTermination(
               timeoutMillis, () -> worker.awaitTermination(t, TimeUnit.MILLISECONDS));
     }
-    log.info("awaitTermination done");
+    log.info("awaitTermination done: {}", this);
   }
 
   @VisibleForTesting
@@ -343,7 +354,7 @@ public final class WorkerFactory {
       return;
     }
 
-    log.info("suspendPolling");
+    log.info("suspendPolling: {}", this);
     state = State.Suspended;
     if (stickyPoller != null) {
       stickyPoller.suspendPolling();
@@ -358,7 +369,7 @@ public final class WorkerFactory {
       return;
     }
 
-    log.info("resumePolling");
+    log.info("resumePolling: {}", this);
     state = State.Started;
     if (stickyPoller != null) {
       stickyPoller.resumePolling();
@@ -366,6 +377,12 @@ public final class WorkerFactory {
     for (Worker worker : workers.values()) {
       worker.resumePolling();
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "WorkerFactory{identity=%s, uniqueId=%s}", workflowClient.getOptions().getIdentity(), id);
   }
 
   enum State {

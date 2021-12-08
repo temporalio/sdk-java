@@ -22,6 +22,7 @@ package io.temporal.internal.worker;
 import com.google.common.base.Preconditions;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.logging.LoggerTag;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -35,32 +36,41 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     Throwable wrapFailure(TT task, Throwable failure);
   }
 
-  private final ThreadPoolExecutor taskExecutor;
-  private final SingleWorkerOptions options;
   private final String namespace;
   private final String taskQueue;
+  private final SingleWorkerOptions options;
+  private final String identity;
+
+  private final ThreadPoolExecutor taskExecutor;
+  private final String pollThreadNamePrefix;
   private final TaskHandler<T> handler;
 
   PollTaskExecutor(
       String namespace, String taskQueue, SingleWorkerOptions options, TaskHandler<T> handler) {
     this.namespace = namespace;
     this.taskQueue = taskQueue;
+    this.options = options;
+    this.identity = options.getIdentity();
+
     this.handler = handler;
     Preconditions.checkNotNull(options, "options should not be null");
 
-    this.options = options;
-    taskExecutor =
+    this.taskExecutor =
         new ThreadPoolExecutor(
             0,
             options.getTaskExecutorThreadPoolSize(),
             1,
             TimeUnit.SECONDS,
             new SynchronousQueue<>());
-    taskExecutor.setThreadFactory(
+
+    this.pollThreadNamePrefix =
+        options.getPollerOptions().getPollThreadNamePrefix().replaceFirst("Poller", "Executor");
+
+    this.taskExecutor.setThreadFactory(
         new ExecutorThreadFactory(
             options.getPollerOptions().getPollThreadNamePrefix().replaceFirst("Poller", "Executor"),
             options.getPollerOptions().getUncaughtExceptionHandler()));
-    taskExecutor.setRejectedExecutionHandler(new BlockCallerPolicy());
+    this.taskExecutor.setRejectedExecutionHandler(new BlockCallerPolicy());
   }
 
   @Override
@@ -96,17 +106,24 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   }
 
   @Override
-  public void shutdown() {
-    taskExecutor.shutdown();
-  }
-
-  @Override
-  public void shutdownNow() {
-    taskExecutor.shutdownNow();
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    String taskExecutorName = this + "#taskExecutor";
+    return interruptTasks
+        ? shutdownManager.shutdownExecutorNowUntimed(taskExecutor, taskExecutorName)
+        : shutdownManager.shutdownExecutorUntimed(taskExecutor, taskExecutorName);
   }
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
     InternalUtils.awaitTermination(taskExecutor, unit.toMillis(timeout));
+  }
+
+  @Override
+  public String toString() {
+    // TODO using pollThreadNamePrefix here is ugly. We should consider introducing some concept of
+    // WorkerContext [workerIdentity, namespace, queue, local/non-local if applicable] and pass it
+    // around
+    // that will simplify such kind of logging through workers.
+    return String.format("PollTaskExecutor{name=%s, identity=%s}", pollThreadNamePrefix, identity);
   }
 }

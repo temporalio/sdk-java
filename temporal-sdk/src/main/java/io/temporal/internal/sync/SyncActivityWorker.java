@@ -21,20 +21,27 @@ package io.temporal.internal.sync;
 
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.worker.ActivityWorker;
-import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.internal.worker.SuspendableWorker;
+import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Activity worker that supports POJO activity implementations. */
 public class SyncActivityWorker implements SuspendableWorker {
+  private static final Logger log = LoggerFactory.getLogger(SyncActivityWorker.class);
 
-  private final ActivityWorker worker;
+  private final String identity;
+  private final String namespace;
+  private final String taskQueue;
+
+  private final ScheduledExecutorService heartbeatExecutor;
   private final POJOActivityTaskHandler taskHandler;
-  private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
+  private final ActivityWorker worker;
 
   public SyncActivityWorker(
       WorkflowServiceStubs service,
@@ -43,7 +50,21 @@ public class SyncActivityWorker implements SuspendableWorker {
       double taskQueueActivitiesPerSecond,
       WorkerInterceptor[] workerInterceptors,
       SingleWorkerOptions options) {
-    taskHandler =
+    this.identity = options.getIdentity();
+    this.namespace = namespace;
+    this.taskQueue = taskQueue;
+
+    this.heartbeatExecutor =
+        Executors.newScheduledThreadPool(
+            4,
+            new ExecutorThreadFactory(
+                WorkerThreadsNameHelper.getActivityHeartbeatThreadPrefix(namespace, taskQueue),
+                // TODO we currently don't have an uncaught exception handler to pass here on
+                // options,
+                // the closest thing is options.getPollerOptions().getUncaughtExceptionHandler(),
+                // but it's pollerOptions, not heartbeat.
+                null));
+    this.taskHandler =
         new POJOActivityTaskHandler(
             service,
             options.getIdentity(),
@@ -51,7 +72,7 @@ public class SyncActivityWorker implements SuspendableWorker {
             options.getDataConverter(),
             heartbeatExecutor,
             workerInterceptors);
-    worker =
+    this.worker =
         new ActivityWorker(
             service, namespace, taskQueue, taskQueueActivitiesPerSecond, options, taskHandler);
   }
@@ -81,15 +102,17 @@ public class SyncActivityWorker implements SuspendableWorker {
   }
 
   @Override
-  public void shutdown() {
-    worker.shutdown();
-    heartbeatExecutor.shutdown();
-  }
-
-  @Override
-  public void shutdownNow() {
-    worker.shutdownNow();
-    heartbeatExecutor.shutdownNow();
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    return shutdownManager
+        // we want to shutdown heartbeatExecutor before activity worker, so in-flight activities
+        // could get an ActivityWorkerShutdownException from their heartbeat
+        .shutdownExecutor(heartbeatExecutor, this + "#heartbeatExecutor", Duration.ofSeconds(5))
+        .thenCompose(r -> worker.shutdown(shutdownManager, interruptTasks))
+        .exceptionally(
+            e -> {
+              log.error("[BUG] Unexpected exception during shutdown", e);
+              return null;
+            });
   }
 
   @Override
@@ -112,5 +135,12 @@ public class SyncActivityWorker implements SuspendableWorker {
   @Override
   public boolean isSuspended() {
     return worker.isSuspended();
+  }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "SyncActivityWorker{namespace=%s, taskQueue=%s, identity=%s}",
+        namespace, taskQueue, identity);
   }
 }

@@ -36,14 +36,28 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** Workflow worker that supports POJO workflow implementations. */
+/**
+ * Facade that supports a lifecycle and maintains an assembly of
+ *
+ * <ul>
+ *   <li>{@link WorkflowWorker} that performing execution of workflow task
+ *   <li>{@link LocalActivityWorker} that performs execution of local activities scheduled by the
+ *       workflow tasks
+ * </ul>
+ *
+ * and exposing additional management helper methods for the assembly.
+ */
 public class SyncWorkflowWorker
     implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
+  private static final Logger log = LoggerFactory.getLogger(SyncWorkflowWorker.class);
+
+  private final String identity;
+  private final String namespace;
+  private final String taskQueue;
 
   private final WorkflowWorker workflowWorker;
   private final QueryReplayHelper queryReplayHelper;
@@ -51,6 +65,7 @@ public class SyncWorkflowWorker
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
   private final POJOActivityTaskHandler laTaskHandler;
+  private final ScheduledExecutorService heartbeatExecutor;
 
   public SyncWorkflowWorker(
       WorkflowServiceStubs service,
@@ -64,20 +79,35 @@ public class SyncWorkflowWorker
       Duration stickyWorkflowTaskScheduleToStartTimeout,
       ThreadPoolExecutor workflowThreadPool) {
     Objects.requireNonNull(workflowThreadPool);
+
+    this.identity = singleWorkerOptions.getIdentity();
+    this.namespace = namespace;
+    this.taskQueue = taskQueue;
+
     this.dataConverter = singleWorkerOptions.getDataConverter();
 
     factory =
         new POJOWorkflowImplementationFactory(
             singleWorkerOptions, workflowThreadPool, workerInterceptors, cache);
 
-    ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
+    // we should shut down this executor and also give the threads meaningful name
+    this.heartbeatExecutor =
+        Executors.newScheduledThreadPool(
+            4,
+            new ExecutorThreadFactory(
+                WorkerThreadsNameHelper.getLocalActivityHeartbeatThreadPrefix(namespace, taskQueue),
+                // TODO we currently don't have an uncaught exception handler to pass here on
+                // options,
+                // the closest thing is options.getPollerOptions().getUncaughtExceptionHandler(),
+                // but it's pollerOptions, not heartbeat.
+                null));
     laTaskHandler =
         new POJOActivityTaskHandler(
             service,
             localActivityOptions.getIdentity(),
             namespace,
             localActivityOptions.getDataConverter(),
-            heartbeatExecutor,
+            this.heartbeatExecutor,
             workerInterceptors);
     laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
 
@@ -146,24 +176,32 @@ public class SyncWorkflowWorker
 
   @Override
   public boolean isShutdown() {
-    return workflowWorker.isShutdown() && laWorker.isShutdown();
+    return workflowWorker.isShutdown() || laWorker.isShutdown() || heartbeatExecutor.isShutdown();
   }
 
   @Override
   public boolean isTerminated() {
-    return workflowWorker.isTerminated() && laWorker.isTerminated();
+    return workflowWorker.isTerminated()
+        && laWorker.isTerminated()
+        && heartbeatExecutor.isTerminated();
   }
 
   @Override
-  public void shutdown() {
-    laWorker.shutdown();
-    workflowWorker.shutdown();
-  }
-
-  @Override
-  public void shutdownNow() {
-    laWorker.shutdownNow();
-    workflowWorker.shutdownNow();
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    return workflowWorker
+        .shutdown(shutdownManager, interruptTasks)
+        // we want to shutdown heartbeatExecutor before activity worker, so in-flight activities
+        // could get an ActivityWorkerShutdownException from their heartbeat
+        .thenCompose(
+            ignore ->
+                shutdownManager.shutdownExecutor(
+                    heartbeatExecutor, this + "#heartbeatExecutor", Duration.ofSeconds(5)))
+        .thenCompose(ignore -> laWorker.shutdown(shutdownManager, interruptTasks))
+        .exceptionally(
+            e -> {
+              log.error("[BUG] Unexpected exception during shutdown", e);
+              return null;
+            });
   }
 
   @Override
@@ -205,5 +243,12 @@ public class SyncWorkflowWorker
   @Override
   public void apply(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
     workflowWorker.apply(pollWorkflowTaskQueueResponse);
+  }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "SyncWorkflowWorker{namespace=%s, taskQueue=%s, identity=%s}",
+        namespace, taskQueue, identity);
   }
 }

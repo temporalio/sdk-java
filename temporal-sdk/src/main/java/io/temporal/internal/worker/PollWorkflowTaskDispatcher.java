@@ -30,6 +30,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -106,13 +107,9 @@ public final class PollWorkflowTaskDispatcher
   }
 
   @Override
-  public void shutdown() {
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     shutdown.set(true);
-  }
-
-  @Override
-  public void shutdownNow() {
-    shutdown.set(true);
+    return CompletableFuture.completedFuture(null);
   }
 
   @Override

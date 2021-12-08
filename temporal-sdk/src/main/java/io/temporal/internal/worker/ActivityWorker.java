@@ -43,13 +43,11 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.MDC;
 
 public final class ActivityWorker implements SuspendableWorker {
-
-  private static final String POLL_THREAD_NAME_PREFIX = "Activity Poller taskQueue=";
-
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
   private final WorkflowServiceStubs service;
@@ -76,12 +74,7 @@ public final class ActivityWorker implements SuspendableWorker {
       pollerOptions =
           PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
-                  POLL_THREAD_NAME_PREFIX
-                      + "\""
-                      + taskQueue
-                      + "\", namespace=\""
-                      + namespace
-                      + "\"")
+                  WorkerThreadsNameHelper.getActivityPollerThreadPrefix(taskQueue, namespace))
               .build();
     }
     this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
@@ -119,13 +112,8 @@ public final class ActivityWorker implements SuspendableWorker {
   }
 
   @Override
-  public void shutdown() {
-    poller.shutdown();
-  }
-
-  @Override
-  public void shutdownNow() {
-    poller.shutdownNow();
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    return poller.shutdown(shutdownManager, interruptTasks);
   }
 
   @Override

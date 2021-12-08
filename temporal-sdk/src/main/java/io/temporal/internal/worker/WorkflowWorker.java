@@ -37,6 +37,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -139,19 +140,11 @@ public final class WorkflowWorker
   }
 
   @Override
-  public void shutdown() {
+  public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     if (poller == null) {
-      return;
+      return CompletableFuture.completedFuture(null);
     }
-    poller.shutdown();
-  }
-
-  @Override
-  public void shutdownNow() {
-    if (poller == null) {
-      return;
-    }
-    poller.shutdownNow();
+    return poller.shutdown(shutdownManager, interruptTasks);
   }
 
   @Override

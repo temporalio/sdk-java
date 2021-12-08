@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.worker;
+package io.temporal.worker.shutdown;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -135,7 +135,7 @@ public class CleanWorkerShutdownTest {
         shutdownNowLatch.countDown();
       }
       try {
-        Thread.sleep(1000);
+        Thread.sleep(3000);
       } catch (InterruptedException e) {
         // We ignore the interrupted exception here to let the activity complete and return the
         // result. Otherwise, the result is not reported:
