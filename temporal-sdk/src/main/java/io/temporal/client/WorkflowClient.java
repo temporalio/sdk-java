@@ -72,7 +72,7 @@ import java.util.concurrent.CompletableFuture;
  * Asynchronous when the workflow result is not needed:
  *
  * <pre><code>
- * // Returns as soon as the workflow starts.
+ * // Returns as soon as the workflow is scheduled to start on the server.
  * WorkflowExecution workflowExecution = WorkflowClient.start(workflow::processFile, workflowArgs);
  *
  * System.out.println("Started process file workflow with workflowId=\"" + workflowExecution.getWorkflowId()
@@ -82,6 +82,7 @@ import java.util.concurrent.CompletableFuture;
  * Asynchronous when the result is needed:
  *
  * <pre><code>
+ * // Returns a CompletableFuture&lt;String&gt; on the workflow result as soon as the workflow is scheduled to start on the server.
  * CompletableFuture&lt;String&gt; result = WorkflowClient.execute(workflow::helloWorld, "User");
  * </code></pre>
  *
