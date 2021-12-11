@@ -29,6 +29,7 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.internal.sync.WorkflowInternal;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
@@ -1215,7 +1216,8 @@ public final class Workflow {
    * Get scope for reporting business metrics in workflow logic. This should be used instead of
    * creating new metrics scopes as it is able to dedupe metrics during replay.
    *
-   * <p>The original metrics scope is set through {@link WorkerOptions} when a worker starts up.
+   * <p>The original metrics scope is set through {@link
+   * WorkflowServiceStubsOptions.Builder#setMetricsScope(Scope)} when a worker starts up.
    */
   public static Scope getMetricsScope() {
     return WorkflowInternal.getMetricsScope();
