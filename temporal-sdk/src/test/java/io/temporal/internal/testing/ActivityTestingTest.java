@@ -354,6 +354,34 @@ public class ActivityTestingTest {
     }
   }
 
+  public abstract class BaseE implements E {
+    protected final List<String> invocations = new ArrayList<>();
+
+    @Override
+    public void a() {
+      doA();
+    }
+
+    @Override
+    public void d() {
+      invocations.add("d");
+    }
+
+    @Override
+    public void e() {
+      invocations.add("e");
+    }
+
+    abstract void doA();
+  }
+
+  public class EImplBaseExtended extends BaseE {
+    @Override
+    void doA() {
+      invocations.add("a");
+    }
+  }
+
   @Test
   public void testInvokingActivityByBaseInterface1() {
     BImpl bImpl = new BImpl();
@@ -426,6 +454,26 @@ public class ActivityTestingTest {
   @Test
   public void testInvokingActivityByBaseInterface2() {
     EImpl eImpl = new EImpl();
+    testEnvironment.registerActivitiesImplementations(eImpl);
+    E e = testEnvironment.newActivityStub(E.class);
+    e.a();
+    e.d();
+    e.e();
+    D d = testEnvironment.newActivityStub(D.class);
+    d.a();
+    d.d();
+    List<String> expectedE = new ArrayList<>();
+    expectedE.add("a");
+    expectedE.add("d");
+    expectedE.add("e");
+    expectedE.add("a");
+    expectedE.add("d");
+    assertEquals(expectedE, eImpl.invocations);
+  }
+
+  @Test
+  public void testInvokingInheritedActivityByBaseInterfaces() {
+    EImplBaseExtended eImpl = new EImplBaseExtended();
     testEnvironment.registerActivitiesImplementations(eImpl);
     E e = testEnvironment.newActivityStub(E.class);
     e.a();
