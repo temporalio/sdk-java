@@ -1,6 +1,6 @@
-# Developing temporal-java-sdk
+# Developing sdk-java
 
-This doc is intended for contributors to `temporal-java-sdk` (hopefully that's you!)
+This doc is intended for contributors to `sdk-java` (hopefully that's you!)
 
 **Note:** All contributors also need to fill out the 
 [Temporal Contributor License Agreement](https://gist.github.com/samarabbas/7dcd41eb1d847e12263cc961ccfdb197) 
@@ -35,7 +35,7 @@ commit messages. Read it, follow it, learn it, love it.
 
 ## Test and Build
 
-Testing and building temporal-java-sdk requires running temporal docker locally, execute:
+Testing and building `sdk-java` requires running temporal docker locally, execute:
 
 ```bash
 curl -O https://raw.githubusercontent.com/temporalio/temporal/master/docker/docker-compose.yml
