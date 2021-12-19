@@ -1,22 +1,21 @@
 # Temporal Java SDK  [![Build status](https://badge.buildkite.com/663f6d1be81be6700c28c242b35905f20b68c4fda7b2c7c4e3.svg?branch=master)](https://buildkite.com/temporal/java-sdk-public)
 
-[Temporal](https://github.com/temporalio/temporal) is a Workflow-as-Code platform used to build and operate
+[Temporal](https://github.com/temporalio/temporal) is a Workflow-as-Code platform for building and operating
 resilient applications using developer-friendly primitives, instead of constantly fighting your infrastructure.
 
-`sdk-java` is the framework for authoring Workflows and Activities in Java. For other languages, see [Temporal SDKs](https://docs.temporal.io/application-development).
+The Java SDK is the framework for authoring Workflows and Activities in Java. (For other languages, see [Temporal SDKs](https://docs.temporal.io/application-development).)
 
-## Samples
+Java SDK:
 
-For samples, see [Samples for the Temporal Java SDK](https://github.com/temporalio/samples-java).
+- [Java SDK documentation](https://docs.temporal.io/docs/java/introduction)
+- [Javadoc API reference](https://www.javadoc.io/doc/io.temporal/temporal-sdk/latest/index.html)
+- [Sample applications](https://github.com/temporalio/samples-java#samples-directory)
 
-## Run Temporal Server
+Temporal in general:
 
-Follow the [Quick install guide](https://docs.temporal.io/docs/server/quick-install) to run the Temporal Server locally.
-Additional information is available in the [Temporal Server docker-compose](https://github.com/temporalio/docker-compose) repo.
-
-## Get CLI
-
-[CLI is available as an executable or as a docker image](https://github.com/temporalio/temporal/blob/master/tools/cli/README.md)
+- [Temporal docs](https://docs.temporal.io/)
+- [Install Temporal Server](https://docs.temporal.io/docs/server/quick-install)
+- [Temporal CLI](https://docs.temporal.io/docs/devtools/tctl/)
 
 ## Build a configuration
 
@@ -34,13 +33,8 @@ or to *build.gradle*:
 
     compile group: 'io.temporal', name: 'temporal-sdk', version: 'N.N.N'
 
-## Documentation
+## macOS Users
 
-The documentation on how to use the Temporal Java client is [here](https://docs.temporal.io/docs/java/introduction).
-
-Javadocs for the client API are located [here](https://www.javadoc.io/doc/io.temporal/temporal-sdk).
-
-### macOS Users
 Due to issues with default hostname resolution
 (see [this StackOverflow question](https://stackoverflow.com/questions/33289695/inetaddress-getlocalhost-slow-to-run-30-seconds) for more details),
 macOS Users may see gRPC `DEADLINE_EXCEEDED` errors and other slowdowns when running the SDK.
@@ -53,7 +47,9 @@ To solve the problem add the following entries to your `/etc/hosts` file (where 
 ```
 
 ## Contributing
-We'd love your help in making the Temporal Java SDK great. Please review our [contribution guidelines](CONTRIBUTING.md).
+
+We'd love your help in improving the Temporal Java SDK. Please review our [contribution guidelines](CONTRIBUTING.md).
 
 ## License
-Apache License, please see [LICENSE](LICENSE) for details.
+
+Apache License—please see [LICENSE.txt](LICENSE.txt) for details.
