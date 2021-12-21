@@ -88,7 +88,11 @@ public class TestWorkflowEnvironmentSleepTest {
 
   @Before
   public void setUp() {
-    testEnv = TestWorkflowEnvironment.newInstance();
+    setUp(TestEnvironmentOptions.getDefaultInstance());
+  }
+
+  private void setUp(TestEnvironmentOptions options) {
+    testEnv = TestWorkflowEnvironment.newInstance(options);
     worker = testEnv.newWorker(WORKFLOW_TASK_QUEUE);
     client = testEnv.getWorkflowClient();
     worker.registerWorkflowImplementationTypes(HangingWorkflowWithSignalImpl.class);
@@ -264,5 +268,45 @@ public class TestWorkflowEnvironmentSleepTest {
     public void execute(long sleepMillis) {
       Workflow.sleep(sleepMillis);
     }
+  }
+
+  @Test
+  public void timeskippingCanBeDisabled() throws TimeoutException {
+    // Use a differently configured TestWorkflowEnvironment
+    tearDown();
+    setUp(TestEnvironmentOptions.newBuilder().setUseTimeskipping(false).build());
+
+    WorkflowOptions workflowAOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(WORKFLOW_TASK_QUEUE)
+            .setWorkflowExecutionTimeout(Duration.ofMinutes(30))
+            .build();
+
+    WorkflowStub stubA =
+        client.newUntypedWorkflowStub("ConfigurableSleepWorkflow", workflowAOptions);
+
+    // The workflow sleeps for 10 minutes - we'll wait for significantly less than that to verify
+    // that timeskipping can be disabled. Unfortunately there's tension between this assertion's
+    // false positive rate and how long it takes.
+    long durationToSleep = Duration.ofMinutes(10).toMillis();
+    Duration durationToWait = Duration.ofSeconds(1);
+
+    stubA.start(durationToSleep);
+    WorkflowServiceException e =
+        Assert.assertThrows(
+            WorkflowServiceException.class,
+            () -> stubA.getResult(durationToWait.toMillis(), TimeUnit.MILLISECONDS, Void.class));
+
+    Assert.assertNotNull(e.getCause());
+    Assert.assertEquals(io.grpc.StatusRuntimeException.class, e.getCause().getClass());
+    Assert.assertEquals(
+        Status.Code.DEADLINE_EXCEEDED,
+        ((io.grpc.StatusRuntimeException) e.getCause()).getStatus().getCode());
+
+    // With timeskipping off, a workflow that doesn't sleep for very long should still finish
+    WorkflowStub stubB =
+        client.newUntypedWorkflowStub("ConfigurableSleepWorkflow", workflowAOptions);
+    WorkflowExecution executionB = stubB.start(Duration.ZERO);
+    stubB.getResult(durationToWait.toMillis(), TimeUnit.MILLISECONDS, Void.class);
   }
 }
