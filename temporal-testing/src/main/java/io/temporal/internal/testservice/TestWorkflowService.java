@@ -107,9 +107,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -133,6 +137,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final Server inProcessServer;
   private final TestWorkflowStore store;
   private final Client client;
+  private final ScheduledExecutorService backgroundScheduler =
+      Executors.newSingleThreadScheduledExecutor();
 
   private static class Client implements Closeable {
     public Client() {
@@ -169,6 +175,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
     return client.stubs;
   }
+
   /*
    * Creates an in-memory service along with client stubs for use in Java code.
    * See also createServerOnly and createWithNoGrpcServer.
@@ -260,6 +267,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   @Override
   public void close() {
     log.debug("Shutting down TestWorkflowService");
+
+    log.debug("Shutting down background scheduler");
+    backgroundScheduler.shutdown();
 
     if (outOfProcessServer != null) {
       log.info("Shutting down out-of-process GRPC server");
@@ -492,46 +502,65 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         });
   }
 
+  private <T> T pollTaskQueue(Context ctx, Future<T> futureValue)
+      throws ExecutionException, InterruptedException {
+    final Context.CancellationListener canceler = context -> futureValue.cancel(true);
+    ctx.addListener(canceler, this.backgroundScheduler);
+    final T result = futureValue.get();
+    ctx.removeListener(canceler);
+    return result;
+  }
+
   @Override
   public void pollWorkflowTaskQueue(
       PollWorkflowTaskQueueRequest pollRequest,
       StreamObserver<PollWorkflowTaskQueueResponse> responseObserver) {
-    Deadline deadline = getLongPollDeadline();
-    Optional<PollWorkflowTaskQueueResponse.Builder> optionalTask =
-        store.pollWorkflowTaskQueue(pollRequest, deadline);
-    if (!optionalTask.isPresent()) {
-      responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
-      responseObserver.onCompleted();
-      return;
-    }
-    PollWorkflowTaskQueueResponse.Builder task = optionalTask.get();
-
-    ExecutionId executionId =
-        new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
-    TestWorkflowMutableState mutableState = getMutableState(executionId);
-    try {
-      mutableState.startWorkflowTask(task, pollRequest);
-      // The task always has the original task queue that was created as part of the response. This
-      // may be a different task queue than the task queue it was scheduled on, as in the case of
-      // sticky execution.
-      task.setWorkflowExecutionTaskQueue(mutableState.getStartRequest().getTaskQueue());
-      PollWorkflowTaskQueueResponse response = task.build();
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        if (log.isDebugEnabled()) {
-          log.debug("Skipping outdated workflow task for " + executionId, e);
-        }
-        // The real service doesn't return this call on outdated task.
-        // For simplicity, we return an empty result here.
+    try (Context.CancellableContext ctx =
+        deadlineCtx(WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT)) {
+      PollWorkflowTaskQueueResponse.Builder task = null;
+      try {
+        task = pollTaskQueue(ctx, store.pollWorkflowTaskQueue(pollRequest));
+      } catch (ExecutionException e) {
+        responseObserver.onError(e);
+        return;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
         responseObserver.onCompleted();
-      } else {
-        if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-          log.error("unexpected", e);
+        return;
+      } catch (CancellationException e) {
+        responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+        return;
+      }
+
+      ExecutionId executionId =
+          new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      try {
+        mutableState.startWorkflowTask(task, pollRequest);
+        // The task always has the original task queue that was created as part of the response.
+        // This may be a different task queue than the task queue it was scheduled on, as in the
+        // case of sticky execution.
+        task.setWorkflowExecutionTaskQueue(mutableState.getStartRequest().getTaskQueue());
+        PollWorkflowTaskQueueResponse response = task.build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+          if (log.isDebugEnabled()) {
+            log.debug("Skipping outdated workflow task for " + executionId, e);
+          }
+          // The real service doesn't return this call on outdated task.
+          // For simplicity, we return an empty result here.
+          responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
+          responseObserver.onCompleted();
+        } else {
+          if (e.getStatus().getCode() == Status.Code.INTERNAL) {
+            log.error("unexpected", e);
+          }
+          responseObserver.onError(e);
         }
-        responseObserver.onError(e);
       }
     }
   }
@@ -572,20 +601,36 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  private Context.CancellableContext deadlineCtx(Duration dur) {
+    return Context.current()
+        .withDeadline(
+            Deadline.after(dur.toNanos(), TimeUnit.NANOSECONDS), this.backgroundScheduler);
+  }
+
   @Override
   public void pollActivityTaskQueue(
       PollActivityTaskQueueRequest pollRequest,
       StreamObserver<PollActivityTaskQueueResponse> responseObserver) {
-    while (true) {
-      Deadline deadline = getLongPollDeadline();
-      Optional<PollActivityTaskQueueResponse.Builder> optionalTask =
-          store.pollActivityTaskQueue(pollRequest, deadline);
-      if (!optionalTask.isPresent()) {
+    try (Context.CancellableContext ctx =
+        deadlineCtx(WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT)) {
+
+      PollActivityTaskQueueResponse.Builder task = null;
+      try {
+        task = pollTaskQueue(ctx, store.pollActivityTaskQueue(pollRequest));
+      } catch (ExecutionException e) {
+        responseObserver.onError(e);
+        return;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        responseObserver.onNext(PollActivityTaskQueueResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+        return;
+      } catch (CancellationException e) {
         responseObserver.onNext(PollActivityTaskQueueResponse.getDefaultInstance());
         responseObserver.onCompleted();
         return;
       }
-      PollActivityTaskQueueResponse.Builder task = optionalTask.get();
+
       ExecutionId executionId =
           new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);

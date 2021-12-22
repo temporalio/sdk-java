@@ -52,8 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -64,14 +63,13 @@ import org.slf4j.LoggerFactory;
 
 class TestWorkflowStoreImpl implements TestWorkflowStore {
 
-  private static final int TASK_QUEUE_POLLER_TIMEOUT = 500;
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowStoreImpl.class);
 
   private final Lock lock = new ReentrantLock();
   private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
-  private final Map<TaskQueueId, BlockingQueue<PollActivityTaskQueueResponse.Builder>>
+  private final Map<TaskQueueId, TaskQueue<PollActivityTaskQueueResponse.Builder>>
       activityTaskQueues = new HashMap<>();
-  private final Map<TaskQueueId, BlockingQueue<PollWorkflowTaskQueueResponse.Builder>>
+  private final Map<TaskQueueId, TaskQueue<PollWorkflowTaskQueueResponse.Builder>>
       workflowTaskQueues = new HashMap<>();
   private final SelfAdvancingTimer timerService;
   private LockHandle emptyHistoryLockHandle;
@@ -239,7 +237,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       if (id.getTaskQueueName().isEmpty() || id.getNamespace().isEmpty()) {
         throw Status.INTERNAL.withDescription("Invalid TaskQueueId: " + id).asRuntimeException();
       }
-      BlockingQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
+      TaskQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
           getWorkflowTaskQueueQueue(id);
       workflowTaskQueue.add(workflowTask.getTask());
     }
@@ -247,7 +245,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<ActivityTask> activityTasks = ctx.getActivityTasks();
     if (activityTasks != null) {
       for (ActivityTask activityTask : activityTasks) {
-        BlockingQueue<PollActivityTaskQueueResponse.Builder> activityTaskQueue =
+        TaskQueue<PollActivityTaskQueueResponse.Builder> activityTaskQueue =
             getActivityTaskQueueQueue(activityTask.getTaskQueueId());
         activityTaskQueue.add(activityTask.getTask());
       }
@@ -292,32 +290,30 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     timerService.schedule(delay, r, "registerDelayedCallback");
   }
 
-  private BlockingQueue<PollActivityTaskQueueResponse.Builder> getActivityTaskQueueQueue(
+  private TaskQueue<PollActivityTaskQueueResponse.Builder> getActivityTaskQueueQueue(
       TaskQueueId taskQueueId) {
     lock.lock();
     try {
-      {
-        BlockingQueue<PollActivityTaskQueueResponse.Builder> activityTaskQueue =
-            activityTaskQueues.get(taskQueueId);
-        if (activityTaskQueue == null) {
-          activityTaskQueue = new LinkedBlockingQueue<>();
-          activityTaskQueues.put(taskQueueId, activityTaskQueue);
-        }
-        return activityTaskQueue;
+      TaskQueue<PollActivityTaskQueueResponse.Builder> activityTaskQueue =
+          activityTaskQueues.get(taskQueueId);
+      if (activityTaskQueue == null) {
+        activityTaskQueue = new TaskQueue<>();
+        activityTaskQueues.put(taskQueueId, activityTaskQueue);
       }
+      return activityTaskQueue;
     } finally {
       lock.unlock();
     }
   }
 
-  private BlockingQueue<PollWorkflowTaskQueueResponse.Builder> getWorkflowTaskQueueQueue(
+  private TaskQueue<PollWorkflowTaskQueueResponse.Builder> getWorkflowTaskQueueQueue(
       TaskQueueId taskQueueId) {
     lock.lock();
     try {
-      BlockingQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
+      TaskQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
           workflowTaskQueues.get(taskQueueId);
       if (workflowTaskQueue == null) {
-        workflowTaskQueue = new LinkedBlockingQueue<>();
+        workflowTaskQueue = new TaskQueue<>();
         workflowTaskQueues.put(taskQueueId, workflowTaskQueue);
       }
       return workflowTaskQueue;
@@ -327,58 +323,19 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public Optional<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
-      PollWorkflowTaskQueueRequest pollRequest, Deadline deadline) {
-    TaskQueueId taskQueueId =
+  public Future<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
+      PollWorkflowTaskQueueRequest pollRequest) {
+    final TaskQueueId taskQueueId =
         new TaskQueueId(pollRequest.getNamespace(), pollRequest.getTaskQueue().getName());
-    BlockingQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
-        getWorkflowTaskQueueQueue(taskQueueId);
-    if (log.isTraceEnabled()) {
-      log.trace(
-          "Poll request on workflow task queue about to block waiting for a task on "
-              + taskQueueId);
-    }
-    PollWorkflowTaskQueueResponse.Builder result = null;
-    try {
-      if (deadline == null) {
-        result = workflowTaskQueue.take();
-      } else {
-        // Listen on the task queue for short periods, and keep checking if we are being shutdown in
-        // between. Long poll doesn't work well here because thread interrupted status gets lost and
-        // poller keeps hanging on an empty queue, resulting in test timing out.
-        while (result == null && !isShuttingDown && !deadline.isExpired()) {
-          result = workflowTaskQueue.poll(TASK_QUEUE_POLLER_TIMEOUT, TimeUnit.MILLISECONDS);
-        }
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-    return Optional.ofNullable(result);
+    return getWorkflowTaskQueueQueue(taskQueueId).poll();
   }
 
   @Override
-  public Optional<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
-      PollActivityTaskQueueRequest pollRequest, Deadline deadline) {
-    TaskQueueId taskQueueId =
+  public Future<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
+      PollActivityTaskQueueRequest pollRequest) {
+    final TaskQueueId taskQueueId =
         new TaskQueueId(pollRequest.getNamespace(), pollRequest.getTaskQueue().getName());
-    BlockingQueue<PollActivityTaskQueueResponse.Builder> activityTaskQueue =
-        getActivityTaskQueueQueue(taskQueueId);
-    PollActivityTaskQueueResponse.Builder result = null;
-    try {
-      if (deadline == null) {
-        result = activityTaskQueue.take();
-      } else {
-        // Listen on the task queue for short periods, and keep checking if we are being shutdown in
-        // between. Long poll doesn't work well here because thread interrupted status gets lost and
-        // poller keeps hanging on an empty queue, resulting in test timing out.
-        while (result == null && !isShuttingDown && !deadline.isExpired()) {
-          result = activityTaskQueue.poll(TASK_QUEUE_POLLER_TIMEOUT, TimeUnit.MILLISECONDS);
-        }
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-    return Optional.ofNullable(result);
+    return getActivityTaskQueueQueue(taskQueueId).poll();
   }
 
   @Override
@@ -421,7 +378,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     } finally {
       lock.unlock();
     }
-    BlockingQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
+    TaskQueue<PollWorkflowTaskQueueResponse.Builder> workflowTaskQueue =
         getWorkflowTaskQueueQueue(taskQueue);
     workflowTaskQueue.add(task);
   }
