@@ -109,10 +109,13 @@ import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,6 +136,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final Server inProcessServer;
   private final TestWorkflowStore store;
   private final Client client;
+  private final ScheduledExecutorService backgroundScheduler =
+      Executors.newSingleThreadScheduledExecutor();
 
   private static class Client implements Closeable {
     public Client() {
@@ -260,6 +265,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   @Override
   public void close() {
     log.debug("Shutting down TestWorkflowService");
+
+    log.info("Shutting down background scheduler");
+    backgroundScheduler.shutdown();
 
     if (outOfProcessServer != null) {
       log.info("Shutting down out-of-process GRPC server");
@@ -496,42 +504,48 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void pollWorkflowTaskQueue(
       PollWorkflowTaskQueueRequest pollRequest,
       StreamObserver<PollWorkflowTaskQueueResponse> responseObserver) {
-    Deadline deadline = getLongPollDeadline();
-    Optional<PollWorkflowTaskQueueResponse.Builder> optionalTask =
-        store.pollWorkflowTaskQueue(pollRequest, deadline);
-    if (!optionalTask.isPresent()) {
-      responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
-      responseObserver.onCompleted();
-      return;
-    }
-    PollWorkflowTaskQueueResponse.Builder task = optionalTask.get();
+    try (Context.CancellableContext ctx =
+        deadlineCtx(WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT)) {
+      Optional<PollWorkflowTaskQueueResponse.Builder> optionalTask =
+          this.withContextBasedThreadInterruption(
+              ctx, () -> store.pollWorkflowTaskQueue(pollRequest));
 
-    ExecutionId executionId =
-        new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
-    TestWorkflowMutableState mutableState = getMutableState(executionId);
-    try {
-      mutableState.startWorkflowTask(task, pollRequest);
-      // The task always has the original task queue that was created as part of the response. This
-      // may be a different task queue than the task queue it was scheduled on, as in the case of
-      // sticky execution.
-      task.setWorkflowExecutionTaskQueue(mutableState.getStartRequest().getTaskQueue());
-      PollWorkflowTaskQueueResponse response = task.build();
-      responseObserver.onNext(response);
-      responseObserver.onCompleted();
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        if (log.isDebugEnabled()) {
-          log.debug("Skipping outdated workflow task for " + executionId, e);
-        }
-        // The real service doesn't return this call on outdated task.
-        // For simplicity, we return an empty result here.
+      if (!optionalTask.isPresent()) {
         responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
         responseObserver.onCompleted();
-      } else {
-        if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-          log.error("unexpected", e);
+        return;
+      }
+
+      PollWorkflowTaskQueueResponse.Builder task = optionalTask.get();
+
+      ExecutionId executionId =
+          new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      try {
+        mutableState.startWorkflowTask(task, pollRequest);
+        // The task always has the original task queue that was created as part of the response.
+        // This
+        // may be a different task queue than the task queue it was scheduled on, as in the case of
+        // sticky execution.
+        task.setWorkflowExecutionTaskQueue(mutableState.getStartRequest().getTaskQueue());
+        PollWorkflowTaskQueueResponse response = task.build();
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+          if (log.isDebugEnabled()) {
+            log.debug("Skipping outdated workflow task for " + executionId, e);
+          }
+          // The real service doesn't return this call on outdated task.
+          // For simplicity, we return an empty result here.
+          responseObserver.onNext(PollWorkflowTaskQueueResponse.getDefaultInstance());
+          responseObserver.onCompleted();
+        } else {
+          if (e.getStatus().getCode() == Status.Code.INTERNAL) {
+            log.error("unexpected", e);
+          }
+          responseObserver.onError(e);
         }
-        responseObserver.onError(e);
       }
     }
   }
@@ -572,20 +586,48 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  private Context.CancellableContext deadlineCtx(Duration dur) {
+    return Context.current()
+        .withDeadline(
+            Deadline.after(dur.toNanos(), TimeUnit.NANOSECONDS), this.backgroundScheduler);
+  }
+
+  /**
+   * Execute blocking function but use the supplied Context to trigger an interrupt of the current
+   * thread in the case that the Context is cancelled.
+   *
+   * @param ctx the context that may be canceled while this thread is blocked in work
+   * @param work the blocking work to perform
+   * @param <T> the result of calling the provided Supplier
+   * @return the result of calling the provided Supplier.
+   */
+  private <T> T withContextBasedThreadInterruption(Context ctx, Supplier<T> work) {
+    final Thread thread = Thread.currentThread();
+    final Context.CancellationListener interrupter = context -> thread.interrupt();
+    ctx.addListener(interrupter, this.backgroundScheduler);
+    final T out = work.get();
+    ctx.removeListener(interrupter);
+    Thread.interrupted(); // clears interrupted flag
+    return out;
+  }
+
   @Override
   public void pollActivityTaskQueue(
       PollActivityTaskQueueRequest pollRequest,
       StreamObserver<PollActivityTaskQueueResponse> responseObserver) {
-    while (true) {
-      Deadline deadline = getLongPollDeadline();
+    try (Context.CancellableContext ctx =
+        deadlineCtx(WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT)) {
       Optional<PollActivityTaskQueueResponse.Builder> optionalTask =
-          store.pollActivityTaskQueue(pollRequest, deadline);
+          this.withContextBasedThreadInterruption(
+              ctx, () -> store.pollActivityTaskQueue(pollRequest));
+
       if (!optionalTask.isPresent()) {
         responseObserver.onNext(PollActivityTaskQueueResponse.getDefaultInstance());
         responseObserver.onCompleted();
         return;
       }
       PollActivityTaskQueueResponse.Builder task = optionalTask.get();
+
       ExecutionId executionId =
           new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);

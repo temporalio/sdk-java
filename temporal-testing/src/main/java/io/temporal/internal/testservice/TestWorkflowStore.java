@@ -144,13 +144,13 @@ interface TestWorkflowStore {
 
   void registerDelayedCallback(Duration delay, Runnable r);
 
-  /** @return empty if deadline expired */
+  /** @return empty if this store is closed or thread interrupted */
   Optional<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
-      PollWorkflowTaskQueueRequest pollRequest, Deadline deadline);
+      PollWorkflowTaskQueueRequest pollRequest);
 
-  /** @return empty if deadline expired */
+  /** @return empty if this store is closed or thread interrupted */
   Optional<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
-      PollActivityTaskQueueRequest pollRequest, Deadline deadline);
+      PollActivityTaskQueueRequest pollRequest);
 
   void sendQueryTask(
       ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);
