@@ -64,6 +64,8 @@ public final class TestEnvironmentOptions {
 
     private long initialTimeMillis;
 
+    private boolean useTimeskipping = true;
+
     private Builder() {}
 
     private Builder(TestEnvironmentOptions o) {
@@ -71,6 +73,7 @@ public final class TestEnvironmentOptions {
       workflowClientOptions = o.workflowClientOptions;
       useExternalService = o.useExternalService;
       target = o.target;
+      useTimeskipping = o.useTimeskipping;
     }
 
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
@@ -134,6 +137,17 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
+    /**
+     * Sets whether the TestWorkflowEnvironment will timeskip. If true, no actual wall-clock time
+     * will pass when a workflow sleeps or sets a timer.
+     *
+     * <p>Default is true
+     */
+    public Builder setUseTimeskipping(boolean useTimeskipping) {
+      this.useTimeskipping = useTimeskipping;
+      return this;
+    }
+
     public TestEnvironmentOptions build() {
       return new TestEnvironmentOptions(
           workflowClientOptions,
@@ -142,7 +156,8 @@ public final class TestEnvironmentOptions {
           useExternalService,
           target,
           initialTimeMillis,
-          metricsScope);
+          metricsScope,
+          useTimeskipping);
     }
 
     public TestEnvironmentOptions validateAndBuildWithDefaults() {
@@ -162,7 +177,8 @@ public final class TestEnvironmentOptions {
           useExternalService,
           target,
           initialTimeMillis,
-          metricsScope == null ? new NoopScope() : metricsScope);
+          metricsScope == null ? new NoopScope() : metricsScope,
+          useTimeskipping);
     }
   }
 
@@ -173,6 +189,7 @@ public final class TestEnvironmentOptions {
   private final boolean useExternalService;
   private final String target;
   private final long initialTimeMillis;
+  private final boolean useTimeskipping;
 
   private TestEnvironmentOptions(
       WorkflowClientOptions workflowClientOptions,
@@ -181,7 +198,8 @@ public final class TestEnvironmentOptions {
       boolean useExternalService,
       String target,
       long initialTimeMillis,
-      Scope metricsScope) {
+      Scope metricsScope,
+      boolean useTimeskipping) {
     this.workflowClientOptions = workflowClientOptions;
     this.workerFactoryOptions = workerFactoryOptions;
     this.workflowServiceStubsOptions = workflowServiceStubsOptions;
@@ -189,6 +207,7 @@ public final class TestEnvironmentOptions {
     this.useExternalService = useExternalService;
     this.target = target;
     this.initialTimeMillis = initialTimeMillis;
+    this.useTimeskipping = useTimeskipping;
   }
 
   public WorkerFactoryOptions getWorkerFactoryOptions() {
@@ -209,6 +228,10 @@ public final class TestEnvironmentOptions {
 
   public boolean isUseExternalService() {
     return useExternalService;
+  }
+
+  public boolean isUseTimeskipping() {
+    return useTimeskipping;
   }
 
   public String getTarget() {

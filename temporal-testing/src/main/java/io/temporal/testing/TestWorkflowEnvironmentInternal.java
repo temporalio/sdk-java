@@ -67,6 +67,12 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     timeLockingInterceptor = new TimeLockingInterceptor(service);
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
 
+    if (!options.isUseTimeskipping()) {
+      // If the options ask for no timeskipping, lock one extra time. There will never be a
+      // corresponding unlock, so timeskipping will always be off.
+      service.lockTimeSkipping("TestEnvironmentOptions.isUseTimeskipping was false");
+    }
+
     WorkflowServiceStubsOptions.Builder stubsOptionsBuilder =
         testEnvironmentOptions.getWorkflowServiceStubsOptions() != null
             ? WorkflowServiceStubsOptions.newBuilder(
