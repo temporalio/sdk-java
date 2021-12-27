@@ -2086,6 +2086,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public DescribeWorkflowExecutionResponse describeWorkflowExecution() {
+    lock.lock();
+    try {
+      // pendingActivityInfo and childWorkflows are mutable, so we take the lock
+      // before constructing a snapshot to avoid read skew or ConcurrentModificationExceptions
+      return describeWorkflowExecutionInsideLock();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  private DescribeWorkflowExecutionResponse describeWorkflowExecutionInsideLock() {
     WorkflowExecutionConfig.Builder executionConfig =
         WorkflowExecutionConfig.newBuilder()
             .setTaskQueue(this.startRequest.getTaskQueue())
