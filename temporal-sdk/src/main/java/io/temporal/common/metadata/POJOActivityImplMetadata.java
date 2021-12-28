@@ -20,6 +20,7 @@
 package io.temporal.common.metadata;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.reflect.TypeToken;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.common.MethodRetry;
 import java.lang.reflect.Method;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Metadata of an activity implementation object.
@@ -47,6 +49,7 @@ import java.util.Map;
 public final class POJOActivityImplMetadata {
 
   private final List<POJOActivityInterfaceMetadata> activityInterfaces;
+  private final List<POJOActivityMethodMetadata> activityMethods;
 
   /** Creates POJOActivityImplMetadata for an activity implementation class. */
   public static POJOActivityImplMetadata newInstance(Class<?> implementationClass) {
@@ -75,11 +78,11 @@ public final class POJOActivityImplMetadata {
                 + "\" This annotation can be used only on the interface method it implements.");
       }
     }
-    Class<?>[] interfaces = implClass.getInterfaces();
+    Set<Class<?>> interfaces =
+        (Set<Class<?>>) TypeToken.of(implClass).getTypes().interfaces().rawTypes();
     List<POJOActivityInterfaceMetadata> activityInterfaces = new ArrayList<>();
     Map<String, POJOActivityMethodMetadata> byName = new HashMap<>();
-    for (int i = 0; i < interfaces.length; i++) {
-      Class<?> anInterface = interfaces[i];
+    for (Class<?> anInterface : interfaces) {
       POJOActivityInterfaceMetadata interfaceMetadata =
           POJOActivityInterfaceMetadata.newImplementationInterface(anInterface);
       activityInterfaces.add(interfaceMetadata);
@@ -109,10 +112,16 @@ public final class POJOActivityImplMetadata {
               + implClass.getName());
     }
     this.activityInterfaces = ImmutableList.copyOf(activityInterfaces);
+    this.activityMethods = ImmutableList.copyOf(byName.values());
   }
 
   /** Activity interfaces implemented by the object. */
   public List<POJOActivityInterfaceMetadata> getActivityInterfaces() {
     return activityInterfaces;
+  }
+
+  /** Activity methods implemented by the object */
+  public List<POJOActivityMethodMetadata> getActivityMethods() {
+    return activityMethods;
   }
 }
