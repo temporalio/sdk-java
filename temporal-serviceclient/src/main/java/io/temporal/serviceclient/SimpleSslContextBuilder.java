@@ -28,10 +28,7 @@ import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import javax.net.ssl.SSLException;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.*;
 
 public class SimpleSslContextBuilder {
 
@@ -47,21 +44,43 @@ public class SimpleSslContextBuilder {
           // gRPC requires http2 protocol.
           ApplicationProtocolNames.HTTP_2);
 
+  private final PKCS pkcs;
   private final InputStream keyCertChain;
   private final InputStream key;
   private TrustManager trustManager;
   private boolean useInsecureTrustManager;
   private String keyPassword;
 
+  private enum PKCS {
+    PKCS_8,
+    PKCS_12
+  }
+
+  /**
+   * @param keyCertChain - an input stream for an X.509 client certificate chain in PEM format.
+   * @param key - an input stream for a PKCS#8 client private key in PEM format.
+   * @deprecated use {@link #forPKCS8(InputStream, InputStream)} instead
+   */
+  @Deprecated
+  public static SimpleSslContextBuilder newBuilder(InputStream keyCertChain, InputStream key) {
+    return forPKCS8(keyCertChain, key);
+  }
+
   /**
    * @param keyCertChain - an input stream for an X.509 client certificate chain in PEM format.
    * @param key - an input stream for a PKCS#8 client private key in PEM format.
    */
-  public static SimpleSslContextBuilder newBuilder(InputStream keyCertChain, InputStream key) {
-    return new SimpleSslContextBuilder(keyCertChain, key);
+  public static SimpleSslContextBuilder forPKCS8(InputStream keyCertChain, InputStream key) {
+    return new SimpleSslContextBuilder(PKCS.PKCS_8, keyCertChain, key);
   }
 
-  private SimpleSslContextBuilder(InputStream keyCertChain, InputStream key) {
+  /** @param pfxKeyArchive - an input stream for .pfx or .p12 PKCS12 archive file */
+  public static SimpleSslContextBuilder forPKCS12(InputStream pfxKeyArchive) {
+    return new SimpleSslContextBuilder(PKCS.PKCS_12, null, pfxKeyArchive);
+  }
+
+  private SimpleSslContextBuilder(PKCS pkcs, InputStream keyCertChain, InputStream key) {
+    this.pkcs = pkcs;
     this.keyCertChain = keyCertChain;
     this.key = key;
   }
@@ -79,16 +98,31 @@ public class SimpleSslContextBuilder {
     if (trustManager != null && useInsecureTrustManager)
       throw new IllegalArgumentException(
           "Can not use insecure trust manager if custom trust manager is set.");
-    return SslContextBuilder.forClient()
-        .trustManager(
-            trustManager != null
-                ? trustManager
-                : useInsecureTrustManager
-                    ? InsecureTrustManagerFactory.INSTANCE.getTrustManagers()[0]
-                    : getDefaultTrustManager())
-        .keyManager(keyCertChain, key, keyPassword)
-        .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG)
-        .build();
+
+    SslContextBuilder sslContextBuilder =
+        SslContextBuilder.forClient()
+            .trustManager(
+                trustManager != null
+                    ? trustManager
+                    : useInsecureTrustManager
+                        ? InsecureTrustManagerFactory.INSTANCE.getTrustManagers()[0]
+                        : getDefaultTrustManager())
+            .keyManager(keyCertChain, key, keyPassword)
+            .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG);
+
+    switch (pkcs) {
+      case PKCS_8:
+        // netty by default supports PKCS8
+        sslContextBuilder.keyManager(keyCertChain, key, keyPassword);
+        break;
+      case PKCS_12:
+        sslContextBuilder.keyManager(createPKCS12KeyManager());
+        break;
+      default:
+        throw new IllegalArgumentException("PKCS " + pkcs + " is not implemented");
+    }
+
+    return sslContextBuilder.build();
   }
 
   /**
@@ -119,6 +153,20 @@ public class SimpleSslContextBuilder {
   public SimpleSslContextBuilder setKeyPassword(String keyPassword) {
     this.keyPassword = keyPassword;
     return this;
+  }
+
+  private KeyManagerFactory createPKCS12KeyManager() {
+    char[] passwordChars = keyPassword != null ? keyPassword.toCharArray() : null;
+    try {
+      KeyStore ks = KeyStore.getInstance("PKCS12");
+      ks.load(key, passwordChars);
+      KeyManagerFactory kmf =
+          KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+      kmf.init(ks, passwordChars);
+      return kmf;
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Input stream does not contain a valid PKCS12 key", e);
+    }
   }
 
   /**

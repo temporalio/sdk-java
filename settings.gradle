@@ -1,4 +1,4 @@
-rootProject.name='temporalio'
+rootProject.name='temporal-java-sdk'
 include 'temporal-serviceclient'
 include 'temporal-sdk'
 include 'temporal-testing'
