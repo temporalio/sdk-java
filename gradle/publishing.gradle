@@ -51,12 +51,12 @@ subprojects {
             pom {
                 name = subproject.description
                 description = subproject.description
-                url = 'https://github.com/temporalio/temporal-java-sdk'
+                url = 'https://github.com/temporalio/sdk-java'
 
                 scm {
-                    connection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
-                    developerConnection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
-                    url = 'https://github.com/temporalio/temporal-java-sdk.git'
+                    connection = 'scm:git@github.com:temporalio/sdk-java.git'
+                    developerConnection = 'scm:git@github.com:temporalio/sdk-java.git'
+                    url = 'https://github.com/temporalio/sdk-java.git'
                 }
 
                 licenses {
