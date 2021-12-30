@@ -29,7 +29,7 @@ To generate licence headers execute
 
 ## Commit Messages
 
-Overcommit adds some requirements to your commit messages. At Uber, we follow the
+Overcommit adds some requirements to your commit messages. We follow the
 [Chris Beams](http://chris.beams.io/posts/git-commit/) guide to writing git
 commit messages. Read it, follow it, learn it, love it.
 

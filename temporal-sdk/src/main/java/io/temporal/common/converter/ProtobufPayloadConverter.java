@@ -19,7 +19,11 @@
 
 package io.temporal.common.converter;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
+import com.google.protobuf.MessageOrBuilder;
 import io.temporal.api.common.v1.Payload;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -39,10 +43,14 @@ public final class ProtobufPayloadConverter implements PayloadConverter {
       return Optional.empty();
     }
     try {
+      String messageTypeName = ((MessageOrBuilder) value).getDescriptorForType().getFullName();
       return Optional.of(
           Payload.newBuilder()
               .putMetadata(
                   EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_PROTOBUF)
+              .putMetadata(
+                  EncodingKeys.METADATA_MESSAGE_TYPE_KEY,
+                  ByteString.copyFrom(messageTypeName, UTF_8))
               .setData(((MessageLite) value).toByteString())
               .build());
     } catch (Exception e) {

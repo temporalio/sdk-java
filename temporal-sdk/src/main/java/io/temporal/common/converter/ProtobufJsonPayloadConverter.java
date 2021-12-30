@@ -59,11 +59,15 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
     }
 
     try {
+      String messageTypeName = ((MessageOrBuilder) value).getDescriptorForType().getFullName();
       String data = printer.print((MessageOrBuilder) value);
       return Optional.of(
           Payload.newBuilder()
               .putMetadata(
                   EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_PROTOBUF_JSON)
+              .putMetadata(
+                  EncodingKeys.METADATA_MESSAGE_TYPE_KEY,
+                  ByteString.copyFrom(messageTypeName, UTF_8))
               .setData(ByteString.copyFrom(data, UTF_8))
               .build());
     } catch (InvalidProtocolBufferException e) {
