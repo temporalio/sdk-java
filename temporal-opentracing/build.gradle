@@ -19,7 +19,7 @@ dependencies {
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation group: 'io.opentracing', name: 'opentracing-mock', version: "$opentracingVersion"
-    testImplementation group: 'io.jaegertracing', name: 'jaeger-client', version: '1.6.0'
+    testImplementation group: 'io.jaegertracing', name: 'jaeger-client', version: '1.7.0'
 
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
