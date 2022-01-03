@@ -51,8 +51,8 @@ public class ActivityExecutionContextBase implements ActivityExecutionContext {
   }
 
   @Override
-  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
-    return next.getHeartbeatDetails(detailsClass, detailsType);
+  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
+    return next.getHeartbeatDetails(detailsClass, detailsGenericType);
   }
 
   @Override

@@ -22,6 +22,7 @@ package io.temporal.activity;
 import io.temporal.api.common.v1.Payloads;
 import java.time.Duration;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 /**
  * Information about the Activity Task that the current Activity Execution is handling. Use {@link
@@ -64,7 +65,8 @@ public interface ActivityInfo {
   /** @return the Start-To-Close Timeout setting as a Duration. */
   Duration getStartToCloseTimeout();
 
-  /** @return the Heartbeat Timeout setting as a Duration. */
+  /** @return the Heartbeat Timeout setting as a Duration. {@link Duration#ZERO} if absent */
+  @Nonnull
   Duration getHeartbeatTimeout();
 
   Optional<Payloads> getHeartbeatDetails();

@@ -46,6 +46,9 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.internal.activity.ActivityExecutionContextFactory;
+import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
+import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.worker.ActivityTask;
@@ -53,6 +56,7 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
@@ -125,14 +129,24 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                 .setQueryRpcTimeout(Duration.ofSeconds(60))
                 .setDisableHealthCheck(true)
                 .build());
-    activityTaskHandler =
-        new POJOActivityTaskHandler(
+    ActivityExecutionContextFactory activityExecutionContextFactory =
+        new ActivityExecutionContextFactoryImpl(
             workflowServiceStubs,
             testEnvironmentOptions.getWorkflowClientOptions().getIdentity(),
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
+            WorkerOptions.getDefaultInstance().getMaxHeartbeatThrottleInterval(),
+            WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
-            heartbeatExecutor,
-            testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors());
+            heartbeatExecutor);
+    ActivityExecutionContextFactory laActivityExecutionContextFactory =
+        new LocalActivityExecutionContextFactoryImpl();
+    activityTaskHandler =
+        new POJOActivityTaskHandler(
+            testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
+            testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
+            testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors(),
+            activityExecutionContextFactory,
+            laActivityExecutionContextFactory);
   }
 
   private class HeartbeatInterceptingService extends WorkflowServiceGrpc.WorkflowServiceImplBase {

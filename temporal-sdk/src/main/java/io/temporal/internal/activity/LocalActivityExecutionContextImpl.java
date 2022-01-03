@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
@@ -52,7 +52,7 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
+  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
     return Optional.empty();
   }
 

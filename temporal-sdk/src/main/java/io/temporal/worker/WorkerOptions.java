@@ -22,7 +22,9 @@ package io.temporal.worker;
 import static java.lang.Double.compare;
 
 import com.google.common.base.Preconditions;
+import java.time.Duration;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 public final class WorkerOptions {
 
@@ -41,7 +43,7 @@ public final class WorkerOptions {
   private static final WorkerOptions DEFAULT_INSTANCE;
 
   static {
-    DEFAULT_INSTANCE = WorkerOptions.newBuilder().build();
+    DEFAULT_INSTANCE = WorkerOptions.newBuilder().validateAndBuildWithDefaults();
   }
 
   public static final class Builder {
@@ -52,6 +54,9 @@ public final class WorkerOptions {
     private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 200;
     private static final int DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = 200;
     private static final long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
+    private static final Duration DEFAULT_MAX_HEARTBEAT_THROTTLE_INTERVAL = Duration.ofSeconds(60);
+    private static final Duration DEFAULT_DEFAULT_HEARTBEAT_THROTTLE_INTERVAL =
+        Duration.ofSeconds(30);
 
     private double maxWorkerActivitiesPerSecond;
     private int maxConcurrentActivityExecutionSize;
@@ -62,6 +67,8 @@ public final class WorkerOptions {
     private int activityPollThreadCount;
     private boolean localActivityWorkerOnly;
     private long defaultDeadlockDetectionTimeout;
+    private Duration maxHeartbeatThrottleInterval;
+    private Duration defaultHeartbeatThrottleInterval;
 
     private Builder() {}
 
@@ -78,6 +85,8 @@ public final class WorkerOptions {
       activityPollThreadCount = o.activityPollThreadCount;
       localActivityWorkerOnly = o.localActivityWorkerOnly;
       defaultDeadlockDetectionTimeout = o.defaultDeadlockDetectionTimeout;
+      maxHeartbeatThrottleInterval = o.maxHeartbeatThrottleInterval;
+      defaultHeartbeatThrottleInterval = o.defaultHeartbeatThrottleInterval;
     }
 
     /**
@@ -214,6 +223,35 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * @param interval the maximum amount of time between sending each pending heartbeat to the
+     *     server. Regardless of heartbeat timeout, no pending heartbeat will wait longer than this
+     *     amount of time to send. Default is 60s, which is chosen if set to null or 0.
+     * @return {@code this}
+     */
+    public Builder setMaxHeartbeatThrottleInterval(@Nullable Duration interval) {
+      Preconditions.checkArgument(
+          interval == null || !interval.isNegative(),
+          "Negative maxHeartbeatThrottleInterval value: " + interval);
+      this.maxHeartbeatThrottleInterval = interval;
+      return this;
+    }
+
+    /**
+     * @param interval the default amount of time between sending each pending heartbeat to the
+     *     server. This is used if the ActivityOptions do not provide a HeartbeatTimeout. Otherwise,
+     *     the interval becomes a value a bit smaller than the given HeartbeatTimeout. Default is
+     *     30s, which is chosen if set to null or 0.
+     * @return {@code this}
+     */
+    public Builder setDefaultHeartbeatThrottleInterval(@Nullable Duration interval) {
+      Preconditions.checkArgument(
+          interval == null || !interval.isNegative(),
+          "Negative defaultHeartbeatThrottleInterval value: " + interval);
+      this.defaultHeartbeatThrottleInterval = interval;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -224,7 +262,9 @@ public final class WorkerOptions {
           workflowPollThreadCount,
           activityPollThreadCount,
           localActivityWorkerOnly,
-          defaultDeadlockDetectionTimeout);
+          defaultDeadlockDetectionTimeout,
+          maxHeartbeatThrottleInterval,
+          defaultHeartbeatThrottleInterval);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -265,7 +305,13 @@ public final class WorkerOptions {
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout == 0
               ? DEFAULT_DEADLOCK_DETECTION_TIMEOUT
-              : defaultDeadlockDetectionTimeout);
+              : defaultDeadlockDetectionTimeout,
+          maxHeartbeatThrottleInterval == null || maxHeartbeatThrottleInterval.isZero()
+              ? DEFAULT_MAX_HEARTBEAT_THROTTLE_INTERVAL
+              : maxHeartbeatThrottleInterval,
+          defaultHeartbeatThrottleInterval == null || defaultHeartbeatThrottleInterval.isZero()
+              ? DEFAULT_DEFAULT_HEARTBEAT_THROTTLE_INTERVAL
+              : defaultHeartbeatThrottleInterval);
     }
   }
 
@@ -278,6 +324,8 @@ public final class WorkerOptions {
   private final int activityPollThreadCount;
   private final boolean localActivityWorkerOnly;
   private final long defaultDeadlockDetectionTimeout;
+  private final Duration maxHeartbeatThrottleInterval;
+  private final Duration defaultHeartbeatThrottleInterval;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -288,7 +336,9 @@ public final class WorkerOptions {
       int workflowPollThreadCount,
       int activityPollThreadCount,
       boolean localActivityWorkerOnly,
-      long defaultDeadlockDetectionTimeout) {
+      long defaultDeadlockDetectionTimeout,
+      Duration maxHeartbeatThrottleInterval,
+      Duration defaultHeartbeatThrottleInterval) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -298,6 +348,8 @@ public final class WorkerOptions {
     this.activityPollThreadCount = activityPollThreadCount;
     this.localActivityWorkerOnly = localActivityWorkerOnly;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
+    this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
+    this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -336,6 +388,14 @@ public final class WorkerOptions {
     return localActivityWorkerOnly;
   }
 
+  public Duration getMaxHeartbeatThrottleInterval() {
+    return maxHeartbeatThrottleInterval;
+  }
+
+  public Duration getDefaultHeartbeatThrottleInterval() {
+    return defaultHeartbeatThrottleInterval;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -349,7 +409,9 @@ public final class WorkerOptions {
         && workflowPollThreadCount == that.workflowPollThreadCount
         && activityPollThreadCount == that.activityPollThreadCount
         && localActivityWorkerOnly == that.localActivityWorkerOnly
-        && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout;
+        && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
+        && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
+        && Objects.equals(defaultHeartbeatThrottleInterval, that.defaultHeartbeatThrottleInterval);
   }
 
   @Override
@@ -363,7 +425,9 @@ public final class WorkerOptions {
         workflowPollThreadCount,
         activityPollThreadCount,
         localActivityWorkerOnly,
-        defaultDeadlockDetectionTimeout);
+        defaultDeadlockDetectionTimeout,
+        maxHeartbeatThrottleInterval,
+        defaultHeartbeatThrottleInterval);
   }
 
   @Override
@@ -387,6 +451,10 @@ public final class WorkerOptions {
         + localActivityWorkerOnly
         + ", defaultDeadlockDetectionTimeout="
         + defaultDeadlockDetectionTimeout
+        + ", maxHeartbeatThrottleInterval="
+        + maxHeartbeatThrottleInterval
+        + ", defaultHeartbeatThrottleInterval="
+        + defaultHeartbeatThrottleInterval
         + '}';
   }
 }

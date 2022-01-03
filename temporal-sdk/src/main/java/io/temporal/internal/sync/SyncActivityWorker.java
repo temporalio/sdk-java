@@ -20,6 +20,9 @@
 package io.temporal.internal.sync;
 
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.activity.ActivityExecutionContextFactory;
+import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
+import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -64,14 +67,24 @@ public class SyncActivityWorker implements SuspendableWorker {
                 // the closest thing is options.getPollerOptions().getUncaughtExceptionHandler(),
                 // but it's pollerOptions, not heartbeat.
                 null));
+    ActivityExecutionContextFactory activityExecutionContextFactory =
+        new ActivityExecutionContextFactoryImpl(
+            service,
+            identity,
+            namespace,
+            options.getMaxHeartbeatThrottleInterval(),
+            options.getDefaultHeartbeatThrottleInterval(),
+            options.getDataConverter(),
+            heartbeatExecutor);
+    ActivityExecutionContextFactory laActivityExecutionContextFactory =
+        new LocalActivityExecutionContextFactoryImpl();
     this.taskHandler =
         new POJOActivityTaskHandler(
-            service,
-            options.getIdentity(),
             namespace,
             options.getDataConverter(),
-            heartbeatExecutor,
-            workerInterceptors);
+            workerInterceptors,
+            activityExecutionContextFactory,
+            laActivityExecutionContextFactory);
     this.worker =
         new ActivityWorker(
             service, namespace, taskQueue, taskQueueActivitiesPerSecond, options, taskHandler);

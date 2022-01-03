@@ -23,6 +23,9 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.activity.ActivityExecutionContextFactory;
+import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
+import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
@@ -101,14 +104,24 @@ public class SyncWorkflowWorker
                 // the closest thing is options.getPollerOptions().getUncaughtExceptionHandler(),
                 // but it's pollerOptions, not heartbeat.
                 null));
-    laTaskHandler =
-        new POJOActivityTaskHandler(
+    ActivityExecutionContextFactory activityExecutionContextFactory =
+        new ActivityExecutionContextFactoryImpl(
             service,
             localActivityOptions.getIdentity(),
             namespace,
+            localActivityOptions.getMaxHeartbeatThrottleInterval(),
+            localActivityOptions.getDefaultHeartbeatThrottleInterval(),
             localActivityOptions.getDataConverter(),
-            this.heartbeatExecutor,
-            workerInterceptors);
+            heartbeatExecutor);
+    ActivityExecutionContextFactory laActivityExecutionContextFactory =
+        new LocalActivityExecutionContextFactoryImpl();
+    laTaskHandler =
+        new POJOActivityTaskHandler(
+            namespace,
+            localActivityOptions.getDataConverter(),
+            workerInterceptors,
+            activityExecutionContextFactory,
+            laActivityExecutionContextFactory);
     laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
 
     WorkflowTaskHandler taskHandler =

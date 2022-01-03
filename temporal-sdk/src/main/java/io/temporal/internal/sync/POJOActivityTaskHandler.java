@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.Activity;
@@ -44,13 +45,13 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.failure.SimulatedTimeoutFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.serviceclient.MetricsTag;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -58,8 +59,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,29 +70,29 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   private static final Logger log = LoggerFactory.getLogger(POJOActivityTaskHandler.class);
 
   private final DataConverter dataConverter;
-  private final ScheduledExecutorService heartbeatExecutor;
-  private final WorkflowServiceStubs service;
-  private final String identity;
   private final String namespace;
   private final WorkerInterceptor[] interceptors;
+  private final ActivityExecutionContextFactory activityExecutionContextFactory;
+  private final ActivityExecutionContextFactory localActivityExecutionContextFactory;
   private final Map<String, ActivityTaskExecutor> activities =
       Collections.synchronizedMap(new HashMap<>());
   private ActivityTaskExecutor dynamicActivity;
 
   @VisibleForTesting
   public POJOActivityTaskHandler(
-      WorkflowServiceStubs service,
-      String identity,
-      String namespace,
-      DataConverter dataConverter,
-      ScheduledExecutorService heartbeatExecutor,
-      WorkerInterceptor[] interceptors) {
-    this.service = Objects.requireNonNull(service);
-    this.identity = identity;
+      @Nonnull String namespace,
+      @Nonnull DataConverter dataConverter,
+      @Nonnull WorkerInterceptor[] interceptors,
+      ActivityExecutionContextFactory activityExecutionContextFactory,
+      ActivityExecutionContextFactory localActivityExecutionContextFactory) {
     this.namespace = Objects.requireNonNull(namespace);
     this.dataConverter = Objects.requireNonNull(dataConverter);
-    this.heartbeatExecutor = Objects.requireNonNull(heartbeatExecutor);
     this.interceptors = Objects.requireNonNull(interceptors);
+    Preconditions.checkState(
+        activityExecutionContextFactory != null || localActivityExecutionContextFactory != null,
+        "At least one of activityExecutionContextFactory or localActivityExecutionContextFactory should be not null");
+    this.activityExecutionContextFactory = activityExecutionContextFactory;
+    this.localActivityExecutionContextFactory = localActivityExecutionContextFactory;
   }
 
   private void registerActivityImplementation(
@@ -221,15 +222,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context =
-          new ActivityExecutionContextImpl(
-              service,
-              namespace,
-              info,
-              dataConverter,
-              heartbeatExecutor,
-              info.getCompletionHandle(),
-              metricsScope,
-              identity);
+          Objects.requireNonNull(activityExecutionContextFactory).createContext(info, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new POJOActivityInboundCallsInterceptor(activity, method);
@@ -302,15 +295,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context =
-          new ActivityExecutionContextImpl(
-              service,
-              namespace,
-              info,
-              dataConverter,
-              heartbeatExecutor,
-              info.getCompletionHandle(),
-              metricsScope,
-              identity);
+          Objects.requireNonNull(activityExecutionContextFactory).createContext(info, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new DynamicActivityInboundCallsInterceptor(activity);
@@ -407,7 +392,9 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
-      ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info, metricsScope);
+      ActivityExecutionContext context =
+          Objects.requireNonNull(localActivityExecutionContextFactory)
+              .createContext(info, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new POJOActivityInboundCallsInterceptor(activity, method);
