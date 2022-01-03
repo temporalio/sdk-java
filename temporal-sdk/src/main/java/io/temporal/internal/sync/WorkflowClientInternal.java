@@ -36,9 +36,10 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.RootWorkflowClientInvoker;
-import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
-import io.temporal.internal.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
+import io.temporal.internal.client.external.GenericWorkflowClientExternal;
+import io.temporal.internal.client.external.GenericWorkflowClientExternalImpl;
+import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.client.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -55,7 +56,7 @@ import java.util.concurrent.CompletableFuture;
 
 public final class WorkflowClientInternal implements WorkflowClient {
 
-  private final GenericWorkflowClientExternalImpl genericClient;
+  private final GenericWorkflowClientExternal genericClient;
   private final WorkflowClientOptions options;
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
   private final WorkflowClientInterceptor[] interceptors;

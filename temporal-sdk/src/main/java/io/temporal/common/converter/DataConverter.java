@@ -58,14 +58,14 @@ public interface DataConverter {
    *
    * @param index index of the value in the payloads
    * @param content serialized value to convert to Java objects.
-   * @param parameterType type of the parameter stored in the content
-   * @param genericParameterType generic type of the parameter stored in the content
+   * @param valueType type of the value stored in the content
+   * @param valueGenericType generic type of the value stored in the content
    * @return converted Java object
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
   <T> T fromPayloads(
-      int index, Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
+      int index, Optional<Payloads> content, Class<T> valueType, Type valueGenericType)
       throws DataConverterException;
 
   static Object[] arrayFromPayloads(

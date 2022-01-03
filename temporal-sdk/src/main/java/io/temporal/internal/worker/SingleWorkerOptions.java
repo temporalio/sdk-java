@@ -47,6 +47,8 @@ public final class SingleWorkerOptions {
     private boolean enableLoggingInReplay;
     private List<ContextPropagator> contextPropagators;
     private long defaultDeadlockDetectionTimeout;
+    private Duration maxHeartbeatThrottleInterval;
+    private Duration defaultHeartbeatThrottleInterval;
 
     private Builder() {}
 
@@ -63,6 +65,8 @@ public final class SingleWorkerOptions {
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
       this.contextPropagators = options.getContextPropagators();
       this.defaultDeadlockDetectionTimeout = options.getDefaultDeadlockDetectionTimeout();
+      this.maxHeartbeatThrottleInterval = options.getMaxHeartbeatThrottleInterval();
+      this.defaultHeartbeatThrottleInterval = options.getDefaultHeartbeatThrottleInterval();
     }
 
     public Builder setIdentity(String identity) {
@@ -111,6 +115,16 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setMaxHeartbeatThrottleInterval(Duration maxHeartbeatThrottleInterval) {
+      this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
+      return this;
+    }
+
+    public Builder setDefaultHeartbeatThrottleInterval(Duration defaultHeartbeatThrottleInterval) {
+      this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       if (pollerOptions == null) {
         pollerOptions =
@@ -138,7 +152,9 @@ public final class SingleWorkerOptions {
           metricsScope,
           enableLoggingInReplay,
           contextPropagators,
-          defaultDeadlockDetectionTimeout);
+          defaultDeadlockDetectionTimeout,
+          maxHeartbeatThrottleInterval,
+          defaultHeartbeatThrottleInterval);
     }
   }
 
@@ -151,6 +167,8 @@ public final class SingleWorkerOptions {
   private final boolean enableLoggingInReplay;
   private final List<ContextPropagator> contextPropagators;
   private final long defaultDeadlockDetectionTimeout;
+  private final Duration maxHeartbeatThrottleInterval;
+  private final Duration defaultHeartbeatThrottleInterval;
 
   private SingleWorkerOptions(
       String identity,
@@ -161,7 +179,9 @@ public final class SingleWorkerOptions {
       Scope metricsScope,
       boolean enableLoggingInReplay,
       List<ContextPropagator> contextPropagators,
-      long defaultDeadlockDetectionTimeout) {
+      long defaultDeadlockDetectionTimeout,
+      Duration maxHeartbeatThrottleInterval,
+      Duration defaultHeartbeatThrottleInterval) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.dataConverter = dataConverter;
@@ -171,6 +191,8 @@ public final class SingleWorkerOptions {
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.contextPropagators = contextPropagators;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
+    this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
+    this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
   }
 
   public String getIdentity() {
@@ -207,5 +229,13 @@ public final class SingleWorkerOptions {
 
   public long getDefaultDeadlockDetectionTimeout() {
     return defaultDeadlockDetectionTimeout;
+  }
+
+  public Duration getMaxHeartbeatThrottleInterval() {
+    return maxHeartbeatThrottleInterval;
+  }
+
+  public Duration getDefaultHeartbeatThrottleInterval() {
+    return defaultHeartbeatThrottleInterval;
   }
 }

@@ -35,14 +35,14 @@ public class ShutdownManager implements Closeable {
 
   private static final int CHECK_PERIOD_MS = 250;
 
-  /** executorToShutdown.shutdownNow() -> timed wait for a graceful termination */
+  /** executorToShutdown.shutdownNow() -&gt; timed wait for a graceful termination */
   public CompletableFuture<Void> shutdownExecutorNow(
       ExecutorService executorToShutdown, String executorName, Duration timeout) {
     executorToShutdown.shutdownNow();
     return limitedWait(executorToShutdown, executorName, timeout);
   }
 
-  /** executorToShutdown.shutdownNow() -> unlimited wait for termination */
+  /** executorToShutdown.shutdownNow() -&gt; unlimited wait for termination */
   public CompletableFuture<Void> shutdownExecutorNowUntimed(
       ExecutorService executorToShutdown, String executorName) {
     executorToShutdown.shutdownNow();
@@ -50,7 +50,7 @@ public class ShutdownManager implements Closeable {
   }
 
   /**
-   * executorToShutdown.shutdown() -> timed wait for graceful termination ->
+   * executorToShutdown.shutdown() -&gt; timed wait for graceful termination ->
    * executorToShutdown.shutdownNow()
    */
   public CompletableFuture<Void> shutdownExecutor(
@@ -60,7 +60,7 @@ public class ShutdownManager implements Closeable {
     return limitedWait(executorToShutdown, executorName, timeout);
   }
 
-  /** executorToShutdown.shutdown() -> unlimited wait for graceful termination */
+  /** executorToShutdown.shutdown() -&gt; unlimited wait for graceful termination */
   public CompletableFuture<Void> shutdownExecutorUntimed(
       ExecutorService executorToShutdown, String executorName) {
     executorToShutdown.shutdown();

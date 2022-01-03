@@ -58,12 +58,12 @@ public interface PayloadConverter {
    * Implements conversion of a single value.
    *
    * @param content Serialized value to convert to a Java object.
-   * @param valueClass
-   * @param valueType
+   * @param valueType type of the value stored in the {@code content}
+   * @param valueGenericType generic type of the value stored in the {@code content}
    * @return converted Java object
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  <T> T fromData(Payload content, Class<T> valueClass, Type valueType)
+  <T> T fromData(Payload content, Class<T> valueType, Type valueGenericType)
       throws DataConverterException;
 }

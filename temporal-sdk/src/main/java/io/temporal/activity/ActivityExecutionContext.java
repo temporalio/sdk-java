@@ -21,6 +21,7 @@ package io.temporal.activity;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -73,9 +74,9 @@ public interface ActivityExecutionContext {
    * #getHeartbeatDetails(Class)}() and resume progress.
    *
    * @param detailsClass Class of the Heartbeat details
-   * @param detailsType Type of the Heartbeat details
+   * @param detailsGenericType Type of the Heartbeat details
    */
-  <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType);
+  <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
 
   /**
    * Gets a correlation token that can be used to complete the Activity Execution asynchronously
@@ -117,5 +118,12 @@ public interface ActivityExecutionContext {
    */
   ManualActivityCompletionClient useLocalManualCompletion();
 
+  /**
+   * Get scope for reporting business metrics in activity logic. This scope is tagged with a
+   * workflow and an activity type.
+   *
+   * <p>The original metrics scope is set through {@link
+   * WorkflowServiceStubsOptions.Builder#setMetricsScope(Scope)} when a worker starts up.
+   */
   Scope getMetricsScope();
 }

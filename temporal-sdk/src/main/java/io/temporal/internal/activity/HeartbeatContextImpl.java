@@ -17,91 +17,79 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
-import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.client.ActivityCanceledException;
-import io.temporal.client.ActivityCompletionException;
-import io.temporal.client.ActivityCompletionFailureException;
-import io.temporal.client.ActivityNotExistsException;
-import io.temporal.client.ActivityWorkerShutdownException;
+import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.ActivityClientHelper;
-import io.temporal.internal.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Base implementation of an {@link ActivityExecutionContext}.
- *
- * @author fateev, suskin
- * @see ActivityExecutionContext
- */
-class ActivityExecutionContextImpl implements ActivityExecutionContext {
-
-  private static final Logger log = LoggerFactory.getLogger(ActivityExecutionContextImpl.class);
+@ThreadSafe
+public class HeartbeatContextImpl implements HeartbeatContext {
+  private static final Logger log = LoggerFactory.getLogger(HeartbeatContextImpl.class);
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
-  private static final long MAX_HEARTBEAT_INTERVAL_MILLIS = 30000;
+
+  private final Lock lock = new ReentrantLock();
 
   private final WorkflowServiceStubs service;
-  private final Lock lock = new ReentrantLock();
-  private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
-  private final Functions.Proc completionHandle;
+  private final String namespace;
+  private final ActivityInfo info;
+  private final String identity;
   private final ScheduledExecutorService heartbeatExecutor;
   private final long heartbeatIntervalMillis;
   private final DataConverter dataConverter;
-  private final String namespace;
-  private final String identity;
   private final Scope metricsScope;
-  private final ActivityInfo info;
-  private boolean useLocalManualCompletion;
-  private boolean doNotCompleteOnReturn;
-  private boolean hasOutstandingHeartbeat;
-  private ActivityCompletionException lastException;
-  private Optional<Object> lastDetails;
-  private ScheduledFuture future;
+  private final Optional<Payloads> prevAttemptHeartbeatDetails;
 
-  /** Create an ActivityExecutionContextImpl with the given attributes. */
-  ActivityExecutionContextImpl(
+  // turned into true on a reception of the first heartbeat
+  private boolean receivedAHeartbeat = false;
+  private Object lastDetails;
+  private boolean hasOutstandingHeartbeat;
+  private ScheduledFuture<?> scheduledHeartbeat;
+
+  private ActivityCompletionException lastException;
+
+  public HeartbeatContextImpl(
       WorkflowServiceStubs service,
       String namespace,
       ActivityInfo info,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
-      Functions.Proc completionHandle,
       Scope metricsScope,
-      String identity) {
+      String identity,
+      Duration maxHeartbeatThrottleInterval,
+      Duration defaultHeartbeatThrottleInterval) {
     this.service = service;
+    this.metricsScope = metricsScope;
     this.dataConverter = dataConverter;
     this.namespace = namespace;
-    this.identity = identity;
-    this.metricsScope = metricsScope;
     this.info = info;
+    this.identity = identity;
+    this.prevAttemptHeartbeatDetails = info.getHeartbeatDetails();
     this.heartbeatExecutor = heartbeatExecutor;
     this.heartbeatIntervalMillis =
-        Math.min(
-            (long) (0.8 * info.getHeartbeatTimeout().toMillis()), MAX_HEARTBEAT_INTERVAL_MILLIS);
-    this.completionHandle = completionHandle;
-    this.manualCompletionClientFactory =
-        new ManualActivityCompletionClientFactoryImpl(
-            service, namespace, identity, dataConverter, metricsScope);
+        getHeartbeatIntervalMs(
+            info.getHeartbeatTimeout(),
+            maxHeartbeatThrottleInterval,
+            defaultHeartbeatThrottleInterval);
   }
 
   /** @see ActivityExecutionContext#heartbeat(Object) */
@@ -112,12 +100,12 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     }
     lock.lock();
     try {
-      // always set lastDetail. Successful heartbeat will clear it.
-      lastDetails = Optional.ofNullable(details);
+      receivedAHeartbeat = true;
+      lastDetails = details;
       hasOutstandingHeartbeat = true;
       // Only do sync heartbeat if there is no such call scheduled.
-      if (future == null) {
-        doHeartBeat(details);
+      if (scheduledHeartbeat == null) {
+        doHeartBeatLocked(details);
       }
       if (lastException != null) {
         throw lastException;
@@ -127,33 +115,25 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     }
   }
 
+  /** @see ActivityExecutionContext#getHeartbeatDetails(Class, Type) */
   @Override
-  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass) {
-    return getHeartbeatDetails(detailsClass, detailsClass);
-  }
-
-  @Override
-  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
+  @SuppressWarnings("unchecked")
+  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {
     lock.lock();
     try {
-      if (lastDetails != null) {
-        @SuppressWarnings("unchecked")
-        Optional<V> result = (Optional<V>) this.lastDetails;
-        return result;
+      if (receivedAHeartbeat) {
+        return Optional.ofNullable((V) this.lastDetails);
+      } else {
+        return Optional.ofNullable(
+            dataConverter.fromPayloads(
+                0, prevAttemptHeartbeatDetails, detailsClass, detailsGenericType));
       }
-      Optional<Payloads> details = info.getHeartbeatDetails();
-      return Optional.ofNullable(dataConverter.fromPayloads(0, details, detailsClass, detailsType));
     } finally {
       lock.unlock();
     }
   }
 
-  @Override
-  public byte[] getTaskToken() {
-    return info.getTaskToken();
-  }
-
-  private void doHeartBeat(Object details) {
+  private void doHeartBeatLocked(Object details) {
     long nextHeartbeatDelay;
     try {
       sendHeartbeatRequest(details);
@@ -169,20 +149,22 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       nextHeartbeatDelay = HEARTBEAT_RETRY_WAIT_MILLIS;
     }
 
-    scheduleNextHeartbeat(nextHeartbeatDelay);
+    scheduleNextHeartbeatLocked(nextHeartbeatDelay);
   }
 
-  private void scheduleNextHeartbeat(long delay) {
-    ScheduledFuture<?> f =
+  private void scheduleNextHeartbeatLocked(long delay) {
+    scheduledHeartbeat =
         heartbeatExecutor.schedule(
             () -> {
               lock.lock();
               try {
                 if (hasOutstandingHeartbeat) {
-                  Object details = lastDetails.orElse(null);
-                  doHeartBeat(details);
+                  doHeartBeatLocked(lastDetails);
                 } else {
-                  future = null;
+                  // if no new heartbeats have been submitted in the previous time interval, we
+                  // don't need to throttle
+                  // and the next heartbeat should go immediately without following a schedule.
+                  scheduledHeartbeat = null;
                 }
               } finally {
                 lock.unlock();
@@ -190,15 +172,9 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
             },
             delay,
             TimeUnit.MILLISECONDS);
-    lock.lock();
-    try {
-      future = f;
-    } finally {
-      lock.unlock();
-    }
   }
 
-  public void sendHeartbeatRequest(Object details) {
+  private void sendHeartbeatRequest(Object details) {
     try {
       RecordActivityTaskHeartbeatResponse status =
           ActivityClientHelper.sendHeartbeatRequest(
@@ -226,57 +202,14 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     }
   }
 
-  @Override
-  public void doNotCompleteOnReturn() {
-    lock.lock();
-    try {
-      doNotCompleteOnReturn = true;
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  @Override
-  public boolean isDoNotCompleteOnReturn() {
-    lock.lock();
-    try {
-      return doNotCompleteOnReturn;
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  @Override
-  public boolean isUseLocalManualCompletion() {
-    lock.lock();
-    try {
-      return useLocalManualCompletion;
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  @Override
-  public ManualActivityCompletionClient useLocalManualCompletion() {
-    lock.lock();
-    try {
-      doNotCompleteOnReturn();
-      useLocalManualCompletion = true;
-      return new CompletionAwareManualCompletionClient(
-          manualCompletionClientFactory.getClient(info.getTaskToken()), completionHandle);
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  @Override
-  public Scope getMetricsScope() {
-    return metricsScope;
-  }
-
-  /** @see ActivityExecutionContext#getInfo() */
-  @Override
-  public ActivityInfo getInfo() {
-    return info;
+  private static long getHeartbeatIntervalMs(
+      Duration activityHeartbeatTimeout,
+      Duration maxHeartbeatThrottleInterval,
+      Duration defaultHeartbeatThrottleInterval) {
+    long interval =
+        activityHeartbeatTimeout.isZero()
+            ? defaultHeartbeatThrottleInterval.toMillis()
+            : (long) (0.8 * activityHeartbeatTimeout.toMillis());
+    return Math.min(interval, maxHeartbeatThrottleInterval.toMillis());
   }
 }

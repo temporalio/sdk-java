@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.external;
+package io.temporal.internal.client.external;
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
