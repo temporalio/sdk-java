@@ -19,7 +19,7 @@
 
 package io.temporal.activity;
 
-import io.temporal.internal.sync.ActivityInternal;
+import io.temporal.internal.activity.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
 
 /**

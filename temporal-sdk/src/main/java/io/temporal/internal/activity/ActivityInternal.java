@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.activity;
 
 import io.temporal.activity.ActivityExecutionContext;
 

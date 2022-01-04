@@ -17,11 +17,9 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.activity;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.Activity;
@@ -45,7 +43,6 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.failure.SimulatedTimeoutFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.failure.TimeoutFailure;
-import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTask;
@@ -59,12 +56,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@VisibleForTesting
 public final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   private static final Logger log = LoggerFactory.getLogger(POJOActivityTaskHandler.class);
@@ -72,95 +67,20 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final DataConverter dataConverter;
   private final String namespace;
   private final WorkerInterceptor[] interceptors;
-  private final ActivityExecutionContextFactory activityExecutionContextFactory;
-  private final ActivityExecutionContextFactory localActivityExecutionContextFactory;
+  private final ActivityExecutionContextFactory executionContextFactory;
   private final Map<String, ActivityTaskExecutor> activities =
       Collections.synchronizedMap(new HashMap<>());
   private ActivityTaskExecutor dynamicActivity;
 
-  @VisibleForTesting
   public POJOActivityTaskHandler(
       @Nonnull String namespace,
       @Nonnull DataConverter dataConverter,
       @Nonnull WorkerInterceptor[] interceptors,
-      ActivityExecutionContextFactory activityExecutionContextFactory,
-      ActivityExecutionContextFactory localActivityExecutionContextFactory) {
+      @Nonnull ActivityExecutionContextFactory executionContextFactory) {
     this.namespace = Objects.requireNonNull(namespace);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.interceptors = Objects.requireNonNull(interceptors);
-    Preconditions.checkState(
-        activityExecutionContextFactory != null || localActivityExecutionContextFactory != null,
-        "At least one of activityExecutionContextFactory or localActivityExecutionContextFactory should be not null");
-    this.activityExecutionContextFactory = activityExecutionContextFactory;
-    this.localActivityExecutionContextFactory = localActivityExecutionContextFactory;
-  }
-
-  private void registerActivityImplementation(
-      Object activity, BiFunction<Method, Object, ActivityTaskExecutor> newTaskExecutor) {
-    if (activity instanceof Class) {
-      throw new IllegalArgumentException("Activity object instance expected, not the class");
-    }
-    if (activity instanceof DynamicActivity) {
-      if (dynamicActivity != null) {
-        throw new IllegalStateException(
-            "An implementation of DynamicActivity is already registered with the worker");
-      }
-      dynamicActivity = new DynamicActivityImplementation((DynamicActivity) activity);
-      return;
-    }
-    Class<?> cls = activity.getClass();
-    POJOActivityImplMetadata activityImplMetadata = POJOActivityImplMetadata.newInstance(cls);
-    for (POJOActivityMethodMetadata activityMetadata : activityImplMetadata.getActivityMethods()) {
-      String typeName = activityMetadata.getActivityTypeName();
-      if (activities.containsKey(typeName)) {
-        throw new IllegalArgumentException(
-            "\"" + typeName + "\" activity type is already registered with the worker");
-      }
-      Method method = activityMetadata.getMethod();
-      ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
-      activities.put(typeName, implementation);
-    }
-  }
-
-  private ActivityTaskHandler.Result mapToActivityFailure(
-      Throwable exception, String activityId, Scope metricsScope, boolean isLocalActivity) {
-    if (exception instanceof ActivityCanceledException) {
-      if (isLocalActivity) {
-        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
-      } else {
-        metricsScope.counter(MetricsType.ACTIVITY_CANCELED_COUNTER).inc(1);
-      }
-      String stackTrace = FailureConverter.serializeStackTrace(exception);
-      throw new FailureWrapperException(
-          Failure.newBuilder()
-              .setStackTrace(stackTrace)
-              .setCanceledFailureInfo(CanceledFailureInfo.newBuilder())
-              .build());
-    }
-    Scope ms =
-        metricsScope.tagged(
-            ImmutableMap.of(MetricsTag.EXCEPTION, exception.getClass().getSimpleName()));
-    if (isLocalActivity) {
-      ms.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
-    } else {
-      ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
-    }
-    if (exception instanceof TemporalFailure) {
-      ((TemporalFailure) exception).setDataConverter(dataConverter);
-    }
-    if (exception instanceof TimeoutFailure) {
-      exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);
-    }
-    Failure failure = FailureConverter.exceptionToFailure(exception);
-    RespondActivityTaskFailedRequest.Builder result =
-        RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
-    return new ActivityTaskHandler.Result(
-        activityId,
-        null,
-        new Result.TaskFailedResult(result.build(), exception),
-        null,
-        null,
-        false);
+    this.executionContextFactory = Objects.requireNonNull(executionContextFactory);
   }
 
   @Override
@@ -170,13 +90,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   public void registerActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
-      registerActivityImplementation(activity, POJOActivityImplementation::new);
-    }
-  }
-
-  void registerLocalActivityImplementations(Object[] activitiesImplementation) {
-    for (Object activity : activitiesImplementation) {
-      registerActivityImplementation(activity, POJOLocalActivityImplementation::new);
+      registerActivityImplementation(activity);
     }
   }
 
@@ -206,6 +120,32 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     return activity.execute(activityInfo, metricsScope);
   }
 
+  private void registerActivityImplementation(Object activity) {
+    if (activity instanceof Class) {
+      throw new IllegalArgumentException("Activity object instance expected, not the class");
+    }
+    if (activity instanceof DynamicActivity) {
+      if (dynamicActivity != null) {
+        throw new IllegalStateException(
+            "An implementation of DynamicActivity is already registered with the worker");
+      }
+      dynamicActivity = new DynamicActivityImplementation((DynamicActivity) activity);
+      return;
+    }
+    Class<?> cls = activity.getClass();
+    POJOActivityImplMetadata activityImplMetadata = POJOActivityImplMetadata.newInstance(cls);
+    for (POJOActivityMethodMetadata activityMetadata : activityImplMetadata.getActivityMethods()) {
+      String typeName = activityMetadata.getActivityTypeName();
+      if (activities.containsKey(typeName)) {
+        throw new IllegalArgumentException(
+            "\"" + typeName + "\" activity type is already registered with the worker");
+      }
+      Method method = activityMetadata.getMethod();
+      ActivityTaskExecutor implementation = new POJOActivityImplementation(method, activity);
+      activities.put(typeName, implementation);
+    }
+  }
+
   private interface ActivityTaskExecutor {
     ActivityTaskHandler.Result execute(ActivityInfoInternal task, Scope metricsScope);
   }
@@ -221,8 +161,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
-      ActivityExecutionContext context =
-          Objects.requireNonNull(activityExecutionContextFactory).createContext(info, metricsScope);
+      ActivityExecutionContext context = executionContextFactory.createContext(info, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new POJOActivityInboundCallsInterceptor(activity, method);
@@ -285,7 +224,6 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   private class DynamicActivityImplementation implements ActivityTaskExecutor {
-
     private final DynamicActivity activity;
 
     public DynamicActivityImplementation(DynamicActivity activity) {
@@ -294,8 +232,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
 
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
-      ActivityExecutionContext context =
-          Objects.requireNonNull(activityExecutionContextFactory).createContext(info, metricsScope);
+      ActivityExecutionContext context = executionContextFactory.createContext(info, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
           new DynamicActivityInboundCallsInterceptor(activity);
@@ -327,32 +264,6 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
   }
 
-  private Result activityFailureToResult(
-      ActivityInfoInternal info, Scope metricsScope, Throwable e) {
-    e = CheckedExceptionWrapper.unwrap(e);
-    if (e instanceof ActivityCanceledException) {
-      if (log.isInfoEnabled()) {
-        log.info(
-            "Activity canceled. ActivityId="
-                + info.getActivityId()
-                + ", activityType="
-                + info.getActivityType()
-                + ", attempt="
-                + info.getAttempt());
-      }
-    } else if (log.isWarnEnabled()) {
-      log.warn(
-          "Activity failure. ActivityId="
-              + info.getActivityId()
-              + ", activityType="
-              + info.getActivityType()
-              + ", attempt="
-              + info.getAttempt(),
-          e);
-    }
-    return mapToActivityFailure(e, info.getActivityId(), metricsScope, info.isLocal());
-  }
-
   private static class DynamicActivityInboundCallsInterceptor
       implements ActivityInboundCallsInterceptor {
     private final DynamicActivity activity;
@@ -381,55 +292,68 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
   }
 
-  private class POJOLocalActivityImplementation implements ActivityTaskExecutor {
-    private final Method method;
-    private final Object activity;
-
-    POJOLocalActivityImplementation(Method interfaceMethod, Object activity) {
-      this.method = interfaceMethod;
-      this.activity = activity;
+  private Result activityFailureToResult(
+      ActivityInfoInternal info, Scope metricsScope, Throwable e) {
+    e = CheckedExceptionWrapper.unwrap(e);
+    boolean local = info.isLocal();
+    if (e instanceof ActivityCanceledException) {
+      log.info(
+          "{} canceled. ActivityId={}, activityType={}, attempt={}",
+          local ? "Local activity" : "Activity",
+          info.getActivityId(),
+          info.getActivityType(),
+          info.getAttempt());
+    } else {
+      log.warn(
+          "{} failure. ActivityId={}, activityType={}, attempt={}",
+          local ? "Local activity" : "Activity",
+          info.getActivityId(),
+          info.getActivityType(),
+          info.getAttempt(),
+          e);
     }
+    return mapToActivityFailure(e, info.getActivityId(), metricsScope, local);
+  }
 
-    @Override
-    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
-      ActivityExecutionContext context =
-          Objects.requireNonNull(localActivityExecutionContextFactory)
-              .createContext(info, metricsScope);
-      Optional<Payloads> input = info.getInput();
-      ActivityInboundCallsInterceptor inboundCallsInterceptor =
-          new POJOActivityInboundCallsInterceptor(activity, method);
-      for (WorkerInterceptor interceptor : interceptors) {
-        inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
+  private ActivityTaskHandler.Result mapToActivityFailure(
+      Throwable exception, String activityId, Scope metricsScope, boolean isLocalActivity) {
+    if (exception instanceof ActivityCanceledException) {
+      if (isLocalActivity) {
+        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
+      } else {
+        metricsScope.counter(MetricsType.ACTIVITY_CANCELED_COUNTER).inc(1);
       }
-      inboundCallsInterceptor.init(context);
-      try {
-        Object[] args =
-            DataConverter.arrayFromPayloads(
-                dataConverter,
-                input,
-                method.getParameterTypes(),
-                method.getGenericParameterTypes());
-        ActivityInboundCallsInterceptor.ActivityOutput result =
-            inboundCallsInterceptor.execute(
-                new ActivityInboundCallsInterceptor.ActivityInput(
-                    new Header(info.getHeader()), args));
-        return constructActivityResultValue(info, result, method);
-      } catch (Throwable e) {
-        Throwable unwrappedException = CheckedExceptionWrapper.unwrap(e);
-        if (log.isWarnEnabled()) {
-          log.warn(
-              "Local activity failure. ActivityId="
-                  + info.getActivityId()
-                  + ", activityType="
-                  + info.getActivityType()
-                  + ", attempt="
-                  + info.getAttempt(),
-              unwrappedException);
-        }
-        return mapToActivityFailure(
-            unwrappedException, info.getActivityId(), metricsScope, info.isLocal());
-      }
+      String stackTrace = FailureConverter.serializeStackTrace(exception);
+      throw new FailureWrapperException(
+          Failure.newBuilder()
+              .setStackTrace(stackTrace)
+              .setCanceledFailureInfo(CanceledFailureInfo.newBuilder())
+              .build());
     }
+    Scope ms =
+        metricsScope.tagged(
+            ImmutableMap.of(MetricsTag.EXCEPTION, exception.getClass().getSimpleName()));
+    if (isLocalActivity) {
+      ms.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
+    } else {
+      ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+    }
+    if (exception instanceof TemporalFailure) {
+      ((TemporalFailure) exception).setDataConverter(dataConverter);
+    }
+    if (exception instanceof TimeoutFailure) {
+      exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);
+    }
+    Failure failure = FailureConverter.exceptionToFailure(exception);
+    RespondActivityTaskFailedRequest.Builder result =
+        RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
+    return new ActivityTaskHandler.Result(
+        activityId,
+        null,
+        new Result.TaskFailedResult(result.build(), exception),
+        null,
+        null,
+        false);
   }
 
   private ActivityTaskHandler.Result constructActivityResultValue(

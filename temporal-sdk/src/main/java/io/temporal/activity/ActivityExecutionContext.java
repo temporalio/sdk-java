@@ -95,13 +95,17 @@ public interface ActivityExecutionContext {
    */
   void doNotCompleteOnReturn();
 
+  /**
+   * @return true if {@link #doNotCompleteOnReturn()} was called and supported by the activity type,
+   *     false otherwise
+   */
   boolean isDoNotCompleteOnReturn();
 
   /**
-   * Returns true if {@link #useLocalManualCompletion()} method has been called on this context. If
-   * this flag is set to true, {@link io.temporal.internal.worker.ActivityWorker} would not release
-   * concurrency semaphore and delegate release function to the manual Activity client returned by
-   * {@link #useLocalManualCompletion()}
+   * @return true if {@link #useLocalManualCompletion()} method has been called on this context. If
+   *     this flag is set to true, {@link io.temporal.internal.worker.ActivityWorker} would not
+   *     release concurrency semaphore and delegate release function to the manual Activity client
+   *     returned by {@link #useLocalManualCompletion()}
    */
   boolean isUseLocalManualCompletion();
 

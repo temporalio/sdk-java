@@ -23,7 +23,7 @@ import io.temporal.client.ActivityCompletionException;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-public interface HeartbeatContext {
+interface HeartbeatContext {
 
   /** @see io.temporal.activity.ActivityExecutionContext#heartbeat(Object) */
   <V> void heartbeat(V details) throws ActivityCompletionException;
