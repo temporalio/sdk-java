@@ -26,23 +26,17 @@ import io.opentracing.Span;
 import io.opentracing.mock.MockSpan;
 import io.opentracing.mock.MockTracer;
 import io.opentracing.util.ThreadLocalScopeManager;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
-import java.time.Duration;
+import io.temporal.workflow.*;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SpanContextPropagationTest {
+public class AsyncLambdaTest {
 
   private static final String BAGGAGE_ITEM_KEY = "baggage-item-key";
 
@@ -64,7 +58,6 @@ public class SpanContextPropagationTest {
                   .setWorkerInterceptors(new OpenTracingWorkerInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkflowTypes(WorkflowImpl.class)
-          .setActivityImplementations(new OpenTracingAwareActivityImpl())
           .build();
 
   @After
@@ -72,59 +65,43 @@ public class SpanContextPropagationTest {
     mockTracer.reset();
   }
 
-  @ActivityInterface
-  public interface TestActivity {
-    @ActivityMethod
-    String activity1(String input);
-  }
-
   @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
-    String workflow1(String input);
-  }
-
-  public static class OpenTracingAwareActivityImpl implements TestActivity {
-    @Override
-    public String activity1(String input) {
-      Span activeSpan = mockTracer.scopeManager().activeSpan();
-
-      MockSpan mockSpan = (MockSpan) activeSpan;
-      assertNotNull(activeSpan);
-      assertNotEquals(0, mockSpan.parentId());
-
-      return activeSpan.getBaggageItem(BAGGAGE_ITEM_KEY);
-    }
+    String workflow(String input);
   }
 
   public static class WorkflowImpl implements TestWorkflow {
-    private TestActivity activity =
-        Workflow.newActivityStub(
-            TestActivity.class,
-            ActivityOptions.newBuilder()
-                .setStartToCloseTimeout(Duration.ofMinutes(1))
-                .validateAndBuildWithDefaults());
-
     @Override
-    public String workflow1(String input) {
-      Span activeSpan = mockTracer.scopeManager().activeSpan();
+    public String workflow(String input) {
+      Promise<String> lambda =
+          Async.function(
+              () -> {
+                Span lambdaActiveSpan = mockTracer.scopeManager().activeSpan();
 
-      MockSpan mockSpan = (MockSpan) activeSpan;
-      assertNotNull(activeSpan);
-      assertNotEquals(0, mockSpan.parentId());
+                MockSpan lambdaMockSpan = (MockSpan) lambdaActiveSpan;
+                assertNotNull(lambdaMockSpan);
+                assertNotEquals(0, lambdaMockSpan.parentId());
 
-      return activity.activity1(input);
+                return lambdaActiveSpan.getBaggageItem(BAGGAGE_ITEM_KEY);
+              });
+
+      // returning lambda result which should be a value of the baggage item
+      return lambda.get();
     }
   }
 
-  /**
-   * This test checks that all elements of a trivial workflow with an activity are connected with
-   * the same root span. We set baggage item on the top level in a client span and use the baggage
-   * item inside the activity. This way we ensure that the baggage item has been propagated all the
-   * way from top to bottom.
+  /*
+   * We are checking that spans structure looks like this:
+   * ClientFunction
+   *       |
+   *     child
+   *       v
+   * StartWorkflow:TestWorkflow  -follow>  RunWorkflow:TestWorkflow
+   * And async invocation of lambda doesn't create its own child or following spans
    */
   @Test
-  public void testBaggageItemPropagationToActivity() {
+  public void asyncLambdaCorrectSpanStructureAndBaggagePropagation() {
     Span span = mockTracer.buildSpan("ClientFunction").start();
 
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
@@ -139,9 +116,29 @@ public class SpanContextPropagationTest {
               WorkflowOptions.newBuilder()
                   .setTaskQueue(testWorkflowRule.getTaskQueue())
                   .validateBuildWithDefaults());
-      assertEquals(BAGGAGE_ITEM_VALUE, workflow.workflow1("input"));
+      assertEquals(
+          "Baggage item should be propagated all the way to the lambda body",
+          BAGGAGE_ITEM_VALUE,
+          workflow.workflow("input"));
     } finally {
       span.finish();
     }
+
+    OpenTracingSpansHelper spansHelper = new OpenTracingSpansHelper(mockTracer.finishedSpans());
+
+    MockSpan clientSpan = spansHelper.getSpanByOperationName("ClientFunction");
+
+    MockSpan workflowStartSpan = spansHelper.getByParentSpan(clientSpan).get(0);
+    assertEquals(clientSpan.context().spanId(), workflowStartSpan.parentId());
+    assertEquals("StartWorkflow:TestWorkflow", workflowStartSpan.operationName());
+
+    MockSpan workflowRunSpan = spansHelper.getByParentSpan(workflowStartSpan).get(0);
+    assertEquals(workflowStartSpan.context().spanId(), workflowRunSpan.parentId());
+    assertEquals("RunWorkflow:TestWorkflow", workflowRunSpan.operationName());
+
+    assertEquals(
+        "Lambda shouldn't create any new spans, it should carry an existing span",
+        0,
+        spansHelper.getByParentSpan(workflowRunSpan).size());
   }
 }
