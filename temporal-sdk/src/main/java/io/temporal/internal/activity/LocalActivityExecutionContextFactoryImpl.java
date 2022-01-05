@@ -21,7 +21,6 @@ package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
-import io.temporal.internal.sync.ActivityInfoInternal;
 
 public class LocalActivityExecutionContextFactoryImpl implements ActivityExecutionContextFactory {
 

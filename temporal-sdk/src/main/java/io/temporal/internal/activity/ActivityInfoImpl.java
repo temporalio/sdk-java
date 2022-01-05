@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.activity;
 
 import com.google.protobuf.util.Timestamps;
 import io.temporal.api.common.v1.Header;

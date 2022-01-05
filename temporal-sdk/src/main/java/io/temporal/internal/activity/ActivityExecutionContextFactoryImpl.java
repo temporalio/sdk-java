@@ -22,7 +22,6 @@ package io.temporal.internal.activity;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.sync.ActivityInfoInternal;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.Objects;

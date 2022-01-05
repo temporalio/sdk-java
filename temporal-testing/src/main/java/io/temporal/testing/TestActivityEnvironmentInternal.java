@@ -48,7 +48,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
-import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
+import io.temporal.internal.activity.POJOActivityTaskHandler;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.worker.ActivityTask;
@@ -138,15 +138,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor);
-    ActivityExecutionContextFactory laActivityExecutionContextFactory =
-        new LocalActivityExecutionContextFactoryImpl();
     activityTaskHandler =
         new POJOActivityTaskHandler(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors(),
-            activityExecutionContextFactory,
-            laActivityExecutionContextFactory);
+            activityExecutionContextFactory);
   }
 
   private class HeartbeatInterceptingService extends WorkflowServiceGrpc.WorkflowServiceImplBase {

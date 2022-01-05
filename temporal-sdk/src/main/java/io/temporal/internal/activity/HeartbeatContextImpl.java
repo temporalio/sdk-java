@@ -43,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ThreadSafe
-public class HeartbeatContextImpl implements HeartbeatContext {
+class HeartbeatContextImpl implements HeartbeatContext {
   private static final Logger log = LoggerFactory.getLogger(HeartbeatContextImpl.class);
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
 

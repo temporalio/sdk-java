@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.activity;
 
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Header;
@@ -30,7 +30,7 @@ import java.util.Optional;
  * activity is handling that should be available for Temporal SDK, but shouldn't be available or
  * exposed to Activity implementation code.
  */
-public interface ActivityInfoInternal extends ActivityInfo {
+interface ActivityInfoInternal extends ActivityInfo {
   /**
    * @return function shat should be triggered after activity completion with any outcome (success,
    *     failure, cancelling)

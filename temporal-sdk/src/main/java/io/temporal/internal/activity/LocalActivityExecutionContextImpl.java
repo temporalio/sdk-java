@@ -69,14 +69,12 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
 
   @Override
   public boolean isDoNotCompleteOnReturn() {
-    throw new UnsupportedOperationException(
-        "isDoNotCompleteOnReturn is not supported for local activities");
+    return false;
   }
 
   @Override
   public boolean isUseLocalManualCompletion() {
-    throw new UnsupportedOperationException(
-        "isUseLocalManualCompletion is not supported for local activities");
+    return false;
   }
 
   @Override

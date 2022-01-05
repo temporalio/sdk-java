@@ -22,7 +22,7 @@ package io.temporal.internal.sync;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
-import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
+import io.temporal.internal.activity.POJOActivityTaskHandler;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -76,15 +76,12 @@ public class SyncActivityWorker implements SuspendableWorker {
             options.getDefaultHeartbeatThrottleInterval(),
             options.getDataConverter(),
             heartbeatExecutor);
-    ActivityExecutionContextFactory laActivityExecutionContextFactory =
-        new LocalActivityExecutionContextFactoryImpl();
     this.taskHandler =
         new POJOActivityTaskHandler(
             namespace,
             options.getDataConverter(),
             workerInterceptors,
-            activityExecutionContextFactory,
-            laActivityExecutionContextFactory);
+            activityExecutionContextFactory);
     this.worker =
         new ActivityWorker(
             service, namespace, taskQueue, taskQueueActivitiesPerSecond, options, taskHandler);

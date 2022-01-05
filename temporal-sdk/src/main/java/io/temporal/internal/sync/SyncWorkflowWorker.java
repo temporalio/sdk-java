@@ -24,8 +24,8 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
-import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
+import io.temporal.internal.activity.POJOActivityTaskHandler;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
@@ -68,7 +68,6 @@ public class SyncWorkflowWorker
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
   private final POJOActivityTaskHandler laTaskHandler;
-  private final ScheduledExecutorService heartbeatExecutor;
 
   public SyncWorkflowWorker(
       WorkflowServiceStubs service,
@@ -93,26 +92,6 @@ public class SyncWorkflowWorker
         new POJOWorkflowImplementationFactory(
             singleWorkerOptions, workflowThreadPool, workerInterceptors, cache);
 
-    // we should shut down this executor and also give the threads meaningful name
-    this.heartbeatExecutor =
-        Executors.newScheduledThreadPool(
-            4,
-            new ExecutorThreadFactory(
-                WorkerThreadsNameHelper.getLocalActivityHeartbeatThreadPrefix(namespace, taskQueue),
-                // TODO we currently don't have an uncaught exception handler to pass here on
-                // options,
-                // the closest thing is options.getPollerOptions().getUncaughtExceptionHandler(),
-                // but it's pollerOptions, not heartbeat.
-                null));
-    ActivityExecutionContextFactory activityExecutionContextFactory =
-        new ActivityExecutionContextFactoryImpl(
-            service,
-            localActivityOptions.getIdentity(),
-            namespace,
-            localActivityOptions.getMaxHeartbeatThrottleInterval(),
-            localActivityOptions.getDefaultHeartbeatThrottleInterval(),
-            localActivityOptions.getDataConverter(),
-            heartbeatExecutor);
     ActivityExecutionContextFactory laActivityExecutionContextFactory =
         new LocalActivityExecutionContextFactoryImpl();
     laTaskHandler =
@@ -120,7 +99,6 @@ public class SyncWorkflowWorker
             namespace,
             localActivityOptions.getDataConverter(),
             workerInterceptors,
-            activityExecutionContextFactory,
             laActivityExecutionContextFactory);
     laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
 
@@ -170,7 +148,7 @@ public class SyncWorkflowWorker
   }
 
   public void registerLocalActivityImplementations(Object... activitiesImplementation) {
-    this.laTaskHandler.registerLocalActivityImplementations(activitiesImplementation);
+    this.laTaskHandler.registerActivityImplementations(activitiesImplementation);
   }
 
   @Override
@@ -189,26 +167,18 @@ public class SyncWorkflowWorker
 
   @Override
   public boolean isShutdown() {
-    return workflowWorker.isShutdown() || laWorker.isShutdown() || heartbeatExecutor.isShutdown();
+    return workflowWorker.isShutdown() || laWorker.isShutdown();
   }
 
   @Override
   public boolean isTerminated() {
-    return workflowWorker.isTerminated()
-        && laWorker.isTerminated()
-        && heartbeatExecutor.isTerminated();
+    return workflowWorker.isTerminated() && laWorker.isTerminated();
   }
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
     return workflowWorker
         .shutdown(shutdownManager, interruptTasks)
-        // we want to shutdown heartbeatExecutor before activity worker, so in-flight activities
-        // could get an ActivityWorkerShutdownException from their heartbeat
-        .thenCompose(
-            ignore ->
-                shutdownManager.shutdownExecutor(
-                    heartbeatExecutor, this + "#heartbeatExecutor", Duration.ofSeconds(5)))
         .thenCompose(ignore -> laWorker.shutdown(shutdownManager, interruptTasks))
         .exceptionally(
             e -> {
