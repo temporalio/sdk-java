@@ -26,23 +26,18 @@ import io.opentracing.Span;
 import io.opentracing.mock.MockSpan;
 import io.opentracing.mock.MockTracer;
 import io.opentracing.util.ThreadLocalScopeManager;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
-import java.time.Duration;
+import io.temporal.workflow.*;
+import java.util.List;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class SpanContextPropagationTest {
+public class AsyncChildWorkflowTest {
 
   private static final String BAGGAGE_ITEM_KEY = "baggage-item-key";
 
@@ -63,8 +58,7 @@ public class SpanContextPropagationTest {
               WorkerFactoryOptions.newBuilder()
                   .setWorkerInterceptors(new OpenTracingWorkerInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
-          .setWorkflowTypes(WorkflowImpl.class)
-          .setActivityImplementations(new OpenTracingAwareActivityImpl())
+          .setWorkflowTypes(ParentWorkflowImpl.class, ChildWorkflowImpl.class)
           .build();
 
   @After
@@ -72,21 +66,35 @@ public class SpanContextPropagationTest {
     mockTracer.reset();
   }
 
-  @ActivityInterface
-  public interface TestActivity {
-    @ActivityMethod
-    String activity1(String input);
+  @WorkflowInterface
+  public interface ParentWorkflow {
+    @WorkflowMethod
+    String workflow(String input);
   }
 
   @WorkflowInterface
-  public interface TestWorkflow {
+  public interface ChildWorkflow {
     @WorkflowMethod
-    String workflow1(String input);
+    String childWorkflow(String input);
   }
 
-  public static class OpenTracingAwareActivityImpl implements TestActivity {
+  public static class ParentWorkflowImpl implements ParentWorkflow {
     @Override
-    public String activity1(String input) {
+    public String workflow(String input) {
+      Span activeSpan = mockTracer.scopeManager().activeSpan();
+
+      MockSpan mockSpan = (MockSpan) activeSpan;
+      assertNotNull(activeSpan);
+      assertNotEquals(0, mockSpan.parentId());
+
+      ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class);
+      return Async.function(child::childWorkflow, input).get();
+    }
+  }
+
+  public static class ChildWorkflowImpl implements ChildWorkflow {
+    @Override
+    public String childWorkflow(String input) {
       Span activeSpan = mockTracer.scopeManager().activeSpan();
 
       MockSpan mockSpan = (MockSpan) activeSpan;
@@ -97,34 +105,20 @@ public class SpanContextPropagationTest {
     }
   }
 
-  public static class WorkflowImpl implements TestWorkflow {
-    private TestActivity activity =
-        Workflow.newActivityStub(
-            TestActivity.class,
-            ActivityOptions.newBuilder()
-                .setStartToCloseTimeout(Duration.ofMinutes(1))
-                .validateAndBuildWithDefaults());
-
-    @Override
-    public String workflow1(String input) {
-      Span activeSpan = mockTracer.scopeManager().activeSpan();
-
-      MockSpan mockSpan = (MockSpan) activeSpan;
-      assertNotNull(activeSpan);
-      assertNotEquals(0, mockSpan.parentId());
-
-      return activity.activity1(input);
-    }
-  }
-
-  /**
-   * This test checks that all elements of a trivial workflow with an activity are connected with
-   * the same root span. We set baggage item on the top level in a client span and use the baggage
-   * item inside the activity. This way we ensure that the baggage item has been propagated all the
-   * way from top to bottom.
+  /*
+   * We are checking that spans structure looks like this:
+   * ClientFunction
+   *       |
+   *     child
+   *       v
+   * StartWorkflow:TestWorkflow  -follow>  RunWorkflow:TestWorkflow
+   *                                                  |
+   *                                                child
+   *                                                  v
+   *                                       StartChildWorkflow:ChildWorkflow -follow> RunWorkflow:ChildWorkflow
    */
   @Test
-  public void testBaggageItemPropagationToActivity() {
+  public void asyncChildWFCorrectSpanStructureAndBaggagePropagation() {
     Span span = mockTracer.buildSpan("ClientFunction").start();
 
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
@@ -133,15 +127,40 @@ public class SpanContextPropagationTest {
       final String BAGGAGE_ITEM_VALUE = "baggage-item-value";
       activeSpan.setBaggageItem(BAGGAGE_ITEM_KEY, BAGGAGE_ITEM_VALUE);
 
-      TestWorkflow workflow =
+      ParentWorkflow workflow =
           client.newWorkflowStub(
-              TestWorkflow.class,
+              ParentWorkflow.class,
               WorkflowOptions.newBuilder()
                   .setTaskQueue(testWorkflowRule.getTaskQueue())
                   .validateBuildWithDefaults());
-      assertEquals(BAGGAGE_ITEM_VALUE, workflow.workflow1("input"));
+      assertEquals(
+          "Baggage item should be propagated all the way down to the child workflow",
+          BAGGAGE_ITEM_VALUE,
+          workflow.workflow("input"));
     } finally {
       span.finish();
     }
+
+    OpenTracingSpansHelper spansHelper = new OpenTracingSpansHelper(mockTracer.finishedSpans());
+
+    MockSpan clientSpan = spansHelper.getSpanByOperationName("ClientFunction");
+
+    MockSpan workflowStartSpan = spansHelper.getByParentSpan(clientSpan).get(0);
+    assertEquals(clientSpan.context().spanId(), workflowStartSpan.parentId());
+    assertEquals("StartWorkflow:ParentWorkflow", workflowStartSpan.operationName());
+
+    MockSpan workflowRunSpan = spansHelper.getByParentSpan(workflowStartSpan).get(0);
+    assertEquals(workflowStartSpan.context().spanId(), workflowRunSpan.parentId());
+    assertEquals("RunWorkflow:ParentWorkflow", workflowRunSpan.operationName());
+
+    MockSpan childWorkflowStartSpan = spansHelper.getByParentSpan(workflowRunSpan).get(0);
+    assertEquals(workflowRunSpan.context().spanId(), childWorkflowStartSpan.parentId());
+    assertEquals("StartChildWorkflow:ChildWorkflow", childWorkflowStartSpan.operationName());
+
+    List<MockSpan> childWorkflowRunSpans = spansHelper.getByParentSpan(childWorkflowStartSpan);
+
+    MockSpan childWorkflowRunSpan = childWorkflowRunSpans.get(0);
+    assertEquals(childWorkflowStartSpan.context().spanId(), childWorkflowRunSpan.parentId());
+    assertEquals("RunWorkflow:ChildWorkflow", childWorkflowRunSpan.operationName());
   }
 }

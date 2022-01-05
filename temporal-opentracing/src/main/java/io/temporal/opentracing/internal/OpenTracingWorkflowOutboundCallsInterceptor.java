@@ -90,6 +90,21 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
     }
   }
 
+  @Override
+  public Object newChildThread(Runnable runnable, boolean detached, String name) {
+    Span activeSpan = tracer.scopeManager().activeSpan();
+    Runnable wrappedRunnable =
+        activeSpan != null
+            ? () -> {
+              // transfer the existing active span into another thread
+              try (Scope scope = tracer.scopeManager().activate(activeSpan)) {
+                runnable.run();
+              }
+            }
+            : runnable;
+    return super.newChildThread(wrappedRunnable, detached, name);
+  }
+
   private Span createAndPassActivityStartSpan(String activityName, Header header) {
     Span span = createActivityStartSpanBuilder(activityName).start();
     contextAccessor.writeSpanContextToHeader(span.context(), header, tracer);
