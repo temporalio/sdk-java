@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Future;
 
 interface TestWorkflowStore {
 
@@ -144,13 +145,13 @@ interface TestWorkflowStore {
 
   void registerDelayedCallback(Duration delay, Runnable r);
 
-  /** @return empty if deadline expired */
-  Optional<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
-      PollWorkflowTaskQueueRequest pollRequest, Deadline deadline);
+  /** @return empty if this store is closed or thread interrupted */
+  Future<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
+      PollWorkflowTaskQueueRequest pollRequest);
 
-  /** @return empty if deadline expired */
-  Optional<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
-      PollActivityTaskQueueRequest pollRequest, Deadline deadline);
+  /** @return empty if this store is closed or thread interrupted */
+  Future<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
+      PollActivityTaskQueueRequest pollRequest);
 
   void sendQueryTask(
       ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);
