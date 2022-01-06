@@ -20,6 +20,7 @@
 package io.temporal.opentracing.internal;
 
 import com.google.common.reflect.TypeToken;
+import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.temporal.api.common.v1.Payload;
@@ -31,6 +32,7 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 public class ContextAccessor {
   private static final String TRACER_HEADER_KEY = "_tracer-data";
@@ -41,6 +43,13 @@ public class ContextAccessor {
 
   public ContextAccessor(OpenTracingOptions options) {
     this.codec = options.getSpanContextCodec();
+  }
+
+  public Span writeSpanContextToHeader(
+      Supplier<Span> spanSupplier, Header toHeader, Tracer tracer) {
+    Span span = spanSupplier.get();
+    writeSpanContextToHeader(span.context(), toHeader, tracer);
+    return span;
   }
 
   public void writeSpanContextToHeader(SpanContext spanContext, Header header, Tracer tracer) {

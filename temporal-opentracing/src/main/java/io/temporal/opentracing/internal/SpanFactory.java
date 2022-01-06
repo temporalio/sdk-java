@@ -66,16 +66,32 @@ public class SpanFactory {
   public Tracer.SpanBuilder createChildWorkflowStartSpan(
       Tracer tracer,
       String childWorkflowType,
+      String childWorkflowId,
       long startTimeMs,
-      String workflowId,
       String parentWorkflowId,
       String parentRunId) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.START_CHILD_WORKFLOW)
             .setActionName(childWorkflowType)
-            .setWorkflowId(workflowId)
+            .setWorkflowId(childWorkflowId)
             .setParentWorkflowId(parentWorkflowId)
+            .setParentRunId(parentRunId)
+            .build();
+    return createSpan(context, tracer, startTimeMs, null, References.CHILD_OF);
+  }
+
+  public Tracer.SpanBuilder createContinueAsNewWorkflowStartSpan(
+      Tracer tracer,
+      String continueAsNewWorkflowType,
+      String workflowId,
+      long startTimeMs,
+      String parentRunId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.START_CONTINUE_AS_NEW_WORKFLOW)
+            .setActionName(continueAsNewWorkflowType)
+            .setWorkflowId(workflowId)
             .setParentRunId(parentRunId)
             .build();
     return createSpan(context, tracer, startTimeMs, null, References.FOLLOWS_FROM);
@@ -125,7 +141,8 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(context, tracer, startTimeMs, activityStartSpanContext, References.CHILD_OF);
+    return createSpan(
+        context, tracer, startTimeMs, activityStartSpanContext, References.FOLLOWS_FROM);
   }
 
   @SuppressWarnings("deprecation")

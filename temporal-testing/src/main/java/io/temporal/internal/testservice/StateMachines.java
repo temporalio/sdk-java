@@ -899,6 +899,9 @@ class StateMachines {
     WorkflowExecutionContinuedAsNewEventAttributes.Builder a =
         WorkflowExecutionContinuedAsNewEventAttributes.newBuilder();
     a.setInput(d.getInput());
+    if (d.hasHeader()) {
+      a.setHeader(d.getHeader());
+    }
     if (Durations.compare(d.getWorkflowRunTimeout(), Durations.ZERO) > 0) {
       a.setWorkflowRunTimeout(d.getWorkflowRunTimeout());
     } else {

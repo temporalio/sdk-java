@@ -26,17 +26,16 @@ import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.workflow.ContinueAsNewOptions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.Optional;
+import javax.annotation.Nullable;
 
 class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
-
-  private final ContinueAsNewOptions options;
+  private final @Nullable ContinueAsNewOptions options;
   private final WorkflowOutboundCallsInterceptor outboundCallsInterceptor;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   ContinueAsNewWorkflowInvocationHandler(
       Class<?> interfaceClass,
-      ContinueAsNewOptions options,
+      @Nullable ContinueAsNewOptions options,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(interfaceClass);
     if (!workflowMetadata.getWorkflowMethod().isPresent()) {
@@ -50,8 +49,7 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
     String workflowType = workflowMetadata.getMethodMetadata(method).getName();
-    WorkflowInternal.continueAsNew(
-        Optional.of(workflowType), Optional.ofNullable(options), args, outboundCallsInterceptor);
+    WorkflowInternal.continueAsNew(workflowType, options, args, outboundCallsInterceptor);
     return getValueOrDefault(null, method.getReturnType());
   }
 }

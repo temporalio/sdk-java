@@ -40,6 +40,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 
 /**
@@ -597,19 +598,50 @@ public final class Workflow {
    * @see #newContinueAsNewStub(Class)
    */
   public static void continueAsNew(Object... args) {
-    Workflow.continueAsNew(Optional.empty(), Optional.empty(), args);
+    Workflow.continueAsNew(null, args);
+  }
+
+  /**
+   * Continues the current workflow execution as a new run with the same workflowType and overridden
+   * {@code options}.
+   *
+   * @param options option overrides for the next run, can contain null if no overrides are needed
+   * @param args arguments of the next run.
+   * @see #newContinueAsNewStub(Class, ContinueAsNewOptions)
+   */
+  public static void continueAsNew(@Nullable ContinueAsNewOptions options, Object... args) {
+    Workflow.continueAsNew(null, options, args);
   }
 
   /**
    * Continues the current workflow execution as a new run possibly overriding the workflow type and
    * options.
    *
-   * @param options option overrides for the next run.
+   * @param workflowType workflow type override for the next run, can contain null if no override is
+   *     needed
+   * @param options option overrides for the next run, can contain null if no overrides are needed
+   * @param args arguments of the next run.
+   * @see #newContinueAsNewStub(Class)
+   * @deprecated use {@link #continueAsNew(String, ContinueAsNewOptions, Object...)}
+   */
+  @Deprecated
+  public static void continueAsNew(
+      Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object... args) {
+    WorkflowInternal.continueAsNew(workflowType.orElse(null), options.orElse(null), args);
+  }
+
+  /**
+   * Continues the current workflow execution as a new run possibly overriding the workflow type and
+   * options.
+   *
+   * @param workflowType workflow type override for the next run, can be null of no override is
+   *     needed
+   * @param options option overrides for the next run, can be null if no overrides are needed
    * @param args arguments of the next run.
    * @see #newContinueAsNewStub(Class)
    */
   public static void continueAsNew(
-      Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object... args) {
+      @Nullable String workflowType, @Nullable ContinueAsNewOptions options, Object... args) {
     WorkflowInternal.continueAsNew(workflowType, options, args);
   }
 
