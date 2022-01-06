@@ -506,9 +506,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       throws ExecutionException, InterruptedException {
     final Context.CancellationListener canceler = context -> futureValue.cancel(true);
     ctx.addListener(canceler, this.backgroundScheduler);
-    final T result = futureValue.get();
-    ctx.removeListener(canceler);
-    return result;
+    try {
+      return futureValue.get();
+    } finally {
+      ctx.removeListener(canceler);
+    }
   }
 
   @Override
