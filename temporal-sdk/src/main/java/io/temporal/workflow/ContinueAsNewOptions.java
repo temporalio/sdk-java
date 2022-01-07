@@ -19,9 +19,16 @@
 
 package io.temporal.workflow;
 
+import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
+/**
+ * This class contain overrides for continueAsNew call. Every field can be null and it means that
+ * the value of the option should be taken from the originating workflow run.
+ */
 public final class ContinueAsNewOptions {
 
   public static Builder newBuilder() {
@@ -49,6 +56,7 @@ public final class ContinueAsNewOptions {
     private Duration workflowTaskTimeout;
     private Map<String, Object> memo;
     private Map<String, Object> searchAttributes;
+    private List<ContextPropagator> contextPropagators;
 
     private Builder() {}
 
@@ -59,6 +67,9 @@ public final class ContinueAsNewOptions {
       this.workflowRunTimeout = options.workflowRunTimeout;
       this.taskQueue = options.taskQueue;
       this.workflowTaskTimeout = options.workflowTaskTimeout;
+      this.memo = options.getMemo();
+      this.searchAttributes = options.getSearchAttributes();
+      this.contextPropagators = options.getContextPropagators();
     }
 
     public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
@@ -86,48 +97,65 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
+    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+      this.contextPropagators = contextPropagators;
+      return this;
+    }
+
     public ContinueAsNewOptions build() {
       return new ContinueAsNewOptions(
-          workflowRunTimeout, taskQueue, workflowTaskTimeout, memo, searchAttributes);
+          workflowRunTimeout,
+          taskQueue,
+          workflowTaskTimeout,
+          memo,
+          searchAttributes,
+          contextPropagators);
     }
   }
 
-  private final Duration workflowRunTimeout;
-  private final String taskQueue;
-  private final Duration workflowTaskTimeout;
-  private final Map<String, Object> memo;
-  private final Map<String, Object> searchAttributes;
+  private final @Nullable Duration workflowRunTimeout;
+  private final @Nullable String taskQueue;
+  private final @Nullable Duration workflowTaskTimeout;
+  private final @Nullable Map<String, Object> memo;
+  private final @Nullable Map<String, Object> searchAttributes;
+  private final @Nullable List<ContextPropagator> contextPropagators;
 
   public ContinueAsNewOptions(
-      Duration workflowRunTimeout,
-      String taskQueue,
-      Duration workflowTaskTimeout,
-      Map<String, Object> memo,
-      Map<String, Object> searchAttributes) {
+      @Nullable Duration workflowRunTimeout,
+      @Nullable String taskQueue,
+      @Nullable Duration workflowTaskTimeout,
+      @Nullable Map<String, Object> memo,
+      @Nullable Map<String, Object> searchAttributes,
+      @Nullable List<ContextPropagator> contextPropagators) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
     this.workflowTaskTimeout = workflowTaskTimeout;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
+    this.contextPropagators = contextPropagators;
   }
 
-  public Duration getWorkflowRunTimeout() {
+  public @Nullable Duration getWorkflowRunTimeout() {
     return workflowRunTimeout;
   }
 
-  public String getTaskQueue() {
+  public @Nullable String getTaskQueue() {
     return taskQueue;
   }
 
-  public Duration getWorkflowTaskTimeout() {
+  public @Nullable Duration getWorkflowTaskTimeout() {
     return workflowTaskTimeout;
   }
 
-  public Map<String, Object> getMemo() {
+  public @Nullable Map<String, Object> getMemo() {
     return memo;
   }
 
-  public Map<String, Object> getSearchAttributes() {
+  public @Nullable Map<String, Object> getSearchAttributes() {
     return searchAttributes;
+  }
+
+  public @Nullable List<ContextPropagator> getContextPropagators() {
+    return contextPropagators;
   }
 }

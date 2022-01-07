@@ -45,31 +45,34 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
 
   @Override
   public WorkflowStartOutput start(WorkflowStartInput input) {
-    Span span = createAndPassWorkflowStartSpan(input, SpanOperationType.START_WORKFLOW);
-    try {
-      return super.start(input);
-    } finally {
-      span.finish();
-    }
-  }
-
-  @Override
-  public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
     Span workflowStartSpan =
-        createAndPassWorkflowStartSpan(
-            input.getWorkflowStartInput(), SpanOperationType.SIGNAL_WITH_START_WORKFLOW);
+        contextAccessor.writeSpanContextToHeader(
+            () -> createWorkflowStartSpanBuilder(input, SpanOperationType.START_WORKFLOW).start(),
+            input.getHeader(),
+            tracer);
     try (Scope ignored = tracer.scopeManager().activate(workflowStartSpan)) {
-      return super.signalWithStart(input);
+      return super.start(input);
     } finally {
       workflowStartSpan.finish();
     }
   }
 
-  private Span createAndPassWorkflowStartSpan(
-      WorkflowStartInput input, SpanOperationType operationType) {
-    Span span = createWorkflowStartSpanBuilder(input, operationType).start();
-    contextAccessor.writeSpanContextToHeader(span.context(), input.getHeader(), tracer);
-    return span;
+  @Override
+  public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
+    WorkflowStartInput workflowStartInput = input.getWorkflowStartInput();
+    Span workflowStartSpan =
+        contextAccessor.writeSpanContextToHeader(
+            () ->
+                createWorkflowStartSpanBuilder(
+                        workflowStartInput, SpanOperationType.SIGNAL_WITH_START_WORKFLOW)
+                    .start(),
+            workflowStartInput.getHeader(),
+            tracer);
+    try (Scope ignored = tracer.scopeManager().activate(workflowStartSpan)) {
+      return super.signalWithStart(input);
+    } finally {
+      workflowStartSpan.finish();
+    }
   }
 
   private Tracer.SpanBuilder createWorkflowStartSpanBuilder(

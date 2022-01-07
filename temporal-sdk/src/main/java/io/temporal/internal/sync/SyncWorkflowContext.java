@@ -408,10 +408,6 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       result.completeExceptionally(CanceledFailure);
       return result;
     }
-    List<ContextPropagator> propagators = options.getContextPropagators();
-    if (propagators == null) {
-      propagators = this.contextPropagators;
-    }
 
     final StartChildWorkflowExecutionCommandAttributes.Builder attributes =
         StartChildWorkflowExecutionCommandAttributes.newBuilder()
@@ -437,17 +433,23 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
-    Map<String, Object> searchAttributes = options.getSearchAttributes();
-    if (searchAttributes != null) {
-      attributes.setSearchAttributes(InternalUtils.convertMapToSearchAttributes(searchAttributes));
-    }
     Map<String, Object> memo = options.getMemo();
     if (memo != null) {
       attributes.setMemo(Memo.newBuilder().putAllFields(intoPayloadMap(getDataConverter(), memo)));
     }
+    Map<String, Object> searchAttributes = options.getSearchAttributes();
+    if (searchAttributes != null) {
+      attributes.setSearchAttributes(InternalUtils.convertMapToSearchAttributes(searchAttributes));
+    }
+
+    List<ContextPropagator> propagators = options.getContextPropagators();
+    if (propagators == null) {
+      propagators = this.contextPropagators;
+    }
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
     attributes.setHeader(grpcHeader);
+
     ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
     if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);
@@ -744,34 +746,49 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   public void continueAsNew(ContinueAsNewInput input) {
     ContinueAsNewWorkflowExecutionCommandAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder();
-    Optional<String> workflowType = input.getWorkflowType();
-    workflowType.ifPresent(s -> attributes.setWorkflowType(WorkflowType.newBuilder().setName(s)));
-    Optional<ContinueAsNewOptions> options = input.getOptions();
-    if (options.isPresent()) {
-      ContinueAsNewOptions ops = options.get();
-      attributes.setWorkflowRunTimeout(
-          ProtobufTimeUtils.toProtoDuration(ops.getWorkflowRunTimeout()));
-      attributes.setWorkflowTaskTimeout(
-          ProtobufTimeUtils.toProtoDuration(ops.getWorkflowTaskTimeout()));
-      if (!ops.getTaskQueue().isEmpty()) {
-        attributes.setTaskQueue(TaskQueue.newBuilder().setName(ops.getTaskQueue()));
+    String workflowType = input.getWorkflowType();
+    if (workflowType != null) {
+      attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
+    }
+    @Nullable ContinueAsNewOptions options = input.getOptions();
+    if (options != null) {
+      if (options.getWorkflowRunTimeout() != null) {
+        attributes.setWorkflowRunTimeout(
+            ProtobufTimeUtils.toProtoDuration(options.getWorkflowRunTimeout()));
       }
-      Map<String, Object> memo = ops.getMemo();
-      if (memo != null) {
-        attributes.setMemo(
-            Memo.newBuilder().putAllFields(intoPayloadMap(getDataConverter(), memo)));
+      if (options.getWorkflowTaskTimeout() != null) {
+        attributes.setWorkflowTaskTimeout(
+            ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
       }
-      Map<String, Object> searchAttributes = ops.getSearchAttributes();
+
+      if (!options.getTaskQueue().isEmpty()) {
+        attributes.setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()));
+      }
+      Map<String, Object> searchAttributes = options.getSearchAttributes();
       if (searchAttributes != null) {
         attributes.setSearchAttributes(
             SearchAttributes.newBuilder()
                 .putAllIndexedFields(
                     intoPayloadMap(DataConverter.getDefaultInstance(), searchAttributes)));
       }
+      Map<String, Object> memo = options.getMemo();
+      if (memo != null) {
+        attributes.setMemo(
+            Memo.newBuilder().putAllFields(intoPayloadMap(getDataConverter(), memo)));
+      }
     }
+
+    List<ContextPropagator> propagators =
+        options != null && options.getContextPropagators() != null
+            ? options.getContextPropagators()
+            : this.contextPropagators;
+    io.temporal.api.common.v1.Header grpcHeader =
+        toHeaderGrpc(input.getHeader(), extractContextsAndConvertToBytes(propagators));
+    attributes.setHeader(grpcHeader);
+
     Optional<Payloads> payloads = getDataConverter().toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
-    // TODO(maxim): Find out what to do about header
+
     context.continueAsNewOnCompletion(attributes.build());
     WorkflowThread.exit(null);
   }

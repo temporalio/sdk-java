@@ -1000,11 +1000,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     if (previousRunStartRequest.hasRetryPolicy()) {
       startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
     }
-    if (previousRunStartRequest.hasHeader()) {
-      startRequestBuilder.setHeader(previousRunStartRequest.getHeader());
-    }
     if (a.hasInput()) {
       startRequestBuilder.setInput(a.getInput());
+    }
+    if (a.hasHeader()) {
+      startRequestBuilder.setHeader(a.getHeader());
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();

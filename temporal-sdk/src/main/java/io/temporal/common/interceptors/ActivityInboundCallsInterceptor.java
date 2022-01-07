@@ -20,7 +20,9 @@
 package io.temporal.common.interceptors;
 
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.common.Experimental;
 
+@Experimental
 public interface ActivityInboundCallsInterceptor {
   final class ActivityInput {
     private final Header header;
