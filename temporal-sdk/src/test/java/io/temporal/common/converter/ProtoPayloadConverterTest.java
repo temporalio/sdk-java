@@ -20,7 +20,6 @@
 package io.temporal.common.converter;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -113,21 +112,29 @@ public class ProtoPayloadConverterTest {
     Optional<Payloads> data = converter.toPayloads(execution);
     Payloads payloads = data.get();
     Object field = payloads.getField(payloads.getDescriptorForType().findFieldByName("payloads"));
-    if (field instanceof List && ((List) field).get(0) instanceof Payload) {
-      Payload payload = (Payload) ((List<?>) field).get(0);
-      Object metadata =
-          payload.getField(payload.getDescriptorForType().findFieldByName("metadata"));
-      if (metadata instanceof List && ((List) metadata).get(1) instanceof MapEntry) {
-        MapEntry<?, ?> secondMetadata = (MapEntry<?, ?>) ((List<?>) metadata).get(1);
+    Payload payload = (Payload) ((List<?>) field).get(0);
+    Object metadata = payload.getField(payload.getDescriptorForType().findFieldByName("metadata"));
+    MapEntry<?, ?> secondMetadata = (MapEntry<?, ?>) ((List<?>) metadata).get(1);
+    assertEquals("messageType", secondMetadata.getKey());
+    assertEquals(
+        "temporal.api.common.v1.WorkflowExecution",
+        ((ByteString) secondMetadata.getValue()).toString(StandardCharsets.UTF_8));
+  }
 
-        assertEquals("messageType", secondMetadata.getKey());
-        assertEquals(
-            "temporal.api.common.v1.WorkflowExecution",
-            ((ByteString) secondMetadata.getValue()).toString(StandardCharsets.UTF_8));
-        return;
-      }
-    }
-    fail();
+  @Test
+  public void testProtoMessageTypeExclusion() {
+    DataConverter converter = DefaultDataConverter.newDefaultInstance(true);
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(UUID.randomUUID().toString())
+            .setRunId(UUID.randomUUID().toString())
+            .build();
+    Optional<Payloads> data = converter.toPayloads(execution);
+    Payloads payloads = data.get();
+    Object field = payloads.getField(payloads.getDescriptorForType().findFieldByName("payloads"));
+    Payload payload = (Payload) ((List<?>) field).get(0);
+    Object metadata = payload.getField(payload.getDescriptorForType().findFieldByName("metadata"));
+    assertEquals(1, ((List<?>) metadata).size());
   }
 
   static class TestPayload {
