@@ -283,8 +283,9 @@ public final class WorkerFactory {
 
   /**
    * Initiates an orderly shutdown in which polls are stopped and already received workflow and
-   * activity tasks are attempted to be stopped. </>This implementation cancels tasks via
-   * Thread.interrupt(), so any task that fails to respond to interrupts may never terminate.<br>
+   * activity tasks are attempted to be stopped. <br>
+   * This implementation cancels tasks via Thread.interrupt(), so any task that fails to respond to
+   * interrupts may never terminate.<br>
    * After the shutdownNow calls to {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
    * io.temporal.client.ActivityWorkerShutdownException}.<br>

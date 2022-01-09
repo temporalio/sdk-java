@@ -29,6 +29,7 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import java.util.Random;
 import org.junit.Rule;
@@ -71,7 +72,7 @@ public class UUIDAndRandomTest {
 
     @Override
     public String execute(String taskQueue) {
-      hasReplayed = Workflow.isReplaying();
+      hasReplayed = WorkflowUnsafe.isReplaying();
       VariousTestActivities activities =
           Workflow.newActivityStub(
               VariousTestActivities.class,

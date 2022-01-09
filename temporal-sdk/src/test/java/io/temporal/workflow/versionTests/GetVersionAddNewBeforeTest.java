@@ -26,6 +26,7 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -64,7 +65,7 @@ public class GetVersionAddNewBeforeTest {
     public void execute() {
       log.info("TestGetVersionWorkflow3Impl this=" + this.hashCode());
       // Test adding a version check in replay code.
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         // The first version of the code
         assertEquals(1, Workflow.getVersion("changeFoo", Workflow.DEFAULT_VERSION, 1));
       } else {

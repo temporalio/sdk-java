@@ -33,6 +33,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.io.IOException;
 import java.time.Duration;
 import org.junit.Assert;
@@ -76,7 +77,7 @@ public class AsyncActivityRetryOptionsChangeTest {
           ActivityOptions.newBuilder()
               .setTaskQueue(taskQueue)
               .setScheduleToCloseTimeout(Duration.ofSeconds(8));
-      if (Workflow.isReplaying()) {
+      if (WorkflowUnsafe.isReplaying()) {
         options.setRetryOptions(
             RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))

@@ -28,6 +28,7 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestTraceWorkflow;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -81,7 +82,7 @@ public class AsyncRetryOptionsChangeTest {
     @Override
     public String execute() {
       RetryOptions retryOptions;
-      if (Workflow.isReplaying()) {
+      if (WorkflowUnsafe.isReplaying()) {
         retryOptions =
             RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))

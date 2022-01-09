@@ -28,6 +28,7 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 
 public class OpenTracingWorkflowOutboundCallsInterceptor
     extends WorkflowOutboundCallsInterceptorBase {
@@ -48,7 +49,7 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
 
   @Override
   public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {
-    if (!Workflow.isReplaying()) {
+    if (!WorkflowUnsafe.isReplaying()) {
       Span activityStartSpan =
           contextAccessor.writeSpanContextToHeader(
               () -> createActivityStartSpanBuilder(input.getActivityName()).start(),
@@ -66,7 +67,7 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
 
   @Override
   public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
-    if (!Workflow.isReplaying()) {
+    if (!WorkflowUnsafe.isReplaying()) {
       Span activityStartSpan =
           contextAccessor.writeSpanContextToHeader(
               () -> createActivityStartSpanBuilder(input.getActivityName()).start(),
@@ -84,7 +85,7 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
 
   @Override
   public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
-    if (!Workflow.isReplaying()) {
+    if (!WorkflowUnsafe.isReplaying()) {
       Span childWorkflowStartSpan =
           contextAccessor.writeSpanContextToHeader(
               () -> createChildWorkflowStartSpanBuilder(input).start(), input.getHeader(), tracer);
@@ -100,7 +101,7 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
 
   @Override
   public void continueAsNew(ContinueAsNewInput input) {
-    if (!Workflow.isReplaying()) {
+    if (!WorkflowUnsafe.isReplaying()) {
       Span continueAsNewStartSpan =
           contextAccessor.writeSpanContextToHeader(
               () -> createContinueAsNewWorkflowStartSpanBuilder(input).start(),
