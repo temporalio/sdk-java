@@ -93,13 +93,13 @@ public final class ProtobufJsonPayloadConverter extends AbstractProtobufPayloadC
     if (!MessageOrBuilder.class.isAssignableFrom(valueClass)) {
       throw new IllegalArgumentException("Not a protobuf. valueClass=" + valueClass.getName());
     }
-    super.checkMessageType(content, valueClass);
     try {
       Method toBuilder = valueClass.getMethod("newBuilder");
       Message.Builder builder = (Message.Builder) toBuilder.invoke(null);
       parser.merge(data.toString(UTF_8), builder);
-
-      return (T) builder.build();
+      Message instance = builder.build();
+      super.checkMessageType(content, instance);
+      return (T) instance;
     } catch (Exception e) {
       throw new DataConverterException(e);
     }

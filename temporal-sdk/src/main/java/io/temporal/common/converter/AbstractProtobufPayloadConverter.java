@@ -22,10 +22,8 @@ package io.temporal.common.converter;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Descriptors;
 import com.google.protobuf.MessageOrBuilder;
 import io.temporal.api.common.v1.Payload;
-import java.lang.reflect.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,27 +50,24 @@ public abstract class AbstractProtobufPayloadConverter {
         EncodingKeys.METADATA_MESSAGE_TYPE_KEY, ByteString.copyFrom(messageTypeName, UTF_8));
   }
 
-  protected void checkMessageType(Payload payload, Class valueClass) throws DataConverterException {
+  protected void checkMessageType(Payload payload, Object instance) {
+    if (!log.isWarnEnabled()) {
+      return;
+    }
+
     ByteString messageTypeBytes =
         payload.getMetadataMap().get(EncodingKeys.METADATA_MESSAGE_TYPE_KEY);
     if (messageTypeBytes != null) {
-      try {
-        String messageType = messageTypeBytes.toString(UTF_8);
-        Method getDescriptor = valueClass.getMethod("getDescriptor");
-        String valueMessageType =
-            ((Descriptors.Descriptor) getDescriptor.invoke(null)).getFullName();
-        if (!messageType.equals(valueMessageType) && log.isWarnEnabled()) {
-          log.warn(
-              "Encoded protobuf message type \""
-                  + messageType
-                  + "\" does not match valueClass `"
-                  + valueClass.getName()
-                  + "`, which has message type \""
-                  + valueMessageType
-                  + '"');
-        }
-      } catch (Exception e) {
-        throw new DataConverterException(e);
+      String messageType = messageTypeBytes.toString(UTF_8);
+      String instanceType = ((MessageOrBuilder) instance).getDescriptorForType().getFullName();
+
+      if (!messageType.equals(instanceType)) {
+        log.warn(
+            "Encoded protobuf message type \""
+                + messageType
+                + "\" does not match value type \""
+                + instanceType
+                + '"');
       }
     }
   }

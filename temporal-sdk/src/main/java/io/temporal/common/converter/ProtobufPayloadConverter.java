@@ -67,10 +67,11 @@ public final class ProtobufPayloadConverter extends AbstractProtobufPayloadConve
     if (!MessageLite.class.isAssignableFrom(valueClass)) {
       throw new IllegalArgumentException("Not a protobuf. valueClass=" + valueClass.getName());
     }
-    super.checkMessageType(content, valueClass);
     try {
       Method parseFrom = valueClass.getMethod("parseFrom", ByteBuffer.class);
-      return (T) parseFrom.invoke(null, content.getData().asReadOnlyByteBuffer());
+      Object instance = parseFrom.invoke(null, content.getData().asReadOnlyByteBuffer());
+      super.checkMessageType(content, instance);
+      return (T) instance;
     } catch (Exception e) {
       throw new DataConverterException(e);
     }

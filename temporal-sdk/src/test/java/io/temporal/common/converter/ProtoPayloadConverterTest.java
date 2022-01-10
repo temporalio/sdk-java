@@ -123,7 +123,7 @@ public class ProtoPayloadConverterTest {
 
   @Test
   public void testProtoMessageTypeExclusion() {
-    DataConverter converter = DefaultDataConverter.newDefaultInstance(true);
+    DataConverter converter = new DefaultDataConverter(new ProtobufPayloadConverter(true));
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
             .setWorkflowId(UUID.randomUUID().toString())
