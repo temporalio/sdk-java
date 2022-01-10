@@ -30,6 +30,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -95,7 +96,7 @@ public class GetVersionTest {
       result += "activity" + testActivities.activity1(1);
 
       // Test adding a version check in replay code.
-      if (Workflow.isReplaying()) {
+      if (WorkflowUnsafe.isReplaying()) {
         hasReplayed = true;
         int version2 = Workflow.getVersion("test_change_2", Workflow.DEFAULT_VERSION, 1);
         assertEquals(version2, Workflow.DEFAULT_VERSION);

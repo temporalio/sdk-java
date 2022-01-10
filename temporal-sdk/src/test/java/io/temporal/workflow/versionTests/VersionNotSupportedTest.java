@@ -32,6 +32,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -71,7 +72,7 @@ public class VersionNotSupportedTest {
 
     @Override
     public String execute(String taskQueue) {
-      hasReplayed = Workflow.isReplaying();
+      hasReplayed = WorkflowUnsafe.isReplaying();
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class,

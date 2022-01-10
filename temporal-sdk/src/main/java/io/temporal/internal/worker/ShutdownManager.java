@@ -50,7 +50,7 @@ public class ShutdownManager implements Closeable {
   }
 
   /**
-   * executorToShutdown.shutdown() -&gt; timed wait for graceful termination ->
+   * executorToShutdown.shutdown() -&gt; timed wait for graceful termination -&gt;
    * executorToShutdown.shutdownNow()
    */
   public CompletableFuture<Void> shutdownExecutor(

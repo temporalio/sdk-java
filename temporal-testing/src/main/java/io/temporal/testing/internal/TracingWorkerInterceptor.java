@@ -30,6 +30,7 @@ import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.*;
@@ -85,7 +86,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
   @Override
   public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
-    if (!Workflow.isReplaying()) {
+    if (!WorkflowUnsafe.isReplaying()) {
       trace.add("interceptExecuteWorkflow " + Workflow.getInfo().getWorkflowId());
     }
     return new WorkflowInboundCallsInterceptorBase(next) {
@@ -108,7 +109,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
       @Override
       public Object newWorkflowMethodThread(Runnable runnable, String name) {
-        if (!Workflow.isReplaying()) {
+        if (!WorkflowUnsafe.isReplaying()) {
           if (name.startsWith(WorkflowMethodThreadNameStrategy.WORKFLOW_MAIN_THREAD_PREFIX)) {
             // strip the IDs we add to identify WF thread method
             trace.add("newThread " + WorkflowMethodThreadNameStrategy.WORKFLOW_MAIN_THREAD_PREFIX);
@@ -131,8 +132,8 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     private final List<String> impl = Collections.synchronizedList(new ArrayList<>());
 
     public boolean add(String s) {
-      log.trace("FilteredTrace isReplaying=" + Workflow.isReplaying());
-      if (!Workflow.isReplaying()) {
+      log.trace("FilteredTrace isReplaying=" + WorkflowUnsafe.isReplaying());
+      if (!WorkflowUnsafe.isReplaying()) {
         return impl.add(s);
       }
       return true;
@@ -160,7 +161,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public <R> ActivityOutput<R> executeActivity(ActivityInput<R> input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("executeActivity " + input.getActivityName());
       }
       return next.executeActivity(input);
@@ -168,7 +169,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("executeLocalActivity " + input.getActivityName());
       }
       return next.executeLocalActivity(input);
@@ -176,7 +177,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("executeChildWorkflow " + input.getWorkflowType());
       }
       return next.executeChildWorkflow(input);
@@ -184,7 +185,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public Random newRandom() {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("newRandom");
       }
       return next.newRandom();
@@ -192,7 +193,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add(
             "signalExternalWorkflow "
                 + input.getExecution().getWorkflowId()
@@ -204,7 +205,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public CancelWorkflowOutput cancelWorkflow(CancelWorkflowInput input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("cancelWorkflow " + input.getExecution().getWorkflowId());
       }
       return next.cancelWorkflow(input);
@@ -212,7 +213,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public void sleep(Duration duration) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("sleep " + duration);
       }
       next.sleep(duration);
@@ -220,7 +221,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("await " + timeout + " " + reason);
       }
       return next.await(timeout, reason, unblockCondition);
@@ -228,7 +229,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public void await(String reason, Supplier<Boolean> unblockCondition) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("await " + reason);
       }
       next.await(reason, unblockCondition);
@@ -236,7 +237,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public Promise<Void> newTimer(Duration duration) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("newTimer " + duration);
       }
       return next.newTimer(duration);
@@ -244,7 +245,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public <R> R sideEffect(Class<R> resultClass, Type resultType, Functions.Func<R> func) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("sideEffect");
       }
       return next.sideEffect(resultClass, resultType, func);
@@ -257,7 +258,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         Type resultType,
         BiPredicate<R, R> updated,
         Functions.Func<R> func) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("mutableSideEffect");
       }
       return next.mutableSideEffect(id, resultClass, resultType, updated, func);
@@ -265,7 +266,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public int getVersion(String changeId, int minSupported, int maxSupported) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("getVersion");
       }
       return next.getVersion(changeId, minSupported, maxSupported);
@@ -273,7 +274,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public void continueAsNew(ContinueAsNewInput input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("continueAsNew");
       }
       next.continueAsNew(input);
@@ -282,7 +283,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     @Override
     public void registerQuery(RegisterQueryInput input) {
       String queryType = input.getQueryType();
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("registerQuery " + queryType);
       }
       next.registerQuery(
@@ -292,7 +293,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
               input.getGenericArgTypes(),
               (args) -> {
                 Object result = input.getCallback().apply(args);
-                if (!Workflow.isReplaying()) {
+                if (!WorkflowUnsafe.isReplaying()) {
                   if (queryType.equals("query")) {
                     log.trace("query", new Throwable());
                   }
@@ -304,7 +305,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public void registerSignalHandlers(RegisterSignalHandlersInput input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         StringBuilder signals = new StringBuilder();
         for (SignalRegistrationRequest request : input.getRequests()) {
           if (signals.length() > 0) {
@@ -319,7 +320,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("registerDynamicSignalHandler");
       }
       next.registerDynamicSignalHandler(input);
@@ -327,7 +328,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("registerDynamicQueryHandler");
       }
       next.registerDynamicQueryHandler(input);
@@ -335,7 +336,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public UUID randomUUID() {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("randomUUID");
       }
       return next.randomUUID();
@@ -343,7 +344,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("upsertSearchAttributes");
       }
       next.upsertSearchAttributes(searchAttributes);
@@ -351,7 +352,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public Object newChildThread(Runnable runnable, boolean detached, String name) {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("newThread " + name);
       }
       return next.newChildThread(runnable, detached, name);
@@ -359,7 +360,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
 
     @Override
     public long currentTimeMillis() {
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         trace.add("currentTimeMillis");
       }
       return next.currentTimeMillis();

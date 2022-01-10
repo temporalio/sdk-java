@@ -26,6 +26,7 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import org.junit.Assert;
@@ -66,7 +67,7 @@ public class GetVersionWithoutCommandEventTest {
     @Override
     public String execute() {
       try {
-        if (!Workflow.isReplaying()) {
+        if (!WorkflowUnsafe.isReplaying()) {
           executionStarted.complete(true);
           signalReceived.get();
         } else {

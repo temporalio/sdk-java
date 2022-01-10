@@ -28,6 +28,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
@@ -74,7 +75,7 @@ public class ActivityRetryOptionsChangeTest {
               .setStartToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build());
       RetryOptions retryOptions;
-      if (Workflow.isReplaying()) {
+      if (WorkflowUnsafe.isReplaying()) {
         retryOptions =
             RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))

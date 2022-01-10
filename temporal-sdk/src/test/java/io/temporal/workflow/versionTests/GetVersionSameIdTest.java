@@ -27,6 +27,7 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,9 +60,9 @@ public class GetVersionSameIdTest {
 
     @Override
     public void execute() {
-      System.out.println("REPLAYING: " + Workflow.isReplaying());
+      System.out.println("REPLAYING: " + WorkflowUnsafe.isReplaying());
       // Test adding a version check in replay code.
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 11);
         Workflow.sleep(Duration.ofMinutes(1));
       } else {

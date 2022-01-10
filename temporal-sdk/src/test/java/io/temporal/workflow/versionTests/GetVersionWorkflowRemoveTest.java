@@ -30,6 +30,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,7 +69,7 @@ public class GetVersionWorkflowRemoveTest {
               SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
       String result;
       // Test adding a version check in replay code.
-      if (!Workflow.isReplaying()) {
+      if (!WorkflowUnsafe.isReplaying()) {
         // The first version of the code
         int changeFoo = Workflow.getVersion("changeFoo", Workflow.DEFAULT_VERSION, 1);
         if (changeFoo != 1) {

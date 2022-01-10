@@ -23,6 +23,7 @@ import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 
 public class DeterminismFailingWorkflowImpl implements TestWorkflows.TestWorkflowStringArg {
 
@@ -32,7 +33,7 @@ public class DeterminismFailingWorkflowImpl implements TestWorkflows.TestWorkflo
         Workflow.newActivityStub(
             TestActivities.VariousTestActivities.class,
             SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue));
-    if (!Workflow.isReplaying()) {
+    if (!WorkflowUnsafe.isReplaying()) {
       activities.activity1(1);
     }
   }
