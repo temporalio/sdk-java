@@ -19,12 +19,14 @@
 
 package io.temporal.common.interceptors;
 
+import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
 /**
  * Intercepts calls to the workflow execution. Executes under workflow context. So all the
  * restrictions on the workflow code should be obeyed.
  */
+@Experimental
 public interface WorkflowInboundCallsInterceptor {
 
   final class WorkflowInput {

@@ -68,6 +68,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -444,7 +445,7 @@ public final class WorkflowInternal {
   }
 
   public static void continueAsNew(
-      Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+      @Nullable String workflowType, @Nullable ContinueAsNewOptions options, Object[] args) {
     getWorkflowInterceptor()
         .continueAsNew(
             new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
@@ -452,8 +453,8 @@ public final class WorkflowInternal {
   }
 
   public static void continueAsNew(
-      Optional<String> workflowType,
-      Optional<ContinueAsNewOptions> options,
+      @Nullable String workflowType,
+      @Nullable ContinueAsNewOptions options,
       Object[] args,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     outboundCallsInterceptor.continueAsNew(

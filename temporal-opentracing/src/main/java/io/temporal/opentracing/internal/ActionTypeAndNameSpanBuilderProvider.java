@@ -46,7 +46,7 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
   public Tracer.SpanBuilder createSpanBuilder(Tracer tracer, SpanCreationContext context) {
     Tracer.SpanBuilder spanBuilder = tracer.buildSpan(this.getSpanName(context));
 
-    this.getSpanTags(context).forEach(spanBuilder::withTag);
+    getSpanTags(context).forEach(spanBuilder::withTag);
 
     return spanBuilder;
   }
@@ -79,6 +79,10 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
         return ImmutableMap.of(
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.PARENT_WORKFLOW_ID, context.getParentWorkflowId(),
+            StandardTagNames.PARENT_RUN_ID, context.getParentRunId());
+      case START_CONTINUE_AS_NEW_WORKFLOW:
+        return ImmutableMap.of(
+            StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.PARENT_RUN_ID, context.getParentRunId());
       case RUN_WORKFLOW:
       case START_ACTIVITY:

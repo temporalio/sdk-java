@@ -22,17 +22,18 @@ package io.temporal.common.interceptors;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.common.Experimental;
 import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 /**
  * Can be used to intercept workflow code calls to the Temporal APIs. An instance should be created
@@ -43,6 +44,7 @@ import java.util.function.Supplier;
  * <p>The calls to the interceptor are executed in the context of a workflow and must follow the
  * same rules all the other workflow code follows.
  */
+@Experimental
 public interface WorkflowOutboundCallsInterceptor {
 
   final class ActivityInput<R> {
@@ -300,14 +302,14 @@ public interface WorkflowOutboundCallsInterceptor {
   }
 
   final class ContinueAsNewInput {
-    private final Optional<String> workflowType;
-    private final Optional<ContinueAsNewOptions> options;
+    private final @Nullable String workflowType;
+    private final @Nullable ContinueAsNewOptions options;
     private final Object[] args;
     private final Header header;
 
     public ContinueAsNewInput(
-        Optional<String> workflowType,
-        Optional<ContinueAsNewOptions> options,
+        @Nullable String workflowType,
+        @Nullable ContinueAsNewOptions options,
         Object[] args,
         Header header) {
       this.workflowType = workflowType;
@@ -316,11 +318,19 @@ public interface WorkflowOutboundCallsInterceptor {
       this.header = header;
     }
 
-    public Optional<String> getWorkflowType() {
+    /**
+     * @return workflowType for the continue-as-new workflow run. null if continue-as-new should
+     *     inherit the type of the original workflow run.
+     */
+    public @Nullable String getWorkflowType() {
       return workflowType;
     }
 
-    public Optional<ContinueAsNewOptions> getOptions() {
+    /**
+     * @return options for the continue-as-new workflow run. Can be null, in that case the values
+     *     will be taken from the original workflow run.
+     */
+    public @Nullable ContinueAsNewOptions getOptions() {
       return options;
     }
 

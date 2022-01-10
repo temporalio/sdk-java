@@ -19,11 +19,14 @@
 
 package io.temporal.common.interceptors;
 
+import io.temporal.common.Experimental;
+
 /**
  * Intercepts workflow and activity executions.
  *
  * <p>TODO(maxim): JavaDoc with sample
  */
+@Experimental
 public interface WorkerInterceptor {
   WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next);
 

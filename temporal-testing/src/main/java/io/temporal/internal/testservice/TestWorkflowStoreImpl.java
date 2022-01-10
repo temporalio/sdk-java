@@ -73,7 +73,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       workflowTaskQueues = new HashMap<>();
   private final SelfAdvancingTimer timerService;
   private LockHandle emptyHistoryLockHandle;
-  private volatile boolean isShuttingDown;
 
   private static class HistoryStore {
 
@@ -480,7 +479,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         if (entry.getValue().isCompleted()) {
           continue;
         }
-        result.add(constructWorkflowExecutionInfo(entry, executionId, null));
+        result.add(
+            constructWorkflowExecutionInfo(
+                entry, executionId, WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING));
       } else {
         if (!entry.getValue().isCompleted()) {
           continue;
@@ -513,7 +514,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void close() {
-    isShuttingDown = true;
     timerService.shutdown();
   }
 }
