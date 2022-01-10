@@ -40,11 +40,14 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DefaultDataConverter implements DataConverter {
 
-  // Order is important as the first converter that can convert the payload is used
+  // Order is important as the first converter that can convert the payload is used. Needs to match
+  // the other SDKs. Go SDK:
+  // https://github.com/temporalio/sdk-go/blob/5e5645f0c550dcf717c095ae32c76a7087d2e985/converter/default_data_converter.go#L28
   private static final PayloadConverter[] DEFAULT_PAYLOAD_CONVERTERS = {
     new NullPayloadConverter(),
     new ByteArrayPayloadConverter(),
     new ProtobufJsonPayloadConverter(),
+    new ProtobufPayloadConverter(),
     new JacksonJsonPayloadConverter()
   };
 

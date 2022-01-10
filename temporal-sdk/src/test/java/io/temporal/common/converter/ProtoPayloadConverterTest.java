@@ -24,10 +24,15 @@ import static org.junit.Assert.assertEquals;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.MapEntry;
 import com.google.protobuf.util.JsonFormat;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -94,6 +99,42 @@ public class ProtoPayloadConverterTest {
     WorkflowExecution converted =
         converter.fromPayloads(0, data, WorkflowExecution.class, WorkflowExecution.class);
     assertEquals(execution, converted);
+  }
+
+  @Test
+  public void testProtoMessageType() {
+    DataConverter converter = DataConverter.getDefaultInstance();
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(UUID.randomUUID().toString())
+            .setRunId(UUID.randomUUID().toString())
+            .build();
+    Optional<Payloads> data = converter.toPayloads(execution);
+    Payloads payloads = data.get();
+    Object field = payloads.getField(payloads.getDescriptorForType().findFieldByName("payloads"));
+    Payload payload = (Payload) ((List<?>) field).get(0);
+    Object metadata = payload.getField(payload.getDescriptorForType().findFieldByName("metadata"));
+    MapEntry<?, ?> secondMetadata = (MapEntry<?, ?>) ((List<?>) metadata).get(1);
+    assertEquals("messageType", secondMetadata.getKey());
+    assertEquals(
+        "temporal.api.common.v1.WorkflowExecution",
+        ((ByteString) secondMetadata.getValue()).toString(StandardCharsets.UTF_8));
+  }
+
+  @Test
+  public void testProtoMessageTypeExclusion() {
+    DataConverter converter = new DefaultDataConverter(new ProtobufPayloadConverter(true));
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(UUID.randomUUID().toString())
+            .setRunId(UUID.randomUUID().toString())
+            .build();
+    Optional<Payloads> data = converter.toPayloads(execution);
+    Payloads payloads = data.get();
+    Object field = payloads.getField(payloads.getDescriptorForType().findFieldByName("payloads"));
+    Payload payload = (Payload) ((List<?>) field).get(0);
+    Object metadata = payload.getField(payload.getDescriptorForType().findFieldByName("metadata"));
+    assertEquals(1, ((List<?>) metadata).size());
   }
 
   static class TestPayload {

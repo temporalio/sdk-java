@@ -32,17 +32,30 @@ import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.Optional;
 
-public final class ProtobufJsonPayloadConverter implements PayloadConverter {
+public final class ProtobufJsonPayloadConverter extends AbstractProtobufPayloadConverter
+    implements PayloadConverter {
 
   private final JsonFormat.Printer printer;
   private final JsonFormat.Parser parser;
 
   public ProtobufJsonPayloadConverter() {
-    printer = JsonFormat.printer();
-    parser = JsonFormat.parser().ignoringUnknownFields();
+    this(JsonFormat.printer(), JsonFormat.parser().ignoringUnknownFields(), false);
+  }
+
+  public ProtobufJsonPayloadConverter(boolean excludeProtobufMessageTypes) {
+    this(
+        JsonFormat.printer(),
+        JsonFormat.parser().ignoringUnknownFields(),
+        excludeProtobufMessageTypes);
   }
 
   public ProtobufJsonPayloadConverter(JsonFormat.Printer printer, JsonFormat.Parser parser) {
+    this(printer, parser, false);
+  }
+
+  public ProtobufJsonPayloadConverter(
+      JsonFormat.Printer printer, JsonFormat.Parser parser, boolean excludeProtobufMessageTypes) {
+    super(excludeProtobufMessageTypes);
     this.printer = Objects.requireNonNull(printer);
     this.parser = Objects.requireNonNull(parser);
   }
@@ -60,12 +73,13 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
 
     try {
       String data = printer.print((MessageOrBuilder) value);
-      return Optional.of(
+      Payload.Builder builder =
           Payload.newBuilder()
               .putMetadata(
                   EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_PROTOBUF_JSON)
-              .setData(ByteString.copyFrom(data, UTF_8))
-              .build());
+              .setData(ByteString.copyFrom(data, UTF_8));
+      super.addMessageType(builder, value);
+      return Optional.of(builder.build());
     } catch (InvalidProtocolBufferException e) {
       throw new DataConverterException(e);
     }
@@ -83,8 +97,9 @@ public final class ProtobufJsonPayloadConverter implements PayloadConverter {
       Method toBuilder = valueClass.getMethod("newBuilder");
       Message.Builder builder = (Message.Builder) toBuilder.invoke(null);
       parser.merge(data.toString(UTF_8), builder);
-
-      return (T) builder.build();
+      Message instance = builder.build();
+      super.checkMessageType(content, instance);
+      return (T) instance;
     } catch (Exception e) {
       throw new DataConverterException(e);
     }

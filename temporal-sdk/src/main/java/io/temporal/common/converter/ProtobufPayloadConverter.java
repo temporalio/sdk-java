@@ -26,7 +26,16 @@ import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.Optional;
 
-public final class ProtobufPayloadConverter implements PayloadConverter {
+public final class ProtobufPayloadConverter extends AbstractProtobufPayloadConverter
+    implements PayloadConverter {
+
+  public ProtobufPayloadConverter() {
+    super();
+  }
+
+  public ProtobufPayloadConverter(boolean excludeProtobufMessageTypes) {
+    super(excludeProtobufMessageTypes);
+  }
 
   @Override
   public String getEncodingType() {
@@ -39,12 +48,13 @@ public final class ProtobufPayloadConverter implements PayloadConverter {
       return Optional.empty();
     }
     try {
-      return Optional.of(
+      Payload.Builder builder =
           Payload.newBuilder()
               .putMetadata(
                   EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_PROTOBUF)
-              .setData(((MessageLite) value).toByteString())
-              .build());
+              .setData(((MessageLite) value).toByteString());
+      super.addMessageType(builder, value);
+      return Optional.of(builder.build());
     } catch (Exception e) {
       throw new DataConverterException(e);
     }
@@ -59,7 +69,9 @@ public final class ProtobufPayloadConverter implements PayloadConverter {
     }
     try {
       Method parseFrom = valueClass.getMethod("parseFrom", ByteBuffer.class);
-      return (T) parseFrom.invoke(null, content.getData().asReadOnlyByteBuffer());
+      Object instance = parseFrom.invoke(null, content.getData().asReadOnlyByteBuffer());
+      super.checkMessageType(content, instance);
+      return (T) instance;
     } catch (Exception e) {
       throw new DataConverterException(e);
     }
