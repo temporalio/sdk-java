@@ -67,7 +67,7 @@ class KotlinAsyncCompanionFunctionTest {
         "This is a reference to companion object static function," +
           " it's shouldn't be recognized as a method reference to a" +
           " Temporal async stub",
-        AsyncInternal.isAsync((KotlinAsyncCompanionFunctionTest)::setSuccess)
+        AsyncInternal.isAsync(Companion::setSuccess)
       )
 
       assertFalse(
@@ -75,11 +75,11 @@ class KotlinAsyncCompanionFunctionTest {
           " it's shouldn't be recognized as a method reference to a" +
           " Temporal async stub",
         AsyncInternal.isAsync(
-          FunctionWrappingUtil.temporalJavaFunctionalWrapper((KotlinAsyncCompanionFunctionTest)::setSuccess)
+          FunctionWrappingUtil.temporalJavaFunctionalWrapper(Companion::setSuccess)
         )
       )
 
-      Async.procedure((KotlinAsyncCompanionFunctionTest)::setSuccess).get()
+      Async.procedure(Companion::setSuccess).get()
     }
   }
 
