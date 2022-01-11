@@ -1,0 +1,29 @@
+Highlights:
+
+This is mostly a bugfix release
+ProtobufJsonPayloadConverter and ProtobufPayloadConverter now adds messageType to metadata (this can be disabled by providing excludeProtobufMessageTypes flag to the converter's constructor)
+
+This release upgrades recommended version of Jackson to 2.13.1 that fixes a security vulnerability. [XRAY-191477; SNYK-JAVA-COMFASTERXMLJACKSONCORE-2326698]
+This vulnerability doesn't affect Temporal functionality and usage of Jackson [https://github.com/FasterXML/jackson-databind/issues/3328]
+
+Changeset:
+2021-12-07 - 5fc5695f - Improve an error message for an unexpected local activity marker event (#923)
+2021-12-08 - 3b238a95 - Improve wording around WorkflowClient#start (#924)
+2021-12-08 - f7f26fe1 - Shutdown of WorkflowFactory invalidates the workflow cache (#916)
+2021-12-10 - c9455dbe - Improve Workflow#getMetricsScope docstring (#926)
+2021-12-27 - 143e4961 - Avoid ConcurrentModificationExceptions in describeWorkflowExecution (#936)
+2021-12-27 - 22e2b543 - Allow disabling timeskipping on TestWorkflowEnvironment (#937)
+2021-12-27 - d709d72b - Condense README and rename to sdk-java (#931)
+2021-12-28 - 6201312c - Fixes POJOActivityImplMetadata not being able to handle activity impl that uses inheritance (#930)
+2021-12-29 - a3aebf56 - Support for PKCS12 keys in SimpleSslContextBuilder (#941)
+2022-01-03 - 40bcc05b - Heartbeat throttling is revisited for a new design, gets a default if heartbeatTimeout is not specified (#943)
+2022-01-04 - 6169f608 - Refactor a local/regular activities difference out from POJOActivityTaskHandler (#949)
+2022-01-05 - 34a9042e - Fix opentracing context propagation to async executed function (#951)
+2022-01-06 - 4ffee392 - Cancel pollers when client disconnects (#953)
+2022-01-06 - 5222b482 - Guarantee context listener removal (#957)
+2022-01-06 - fc21882e - Set Fossa to run non-blocking in buildkite (#956)
+2022-01-07 - 4b5c9df7 - Fix continue-as-new wiring, interception, context propagation and OpenTracing integration (#954)
+2022-01-07 - f2c148f8 - Fix absent workflow statuses in TestService#listOpenWorkflowExecutions (#958)
+2022-01-10 - 30557adb - Added WorkflowUnsafe#isWorkflowThread (#959)
+2022-01-10 - 8d905c4c - Upgrade dependencies to the latest versions (#962)
+2022-01-10 - ed3c65f7 - Add messageType to protobuf payloads (#942)
