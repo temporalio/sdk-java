@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import javax.annotation.Nullable;
 import javax.net.ssl.*;
 
 public class SimpleSslContextBuilder {
@@ -44,9 +45,9 @@ public class SimpleSslContextBuilder {
           // gRPC requires http2 protocol.
           ApplicationProtocolNames.HTTP_2);
 
-  private final PKCS pkcs;
-  private final InputStream keyCertChain;
-  private final InputStream key;
+  private final @Nullable PKCS pkcs;
+  private final @Nullable InputStream keyCertChain;
+  private final @Nullable InputStream key;
   private TrustManager trustManager;
   private boolean useInsecureTrustManager;
   private String keyPassword;
@@ -67,19 +68,31 @@ public class SimpleSslContextBuilder {
   }
 
   /**
+   * Explicitly creates a builder without a client private key or certificate chain.
+   *
+   * <p>{@link #forPKCS8} and {@link #forPKCS12} support null inputs too for easier configuration
+   * API
+   */
+  public static SimpleSslContextBuilder noKeyOrCertChain() {
+    return new SimpleSslContextBuilder(null, null, null);
+  }
+
+  /**
    * @param keyCertChain - an input stream for an X.509 client certificate chain in PEM format.
    * @param key - an input stream for a PKCS#8 client private key in PEM format.
    */
-  public static SimpleSslContextBuilder forPKCS8(InputStream keyCertChain, InputStream key) {
+  public static SimpleSslContextBuilder forPKCS8(
+      @Nullable InputStream keyCertChain, @Nullable InputStream key) {
     return new SimpleSslContextBuilder(PKCS.PKCS_8, keyCertChain, key);
   }
 
   /** @param pfxKeyArchive - an input stream for .pfx or .p12 PKCS12 archive file */
-  public static SimpleSslContextBuilder forPKCS12(InputStream pfxKeyArchive) {
+  public static SimpleSslContextBuilder forPKCS12(@Nullable InputStream pfxKeyArchive) {
     return new SimpleSslContextBuilder(PKCS.PKCS_12, null, pfxKeyArchive);
   }
 
-  private SimpleSslContextBuilder(PKCS pkcs, InputStream keyCertChain, InputStream key) {
+  private SimpleSslContextBuilder(
+      @Nullable PKCS pkcs, @Nullable InputStream keyCertChain, @Nullable InputStream key) {
     this.pkcs = pkcs;
     this.keyCertChain = keyCertChain;
     this.key = key;
@@ -109,16 +122,18 @@ public class SimpleSslContextBuilder {
                         : getDefaultTrustManager())
             .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG);
 
-    switch (pkcs) {
-      case PKCS_8:
-        // netty by default supports PKCS8
-        sslContextBuilder.keyManager(keyCertChain, key, keyPassword);
-        break;
-      case PKCS_12:
-        sslContextBuilder.keyManager(createPKCS12KeyManager());
-        break;
-      default:
-        throw new IllegalArgumentException("PKCS " + pkcs + " is not implemented");
+    if (pkcs != null && (key != null || keyCertChain != null)) {
+      switch (pkcs) {
+        case PKCS_8:
+          // netty by default supports PKCS8
+          sslContextBuilder.keyManager(keyCertChain, key, keyPassword);
+          break;
+        case PKCS_12:
+          sslContextBuilder.keyManager(createPKCS12KeyManager());
+          break;
+        default:
+          throw new IllegalArgumentException("PKCS " + pkcs + " is not implemented");
+      }
     }
 
     return sslContextBuilder.build();
