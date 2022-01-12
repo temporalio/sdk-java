@@ -200,6 +200,7 @@ public class WorkflowServiceStubsOptions {
     this.rpcLongPollTimeout = builder.rpcLongPollTimeout;
     this.rpcQueryTimeout = builder.rpcQueryTimeout;
     this.rpcTimeout = builder.rpcTimeout;
+    this.rpcRetryOptions = builder.rpcRetryOptions;
     this.connectionBackoffResetFrequency = builder.connectionBackoffResetFrequency;
     this.grpcReconnectFrequency = builder.grpcReconnectFrequency;
     if (builder.headers != null) {
