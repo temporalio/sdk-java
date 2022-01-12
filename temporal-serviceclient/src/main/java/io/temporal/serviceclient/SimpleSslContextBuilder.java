@@ -107,7 +107,6 @@ public class SimpleSslContextBuilder {
                     : useInsecureTrustManager
                         ? InsecureTrustManagerFactory.INSTANCE.getTrustManagers()[0]
                         : getDefaultTrustManager())
-            .keyManager(keyCertChain, key, keyPassword)
             .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG);
 
     switch (pkcs) {
