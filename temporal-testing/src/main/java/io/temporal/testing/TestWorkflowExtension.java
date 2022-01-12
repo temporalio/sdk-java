@@ -91,6 +91,7 @@ public class TestWorkflowExtension
   private final String target;
   private final boolean doNotStart;
   private final long initialTimeMillis;
+  private final boolean useTimeskipping;
 
   private final Set<Class<?>> supportedParameterTypes = new HashSet<>();
   private boolean includesDynamicWorkflow;
@@ -110,6 +111,7 @@ public class TestWorkflowExtension
     target = builder.target;
     doNotStart = builder.doNotStart;
     initialTimeMillis = builder.initialTimeMillis;
+    useTimeskipping = builder.useTimeskipping;
 
     supportedParameterTypes.add(TestWorkflowEnvironment.class);
     supportedParameterTypes.add(WorkflowClient.class);
@@ -187,20 +189,15 @@ public class TestWorkflowExtension
   }
 
   @Override
-  public void beforeEach(ExtensionContext context) throws Exception {
+  public void beforeEach(ExtensionContext context) {
     long currentInitialTimeMillis =
         AnnotationSupport.findAnnotation(context.getElement(), WorkflowInitialTime.class)
             .map(annotation -> Instant.parse(annotation.value()).toEpochMilli())
             .orElse(initialTimeMillis);
-    TestEnvironmentOptions testOptions =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkflowClientOptions(workflowClientOptions)
-            .setWorkerFactoryOptions(workerFactoryOptions)
-            .setUseExternalService(useExternalService)
-            .setTarget(target)
-            .setInitialTimeMillis(currentInitialTimeMillis)
-            .build();
-    TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
+
+    TestWorkflowEnvironment testEnvironment =
+        TestWorkflowEnvironment.newInstance(createTestEnvOptions(currentInitialTimeMillis));
+
     String taskQueue =
         String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
@@ -214,6 +211,17 @@ public class TestWorkflowExtension
     setTestEnvironment(context, testEnvironment);
     setWorker(context, worker);
     setWorkflowOptions(context, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+  }
+
+  protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
+    return TestEnvironmentOptions.newBuilder()
+        .setWorkflowClientOptions(workflowClientOptions)
+        .setWorkerFactoryOptions(workerFactoryOptions)
+        .setUseExternalService(useExternalService)
+        .setUseTimeskipping(useTimeskipping)
+        .setTarget(target)
+        .setInitialTimeMillis(initialTimeMillis)
+        .build();
   }
 
   @Override
@@ -274,6 +282,9 @@ public class TestWorkflowExtension
     private String target = null;
     private boolean doNotStart = false;
     private long initialTimeMillis;
+    // Default to TestEnvironmentOptions isUseTimeskipping
+    private boolean useTimeskipping =
+        TestEnvironmentOptions.getDefaultInstance().isUseTimeskipping();
 
     private Builder() {}
 
@@ -394,6 +405,17 @@ public class TestWorkflowExtension
      */
     public Builder setInitialTime(Instant initialTime) {
       this.initialTimeMillis = initialTime.toEpochMilli();
+      return this;
+    }
+
+    /**
+     * Sets TestEnvironmentOptions.setUseTimeskippings. If true, no actual wall-clock time will pass
+     * when a workflow sleeps or sets a timer.
+     *
+     * <p>Default is true
+     */
+    public Builder setUseTimeskipping(boolean useTimeskipping) {
+      this.useTimeskipping = useTimeskipping;
       return this;
     }
 
