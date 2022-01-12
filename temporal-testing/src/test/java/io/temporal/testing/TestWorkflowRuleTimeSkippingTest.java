@@ -22,7 +22,7 @@ package io.temporal.testing;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class TestWorkflowRuleTimeSkippingTest {
 
@@ -36,11 +36,11 @@ public class TestWorkflowRuleTimeSkippingTest {
         "By default time skipping should be on",
         defaultTestWorkflowRule
             .createTestEnvOptions(System.currentTimeMillis())
-            .isUseExternalService());
+            .isUseTimeskipping());
     assertFalse(
         "We disabled the time skipping on the rule, so the TestEnvironmentOptions should have it off too",
         noTimeSkippingWorkflowRule
             .createTestEnvOptions(System.currentTimeMillis())
-            .isUseExternalService());
+            .isUseTimeskipping());
   }
 }
