@@ -1,7 +1,7 @@
 description = '''Temporal Workflow Java SDK'''
 
 dependencies {
-    implementation(platform("com.fasterxml.jackson:jackson-bom:$jacksonVersion"))
+    api(platform("com.fasterxml.jackson:jackson-bom:$jacksonVersion"))
     api(platform("io.micrometer:micrometer-bom:$micrometerVersion"))
 
     api project(':temporal-serviceclient')
@@ -13,6 +13,7 @@ dependencies {
         exclude group: 'com.google.errorprone'
         exclude group: 'com.google.j2objc'
     }
+    api "com.fasterxml.jackson.core:jackson-databind"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
     if (!JavaVersion.current().isJava8()) {
         implementation 'javax.annotation:javax.annotation-api:1.3.2'
