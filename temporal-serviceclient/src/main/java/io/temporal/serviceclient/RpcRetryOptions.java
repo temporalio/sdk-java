@@ -19,9 +19,9 @@
 
 package io.temporal.serviceclient;
 
-import com.google.common.base.Defaults;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -147,11 +147,13 @@ public final class RpcRetryOptions {
     }
 
     /**
-     * Maximum number of attempts. When exceeded the retries stop even if not expired yet. Must be 1
-     * or bigger. Default is unlimited.
+     * When exceeded the amount of attempts, stop. Even if expiration time is not reached. <br>
+     * Default is unlimited.
+     *
+     * @param maximumAttempts Maximum number of attempts. Default will be used if set to {@code 0}.
      */
     public Builder setMaximumAttempts(int maximumAttempts) {
-      if (maximumAttempts < 1) {
+      if (maximumAttempts < 0) {
         throw new IllegalArgumentException("Invalid maximumAttempts: " + maximumAttempts);
       }
       this.maximumAttempts = maximumAttempts;
@@ -160,11 +162,14 @@ public final class RpcRetryOptions {
 
     /**
      * Maximum interval between retries. Exponential backoff leads to interval increase. This value
-     * is the cap of the increase. Default is 100x of initial interval.
+     * is the cap of the increase. <br>
+     * Default is 100x of initial interval. Can't be less than {@link #setInitialInterval(Duration)}
+     *
+     * @param maximumInterval the maximum interval value. Default will be used if set to {@code
+     *     null}.
      */
     public Builder setMaximumInterval(Duration maximumInterval) {
-      Objects.requireNonNull(maximumInterval);
-      if (maximumInterval.isNegative() || maximumInterval.isZero()) {
+      if (maximumInterval != null && (maximumInterval.isNegative() || maximumInterval.isZero())) {
         throw new IllegalArgumentException("Invalid interval: " + maximumInterval);
       }
       this.maximumInterval = maximumInterval;
@@ -206,21 +211,17 @@ public final class RpcRetryOptions {
       if (o == null) {
         return this;
       }
-      setInitialInterval(merge(initialInterval, o.getInitialInterval(), Duration.class));
-      setExpiration(merge(expiration, o.getExpiration(), Duration.class));
-      setMaximumInterval(merge(maximumInterval, o.getMaximumInterval(), Duration.class));
-      setBackoffCoefficient(merge(backoffCoefficient, o.getBackoffCoefficient(), double.class));
-      setMaximumAttempts(merge(maximumAttempts, o.getMaximumAttempts(), int.class));
+      setInitialInterval(
+          OptionsUtils.merge(initialInterval, o.getInitialInterval(), Duration.class));
+      setExpiration(OptionsUtils.merge(expiration, o.getExpiration(), Duration.class));
+      setMaximumInterval(
+          OptionsUtils.merge(maximumInterval, o.getMaximumInterval(), Duration.class));
+      setBackoffCoefficient(
+          OptionsUtils.merge(backoffCoefficient, o.getBackoffCoefficient(), double.class));
+      setMaximumAttempts(OptionsUtils.merge(maximumAttempts, o.getMaximumAttempts(), int.class));
       setDoNotRetry(merge(doNotRetry, o.getDoNotRetry()));
       validateBuildWithDefaults();
       return this;
-    }
-
-    private static <G> G merge(G annotation, G options, Class<G> type) {
-      if (!Defaults.defaultValue(type).equals(options)) {
-        return options;
-      }
-      return annotation;
     }
 
     private List<DoNotRetryItem> merge(List<DoNotRetryItem> o1, List<DoNotRetryItem> o2) {

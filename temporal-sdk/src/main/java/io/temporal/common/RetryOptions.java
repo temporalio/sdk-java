@@ -177,7 +177,7 @@ public final class RetryOptions {
     }
 
     /**
-     * When exceeded the amount of attempt, stop. Even if expiration time is not reached. <br>
+     * When exceeded the amount of attempts, stop. Even if expiration time is not reached. <br>
      * Default is unlimited.
      *
      * @param maximumAttempts Maximum number of attempts. Default will be used if set to {@code 0}.
