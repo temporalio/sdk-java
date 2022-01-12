@@ -91,6 +91,7 @@ public class TestWorkflowExtension
   private final String target;
   private final boolean doNotStart;
   private final long initialTimeMillis;
+  private final boolean useTimeskipping;
 
   private final Set<Class<?>> supportedParameterTypes = new HashSet<>();
   private boolean includesDynamicWorkflow;
@@ -110,6 +111,7 @@ public class TestWorkflowExtension
     target = builder.target;
     doNotStart = builder.doNotStart;
     initialTimeMillis = builder.initialTimeMillis;
+    useTimeskipping = builder.useTimeskipping;
 
     supportedParameterTypes.add(TestWorkflowEnvironment.class);
     supportedParameterTypes.add(WorkflowClient.class);
@@ -197,6 +199,7 @@ public class TestWorkflowExtension
             .setWorkflowClientOptions(workflowClientOptions)
             .setWorkerFactoryOptions(workerFactoryOptions)
             .setUseExternalService(useExternalService)
+            .setUseTimeskipping(useTimeskipping)
             .setTarget(target)
             .setInitialTimeMillis(currentInitialTimeMillis)
             .build();
@@ -274,6 +277,9 @@ public class TestWorkflowExtension
     private String target = null;
     private boolean doNotStart = false;
     private long initialTimeMillis;
+    // Default to TestEnvironmentOptions isUseTimeskipping
+    private boolean useTimeskipping =
+        TestEnvironmentOptions.getDefaultInstance().isUseTimeskipping();
 
     private Builder() {}
 
@@ -394,6 +400,17 @@ public class TestWorkflowExtension
      */
     public Builder setInitialTime(Instant initialTime) {
       this.initialTimeMillis = initialTime.toEpochMilli();
+      return this;
+    }
+
+    /**
+     * Sets TestEnvironmentOptions.setUseTimeskippings. If true, no actual wall-clock time will pass
+     * when a workflow sleeps or sets a timer.
+     *
+     * <p>Default is true
+     */
+    public Builder setUseTimeskipping(boolean useTimeskipping) {
+      this.useTimeskipping = useTimeskipping;
       return this;
     }
 

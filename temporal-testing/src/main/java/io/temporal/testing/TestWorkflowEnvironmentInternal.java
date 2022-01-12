@@ -52,9 +52,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final TestWorkflowService service;
   private final WorkerFactory workerFactory;
   private final TimeLockingInterceptor timeLockingInterceptor;
+  private final TestEnvironmentOptions testEnvironmentOptions;
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
-    TestEnvironmentOptions testEnvironmentOptions;
     if (options == null) {
       testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
     } else {
@@ -140,6 +140,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   @Override
   public String getNamespace() {
     return workflowClientOptions.getNamespace();
+  }
+
+  @Override
+  public TestEnvironmentOptions getTestEnvironmentOptions() {
+    return testEnvironmentOptions;
   }
 
   @Override

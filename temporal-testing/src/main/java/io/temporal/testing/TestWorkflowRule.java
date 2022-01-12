@@ -128,6 +128,7 @@ public class TestWorkflowRule implements TestRule {
             .setUseExternalService(useExternalService)
             .setTarget(builder.target)
             .setInitialTimeMillis(builder.initialTimeMillis)
+            .setUseTimeskipping(builder.useTimeskipping)
             .build();
 
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
@@ -144,6 +145,9 @@ public class TestWorkflowRule implements TestRule {
     private boolean useExternalService;
     private boolean doNotStart;
     private long initialTimeMillis;
+    // Default to TestEnvironmentOptions isUseTimeskipping
+    private boolean useTimeskipping =
+        TestEnvironmentOptions.getDefaultInstance().isUseTimeskipping();
 
     private Class<?>[] workflowTypes;
     private Object[] activityImplementations;
@@ -204,6 +208,17 @@ public class TestWorkflowRule implements TestRule {
      */
     public Builder setUseExternalService(boolean useExternalService) {
       this.useExternalService = useExternalService;
+      return this;
+    }
+
+    /**
+     * Sets TestEnvironmentOptions.setUseTimeskippings. If true, no actual wall-clock time will pass
+     * when a workflow sleeps or sets a timer.
+     *
+     * <p>Default is true
+     */
+    public Builder setUseTimeskipping(boolean useTimeskipping) {
+      this.useTimeskipping = useTimeskipping;
       return this;
     }
 

@@ -188,6 +188,11 @@ public class SDKTestWorkflowRule implements TestRule {
       return this;
     }
 
+    public Builder setUseTimeskipping(boolean useTimeskipping) {
+      testWorkflowRuleBuilder.setUseTimeskipping(useTimeskipping);
+      return this;
+    }
+
     public SDKTestWorkflowRule build() {
       if (!workerFactoryOptionsAreSet) {
         testWorkflowRuleBuilder.setWorkerFactoryOptions(

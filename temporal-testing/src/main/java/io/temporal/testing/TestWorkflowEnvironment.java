@@ -141,6 +141,9 @@ public interface TestWorkflowEnvironment {
 
   String getNamespace();
 
+  /** @return the TestEnvironmentOptions. */
+  TestEnvironmentOptions getTestEnvironmentOptions();
+
   /**
    * Currently prints histories of all workflow instances stored in the service. This is useful
    * information to print in the case of a unit test failure. A convenient way to achieve this is to
