@@ -19,31 +19,28 @@
 
 package io.temporal.testing;
 
-import io.temporal.testing.internal.SDKTestWorkflowRule;
-import org.junit.Assert;
-import org.junit.Rule;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
 public class TestWorkflowRuleTimeSkippingTest {
-  @Rule
-  public SDKTestWorkflowRule defaultTestWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
-
-  @Rule
-  public SDKTestWorkflowRule noTimeSkippingWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setUseTimeskipping(false).build();
 
   @Test
   public void testWorkflowRuleTimeSkipping() {
-    Assert.assertTrue(
-        defaultTestWorkflowRule
-            .getTestEnvironment()
-            .getTestEnvironmentOptions()
-            .isUseTimeskipping());
+    TestWorkflowRule defaultTestWorkflowRule = TestWorkflowRule.newBuilder().build();
+    TestWorkflowRule noTimeSkippingWorkflowRule =
+        TestWorkflowRule.newBuilder().setUseTimeskipping(false).build();
 
-    Assert.assertFalse(
+    assertTrue(
+        "By default time skipping should be on",
+        defaultTestWorkflowRule
+            .createTestEnvOptions(System.currentTimeMillis())
+            .isUseExternalService());
+    assertFalse(
+        "We disabled the time skipping on the rule, so the TestEnvironmentOptions should have it off too",
         noTimeSkippingWorkflowRule
-            .getTestEnvironment()
-            .getTestEnvironmentOptions()
-            .isUseTimeskipping());
+            .createTestEnvOptions(System.currentTimeMillis())
+            .isUseExternalService());
   }
 }

@@ -189,21 +189,15 @@ public class TestWorkflowExtension
   }
 
   @Override
-  public void beforeEach(ExtensionContext context) throws Exception {
+  public void beforeEach(ExtensionContext context) {
     long currentInitialTimeMillis =
         AnnotationSupport.findAnnotation(context.getElement(), WorkflowInitialTime.class)
             .map(annotation -> Instant.parse(annotation.value()).toEpochMilli())
             .orElse(initialTimeMillis);
-    TestEnvironmentOptions testOptions =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkflowClientOptions(workflowClientOptions)
-            .setWorkerFactoryOptions(workerFactoryOptions)
-            .setUseExternalService(useExternalService)
-            .setUseTimeskipping(useTimeskipping)
-            .setTarget(target)
-            .setInitialTimeMillis(currentInitialTimeMillis)
-            .build();
-    TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
+
+    TestWorkflowEnvironment testEnvironment =
+        TestWorkflowEnvironment.newInstance(createTestEnvOptions(currentInitialTimeMillis));
+
     String taskQueue =
         String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
@@ -217,6 +211,17 @@ public class TestWorkflowExtension
     setTestEnvironment(context, testEnvironment);
     setWorker(context, worker);
     setWorkflowOptions(context, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+  }
+
+  protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
+    return TestEnvironmentOptions.newBuilder()
+        .setWorkflowClientOptions(workflowClientOptions)
+        .setWorkerFactoryOptions(workerFactoryOptions)
+        .setUseExternalService(useExternalService)
+        .setUseTimeskipping(useTimeskipping)
+        .setTarget(target)
+        .setInitialTimeMillis(initialTimeMillis)
+        .build();
   }
 
   @Override

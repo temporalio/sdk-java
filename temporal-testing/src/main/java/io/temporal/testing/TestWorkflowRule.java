@@ -82,6 +82,9 @@ public class TestWorkflowRule implements TestRule {
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
   private final WorkerOptions workerOptions;
+  private final WorkflowClientOptions clientOptions;
+  private final String target;
+  private boolean useTimeskipping;
 
   private String taskQueue;
   private final TestWorkflowEnvironment testEnvironment;
@@ -117,21 +120,26 @@ public class TestWorkflowRule implements TestRule {
             ? Timeout.seconds(builder.testTimeoutSeconds)
             : null;
 
-    WorkflowClientOptions clientOptions =
+    clientOptions =
         (builder.workflowClientOptions == null)
             ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
             : builder.workflowClientOptions.toBuilder().setNamespace(namespace).build();
-    TestEnvironmentOptions testOptions =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkflowClientOptions(clientOptions)
-            .setWorkerFactoryOptions(workerFactoryOptions)
-            .setUseExternalService(useExternalService)
-            .setTarget(builder.target)
-            .setInitialTimeMillis(builder.initialTimeMillis)
-            .setUseTimeskipping(builder.useTimeskipping)
-            .build();
+    target = builder.target;
+    useTimeskipping = builder.useTimeskipping;
 
-    testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
+    testEnvironment =
+        TestWorkflowEnvironment.newInstance(createTestEnvOptions(builder.initialTimeMillis));
+  }
+
+  protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
+    return TestEnvironmentOptions.newBuilder()
+        .setWorkflowClientOptions(clientOptions)
+        .setWorkerFactoryOptions(workerFactoryOptions)
+        .setUseExternalService(useExternalService)
+        .setUseTimeskipping(useTimeskipping)
+        .setTarget(target)
+        .setInitialTimeMillis(initialTimeMillis)
+        .build();
   }
 
   public static Builder newBuilder() {
