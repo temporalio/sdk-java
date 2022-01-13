@@ -423,7 +423,20 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    /** Sets the rpc timeout value for non-query and non-long-poll calls. Default is 10 seconds. */
+    /**
+     * Sets the rpc timeout value for non-query and non-long-poll calls. Default is 10 seconds.
+     *
+     * <p>This timeout is applied to only a single rpc call within a temporal client, not a complete
+     * client-server interaction. In case of failure, the requests are automatically retried
+     * according to {@link #setRpcRetryOptions(RpcRetryOptions)}. The full timeout for an
+     * interaction is limited by {@link RpcRetryOptions.Builder#setExpiration(Duration)} or {@link
+     * RpcRetryOptions.Builder#setMaximumAttempts(int)}}, whichever happens first.
+     *
+     * <p><b>For example, let's consider you've called WorkflowClient#start, and this timeout is set
+     * to 1s, while {@link RpcRetryOptions.Builder#setExpiration(Duration)} is set to 5s, and the
+     * server is responding slowly. The first two RPC calls may time out and be retried, but if the
+     * third one completes in <1s, the overall call will successfully resolve.
+     */
     public Builder setRpcTimeout(Duration timeout) {
       this.rpcTimeout = Objects.requireNonNull(timeout);
       return this;
@@ -459,6 +472,8 @@ public class WorkflowServiceStubsOptions {
      * that default values should be reasonable for most users, be cautious when changing these
      * values as it may result in increased load to the temporal backend or bad network instability
      * tolerance.
+     *
+     * @see #setRpcTimeout(Duration)
      */
     public Builder setRpcRetryOptions(RpcRetryOptions rpcRetryOptions) {
       this.rpcRetryOptions = rpcRetryOptions;
