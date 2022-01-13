@@ -1,0 +1,8 @@
+{
+  "resources":{
+  "includes":[
+    {"pattern":"\\QMETA-INF/native/libio_grpc_netty_shaded_netty_transport_native_epoll_x86_64.so\\E"}, 
+    {"pattern":"\\QMETA-INF/services/io.grpc.ServerProvider\\E"}
+  ]},
+  "bundles":[]
+}
