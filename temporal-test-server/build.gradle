@@ -1,0 +1,58 @@
+plugins {
+    id 'application'
+    id 'com.palantir.graal' version '0.10.0'
+    id 'com.palantir.docker' version '0.32.0'
+}
+
+description = '''Temporal test workflow server'''
+
+dependencies {
+    api project(':temporal-sdk')
+    implementation("io.grpc:grpc-core:$grpcVersion")
+    implementation "com.google.guava:guava:$guavaVersion"
+    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
+}
+
+application {
+    mainClassName = 'io.temporal.internal.testservice.TestServiceServer'
+}
+
+jar {
+    manifest {
+        attributes("Main-Class": application.mainClassName)
+    }
+}
+
+graal {
+  outputName "temporal-test-server"
+  mainClass application.mainClassName
+  javaVersion '17'
+  graalVersion '21.3.0'
+
+  // Ignore type resolution errors at build-time
+  option "--allow-incomplete-classpath"
+
+  // Don't fallback to running a JVM
+  option "--no-fallback"
+
+  // Signal handling so that ^C actually stops the process
+  option "--install-exit-handlers"
+
+  // If we're on linux, static link everything but libc. Otherwise link
+  // everything dynamically (note the '-' rather than '+' in fromt of
+  // StaticExecutable)
+  option isLinux()
+    ? "-H:+StaticExecutableWithDynamicLibC"
+    : "-H:-StaticExecutable"
+}
+
+docker {
+  name "temporalio/temporal-test-server:${version}"
+  files tasks.nativeImage.outputs
+}
+
+def isLinux() {
+  return System.properties['os.name'].toLowerCase().contains('linux')
+}
+
+tasks.build.dependsOn('nativeImage')

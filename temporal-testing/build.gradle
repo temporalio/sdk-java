@@ -1,7 +1,5 @@
 plugins {
     id 'application'
-    id 'com.palantir.graal' version '0.10.0'
-    id 'com.palantir.docker' version '0.32.0'
 }
 
 description = '''Temporal Workflow Java SDK testing'''
@@ -17,11 +15,7 @@ java {
 
 dependencies {
     api project(':temporal-sdk')
-
-    implementation("io.grpc:grpc-core:$grpcVersion")
-    implementation "com.google.guava:guava:$guavaVersion"
-    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
-    implementation "com.jayway.jsonpath:json-path:$jsonPathVersion"
+    api project(':temporal-test-server')
 
     junit4Api 'junit:junit:4.13.2'
 
@@ -30,52 +24,6 @@ dependencies {
 
     testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter'
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
-}
-
-application {
-    mainClassName = 'io.temporal.internal.testservice.TestServiceServer'
-}
-
-task copyDependencies(type: Copy) {
-    from configurations.runtimeClasspath
-    into 'build/dependencies'
-}
-
-jar {
-    manifest {
-        attributes("Main-Class": application.mainClassName)
-    }
-}
-
-task testServiceServer(type: CreateStartScripts) {
-    mainClassName = 'io.temporal.internal.testservice.TestServiceServer'
-    applicationName = 'test-service-server'
-    outputDir = new File(project.buildDir, 'dist')
-    classpath = startScripts.classpath
-    dependsOn 'sourcesJar'
-}
-
-graal {
-  outputName "temporal-test-server"
-  mainClass application.mainClassName
-  javaVersion '17'
-  graalVersion '21.3.0'
-  option "--class-path=${buildDir}/dependencies/*"
-  option "--allow-incomplete-classpath"
-  option "--no-fallback"
-  option "--install-exit-handlers"
-  option "-H:+StaticExecutableWithDynamicLibC"
-}
-
-docker {
-  name "temporalio/temporal-test-server:${version}"
-  files tasks.nativeImage.outputs
-}
-
-// Run: ./gradlew installDist :temporal-testing:testServiceServer
-applicationDistribution.into('bin') {
-    from(testServiceServer)
-    fileMode = 0755
 }
 
 test {
