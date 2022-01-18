@@ -148,6 +148,10 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       // https://github.com/grpc/grpc-java/issues/8714#issuecomment-974389414
       builder.idleTimeout(31, TimeUnit.DAYS);
 
+      if (options.getChannelInitializer() != null) {
+        options.getChannelInitializer().initChannel(builder);
+      }
+
       this.channel = builder.build();
       // Currently, it is impossible to modify backoff policy on NettyChannelBuilder.
       // For this reason we reset connection backoff every few seconds in order to limit maximum
