@@ -19,9 +19,7 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.internal.metrics.MetricsType.ACTIVITY_EXEC_FAILED_COUNTER;
-import static io.temporal.internal.metrics.MetricsType.CORRUPTED_SIGNALS_COUNTER;
-import static io.temporal.internal.metrics.MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER;
+import static io.temporal.internal.metrics.MetricsType.*;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
@@ -338,7 +336,7 @@ public class MetricsTest {
           }
         };
     reporter.assertCounter(ACTIVITY_EXEC_FAILED_COUNTER, tags, 2);
-    reporter.assertCounter(LOCAL_ACTIVITY_FAILED_COUNTER, tags, 3);
+    reporter.assertCounter(LOCAL_ACTIVITY_EXEC_FAILED_COUNTER, tags, 3);
   }
 
   @Test
