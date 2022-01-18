@@ -315,12 +315,15 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
     return mapToActivityFailure(e, info.getActivityId(), metricsScope, local);
   }
 
+  @SuppressWarnings("deprecation")
   private ActivityTaskHandler.Result mapToActivityFailure(
       Throwable exception, String activityId, Scope metricsScope, boolean isLocalActivity) {
     if (exception instanceof ActivityCanceledException) {
       if (isLocalActivity) {
+        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_EXEC_CANCELLED_COUNTER).inc(1);
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
       } else {
+        metricsScope.counter(MetricsType.ACTIVITY_EXEC_CANCELLED_COUNTER).inc(1);
         metricsScope.counter(MetricsType.ACTIVITY_CANCELED_COUNTER).inc(1);
       }
       String stackTrace = FailureConverter.serializeStackTrace(exception);
@@ -334,6 +337,7 @@ public final class POJOActivityTaskHandler implements ActivityTaskHandler {
         metricsScope.tagged(
             ImmutableMap.of(MetricsTag.EXCEPTION, exception.getClass().getSimpleName()));
     if (isLocalActivity) {
+      ms.counter(MetricsType.LOCAL_ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
       ms.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
     } else {
       ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
