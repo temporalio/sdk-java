@@ -16,7 +16,7 @@ dependencies {
     implementation "io.grpc:grpc-core:$grpcVersion"
     implementation "io.grpc:grpc-services:$grpcVersion"
 
-    api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.32'
+    api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.33'
     if (!JavaVersion.current().isJava8()) {
         implementation 'javax.annotation:javax.annotation-api:1.3.2'
     }
@@ -51,7 +51,7 @@ protobuf {
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
     // with the oldest supported versions of protoc and grpc artifacts.
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.10.0'
+        artifact = 'com.google.protobuf:protoc:3.10.1'
     }
     plugins {
         grpc {

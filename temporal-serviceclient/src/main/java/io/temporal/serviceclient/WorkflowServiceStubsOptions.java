@@ -28,6 +28,7 @@ import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
 import java.util.*;
+import javax.annotation.Nullable;
 
 public class WorkflowServiceStubsOptions {
 
@@ -69,7 +70,12 @@ public class WorkflowServiceStubsOptions {
 
   private final ManagedChannel channel;
 
+  /**
+   * target string to use for connection/channel in {@link ManagedChannelBuilder#forTarget(String)}
+   */
   private final String target;
+
+  private final @Nullable ChannelInitializer channelInitializer;
 
   /** The user provided context for SSL/TLS over gRPC * */
   private final SslContext sslContext;
@@ -151,6 +157,7 @@ public class WorkflowServiceStubsOptions {
   private WorkflowServiceStubsOptions(
       ManagedChannel channel,
       String target,
+      @Nullable ChannelInitializer channelInitializer,
       SslContext sslContext,
       boolean enableHttps,
       boolean disableHealthCheck,
@@ -172,6 +179,7 @@ public class WorkflowServiceStubsOptions {
       Scope metricsScope) {
     this.channel = channel;
     this.target = target;
+    this.channelInitializer = channelInitializer;
     this.sslContext = sslContext;
     this.enableHttps = enableHttps;
     this.disableHealthCheck = disableHealthCheck;
@@ -197,8 +205,17 @@ public class WorkflowServiceStubsOptions {
     return channel;
   }
 
+  /**
+   * Returns the target string to use for connection/channel in {@link
+   * ManagedChannelBuilder#forTarget(String)}
+   */
   public String getTarget() {
     return target;
+  }
+
+  @Nullable
+  public ChannelInitializer getChannelInitializer() {
+    return channelInitializer;
   }
 
   /** @return Returns the gRPC SSL Context to use. * */
@@ -325,6 +342,7 @@ public class WorkflowServiceStubsOptions {
     private SslContext sslContext;
     private boolean enableHttps;
     private String target;
+    private ChannelInitializer channelInitializer;
     private boolean disableHealthCheck;
     private Duration healthCheckAttemptTimeout;
     private Duration healthCheckTimeout;
@@ -371,15 +389,43 @@ public class WorkflowServiceStubsOptions {
     }
 
     /**
-     * Sets custom user-configured gRPC channel to use.
+     * Sets a target string, which can be either a valid {@link NameResolver}-compliant URI, or an
+     * authority string. See {@link ManagedChannelBuilder#forTarget(String)} for more information
+     * about parameter format. Default is {@link #DEFAULT_LOCAL_DOCKER_TARGET}
      *
-     * <p>This option is not intended for the majority of users as it disables some Temporal
-     * connection management features and can lead to outages if the channel is configured or
-     * managed improperly.
+     * <p>Mutually exclusive with {@link #setChannel(ManagedChannel)}.
+     */
+    public Builder setTarget(String target) {
+      this.target = target;
+      return this;
+    }
+
+    /**
+     * Sets a listener to be called as a last step of channel creation if the channel is configured
+     * by the {@link #setTarget(String)}. This listener can provide additional configuration to the
+     * channel.
      *
-     * <p>Mutually exclusive with
+     * <p>Mutually exclusive with {@link #setChannel(ManagedChannel)}.
      *
-     * <p>{@link #setTarget(String)}, {@link #setSslContext(SslContext)}, {@link
+     * @param channelInitializer
+     */
+    public void setChannelInitializer(ChannelInitializer channelInitializer) {
+      this.channelInitializer = channelInitializer;
+    }
+
+    /**
+     * Sets fully custom user-configured gRPC channel to use.
+     *
+     * <p>Before supplying a fully custom channel using this method, it's recommended to first
+     * consider using {@link #setTarget(String)} + other options of {@link
+     * WorkflowServiceStubsOptions.Builder} + {@link #setChannelInitializer(ChannelInitializer)} for
+     * some rarely used configuration.<br>
+     * This option is not intended for the majority of users as it disables some Temporal connection
+     * management features and can lead to outages if the channel is configured or managed
+     * improperly.
+     *
+     * <p>Mutually exclusive with {@link #setTarget(String)}, {@link
+     * #setChannelInitializer(ChannelInitializer)}, {@link #setSslContext(SslContext)}, {@link
      * #setGrpcReconnectFrequency(Duration)} and {@link
      * #setConnectionBackoffResetFrequency(Duration)}. These options are ignored if the custom
      * channel is supplied.
@@ -408,18 +454,6 @@ public class WorkflowServiceStubsOptions {
      */
     public Builder setEnableHttps(boolean enableHttps) {
       this.enableHttps = enableHttps;
-      return this;
-    }
-
-    /**
-     * Sets a target string, which can be either a valid {@link NameResolver}-compliant URI, or an
-     * authority string. See {@link ManagedChannelBuilder#forTarget(String)} for more information
-     * about parameter format. Default is {@link #DEFAULT_LOCAL_DOCKER_TARGET}
-     *
-     * <p>Exclusive with {@link #setChannel(ManagedChannel)}.
-     */
-    public Builder setTarget(String target) {
-      this.target = target;
       return this;
     }
 
@@ -657,6 +691,7 @@ public class WorkflowServiceStubsOptions {
       return new WorkflowServiceStubsOptions(
           this.channel,
           this.target,
+          this.channelInitializer,
           this.sslContext,
           this.enableHttps,
           this.disableHealthCheck,
@@ -682,6 +717,11 @@ public class WorkflowServiceStubsOptions {
       if (this.target != null && this.channel != null) {
         throw new IllegalStateException(
             "Only one of the target and channel options can be set at a time");
+      }
+
+      if (this.channelInitializer != null && this.channel != null) {
+        throw new IllegalStateException(
+            "Only one of the channelInitializer and channel options can be set at a time");
       }
 
       if (this.sslContext != null && this.channel != null) {
@@ -714,6 +754,7 @@ public class WorkflowServiceStubsOptions {
       return new WorkflowServiceStubsOptions(
           this.channel,
           target,
+          this.channelInitializer,
           this.sslContext,
           this.enableHttps,
           this.disableHealthCheck,
@@ -734,5 +775,14 @@ public class WorkflowServiceStubsOptions {
           grpcClientInterceptors,
           metricsScope);
     }
+  }
+
+  /**
+   * If the {@link WorkflowServiceStubsOptions} is configured with a {@code target} instead of
+   * externally created {@code channel}, this listener is called as a last step of channel creation
+   * giving an oportunity to provide some additional configuration to the channel.
+   */
+  public interface ChannelInitializer {
+    void initChannel(ManagedChannelBuilder<?> managedChannelBuilder);
   }
 }

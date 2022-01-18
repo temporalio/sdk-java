@@ -19,8 +19,7 @@
 
 package io.temporal.serviceclient;
 
-import io.grpc.netty.shaded.io.netty.handler.ssl.ApplicationProtocolConfig;
-import io.grpc.netty.shaded.io.netty.handler.ssl.ApplicationProtocolNames;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -32,18 +31,6 @@ import javax.annotation.Nullable;
 import javax.net.ssl.*;
 
 public class SimpleSslContextBuilder {
-
-  // Default TLS protocol config that is used to communicate with TLS enabled temporal backend.
-  private static final ApplicationProtocolConfig DEFAULT_APPLICATION_PROTOCOL_CONFIG =
-      new ApplicationProtocolConfig(
-          // HTTP/2 over TLS mandates the use of ALPN to negotiate the use of the protocol.
-          ApplicationProtocolConfig.Protocol.ALPN,
-          // NO_ADVERTISE is the only mode supported by both OpenSsl and JDK providers.
-          ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
-          // ACCEPT is the only mode supported by both OpenSsl and JDK providers.
-          ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
-          // gRPC requires http2 protocol.
-          ApplicationProtocolNames.HTTP_2);
 
   private final @Nullable PKCS pkcs;
   private final @Nullable InputStream keyCertChain;
@@ -99,28 +86,28 @@ public class SimpleSslContextBuilder {
   }
 
   /**
-   * Builds {@link SslContext} from specified parameters. If trust manager is set then it will be
-   * used to verify server authority, otherwise system default trust manager (or if {@link
-   * #useInsecureTrustManager} is set then insecure trust manager) is going to be used.
+   * Configures specified {@link SslContextBuilder} from the Builder parameters and for use with
+   * Temporal GRPC server. {@link SslContext} built by the configured builder can be used with
+   * {@link WorkflowServiceStubsOptions.Builder#setSslContext(SslContext)}
    *
-   * @return - {@link SslContext} that can be used with the {@link
-   *     WorkflowServiceStubsOptions.Builder#setSslContext(SslContext)}
-   * @throws SSLException - when it was unable to build the context.
+   * <p>If trust manager is set then it will be used to verify server authority, otherwise system
+   * default trust manager (or if {@link #useInsecureTrustManager} is set then insecure trust
+   * manager) is going to be used.
+   *
+   * @return {@code sslContextBuilder}
+   * @throws SSLException when it was unable to build the context
    */
-  public SslContext build() throws SSLException {
+  public SslContextBuilder configure(SslContextBuilder sslContextBuilder) throws SSLException {
     if (trustManager != null && useInsecureTrustManager)
       throw new IllegalArgumentException(
           "Can not use insecure trust manager if custom trust manager is set.");
-
-    SslContextBuilder sslContextBuilder =
-        SslContextBuilder.forClient()
-            .trustManager(
-                trustManager != null
-                    ? trustManager
-                    : useInsecureTrustManager
-                        ? InsecureTrustManagerFactory.INSTANCE.getTrustManagers()[0]
-                        : getDefaultTrustManager())
-            .applicationProtocolConfig(DEFAULT_APPLICATION_PROTOCOL_CONFIG);
+    GrpcSslContexts.configure(sslContextBuilder);
+    sslContextBuilder.trustManager(
+        trustManager != null
+            ? trustManager
+            : useInsecureTrustManager
+                ? InsecureTrustManagerFactory.INSTANCE.getTrustManagers()[0]
+                : getDefaultTrustManager());
 
     if (pkcs != null && (key != null || keyCertChain != null)) {
       switch (pkcs) {
@@ -135,8 +122,23 @@ public class SimpleSslContextBuilder {
           throw new IllegalArgumentException("PKCS " + pkcs + " is not implemented");
       }
     }
+    return sslContextBuilder;
+  }
 
-    return sslContextBuilder.build();
+  /**
+   * Configures {@link SslContext} from the Builder parameters and for use with Temporal GRPC
+   * server.
+   *
+   * <p>If trust manager is set then it will be used to verify server authority, otherwise system
+   * default trust manager (or if {@link #useInsecureTrustManager} is set then insecure trust
+   * manager) is going to be used.
+   *
+   * @return {@link SslContext} that can be used with the {@link
+   *     WorkflowServiceStubsOptions.Builder#setSslContext(SslContext)}
+   * @throws SSLException when it was unable to build the context
+   */
+  public SslContext build() throws SSLException {
+    return configure(SslContextBuilder.forClient()).build();
   }
 
   /**
