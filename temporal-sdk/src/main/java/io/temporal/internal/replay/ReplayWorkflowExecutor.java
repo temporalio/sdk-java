@@ -29,9 +29,9 @@ import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Optional;
 

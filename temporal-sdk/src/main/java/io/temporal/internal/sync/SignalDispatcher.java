@@ -25,7 +25,7 @@ import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.internal.metrics.MetricsType;
+import io.temporal.worker.MetricsType;
 import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.Workflow;
 import java.util.ArrayDeque;

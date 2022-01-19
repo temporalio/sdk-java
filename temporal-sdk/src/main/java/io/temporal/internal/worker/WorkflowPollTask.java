@@ -28,20 +28,20 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.MetricsType;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueResponse> {
+  private static final Logger log = LoggerFactory.getLogger(WorkflowPollTask.class);
 
-  private final Scope metricsScope;
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String taskQueue;
+  private final Scope metricsScope;
   private final String identity;
-  private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
   private final String binaryChecksum;
 
   WorkflowPollTask(
@@ -51,11 +51,11 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
       Scope metricsScope,
       String identity,
       String binaryChecksum) {
-    this.identity = Objects.requireNonNull(identity);
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.metricsScope = Objects.requireNonNull(metricsScope);
+    this.identity = Objects.requireNonNull(identity);
     this.binaryChecksum = binaryChecksum;
   }
 

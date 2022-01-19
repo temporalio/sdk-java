@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.metrics;
+package io.temporal.internal.replay;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -33,8 +33,6 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.tally.Timer;
 import com.uber.m3.tally.ValueBuckets;
 import com.uber.m3.util.Duration;
-import io.temporal.internal.metrics.ReplayAwareScope;
-import io.temporal.internal.replay.ReplayAware;
 import java.util.function.Supplier;
 import org.junit.Test;
 

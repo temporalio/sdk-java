@@ -19,13 +19,14 @@
 
 package io.temporal.internal.worker;
 
-import com.google.common.base.Preconditions;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.logging.LoggerTag;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.slf4j.MDC;
 
 final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
@@ -38,38 +39,37 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
 
   private final String namespace;
   private final String taskQueue;
-  private final SingleWorkerOptions options;
   private final String identity;
+  private final PollerOptions pollerOptions;
 
   private final ThreadPoolExecutor taskExecutor;
   private final String pollThreadNamePrefix;
   private final TaskHandler<T> handler;
 
   PollTaskExecutor(
-      String namespace, String taskQueue, SingleWorkerOptions options, TaskHandler<T> handler) {
-    this.namespace = namespace;
-    this.taskQueue = taskQueue;
-    this.options = options;
-    this.identity = options.getIdentity();
-
-    this.handler = handler;
-    Preconditions.checkNotNull(options, "options should not be null");
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull String identity,
+      @Nonnull TaskHandler<T> handler,
+      @Nonnull PollerOptions pollerOptions,
+      int taskExecutorThreadPoolSize) {
+    this.namespace = Objects.requireNonNull(namespace);
+    this.taskQueue = Objects.requireNonNull(taskQueue);
+    this.identity = Objects.requireNonNull(identity);
+    this.handler = Objects.requireNonNull(handler);
+    this.pollerOptions = Objects.requireNonNull(pollerOptions);
 
     this.taskExecutor =
         new ThreadPoolExecutor(
-            0,
-            options.getTaskExecutorThreadPoolSize(),
-            1,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>());
+            0, taskExecutorThreadPoolSize, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
 
     this.pollThreadNamePrefix =
-        options.getPollerOptions().getPollThreadNamePrefix().replaceFirst("Poller", "Executor");
+        pollerOptions.getPollThreadNamePrefix().replaceFirst("Poller", "Executor");
 
     this.taskExecutor.setThreadFactory(
         new ExecutorThreadFactory(
-            options.getPollerOptions().getPollThreadNamePrefix().replaceFirst("Poller", "Executor"),
-            options.getPollerOptions().getUncaughtExceptionHandler()));
+            pollerOptions.getPollThreadNamePrefix().replaceFirst("Poller", "Executor"),
+            pollerOptions.getUncaughtExceptionHandler()));
     this.taskExecutor.setRejectedExecutionHandler(new BlockCallerPolicy());
   }
 
@@ -83,8 +83,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
             handler.handle(task);
           } catch (Throwable ee) {
             if (!isShutdown()) {
-              options
-                  .getPollerOptions()
+              pollerOptions
                   .getUncaughtExceptionHandler()
                   .uncaughtException(Thread.currentThread(), handler.wrapFailure(task, ee));
             }

@@ -30,37 +30,40 @@ import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.MetricsType;
+import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
+  private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
 
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String taskQueue;
-  private final SingleWorkerOptions options;
-  private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
-  private final double taskQueueActivitiesPerSecond;
   private final Scope metricsScope;
+  private final String identity;
+  private final double activitiesPerSecond;
   private final Semaphore pollSemaphore;
 
   public ActivityPollTask(
       WorkflowServiceStubs service,
       String namespace,
       String taskQueue,
-      SingleWorkerOptions options,
-      double taskQueueActivitiesPerSecond) {
+      Scope metricsScope,
+      String identity,
+      double activitiesPerSecond,
+      int workerTaskSlots) {
 
-    this.service = service;
-    this.namespace = namespace;
-    this.taskQueue = taskQueue;
-    this.options = options;
-    this.metricsScope = options.getMetricsScope();
-    this.taskQueueActivitiesPerSecond = taskQueueActivitiesPerSecond;
-    this.pollSemaphore = new Semaphore(options.getTaskExecutorThreadPoolSize());
+    this.service = Objects.requireNonNull(service);
+    this.namespace = Objects.requireNonNull(namespace);
+    this.taskQueue = Objects.requireNonNull(taskQueue);
+    this.metricsScope = Objects.requireNonNull(metricsScope);
+    this.identity = Objects.requireNonNull(identity);
+    this.activitiesPerSecond = activitiesPerSecond;
+    this.pollSemaphore = new Semaphore(workerTaskSlots);
   }
 
   @Override
@@ -68,13 +71,12 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     PollActivityTaskQueueRequest.Builder pollRequest =
         PollActivityTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
-            .setIdentity(options.getIdentity())
+            .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
-    if (taskQueueActivitiesPerSecond > 0) {
+    if (activitiesPerSecond > 0) {
       pollRequest.setTaskQueueMetadata(
           TaskQueueMetadata.newBuilder()
-              .setMaxTasksPerSecond(
-                  DoubleValue.newBuilder().setValue(taskQueueActivitiesPerSecond).build())
+              .setMaxTasksPerSecond(DoubleValue.newBuilder().setValue(activitiesPerSecond).build())
               .build());
     }
 

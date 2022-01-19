@@ -28,10 +28,10 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.worker.activity.ActivityWorkerHelper;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.worker.MetricsType;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Map;
@@ -49,6 +49,8 @@ public final class LocalActivityWorker implements SuspendableWorker {
   private final String taskQueue;
   private final SingleWorkerOptions options;
   private final LocalActivityPollTask laPollTask;
+  private final PollerOptions pollerOptions;
+  private final Scope workerMetricsScope;
 
   public LocalActivityWorker(
       String namespace,
@@ -59,30 +61,31 @@ public final class LocalActivityWorker implements SuspendableWorker {
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.handler = handler;
     this.laPollTask = new LocalActivityPollTask();
-
-    PollerOptions pollerOptions = options.getPollerOptions();
-    if (pollerOptions.getPollThreadNamePrefix() == null) {
-      pollerOptions =
-          PollerOptions.newBuilder(pollerOptions)
-              .setPollThreadNamePrefix(
-                  WorkerThreadsNameHelper.getLocalActivityPollerThreadPrefix(namespace, taskQueue))
-              .build();
-    }
-    this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
+    this.options = Objects.requireNonNull(options);
+    this.pollerOptions = getPollerOptions(options);
+    this.workerMetricsScope = options.getMetricsScope();
   }
 
   @Override
   public void start() {
     if (handler.isAnyTypeSupported()) {
+      PollTaskExecutor<Task> pollTaskExecutor =
+          new PollTaskExecutor<>(
+              namespace,
+              taskQueue,
+              options.getIdentity(),
+              new TaskHandlerImpl(handler),
+              pollerOptions,
+              options.getTaskExecutorThreadPoolSize());
       poller =
           new Poller<>(
               options.getIdentity(),
               laPollTask,
-              new PollTaskExecutor<>(namespace, taskQueue, options, new TaskHandlerImpl(handler)),
-              options.getPollerOptions(),
-              options.getMetricsScope());
+              pollTaskExecutor,
+              pollerOptions,
+              workerMetricsScope);
       poller.start();
-      options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);
+      workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
   }
 
@@ -152,6 +155,18 @@ public final class LocalActivityWorker implements SuspendableWorker {
     return poller.isSuspended();
   }
 
+  private PollerOptions getPollerOptions(SingleWorkerOptions options) {
+    PollerOptions pollerOptions = options.getPollerOptions();
+    if (pollerOptions.getPollThreadNamePrefix() == null) {
+      pollerOptions =
+          PollerOptions.newBuilder(pollerOptions)
+              .setPollThreadNamePrefix(
+                  WorkerThreadsNameHelper.getLocalActivityPollerThreadPrefix(namespace, taskQueue))
+              .build();
+    }
+    return pollerOptions;
+  }
+
   public static class Task {
     private final ExecuteLocalActivityParameters params;
     private final Functions.Proc1<ActivityTaskHandler.Result> eventConsumer;
@@ -202,7 +217,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
               .put(MetricsTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName())
               .build();
 
-      Scope metricsScope = options.getMetricsScope().tagged(activityTypeTag);
+      Scope metricsScope = workerMetricsScope.tagged(activityTypeTag);
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_TOTAL_COUNTER).inc(1);
 
       if (activityTask.hasHeader()) {
