@@ -20,16 +20,14 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
-import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.UUID;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -41,43 +39,53 @@ public class WorkflowOptionalTest {
 
   @Test
   public void testOptionalArgumentsWorkflow() throws InterruptedException {
-    int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
-    TestWorkflows.OptionalWorkflow client =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.OptionalWorkflow.class);
-    WorkflowClient.start(client::execute);
+    TestWorkflows.OptionalCustomerWorkflow client =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            TestWorkflows.OptionalCustomerWorkflow.class);
+    Optional<TestWorkflows.Customer> customer1 =
+        Optional.of(new TestWorkflows.Customer("john", "smith", 33, Optional.of("555-55-5555")));
+    Optional<TestWorkflows.Customer> customer2 =
+        Optional.of(new TestWorkflows.Customer("merry", "smith", 29, Optional.of("111-11-1111")));
+    WorkflowClient.start(client::execute, customer1);
     testWorkflowRule.sleep(Duration.ofSeconds(1));
-    // Calls query multiple times to check at the end of the method that if it doesn't leak threads
+
     int queryCount = 100;
     for (int i = 0; i < queryCount; i++) {
-      Optional<UUID> uuid = Optional.of(UUID.randomUUID());
-      Assert.assertEquals("some state" + uuid, client.getState(uuid).get());
+      Optional<TestWorkflows.Customer> result = client.getCustomer();
+      assertTrue(result.isPresent());
+      assertEquals(result.get().getFirstName(), customer1.get().getFirstName());
       if (testWorkflowRule.isUseExternalService()) {
         // Sleep a little bit to avoid server throttling error.
         Thread.sleep(50);
       }
     }
-    client.mySignal(Optional.of("Hello "));
-    Optional<String> result = WorkflowStub.fromTyped(client).getResult(Optional.class);
-    assertEquals("done", result.get());
+    client.setCustomer(customer2);
+    TestWorkflows.Customer finalResult =
+        WorkflowStub.fromTyped(client).getResult(TestWorkflows.Customer.class);
+    assertEquals(finalResult.getFirstName(), customer2.get().getFirstName());
   }
 
-  public static class OptionalWorkflowImpl implements TestWorkflows.OptionalWorkflow {
-
-    CompletablePromise<Void> promise = Workflow.newPromise();
+  public static class OptionalWorkflowImpl implements TestWorkflows.OptionalCustomerWorkflow {
+    private Optional<TestWorkflows.Customer> customer;
+    CompletablePromise<Optional<TestWorkflows.Customer>> promise = Workflow.newPromise();
 
     @Override
-    public Optional<String> execute() {
+    public Optional<TestWorkflows.Customer> execute(Optional<TestWorkflows.Customer> customer) {
+      this.customer = customer;
+
       promise.get();
-      return Optional.of("done");
+
+      return this.customer;
     }
 
     @Override
-    public Optional<String> getState(Optional<UUID> uuid) {
-      return Optional.of("some state" + uuid);
+    public Optional<TestWorkflows.Customer> getCustomer() {
+      return customer;
     }
 
     @Override
-    public void mySignal(Optional<String> value) {
+    public void setCustomer(Optional<TestWorkflows.Customer> customer) {
+      this.customer = customer;
       promise.complete(null);
     }
   }

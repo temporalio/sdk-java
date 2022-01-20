@@ -28,7 +28,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 public class TestWorkflows {
 
@@ -166,16 +165,64 @@ public class TestWorkflows {
   }
 
   @WorkflowInterface
-  public interface OptionalWorkflow {
+  public interface OptionalCustomerWorkflow {
 
     @WorkflowMethod
-    Optional<String> execute();
+    Optional<Customer> execute(Optional<Customer> customer);
 
     @QueryMethod
-    Optional<String> getState(Optional<UUID> uuid);
+    Optional<Customer> getCustomer();
 
-    @SignalMethod(name = "testSignal")
-    void mySignal(Optional<String> value);
+    @SignalMethod(name = "setCustomer")
+    void setCustomer(Optional<Customer> customer);
+  }
+
+  public static class Customer {
+    private String firstName;
+    private String lastName;
+    private int age;
+    private Optional<String> ssn;
+
+    public Customer() {}
+
+    public Customer(String firstName, String lastName, int age, Optional<String> ssn) {
+      this.firstName = firstName;
+      this.lastName = lastName;
+      this.age = age;
+      this.ssn = ssn;
+    }
+
+    public String getFirstName() {
+      return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+      this.firstName = firstName;
+    }
+
+    public String getLastName() {
+      return lastName;
+    }
+
+    public void setLastName(String lastName) {
+      this.lastName = lastName;
+    }
+
+    public int getAge() {
+      return age;
+    }
+
+    public void setAge(int age) {
+      this.age = age;
+    }
+
+    public Optional<String> getSsn() {
+      return ssn;
+    }
+
+    public void setSsn(Optional<String> ssn) {
+      this.ssn = ssn;
+    }
   }
 
   /** IMPLEMENTATIONS * */
