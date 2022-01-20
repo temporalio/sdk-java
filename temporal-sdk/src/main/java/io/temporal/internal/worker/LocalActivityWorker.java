@@ -234,25 +234,8 @@ public final class LocalActivityWorker implements SuspendableWorker {
         return result;
       }
 
-      RetryPolicy retryPolicy = activityTask.getRetryPolicy();
-      String[] doNotRetry = new String[retryPolicy.getNonRetryableErrorTypesCount()];
-      retryPolicy.getNonRetryableErrorTypesList().toArray(doNotRetry);
-      RetryOptions.Builder roBuilder = RetryOptions.newBuilder();
-      if (retryPolicy.getMaximumInterval().getNanos() > 0) {
-        roBuilder.setMaximumInterval(
-            ProtobufTimeUtils.toJavaDuration(retryPolicy.getMaximumInterval()));
-      }
-      if (retryPolicy.getInitialInterval().getNanos() > 0) {
-        roBuilder.setInitialInterval(
-            ProtobufTimeUtils.toJavaDuration(retryPolicy.getInitialInterval()));
-      }
-      if (retryPolicy.getBackoffCoefficient() >= 1) {
-        roBuilder.setBackoffCoefficient(retryPolicy.getBackoffCoefficient());
-      }
-      if (retryPolicy.getMaximumAttempts() > 0) {
-        roBuilder.setMaximumAttempts(retryPolicy.getMaximumAttempts());
-      }
-      RetryOptions retryOptions = roBuilder.setDoNotRetry(doNotRetry).validateBuildWithDefaults();
+      RetryOptions retryOptions = buildRetryOptions(activityTask.getRetryPolicy());
+
       long sleepMillis = retryOptions.calculateSleepTime(attempt);
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long sinceScheduled =
@@ -280,7 +263,28 @@ public final class LocalActivityWorker implements SuspendableWorker {
     }
   }
 
-  private boolean isNonRetryableApplicationFailure(ActivityTaskHandler.Result result) {
+  static RetryOptions buildRetryOptions(RetryPolicy retryPolicy) {
+    String[] doNotRetry = new String[retryPolicy.getNonRetryableErrorTypesCount()];
+    retryPolicy.getNonRetryableErrorTypesList().toArray(doNotRetry);
+    RetryOptions.Builder roBuilder = RetryOptions.newBuilder();
+    Duration maximumInterval = ProtobufTimeUtils.toJavaDuration(retryPolicy.getMaximumInterval());
+    if (!maximumInterval.isZero()) {
+      roBuilder.setMaximumInterval(maximumInterval);
+    }
+    Duration initialInterval = ProtobufTimeUtils.toJavaDuration(retryPolicy.getInitialInterval());
+    if (!initialInterval.isZero()) {
+      roBuilder.setInitialInterval(initialInterval);
+    }
+    if (retryPolicy.getBackoffCoefficient() >= 1) {
+      roBuilder.setBackoffCoefficient(retryPolicy.getBackoffCoefficient());
+    }
+    if (retryPolicy.getMaximumAttempts() > 0) {
+      roBuilder.setMaximumAttempts(retryPolicy.getMaximumAttempts());
+    }
+    return roBuilder.setDoNotRetry(doNotRetry).validateBuildWithDefaults();
+  }
+
+  private static boolean isNonRetryableApplicationFailure(ActivityTaskHandler.Result result) {
     return result.getTaskFailed() != null
         && result.getTaskFailed().getFailure() != null
         && result.getTaskFailed().getFailure() instanceof ApplicationFailure
