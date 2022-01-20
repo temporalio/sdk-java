@@ -25,6 +25,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
@@ -41,6 +42,7 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
     mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
     mapper.registerModule(new JavaTimeModule());
     mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+    mapper.registerModule(new Jdk8Module());
   }
 
   public JacksonJsonPayloadConverter(ObjectMapper mapper) {

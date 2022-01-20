@@ -27,6 +27,8 @@ import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 public class TestWorkflows {
 
@@ -161,6 +163,19 @@ public class TestWorkflows {
 
     @SignalMethod(name = "testSignal")
     void mySignal(String value);
+  }
+
+  @WorkflowInterface
+  public interface OptionalWorkflow {
+
+    @WorkflowMethod
+    Optional<String> execute();
+
+    @QueryMethod
+    Optional<String> getState(Optional<UUID> uuid);
+
+    @SignalMethod(name = "testSignal")
+    void mySignal(Optional<String> value);
   }
 
   /** IMPLEMENTATIONS * */
