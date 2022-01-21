@@ -17,22 +17,23 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.serialization;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
+import com.google.common.reflect.TypeToken;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import java.time.Duration;
+import io.temporal.workflow.*;
+import java.lang.reflect.Type;
 import java.util.Optional;
-import org.junit.Assert;
+import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowOptionalTest {
+public class OptionalJsonSerializationTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -42,8 +43,7 @@ public class WorkflowOptionalTest {
 
   @Test
   public void testOptionalArgumentsWorkflowTypedStub() {
-    Optional<Customer> customer =
-        Optional.of(new Customer("john", "smith", 33, Optional.of("555-55-5555")));
+    Optional<Customer> customer = Optional.of(new Customer("john", Optional.of("555-55-5555")));
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
 
     CustomerWorkflow workflow =
@@ -54,76 +54,72 @@ public class WorkflowOptionalTest {
                 .validateBuildWithDefaults());
 
     Optional<Customer> result = workflow.execute(customer);
-    Assert.assertEquals(customer.get().getFirstName(), result.get().getFirstName());
+    assertEquals(customer.get().getFirstName(), result.get().getFirstName());
 
     // query after completion
     Optional<Customer> queryResult = workflow.getCustomer();
     assertTrue(queryResult.isPresent());
-    assertEquals(queryResult.get().getFirstName(), customer.get().getFirstName());
+    assertEquals(customer.get().getFirstName(), queryResult.get().getFirstName());
   }
 
   @Test
-  public void testOptionalArgumentsWorkflowUntypedStub() throws InterruptedException {
+  public void testOptionalArgumentsWorkflowUntypedStub() {
     CustomerWorkflowWaitForSignal workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(CustomerWorkflowWaitForSignal.class);
-    Optional<Customer> customer1 =
-        Optional.of(new Customer("john", "smith", 33, Optional.of("555-55-5555")));
-    Optional<Customer> customer2 =
-        Optional.of(new Customer("merry", "smith", 29, Optional.of("111-11-1111")));
+    Optional<Customer> customer1 = Optional.of(new Customer("john", Optional.of("555-55-5555")));
+    Optional<Customer> customer2 = Optional.of(new Customer("merry", Optional.of("111-11-1111")));
     WorkflowClient.start(workflow::execute, customer1);
-    testWorkflowRule.sleep(Duration.ofSeconds(1));
 
-    Optional<Customer> result = workflow.getCustomer();
-    assertTrue(result.isPresent());
-    assertEquals(result.get().getFirstName(), customer1.get().getFirstName());
-    if (testWorkflowRule.isUseExternalService()) {
-      // Sleep a little bit to avoid server throttling error.
-      Thread.sleep(50);
-    }
-
-    // send query to update customer
+    // send a signal to update customer
     workflow.setCustomer(customer2);
 
-    Customer finalResult = WorkflowStub.fromTyped(workflow).getResult(Customer.class);
-    assertEquals(finalResult.getFirstName(), customer2.get().getFirstName());
+    // checking that untyped stub can unbox Optional into the class directly
+    Customer result = WorkflowStub.fromTyped(workflow).getResult(Customer.class);
+    assertEquals(customer2.get().getFirstName(), result.getFirstName());
+
+    // checking that untyped stub can return the Original optional too
+    Type generifiedType = new TypeToken<Optional<Customer>>() {}.getType();
+    Optional<Customer> optionalResult =
+        WorkflowStub.fromTyped(workflow).getResult(Optional.class, generifiedType);
+    assertTrue(optionalResult.isPresent());
+    assertEquals(customer2.get().getFirstName(), optionalResult.get().getFirstName());
   }
 
   public static class CustomerWorkflowImpl implements CustomerWorkflow {
-    private Optional<Customer> customer;
+    private @Nullable Customer customer;
 
     @Override
     public Optional<Customer> execute(Optional<Customer> customer) {
-      this.customer = customer;
-      return this.customer;
+      this.customer = customer.orElse(null);
+      return getCustomer();
     }
 
     @Override
     public Optional<Customer> getCustomer() {
-      return this.customer;
+      return Optional.ofNullable(this.customer);
     }
   }
 
   public static class CustomerWorkflowWaitForSignalImpl implements CustomerWorkflowWaitForSignal {
-    private Optional<Customer> customer;
-    CompletablePromise<Optional<Customer>> promise = Workflow.newPromise();
+    private @Nullable Customer customer;
+    private final CompletablePromise<Optional<Customer>> promise = Workflow.newPromise();
 
     @Override
     public Optional<Customer> execute(Optional<Customer> customer) {
-      this.customer = customer;
+      this.customer = customer.orElse(null);
 
       promise.get();
 
-      return this.customer;
+      return getCustomer();
     }
 
-    @Override
     public Optional<Customer> getCustomer() {
-      return customer;
+      return Optional.ofNullable(this.customer);
     }
 
     @Override
     public void setCustomer(Optional<Customer> customer) {
-      this.customer = customer;
+      this.customer = customer.orElse(null);
       promise.complete(null);
     }
   }
@@ -144,25 +140,19 @@ public class WorkflowOptionalTest {
     @WorkflowMethod
     Optional<Customer> execute(Optional<Customer> customer);
 
-    @QueryMethod
-    Optional<Customer> getCustomer();
-
     @SignalMethod(name = "setCustomer")
     void setCustomer(Optional<Customer> customer);
   }
 
   public static class Customer {
     private String firstName;
-    private String lastName;
-    private int age;
+    // we want ssn in a field here to test serialization of Optional<?> fields into json
     private Optional<String> ssn;
 
     public Customer() {}
 
-    public Customer(String firstName, String lastName, int age, Optional<String> ssn) {
+    public Customer(String firstName, Optional<String> ssn) {
       this.firstName = firstName;
-      this.lastName = lastName;
-      this.age = age;
       this.ssn = ssn;
     }
 
@@ -172,22 +162,6 @@ public class WorkflowOptionalTest {
 
     public void setFirstName(String firstName) {
       this.firstName = firstName;
-    }
-
-    public String getLastName() {
-      return lastName;
-    }
-
-    public void setLastName(String lastName) {
-      this.lastName = lastName;
-    }
-
-    public int getAge() {
-      return age;
-    }
-
-    public void setAge(int age) {
-      this.age = age;
     }
 
     public Optional<String> getSsn() {

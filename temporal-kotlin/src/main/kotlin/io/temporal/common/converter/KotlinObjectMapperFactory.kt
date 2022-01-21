@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect
 import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 
@@ -33,6 +34,7 @@ class KotlinObjectMapperFactory {
       val mapper = ObjectMapper()
       mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
       mapper.registerModule(JavaTimeModule())
+      mapper.registerModule(Jdk8Module())
       mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
       @Suppress("deprecation")
       // use deprecated constructor instead of builder to maintain compatibility with old jackson versions
