@@ -21,9 +21,6 @@ package io.temporal.common.converter;
 
 import static org.junit.Assert.assertEquals;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MapEntry;
 import com.google.protobuf.util.JsonFormat;
@@ -52,21 +49,6 @@ public class ProtoPayloadConverterTest {
     WorkflowExecution converted =
         converter.fromPayloads(0, data, WorkflowExecution.class, WorkflowExecution.class);
     assertEquals(execution, converted);
-  }
-
-  @Test
-  public void testCustomJson() {
-    ObjectMapper objectMapper =
-        new ObjectMapper()
-            .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, true)
-            .registerModule(new JavaTimeModule());
-    DataConverter converter =
-        DefaultDataConverter.newDefaultInstance()
-            .withPayloadConverterOverrides(new JacksonJsonPayloadConverter(objectMapper));
-    TestPayload payload = new TestPayload(1L, Instant.now(), "myPayload");
-    Optional<Payloads> data = converter.toPayloads(payload);
-    TestPayload converted = converter.fromPayloads(0, data, TestPayload.class, TestPayload.class);
-    assertEquals(payload, converted);
   }
 
   @Test
