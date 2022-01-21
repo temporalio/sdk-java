@@ -469,7 +469,7 @@ public class WorkflowServiceStubsOptions {
      * <p><b>For example, let's consider you've called WorkflowClient#start, and this timeout is set
      * to 1s, while {@link RpcRetryOptions.Builder#setExpiration(Duration)} is set to 5s, and the
      * server is responding slowly. The first two RPC calls may time out and be retried, but if the
-     * third one completes in <1s, the overall call will successfully resolve.
+     * third one completes in &lt;1s, the overall call will successfully resolve.
      */
     public Builder setRpcTimeout(Duration timeout) {
       this.rpcTimeout = Objects.requireNonNull(timeout);

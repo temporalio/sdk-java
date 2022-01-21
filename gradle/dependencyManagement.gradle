@@ -1,11 +1,6 @@
-// Run 'gradle checkUpdates' to find out which dependencies have newer versions
-subprojects {
-    apply plugin: "name.remal.check-updates"
-}
-
 subprojects {
     configurations.all {
-        //comes through grpc-api:gauava
+        //comes through grpc-api:guava
         exclude group: 'org.checkerframework', module: 'checker-qual'
         exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
     }
