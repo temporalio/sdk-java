@@ -20,6 +20,7 @@
 package io.temporal.worker;
 
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,6 +47,8 @@ public final class WorkflowImplementationOptions {
     private Class<? extends Throwable>[] failWorkflowExceptionTypes;
     private Map<String, ActivityOptions> activityOptions;
     private ActivityOptions defaultActivityOptions;
+    private Map<String, LocalActivityOptions> localActivityOptions;
+    private LocalActivityOptions defaultLocalActivityOptions;
 
     private Builder() {}
 
@@ -96,25 +99,60 @@ public final class WorkflowImplementationOptions {
       return this;
     }
 
+    /**
+     * Set individual local activity options per activityType. Will be merged with the map from
+     * {@link io.temporal.workflow.Workflow#newLocalActivityStub(Class, LocalActivityOptions, Map)}
+     * which has highest precedence.
+     *
+     * @param localActivityOptions map from activityType to ActivityOptions
+     */
+    public Builder setLocalActivityOptions(Map<String, LocalActivityOptions> localActivityOptions) {
+      this.localActivityOptions = new HashMap<>(Objects.requireNonNull(localActivityOptions));
+      return this;
+    }
+
+    /**
+     * These local activity options have the lowest precedence across all local activity options.
+     * Will be overwritten entirely by {@link
+     * io.temporal.workflow.Workflow#newLocalActivityStub(Class, LocalActivityOptions)} and then by
+     * the individual local activity options if any are set through {@link
+     * #setLocalActivityOptions(Map)}
+     *
+     * @param defaultLocalActivityOptions ActivityOptions for all activities in the workflow.
+     */
+    public Builder setDefaultLocalActivityOptions(
+        LocalActivityOptions defaultLocalActivityOptions) {
+      this.defaultLocalActivityOptions = Objects.requireNonNull(defaultLocalActivityOptions);
+      return this;
+    }
+
     public WorkflowImplementationOptions build() {
       return new WorkflowImplementationOptions(
           failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes,
           activityOptions == null ? new HashMap<>() : activityOptions,
-          defaultActivityOptions);
+          defaultActivityOptions,
+          localActivityOptions == null ? new HashMap<>() : localActivityOptions,
+          defaultLocalActivityOptions);
     }
   }
 
   private final Class<? extends Throwable>[] failWorkflowExceptionTypes;
   private final Map<String, ActivityOptions> activityOptions;
   private final ActivityOptions defaultActivityOptions;
+  private final Map<String, LocalActivityOptions> localActivityOptions;
+  private final LocalActivityOptions defaultLocalActivityOptions;
 
   public WorkflowImplementationOptions(
       Class<? extends Throwable>[] failWorkflowExceptionTypes,
       Map<String, ActivityOptions> activityOptions,
-      ActivityOptions defaultActivityOptions) {
+      ActivityOptions defaultActivityOptions,
+      Map<String, LocalActivityOptions> localActivityOptions,
+      LocalActivityOptions defaultLocalActivityOptions) {
     this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
     this.activityOptions = activityOptions;
     this.defaultActivityOptions = defaultActivityOptions;
+    this.localActivityOptions = localActivityOptions;
+    this.defaultLocalActivityOptions = defaultLocalActivityOptions;
   }
 
   public Class<? extends Throwable>[] getFailWorkflowExceptionTypes() {
@@ -129,6 +167,14 @@ public final class WorkflowImplementationOptions {
     return defaultActivityOptions;
   }
 
+  public Map<String, LocalActivityOptions> getLocalActivityOptions() {
+    return localActivityOptions;
+  }
+
+  public LocalActivityOptions getDefaultLocalActivityOptions() {
+    return defaultLocalActivityOptions;
+  }
+
   @Override
   public String toString() {
     return "WorkflowImplementationOptions{"
@@ -138,6 +184,10 @@ public final class WorkflowImplementationOptions {
         + activityOptions
         + ", defaultActivityOptions="
         + defaultActivityOptions
+        + ", localActivityOptions="
+        + localActivityOptions
+        + ", defaultLocalActivityOptions="
+        + defaultLocalActivityOptions
         + '}';
   }
 
@@ -148,12 +198,19 @@ public final class WorkflowImplementationOptions {
     WorkflowImplementationOptions that = (WorkflowImplementationOptions) o;
     return Arrays.equals(failWorkflowExceptionTypes, that.failWorkflowExceptionTypes)
         && Objects.equals(activityOptions, that.activityOptions)
-        && Objects.equals(defaultActivityOptions, that.defaultActivityOptions);
+        && Objects.equals(defaultActivityOptions, that.defaultActivityOptions)
+        && Objects.equals(localActivityOptions, that.localActivityOptions)
+        && Objects.equals(defaultLocalActivityOptions, that.defaultLocalActivityOptions);
   }
 
   @Override
   public int hashCode() {
-    int result = Objects.hash(activityOptions, defaultActivityOptions);
+    int result =
+        Objects.hash(
+            activityOptions,
+            defaultActivityOptions,
+            localActivityOptions,
+            defaultLocalActivityOptions);
     result = 31 * result + Arrays.hashCode(failWorkflowExceptionTypes);
     return result;
   }

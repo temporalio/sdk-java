@@ -45,4 +45,23 @@ public class ActivityTestOptions {
         .setContextPropagators(null)
         .build();
   }
+
+  public static LocalActivityOptions newLocalActivityOptions1() {
+    return LocalActivityOptions.newBuilder()
+        .setScheduleToCloseTimeout(Duration.ofDays(1))
+        .setStartToCloseTimeout(Duration.ofSeconds(2))
+        .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+        .setLocalRetryThreshold(Duration.ofSeconds(1))
+        .setDoNotIncludeArgumentsIntoMarker(true)
+        .build();
+  }
+
+  public static LocalActivityOptions newLocalActivityOptions2() {
+    return LocalActivityOptions.newBuilder()
+        .setScheduleToCloseTimeout(Duration.ofDays(3))
+        .setStartToCloseTimeout(Duration.ofSeconds(3))
+        .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
+        .setLocalRetryThreshold(Duration.ofSeconds(3))
+        .build();
+  }
 }

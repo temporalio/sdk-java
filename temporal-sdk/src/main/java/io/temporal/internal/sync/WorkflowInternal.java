@@ -201,6 +201,15 @@ public final class WorkflowInternal {
     getRootWorkflowContext().setActivityOptions(activityMethodOptions);
   }
 
+  public static void setDefaultLocalActivityOptions(LocalActivityOptions localActivityOptions) {
+    getRootWorkflowContext().setDefaultLocalActivityOptions(localActivityOptions);
+  }
+
+  public static void setLocalActivityOptions(
+      Map<String, LocalActivityOptions> localActivityMethodOptions) {
+    getRootWorkflowContext().setLocalActivityOptions(localActivityMethodOptions);
+  }
+
   /**
    * Creates client stub to activities that implement given interface.
    *
@@ -249,11 +258,26 @@ public final class WorkflowInternal {
       Class<T> activityInterface,
       LocalActivityOptions options,
       Map<String, LocalActivityOptions> activityMethodOptions) {
+    // Merge the activity options we may have received from the workflow with the options we may
+    // have received in WorkflowImplementationOptions.
+    SyncWorkflowContext context = getRootWorkflowContext();
+    options = (options == null) ? context.getDefaultLocalActivityOptions() : options;
+    Map<String, LocalActivityOptions> mergedLocalActivityOptionsMap = new HashMap<>();
+    Map<String, LocalActivityOptions> localActivityOptions = context.getLocalActivityOptions();
+    if (localActivityOptions != null) {
+      mergedLocalActivityOptionsMap.putAll(localActivityOptions);
+    }
+    if (activityMethodOptions != null) {
+      activityMethodOptions.forEach(
+          (key, value) ->
+              mergedLocalActivityOptionsMap.merge(
+                  key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+    }
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(
             activityInterface,
             options,
-            activityMethodOptions,
+            mergedLocalActivityOptionsMap,
             WorkflowInternal.getWorkflowInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
