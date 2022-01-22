@@ -192,4 +192,8 @@ final class WorkflowContext {
     }
     this.searchAttributes.putAllIndexedFields(searchAttributes.getIndexedFieldsMap());
   }
+
+  public String getCronSchedule() {
+    return startedAttributes.getCronSchedule();
+  }
 }

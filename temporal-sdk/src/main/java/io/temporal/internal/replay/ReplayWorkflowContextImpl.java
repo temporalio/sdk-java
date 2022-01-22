@@ -341,4 +341,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   public int getAttempt() {
     return workflowContext.getAttempt();
   }
+
+  @Override
+  public String getCronSchedule() {
+    return workflowContext.getCronSchedule();
+  }
 }

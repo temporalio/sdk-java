@@ -54,4 +54,6 @@ public interface WorkflowInfo {
   Optional<String> getParentRunId();
 
   int getAttempt();
+
+  String getCronSchedule();
 }
