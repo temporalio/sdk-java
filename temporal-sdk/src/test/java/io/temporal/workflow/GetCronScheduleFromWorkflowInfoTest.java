@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -49,6 +50,7 @@ public class GetCronScheduleFromWorkflowInfoTest {
 
   @Test
   public void testGetCronScheduleFromWorkflowInfo() throws InterruptedException {
+    Assume.assumeFalse("skipping for docker tests", testWorkflowRule.isUseExternalService());
 
     WorkflowStub workflowStub =
         testWorkflowRule
@@ -61,9 +63,6 @@ public class GetCronScheduleFromWorkflowInfoTest {
                     .build());
     testWorkflowRule.registerDelayedCallback(Duration.ofDays(1), workflowStub::cancel);
     workflowStub.start(testName.getMethodName());
-
-    // Wait for workflow to start (workaround until issue #856 is fixed)
-    Thread.sleep(1000);
 
     // make sure that the cron workflow was cancelled
     try {
