@@ -48,7 +48,7 @@ public class GetCronScheduleFromWorkflowInfoTest {
           .build();
 
   @Test
-  public void testGetCronScheduleFromWorkflowInfo() {
+  public void testGetCronScheduleFromWorkflowInfo() throws InterruptedException {
 
     WorkflowStub workflowStub =
         testWorkflowRule
@@ -57,10 +57,13 @@ public class GetCronScheduleFromWorkflowInfoTest {
                 "TestGetCronScheduleWorkflowsFunc",
                 newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
                     .toBuilder()
-                    .setCronSchedule("0 */6 * * *")
+                    .setCronSchedule("0 0 * * *")
                     .build());
     testWorkflowRule.registerDelayedCallback(Duration.ofDays(1), workflowStub::cancel);
     workflowStub.start(testName.getMethodName());
+
+    // Wait for workflow to start (workaround until issue #856 is fixed)
+    Thread.sleep(1000);
 
     // make sure that the cron workflow was cancelled
     try {
@@ -76,7 +79,7 @@ public class GetCronScheduleFromWorkflowInfoTest {
     assertNotNull(lastCompletionResults);
     assertTrue(lastCompletionResults.size() > 0);
     // get the very last run completion result and make sure its the cron
-    assertEquals("0 */6 * * *", lastCompletionResults.get(lastCompletionResults.size()));
+    assertEquals("0 0 * * *", lastCompletionResults.get(lastCompletionResults.size()));
   }
 
   @WorkflowInterface
