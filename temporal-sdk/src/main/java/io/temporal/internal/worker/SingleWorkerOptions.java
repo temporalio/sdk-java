@@ -207,11 +207,11 @@ public final class SingleWorkerOptions {
     return dataConverter;
   }
 
-  int getTaskExecutorThreadPoolSize() {
+  public int getTaskExecutorThreadPoolSize() {
     return taskExecutorThreadPoolSize;
   }
 
-  PollerOptions getPollerOptions() {
+  public PollerOptions getPollerOptions() {
     return pollerOptions;
   }
 

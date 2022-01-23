@@ -29,11 +29,11 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.MetricsType;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
 import java.util.Optional;
@@ -49,18 +49,19 @@ public final class WorkflowWorker
     implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
-  private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskQueue=";
+  private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
 
-  private SuspendableWorker poller = new NoopSuspendableWorker();
-  private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
-  private final WorkflowTaskHandler handler;
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String taskQueue;
   private final SingleWorkerOptions options;
-  private final Scope workerMetricScope;
+  private final WorkflowTaskHandler handler;
   private final String stickyTaskQueueName;
-  private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
+  private final PollerOptions pollerOptions;
+  private final Scope workerMetricsScope;
+
+  private SuspendableWorker poller = new NoopSuspendableWorker();
+  private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
 
   public WorkflowWorker(
       WorkflowServiceStubs service,
@@ -72,31 +73,24 @@ public final class WorkflowWorker
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
-    this.handler = handler;
+    this.options = Objects.requireNonNull(options);
+    this.handler = Objects.requireNonNull(handler);
     this.stickyTaskQueueName = stickyTaskQueueName;
-
-    PollerOptions pollerOptions = options.getPollerOptions();
-    if (pollerOptions.getPollThreadNamePrefix() == null) {
-      pollerOptions =
-          PollerOptions.newBuilder(pollerOptions)
-              .setPollThreadNamePrefix(
-                  POLL_THREAD_NAME_PREFIX
-                      + "\""
-                      + taskQueue
-                      + "\", namespace=\""
-                      + namespace
-                      + "\"")
-              .build();
-    }
-    this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
-    this.workerMetricScope = options.getMetricsScope();
+    this.pollerOptions = getPollerOptions(options);
+    this.workerMetricsScope = options.getMetricsScope();
   }
 
   @Override
   public void start() {
     if (handler.isAnyTypeSupported()) {
       pollTaskExecutor =
-          new PollTaskExecutor<>(namespace, taskQueue, options, new TaskHandlerImpl(handler));
+          new PollTaskExecutor<>(
+              namespace,
+              taskQueue,
+              options.getIdentity(),
+              new TaskHandlerImpl(handler),
+              pollerOptions,
+              options.getTaskExecutorThreadPoolSize());
       poller =
           new Poller<>(
               options.getIdentity(),
@@ -104,14 +98,14 @@ public final class WorkflowWorker
                   service,
                   namespace,
                   taskQueue,
-                  workerMetricScope,
+                  workerMetricsScope,
                   options.getIdentity(),
                   options.getBinaryChecksum()),
               pollTaskExecutor,
-              options.getPollerOptions(),
-              workerMetricScope);
+              pollerOptions,
+              workerMetricsScope);
       poller.start();
-      workerMetricScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
+      workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
   }
 
@@ -185,6 +179,18 @@ public final class WorkflowWorker
     pollTaskExecutor.process(pollWorkflowTaskQueueResponse);
   }
 
+  private PollerOptions getPollerOptions(SingleWorkerOptions options) {
+    PollerOptions pollerOptions = options.getPollerOptions();
+    if (pollerOptions.getPollThreadNamePrefix() == null) {
+      pollerOptions =
+          PollerOptions.newBuilder(pollerOptions)
+              .setPollThreadNamePrefix(
+                  WorkerThreadsNameHelper.getWorkflowPollerThreadPrefix(namespace, taskQueue))
+              .build();
+    }
+    return pollerOptions;
+  }
+
   private class TaskHandlerImpl
       implements PollTaskExecutor.TaskHandler<PollWorkflowTaskQueueResponse> {
 
@@ -197,7 +203,7 @@ public final class WorkflowWorker
     @Override
     public void handle(PollWorkflowTaskQueueResponse task) throws Exception {
       Scope workflowTypeMetricsScope =
-          workerMetricScope.tagged(
+          workerMetricsScope.tagged(
               ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, task.getWorkflowType().getName()));
 
       MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());

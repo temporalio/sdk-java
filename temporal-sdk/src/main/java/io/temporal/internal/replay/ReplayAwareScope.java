@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.metrics;
+package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.Counter;
@@ -29,13 +29,12 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.tally.StopwatchRecorder;
 import com.uber.m3.tally.Timer;
 import com.uber.m3.util.Duration;
-import io.temporal.internal.replay.ReplayAware;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-public class ReplayAwareScope implements Scope {
+class ReplayAwareScope implements Scope {
   private final Scope scope;
   private final ReplayAware context;
   private final Supplier<Long> clock;

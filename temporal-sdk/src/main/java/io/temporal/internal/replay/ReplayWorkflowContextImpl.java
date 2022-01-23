@@ -38,7 +38,6 @@ import io.temporal.api.history.v1.WorkflowTaskFailedEventAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.workflow.Functions;

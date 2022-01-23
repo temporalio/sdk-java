@@ -19,12 +19,12 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.internal.metrics.MetricsType.*;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
+import static io.temporal.worker.MetricsType.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 

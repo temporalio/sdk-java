@@ -24,7 +24,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.BackoffThrottler;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.metrics.MetricsType;
+import io.temporal.worker.MetricsType;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -57,7 +57,7 @@ public final class Poller<T> implements SuspendableWorker {
   private final PollerOptions pollerOptions;
   private static final Logger log = LoggerFactory.getLogger(Poller.class);
   private ThreadPoolExecutor pollExecutor;
-  private final Scope metricsScope;
+  private final Scope workerMetricsScope;
 
   private final AtomicReference<CountDownLatch> suspendLatch = new AtomicReference<>();
 
@@ -72,18 +72,18 @@ public final class Poller<T> implements SuspendableWorker {
       PollTask<T> pollTask,
       ShutdownableTaskExecutor<T> taskExecutor,
       PollerOptions pollerOptions,
-      Scope metricsScope) {
+      Scope workerMetricsScope) {
     Objects.requireNonNull(identity, "identity cannot be null");
     Objects.requireNonNull(pollTask, "poll service should not be null");
     Objects.requireNonNull(taskExecutor, "taskExecutor should not be null");
     Objects.requireNonNull(pollerOptions, "pollerOptions should not be null");
-    Objects.requireNonNull(metricsScope, "metricsScope should not be null");
+    Objects.requireNonNull(workerMetricsScope, "workerMetricsScope should not be null");
 
     this.identity = identity;
     this.pollTask = pollTask;
     this.taskExecutor = taskExecutor;
     this.pollerOptions = pollerOptions;
-    this.metricsScope = metricsScope;
+    this.workerMetricsScope = workerMetricsScope;
   }
 
   @Override
@@ -119,7 +119,7 @@ public final class Poller<T> implements SuspendableWorker {
             pollerOptions.getPollBackoffCoefficient());
     for (int i = 0; i < pollerOptions.getPollThreadCount(); i++) {
       pollExecutor.execute(new PollLoopTask(new PollExecutionTask()));
-      metricsScope.counter(MetricsType.POLLER_START_COUNTER).inc(1);
+      workerMetricsScope.counter(MetricsType.POLLER_START_COUNTER).inc(1);
     }
   }
 
