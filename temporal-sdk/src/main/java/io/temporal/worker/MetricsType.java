@@ -68,10 +68,6 @@ public class MetricsType {
   public static final String WORKFLOW_TASK_HEARTBEAT_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_task_heartbeat";
 
-  // gauge
-  public static final String WORKFLOW_TASK_ACTIVE_EXECUTOR_THREAD_COUNT =
-      TEMPORAL_METRICS_PREFIX + "workflow_task_active_executor_thread_count";
-
   //
   // Activity
   //
@@ -93,10 +89,6 @@ public class MetricsType {
   @Deprecated
   public static final String ACTIVITY_CANCELED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_canceled";
-
-  // gauge
-  public static final String ACTIVITY_ACTIVE_EXECUTOR_THREAD_COUNT =
-      TEMPORAL_METRICS_PREFIX + "activity_active_executor_thread_count";
 
   //
   // Local Activity
@@ -123,13 +115,12 @@ public class MetricsType {
   public static final String LOCAL_ACTIVITY_FAILED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_failed";
 
-  // gauge
-  public static final String LOCAL_ACTIVITY_ACTIVE_EXECUTOR_THREAD_COUNT =
-      TEMPORAL_METRICS_PREFIX + "local_activity_active_executor_thread_count";
-
   // Worker internals, tagged with worker_type
   public static final String WORKER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "worker_start";
   public static final String POLLER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "poller_start";
+  // gauge
+  public static final String WORKER_TASK_SLOTS_AVAILABLE =
+      TEMPORAL_METRICS_PREFIX + "worker_task_slots_available";
 
   //
   // Worker Factory

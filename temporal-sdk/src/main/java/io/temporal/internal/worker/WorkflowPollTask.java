@@ -31,6 +31,8 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,23 +42,23 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String taskQueue;
-  private final Scope metricsScope;
   private final String identity;
   private final String binaryChecksum;
+  private final Scope metricsScope;
 
   WorkflowPollTask(
-      WorkflowServiceStubs service,
-      String namespace,
-      String taskQueue,
-      Scope metricsScope,
-      String identity,
-      String binaryChecksum) {
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull String identity,
+      @Nullable String binaryChecksum,
+      @Nonnull Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
-    this.metricsScope = Objects.requireNonNull(metricsScope);
     this.identity = Objects.requireNonNull(identity);
     this.binaryChecksum = binaryChecksum;
+    this.metricsScope = Objects.requireNonNull(metricsScope);
   }
 
   @Override

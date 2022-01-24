@@ -42,9 +42,11 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.WorkerMetricsTag;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.slf4j.MDC;
 
 public final class ActivityWorker implements SuspendableWorker {
@@ -59,20 +61,21 @@ public final class ActivityWorker implements SuspendableWorker {
   private final Scope workerMetricsScope;
 
   public ActivityWorker(
-      WorkflowServiceStubs service,
-      String namespace,
-      String taskQueue,
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
       double taskQueueActivitiesPerSecond,
-      SingleWorkerOptions options,
-      ActivityTaskHandler handler) {
+      @Nonnull SingleWorkerOptions options,
+      @Nonnull ActivityTaskHandler handler) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
+    this.handler = Objects.requireNonNull(handler);
     this.taskQueueActivitiesPerSecond = taskQueueActivitiesPerSecond;
-    this.handler = handler;
     this.options = Objects.requireNonNull(options);
     this.pollerOptions = getPollerOptions(options);
-    this.workerMetricsScope = options.getMetricsScope();
+    this.workerMetricsScope =
+        MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.ACTIVITY_WORKER);
   }
 
   @Override
@@ -85,7 +88,8 @@ public final class ActivityWorker implements SuspendableWorker {
               options.getIdentity(),
               new TaskHandlerImpl(handler),
               pollerOptions,
-              options.getTaskExecutorThreadPoolSize());
+              options.getTaskExecutorThreadPoolSize(),
+              workerMetricsScope);
       poller =
           new Poller<>(
               options.getIdentity(),
@@ -93,10 +97,10 @@ public final class ActivityWorker implements SuspendableWorker {
                   service,
                   namespace,
                   taskQueue,
-                  workerMetricsScope,
                   options.getIdentity(),
                   taskQueueActivitiesPerSecond,
-                  options.getTaskExecutorThreadPoolSize()),
+                  options.getTaskExecutorThreadPoolSize(),
+                  workerMetricsScope),
               pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);
