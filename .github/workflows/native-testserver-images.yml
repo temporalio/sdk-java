@@ -9,11 +9,6 @@ on:
         type: string
         description: 'Release version (e.g. v1.2.3); omit to skip attaching artifacts to a release'
         required: false
-      release_repo:
-        type: string
-        description: 'The repository hosting the github release; used only if the release version parameter is set'
-        required: false
-        default: temporalio/sdk-java
       clobber:
         type: boolean
         description: 'Overwrite existing release artifacts'
@@ -98,6 +93,6 @@ jobs:
       - name: Upload
         run: |
             clobberflag="$([[ ${{ github.event.inputs.clobber }} = true ]] && echo "--clobber" || echo '')"
-            gh release upload ${clobberflag} --repo ${{ github.event.inputs.release_repo }} ${{ github.event.inputs.release }} *.zip *.tar.gz
+            gh release upload ${clobberflag} --repo ${{ github.repository }} ${{ github.event.inputs.release }} *.zip *.tar.gz
 
 
