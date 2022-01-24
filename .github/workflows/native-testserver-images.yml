@@ -1,4 +1,4 @@
-name: Build Native Images
+name: Build Native Testserver Images
 defaults:
   run:
     shell: bash -euo pipefail -O nullglob {0}
