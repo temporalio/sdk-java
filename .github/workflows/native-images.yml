@@ -1,7 +1,7 @@
 name: Build Native Images
 defaults:
   run:
-    shell: bash
+    shell: bash -euo pipefail -O nullglob {0}
 on:
   workflow_dispatch:
     inputs:
@@ -82,34 +82,22 @@ jobs:
       # the root directory of the contents of the archive.
       - name: Rename dirs
         run: |
-          shopt -s nullglob
           version="$(sed 's/v//'<<<'${{ github.event.inputs.release }}')"
-          for dir in *; do
-            mv "$dir" "temporal-test-server_$version_$dir"
-          done        
+          for dir in *; do mv "$dir" "temporal-test-server_$version_$dir"; done        
       
-      - name: Upload tars (linux, macOS)
-        run: |
-          shopt -s nullglob
-          for dir in *{linux,macOS}*; do
-            tar cvzf "$dir.tar.gz" "$dir"
-            clobberflag="$([[ ${{ github.event.inputs.clobber }} = true ]] && echo "--clobber" || echo '')"
-            gh release upload $clobberflag --repo ${{ github.event.inputs.release_repo }} ${{ github.event.inputs.release }} "$dir.tar.gz"
-          done
+      - name: Tar (linux, macOS)
+        run: for dir in *{linux,macOS}*; do tar cvzf "$dir.tar.gz" "$dir"; done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
-      - name: Upload zip (windows)
-        run: |
-          shopt -s nullglob
-          for dir in *windows*; do
-            zip -r "$dir.zip" "$dir"
-            clobberflag="$([[ ${{ github.event.inputs.clobber }} = true ]] && echo "--clobber" || echo '')"
-            gh release upload $clobberflag --repo ${{ github.event.inputs.release_repo }} ${{ github.event.inputs.release }} "$dir.zip"
-          done
+      - name: Zip (windows)
+        run: for dir in *windows*; do zip -r "$dir.zip" "$dir"; done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
-        
-  
+      - name: Upload
+        run: |
+            clobberflag="$([[ ${{ github.event.inputs.clobber }} = true ]] && echo "--clobber" || echo '')"
+            gh release upload $clobberflag --repo ${{ github.event.inputs.release_repo }} ${{ github.event.inputs.release }} *.zip *.tar.gz
+
 
