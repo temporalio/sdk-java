@@ -270,5 +270,10 @@ public class DummySyncWorkflowContext {
     public int getAttempt() {
       return 1;
     }
+
+    @Override
+    public String getCronSchedule() {
+      return "dummy-cron-schedule";
+    }
   }
 }
