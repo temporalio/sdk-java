@@ -82,17 +82,15 @@ jobs:
       
       - name: Tar (linux, macOS)
         run: for dir in *{linux,macOS}*; do tar cvzf "${dir}.tar.gz" "$dir"; done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
       - name: Zip (windows)
         run: for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
       - name: Upload
         run: |
             clobberflag="$([[ ${{ github.event.inputs.clobber }} = true ]] && echo "--clobber" || echo '')"
             gh release upload ${clobberflag} --repo ${{ github.repository }} ${{ github.event.inputs.release }} *.zip *.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
