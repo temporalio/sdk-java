@@ -32,6 +32,7 @@ import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.worker.activity.ActivityWorkerHelper;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Map;
@@ -40,6 +41,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+import javax.annotation.Nonnull;
 
 public final class LocalActivityWorker implements SuspendableWorker {
 
@@ -53,17 +55,19 @@ public final class LocalActivityWorker implements SuspendableWorker {
   private final Scope workerMetricsScope;
 
   public LocalActivityWorker(
-      String namespace,
-      String taskQueue,
-      SingleWorkerOptions options,
-      ActivityTaskHandler handler) {
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull SingleWorkerOptions options,
+      @Nonnull ActivityTaskHandler handler) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.handler = handler;
     this.laPollTask = new LocalActivityPollTask();
     this.options = Objects.requireNonNull(options);
     this.pollerOptions = getPollerOptions(options);
-    this.workerMetricsScope = options.getMetricsScope();
+    this.workerMetricsScope =
+        MetricsTag.tagged(
+            options.getMetricsScope(), WorkerMetricsTag.WorkerType.LOCAL_ACTIVITY_WORKER);
   }
 
   @Override
@@ -76,7 +80,8 @@ public final class LocalActivityWorker implements SuspendableWorker {
               options.getIdentity(),
               new TaskHandlerImpl(handler),
               pollerOptions,
-              options.getTaskExecutorThreadPoolSize());
+              options.getTaskExecutorThreadPoolSize(),
+              workerMetricsScope);
       poller =
           new Poller<>(
               options.getIdentity(),
