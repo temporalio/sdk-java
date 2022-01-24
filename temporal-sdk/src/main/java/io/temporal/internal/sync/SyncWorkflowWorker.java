@@ -115,7 +115,7 @@ public class SyncWorkflowWorker
 
     workflowWorker =
         new WorkflowWorker(
-            service, namespace, taskQueue, singleWorkerOptions, taskHandler, stickyTaskQueueName);
+            service, namespace, taskQueue, stickyTaskQueueName, singleWorkerOptions, taskHandler);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache

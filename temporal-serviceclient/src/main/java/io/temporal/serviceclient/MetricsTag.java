@@ -22,6 +22,7 @@ package io.temporal.serviceclient;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.grpc.CallOptions;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -36,6 +37,7 @@ public class MetricsTag {
   public static final String STATUS_CODE = "status_code";
   public static final String EXCEPTION = "exception";
   public static final String OPERATION_NAME = "operation";
+  public static final String WORKER_TYPE = "worker_type";
 
   /** Used to pass metrics scope to the interceptor */
   public static final CallOptions.Key<Scope> METRICS_TAGS_CALL_OPTIONS_KEY =
@@ -49,6 +51,12 @@ public class MetricsTag {
 
   private static final ConcurrentMap<String, Map<String, String>> tagsByNamespace =
       new ConcurrentHashMap<>();
+
+  public interface TagValue {
+    String getTag();
+
+    String getValue();
+  }
 
   /** Returns a set of default metric tags for a given namespace. */
   public static Map<String, String> defaultTags(String namespace) {
@@ -66,6 +74,15 @@ public class MetricsTag {
         .put(STATUS_CODE, DEFAULT_VALUE)
         .put(EXCEPTION, DEFAULT_VALUE)
         .put(WORKFLOW_TYPE, DEFAULT_VALUE)
+        .put(WORKER_TYPE, DEFAULT_VALUE)
         .build();
+  }
+
+  public static Scope tagged(Scope scope, String tagName, String tagValue) {
+    return scope.tagged(Collections.singletonMap(tagName, tagValue));
+  }
+
+  public static Scope tagged(Scope scope, TagValue tagValue) {
+    return tagged(scope, tagValue.getTag(), tagValue.getValue());
   }
 }

@@ -34,6 +34,7 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
 import java.util.Optional;
@@ -41,6 +42,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -64,12 +67,12 @@ public final class WorkflowWorker
   private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
 
   public WorkflowWorker(
-      WorkflowServiceStubs service,
-      String namespace,
-      String taskQueue,
-      SingleWorkerOptions options,
-      WorkflowTaskHandler handler,
-      String stickyTaskQueueName) {
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nullable String stickyTaskQueueName,
+      @Nonnull SingleWorkerOptions options,
+      @Nonnull WorkflowTaskHandler handler) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -77,7 +80,8 @@ public final class WorkflowWorker
     this.handler = Objects.requireNonNull(handler);
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.pollerOptions = getPollerOptions(options);
-    this.workerMetricsScope = options.getMetricsScope();
+    this.workerMetricsScope =
+        MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.WORKFLOW_WORKER);
   }
 
   @Override
@@ -90,7 +94,8 @@ public final class WorkflowWorker
               options.getIdentity(),
               new TaskHandlerImpl(handler),
               pollerOptions,
-              options.getTaskExecutorThreadPoolSize());
+              options.getTaskExecutorThreadPoolSize(),
+              workerMetricsScope);
       poller =
           new Poller<>(
               options.getIdentity(),
@@ -98,9 +103,9 @@ public final class WorkflowWorker
                   service,
                   namespace,
                   taskQueue,
-                  workerMetricsScope,
                   options.getIdentity(),
-                  options.getBinaryChecksum()),
+                  options.getBinaryChecksum(),
+                  workerMetricsScope),
               pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);

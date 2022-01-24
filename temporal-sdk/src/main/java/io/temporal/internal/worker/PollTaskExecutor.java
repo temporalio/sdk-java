@@ -19,13 +19,16 @@
 
 package io.temporal.internal.worker;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.worker.MetricsType;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.slf4j.MDC;
 
@@ -40,11 +43,13 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   private final String namespace;
   private final String taskQueue;
   private final String identity;
+  private final TaskHandler<T> handler;
   private final PollerOptions pollerOptions;
+  private final Scope metricsScope;
 
   private final ThreadPoolExecutor taskExecutor;
+  private final AtomicInteger availableTaskSlots;
   private final String pollThreadNamePrefix;
-  private final TaskHandler<T> handler;
 
   PollTaskExecutor(
       @Nonnull String namespace,
@@ -52,16 +57,19 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
       @Nonnull String identity,
       @Nonnull TaskHandler<T> handler,
       @Nonnull PollerOptions pollerOptions,
-      int taskExecutorThreadPoolSize) {
+      int workerTaskSlots,
+      @Nonnull Scope metricsScope) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.identity = Objects.requireNonNull(identity);
     this.handler = Objects.requireNonNull(handler);
     this.pollerOptions = Objects.requireNonNull(pollerOptions);
+    this.metricsScope = Objects.requireNonNull(metricsScope);
 
     this.taskExecutor =
-        new ThreadPoolExecutor(
-            0, taskExecutorThreadPoolSize, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+        new ThreadPoolExecutor(0, workerTaskSlots, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+    this.availableTaskSlots = new AtomicInteger(workerTaskSlots);
+    publishSlotsMetric();
 
     this.pollThreadNamePrefix =
         pollerOptions.getPollThreadNamePrefix().replaceFirst("Poller", "Executor");
@@ -77,9 +85,11 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   public void process(T task) {
     taskExecutor.execute(
         () -> {
-          MDC.put(LoggerTag.NAMESPACE, namespace);
-          MDC.put(LoggerTag.TASK_QUEUE, taskQueue);
+          availableTaskSlots.decrementAndGet();
+          publishSlotsMetric();
           try {
+            MDC.put(LoggerTag.NAMESPACE, namespace);
+            MDC.put(LoggerTag.TASK_QUEUE, taskQueue);
             handler.handle(task);
           } catch (Throwable ee) {
             if (!isShutdown()) {
@@ -88,6 +98,8 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
                   .uncaughtException(Thread.currentThread(), handler.wrapFailure(task, ee));
             }
           } finally {
+            availableTaskSlots.incrementAndGet();
+            publishSlotsMetric();
             MDC.remove(LoggerTag.NAMESPACE);
             MDC.remove(LoggerTag.TASK_QUEUE);
           }
@@ -124,5 +136,11 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     // around
     // that will simplify such kind of logging through workers.
     return String.format("PollTaskExecutor{name=%s, identity=%s}", pollThreadNamePrefix, identity);
+  }
+
+  private void publishSlotsMetric() {
+    this.metricsScope
+        .gauge(MetricsType.WORKER_TASK_SLOTS_AVAILABLE)
+        .update(availableTaskSlots.get());
   }
 }
