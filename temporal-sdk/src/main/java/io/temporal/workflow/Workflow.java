@@ -1045,7 +1045,7 @@ public final class Workflow {
   }
 
   /**
-   * Sets the default activity options that will be used for activity stubs that has no {@link
+   * Sets the default activity options that will be used for activity stubs that have no {@link
    * ActivityOptions} specified.<br>
    * This overrides a value provided by {@link
    * WorkflowImplementationOptions#getDefaultActivityOptions}.<br>
@@ -1074,9 +1074,9 @@ public final class Workflow {
    * #setDefaultActivityOptions}
    *
    * <p>If an activity type already has a {@link ActivityOptions} set by an earlier call to this
-   * method or coming from {@link WorkflowImplementationOptions#getDefaultActivityOptions}, new
-   * {@link ActivityOptions} from {@code activityTypeToOptions} will be merged into the old one
-   * using {@link ActivityOptions.Builder#mergeActivityOptions(ActivityOptions)}
+   * method or from {@link WorkflowImplementationOptions#getDefaultActivityOptions}, new {@link
+   * ActivityOptions} from {@code activityTypeToOptions} will be merged into the old ones using
+   * {@link ActivityOptions.Builder#mergeActivityOptions(ActivityOptions)}
    *
    * @param activityTypeToOptions a map of activity types to {@link ActivityOptions}
    */
@@ -1085,8 +1085,8 @@ public final class Workflow {
   }
 
   /**
-   * Sets the default local activity options that will be used for activity stubs that has no {@link
-   * LocalActivityOptions} specified.<br>
+   * Sets the default local activity options that will be used for activity stubs that have no
+   * {@link LocalActivityOptions} specified.<br>
    * This overrides a value provided by {@link
    * WorkflowImplementationOptions#getDefaultLocalActivityOptions}.<br>
    * A more specific per-activity-type option specified in {@link
@@ -1109,10 +1109,9 @@ public final class Workflow {
    * #setDefaultLocalActivityOptions}
    *
    * <p>If an activity type already has a {@link LocalActivityOptions} set by an earlier call to
-   * this method or coming from {@link
-   * WorkflowImplementationOptions#getDefaultLocalActivityOptions}, new {@link LocalActivityOptions}
-   * from {@code activityTypeToOptions} will be merged into the old one using {@link
-   * LocalActivityOptions.Builder#mergeActivityOptions(LocalActivityOptions)}
+   * this method or from {@link WorkflowImplementationOptions#getDefaultLocalActivityOptions}, new
+   * {@link LocalActivityOptions} from {@code activityTypeToOptions} will be merged into the old
+   * ones using {@link LocalActivityOptions.Builder#mergeActivityOptions(LocalActivityOptions)}
    *
    * @param activityTypeToOptions a map of activity types to {@link LocalActivityOptions}
    */
