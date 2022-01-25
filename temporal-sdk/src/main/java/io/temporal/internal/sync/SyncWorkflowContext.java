@@ -101,6 +101,8 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
 
   private ActivityOptions defaultActivityOptions = null;
   private Map<String, ActivityOptions> activityOptionsMap = new HashMap<>();
+  private LocalActivityOptions defaultLocalActivityOptions = null;
+  private Map<String, LocalActivityOptions> localActivityOptionsMap = new HashMap<>();
 
   public SyncWorkflowContext(
       ReplayWorkflowContext context,
@@ -128,6 +130,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     if (workflowImplementationOptions != null) {
       this.defaultActivityOptions = workflowImplementationOptions.getDefaultActivityOptions();
       this.activityOptionsMap = workflowImplementationOptions.getActivityOptions();
+      this.defaultLocalActivityOptions =
+          workflowImplementationOptions.getDefaultLocalActivityOptions();
+      this.localActivityOptionsMap = workflowImplementationOptions.getLocalActivityOptions();
     }
     // initial values for headInboundInterceptor and headOutboundInterceptor until they initialized
     // with actual interceptors through #initHeadInboundCallsInterceptor and
@@ -176,6 +181,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return activityOptionsMap;
   }
 
+  public LocalActivityOptions getDefaultLocalActivityOptions() {
+    return defaultLocalActivityOptions;
+  }
+
+  public Map<String, LocalActivityOptions> getLocalActivityOptions() {
+    return localActivityOptionsMap;
+  }
+
   public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
     this.defaultActivityOptions =
         (this.defaultActivityOptions == null)
@@ -195,6 +208,29 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     activityMethodOptions.forEach(
         (key, value) ->
             this.activityOptionsMap.merge(
+                key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+  }
+
+  public void setDefaultLocalActivityOptions(LocalActivityOptions defaultLocalActivityOptions) {
+    this.defaultLocalActivityOptions =
+        (this.defaultLocalActivityOptions == null)
+            ? defaultLocalActivityOptions
+            : this.defaultLocalActivityOptions
+                .toBuilder()
+                .mergeActivityOptions(defaultLocalActivityOptions)
+                .build();
+  }
+
+  public void setLocalActivityOptions(
+      Map<String, LocalActivityOptions> localActivityMethodOptions) {
+    Objects.requireNonNull(localActivityMethodOptions);
+    if (this.localActivityOptionsMap == null) {
+      this.localActivityOptionsMap = new HashMap<>(localActivityMethodOptions);
+      return;
+    }
+    localActivityMethodOptions.forEach(
+        (key, value) ->
+            this.localActivityOptionsMap.merge(
                 key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
   }
 

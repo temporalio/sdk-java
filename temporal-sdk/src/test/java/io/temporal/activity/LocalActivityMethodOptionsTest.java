@@ -23,7 +23,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.testing.TestActivityEnvironment;
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Map;
 import org.junit.Assert;
 import org.junit.Before;
@@ -53,7 +52,7 @@ public class LocalActivityMethodOptionsTest {
   private static final Map<String, LocalActivityOptions> perMethodOptionsMap =
       new HashMap<String, LocalActivityOptions>() {
         {
-          put("Method1", methodOps2);
+          put("LocalActivity1", methodOps2);
         }
       };
   private TestActivityEnvironment testEnv;
@@ -83,61 +82,22 @@ public class LocalActivityMethodOptionsTest {
 
   @Test
   public void testLocalActivityMethodOptions() {
-    testEnv.registerActivitiesImplementations(new ActivityImpl());
-    TestActivity localActivity =
-        testEnv.newLocalActivityStub(TestActivity.class, defaultOps, perMethodOptionsMap);
+    testEnv.registerActivitiesImplementations(new LocalActivityTestImpl());
+    LocalActivityTest localActivity =
+        testEnv.newLocalActivityStub(LocalActivityTest.class, defaultOps, perMethodOptionsMap);
 
     // Check that options for method1 were merged.
-    Map<String, Duration> method1OpsValues = localActivity.method1();
+    Map<String, Duration> method1OpsValues = localActivity.localActivity1();
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), method1OpsValues.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
         methodOps2.getStartToCloseTimeout(), method1OpsValues.get("StartToCloseTimeout"));
 
     // Check that options for method2 were default.
-    Map<String, Duration> method2OpsValues = localActivity.method2();
+    Map<String, Duration> method2OpsValues = localActivity.localActivity2();
     Assert.assertEquals(
         defaultOps.getScheduleToCloseTimeout(), method2OpsValues.get("ScheduleToCloseTimeout"));
     Assert.assertEquals(
         defaultOps.getStartToCloseTimeout(), method2OpsValues.get("StartToCloseTimeout"));
-  }
-
-  @ActivityInterface
-  public interface TestActivity {
-
-    @ActivityMethod
-    Map<String, Duration> method1();
-
-    @ActivityMethod
-    Map<String, Duration> method2();
-  }
-
-  private static class ActivityImpl implements TestActivity {
-
-    @Override
-    public Map<String, Duration> method1() {
-      ActivityInfo info = Activity.getExecutionContext().getInfo();
-      Hashtable<String, Duration> result =
-          new Hashtable<String, Duration>() {
-            {
-              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-              put("StartToCloseTimeout", info.getStartToCloseTimeout());
-            }
-          };
-      return result;
-    }
-
-    @Override
-    public Map<String, Duration> method2() {
-      ActivityInfo info = Activity.getExecutionContext().getInfo();
-      Hashtable<String, Duration> result =
-          new Hashtable<String, Duration>() {
-            {
-              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-              put("StartToCloseTimeout", info.getStartToCloseTimeout());
-            }
-          };
-      return result;
-    }
   }
 }

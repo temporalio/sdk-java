@@ -79,6 +79,16 @@ public final class Workflow {
     WorkflowInternal.setActivityOptions(activityMethodOptions);
   }
 
+  public static void setDefaultLocalActivityOptions(
+      LocalActivityOptions defaultLocalActivityOptions) {
+    WorkflowInternal.setDefaultLocalActivityOptions(defaultLocalActivityOptions);
+  }
+
+  public static void setLocalActivityOptions(
+      Map<String, LocalActivityOptions> localActivityMethodOptions) {
+    WorkflowInternal.setLocalActivityOptions(localActivityMethodOptions);
+  }
+
   /**
    * Creates client stub to activities that implement given interface. `
    *

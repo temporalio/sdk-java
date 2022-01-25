@@ -57,6 +57,12 @@ public class SDKTestOptions {
     return ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(20)).build();
   }
 
+  public static LocalActivityOptions newLocalActivityOptions20sScheduleToClose() {
+    return LocalActivityOptions.newBuilder()
+        .setScheduleToCloseTimeout(Duration.ofSeconds(20))
+        .build();
+  }
+
   public static ActivityOptions newActivityOptionsForTaskQueue(String taskQueue) {
     if (DEBUGGER_TIMEOUTS) {
       return ActivityOptions.newBuilder()
