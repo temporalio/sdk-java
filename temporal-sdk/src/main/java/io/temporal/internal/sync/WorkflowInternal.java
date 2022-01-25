@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
+import com.google.common.base.MoreObjects;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -35,6 +36,7 @@ import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.failure.FailureConverter;
+import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.ActivityStub;
@@ -59,15 +61,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,17 +194,17 @@ public final class WorkflowInternal {
     getRootWorkflowContext().setDefaultActivityOptions(activityOptions);
   }
 
-  public static void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
-    getRootWorkflowContext().setActivityOptions(activityMethodOptions);
+  public static void applyActivityOptions(Map<String, ActivityOptions> activityTypeToOptions) {
+    getRootWorkflowContext().applyActivityOptions(activityTypeToOptions);
   }
 
   public static void setDefaultLocalActivityOptions(LocalActivityOptions localActivityOptions) {
     getRootWorkflowContext().setDefaultLocalActivityOptions(localActivityOptions);
   }
 
-  public static void setLocalActivityOptions(
-      Map<String, LocalActivityOptions> localActivityMethodOptions) {
-    getRootWorkflowContext().setLocalActivityOptions(localActivityMethodOptions);
+  public static void applyLocalActivityOptions(
+      Map<String, LocalActivityOptions> activityTypeToOptions) {
+    getRootWorkflowContext().applyLocalActivityOptions(activityTypeToOptions);
   }
 
   /**
@@ -226,17 +223,23 @@ public final class WorkflowInternal {
     // have received in WorkflowImplementationOptions.
     SyncWorkflowContext context = getRootWorkflowContext();
     options = (options == null) ? context.getDefaultActivityOptions() : options;
-    Map<String, ActivityOptions> mergedActivityOptionsMap = new HashMap<>();
-    Map<String, ActivityOptions> activityOptions = context.getActivityOptions();
-    if (activityOptions != null) {
-      mergedActivityOptionsMap.putAll(activityOptions);
+
+    Map<String, ActivityOptions> mergedActivityOptionsMap;
+    @Nonnull Map<String, ActivityOptions> predefinedActivityOptions = context.getActivityOptions();
+    if (activityMethodOptions != null
+        && !activityMethodOptions.isEmpty()
+        && predefinedActivityOptions.isEmpty()) {
+      // we need to merge only in this case
+      mergedActivityOptionsMap = new HashMap<>(predefinedActivityOptions);
+      ActivityOptionUtils.mergePredefinedActivityOptions(
+          mergedActivityOptionsMap, activityMethodOptions);
+    } else {
+      mergedActivityOptionsMap =
+          MoreObjects.firstNonNull(
+              activityMethodOptions,
+              MoreObjects.firstNonNull(predefinedActivityOptions, Collections.emptyMap()));
     }
-    if (activityMethodOptions != null) {
-      activityMethodOptions.forEach(
-          (key, value) ->
-              mergedActivityOptionsMap.merge(
-                  key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
-    }
+
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(
             activityInterface,
@@ -257,22 +260,30 @@ public final class WorkflowInternal {
   public static <T> T newLocalActivityStub(
       Class<T> activityInterface,
       LocalActivityOptions options,
-      Map<String, LocalActivityOptions> activityMethodOptions) {
+      @Nullable Map<String, LocalActivityOptions> activityMethodOptions) {
     // Merge the activity options we may have received from the workflow with the options we may
     // have received in WorkflowImplementationOptions.
     SyncWorkflowContext context = getRootWorkflowContext();
     options = (options == null) ? context.getDefaultLocalActivityOptions() : options;
-    Map<String, LocalActivityOptions> mergedLocalActivityOptionsMap = new HashMap<>();
-    Map<String, LocalActivityOptions> localActivityOptions = context.getLocalActivityOptions();
-    if (localActivityOptions != null) {
-      mergedLocalActivityOptionsMap.putAll(localActivityOptions);
+
+    Map<String, LocalActivityOptions> mergedLocalActivityOptionsMap;
+    @Nonnull
+    Map<String, LocalActivityOptions> predefinedLocalActivityOptions =
+        context.getLocalActivityOptions();
+    if (activityMethodOptions != null
+        && !activityMethodOptions.isEmpty()
+        && predefinedLocalActivityOptions.isEmpty()) {
+      // we need to merge only in this case
+      mergedLocalActivityOptionsMap = new HashMap<>(predefinedLocalActivityOptions);
+      ActivityOptionUtils.mergePredefinedLocalActivityOptions(
+          mergedLocalActivityOptionsMap, activityMethodOptions);
+    } else {
+      mergedLocalActivityOptionsMap =
+          MoreObjects.firstNonNull(
+              activityMethodOptions,
+              MoreObjects.firstNonNull(predefinedLocalActivityOptions, Collections.emptyMap()));
     }
-    if (activityMethodOptions != null) {
-      activityMethodOptions.forEach(
-          (key, value) ->
-              mergedLocalActivityOptionsMap.merge(
-                  key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
-    }
+
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(
             activityInterface,

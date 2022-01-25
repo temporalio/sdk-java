@@ -25,6 +25,8 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
+import io.temporal.workflow.shared.TestActivities.TestLocalActivity;
+import io.temporal.workflow.shared.TestActivities.TestLocalActivityImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnMap;
 import java.time.Duration;
 import java.util.HashMap;
@@ -45,7 +47,7 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
           .setWorkflowTypes(
               WorkflowImplementationOptions.getDefaultInstance(),
               TestSetNullActivityOptionsWorkflowImpl.class)
-          .setActivityImplementations(new TestActivityImpl(), new LocalActivityTestImpl())
+          .setActivityImplementations(new TestActivityImpl(), new TestLocalActivityImpl())
           .build();
 
   @Test
@@ -104,9 +106,9 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
       TestActivity activities =
           Workflow.newActivityStub(
               TestActivity.class, SDKTestOptions.newActivityOptions20sScheduleToClose());
-      LocalActivityTest localActivities =
+      TestLocalActivity localActivities =
           Workflow.newLocalActivityStub(
-              LocalActivityTest.class, SDKTestOptions.newLocalActivityOptions20sScheduleToClose());
+              TestLocalActivity.class, SDKTestOptions.newLocalActivityOptions20sScheduleToClose());
       result.put("Activity1", activities.activity1());
       result.put("Activity2", activities.activity2());
       result.put("LocalActivity1", localActivities.localActivity1());

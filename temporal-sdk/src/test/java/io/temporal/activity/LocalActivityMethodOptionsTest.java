@@ -21,6 +21,8 @@ package io.temporal.activity;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.testing.TestActivityEnvironment;
+import io.temporal.workflow.shared.TestActivities.TestLocalActivity;
+import io.temporal.workflow.shared.TestActivities.TestLocalActivityImpl;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,7 +74,7 @@ public class LocalActivityMethodOptionsTest {
     merged = LocalActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps1).build();
     Assert.assertEquals(methodOps1, merged);
     // Check that if doNotIncludeArgumentsIntoMarker is not set, it defaults to false.
-    Assert.assertEquals(false, methodOps2.isDoNotIncludeArgumentsIntoMarker());
+    Assert.assertFalse(methodOps2.isDoNotIncludeArgumentsIntoMarker());
     // Check that original value of doNotIncludeArgumentsIntoMarker is not overridden if it's not
     // set in override.
     merged = LocalActivityOptions.newBuilder(defaultOps).mergeActivityOptions(methodOps2).build();
@@ -82,9 +84,9 @@ public class LocalActivityMethodOptionsTest {
 
   @Test
   public void testLocalActivityMethodOptions() {
-    testEnv.registerActivitiesImplementations(new LocalActivityTestImpl());
-    LocalActivityTest localActivity =
-        testEnv.newLocalActivityStub(LocalActivityTest.class, defaultOps, perMethodOptionsMap);
+    testEnv.registerActivitiesImplementations(new TestLocalActivityImpl());
+    TestLocalActivity localActivity =
+        testEnv.newLocalActivityStub(TestLocalActivity.class, defaultOps, perMethodOptionsMap);
 
     // Check that options for method1 were merged.
     Map<String, Duration> method1OpsValues = localActivity.localActivity1();

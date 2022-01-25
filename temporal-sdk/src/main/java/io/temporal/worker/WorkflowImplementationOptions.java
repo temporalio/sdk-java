@@ -21,10 +21,9 @@ package io.temporal.worker;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class WorkflowImplementationOptions {
 
@@ -129,24 +128,24 @@ public final class WorkflowImplementationOptions {
     public WorkflowImplementationOptions build() {
       return new WorkflowImplementationOptions(
           failWorkflowExceptionTypes == null ? new Class[0] : failWorkflowExceptionTypes,
-          activityOptions == null ? new HashMap<>() : activityOptions,
+          activityOptions == null ? null : activityOptions,
           defaultActivityOptions,
-          localActivityOptions == null ? new HashMap<>() : localActivityOptions,
+          localActivityOptions == null ? null : localActivityOptions,
           defaultLocalActivityOptions);
     }
   }
 
   private final Class<? extends Throwable>[] failWorkflowExceptionTypes;
-  private final Map<String, ActivityOptions> activityOptions;
+  private final @Nullable Map<String, ActivityOptions> activityOptions;
   private final ActivityOptions defaultActivityOptions;
-  private final Map<String, LocalActivityOptions> localActivityOptions;
+  private final @Nullable Map<String, LocalActivityOptions> localActivityOptions;
   private final LocalActivityOptions defaultLocalActivityOptions;
 
   public WorkflowImplementationOptions(
       Class<? extends Throwable>[] failWorkflowExceptionTypes,
-      Map<String, ActivityOptions> activityOptions,
+      @Nullable Map<String, ActivityOptions> activityOptions,
       ActivityOptions defaultActivityOptions,
-      Map<String, LocalActivityOptions> localActivityOptions,
+      @Nullable Map<String, LocalActivityOptions> localActivityOptions,
       LocalActivityOptions defaultLocalActivityOptions) {
     this.failWorkflowExceptionTypes = failWorkflowExceptionTypes;
     this.activityOptions = activityOptions;
@@ -159,16 +158,20 @@ public final class WorkflowImplementationOptions {
     return failWorkflowExceptionTypes;
   }
 
-  public Map<String, ActivityOptions> getActivityOptions() {
-    return activityOptions;
+  public @Nonnull Map<String, ActivityOptions> getActivityOptions() {
+    return activityOptions != null
+        ? Collections.unmodifiableMap(activityOptions)
+        : Collections.emptyMap();
   }
 
   public ActivityOptions getDefaultActivityOptions() {
     return defaultActivityOptions;
   }
 
-  public Map<String, LocalActivityOptions> getLocalActivityOptions() {
-    return localActivityOptions;
+  public @Nonnull Map<String, LocalActivityOptions> getLocalActivityOptions() {
+    return localActivityOptions != null
+        ? Collections.unmodifiableMap(localActivityOptions)
+        : Collections.emptyMap();
   }
 
   public LocalActivityOptions getDefaultLocalActivityOptions() {

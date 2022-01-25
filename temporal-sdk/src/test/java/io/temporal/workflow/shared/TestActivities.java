@@ -38,14 +38,7 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -90,6 +83,16 @@ public class TestActivities {
 
     @ActivityMethod
     Map<String, Duration> activity2();
+  }
+
+  @ActivityInterface
+  public interface TestLocalActivity {
+
+    @ActivityMethod
+    Map<String, Duration> localActivity1();
+
+    @ActivityMethod
+    Map<String, Duration> localActivity2();
   }
 
   @ActivityInterface
@@ -167,29 +170,50 @@ public class TestActivities {
     @Override
     public Map<String, Duration> activity1() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      Hashtable<String, Duration> result =
-          new Hashtable<String, Duration>() {
-            {
-              put("HeartbeatTimeout", info.getHeartbeatTimeout());
-              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-              put("StartToCloseTimeout", info.getStartToCloseTimeout());
-            }
-          };
-      return result;
+      return new HashMap<String, Duration>() {
+        {
+          put("HeartbeatTimeout", info.getHeartbeatTimeout());
+          put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
+          put("StartToCloseTimeout", info.getStartToCloseTimeout());
+        }
+      };
     }
 
     @Override
     public Map<String, Duration> activity2() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      Hashtable<String, Duration> result =
-          new Hashtable<String, Duration>() {
-            {
-              put("HeartbeatTimeout", info.getHeartbeatTimeout());
-              put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-              put("StartToCloseTimeout", info.getStartToCloseTimeout());
-            }
-          };
-      return result;
+      return new HashMap<String, Duration>() {
+        {
+          put("HeartbeatTimeout", info.getHeartbeatTimeout());
+          put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
+          put("StartToCloseTimeout", info.getStartToCloseTimeout());
+        }
+      };
+    }
+  }
+
+  public static class TestLocalActivityImpl implements TestLocalActivity {
+
+    @Override
+    public Map<String, Duration> localActivity1() {
+      ActivityInfo info = Activity.getExecutionContext().getInfo();
+      return new HashMap<String, Duration>() {
+        {
+          put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
+          put("StartToCloseTimeout", info.getStartToCloseTimeout());
+        }
+      };
+    }
+
+    @Override
+    public Map<String, Duration> localActivity2() {
+      ActivityInfo info = Activity.getExecutionContext().getInfo();
+      return new HashMap<String, Duration>() {
+        {
+          put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
+          put("StartToCloseTimeout", info.getStartToCloseTimeout());
+        }
+      };
     }
   }
 
