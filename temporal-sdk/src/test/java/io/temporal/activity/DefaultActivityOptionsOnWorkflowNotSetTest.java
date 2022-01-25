@@ -30,11 +30,14 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
 public class DefaultActivityOptionsOnWorkflowNotSetTest {
   private final ActivityOptions defaultOps = SDKTestOptions.newActivityOptions20sScheduleToClose();
+  private final LocalActivityOptions defaultLocalOps =
+      SDKTestOptions.newLocalActivityOptions20sScheduleToClose();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -42,7 +45,7 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
           .setWorkflowTypes(
               WorkflowImplementationOptions.getDefaultInstance(),
               TestSetNullActivityOptionsWorkflowImpl.class)
-          .setActivityImplementations(new TestActivityImpl())
+          .setActivityImplementations(new TestActivityImpl(), new LocalActivityTestImpl())
           .build();
 
   @Test
@@ -67,6 +70,33 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
         defaultOps.getScheduleToCloseTimeout(), activity2Values.get("StartToCloseTimeout"));
   }
 
+  @Ignore("Pending fix to Local Activity cancellations to use startToCloseTimeout") // TODO
+  @Test
+  public void testDefaultLocalActivityOptionsNotSetTest() {
+    TestWorkflowReturnMap workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflowReturnMap.class);
+    Map<String, Map<String, Duration>> result = workflowStub.execute();
+
+    // Check that both activities have options passed in the stub.
+    Map<String, Duration> localActivity1Values = result.get("LocalActivity1");
+    Assert.assertEquals(
+        defaultLocalOps.getScheduleToCloseTimeout(),
+        localActivity1Values.get("ScheduleToCloseTimeout"));
+    // If not set, Temporal service sets to ScheduleToCloseTimeout value
+    Assert.assertEquals(
+        defaultLocalOps.getScheduleToCloseTimeout(),
+        localActivity1Values.get("StartToCloseTimeout"));
+
+    Map<String, Duration> localActivity2Values = result.get("LocalActivity2");
+    Assert.assertEquals(
+        defaultLocalOps.getScheduleToCloseTimeout(),
+        localActivity2Values.get("ScheduleToCloseTimeout"));
+    // If not set, Temporal service sets to ScheduleToCloseTimeout value
+    Assert.assertEquals(
+        defaultLocalOps.getScheduleToCloseTimeout(),
+        localActivity2Values.get("StartToCloseTimeout"));
+  }
+
   public static class TestSetNullActivityOptionsWorkflowImpl implements TestWorkflowReturnMap {
     @Override
     public Map<String, Map<String, Duration>> execute() {
@@ -74,8 +104,13 @@ public class DefaultActivityOptionsOnWorkflowNotSetTest {
       TestActivity activities =
           Workflow.newActivityStub(
               TestActivity.class, SDKTestOptions.newActivityOptions20sScheduleToClose());
+      LocalActivityTest localActivities =
+          Workflow.newLocalActivityStub(
+              LocalActivityTest.class, SDKTestOptions.newLocalActivityOptions20sScheduleToClose());
       result.put("Activity1", activities.activity1());
       result.put("Activity2", activities.activity2());
+      result.put("LocalActivity1", localActivities.localActivity1());
+      result.put("LocalActivity2", localActivities.localActivity2());
       return result;
     }
   }

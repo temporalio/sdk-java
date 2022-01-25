@@ -20,6 +20,7 @@
 package io.temporal.worker
 
 import io.temporal.activity.ActivityOptions
+import io.temporal.activity.LocalActivityOptions
 import io.temporal.common.metadata.activityName
 import io.temporal.kotlin.TemporalDsl
 
@@ -69,4 +70,43 @@ inline fun @TemporalDsl WorkflowImplementationOptions.Builder.setDefaultActivity
   defaultActivityOptions: @TemporalDsl ActivityOptions.Builder.() -> Unit
 ) {
   setDefaultActivityOptions(ActivityOptions(defaultActivityOptions))
+}
+
+/**
+ * Set individual Local Activity options per `activityType`.
+ *
+ * The [activityName] method could be used resolve activity method references to activity names:
+ *
+ * ```kotlin
+ * val options = WorkflowImplementationOptions {
+ *   // ...
+ *   setLocalActivityOptions(
+ *     localActivityName(Activity1::method1) to LocalActivityOptions {
+ *       // options for local activity method1
+ *     },
+ *     localActivityName(Activity2::method2) to LocalActivityOptions {
+ *       // options for local activity method2
+ *     },
+ *   )
+ * }
+ * ```
+ *
+ * @param localActivityOptions map from activityType to [LocalActivityOptions]
+ * @see WorkflowImplementationOptions.Builder.setLocalActivityOptions
+ * @see WorkflowImplementationOptions.getLocalActivityOptions
+ */
+fun WorkflowImplementationOptions.Builder.setLocalActivityOptions(
+  vararg localActivityOptions: Pair<String, LocalActivityOptions>
+) {
+  setLocalActivityOptions(localActivityOptions.toMap())
+}
+
+/**
+ * @see WorkflowImplementationOptions.Builder.setDefaultLocalActivityOptions
+ * @see WorkflowImplementationOptions.getDefaultLocalActivityOptions
+ */
+inline fun @TemporalDsl WorkflowImplementationOptions.Builder.setDefaultLocalActivityOptions(
+  defaultLocalActivityOptions: @TemporalDsl LocalActivityOptions.Builder.() -> Unit
+) {
+  setDefaultLocalActivityOptions(LocalActivityOptions(defaultLocalActivityOptions))
 }
