@@ -34,6 +34,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import java.util.Objects;
 import java.util.concurrent.Semaphore;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,27 +44,26 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String taskQueue;
-  private final Scope metricsScope;
   private final String identity;
   private final double activitiesPerSecond;
   private final Semaphore pollSemaphore;
+  private final Scope metricsScope;
 
   public ActivityPollTask(
-      WorkflowServiceStubs service,
-      String namespace,
-      String taskQueue,
-      Scope metricsScope,
-      String identity,
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull String identity,
       double activitiesPerSecond,
-      int workerTaskSlots) {
-
+      int workerTaskSlots,
+      @Nonnull Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
-    this.metricsScope = Objects.requireNonNull(metricsScope);
     this.identity = Objects.requireNonNull(identity);
     this.activitiesPerSecond = activitiesPerSecond;
     this.pollSemaphore = new Semaphore(workerTaskSlots);
+    this.metricsScope = Objects.requireNonNull(metricsScope);
   }
 
   @Override

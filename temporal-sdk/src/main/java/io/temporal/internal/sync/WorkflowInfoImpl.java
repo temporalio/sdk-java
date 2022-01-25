@@ -104,4 +104,9 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   public int getAttempt() {
     return context.getAttempt();
   }
+
+  @Override
+  public String getCronSchedule() {
+    return context.getCronSchedule();
+  }
 }

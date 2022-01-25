@@ -53,6 +53,6 @@ public class WorkflowPollTaskFactory
   @Override
   public Poller.PollTask<PollWorkflowTaskQueueResponse> get() {
     return new WorkflowPollTask(
-        service, namespace, taskQueue, metricScope, identity, binaryChecksum);
+        service, namespace, taskQueue, identity, binaryChecksum, metricScope);
   }
 }
