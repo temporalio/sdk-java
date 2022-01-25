@@ -28,6 +28,8 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
+import io.temporal.workflow.shared.TestActivities.TestLocalActivity;
+import io.temporal.workflow.shared.TestActivities.TestLocalActivityImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnMap;
 import java.time.Duration;
 import java.util.HashMap;
@@ -89,7 +91,7 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
                   .setLocalActivityOptions(localActivity2options)
                   .build(),
               TestSetDefaultActivityOptionsWorkflowImpl.class)
-          .setActivityImplementations(new TestActivityImpl(), new LocalActivityTestImpl())
+          .setActivityImplementations(new TestActivityImpl(), new TestLocalActivityImpl())
           .build();
 
   @Test
@@ -153,12 +155,12 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
     @Override
     public Map<String, Map<String, Duration>> execute() {
       Workflow.setDefaultActivityOptions(workflowOps);
-      Workflow.setActivityOptions(defaultActivity2options);
+      Workflow.applyActivityOptions(defaultActivity2options);
       Workflow.setDefaultLocalActivityOptions(localActivityWorkflowOps);
-      Workflow.setLocalActivityOptions(defaultLocalActivity2options);
+      Workflow.applyLocalActivityOptions(defaultLocalActivity2options);
       Map<String, Map<String, Duration>> result = new HashMap<>();
       TestActivity activities = Workflow.newActivityStub(TestActivity.class);
-      LocalActivityTest localActivities = Workflow.newLocalActivityStub(LocalActivityTest.class);
+      TestLocalActivity localActivities = Workflow.newLocalActivityStub(TestLocalActivity.class);
       result.put("Activity1", activities.activity1());
       result.put("Activity2", activities.activity2());
       result.put("LocalActivity1", localActivities.localActivity1());

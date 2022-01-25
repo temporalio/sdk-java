@@ -46,7 +46,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class LocalActivityTest {
+public class TestLocalActivity {
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 

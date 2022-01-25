@@ -53,6 +53,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -73,17 +74,12 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
@@ -100,9 +96,9 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   private DeterministicRunner runner;
 
   private ActivityOptions defaultActivityOptions = null;
-  private Map<String, ActivityOptions> activityOptionsMap = new HashMap<>();
+  private Map<String, ActivityOptions> activityOptionsMap;
   private LocalActivityOptions defaultLocalActivityOptions = null;
-  private Map<String, LocalActivityOptions> localActivityOptionsMap = new HashMap<>();
+  private Map<String, LocalActivityOptions> localActivityOptionsMap;
 
   public SyncWorkflowContext(
       ReplayWorkflowContext context,
@@ -129,10 +125,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     this.queryDispatcher = new QueryDispatcher(converter);
     if (workflowImplementationOptions != null) {
       this.defaultActivityOptions = workflowImplementationOptions.getDefaultActivityOptions();
-      this.activityOptionsMap = workflowImplementationOptions.getActivityOptions();
+      this.activityOptionsMap = new HashMap<>(workflowImplementationOptions.getActivityOptions());
       this.defaultLocalActivityOptions =
           workflowImplementationOptions.getDefaultLocalActivityOptions();
-      this.localActivityOptionsMap = workflowImplementationOptions.getLocalActivityOptions();
+      this.localActivityOptionsMap =
+          new HashMap<>(workflowImplementationOptions.getLocalActivityOptions());
     }
     // initial values for headInboundInterceptor and headOutboundInterceptor until they initialized
     // with actual interceptors through #initHeadInboundCallsInterceptor and
@@ -177,16 +174,20 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     return defaultActivityOptions;
   }
 
-  public Map<String, ActivityOptions> getActivityOptions() {
-    return activityOptionsMap;
+  public @Nonnull Map<String, ActivityOptions> getActivityOptions() {
+    return activityOptionsMap != null
+        ? Collections.unmodifiableMap(activityOptionsMap)
+        : Collections.emptyMap();
   }
 
   public LocalActivityOptions getDefaultLocalActivityOptions() {
     return defaultLocalActivityOptions;
   }
 
-  public Map<String, LocalActivityOptions> getLocalActivityOptions() {
-    return localActivityOptionsMap;
+  public @Nonnull Map<String, LocalActivityOptions> getLocalActivityOptions() {
+    return localActivityOptionsMap != null
+        ? Collections.unmodifiableMap(localActivityOptionsMap)
+        : Collections.emptyMap();
   }
 
   public void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
@@ -199,16 +200,13 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
                 .build();
   }
 
-  public void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
-    Objects.requireNonNull(activityMethodOptions);
+  public void applyActivityOptions(Map<String, ActivityOptions> activityTypeToOption) {
+    Objects.requireNonNull(activityTypeToOption);
     if (this.activityOptionsMap == null) {
-      this.activityOptionsMap = new HashMap<>(activityMethodOptions);
+      this.activityOptionsMap = new HashMap<>(activityTypeToOption);
       return;
     }
-    activityMethodOptions.forEach(
-        (key, value) ->
-            this.activityOptionsMap.merge(
-                key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+    ActivityOptionUtils.mergePredefinedActivityOptions(activityOptionsMap, activityTypeToOption);
   }
 
   public void setDefaultLocalActivityOptions(LocalActivityOptions defaultLocalActivityOptions) {
@@ -221,17 +219,14 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
                 .build();
   }
 
-  public void setLocalActivityOptions(
-      Map<String, LocalActivityOptions> localActivityMethodOptions) {
-    Objects.requireNonNull(localActivityMethodOptions);
+  public void applyLocalActivityOptions(Map<String, LocalActivityOptions> activityTypeToOption) {
+    Objects.requireNonNull(activityTypeToOption);
     if (this.localActivityOptionsMap == null) {
-      this.localActivityOptionsMap = new HashMap<>(localActivityMethodOptions);
+      this.localActivityOptionsMap = new HashMap<>(activityTypeToOption);
       return;
     }
-    localActivityMethodOptions.forEach(
-        (key, value) ->
-            this.localActivityOptionsMap.merge(
-                key, value, (o1, o2) -> o1.toBuilder().mergeActivityOptions(o2).build()));
+    ActivityOptionUtils.mergePredefinedLocalActivityOptions(
+        localActivityOptionsMap, activityTypeToOption);
   }
 
   @Override

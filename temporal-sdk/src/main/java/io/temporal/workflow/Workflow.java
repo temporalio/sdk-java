@@ -31,6 +31,7 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.lang.reflect.Type;
@@ -70,24 +71,6 @@ import org.slf4j.Logger;
  */
 public final class Workflow {
   public static final int DEFAULT_VERSION = WorkflowInternal.DEFAULT_VERSION;
-
-  public static void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
-    WorkflowInternal.setDefaultActivityOptions(defaultActivityOptions);
-  }
-
-  public static void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
-    WorkflowInternal.setActivityOptions(activityMethodOptions);
-  }
-
-  public static void setDefaultLocalActivityOptions(
-      LocalActivityOptions defaultLocalActivityOptions) {
-    WorkflowInternal.setDefaultLocalActivityOptions(defaultLocalActivityOptions);
-  }
-
-  public static void setLocalActivityOptions(
-      Map<String, LocalActivityOptions> localActivityMethodOptions) {
-    WorkflowInternal.setLocalActivityOptions(localActivityMethodOptions);
-  }
 
   /**
    * Creates client stub to activities that implement given interface. `
@@ -1059,6 +1042,82 @@ public final class Workflow {
    */
   public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
     WorkflowInternal.upsertSearchAttributes(searchAttributes);
+  }
+
+  /**
+   * Sets the default activity options that will be used for activity stubs that have no {@link
+   * ActivityOptions} specified.<br>
+   * This overrides a value provided by {@link
+   * WorkflowImplementationOptions#getDefaultActivityOptions}.<br>
+   * A more specific per-activity-type option specified in {@link
+   * WorkflowImplementationOptions#getActivityOptions} or {@link #applyActivityOptions(Map)} takes
+   * precedence over this setting.
+   *
+   * @param defaultActivityOptions {@link ActivityOptions} to be used as a default
+   */
+  public static void setDefaultActivityOptions(ActivityOptions defaultActivityOptions) {
+    WorkflowInternal.setDefaultActivityOptions(defaultActivityOptions);
+  }
+
+  /** @deprecated use {@link #applyActivityOptions(Map)} */
+  @Deprecated
+  public static void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
+    WorkflowInternal.applyActivityOptions(activityMethodOptions);
+  }
+
+  /**
+   * Adds activity options per activity type that will be used for an activity stub that has no
+   * {@link ActivityOptions} specified.<br>
+   * This method refines an original set of {@code Map<String, ActivityOptions>} provided by {@link
+   * WorkflowImplementationOptions#getActivityOptions()}<br>
+   * These more specific options take precedence over more generic setting {@link
+   * #setDefaultActivityOptions}
+   *
+   * <p>If an activity type already has a {@link ActivityOptions} set by an earlier call to this
+   * method or from {@link WorkflowImplementationOptions#getDefaultActivityOptions}, new {@link
+   * ActivityOptions} from {@code activityTypeToOptions} will be merged into the old ones using
+   * {@link ActivityOptions.Builder#mergeActivityOptions(ActivityOptions)}
+   *
+   * @param activityTypeToOptions a map of activity types to {@link ActivityOptions}
+   */
+  public static void applyActivityOptions(Map<String, ActivityOptions> activityTypeToOptions) {
+    WorkflowInternal.applyActivityOptions(activityTypeToOptions);
+  }
+
+  /**
+   * Sets the default local activity options that will be used for activity stubs that have no
+   * {@link LocalActivityOptions} specified.<br>
+   * This overrides a value provided by {@link
+   * WorkflowImplementationOptions#getDefaultLocalActivityOptions}.<br>
+   * A more specific per-activity-type option specified in {@link
+   * WorkflowImplementationOptions#getLocalActivityOptions} or {@link
+   * #applyLocalActivityOptions(Map)} takes precedence over this setting.
+   *
+   * @param defaultLocalActivityOptions {@link LocalActivityOptions} to be used as a default
+   */
+  public static void setDefaultLocalActivityOptions(
+      LocalActivityOptions defaultLocalActivityOptions) {
+    WorkflowInternal.setDefaultLocalActivityOptions(defaultLocalActivityOptions);
+  }
+
+  /**
+   * Adds local activity options per activity type that will be used for a local activity stub that
+   * has no {@link LocalActivityOptions} specified.<br>
+   * This method refines an original set of {@code Map<String, LocalActivityOptions>} provided by
+   * {@link WorkflowImplementationOptions#getLocalActivityOptions()}<br>
+   * These more specific options take precedence over more generic setting {@link
+   * #setDefaultLocalActivityOptions}
+   *
+   * <p>If an activity type already has a {@link LocalActivityOptions} set by an earlier call to
+   * this method or from {@link WorkflowImplementationOptions#getDefaultLocalActivityOptions}, new
+   * {@link LocalActivityOptions} from {@code activityTypeToOptions} will be merged into the old
+   * ones using {@link LocalActivityOptions.Builder#mergeActivityOptions(LocalActivityOptions)}
+   *
+   * @param activityTypeToOptions a map of activity types to {@link LocalActivityOptions}
+   */
+  public static void applyLocalActivityOptions(
+      Map<String, LocalActivityOptions> activityTypeToOptions) {
+    WorkflowInternal.applyLocalActivityOptions(activityTypeToOptions);
   }
 
   /** Prohibit instantiation. */
