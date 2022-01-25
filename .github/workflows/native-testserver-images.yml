@@ -1,0 +1,96 @@
+name: Build Native Testserver Images
+defaults:
+  run:
+    shell: bash -euo pipefail -O nullglob {0}
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        type: string
+        description: 'Release version (e.g. v1.2.3); omit to skip attaching artifacts to a release'
+        required: false
+      clobber:
+        type: boolean
+        description: 'Overwrite existing release artifacts'
+        required: false
+        default: no
+
+jobs:
+  build:
+    name: Build
+    strategy:
+      matrix:
+        include:
+          - dist: ubuntu-latest
+            os_family: linux
+            arch: amd64
+          - dist: macos-latest
+            os_family: macOS
+            arch: amd64
+          - dist: windows-latest
+            os_family: windows
+            arch: amd64
+    runs-on: ${{ matrix.dist }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+        
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        
+      - name: Build Native Image
+        run: ./gradlew :temporal-test-server:build
+      
+      # path ends in a wildcard because on windows the file ends in '.exe'
+      # path excludes *.txt because native-image also writes a build manifest txt file
+      - name: Upload executable to workflow
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os_family }}_${{ matrix.arch }}
+          path: |
+            temporal-test-server/build/graal/temporal-test-server*
+            !temporal-test-server/build/graal/*.txt
+          if-no-files-found: error
+          retention-days: 1
+          
+  attach_to_release:
+    name: Attach to release
+    needs: build
+    if: github.event.inputs.release
+    runs-on: ubuntu-latest
+    steps:
+    
+      # when no artifact is specified, all artifacts are downloaded and expanded into CWD
+      - name: Fetch executables
+        uses: actions/download-artifact@v2
+        
+      # example: linux_amd64/ -> temporal-test-server_1.2.3_linux_amd64
+      # the name of the directory created becomes the basename of the archive (*.tar.gz or *.zip) and 
+      # the root directory of the contents of the archive.
+      - name: Rename dirs
+        run: |
+          version="$(sed 's/v//'<<<'${{ github.event.inputs.release }}')"
+          for dir in *; do mv "$dir" "temporal-test-server_${version}_${dir}"; done        
+      
+      - name: Tar (linux, macOS)
+        run: for dir in *{linux,macOS}*; do tar cvzf "${dir}.tar.gz" "$dir"; done
+        
+      - name: Zip (windows)
+        run: for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
+        
+      - name: Upload
+        run: |
+            clobberflag="$([[ ${{ github.event.inputs.clobber }} = true ]] && echo "--clobber" || echo '')"
+            gh release upload ${clobberflag} --repo ${{ github.repository }} ${{ github.event.inputs.release }} *.zip *.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
