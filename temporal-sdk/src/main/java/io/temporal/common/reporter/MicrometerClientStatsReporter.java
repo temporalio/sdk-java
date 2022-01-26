@@ -19,6 +19,8 @@
 
 package io.temporal.common.reporter;
 
+import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AtomicDouble;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.StatsReporter;
@@ -26,14 +28,34 @@ import com.uber.m3.util.Duration;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class MicrometerClientStatsReporter implements StatsReporter {
 
   private final MeterRegistry registry;
+
+  /**
+   * This retains all created gauges to keep them publishing. According to Micrometer contract, it's
+   * a user code <a
+   * href="https://micrometer.io/docs/concepts#_why_is_my_gauge_reporting_nan_or_disappearing">
+   * "responsibility to hold a strong reference to the state object that you are measuring with a
+   * Gauge" </a>.
+   *
+   * <p>The need to forcefully retain all the gauges is coming from misalignment of Tally's (that
+   * doesn't expose any way to retain or not retain a gauge) and Micrometer/Prometheus Gauge API.
+   *
+   * <p>This theoretically may cause a memory leak if users create gauges with names or tags of very
+   * large cardinalities or if the names of gauges or tags have unique values.
+   *
+   * <p>The design to retain gauges is based on <a
+   * href="https://github.com/uber-java/tally/blob/master/prometheus/src/main/java/com/uber/m3/tally/experimental/prometheus/PrometheusReporter.java">Tally's
+   * PrometheusReporter<a/>
+   */
+  private final ConcurrentMap<MetricID, AtomicDouble> registeredGauges = new ConcurrentHashMap<>();
 
   public MicrometerClientStatsReporter(MeterRegistry registry) {
     this.registry = Objects.requireNonNull(registry);
@@ -61,7 +83,16 @@ public class MicrometerClientStatsReporter implements StatsReporter {
 
   @Override
   public void reportGauge(String name, Map<String, String> tags, double value) {
-    registry.gauge(name, getTags(tags), value);
+    Preconditions.checkNotNull(name, "Gauge name should be not null");
+    MetricID metricID = new MetricID(name, tags);
+    AtomicDouble gauge =
+        registeredGauges.computeIfAbsent(
+            metricID,
+            _metricID ->
+                Objects.requireNonNull(
+                    registry.gauge(
+                        _metricID.name, getTags(_metricID.tags), new AtomicDouble(value))));
+    gauge.set(value);
   }
 
   @Override
@@ -97,9 +128,34 @@ public class MicrometerClientStatsReporter implements StatsReporter {
     // NOOP
   }
 
+  private static class MetricID {
+    private final String name;
+    private final Map<String, String> tags;
+
+    private MetricID(String name, Map<String, String> tags) {
+      this.name = name;
+      this.tags = tags;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      MetricID metricID = (MetricID) o;
+      return name.equals(metricID.name) && Objects.equals(tags, metricID.tags);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(name, tags);
+    }
+  }
+
   private Iterable<Tag> getTags(Map<String, String> tags) {
-    return tags.entrySet().stream()
-        .map(entry -> Tag.of(entry.getKey(), entry.getValue()))
-        .collect(Collectors.toList());
+    return tags != null
+        ? tags.entrySet().stream()
+            .map(entry -> Tag.of(entry.getKey(), entry.getValue()))
+            .collect(Collectors.toList())
+        : Collections.emptyList();
   }
 }
