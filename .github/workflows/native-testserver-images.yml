@@ -27,7 +27,7 @@ jobs:
           - dist: macos-latest
             os_family: macOS
             arch: amd64
-          - dist: windows-latest
+          - dist: windows-2019
             os_family: windows
             arch: amd64
     runs-on: ${{ matrix.dist }}
