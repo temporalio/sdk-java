@@ -11,7 +11,7 @@ ext {
     grpcVersion = '[1.34.0,)!!1.43.2'
     protoVersion = '[3.10.0,)!!3.19.3'
     guavaVersion = '[10.0,)!!31.0.1-jre'
-    jsonPathVersion = '2.6.0'
+    jsonPathVersion = '2.7.0'
     mockitoVersion = '4.2.0'
     micrometerVersion = '[1.0.0,)!!1.8.2'
     jacksonVersion = '[2.9.0,)!!2.13.1'
