@@ -12,7 +12,7 @@ ext {
     protoVersion = '[3.10.0,)!!3.19.3'
     guavaVersion = '[10.0,)!!31.0.1-jre'
     jsonPathVersion = '2.6.0'
-    mockitoVersion = '4.2.0'
+    mockitoVersion = '4.3.1'
     micrometerVersion = '[1.0.0,)!!1.8.2'
     jacksonVersion = '[2.9.0,)!!2.13.1'
     tallyVersion = '[0.4.0,)!!0.11.1'
