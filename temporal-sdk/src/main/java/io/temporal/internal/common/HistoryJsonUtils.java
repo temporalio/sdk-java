@@ -20,8 +20,10 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.CaseFormat;
+import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 
 /**
  * Helper methods supporting transformation of History's "Proto Json" compatible format, which is
@@ -38,6 +40,8 @@ class HistoryJsonUtils {
       JsonPath.compile("$.events.*.*.taskQueue.kind");
   private static final String EVENT_TYPE_PREFIX = "EVENT_TYPE_";
   private static final String TASK_QUEUE_KIND_PREFIX = "TASK_QUEUE_KIND_";
+  private static final Configuration JSON_PATH_CONFIGURATION =
+      Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS).build();
 
   public static String protoJsonToHistoryFormatJson(String protoJson) {
     DocumentContext parsed = JsonPath.parse(protoJson);
@@ -53,7 +57,7 @@ class HistoryJsonUtils {
   }
 
   public static String historyFormatJsonToProtoJson(String historyFormatJson) {
-    DocumentContext parsed = JsonPath.parse(historyFormatJson);
+    DocumentContext parsed = JsonPath.parse(historyFormatJson, JSON_PATH_CONFIGURATION);
     parsed.map(
         EVENT_TYPE_PATH,
         (currentValue, configuration) ->
