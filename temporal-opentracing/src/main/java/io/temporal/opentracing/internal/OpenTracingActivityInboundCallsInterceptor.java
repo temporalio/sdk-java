@@ -31,6 +31,7 @@ import io.temporal.opentracing.OpenTracingOptions;
 
 public class OpenTracingActivityInboundCallsInterceptor
     extends ActivityInboundCallsInterceptorBase {
+
   private final OpenTracingOptions options;
   private final SpanFactory spanFactory;
   private final Tracer tracer;
@@ -77,7 +78,9 @@ public class OpenTracingActivityInboundCallsInterceptor
     try (Scope scope = tracer.scopeManager().activate(activityRunSpan)) {
       return super.execute(input);
     } catch (Throwable t) {
-      spanFactory.logFail(activityRunSpan, t);
+      if (options.getIsErrorPredicate().test(t)) {
+        spanFactory.logFail(activityRunSpan, t);
+      }
       throw t;
     } finally {
       activityRunSpan.finish();

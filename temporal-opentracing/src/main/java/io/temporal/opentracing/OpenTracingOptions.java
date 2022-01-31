@@ -24,16 +24,19 @@ import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 import io.temporal.opentracing.internal.ActionTypeAndNameSpanBuilderProvider;
 import java.util.Objects;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class OpenTracingOptions {
+
   private static final OpenTracingOptions DEFAULT_INSTANCE =
       OpenTracingOptions.newBuilder().build();
 
   private final Tracer tracer;
   private final SpanBuilderProvider spanBuilderProvider;
   private final OpenTracingSpanContextCodec spanContextCodec;
+  private final Predicate<Throwable> isErrorPredicate;
 
   public static OpenTracingOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
@@ -42,11 +45,15 @@ public class OpenTracingOptions {
   private OpenTracingOptions(
       Tracer tracer,
       SpanBuilderProvider spanBuilderProvider,
-      OpenTracingSpanContextCodec spanContextCodec) {
-    if (tracer == null) throw new IllegalArgumentException("tracer shouldn't be null");
+      OpenTracingSpanContextCodec spanContextCodec,
+      Predicate<Throwable> isErrorPredicate) {
+    if (tracer == null) {
+      throw new IllegalArgumentException("tracer shouldn't be null");
+    }
     this.tracer = tracer;
     this.spanBuilderProvider = spanBuilderProvider;
     this.spanContextCodec = spanContextCodec;
+    this.isErrorPredicate = isErrorPredicate;
   }
 
   @Nonnull
@@ -64,15 +71,22 @@ public class OpenTracingOptions {
     return spanContextCodec;
   }
 
+  @Nonnull
+  public Predicate<Throwable> getIsErrorPredicate() {
+    return isErrorPredicate;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
 
   public static final class Builder {
+
     private Tracer tracer;
     private SpanBuilderProvider spanBuilderProvider = ActionTypeAndNameSpanBuilderProvider.INSTANCE;
     private OpenTracingSpanContextCodec spanContextCodec =
         OpenTracingSpanContextCodec.TEXT_MAP_INJECT_EXTRACT_CODEC;
+    private Predicate<Throwable> isErrorPredicate = t -> true;
 
     private Builder() {}
 
@@ -103,11 +117,24 @@ public class OpenTracingOptions {
       return this;
     }
 
+    /**
+     * @param isErrorPredicate indicates whether an exception should or should not be considered an
+     *     error for the purpose of the OpenTracing span. By default, all exceptions are considered
+     *     errors.
+     * @return this
+     */
+    public Builder setIsErrorPredicate(@Nonnull Predicate<Throwable> isErrorPredicate) {
+      Objects.requireNonNull(isErrorPredicate, "isErrorPredicate can't be null");
+      this.isErrorPredicate = isErrorPredicate;
+      return this;
+    }
+
     public OpenTracingOptions build() {
       return new OpenTracingOptions(
           MoreObjects.firstNonNull(tracer, GlobalTracer.get()),
           spanBuilderProvider,
-          spanContextCodec);
+          spanContextCodec,
+          isErrorPredicate);
     }
   }
 }
