@@ -16,7 +16,7 @@ dependencies {
     implementation "io.grpc:grpc-core:$grpcVersion"
     implementation "io.grpc:grpc-services:$grpcVersion"
 
-    api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.34'
+    api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.35'
     if (!JavaVersion.current().isJava8()) {
         implementation 'javax.annotation:javax.annotation-api:1.3.2'
     }
