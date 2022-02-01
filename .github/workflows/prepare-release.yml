@@ -30,7 +30,7 @@ jobs:
           '${{ github.event.inputs.tag }}'
           --draft
           --repo '${{ github.repository }}' 
-          --title '${{ github.event.inputs.tag }} release' 
+          --title '${{ github.event.inputs.tag }}'
           --target '${{ github.event.inputs.ref }}'
           --notes-file 'releases/${{ github.event.inputs.tag }}'
         env:
