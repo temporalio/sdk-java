@@ -1,4 +1,4 @@
-name: Prepare Release
+name: Prepare release
 defaults:
   run:
     shell: bash -euo pipefail -O nullglob {0}
@@ -17,14 +17,14 @@ on:
 
 jobs:
   draft_release:
-    name: Create Github Draft Release
+    name: Create Github draft release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
           ref: '${{ github.event.inputs.ref }}'
-      - name: Create Release
+      - name: Create release
         run: >
           gh release create
           '${{ github.event.inputs.tag }}'
@@ -46,12 +46,12 @@ jobs:
         with:
           ref: '${{ github.event.inputs.ref }}'
           
-        # Our custom gradle version sniffing builds the maven release artifact
-        # names out of the git tag ... but the repo isn't tagged (yet) so add a
-        # tag to the _local_ clone just to get the right jar names. This tag
-        # does not get pushed back to the origin. Once the artifacts have been
-        # inspected and verified, the manual act of publishing the draft GH
-        # release creates the tag.
+      # Our custom gradle version sniffing builds the maven release artifact
+      # names out of the git tag ... but the repo isn't tagged (yet) so add a
+      # tag to the _local_ clone just to get the right jar names. This tag
+      # does not get pushed back to the origin. Once the artifacts have been
+      # inspected and verified, the manual act of publishing the draft GH
+      # release creates the tag.
       - name: Temporary tag
         run: git tag '${{ github.event.inputs.tag }}'
         
@@ -61,20 +61,20 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
           
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
 
       # TODO unclear if `gpg --batch --import "$HOME/.gnupg/secring.gpg` is
       # needed here as well It's in the old Concourse code but there's no clear
       # indication as to why.
-      - name: Setup Signing Key
+      - name: Set up signing key
         run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d > "$HOME/.gnupg/secring.gpg"
         env:
           KEY: ${{ secrets.JAR_SIGNING_KEY }}
       
       # Prefer env variables here rather than inline ${{ secrets.FOO }} to
       # decrease the likelihood that secrets end up printed to stdout.
-      - name: Setup Gradle Properties Secrets
+      - name: Set up secret gradle properties
         run: |
           mkdir -p "$HOME/.gradle"
           envsubst >"$HOME/.gradle/gradle.properties" <<EOF
@@ -90,11 +90,11 @@ jobs:
           RH_USER: ${{ secrets.RH_USER }}
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
         
-      - name: Gradle publish
+      - name: Publish
         run: ./gradlew publish
          
   native_images:
-    name: Build native images
+    name: Build native test server
     needs: draft_release
     strategy:
       matrix:
@@ -121,10 +121,10 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
           
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
         
-      - name: Build Native Image
+      - name: Build native test server
         run: ./gradlew :temporal-test-server:build
       
       # path ends in a wildcard because on windows the file ends in '.exe'
