@@ -55,9 +55,16 @@ public interface ActivityInfo {
   /**
    * Time when the Activity Execution was initially scheduled by the Workflow Execution.
    *
-   * @return Timestamp in milliseconds.
+   * @return Timestamp in milliseconds (UNIX Epoch time)
    */
   long getScheduledTimestamp();
+
+  /**
+   * Time when the Activity Task (current attempt) was scheduled by the Temporal Server.
+   *
+   * @return Timestamp in milliseconds (UNIX Epoch time)
+   */
+  long getCurrentAttemptScheduledTimestamp();
 
   /** @return the Schedule-To-Close Timeout setting as a Duration. */
   Duration getScheduleToCloseTimeout();
