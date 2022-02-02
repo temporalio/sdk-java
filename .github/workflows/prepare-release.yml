@@ -113,7 +113,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          ref: '${{ github.event.inputs.ref }}'
+
+      # See comment on temporary tag above. tldr: this is a local tag; never
+      # gets pushed
+      - name: Temporary tag
+        run: git tag '${{ github.event.inputs.tag }}'
         
       - name: Set up Java
         uses: actions/setup-java@v2
@@ -154,7 +159,7 @@ jobs:
       # the root directory of the contents of the archive.
       - name: Rename dirs
         run: |
-          version="$(sed 's/v//'<<<'${{ github.event.inputs.tag }}')"
+          version="$(sed 's/^v//'<<<'${{ github.event.inputs.tag }}')"
           for dir in *; do mv "$dir" "temporal-test-server_${version}_${dir}"; done        
       
       - name: Tar (linux, macOS)
