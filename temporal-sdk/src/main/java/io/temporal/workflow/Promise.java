@@ -40,8 +40,9 @@ import java.util.concurrent.TimeoutException;
  *   <li>Promise doesn't directly supports cancellation. Use {@link CancellationScope} to cancel and
  *       handle cancellations. The pattern is that a canceled operation completes its Promise with
  *       {@link CanceledFailure} when canceled.
- *   <li>{@link #handle(Functions.Func2)} and similar callback operations do not allow blocking
- *       calls inside functions
+ *   <li>{@link #handle(Functions.Func2)} and similar callback operations should follow all the same
+ *       constraints as other Workflow Code. See "Workflow Implementation Constraints" on {@link
+ *       io.temporal.workflow}.
  * </ul>
  */
 public interface Promise<V> {
@@ -117,7 +118,8 @@ public interface Promise<V> {
    * this Promise when it is ready. #completeExceptionally is propagated directly to the returned
    * Promise skipping the function.
    *
-   * <p>Note that no blocking calls are allowed inside of the function.
+   * <p>Note that all the constraints of Workflow Implementation Code apply to {@code fn}. See
+   * "Workflow Implementation Constraints" on {@link io.temporal.workflow}.
    */
   <U> Promise<U> thenApply(Functions.Func1<? super V, ? extends U> fn);
 
@@ -126,13 +128,17 @@ public interface Promise<V> {
    * this Promise or with an exception when it is completed. If the function throws a {@link
    * RuntimeException} it fails the resulting promise.
    *
-   * <p>Note that no blocking calls are allowed inside of the function.
+   * <p>Note that all the constraints of Workflow Implementation Code apply to {@code fn}. See
+   * "Workflow Implementation Constraints" on {@link io.temporal.workflow}.
    */
   <U> Promise<U> handle(Functions.Func2<? super V, RuntimeException, ? extends U> fn);
 
   /**
    * Returns a new Promise that, when this promise completes normally, is executed with this promise
    * as the argument to the supplied function.
+   *
+   * <p>Note that all the constraints of Workflow Implementation Code apply to {@code fn}. See
+   * "Workflow Implementation Constraints" on {@link io.temporal.workflow}.
    *
    * @param fn the function returning a new Promise
    * @param <U> the type of the returned CompletionStage's result
@@ -144,6 +150,9 @@ public interface Promise<V> {
    * Returns a new Promise that, when this promise completes exceptionally, is executed with this
    * promise's exception as the argument to the supplied function. Otherwise, if this promise
    * completes normally, then the returned promise also completes normally with the same value.
+   *
+   * <p>Note that all the constraints of Workflow Implementation Code apply to {@code fn}. See
+   * "Workflow Implementation Constraints" on {@link io.temporal.workflow}.
    *
    * @param fn the function to use to compute the value of the returned CompletionPromise if this
    *     CompletionPromise completed exceptionally
