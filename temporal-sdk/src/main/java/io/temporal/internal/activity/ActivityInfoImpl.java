@@ -73,6 +73,11 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
 
   @Override
   public long getScheduledTimestamp() {
+    return Timestamps.toMillis(response.getScheduledTime());
+  }
+
+  @Override
+  public long getCurrentAttemptScheduledTimestamp() {
     return Timestamps.toMillis(response.getCurrentAttemptScheduledTime());
   }
 
