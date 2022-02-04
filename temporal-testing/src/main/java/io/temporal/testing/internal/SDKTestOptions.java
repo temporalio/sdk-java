@@ -78,7 +78,7 @@ public class SDKTestOptions {
           .setScheduleToCloseTimeout(Duration.ofSeconds(5))
           .setHeartbeatTimeout(Duration.ofSeconds(5))
           .setScheduleToStartTimeout(Duration.ofSeconds(5))
-          .setStartToCloseTimeout(Duration.ofSeconds(10))
+          .setStartToCloseTimeout(Duration.ofSeconds(5))
           .build();
     }
   }

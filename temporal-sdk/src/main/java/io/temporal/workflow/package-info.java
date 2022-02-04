@@ -319,32 +319,42 @@
  * <ul>
  *   <li>Do not use any mutable global variables because multiple instances of workflows are
  *       executed in parallel.
- *   <li>Do not call any non-deterministic functions like non seeded random, {@link java.lang.System
- *       .currentTimeMillis()} or {@link java.util.UUID#randomUUID()} directly form the workflow
- *       code. Always do this in activities.
- *   <li>Don’t perform any IO or service calls as they are not usually deterministic. Use activities
- *       for this.
- *   <li>Use methods on {@link io.temporal.workflow.Workflow} as safe deterministic alternatives to
- *       non-deterministic methods. For example, only use {@link
- *       io.temporal.workflow.Workflow#currentTimeMillis()} to get the current time inside a
- *       workflow.
+ *   <li>Do not call non-deterministic functions, like non-seeded random, directly from the workflow
+ *       code. Always use safe deterministic alternatives provided by the Temporal SDK on {@link
+ *       io.temporal.workflow.Workflow} or perform such calls in activities when required. For
+ *       example:
+ *       <ul>
+ *         <li>Use {@link io.temporal.workflow.Workflow#currentTimeMillis()} instead of {@link
+ *             java.lang.System#currentTimeMillis()} to get the current time inside a workflow
+ *         <li>Use {@link io.temporal.workflow.Workflow#randomUUID()} instead of {@link
+ *             java.util.UUID#randomUUID()}
+ *       </ul>
+ *   <li>Don't perform long (more than a few ms) blocking operations other than Temporal
+ *       SDK-provided operations (like Activity invocations or {@link io.temporal.workflow.Workflow}
+ *       APIs). Use activities for this. For example:
+ *       <ul>
+ *         <li>Call {@link io.temporal.workflow.Workflow#sleep(Duration)} instead of {@link
+ *             java.lang.Thread#sleep(long)}.
+ *         <li>Use {@link io.temporal.workflow.Promise} and {@link
+ *             io.temporal.workflow.CompletablePromise} instead of {@link
+ *             java.util.concurrent.Future} and {@link java.util.concurrent.CompletableFuture}.
+ *       </ul>
+ *   <li>Don’t perform any IO or service calls as they are blocking and usually not deterministic.
+ *       Use activities for long running or non-deterministic code.
  *   <li>Do not use native Java {@link java.lang.Thread} or any other multi-threaded classes like
  *       {@link java.util.concurrent.ThreadPoolExecutor}. Use {@link
  *       io.temporal.workflow.Async#function(Functions.Func)} or {@link
  *       io.temporal.workflow.Async#procedure(Functions.Proc)} to execute code asynchronously.
  *   <li>Don't use any synchronization, locks, and other standard Java blocking concurrency-related
- *       classes besides those provided by the Workflow class. There is no need in explicit
- *       synchronization because multi-threaded code inside a workflow is executed one thread at a
- *       time and under a global lock.
- *   <li>Call {@link io.temporal.workflow.Workflow#sleep(Duration)} instead of {@link
- *       java.lang.Thread#sleep(long)}.
- *   <li>Use {@link io.temporal.workflow.Promise} and {@link
- *       io.temporal.workflow.CompletablePromise} instead of {@link java.util.concurrent.Future} and
- *       {@link java.util.concurrent.CompletableFuture}.
- *   <li>Use {@link io.temporal.workflow.WorkflowQueue} instead of {@link
- *       java.util.concurrent.BlockingQueue}.
- *   <li>Don't change workflow code when there are open workflows. The ability to do updates through
- *       visioning is TBD.
+ *       classes besides those provided by the Workflow class. There is no need for explicit
+ *       synchronization because multi-threaded code inside a single workflow execution is executed
+ *       one thread at a time and under a global lock. For example:
+ *       <ul>
+ *         <li>Use {@link io.temporal.workflow.WorkflowQueue} instead of {@link
+ *             java.util.concurrent.BlockingQueue}.
+ *       </ul>
+ *   <li>Use Workflow.getVersion when making any changes to the Workflow code. Without this, any
+ *       deployment of updated Workflow code might break already running Workflows.
  *   <li>Don’t access configuration APIs directly from a workflow because changes in the
  *       configuration might affect a workflow execution path. Pass it as an argument to a workflow
  *       function or use an activity to load it.
