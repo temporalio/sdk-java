@@ -353,8 +353,9 @@
  *         <li>Use {@link io.temporal.workflow.WorkflowQueue} instead of {@link
  *             java.util.concurrent.BlockingQueue}.
  *       </ul>
- *   <li>Use Workflow.getVersion when making any changes to the Workflow code. Without this, any
- *       deployment of updated Workflow code might break already running Workflows.
+ *   <li>Use {@link io.temporal.workflow.Workflow#getVersion(java.lang.String, int, int)} when
+ *       making any changes to the Workflow code. Without this, any deployment of updated Workflow
+ *       code might break already running Workflows.
  *   <li>Don’t access configuration APIs directly from a workflow because changes in the
  *       configuration might affect a workflow execution path. Pass it as an argument to a workflow
  *       function or use an activity to load it.

@@ -61,8 +61,8 @@ public class WorkerIsNotGettingStartedTest {
         env.newWorker(
             TASK_QUEUE,
             WorkerOptions.newBuilder()
-                .setWorkflowPollThreadCount(WORKFLOW_POLL_COUNT)
-                .setActivityPollThreadCount(ACTIVITY_POLL_COUNT)
+                .setMaxConcurrentWorkflowTaskPollers(WORKFLOW_POLL_COUNT)
+                .setMaxConcurrentActivityTaskPollers(ACTIVITY_POLL_COUNT)
                 .setLocalActivityWorkerOnly(true)
                 .build());
     // Need to register something for workers to start

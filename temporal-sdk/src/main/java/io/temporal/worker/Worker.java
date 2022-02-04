@@ -147,7 +147,7 @@ public final class Worker implements Suspendable {
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
-                .setPollThreadCount(options.getActivityPollThreadCount())
+                .setPollThreadCount(options.getMaxConcurrentActivityTaskPollers())
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
         .setMetricsScope(metricsScope)
@@ -166,7 +166,7 @@ public final class Worker implements Suspendable {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setPollThreadCount(options.getWorkflowPollThreadCount())
+                .setPollThreadCount(options.getMaxConcurrentWorkflowTaskPollers())
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
         .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
