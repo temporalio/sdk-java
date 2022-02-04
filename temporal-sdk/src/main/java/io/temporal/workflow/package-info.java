@@ -319,9 +319,9 @@
  * <ul>
  *   <li>Do not use any mutable global variables because multiple instances of workflows are
  *       executed in parallel.
- *   <li>Do not call any non-deterministic functions, like non-seeded random, directly form the
- *       workflow code. Always use safe deterministic alternatives provided by Temporal SDK on
- *       {@link io.temporal.workflow.Workflow} or perform such calls in activities if have to. For
+ *   <li>Do not call non-deterministic functions, like non-seeded random, directly from the workflow
+ *       code. Always use safe deterministic alternatives provided by the Temporal SDK on {@link
+ *       io.temporal.workflow.Workflow} or perform such calls in activities when required. For
  *       example:
  *       <ul>
  *         <li>Use {@link io.temporal.workflow.Workflow#currentTimeMillis()} instead of {@link
@@ -329,9 +329,9 @@
  *         <li>Use {@link io.temporal.workflow.Workflow#randomUUID()} instead of {@link
  *             java.util.UUID#randomUUID()}
  *       </ul>
- *   <li>Don't perform long blocking operations other than calls that block inside Temporal SDK
- *       (like Activity invocations or {@link io.temporal.workflow.Workflow} APIs). Use activities
- *       for this. For example:
+ *   <li>Don't perform long (more than a few ms) blocking operations other than Temporal
+ *       SDK-provided operations (like Activity invocations or {@link io.temporal.workflow.Workflow}
+ *       APIs). Use activities for this. For example:
  *       <ul>
  *         <li>Call {@link io.temporal.workflow.Workflow#sleep(Duration)} instead of {@link
  *             java.lang.Thread#sleep(long)}.
@@ -346,7 +346,7 @@
  *       io.temporal.workflow.Async#function(Functions.Func)} or {@link
  *       io.temporal.workflow.Async#procedure(Functions.Proc)} to execute code asynchronously.
  *   <li>Don't use any synchronization, locks, and other standard Java blocking concurrency-related
- *       classes besides those provided by the Workflow class. There is no need in explicit
+ *       classes besides those provided by the Workflow class. There is no need for explicit
  *       synchronization because multi-threaded code inside a single workflow execution is executed
  *       one thread at a time and under a global lock. For example:
  *       <ul>
