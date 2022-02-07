@@ -60,8 +60,8 @@ public class WorkerPollerThreadCountTest {
         env.newWorker(
             "tl1",
             WorkerOptions.newBuilder()
-                .setWorkflowPollThreadCount(WORKFLOW_POLL_COUNT)
-                .setActivityPollThreadCount(ACTIVITY_POLL_COUNT)
+                .setMaxConcurrentWorkflowTaskPollers(WORKFLOW_POLL_COUNT)
+                .setMaxConcurrentActivityTaskPollers(ACTIVITY_POLL_COUNT)
                 .build());
     // Need to register something for workers to start
     worker.registerActivitiesImplementations(new ActivityImpl());

@@ -43,7 +43,7 @@ public class LocalAsyncCompletionWorkflowTest {
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setMaxConcurrentActivityExecutionSize(MAX_CONCURRENT_ACTIVITIES)
-                  .setActivityPollThreadCount(5)
+                  .setMaxConcurrentActivityTaskPollers(5)
                   .build())
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new AsyncActivityWithManualCompletion())

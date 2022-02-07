@@ -46,7 +46,7 @@ public class ActivityPollerPrefetchingTest {
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setMaxConcurrentActivityExecutionSize(1)
-                  .setActivityPollThreadCount(5)
+                  .setMaxConcurrentActivityTaskPollers(5)
                   .build())
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new SleepyMultiplier())

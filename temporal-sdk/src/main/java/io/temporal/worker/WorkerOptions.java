@@ -48,10 +48,10 @@ public final class WorkerOptions {
 
   public static final class Builder {
 
-    private static final int DEFAULT_WORKFLOW_POLL_THREAD_COUNT = 2;
-    private static final int DEFAULT_ACTIVITY_POLL_THREAD_COUNT = 5;
-    private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 200;
+    private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS = 2;
+    private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS = 5;
     private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 200;
+    private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 200;
     private static final int DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = 200;
     private static final long DEFAULT_DEADLOCK_DETECTION_TIMEOUT = 1000;
     private static final Duration DEFAULT_MAX_HEARTBEAT_THROTTLE_INTERVAL = Duration.ofSeconds(60);
@@ -63,8 +63,8 @@ public final class WorkerOptions {
     private int maxConcurrentWorkflowTaskExecutionSize;
     private int maxConcurrentLocalActivityExecutionSize;
     private double maxTaskQueueActivitiesPerSecond;
-    private int workflowPollThreadCount;
-    private int activityPollThreadCount;
+    private int maxConcurrentWorkflowTaskPollers;
+    private int maxConcurrentActivityTaskPollers;
     private boolean localActivityWorkerOnly;
     private long defaultDeadlockDetectionTimeout;
     private Duration maxHeartbeatThrottleInterval;
@@ -81,8 +81,8 @@ public final class WorkerOptions {
       maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
       maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
       maxTaskQueueActivitiesPerSecond = o.maxTaskQueueActivitiesPerSecond;
-      workflowPollThreadCount = o.workflowPollThreadCount;
-      activityPollThreadCount = o.activityPollThreadCount;
+      maxConcurrentWorkflowTaskPollers = o.maxConcurrentWorkflowTaskPollers;
+      maxConcurrentActivityTaskPollers = o.maxConcurrentActivityTaskPollers;
       localActivityWorkerOnly = o.localActivityWorkerOnly;
       defaultDeadlockDetectionTimeout = o.defaultDeadlockDetectionTimeout;
       maxHeartbeatThrottleInterval = o.maxHeartbeatThrottleInterval;
@@ -94,7 +94,7 @@ public final class WorkerOptions {
      *     worker. Default is 0 which means unlimited.
      * @return {@code this}
      *     <p>If worker is not fully loaded while tasks are backing up on the service consider
-     *     increasing {@link #setActivityPollThreadCount(int)}.
+     *     increasing {@link #setMaxConcurrentActivityTaskPollers(int)}.
      *     <p>Note that this is a per worker limit. Use {@link
      *     #setMaxTaskQueueActivitiesPerSecond(double)} to set per task queue limit across multiple
      *     workers.
@@ -177,9 +177,23 @@ public final class WorkerOptions {
      *
      * <p>Default is 2.
      */
-    public Builder setWorkflowPollThreadCount(int workflowPollThreadCount) {
-      this.workflowPollThreadCount = workflowPollThreadCount;
+    public Builder setMaxConcurrentWorkflowTaskPollers(int maxConcurrentWorkflowTaskPollers) {
+      this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
       return this;
+    }
+
+    /**
+     * Number of simultaneous poll requests on workflow task queue. Note that the majority of the
+     * workflow tasks will be using host local task queue due to caching. So try incrementing {@link
+     * WorkerFactoryOptions.Builder#setWorkflowHostLocalPollThreadCount(int)} before this one.
+     *
+     * <p>Default is 2.
+     *
+     * @deprecated Use {#setMaxConcurrentWorkflowTaskPollers}
+     */
+    @Deprecated
+    public Builder setWorkflowPollThreadCount(int workflowPollThreadCount) {
+      return setMaxConcurrentWorkflowTaskPollers(workflowPollThreadCount);
     }
 
     /**
@@ -189,9 +203,23 @@ public final class WorkerOptions {
      *
      * <p>Default is 5.
      */
-    public Builder setActivityPollThreadCount(int activityPollThreadCount) {
-      this.activityPollThreadCount = activityPollThreadCount;
+    public Builder setMaxConcurrentActivityTaskPollers(int maxConcurrentActivityTaskPollers) {
+      this.maxConcurrentActivityTaskPollers = maxConcurrentActivityTaskPollers;
       return this;
+    }
+
+    /**
+     * Number of simultaneous poll requests on activity task queue. Consider incrementing if the
+     * worker is not throttled due to `MaxActivitiesPerSecond` or
+     * `MaxConcurrentActivityExecutionSize` options and still cannot keep up with the request rate.
+     *
+     * <p>Default is 5.
+     *
+     * @deprecated Use {#setMaxConcurrentActivityTaskPollers}
+     */
+    @Deprecated
+    public Builder setActivityPollThreadCount(int activityPollThreadCount) {
+      return setMaxConcurrentActivityTaskPollers(activityPollThreadCount);
     }
 
     /**
@@ -259,8 +287,8 @@ public final class WorkerOptions {
           maxConcurrentWorkflowTaskExecutionSize,
           maxConcurrentActivityExecutionSize,
           maxTaskQueueActivitiesPerSecond,
-          workflowPollThreadCount,
-          activityPollThreadCount,
+          maxConcurrentWorkflowTaskPollers,
+          maxConcurrentActivityTaskPollers,
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout,
           maxHeartbeatThrottleInterval,
@@ -280,8 +308,10 @@ public final class WorkerOptions {
           "negative maxConcurrentLocalActivityExecutionSize");
       Preconditions.checkState(
           maxTaskQueueActivitiesPerSecond >= 0, "negative taskQueueActivitiesPerSecond");
-      Preconditions.checkState(workflowPollThreadCount >= 0, "negative workflowPollThreadCount");
-      Preconditions.checkState(activityPollThreadCount >= 0, "negative activityPollThreadCount");
+      Preconditions.checkState(
+          maxConcurrentWorkflowTaskPollers >= 0, "negative maxConcurrentWorkflowTaskPollers");
+      Preconditions.checkState(
+          maxConcurrentActivityTaskPollers >= 0, "negative maxConcurrentActivityTaskPollers");
       Preconditions.checkState(
           defaultDeadlockDetectionTimeout >= 0, "negative defaultDeadlockDetectionTimeout");
       return new WorkerOptions(
@@ -296,12 +326,12 @@ public final class WorkerOptions {
               ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
               : maxConcurrentLocalActivityExecutionSize,
           maxTaskQueueActivitiesPerSecond,
-          workflowPollThreadCount == 0
-              ? DEFAULT_WORKFLOW_POLL_THREAD_COUNT
-              : workflowPollThreadCount,
-          activityPollThreadCount == 0
-              ? DEFAULT_ACTIVITY_POLL_THREAD_COUNT
-              : activityPollThreadCount,
+          maxConcurrentWorkflowTaskPollers == 0
+              ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
+              : maxConcurrentWorkflowTaskPollers,
+          maxConcurrentActivityTaskPollers == 0
+              ? DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS
+              : maxConcurrentActivityTaskPollers,
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout == 0
               ? DEFAULT_DEADLOCK_DETECTION_TIMEOUT
@@ -320,8 +350,8 @@ public final class WorkerOptions {
   private final int maxConcurrentWorkflowTaskExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
   private final double maxTaskQueueActivitiesPerSecond;
-  private final int workflowPollThreadCount;
-  private final int activityPollThreadCount;
+  private final int maxConcurrentWorkflowTaskPollers;
+  private final int maxConcurrentActivityTaskPollers;
   private final boolean localActivityWorkerOnly;
   private final long defaultDeadlockDetectionTimeout;
   private final Duration maxHeartbeatThrottleInterval;
@@ -344,8 +374,8 @@ public final class WorkerOptions {
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
     this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
-    this.workflowPollThreadCount = workflowPollThreadCount;
-    this.activityPollThreadCount = activityPollThreadCount;
+    this.maxConcurrentWorkflowTaskPollers = workflowPollThreadCount;
+    this.maxConcurrentActivityTaskPollers = activityPollThreadCount;
     this.localActivityWorkerOnly = localActivityWorkerOnly;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
@@ -372,12 +402,24 @@ public final class WorkerOptions {
     return maxTaskQueueActivitiesPerSecond;
   }
 
+  /** @deprecated use {@link #getMaxConcurrentWorkflowTaskPollers} */
+  @Deprecated
   public int getWorkflowPollThreadCount() {
-    return workflowPollThreadCount;
+    return getMaxConcurrentWorkflowTaskPollers();
   }
 
+  public int getMaxConcurrentWorkflowTaskPollers() {
+    return maxConcurrentWorkflowTaskPollers;
+  }
+
+  /** @deprecated use {@link #getMaxConcurrentActivityTaskPollers} */
+  @Deprecated
   public int getActivityPollThreadCount() {
-    return activityPollThreadCount;
+    return getMaxConcurrentActivityTaskPollers();
+  }
+
+  public int getMaxConcurrentActivityTaskPollers() {
+    return maxConcurrentActivityTaskPollers;
   }
 
   public long getDefaultDeadlockDetectionTimeout() {
@@ -406,8 +448,8 @@ public final class WorkerOptions {
         && maxConcurrentWorkflowTaskExecutionSize == that.maxConcurrentWorkflowTaskExecutionSize
         && maxConcurrentLocalActivityExecutionSize == that.maxConcurrentLocalActivityExecutionSize
         && compare(that.maxTaskQueueActivitiesPerSecond, maxTaskQueueActivitiesPerSecond) == 0
-        && workflowPollThreadCount == that.workflowPollThreadCount
-        && activityPollThreadCount == that.activityPollThreadCount
+        && maxConcurrentWorkflowTaskPollers == that.maxConcurrentWorkflowTaskPollers
+        && maxConcurrentActivityTaskPollers == that.maxConcurrentActivityTaskPollers
         && localActivityWorkerOnly == that.localActivityWorkerOnly
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
@@ -422,8 +464,8 @@ public final class WorkerOptions {
         maxConcurrentWorkflowTaskExecutionSize,
         maxConcurrentLocalActivityExecutionSize,
         maxTaskQueueActivitiesPerSecond,
-        workflowPollThreadCount,
-        activityPollThreadCount,
+        maxConcurrentWorkflowTaskPollers,
+        maxConcurrentActivityTaskPollers,
         localActivityWorkerOnly,
         defaultDeadlockDetectionTimeout,
         maxHeartbeatThrottleInterval,
@@ -443,10 +485,10 @@ public final class WorkerOptions {
         + maxConcurrentLocalActivityExecutionSize
         + ", maxTaskQueueActivitiesPerSecond="
         + maxTaskQueueActivitiesPerSecond
-        + ", workflowPollThreadCount="
-        + workflowPollThreadCount
-        + ", activityPollThreadCount="
-        + activityPollThreadCount
+        + ", maxConcurrentWorkflowTaskPollers="
+        + maxConcurrentWorkflowTaskPollers
+        + ", maxConcurrentActivityTaskPollers="
+        + maxConcurrentActivityTaskPollers
         + ", localActivityWorkerOnly="
         + localActivityWorkerOnly
         + ", defaultDeadlockDetectionTimeout="
