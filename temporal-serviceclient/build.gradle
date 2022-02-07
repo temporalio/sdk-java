@@ -7,14 +7,16 @@ apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 description = '''Temporal Workflow Java SDK'''
 
 dependencies {
-    api "io.grpc:grpc-api:$grpcVersion" //Classes like io.grpc.Metadata are used as a part of our API
-    api "io.grpc:grpc-stub:$grpcVersion" //Part of WorkflowServiceStubs API
-    api "io.grpc:grpc-netty-shaded:$grpcVersion" //Part of WorkflowServiceStubs API, specifically SslContext
+    api(platform("io.grpc:grpc-bom:$grpcVersion"))
+
+    api "io.grpc:grpc-api" //Classes like io.grpc.Metadata are used as a part of our API
+    api "io.grpc:grpc-stub" //Part of WorkflowServiceStubs API
+    api "io.grpc:grpc-netty-shaded" //Part of WorkflowServiceStubs API, specifically SslContext
     api "com.google.protobuf:protobuf-java-util:$protoVersion" //proto request and response objects are a part of this module's API
     api "com.uber.m3:tally-core:$tallyVersion"
 
-    implementation "io.grpc:grpc-core:$grpcVersion"
-    implementation "io.grpc:grpc-services:$grpcVersion"
+    implementation "io.grpc:grpc-core"
+    implementation "io.grpc:grpc-services"
 
     api "org.slf4j:slf4j-api:$slf4jVersion"
     if (!JavaVersion.current().isJava8()) {
