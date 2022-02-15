@@ -1,0 +1,67 @@
+name: Publish snapshot
+defaults:
+  run:
+    shell: bash -euo pipefail -O nullglob {0}
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run'
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches:
+      - 'main'
+      - 'master'
+    paths-ignore:
+      - 'releases/**'
+      - 'docker/buildkite/**'
+      - '.buildkite/**'
+      - '.github/**'
+    tags-ignore:
+      - 'v*'
+
+jobs:
+  publish-snapshot:
+    if: github.repository == 'temporalio/sdk-java'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v2
+
+      # Prefer env variables here rather than inline ${{ secrets.FOO }} to
+      # decrease the likelihood that secrets end up printed to stdout.
+      - name: Set up publishing secrets
+        run: |
+          base64 -d > "$HOME/secring.gpg" <<<"$KEY"
+          printf "signing.keyId = %s\n" "$KEY_ID" >> gradle.properties
+          printf "signing.password = %s\n" "$KEY_PASSWORD" >> gradle.properties
+          printf "signing.secretKeyRingFile = %s\n" "$HOME/secring.gpg" >> gradle.properties
+          printf "ossrhUsername = %s\n" "$RH_USER" >> gradle.properties
+          printf "ossrhPassword = %s\n" "$RH_PASSWORD" >> gradle.properties
+        env:
+          KEY: ${{ secrets.JAR_SIGNING_KEY }}
+          KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          RH_USER: ${{ secrets.RH_USER }}
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+
+      - name: Dry run
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: ./gradlew --dry-run publish
+
+      - name: Publish
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        run: ./gradlew publish
