@@ -31,12 +31,10 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,10 +66,11 @@ public class LocalActivityAndQueryTest {
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
-    TestWorkflowQuery workflowStub =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflowQuery.class, options);
-    WorkflowExecution execution =
-        WorkflowClient.start(workflowStub::execute, testWorkflowRule.getTaskQueue());
+    TestWorkflows.TestWorkflowWithQuery workflowStub =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(TestWorkflows.TestWorkflowWithQuery.class, options);
+    WorkflowExecution execution = WorkflowClient.start(workflowStub::execute);
 
     // Ensure that query doesn't see intermediate results of the local activities execution
     // as all these activities are executed in a single workflow task.
@@ -104,21 +103,13 @@ public class LocalActivityAndQueryTest {
     assertEquals(1000, arg0);
   }
 
-  @WorkflowInterface
-  public interface TestWorkflowQuery {
-    @WorkflowMethod()
-    String execute(String taskQueue);
-
-    @QueryMethod()
-    String query();
-  }
-
-  public static final class TestLocalActivityAndQueryWorkflow implements TestWorkflowQuery {
+  public static final class TestLocalActivityAndQueryWorkflow
+      implements TestWorkflows.TestWorkflowWithQuery {
 
     String message = "initial value";
 
     @Override
-    public String execute(String taskQueue) {
+    public String execute() {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
               VariousTestActivities.class,

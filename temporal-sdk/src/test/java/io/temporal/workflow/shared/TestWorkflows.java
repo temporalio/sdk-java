@@ -163,6 +163,15 @@ public class TestWorkflows {
     void mySignal(String value);
   }
 
+  @WorkflowInterface
+  public interface TestWorkflowWithQuery {
+    @WorkflowMethod()
+    String execute();
+
+    @QueryMethod()
+    String query();
+  }
+
   /** IMPLEMENTATIONS * */
   public static class TestChild implements ITestChild {
 

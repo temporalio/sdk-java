@@ -780,7 +780,7 @@ public class WorkflowServiceStubsOptions {
   /**
    * If the {@link WorkflowServiceStubsOptions} is configured with a {@code target} instead of
    * externally created {@code channel}, this listener is called as a last step of channel creation
-   * giving an oportunity to provide some additional configuration to the channel.
+   * giving an opportunity to provide some additional configuration to the channel.
    */
   public interface ChannelInitializer {
     void initChannel(ManagedChannelBuilder<?> managedChannelBuilder);
