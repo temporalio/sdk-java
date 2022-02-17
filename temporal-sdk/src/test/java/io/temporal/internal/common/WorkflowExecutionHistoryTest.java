@@ -19,10 +19,16 @@
 
 package io.temporal.internal.common;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.io.CharStreams;
 import io.temporal.testing.WorkflowHistoryLoader;
+import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
+import java.net.URL;
+import java.nio.file.Files;
 import org.junit.Test;
 
 public class WorkflowExecutionHistoryTest {
@@ -43,5 +49,25 @@ public class WorkflowExecutionHistoryTest {
             "simpleHistory1_withAddedNewRandomField.json");
 
     assertEquals(originalHistory.getLastEvent(), historyWithAnAddedNewField.getLastEvent());
+  }
+
+  @Test
+  public void deserializeAndSerializeBack() throws IOException {
+    final String HISTORY_RESOURCE_NAME = "simpleHistory1.json";
+
+    ClassLoader classLoader = WorkflowExecutionUtils.class.getClassLoader();
+    URL resource = classLoader.getResource(HISTORY_RESOURCE_NAME);
+    String historyUrl = resource.getFile();
+    File historyFile = new File(historyUrl);
+    String originalSerializedJsonHistory;
+    try (Reader reader = Files.newBufferedReader(historyFile.toPath(), UTF_8)) {
+      originalSerializedJsonHistory = CharStreams.toString(reader);
+    }
+
+    WorkflowExecutionHistory history =
+        WorkflowHistoryLoader.readHistoryFromResource(HISTORY_RESOURCE_NAME);
+
+    String serializedHistory = history.toJson(true);
+    assertEquals(originalSerializedJsonHistory, serializedHistory);
   }
 }

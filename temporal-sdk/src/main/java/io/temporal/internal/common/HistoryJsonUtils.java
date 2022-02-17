@@ -44,7 +44,7 @@ class HistoryJsonUtils {
       Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS).build();
 
   public static String protoJsonToHistoryFormatJson(String protoJson) {
-    DocumentContext parsed = JsonPath.parse(protoJson);
+    DocumentContext parsed = JsonPath.parse(protoJson, JSON_PATH_CONFIGURATION);
     parsed.map(
         EVENT_TYPE_PATH,
         (currentValue, configuration) ->
