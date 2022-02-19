@@ -29,7 +29,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class OpenTracingOptions {
-
   private static final OpenTracingOptions DEFAULT_INSTANCE =
       OpenTracingOptions.newBuilder().build();
 
@@ -47,9 +46,7 @@ public class OpenTracingOptions {
       SpanBuilderProvider spanBuilderProvider,
       OpenTracingSpanContextCodec spanContextCodec,
       Predicate<Throwable> isErrorPredicate) {
-    if (tracer == null) {
-      throw new IllegalArgumentException("tracer shouldn't be null");
-    }
+    if (tracer == null) throw new IllegalArgumentException("tracer shouldn't be null");
     this.tracer = tracer;
     this.spanBuilderProvider = spanBuilderProvider;
     this.spanContextCodec = spanContextCodec;
@@ -81,7 +78,6 @@ public class OpenTracingOptions {
   }
 
   public static final class Builder {
-
     private Tracer tracer;
     private SpanBuilderProvider spanBuilderProvider = ActionTypeAndNameSpanBuilderProvider.INSTANCE;
     private OpenTracingSpanContextCodec spanContextCodec =

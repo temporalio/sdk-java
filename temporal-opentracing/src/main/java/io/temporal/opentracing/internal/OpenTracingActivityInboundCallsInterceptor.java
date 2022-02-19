@@ -31,7 +31,6 @@ import io.temporal.opentracing.OpenTracingOptions;
 
 public class OpenTracingActivityInboundCallsInterceptor
     extends ActivityInboundCallsInterceptorBase {
-
   private final OpenTracingOptions options;
   private final SpanFactory spanFactory;
   private final Tracer tracer;
