@@ -24,6 +24,7 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
+import java.util.function.BiFunction;
 
 /**
  * Helper methods supporting transformation of History's "Proto Json" compatible format, which is
@@ -35,37 +36,51 @@ import com.jayway.jsonpath.Option;
  *     Related commit to Go Proto module</>
  */
 class HistoryJsonUtils {
-  private static final JsonPath EVENT_TYPE_PATH = JsonPath.compile("$.events.*.eventType");
-  private static final JsonPath TASK_QUEUE_KIND_PATH =
-      JsonPath.compile("$.events.*.*.taskQueue.kind");
-  private static final String EVENT_TYPE_PREFIX = "EVENT_TYPE_";
-  private static final String TASK_QUEUE_KIND_PREFIX = "TASK_QUEUE_KIND_";
   private static final Configuration JSON_PATH_CONFIGURATION =
       Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS).build();
 
+  private enum EnumValueConversionPolicy {
+    EVENT_TYPE("EVENT_TYPE_", JsonPath.compile("$.events.*.eventType")),
+    TASK_QUEUE_KIND("TASK_QUEUE_KIND_", JsonPath.compile("$.events.*.*.taskQueue.kind")),
+    PARENT_CLOSE_POLICY("PARENT_CLOSE_POLICY_", JsonPath.compile("$.events.*.*.parentClosePolicy")),
+    WORKFLOW_ID_REUSE_POLICY(
+        "WORKFLOW_ID_REUSE_POLICY_", JsonPath.compile("$.events.*.*.workflowIdReusePolicy")),
+    INITIATOR("CONTINUE_AS_NEW_INITIATOR_", JsonPath.compile("$.events.*.*.initiator")),
+    RETRY_STATE(
+        "RETRY_STATE_",
+        // can be inside workflowExecutionFailedEventAttributes
+        JsonPath.compile("$.events.*.*.retryState"),
+        // or inside workflowExecutionFailedEventAttributes.childWorkflowExecutionFailureInfo
+        JsonPath.compile("$.events.*.*.*.retryState"));
+
+    private final String protobufEnumPrefix;
+    private final JsonPath[] jsonPaths;
+
+    EnumValueConversionPolicy(String protobufEnumPrefix, JsonPath... jsonPaths) {
+      this.jsonPaths = jsonPaths;
+      this.protobufEnumPrefix = protobufEnumPrefix;
+    }
+  }
+
   public static String protoJsonToHistoryFormatJson(String protoJson) {
-    DocumentContext parsed = JsonPath.parse(protoJson, JSON_PATH_CONFIGURATION);
-    parsed.map(
-        EVENT_TYPE_PATH,
-        (currentValue, configuration) ->
-            enumProtoToHistory((String) currentValue, EVENT_TYPE_PREFIX));
-    parsed.map(
-        TASK_QUEUE_KIND_PATH,
-        (currentValue, configuration) ->
-            enumProtoToHistory((String) currentValue, TASK_QUEUE_KIND_PREFIX));
-    return parsed.jsonString();
+    return convertEnumValues(protoJson, HistoryJsonUtils::enumProtoToHistory);
   }
 
   public static String historyFormatJsonToProtoJson(String historyFormatJson) {
-    DocumentContext parsed = JsonPath.parse(historyFormatJson, JSON_PATH_CONFIGURATION);
-    parsed.map(
-        EVENT_TYPE_PATH,
-        (currentValue, configuration) ->
-            enumHistoryToProto((String) currentValue, EVENT_TYPE_PREFIX));
-    parsed.map(
-        TASK_QUEUE_KIND_PATH,
-        (currentValue, configuration) ->
-            enumHistoryToProto((String) currentValue, TASK_QUEUE_KIND_PREFIX));
+    return convertEnumValues(historyFormatJson, HistoryJsonUtils::enumHistoryToProto);
+  }
+
+  private static String convertEnumValues(
+      String json, BiFunction<String, String, String> convertEnumValue) {
+    DocumentContext parsed = JsonPath.parse(json, JSON_PATH_CONFIGURATION);
+    for (EnumValueConversionPolicy policy : EnumValueConversionPolicy.values()) {
+      for (JsonPath jsonPath : policy.jsonPaths) {
+        parsed.map(
+            jsonPath,
+            (currentValue, configuration) ->
+                convertEnumValue.apply((String) currentValue, policy.protobufEnumPrefix));
+      }
+    }
     return parsed.jsonString();
   }
 

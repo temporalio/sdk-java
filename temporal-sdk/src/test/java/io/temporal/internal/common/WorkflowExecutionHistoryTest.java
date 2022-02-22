@@ -32,7 +32,6 @@ import java.nio.file.Files;
 import org.junit.Test;
 
 public class WorkflowExecutionHistoryTest {
-
   /**
    * "simpleHistory1_withAddedNewRandomField.json" in comparison with "simpleHistory1.json" contains
    * a new field that is not in the proto schema. Proto allows backwards compatible addition of new
@@ -41,7 +40,6 @@ public class WorkflowExecutionHistoryTest {
    */
   @Test
   public void addingANewFieldToHistoryJsonShouldProduceTheSameResult() throws IOException {
-
     WorkflowExecutionHistory originalHistory =
         WorkflowHistoryLoader.readHistoryFromResource("simpleHistory1.json");
     WorkflowExecutionHistory historyWithAnAddedNewField =
@@ -52,11 +50,18 @@ public class WorkflowExecutionHistoryTest {
   }
 
   @Test
-  public void deserializeAndSerializeBack() throws IOException {
-    final String HISTORY_RESOURCE_NAME = "simpleHistory1.json";
+  public void deserializeAndSerializeBackSimpleHistory() throws IOException {
+    deserializeAndSerializeBack("simpleHistory1.json");
+  }
 
+  @Test
+  public void deserializeAndSerializeBackComplexHistory() throws IOException {
+    deserializeAndSerializeBack("complexHistory1.json");
+  }
+
+  public void deserializeAndSerializeBack(String resourceName) throws IOException {
     ClassLoader classLoader = WorkflowExecutionUtils.class.getClassLoader();
-    URL resource = classLoader.getResource(HISTORY_RESOURCE_NAME);
+    URL resource = classLoader.getResource(resourceName);
     String historyUrl = resource.getFile();
     File historyFile = new File(historyUrl);
     String originalSerializedJsonHistory;
@@ -64,8 +69,7 @@ public class WorkflowExecutionHistoryTest {
       originalSerializedJsonHistory = CharStreams.toString(reader);
     }
 
-    WorkflowExecutionHistory history =
-        WorkflowHistoryLoader.readHistoryFromResource(HISTORY_RESOURCE_NAME);
+    WorkflowExecutionHistory history = WorkflowHistoryLoader.readHistoryFromResource(resourceName);
 
     String serializedHistory = history.toJson(true);
     assertEquals(originalSerializedJsonHistory, serializedHistory);
