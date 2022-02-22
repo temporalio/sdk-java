@@ -77,9 +77,7 @@ public class OpenTracingActivityInboundCallsInterceptor
     try (Scope scope = tracer.scopeManager().activate(activityRunSpan)) {
       return super.execute(input);
     } catch (Throwable t) {
-      if (options.getIsErrorPredicate().test(t)) {
-        spanFactory.logFail(activityRunSpan, t);
-      }
+      spanFactory.logFail(activityRunSpan, t);
       throw t;
     } finally {
       activityRunSpan.finish();

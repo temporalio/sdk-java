@@ -20,7 +20,6 @@
 package io.temporal.opentracing;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 import io.opentracing.Scope;
 import io.opentracing.mock.MockSpan;
@@ -177,7 +176,7 @@ public class ExceptionIgnoredTest {
     MockSpan failureIgnoredActivityRunSpan = activityRunSpans.get(1);
     assertEquals(activityStartSpan.context().spanId(), failureIgnoredActivityRunSpan.parentId());
     assertEquals("RunActivity:Activity", failureIgnoredActivityRunSpan.operationName());
-    assertNull(failureIgnoredActivityRunSpan.tags().get(Tags.ERROR.getKey()));
+    assertEquals(false, failureIgnoredActivityRunSpan.tags().get(Tags.ERROR.getKey()));
 
     MockSpan successfulActivityRunSpan = activityRunSpans.get(2);
     assertEquals(activityStartSpan.context().spanId(), successfulActivityRunSpan.parentId());

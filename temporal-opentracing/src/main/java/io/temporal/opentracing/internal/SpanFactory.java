@@ -148,7 +148,7 @@ public class SpanFactory {
   @SuppressWarnings("deprecation")
   public void logFail(Span toSpan, Throwable failReason) {
     toSpan.setTag(StandardTagNames.FAILED, true);
-    toSpan.setTag(Tags.ERROR, true);
+    toSpan.setTag(Tags.ERROR, options.getIsErrorPredicate().test(failReason));
 
     Map<String, Object> logPayload =
         new HashMap<String, Object>() {

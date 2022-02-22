@@ -114,9 +114,13 @@ public class OpenTracingOptions {
     }
 
     /**
-     * @param isErrorPredicate indicates whether an exception should or should not be considered an
-     *     error for the purpose of the OpenTracing span. By default, all exceptions are considered
-     *     errors.
+     * @param isErrorPredicate indicates whether the received exception should cause the OpenTracing
+     *     span to finish in an error state or not. All exceptions will be logged to the span
+     *     regardless, in order to provide a complete picture of the execution outcome. The "error"
+     *     tag on the span will be set according to the value returned by this Predicate. By
+     *     default, all exceptions will be considered errors.
+     * @see <a href="https://github.com/opentracing/specification/blob/master/semantic_conventions.md#span-and-log-errors">
+     *     OpenTracing Documentation</a> regarding error spans and logging exceptions.
      * @return this
      */
     public Builder setIsErrorPredicate(@Nonnull Predicate<Throwable> isErrorPredicate) {
