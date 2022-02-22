@@ -152,6 +152,6 @@ public class DeadlockDetectorTest {
 
   @Parameterized.Parameters
   public static Collection<Boolean> debugModeParams() {
-    return Arrays.asList(true, false);
+    return Arrays.asList(false, true);
   }
 }
