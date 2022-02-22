@@ -28,7 +28,6 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
-import java.util.*;
 import java.util.concurrent.ExecutionException;
 import org.junit.Rule;
 import org.junit.Test;
@@ -75,7 +74,7 @@ public class WaitingWorkflowQueryTest {
 
     @Override
     public String query() {
-      return queryResult.toString();
+      return queryResult;
     }
   }
 }
