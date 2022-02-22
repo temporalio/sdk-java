@@ -170,7 +170,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
               workflowTask,
               toJavaDuration(startedEvent.getWorkflowTaskTimeout()),
               metricsScope);
-      statesMachinesCallback.workflowHistoryIterator = historyEvents;
       while (historyEvents.hasNext()) {
         HistoryEvent event = historyEvents.next();
         workflowStateMachines.handleEvent(event, historyEvents.hasNext());
@@ -308,8 +307,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   private class StatesMachinesCallbackImpl implements StatesMachinesCallback {
-
-    private WorkflowHistoryIterator workflowHistoryIterator;
 
     @Override
     public void start(HistoryEvent startWorkflowEvent) {
