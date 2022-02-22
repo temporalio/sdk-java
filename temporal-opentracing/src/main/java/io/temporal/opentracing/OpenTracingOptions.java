@@ -119,7 +119,8 @@ public class OpenTracingOptions {
      *     regardless, in order to provide a complete picture of the execution outcome. The "error"
      *     tag on the span will be set according to the value returned by this Predicate. By
      *     default, all exceptions will be considered errors.
-     * @see <a href="https://github.com/opentracing/specification/blob/master/semantic_conventions.md#span-and-log-errors">
+     * @see <a
+     *     href="https://github.com/opentracing/specification/blob/master/semantic_conventions.md#span-and-log-errors">
      *     OpenTracing Documentation</a> regarding error spans and logging exceptions.
      * @return this
      */
