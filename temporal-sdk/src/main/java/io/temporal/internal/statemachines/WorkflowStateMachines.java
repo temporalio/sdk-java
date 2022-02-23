@@ -42,7 +42,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
-import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
@@ -639,8 +638,7 @@ public final class WorkflowStateMachines {
 
   private void notifyChildCanceled(
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback) {
-    CanceledFailure failure =
-        new CanceledFailure("Child canceled", new EncodedValues(Optional.empty()), null);
+    CanceledFailure failure = new CanceledFailure("Child canceled");
     completionCallback.apply(Optional.empty(), failure);
     eventLoop();
   }

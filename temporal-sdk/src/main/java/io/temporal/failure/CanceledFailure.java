@@ -24,12 +24,14 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
 import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** <b>This exception is expected to be thrown only by the Temporal framework code.</b> */
 public final class CanceledFailure extends TemporalFailure {
   private final Values details;
 
-  public CanceledFailure(String message, Values details, Throwable cause) {
+  public CanceledFailure(String message, @Nonnull Values details, @Nullable Throwable cause) {
     super(message, message, cause);
     this.details = Objects.requireNonNull(details);
   }
