@@ -21,19 +21,11 @@ package io.temporal.internal.testservice;
 
 import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
-import io.grpc.Context;
-import io.grpc.Deadline;
-import io.grpc.Grpc;
-import io.grpc.InsecureServerCredentials;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
@@ -101,12 +93,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -134,46 +121,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
   private final Lock lock = new ReentrantLock();
   private final Server outOfProcessServer;
-  private final Server inProcessServer;
+  private final WorkflowServiceStubs workflowServiceStubs;
+
+  private final InProcessGRPCServer inProcessServer;
+
   private final TestWorkflowStore store;
-  private final Client client;
   private final ScheduledExecutorService backgroundScheduler =
       Executors.newSingleThreadScheduledExecutor();
 
-  private static class Client implements Closeable {
-    public Client() {
-      serverName = InProcessServerBuilder.generateName();
-      channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-      stubs =
-          WorkflowServiceStubs.newInstance(
-              WorkflowServiceStubsOptions.newBuilder()
-                  .setChannel(channel)
-                  .setDisableHealthCheck(true)
-                  .build());
-    }
-
-    public final String serverName;
-    public final ManagedChannel channel;
-    public final WorkflowServiceStubs stubs;
-
-    @Override
-    public void close() {
-      stubs.shutdown();
-      channel.shutdown();
-    }
-
-    public void awaitTermination(long halfTheTimeout, TimeUnit unit) throws InterruptedException {
-      stubs.awaitTermination(halfTheTimeout, unit);
-      channel.awaitTermination(halfTheTimeout, unit);
-    }
-  }
-
   public WorkflowServiceStubs newClientStub() {
-    if (client == null) {
+    if (workflowServiceStubs == null) {
       throw new RuntimeException(
           "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
     }
-    return client.stubs;
+    return workflowServiceStubs;
   }
 
   /*
@@ -216,20 +177,15 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     outOfProcessServer = null;
 
     if (startInProcessServer) {
-      client = new Client();
-      try {
-        inProcessServer =
-            InProcessServerBuilder.forName(client.serverName)
-                .directExecutor()
-                .addService(this)
-                .build()
-                .start();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      this.inProcessServer = new InProcessGRPCServer(Collections.singletonList(this));
+      this.workflowServiceStubs =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder()
+                  .setChannel(inProcessServer.getChannel())
+                  .build());
     } else {
-      inProcessServer = null;
-      client = null;
+      this.inProcessServer = null;
+      this.workflowServiceStubs = null;
     }
   }
 
@@ -246,19 +202,17 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   private TestWorkflowService(boolean isOutOfProc, int port) {
-    if (!isOutOfProc) {
-      // isOutOfProc is just here to make unambiguous constructor overloading.
-      throw new RuntimeException("Impossible.");
-    }
-    client = null;
+    // isOutOfProc is just here to make unambiguous constructor overloading.
+    Preconditions.checkState(isOutOfProc, "Impossible.");
     inProcessServer = null;
+    workflowServiceStubs = null;
     store = new TestWorkflowStoreImpl(0 /* 0 means use current time */);
     try {
-      outOfProcessServer =
-          Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create())
-              .addService(this)
-              .build()
-              .start();
+      ServerBuilder<?> serverBuilder =
+          Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());
+      GRPCServerHelper.registerServicesAndHealthChecks(
+          Collections.singletonList(this), serverBuilder);
+      outOfProcessServer = serverBuilder.build().start();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -276,10 +230,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       outOfProcessServer.shutdown();
     }
 
+    if (workflowServiceStubs != null) {
+      workflowServiceStubs.shutdown();
+    }
+
     if (inProcessServer != null) {
       log.info("Shutting down in-process GRPC server");
       inProcessServer.shutdown();
-      client.close();
     }
 
     forkJoinPool.shutdown();
@@ -291,10 +248,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
       }
 
+      if (workflowServiceStubs != null) {
+        workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
+      }
+
       if (inProcessServer != null) {
         inProcessServer.awaitTermination(1, TimeUnit.SECONDS);
-        client.awaitTermination(1, TimeUnit.SECONDS);
       }
+
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       log.debug("shutdown interrupted", e);

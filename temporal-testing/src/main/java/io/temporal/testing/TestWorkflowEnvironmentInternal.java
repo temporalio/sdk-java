@@ -30,6 +30,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.sync.WorkflowClientInternal;
+import io.temporal.internal.testservice.InProcessGRPCServer;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -38,6 +39,7 @@ import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -50,15 +52,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final WorkflowClientOptions workflowClientOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final TestWorkflowService service;
+  private final InProcessGRPCServer inProcessServer;
   private final WorkerFactory workerFactory;
   private final TimeLockingInterceptor timeLockingInterceptor;
 
-  public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
-    TestEnvironmentOptions testEnvironmentOptions;
-    if (options == null) {
+  public TestWorkflowEnvironmentInternal(TestEnvironmentOptions testEnvironmentOptions) {
+    if (testEnvironmentOptions == null) {
       testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
-    } else {
-      testEnvironmentOptions = options;
     }
     workflowClientOptions =
         WorkflowClientOptions.newBuilder(testEnvironmentOptions.getWorkflowClientOptions())
@@ -67,7 +67,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     timeLockingInterceptor = new TimeLockingInterceptor(service);
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
 
-    if (!options.isUseTimeskipping()) {
+    if (!testEnvironmentOptions.isUseTimeskipping()) {
       // If the options ask for no timeskipping, lock one extra time. There will never be a
       // corresponding unlock, so timeskipping will always be off.
       service.lockTimeSkipping("TestEnvironmentOptions.isUseTimeskipping was false");
@@ -79,21 +79,25 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
                 testEnvironmentOptions.getWorkflowServiceStubsOptions())
             : WorkflowServiceStubsOptions.newBuilder();
 
+    stubsOptionsBuilder =
+        stubsOptionsBuilder.setMetricsScope(testEnvironmentOptions.getMetricsScope());
+
     if (testEnvironmentOptions.isUseExternalService()) {
+      inProcessServer = null;
+
       workflowServiceStubs =
           WorkflowServiceStubs.newInstance(
               stubsOptionsBuilder.setTarget(testEnvironmentOptions.getTarget()).build());
     } else {
+      inProcessServer = new InProcessGRPCServer(Collections.singletonList(service));
+
       workflowServiceStubs =
           WorkflowServiceStubs.newInstance(
-              service,
-              stubsOptionsBuilder
-                  .setMetricsScope(options.getMetricsScope())
-                  .setDisableHealthCheck(true)
-                  .build());
+              stubsOptionsBuilder.setChannel(inProcessServer.getChannel()).setTarget(null).build());
     }
     WorkflowClient client = WorkflowClient.newInstance(workflowServiceStubs, workflowClientOptions);
-    workerFactory = WorkerFactory.newInstance(client, options.getWorkerFactoryOptions());
+    workerFactory =
+        WorkerFactory.newInstance(client, testEnvironmentOptions.getWorkerFactoryOptions());
   }
 
   @Override
@@ -166,6 +170,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     workerFactory.awaitTermination(10, TimeUnit.SECONDS);
     workflowServiceStubs.shutdownNow();
     workflowServiceStubs.awaitTermination(10, TimeUnit.SECONDS);
+    if (inProcessServer != null) {
+      inProcessServer.shutdownNow();
+      inProcessServer.awaitTermination(10, TimeUnit.SECONDS);
+    }
     service.close();
   }
 

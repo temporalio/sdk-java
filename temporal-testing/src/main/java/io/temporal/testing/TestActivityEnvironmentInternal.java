@@ -21,13 +21,8 @@ package io.temporal.testing;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
 import io.grpc.StatusRuntimeException;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
-import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.ActivityType;
@@ -51,6 +46,7 @@ import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.POJOActivityTaskHandler;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.*;
+import io.temporal.internal.testservice.InProcessGRPCServer;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
@@ -61,16 +57,11 @@ import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -96,8 +87,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           r -> new Thread(r, "test-service-deterministic-runner"));
   private final AtomicBoolean cancellationRequested = new AtomicBoolean();
   private final AtomicInteger idSequencer = new AtomicInteger();
-  private final Server mockServer;
-  private final ManagedChannel channel;
+  private final InProcessGRPCServer mockServer;
   private final POJOActivityTaskHandler activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
@@ -108,26 +98,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         TestEnvironmentOptions.newBuilder(options).validateAndBuildWithDefaults();
 
     // Initialize an in-memory mock service.
-    String serverName = InProcessServerBuilder.generateName();
-    try {
-      mockServer =
-          InProcessServerBuilder.forName(serverName)
-              .directExecutor()
-              .addService(new HeartbeatInterceptingService())
-              .build()
-              .start();
-    } catch (IOException e) {
-      // This should not happen with in-memory services, but rethrow just in case.
-      throw new RuntimeException(e);
-    }
-    channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+    mockServer =
+        new InProcessGRPCServer(Collections.singletonList(new HeartbeatInterceptingService()));
     workflowServiceStubs =
         WorkflowServiceStubs.newInstance(
             WorkflowServiceStubsOptions.newBuilder()
-                .setChannel(channel)
+                .setChannel(mockServer.getChannel())
                 .setMetricsScope(options.getMetricsScope())
-                .setQueryRpcTimeout(Duration.ofSeconds(60))
-                .setDisableHealthCheck(true)
+                .setRpcQueryTimeout(Duration.ofSeconds(60))
                 .build());
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
@@ -272,19 +250,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     activityWorkerExecutor.shutdownNow();
     deterministicRunnerExecutor.shutdownNow();
     workflowServiceStubs.shutdown();
-    channel.shutdownNow();
-    try {
-      channel.awaitTermination(100, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
     mockServer.shutdown();
-    try {
-      mockServer.awaitTermination();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw Activity.wrap(e);
-    }
+    mockServer.awaitTermination(5, TimeUnit.SECONDS);
   }
 
   private class TestActivityExecutor implements WorkflowOutboundCallsInterceptor {
