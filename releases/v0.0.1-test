@@ -1,0 +1,10 @@
+Highlights:
+
+This is not a real release.
+
+This is a set of release notes used exclusively for testing internal release
+processes.
+
+If you are reading these words as part of a Github release (as opposed
+to as a file in the sdk-java repository) then an error has been made in the
+release process. Please notify the owners of https://github.com/temporalio/sdk-java.
