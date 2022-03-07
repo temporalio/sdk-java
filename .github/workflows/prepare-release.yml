@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Audit gh version
         run: gh --version
-        
+
       - name: Check for existing release
         id: check_release
         run: |
@@ -42,13 +42,13 @@ jobs:
             || echo "::set-output name=already_exists::false"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Checkout repo
         if: steps.check_release.outputs.already_exists == 'false'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: '${{ github.event.inputs.ref }}'
-        
+
       - name: Create release
         if: steps.check_release.outputs.already_exists == 'false'
         run: >
@@ -66,10 +66,10 @@ jobs:
     name: Publish Java Artifacts
     if: github.event.inputs.do_publish_jars == 'true'
     runs-on: ubuntu-latest
-    needs: create_draft_release 
+    needs: create_draft_release
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: '${{ github.event.inputs.ref }}'
           
@@ -136,7 +136,7 @@ jobs:
     runs-on: ${{ matrix.dist }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: '${{ github.event.inputs.ref }}'
 
@@ -176,7 +176,7 @@ jobs:
     steps:
       - name: Audit gh version
         run: gh --version
-    
+
       # when no artifact is specified, all artifacts are downloaded and expanded into CWD
       - name: Fetch executables
         uses: actions/download-artifact@v2
@@ -204,7 +204,7 @@ jobs:
             *.tar.gz
           if-no-files-found: error
           retention-days: 1
-        
+
       - name: Upload
         run: |
          until gh release upload --clobber --repo ${{ github.repository }} ${{ github.event.inputs.tag }} *.zip *.tar.gz; do
