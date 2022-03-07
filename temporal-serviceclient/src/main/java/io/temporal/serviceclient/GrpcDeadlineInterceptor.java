@@ -26,7 +26,10 @@ import io.grpc.ClientInterceptor;
 import io.grpc.Deadline;
 import io.grpc.MethodDescriptor;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,32 +38,37 @@ class GrpcDeadlineInterceptor implements ClientInterceptor {
 
   private static final Logger log = LoggerFactory.getLogger(GrpcDeadlineInterceptor.class);
 
-  private final WorkflowServiceStubsOptions options;
+  private final @Nonnull Duration rpcTimeout;
+  private final @Nullable Duration rpcLongPollTimeout;
+  private final @Nullable Duration rpcQueryTimeout;
 
-  GrpcDeadlineInterceptor(WorkflowServiceStubsOptions options) {
-    this.options = options;
+  public GrpcDeadlineInterceptor(
+      @Nonnull Duration rpcTimeout,
+      @Nullable Duration rpcLongPollTimeout,
+      @Nullable Duration rpcQueryTimeout) {
+    this.rpcTimeout = rpcTimeout;
+    this.rpcLongPollTimeout = rpcLongPollTimeout;
+    this.rpcQueryTimeout = rpcQueryTimeout;
   }
 
   @Override
   public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
       MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
-    Deadline deadline = callOptions.getDeadline();
     long duration;
 
-    if (LongPollUtil.isLongPoll(method, callOptions)) {
-      duration = options.getRpcLongPollTimeout().toMillis();
-      if (deadline != null) {
-        duration = Math.min(duration, deadline.timeRemaining(TimeUnit.MILLISECONDS));
-      }
-    } else if (deadline != null) {
-      duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
+    if (rpcLongPollTimeout != null && LongPollUtil.isLongPoll(method, callOptions)) {
+      duration = rpcLongPollTimeout.toMillis();
+    } else if (rpcQueryTimeout != null && method == WorkflowServiceGrpc.getQueryWorkflowMethod()) {
+      duration = rpcQueryTimeout.toMillis();
     } else {
-      if (method == WorkflowServiceGrpc.getQueryWorkflowMethod()) {
-        duration = options.getRpcQueryTimeout().toMillis();
-      } else {
-        duration = options.getRpcTimeout().toMillis();
-      }
+      duration = rpcTimeout.toMillis();
     }
+
+    Deadline deadline = callOptions.getDeadline();
+    if (deadline != null) {
+      duration = Math.min(duration, deadline.timeRemaining(TimeUnit.MILLISECONDS));
+    }
+
     if (log.isTraceEnabled()) {
       String name = method.getFullMethodName();
       log.trace("method=" + name + ", timeoutMs=" + duration);

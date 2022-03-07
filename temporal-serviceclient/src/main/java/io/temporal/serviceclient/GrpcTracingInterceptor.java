@@ -90,7 +90,7 @@ class GrpcTracingInterceptor implements ClientInterceptor {
     };
   }
 
-  public boolean isEnabled() {
+  public static boolean isEnabled() {
     return log.isTraceEnabled() || workflow_task_log.isTraceEnabled();
   }
 }

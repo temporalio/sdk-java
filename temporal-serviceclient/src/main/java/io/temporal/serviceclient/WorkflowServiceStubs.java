@@ -23,10 +23,14 @@ import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread
 
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.WorkflowThreadMarker;
-import java.util.concurrent.TimeUnit;
+import io.temporal.internal.testservice.InProcessGRPCServer;
 
 /** Initializes and holds gRPC blocking and future stubs. */
-public interface WorkflowServiceStubs {
+public interface WorkflowServiceStubs
+    extends ServiceStubs<
+        WorkflowServiceGrpc.WorkflowServiceBlockingStub,
+        WorkflowServiceGrpc.WorkflowServiceFutureStub> {
+  String HEALTH_CHECK_SERVICE_NAME = "temporal.api.workflowservice.v1.WorkflowService";
 
   /**
    * Create gRPC connection stubs using default options. The options default to the connection to
@@ -38,41 +42,27 @@ public interface WorkflowServiceStubs {
 
   /** Create gRPC connection stubs using provided options. */
   static WorkflowServiceStubs newInstance(WorkflowServiceStubsOptions options) {
-    return newInstance(null, options);
+    enforceNonWorkflowThread();
+    return WorkflowThreadMarker.protectFromWorkflowThread(
+        new WorkflowServiceStubsImpl(null, options), WorkflowServiceStubs.class);
   }
 
   /**
    * Create gRPC connection stubs that connect to the provided service implementation using an
    * in-memory channel. Useful for testing, usually with mock and spy services.
+   *
+   * @deprecated use {@link InProcessGRPCServer} to manage in-memory server and corresponded channel
+   *     outside the stubs. Channel provided by {@link InProcessGRPCServer} should be supplied into
+   *     {@link #newInstance(WorkflowServiceStubsOptions)} by specifying {{@link
+   *     WorkflowServiceStubsOptions#getChannel()}}
    */
+  @Deprecated
   static WorkflowServiceStubs newInstance(
       WorkflowServiceGrpc.WorkflowServiceImplBase service, WorkflowServiceStubsOptions options) {
     enforceNonWorkflowThread();
     return WorkflowThreadMarker.protectFromWorkflowThread(
         new WorkflowServiceStubsImpl(service, options), WorkflowServiceStubs.class);
   }
-
-  /** @return Blocking (synchronous) stub that allows direct calls to service. */
-  WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub();
-
-  /** @return Future (asynchronous) stub that allows direct calls to service. */
-  WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub();
-
-  void shutdown();
-
-  void shutdownNow();
-
-  boolean isShutdown();
-
-  boolean isTerminated();
-
-  /**
-   * Awaits for gRPC stubs shutdown up to the specified timeout. The shutdown has to be initiated
-   * through {@link #shutdown()} or {@link #shutdownNow()}.
-   *
-   * @return false if timed out or the thread was interrupted.
-   */
-  boolean awaitTermination(long timeout, TimeUnit unit);
 
   WorkflowServiceStubsOptions getOptions();
 }

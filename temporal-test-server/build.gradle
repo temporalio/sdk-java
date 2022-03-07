@@ -9,6 +9,7 @@ description = '''Temporal test workflow server'''
 dependencies {
     api project(':temporal-sdk')
     implementation("io.grpc:grpc-core")
+    implementation("io.grpc:grpc-services")
     implementation "com.google.guava:guava:$guavaVersion"
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
 }
