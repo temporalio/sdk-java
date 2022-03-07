@@ -18,7 +18,7 @@ ext {
     jacksonVersion = '2.13.1'
     micrometerVersion = '1.8.3'
 
-    logbackVersion = '1.2.10'
+    logbackVersion = '1.2.11'
     protoVersion = '[3.10.0,)!!3.19.4'
     guavaVersion = '[10.0,)!!31.0.1-jre'
     jsonPathVersion = '2.7.0'
