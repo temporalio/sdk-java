@@ -486,7 +486,7 @@ public interface WorkflowOutboundCallsInterceptor {
 
   UUID randomUUID();
 
-  void upsertSearchAttributes(Map<String, Object> searchAttributes);
+  void upsertSearchAttributes(Map<String, ?> searchAttributes);
 
   /**
    * Intercepts creation of the workflow child thread.

@@ -20,6 +20,7 @@
 package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -144,13 +145,25 @@ public interface TestWorkflowEnvironment extends Closeable {
   void registerDelayedCallback(Duration delay, Runnable r);
 
   /**
+   * Register a Search Attribute with the server.
+   *
+   * @param name Search Attribute name
+   * @param type Search Attribute type to be used for an elastic search index
+   * @return {@code true} if the search attribute was registered, false if it was registered already
+   * @see <a
+   *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
+   *     a Custom Search Attribute Using tctl</a>
+   */
+  boolean registerSearchAttribute(String name, IndexedValueType type);
+
+  /**
    * @return the in-memory test Temporal service that is owned by this.
    * @deprecated use {{@link #getWorkflowServiceStubs()}
    */
   @Deprecated
   WorkflowServiceStubs getWorkflowService();
 
-  /** @return stubs connected to the test server (in-memory or external) */
+  /** @return {@link WorkflowServiceStubs} connected to the test server (in-memory or external) */
   WorkflowServiceStubs getWorkflowServiceStubs();
 
   String getNamespace();

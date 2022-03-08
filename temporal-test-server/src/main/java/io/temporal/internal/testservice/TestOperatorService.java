@@ -19,9 +19,12 @@
 
 package io.temporal.internal.testservice;
 
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.operatorservice.v1.*;
 import java.io.Closeable;
+import java.util.Map;
 
 /**
  * In memory implementation of the Operator Service. To be used for testing purposes only.
@@ -41,7 +44,18 @@ final class TestOperatorService extends OperatorServiceGrpc.OperatorServiceImplB
   public void addSearchAttributes(
       AddSearchAttributesRequest request,
       StreamObserver<AddSearchAttributesResponse> responseObserver) {
-    request.getSearchAttributesMap().forEach(visibilityStore::registerSearchAttribute);
+    Map<String, IndexedValueType> registeredSearchAttributes =
+        visibilityStore.getRegisteredSearchAttributes();
+    request.getSearchAttributesMap().keySet().stream()
+        .filter(registeredSearchAttributes::containsKey)
+        .findFirst()
+        .ifPresent(
+            sa -> {
+              throw Status.ALREADY_EXISTS
+                  .withDescription("Search attribute " + sa + " already exists.")
+                  .asRuntimeException();
+            });
+    request.getSearchAttributesMap().forEach(visibilityStore::addSearchAttribute);
     responseObserver.onNext(AddSearchAttributesResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
@@ -50,7 +64,20 @@ final class TestOperatorService extends OperatorServiceGrpc.OperatorServiceImplB
   public void removeSearchAttributes(
       RemoveSearchAttributesRequest request,
       StreamObserver<RemoveSearchAttributesResponse> responseObserver) {
-    super.removeSearchAttributes(request, responseObserver);
+    Map<String, IndexedValueType> registeredSearchAttributes =
+        visibilityStore.getRegisteredSearchAttributes();
+    request.getSearchAttributesList().stream()
+        .filter(k -> !registeredSearchAttributes.containsKey(k))
+        .findFirst()
+        .ifPresent(
+            sa -> {
+              throw Status.NOT_FOUND
+                  .withDescription("Search attribute " + sa + " doesn't exist.")
+                  .asRuntimeException();
+            });
+    request.getSearchAttributesList().forEach(visibilityStore::removeSearchAttribute);
+    responseObserver.onNext(RemoveSearchAttributesResponse.newBuilder().build());
+    responseObserver.onCompleted();
   }
 
   @Override

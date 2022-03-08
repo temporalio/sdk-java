@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 final class WorkflowContext {
 
@@ -153,6 +154,7 @@ final class WorkflowContext {
     return startedAttributes.getMemo().getFieldsMap().get(key);
   }
 
+  @Nullable
   SearchAttributes getSearchAttributes() {
     return searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0
         ? null

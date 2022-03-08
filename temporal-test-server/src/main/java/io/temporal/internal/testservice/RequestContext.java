@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.common.base.MoreObjects;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Status;
@@ -115,6 +116,7 @@ final class RequestContext {
 
   private final List<HistoryEvent> events = new ArrayList<>();
   private final List<CommitCallback> commitCallbacks = new ArrayList<>();
+  // contains a workflow task created by the updater that needs to be persisted on a commit
   private WorkflowTask workflowTask;
   private final List<ActivityTask> activityTasks = new ArrayList<>();
   private final List<Timer> timers = new ArrayList<>();
@@ -123,6 +125,12 @@ final class RequestContext {
   // How many times call SelfAdvancedTimer#lockTimeSkipping.
   // Negative means how many times to call SelfAdvancedTimer#unlockTimeSkipping.
   private final List<TimerLockChange> timerLocks = new ArrayList<>();
+
+  // Contains an exception that may be published by the updater in case if updater needs to perform
+  // and commit the changes.
+  // The updater can't just throw the exception because it will prevent the changes to be committed.
+  // This exception should be thrown at the very end after performing all the commit actions
+  private RuntimeException exception;
 
   /**
    * Creates an instance of the RequestContext
@@ -271,7 +279,11 @@ final class RequestContext {
     return executionId;
   }
 
-  public boolean isEmpty() {
-    return events.isEmpty() && activityTasks.isEmpty() && workflowTask == null && timers.isEmpty();
+  public RuntimeException getException() {
+    return exception;
+  }
+
+  public void setExceptionIfEmpty(RuntimeException exception) {
+    this.exception = MoreObjects.firstNonNull(this.exception, exception);
   }
 }

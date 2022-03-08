@@ -439,7 +439,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+    public void upsertSearchAttributes(Map<String, ?> searchAttributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 

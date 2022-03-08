@@ -343,7 +343,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
-    public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+    public void upsertSearchAttributes(Map<String, ?> searchAttributes) {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("upsertSearchAttributes");
       }

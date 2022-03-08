@@ -20,6 +20,7 @@
 package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
@@ -35,6 +36,8 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.junit.Test;
@@ -130,6 +133,8 @@ public class TestWorkflowRule implements TestRule {
 
     testEnvironment =
         TestWorkflowEnvironment.newInstance(createTestEnvOptions(builder.initialTimeMillis));
+
+    builder.searchAttributesToRegister.forEach(testEnvironment::registerSearchAttribute);
   }
 
   protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
@@ -165,6 +170,7 @@ public class TestWorkflowRule implements TestRule {
     private WorkerFactoryOptions workerFactoryOptions;
     private WorkerOptions workerOptions;
     private long testTimeoutSeconds;
+    private Map<String, IndexedValueType> searchAttributesToRegister = new HashMap<>();
 
     protected Builder() {}
 
@@ -280,6 +286,21 @@ public class TestWorkflowRule implements TestRule {
      */
     public Builder setDoNotStart(boolean doNotStart) {
       this.doNotStart = doNotStart;
+      return this;
+    }
+
+    /**
+     * Add a search attribute to be registered on the Temporal Server.
+     *
+     * @param name name of the search attribute
+     * @param type search attribute type
+     * @return {@code this}
+     * @see <a
+     *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
+     *     a Custom Search Attribute Using tctl</a>
+     */
+    public Builder registerSearchAttribute(String name, IndexedValueType type) {
+      this.searchAttributesToRegister.put(name, type);
       return this;
     }
 

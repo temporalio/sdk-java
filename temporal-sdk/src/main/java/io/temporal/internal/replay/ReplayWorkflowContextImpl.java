@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * TODO(maxim): callbacks usage is non consistent. It accepts Optional and Exception which can be
@@ -186,11 +187,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  @Nullable
   public SearchAttributes getSearchAttributes() {
     return workflowContext.getSearchAttributes();
   }
 
-  @Override
   public List<ContextPropagator> getContextPropagators() {
     return workflowContext.getContextPropagators();
   }

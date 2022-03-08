@@ -23,6 +23,7 @@ import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
+import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -54,9 +55,9 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.ActivityOptionUtils;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
@@ -464,13 +465,15 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
+
     Map<String, Object> memo = options.getMemo();
     if (memo != null) {
       attributes.setMemo(Memo.newBuilder().putAllFields(intoPayloadMap(getDataConverter(), memo)));
     }
+
     Map<String, Object> searchAttributes = options.getSearchAttributes();
-    if (searchAttributes != null) {
-      attributes.setSearchAttributes(InternalUtils.convertMapToSearchAttributes(searchAttributes));
+    if (searchAttributes != null && !searchAttributes.isEmpty()) {
+      attributes.setSearchAttributes(SearchAttributesUtil.encode(searchAttributes));
     }
 
     List<ContextPropagator> propagators = options.getContextPropagators();
@@ -857,12 +860,10 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
   }
 
   @Override
-  public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
-    if (searchAttributes.isEmpty()) {
-      throw new IllegalArgumentException("Empty search attributes");
-    }
-
-    SearchAttributes attr = InternalUtils.convertMapToSearchAttributes(searchAttributes);
+  public void upsertSearchAttributes(Map<String, ?> searchAttributes) {
+    Preconditions.checkArgument(searchAttributes != null, "null search attributes");
+    Preconditions.checkArgument(!searchAttributes.isEmpty(), "empty search attributes");
+    SearchAttributes attr = SearchAttributesUtil.encode(searchAttributes);
     context.upsertSearchAttributes(attr);
   }
 

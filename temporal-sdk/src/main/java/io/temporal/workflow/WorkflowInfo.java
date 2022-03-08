@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import io.temporal.api.common.v1.SearchAttributes;
 import java.time.Duration;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 public interface WorkflowInfo {
 
@@ -47,6 +48,17 @@ public interface WorkflowInfo {
    */
   long getRunStartedTimestampMillis();
 
+  /**
+   * This method is used to get raw proto serialized Search Attributes.
+   *
+   * <p>Consider using more user-friendly methods on {@link Workflow} class, including {@link
+   * Workflow#getSearchAttributes()}, {@link Workflow#getSearchAttribute(String)} or {@link
+   * Workflow#getSearchAttributeValues(String)} instead of this method to access deserialized search
+   * attributes.
+   *
+   * @return raw Search Attributes Protobuf entity, null if empty
+   */
+  @Nullable
   SearchAttributes getSearchAttributes();
 
   Optional<String> getParentWorkflowId();

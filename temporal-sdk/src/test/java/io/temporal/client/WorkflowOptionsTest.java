@@ -27,7 +27,7 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
@@ -164,7 +164,7 @@ public class WorkflowOptionsTest {
     searchAttr.put("CustomIntField", 1);
     searchAttr.put("CustomDoubleField", 1.23);
     searchAttr.put("CustomBoolField", false);
-    searchAttr.put("CustomDatetimeField", LocalDateTime.now());
+    searchAttr.put("CustomDatetimeField", OffsetDateTime.now());
     return searchAttr;
   }
 }

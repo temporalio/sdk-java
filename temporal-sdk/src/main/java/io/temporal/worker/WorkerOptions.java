@@ -215,7 +215,7 @@ public final class WorkerOptions {
      *
      * <p>Default is 5.
      *
-     * @deprecated Use {#setMaxConcurrentActivityTaskPollers}
+     * @deprecated Use {@link #setMaxConcurrentActivityTaskPollers}
      */
     @Deprecated
     public Builder setActivityPollThreadCount(int activityPollThreadCount) {

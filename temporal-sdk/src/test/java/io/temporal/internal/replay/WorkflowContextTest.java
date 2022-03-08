@@ -19,12 +19,10 @@
 
 package io.temporal.internal.replay;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertEquals;
 
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,23 +31,22 @@ import org.junit.Test;
 public class WorkflowContextTest {
 
   @Test
-  public void TestMergeSearchAttributes() {
+  public void testMergeSearchAttributes() {
     WorkflowExecutionStartedEventAttributes startAttr =
         WorkflowExecutionStartedEventAttributes.getDefaultInstance();
     WorkflowContext workflowContext = new WorkflowContext("namespace", null, startAttr, 0, null);
 
-    DataConverter converter = DataConverter.getDefaultInstance();
-    Map<String, Payload> indexedFields = new HashMap<>();
-    indexedFields.put("CustomKeywordField", converter.toPayload("key").get());
+    Map<String, Object> indexedFields = new HashMap<>();
+    indexedFields.put("CustomKeywordField", "key");
 
-    SearchAttributes searchAttributes =
-        SearchAttributes.newBuilder().putAllIndexedFields(indexedFields).build();
+    SearchAttributes searchAttributes = SearchAttributesUtil.encode(indexedFields);
 
     workflowContext.mergeSearchAttributes(searchAttributes);
 
     assertEquals(
         "key",
-        SearchAttributesUtil.getValueFromSearchAttributes(
-            workflowContext.getSearchAttributes(), "CustomKeywordField", String.class));
+        SearchAttributesUtil.decode(workflowContext.getSearchAttributes())
+            .get("CustomKeywordField")
+            .get(0));
   }
 }

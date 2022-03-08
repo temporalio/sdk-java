@@ -22,7 +22,11 @@ package io.temporal.testing;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ObjectArrays;
 import com.google.protobuf.Empty;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.IndexedValueType;
+import io.temporal.api.operatorservice.v1.AddSearchAttributesRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.client.WorkflowClient;
@@ -31,10 +35,7 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.sync.WorkflowClientInternal;
 import io.temporal.internal.testservice.TestWorkflowService;
-import io.temporal.serviceclient.TestServiceStubs;
-import io.temporal.serviceclient.TestServiceStubsOptions;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.*;
 import io.temporal.testserver.TestServer;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
@@ -47,6 +48,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   private final WorkflowClientOptions workflowClientOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
+  private final OperatorServiceStubs operatorServiceStubs;
   private final @Nullable TestServiceStubs testServiceStubs;
   private final @Nullable TestServer.InProcessTestServer inProcessServer;
   private final @Nullable TestWorkflowService service;
@@ -106,6 +108,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         this.constructorTimeLock = null;
       }
     }
+    this.operatorServiceStubs =
+        OperatorServiceStubs.newInstance(
+            OperatorServiceStubsOptions.newBuilder()
+                .setChannel(workflowServiceStubs.getRawChannel())
+                .validateAndBuildWithDefaults());
 
     WorkflowClient client =
         WorkflowClient.newInstance(this.workflowServiceStubs, this.workflowClientOptions);
@@ -181,6 +188,25 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     service.registerDelayedCallback(delay, r);
   }
 
+  @Override
+  public boolean registerSearchAttribute(String name, IndexedValueType type) {
+    if (IndexedValueType.INDEXED_VALUE_TYPE_UNSPECIFIED.equals(type)) {
+      throw new IllegalArgumentException(
+          "Class " + type + " can't be used as a search attribute type");
+    }
+    AddSearchAttributesRequest request =
+        AddSearchAttributesRequest.newBuilder().putSearchAttributes(name, type).build();
+    try {
+      operatorServiceStubs.blockingStub().addSearchAttributes(request);
+      return true;
+    } catch (StatusRuntimeException e) {
+      if (Status.Code.ALREADY_EXISTS.equals(e.getStatus().getCode())) {
+        return false;
+      }
+      throw e;
+    }
+  }
+
   @Deprecated
   public WorkflowServiceStubs getWorkflowService() {
     return getWorkflowServiceStubs();
@@ -220,14 +246,19 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   public void close() {
     if (testServiceStubs != null) {
       testServiceStubs.shutdownNow();
-      testServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
     }
+    operatorServiceStubs.shutdownNow();
     workerFactory.shutdownNow();
     workerFactory.awaitTermination(10, TimeUnit.SECONDS);
     if (constructorTimeLock != null) {
       constructorTimeLock.unlockTimeSkipping();
     }
     workflowServiceStubs.shutdownNow();
+    if (testServiceStubs != null) {
+      testServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
+    }
+    operatorServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
+    workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
     if (inProcessServer != null) {
       inProcessServer.close();
     }

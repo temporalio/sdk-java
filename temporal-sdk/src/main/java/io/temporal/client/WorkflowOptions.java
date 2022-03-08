@@ -27,6 +27,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -92,7 +93,7 @@ public final class WorkflowOptions {
 
     private Map<String, Object> memo;
 
-    private Map<String, Object> searchAttributes;
+    private Map<String, ?> searchAttributes;
 
     private List<ContextPropagator> contextPropagators;
 
@@ -211,10 +212,26 @@ public final class WorkflowOptions {
     }
 
     /**
-     * Specifies additional indexed information in result of list workflow. The type of value should
-     * be basic type such as: String, Integer, Boolean, Double，LocalDateTime
+     * Specifies Search Attributes map {@code searchAttributes} that will be attached to the
+     * Workflow. Search Attributes are additional indexed information attributed to workflow and
+     * used for search and visibility.
+     *
+     * <p>The search attributes can be used in query of List/Scan/Count workflow APIs. The key and
+     * its value type must be registered on Temporal server side.
+     *
+     * <p>Supported Java types of the value:
+     *
+     * <ul>
+     *   <li>String
+     *   <li>Long, Integer, Short, Byte
+     *   <li>Boolean
+     *   <li>Double
+     *   <li>OffsetDateTime
+     *   <li>{@link Collection} of the types above
+     * </ul>
      */
-    public Builder setSearchAttributes(Map<String, Object> searchAttributes) {
+    // Workflow#upsertSearchAttributes docs needs to be kept in sync with this method
+    public Builder setSearchAttributes(Map<String, ?> searchAttributes) {
       this.searchAttributes = searchAttributes;
       return this;
     }
@@ -285,7 +302,7 @@ public final class WorkflowOptions {
 
   private final Map<String, Object> memo;
 
-  private final Map<String, Object> searchAttributes;
+  private final Map<String, ?> searchAttributes;
 
   private final List<ContextPropagator> contextPropagators;
 
@@ -299,7 +316,7 @@ public final class WorkflowOptions {
       RetryOptions retryOptions,
       String cronSchedule,
       Map<String, Object> memo,
-      Map<String, Object> searchAttributes,
+      Map<String, ?> searchAttributes,
       List<ContextPropagator> contextPropagators) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -350,7 +367,7 @@ public final class WorkflowOptions {
     return memo;
   }
 
-  public Map<String, Object> getSearchAttributes() {
+  public Map<String, ?> getSearchAttributes() {
     return searchAttributes;
   }
 

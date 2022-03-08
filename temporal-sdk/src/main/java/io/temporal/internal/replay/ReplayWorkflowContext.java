@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * Represents the context for workflow. Should only be used within the scope of workflow definition
@@ -89,12 +90,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   Payload getMemo(String key);
 
-  /**
-   * Used to retrieve search attributes.
-   *
-   * @return SearchAttribute object which can be used by {@code
-   *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
-   */
+  /** @return search attributes as a non-deserialized protobuf, null if empty */
+  @Nullable
   SearchAttributes getSearchAttributes();
 
   /**
