@@ -39,6 +39,9 @@ graal {
   // Signal handling so that ^C actually stops the process
   option "--install-exit-handlers"
 
+  // Enable calling back an HTTP URL with the listening port
+  option "--enable-url-protocols=http"
+
   // If we're on linux, static link everything but libc. Otherwise link
   // everything dynamically (note the '-' rather than '+' in fromt of
   // StaticExecutable)

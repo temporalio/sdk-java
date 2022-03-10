@@ -197,7 +197,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    */
   public static TestWorkflowService createServerOnly(int port) {
     TestWorkflowService result = new TestWorkflowService(true, port);
-    log.info("Server started, listening on " + port);
+    log.info("Server started, listening on " + result.getPort());
     return result;
   }
 
@@ -216,6 +216,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public int getPort() {
+    return outOfProcessServer.getPort();
   }
 
   @Override

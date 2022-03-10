@@ -19,14 +19,29 @@
 
 package io.temporal.internal.testservice;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 public class TestServiceServer {
 
-  public static void main(String[] args) {
-    if (args.length != 1) {
-      System.err.println("Usage: <command> <port>");
+  public static void main(String[] args) throws IOException, RuntimeException {
+    if (args.length != 1 && args.length != 2) {
+      System.err.println("Usage: <command> <port> [port callback URL]");
     }
     Integer port = Integer.parseInt(args[0]);
 
-    TestWorkflowService.createServerOnly(port);
+    TestWorkflowService server = TestWorkflowService.createServerOnly(port);
+    if (args.length >= 2) {
+      String callbackURL = args[1];
+      Integer actualPort = server.getPort();
+      URL url = new URL(callbackURL + "?port=" + actualPort);
+      HttpURLConnection huc = (HttpURLConnection) url.openConnection();
+      huc.setRequestMethod("GET");
+      if (huc.getResponseCode() != 200) {
+        throw new RuntimeException(
+            "Failed to report listening port to provided callback URL: " + callbackURL);
+      }
+    }
   }
 }
