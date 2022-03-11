@@ -110,6 +110,7 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
               ProtobufTimeUtils.toM3Duration(
                   response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
       isSuccessful = true;
+      return new ActivityTask(response, pollSemaphore::release);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
           && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
@@ -119,6 +120,5 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
     } finally {
       if (!isSuccessful) pollSemaphore.release();
     }
-    return new ActivityTask(response, pollSemaphore::release);
   }
 }

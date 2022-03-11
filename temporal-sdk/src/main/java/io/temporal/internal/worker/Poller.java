@@ -168,15 +168,18 @@ public final class Poller<T> implements SuspendableWorker {
 
   @Override
   public void suspendPolling() {
-    log.info("suspendPolling: {}", this);
-    suspendLatch.set(new CountDownLatch(1));
+    if (suspendLatch.compareAndSet(null, new CountDownLatch(1))) {
+      log.info("Suspend Polling: {}", this);
+    } else {
+      log.info("Polling is already suspended: {}", this);
+    }
   }
 
   @Override
   public void resumePolling() {
-    log.info("resumePolling {}", this);
     CountDownLatch existing = suspendLatch.getAndSet(null);
     if (existing != null) {
+      log.info("Resume Polling {}", this);
       existing.countDown();
     }
   }
