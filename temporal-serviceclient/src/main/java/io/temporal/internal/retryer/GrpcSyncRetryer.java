@@ -69,7 +69,7 @@ class GrpcSyncRetryer {
             GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
                 e, lastMeaningfulException, options, grpcContextDeadline);
         if (finalException != null) {
-          log.warn("Not retryable failure", finalException);
+          log.warn("Non retryable failure", finalException);
           throw finalException;
         }
         lastMeaningfulException =

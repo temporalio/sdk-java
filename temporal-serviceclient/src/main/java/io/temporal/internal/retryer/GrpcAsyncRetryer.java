@@ -144,7 +144,7 @@ class GrpcAsyncRetryer {
         GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
             statusRuntimeException, previousException, options, grpcContextDeadline);
     if (finalException != null) {
-      log.warn("Not retryable failure", finalException);
+      log.warn("Non retryable failure", finalException);
       resultCF.completeExceptionally(finalException);
       return;
     }
