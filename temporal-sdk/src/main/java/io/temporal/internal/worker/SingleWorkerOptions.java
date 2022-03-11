@@ -126,35 +126,33 @@ public final class SingleWorkerOptions {
     }
 
     public SingleWorkerOptions build() {
+      PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
-        pollerOptions =
-            PollerOptions.newBuilder()
-                .setPollBackoffInitialInterval(Duration.ofMillis(200))
-                .setPollBackoffMaximumInterval(Duration.ofSeconds(20))
-                .setPollThreadCount(1)
-                .build();
+        pollerOptions = PollerOptions.newBuilder().build();
       }
 
+      DataConverter dataConverter = this.dataConverter;
       if (dataConverter == null) {
         dataConverter = DataConverter.getDefaultInstance();
       }
 
+      Scope metricsScope = this.metricsScope;
       if (metricsScope == null) {
         metricsScope = new NoopScope();
       }
 
       return new SingleWorkerOptions(
-          identity,
-          binaryChecksum,
+          this.identity,
+          this.binaryChecksum,
           dataConverter,
-          taskExecutorThreadPoolSize,
+          this.taskExecutorThreadPoolSize,
           pollerOptions,
           metricsScope,
-          enableLoggingInReplay,
-          contextPropagators,
-          defaultDeadlockDetectionTimeout,
-          maxHeartbeatThrottleInterval,
-          defaultHeartbeatThrottleInterval);
+          this.enableLoggingInReplay,
+          this.contextPropagators,
+          this.defaultDeadlockDetectionTimeout,
+          this.maxHeartbeatThrottleInterval,
+          this.defaultHeartbeatThrottleInterval);
     }
   }
 

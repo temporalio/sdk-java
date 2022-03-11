@@ -181,7 +181,7 @@ public final class Worker implements Suspendable {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope) {
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
-        .setPollerOptions(PollerOptions.newBuilder().build())
+        .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
         .setMetricsScope(metricsScope)
         .build();
