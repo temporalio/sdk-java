@@ -19,6 +19,8 @@
 
 package io.temporal.internal.retryer;
 
+import static io.grpc.Status.Code.DEADLINE_EXCEEDED;
+
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -57,10 +59,7 @@ class GrpcRetryerUtils {
         return new CancellationException();
       case DEADLINE_EXCEEDED:
         if (grpcContextDeadline != null && grpcContextDeadline.isExpired()) {
-          // If our higher level GRPC context deadline is expired,
-          // the underlying DEADLINE_EXCEEDED is likely meaningless, and
-          // we try to preserve the previous exception if it's present
-          return previousException != null ? previousException : currentException;
+          return lastMeaningfulException(currentException, previousException);
         } else {
           // If this specific request's deadline has expired, but the higher-level deadline
           // that was established when GrpcRetryer was initialized not been exceeded, we
@@ -78,6 +77,24 @@ class GrpcRetryerUtils {
     }
 
     return null;
+  }
+
+  static StatusRuntimeException lastMeaningfulException(
+      @Nonnull StatusRuntimeException currentException,
+      @Nullable StatusRuntimeException previousException) {
+    if (currentException.getStatus().getCode() == DEADLINE_EXCEEDED) {
+      if (previousException != null
+          && previousException.getStatus().getCode() != DEADLINE_EXCEEDED) {
+        // If there was another exception before this DEADLINE_EXCEEDED that wasn't
+        // DEADLINE_EXCEEDED, we prefer it
+        // over DEADLINE_EXCEEDED
+        return previousException;
+      } else {
+        return currentException;
+      }
+    } else {
+      return currentException;
+    }
   }
 
   /**

@@ -144,19 +144,22 @@ class GrpcAsyncRetryer {
         GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
             statusRuntimeException, previousException, options, grpcContextDeadline);
     if (finalException != null) {
+      log.warn("Non retryable failure", finalException);
       resultCF.completeExceptionally(finalException);
       return;
     }
 
+    StatusRuntimeException lastMeaningfulException =
+        GrpcRetryerUtils.lastMeaningfulException(statusRuntimeException, previousException);
     if (GrpcRetryerUtils.ranOutOfRetries(
         options, startTime, clock.millis(), attempt, grpcContextDeadline)) {
-      resultCF.completeExceptionally(statusRuntimeException);
-      return;
+      log.warn("Failure, out of retries", lastMeaningfulException);
+      resultCF.completeExceptionally(lastMeaningfulException);
+    } else {
+      log.info("Retrying after failure", currentException);
+      retry(
+          options, function, attempt + 1, startTime, throttler, lastMeaningfulException, resultCF);
     }
-
-    log.debug("Retrying after failure", currentException);
-
-    retry(options, function, attempt + 1, startTime, throttler, statusRuntimeException, resultCF);
   }
 
   private static Throwable unwrapCompletionException(Throwable e) {

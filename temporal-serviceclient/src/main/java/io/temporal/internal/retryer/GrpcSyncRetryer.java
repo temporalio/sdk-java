@@ -49,11 +49,11 @@ class GrpcSyncRetryer {
             options.getBackoffCoefficient());
     Deadline grpcContextDeadline = Context.current().getDeadline();
 
-    StatusRuntimeException lastException = null;
+    StatusRuntimeException lastMeaningfulException = null;
     do {
       attempt++;
-      if (lastException != null) {
-        log.warn("Retrying after failure", lastException);
+      if (lastMeaningfulException != null) {
+        log.info("Retrying after failure", lastMeaningfulException);
       }
 
       try {
@@ -67,11 +67,13 @@ class GrpcSyncRetryer {
       } catch (StatusRuntimeException e) {
         RuntimeException finalException =
             GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
-                e, lastException, options, grpcContextDeadline);
+                e, lastMeaningfulException, options, grpcContextDeadline);
         if (finalException != null) {
+          log.warn("Non retryable failure", finalException);
           throw finalException;
         }
-        lastException = e;
+        lastMeaningfulException =
+            GrpcRetryerUtils.lastMeaningfulException(e, lastMeaningfulException);
       }
       // No catch block for any other exceptions because we don't retry them, we pass them through.
       // It's designed this way because it's GrpcRetryer, not general purpose retryer.
@@ -80,7 +82,8 @@ class GrpcSyncRetryer {
     } while (!GrpcRetryerUtils.ranOutOfRetries(
         options, startTime, clock.millis(), attempt, grpcContextDeadline));
 
-    rethrow(lastException);
+    log.warn("Failure, out of retries", lastMeaningfulException);
+    rethrow(lastMeaningfulException);
     throw new IllegalStateException("unreachable");
   }
 
