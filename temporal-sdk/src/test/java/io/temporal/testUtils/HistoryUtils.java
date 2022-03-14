@@ -21,11 +21,12 @@ package io.temporal.testUtils;
 
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
-import static io.temporal.testUtils.TestServiceUtils.*;
+import static io.temporal.testing.internal.TestServiceUtils.*;
 
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testserver.TestServer;
 import java.util.concurrent.TimeUnit;
 
 public class HistoryUtils {
@@ -38,14 +39,17 @@ public class HistoryUtils {
 
   public static PollWorkflowTaskQueueResponse generateWorkflowTaskWithInitialHistory()
       throws Exception {
-    TestWorkflowService testService = new TestWorkflowService(true);
-    WorkflowServiceStubs service = testService.newClientStub();
-    try {
-      return generateWorkflowTaskWithInitialHistory(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
-    } finally {
-      service.shutdownNow();
-      service.awaitTermination(1, TimeUnit.SECONDS);
-      testService.close();
+    try (TestServer.InProcessTestServer server = TestServer.createServer(true)) {
+      WorkflowServiceStubs workflowServiceStubs =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setChannel(server.getChannel()).build());
+      try {
+        return generateWorkflowTaskWithInitialHistory(
+            NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, workflowServiceStubs);
+      } finally {
+        workflowServiceStubs.shutdownNow();
+        workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
+      }
     }
   }
 
@@ -63,17 +67,20 @@ public class HistoryUtils {
 
   public static PollWorkflowTaskQueueResponse generateWorkflowTaskWithPartialHistory(
       String namespace, String taskqueueName, String workflowType) throws Exception {
-    TestWorkflowService testService = new TestWorkflowService(true);
-    WorkflowServiceStubs service = testService.newClientStub();
-    try {
-      PollWorkflowTaskQueueResponse response =
-          generateWorkflowTaskWithInitialHistory(namespace, taskqueueName, workflowType, service);
-      return generateWorkflowTaskWithPartialHistoryFromExistingTask(
-          response, namespace, HOST_TASK_QUEUE, service);
-    } finally {
-      service.shutdownNow();
-      service.awaitTermination(1, TimeUnit.SECONDS);
-      testService.close();
+    try (TestServer.InProcessTestServer server = TestServer.createServer(true)) {
+      WorkflowServiceStubs workflowServiceStubs =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setChannel(server.getChannel()).build());
+      try {
+        PollWorkflowTaskQueueResponse response =
+            generateWorkflowTaskWithInitialHistory(
+                namespace, taskqueueName, workflowType, workflowServiceStubs);
+        return generateWorkflowTaskWithPartialHistoryFromExistingTask(
+            response, namespace, HOST_TASK_QUEUE, workflowServiceStubs);
+      } finally {
+        workflowServiceStubs.shutdownNow();
+        workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
+      }
     }
   }
 

@@ -100,7 +100,7 @@ public class SearchAttributesTest {
 
     GetWorkflowExecutionHistoryResponse historyResp =
         WorkflowClientHelper.getHistoryPage(
-            testWorkflowRule.getTestEnvironment().getWorkflowService(),
+            testWorkflowRule.getWorkflowServiceStubs(),
             SDKTestWorkflowRule.NAMESPACE,
             executionF,
             ByteString.EMPTY,

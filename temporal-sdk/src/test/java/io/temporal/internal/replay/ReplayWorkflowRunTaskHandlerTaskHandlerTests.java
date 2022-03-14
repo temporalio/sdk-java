@@ -23,6 +23,7 @@ import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,38 +32,23 @@ import com.google.protobuf.util.Durations;
 import com.uber.m3.tally.NoopScope;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowTaskHandler;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
 
-  private TestWorkflowService testService;
-  private WorkflowServiceStubs service;
-
-  @Before
-  public void setUp() {
-    testService = new TestWorkflowService(true);
-    service = testService.newClientStub();
-  }
-
-  @After
-  public void tearDown() {
-    service.shutdownNow();
-    service.awaitTermination(1, TimeUnit.SECONDS);
-    testService.close();
-  }
+  @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
 
   @Test
   public void ifStickyExecutionAttributesAreNotSetThenWorkflowsAreNotCached() throws Throwable {
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+
     // Arrange
     WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     WorkflowTaskHandler taskHandler =
@@ -73,7 +59,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             SingleWorkerOptions.newBuilder().build(),
             null,
             Duration.ofSeconds(5),
-            service,
+            testWorkflowRule.getWorkflowServiceStubs(),
             null);
 
     // Act
@@ -88,6 +74,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
 
   @Test
   public void ifStickyExecutionAttributesAreSetThenWorkflowsAreCached() throws Throwable {
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+
     // Arrange
     WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     WorkflowTaskHandler taskHandler =
@@ -98,7 +86,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             SingleWorkerOptions.newBuilder().build(),
             "sticky",
             Duration.ofSeconds(5),
-            service,
+            testWorkflowRule.getWorkflowServiceStubs(),
             null);
 
     PollWorkflowTaskQueueResponse workflowTask =

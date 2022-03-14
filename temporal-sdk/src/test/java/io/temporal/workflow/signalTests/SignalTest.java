@@ -191,7 +191,7 @@ public class SignalTest {
     assertEquals("World!", workflowStub.query("getState", String.class));
     WorkflowClient client =
         WorkflowClient.newInstance(
-            testWorkflowRule.getTestEnvironment().getWorkflowService(),
+            testWorkflowRule.getWorkflowServiceStubs(),
             WorkflowClientOptions.newBuilder()
                 .setNamespace(SDKTestWorkflowRule.NAMESPACE)
                 .setQueryRejectCondition(QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN)

@@ -12,10 +12,13 @@ dependencies {
     implementation("io.grpc:grpc-services")
     implementation "com.google.guava:guava:$guavaVersion"
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
+
+    testImplementation project(':temporal-testing')
+    testImplementation group: 'junit', name: 'junit', version: '4.13.2'
 }
 
 application {
-    mainClassName = 'io.temporal.internal.testservice.TestServiceServer'
+    mainClassName = 'io.temporal.testserver.TestServer'
 }
 
 jar {

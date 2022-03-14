@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.testing;
+package io.temporal.worker;
 
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
@@ -28,9 +28,10 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.testUtils.TestServiceUtils;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.internal.TestServiceUtils;
+import io.temporal.testserver.TestServer;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -46,21 +47,22 @@ public class WorkflowCachingTest {
   private final String WORKFLOW_TYPE = "wfType";
   private final String CALLER = "WorkflowStickynessTest";
 
+  private TestServer.InProcessTestServer testServer;
   private WorkflowServiceStubs service;
-  private TestWorkflowService testService;
 
   @Before
   public void setUp() {
-    testService = new TestWorkflowService();
-    testService.lockTimeSkipping(CALLER);
-    service = testService.newClientStub();
+    this.testServer = TestServer.createServer(true);
+    this.service =
+        WorkflowServiceStubs.newInstance(
+            WorkflowServiceStubsOptions.newBuilder().setChannel(testServer.getChannel()).build());
   }
 
   @After
   public void tearDown() {
-    service.shutdownNow();
-    service.awaitTermination(1, TimeUnit.SECONDS);
-    testService.close();
+    this.service.shutdownNow();
+    this.service.awaitTermination(1, TimeUnit.SECONDS);
+    this.testServer.close();
   }
 
   @Test
@@ -132,8 +134,8 @@ public class WorkflowCachingTest {
     TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
     TestServiceUtils.pollWorkflowTaskQueue(
         NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
-    testService.unlockTimeSkipping(CALLER);
-    testService.sleep(Duration.ofMillis(1100));
+    testServer.getWorkflowService().unlockTimeSkipping(CALLER);
+    testServer.getWorkflowService().sleep(Duration.ofMillis(1100));
 
     response =
         TestServiceUtils.pollWorkflowTaskQueue(

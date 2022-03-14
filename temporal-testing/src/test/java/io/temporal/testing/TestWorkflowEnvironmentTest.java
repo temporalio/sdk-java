@@ -71,7 +71,10 @@ public class TestWorkflowEnvironmentTest {
                                   .setWorkflowId("does not exist")
                                   .build())
                           .build();
-                  testEnv.getWorkflowService().blockingStub().getWorkflowExecutionHistory(request);
+                  testEnv
+                      .getWorkflowServiceStubs()
+                      .blockingStub()
+                      .getWorkflowExecutionHistory(request);
                 })
             .getStatus();
 

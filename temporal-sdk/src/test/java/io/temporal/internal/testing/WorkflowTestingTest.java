@@ -395,7 +395,7 @@ public class WorkflowTestingTest {
               .build();
       ListOpenWorkflowExecutionsResponse listResponse =
           testEnvironment
-              .getWorkflowService()
+              .getWorkflowServiceStubs()
               .blockingStub()
               .listOpenWorkflowExecutions(listRequest);
       List<WorkflowExecutionInfo> executions = listResponse.getExecutionsList();
@@ -422,7 +422,7 @@ public class WorkflowTestingTest {
             .build();
     ListClosedWorkflowExecutionsResponse listResponse =
         testEnvironment
-            .getWorkflowService()
+            .getWorkflowServiceStubs()
             .blockingStub()
             .listClosedWorkflowExecutions(listRequest);
     List<WorkflowExecutionInfo> executions = listResponse.getExecutionsList();

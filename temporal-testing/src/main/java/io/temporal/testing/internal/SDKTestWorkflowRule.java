@@ -37,6 +37,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.Worker;
@@ -283,6 +284,10 @@ public class SDKTestWorkflowRule implements TestRule {
 
   public WorkflowClient getWorkflowClient() {
     return testWorkflowRule.getWorkflowClient();
+  }
+
+  public WorkflowServiceStubs getWorkflowServiceStubs() {
+    return testWorkflowRule.getWorkflowServiceStubs();
   }
 
   public boolean isUseExternalService() {

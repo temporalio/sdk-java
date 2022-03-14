@@ -26,6 +26,7 @@ import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
@@ -38,25 +39,26 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.serviceclient.MetricsTag;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import junit.framework.TestCase;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class ReplayWorkflowRunTaskHandlerCacheTests {
 
   private Scope metricsScope;
   private TestStatsReporter reporter;
+
+  @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
 
   @Before
   public void setUp() {
@@ -88,14 +90,13 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
   @Test
   public void whenHistoryIsFullNewWorkflowExecutorIsReturned_InitiallyCached() throws Exception {
-    TestWorkflowService testService = new TestWorkflowService();
-    WorkflowServiceStubs service = testService.newClientStub();
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     // Arrange
     WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
     PollWorkflowTaskQueueResponse workflowTask1 =
         HistoryUtils.generateWorkflowTaskWithInitialHistory(
-            "namespace", "taskQueue", "workflowType", service);
+            "namespace", "taskQueue", "workflowType", testWorkflowRule.getWorkflowServiceStubs());
 
     WorkflowRunTaskHandler workflowRunTaskHandler =
         cache.getOrCreate(workflowTask1, metricsScope, () -> createFakeExecutor(workflowTask1));
@@ -103,7 +104,10 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
     PollWorkflowTaskQueueResponse workflowTask2 =
         HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
-            workflowTask1, "namespace", "stickyTaskQueue", service);
+            workflowTask1,
+            "namespace",
+            "stickyTaskQueue",
+            testWorkflowRule.getWorkflowServiceStubs());
 
     assertEquals(
         workflowRunTaskHandler,
@@ -119,11 +123,12 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
         workflowRunTaskHandler2,
         cache.getOrCreate(workflowTask2, metricsScope, () -> createFakeExecutor(workflowTask2)));
     assertSame(workflowRunTaskHandler2, workflowRunTaskHandler);
-    testService.close();
   }
 
   @Test(timeout = 2000)
   public void whenHistoryIsPartialCachedEntryIsReturned() throws Exception {
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+
     // Arrange
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
@@ -133,35 +138,30 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     Scope scope = metricsScope.tagged(tags);
 
     WorkflowExecutorCache cache = new WorkflowExecutorCache(10, scope);
-    TestWorkflowService testService = new TestWorkflowService(true);
-    WorkflowServiceStubs service = testService.newClientStub();
-    try {
-      PollWorkflowTaskQueueResponse workflowTask =
-          HistoryUtils.generateWorkflowTaskWithInitialHistory(
-              "namespace", "taskQueue", "workflowType", service);
+    PollWorkflowTaskQueueResponse workflowTask =
+        HistoryUtils.generateWorkflowTaskWithInitialHistory(
+            "namespace", "taskQueue", "workflowType", testWorkflowRule.getWorkflowServiceStubs());
 
-      WorkflowRunTaskHandler workflowRunTaskHandler =
-          cache.getOrCreate(workflowTask, scope, () -> createFakeExecutor(workflowTask));
-      cache.addToCache(workflowTask.getWorkflowExecution(), workflowRunTaskHandler);
+    WorkflowRunTaskHandler workflowRunTaskHandler =
+        cache.getOrCreate(workflowTask, scope, () -> createFakeExecutor(workflowTask));
+    cache.addToCache(workflowTask.getWorkflowExecution(), workflowRunTaskHandler);
 
-      // Act
-      PollWorkflowTaskQueueResponse workflowTask2 =
-          HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
-              workflowTask, "namespace", "stickyTaskQueue", service);
-      WorkflowRunTaskHandler workflowRunTaskHandler2 =
-          cache.getOrCreate(workflowTask2, scope, () -> doNotCreateFakeExecutor(workflowTask2));
+    // Act
+    PollWorkflowTaskQueueResponse workflowTask2 =
+        HistoryUtils.generateWorkflowTaskWithPartialHistoryFromExistingTask(
+            workflowTask,
+            "namespace",
+            "stickyTaskQueue",
+            testWorkflowRule.getWorkflowServiceStubs());
+    WorkflowRunTaskHandler workflowRunTaskHandler2 =
+        cache.getOrCreate(workflowTask2, scope, () -> doNotCreateFakeExecutor(workflowTask2));
 
-      // Assert
-      // Wait for reporter
-      Thread.sleep(100);
-      reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
+    // Assert
+    // Wait for reporter
+    Thread.sleep(100);
+    reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
 
-      assertEquals(workflowRunTaskHandler, workflowRunTaskHandler2);
-    } finally {
-      service.shutdownNow();
-      service.awaitTermination(1, TimeUnit.SECONDS);
-      testService.close();
-    }
+    assertEquals(workflowRunTaskHandler, workflowRunTaskHandler2);
   }
 
   @Test
