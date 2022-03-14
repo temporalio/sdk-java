@@ -14,7 +14,7 @@ ext {
     // grpcVersion = '[1.34.0,)!!1.44.1'
     // jacksonVersion = '[2.9.0,)!!2.13.1'
     // micrometerVersion = '[1.0.0,)!!1.8.3'
-    grpcVersion = '1.44.1'
+    grpcVersion = '1.45.0'
     jacksonVersion = '2.13.1'
     micrometerVersion = '1.8.3'
 
