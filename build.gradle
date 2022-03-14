@@ -22,7 +22,7 @@ ext {
     protoVersion = '[3.10.0,4.0)!!3.19.4'
     guavaVersion = '[10.0,)!!31.0.1-jre'
     jsonPathVersion = '2.7.0'
-    mockitoVersion = '4.3.1'
+    mockitoVersion = '4.4.0'
     tallyVersion = '[0.4.0,)!!0.11.1'
     gsonVersion = '[2.0,)!!2.9.0'
     slf4jVersion = '[1.4.0,)!!1.7.36'
