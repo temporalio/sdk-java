@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
@@ -352,9 +353,14 @@ public class TestWorkflowRule implements TestRule {
     return testEnvironment.getWorkflowClient();
   }
 
+  /** @return stubs connected to the test server (in-memory or external) */
+  public WorkflowServiceStubs getWorkflowServiceStubs() {
+    return testEnvironment.getWorkflowServiceStubs();
+  }
+
   /** @return blockingStub */
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
-    return testEnvironment.getWorkflowService().blockingStub();
+    return getWorkflowServiceStubs().blockingStub();
   }
 
   /** @return tracer. */

@@ -108,8 +108,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * In memory implementation of the Temporal service. To be used for testing purposes only. Do not
- * use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
+ * In memory implementation of the Workflow Service. To be used for testing purposes only.
+ *
+ * <p>Do not use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
  */
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {
@@ -120,102 +121,22 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final Map<WorkflowId, TestWorkflowMutableState> executionsByWorkflowId = new HashMap<>();
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
   private final Lock lock = new ReentrantLock();
-  private final Server outOfProcessServer;
-  private final WorkflowServiceStubs workflowServiceStubs;
-
-  private final InProcessGRPCServer inProcessServer;
+  private final TestVisibilityStore visibilityStore;
 
   private final TestWorkflowStore store;
   private final ScheduledExecutorService backgroundScheduler =
       Executors.newSingleThreadScheduledExecutor();
 
-  public WorkflowServiceStubs newClientStub() {
-    if (workflowServiceStubs == null) {
-      throw new RuntimeException(
-          "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
-    }
-    return workflowServiceStubs;
-  }
+  private final Server outOfProcessServer;
+  private final InProcessGRPCServer inProcessServer;
+  private final WorkflowServiceStubs workflowServiceStubs;
 
-  /*
-   * Creates an in-memory service along with client stubs for use in Java code.
-   * See also createServerOnly and createWithNoGrpcServer.
-   */
-  public TestWorkflowService() {
-    this(0, true);
-  }
-
-  /*
-   * Creates an in-memory service along with client stubs for use in Java code.
-   * See also createServerOnly and createWithNoGrpcServer.
-   */
-  public TestWorkflowService(long initialTimeMillis) {
-    this(initialTimeMillis, true);
-  }
-
-  /*
-   * Creates an in-memory service along with client stubs for use in Java code.
-   * See also createServerOnly and createWithNoGrpcServer.
-   */
-  public TestWorkflowService(boolean lockTimeSkipping) {
-    this(0, true);
-    if (lockTimeSkipping) {
-      this.lockTimeSkipping("constructor");
-    }
-  }
-
-  /**
-   * Creates an instance of TestWorkflowService that does not manage its own gRPC server. Useful for
-   * including in an externally managed gRPC server.
-   */
-  public static TestWorkflowService createWithNoGrpcServer() {
-    return new TestWorkflowService(0, false);
-  }
-
-  private TestWorkflowService(long initialTimeMillis, boolean startInProcessServer) {
-    store = new TestWorkflowStoreImpl(initialTimeMillis);
-    outOfProcessServer = null;
-
-    if (startInProcessServer) {
-      this.inProcessServer = new InProcessGRPCServer(Collections.singletonList(this));
-      this.workflowServiceStubs =
-          WorkflowServiceStubs.newInstance(
-              WorkflowServiceStubsOptions.newBuilder()
-                  .setChannel(inProcessServer.getChannel())
-                  .build());
-    } else {
-      this.inProcessServer = null;
-      this.workflowServiceStubs = null;
-    }
-  }
-
-  /**
-   * Creates an out-of-process rather than in-process server, and does not set up a client. Useful,
-   * for example, if you want to use the test service from other SDKs.
-   *
-   * @param port the port to listen on
-   */
-  public static TestWorkflowService createServerOnly(int port) {
-    TestWorkflowService result = new TestWorkflowService(true, port);
-    log.info("Server started, listening on " + port);
-    return result;
-  }
-
-  private TestWorkflowService(boolean isOutOfProc, int port) {
-    // isOutOfProc is just here to make unambiguous constructor overloading.
-    Preconditions.checkState(isOutOfProc, "Impossible.");
-    inProcessServer = null;
-    workflowServiceStubs = null;
-    store = new TestWorkflowStoreImpl(0 /* 0 means use current time */);
-    try {
-      ServerBuilder<?> serverBuilder =
-          Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());
-      GRPCServerHelper.registerServicesAndHealthChecks(
-          Collections.singletonList(this), serverBuilder);
-      outOfProcessServer = serverBuilder.build().start();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+  TestWorkflowService(long initialTimeMillis, TestVisibilityStore visibilityStore) {
+    this.store = new TestWorkflowStoreImpl(initialTimeMillis);
+    this.outOfProcessServer = null;
+    this.inProcessServer = null;
+    this.workflowServiceStubs = null;
+    this.visibilityStore = visibilityStore;
   }
 
   @Override
@@ -428,7 +349,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             parentChildInitiatedEventId,
             continuedExecutionRunId,
             this,
-            store);
+            store,
+            visibilityStore);
     WorkflowExecution execution = mutableState.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(namespace, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
@@ -1175,5 +1097,103 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       log.error("unexpected", e);
     }
     responseObserver.onError(e);
+  }
+
+  /*
+   * Creates an in-memory service along with client stubs for use in Java code.
+   * See also createServerOnly and createWithNoGrpcServer.
+   */
+  @Deprecated
+  public TestWorkflowService() {
+    this(0, true);
+  }
+
+  /*
+   * Creates an in-memory service along with client stubs for use in Java code.
+   * See also createServerOnly and createWithNoGrpcServer.
+   */
+  @Deprecated
+  public TestWorkflowService(long initialTimeMillis) {
+    this(initialTimeMillis, true);
+  }
+
+  /*
+   * Creates an in-memory service along with client stubs for use in Java code.
+   * See also createServerOnly and createWithNoGrpcServer.
+   */
+  @Deprecated
+  public TestWorkflowService(boolean lockTimeSkipping) {
+    this(0, true);
+    if (lockTimeSkipping) {
+      this.lockTimeSkipping("constructor");
+    }
+  }
+
+  /**
+   * Creates an instance of TestWorkflowService that does not manage its own gRPC server. Useful for
+   * including in an externally managed gRPC server.
+   *
+   * @deprecated use {@link TestServicesStarter} to create just the services with gRPC server
+   */
+  @Deprecated
+  public static TestWorkflowService createWithNoGrpcServer() {
+    return new TestWorkflowService(0, false);
+  }
+
+  private TestWorkflowService(long initialTimeMillis, boolean startInProcessServer) {
+    store = new TestWorkflowStoreImpl(initialTimeMillis);
+    visibilityStore = new TestVisibilityStoreImpl();
+    outOfProcessServer = null;
+    if (startInProcessServer) {
+      this.inProcessServer = new InProcessGRPCServer(Collections.singletonList(this));
+      this.workflowServiceStubs =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder()
+                  .setChannel(inProcessServer.getChannel())
+                  .build());
+    } else {
+      this.inProcessServer = null;
+      this.workflowServiceStubs = null;
+    }
+  }
+
+  /**
+   * Creates an out-of-process rather than in-process server, and does not set up a client. Useful,
+   * for example, if you want to use the test service from other SDKs.
+   *
+   * @param port the port to listen on
+   */
+  @Deprecated
+  public static TestWorkflowService createServerOnly(int port) {
+    TestWorkflowService result = new TestWorkflowService(true, port);
+    log.info("Server started, listening on " + port);
+    return result;
+  }
+
+  private TestWorkflowService(boolean isOutOfProc, int port) {
+    // isOutOfProc is just here to make unambiguous constructor overloading.
+    Preconditions.checkState(isOutOfProc, "Impossible.");
+    inProcessServer = null;
+    workflowServiceStubs = null;
+    store = new TestWorkflowStoreImpl(0 /* 0 means use current time */);
+    visibilityStore = new TestVisibilityStoreImpl();
+    try {
+      ServerBuilder<?> serverBuilder =
+          Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());
+      GRPCServerHelper.registerServicesAndHealthChecks(
+          Collections.singletonList(this), serverBuilder);
+      outOfProcessServer = serverBuilder.build().start();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Deprecated
+  public WorkflowServiceStubs newClientStub() {
+    if (workflowServiceStubs == null) {
+      throw new RuntimeException(
+          "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
+    }
+    return workflowServiceStubs;
   }
 }

@@ -55,14 +55,12 @@ public class TryCancelActivityTest {
   }
 
   @Test
-  public void testTryCancelActivity() {
+  public void testTryCancelActivity() throws InterruptedException {
     activitiesImpl.setCompletionClient(
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
     TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
-    testWorkflowRule
-        .getTestEnvironment()
-        .sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
+    Thread.sleep(500);
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     testWorkflowRule.waitForOKQuery(stub);
     stub.cancel();

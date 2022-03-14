@@ -19,6 +19,7 @@
 
 package io.temporal.testing;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ObjectArrays;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
@@ -30,31 +31,31 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.sync.WorkflowClientInternal;
-import io.temporal.internal.testservice.InProcessGRPCServer;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testserver.TestServer;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
   private final WorkflowClientOptions workflowClientOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
-  private final TestWorkflowService service;
-  private final InProcessGRPCServer inProcessServer;
+  private final @Nullable TestServer.InProcessTestServer inProcessServer;
+  private final @Nullable TestWorkflowService service;
   private final WorkerFactory workerFactory;
-  private final TimeLockingInterceptor timeLockingInterceptor;
+  private final @Nullable TimeLockingInterceptor timeLockingInterceptor;
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions testEnvironmentOptions) {
     if (testEnvironmentOptions == null) {
@@ -63,15 +64,6 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     workflowClientOptions =
         WorkflowClientOptions.newBuilder(testEnvironmentOptions.getWorkflowClientOptions())
             .validateAndBuildWithDefaults();
-    service = new TestWorkflowService(testEnvironmentOptions.getInitialTimeMillis());
-    timeLockingInterceptor = new TimeLockingInterceptor(service);
-    service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
-
-    if (!testEnvironmentOptions.isUseTimeskipping()) {
-      // If the options ask for no timeskipping, lock one extra time. There will never be a
-      // corresponding unlock, so timeskipping will always be off.
-      service.lockTimeSkipping("TestEnvironmentOptions.isUseTimeskipping was false");
-    }
 
     WorkflowServiceStubsOptions.Builder stubsOptionsBuilder =
         testEnvironmentOptions.getWorkflowServiceStubsOptions() != null
@@ -83,13 +75,23 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         stubsOptionsBuilder.setMetricsScope(testEnvironmentOptions.getMetricsScope());
 
     if (testEnvironmentOptions.isUseExternalService()) {
-      inProcessServer = null;
-
       workflowServiceStubs =
           WorkflowServiceStubs.newInstance(
               stubsOptionsBuilder.setTarget(testEnvironmentOptions.getTarget()).build());
+      inProcessServer = null;
+      service = null;
+      timeLockingInterceptor = null;
     } else {
-      inProcessServer = new InProcessGRPCServer(Collections.singletonList(service));
+      inProcessServer =
+          TestServer.createServer(true, testEnvironmentOptions.getInitialTimeMillis());
+      service = inProcessServer.getWorkflowService();
+      timeLockingInterceptor = new TimeLockingInterceptor(service);
+
+      if (!testEnvironmentOptions.isUseTimeskipping()) {
+        // If the options ask for no timeskipping, lock one extra time. There will never be a
+        // corresponding unlock, so timeskipping will always be off.
+        service.lockTimeSkipping("TestEnvironmentOptions.isUseTimeskipping was false");
+      }
 
       workflowServiceStubs =
           WorkflowServiceStubs.newInstance(
@@ -112,32 +114,58 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public WorkflowClient getWorkflowClient() {
-    WorkflowClientOptions options =
-        WorkflowClientOptions.newBuilder(workflowClientOptions)
-            .setInterceptors(
-                ObjectArrays.concat(
-                    workflowClientOptions.getInterceptors(), timeLockingInterceptor))
-            .build();
+    WorkflowClientOptions options;
+    if (timeLockingInterceptor != null) {
+      options =
+          WorkflowClientOptions.newBuilder(workflowClientOptions)
+              .setInterceptors(
+                  ObjectArrays.concat(
+                      workflowClientOptions.getInterceptors(), timeLockingInterceptor))
+              .build();
+    } else {
+      options = workflowClientOptions;
+    }
     return WorkflowClientInternal.newInstance(workflowServiceStubs, options);
   }
 
   @Override
   public long currentTimeMillis() {
-    return service.currentTimeMillis();
+    if (service != null) {
+      return service.currentTimeMillis();
+    } else {
+      return System.currentTimeMillis();
+    }
   }
 
   @Override
   public void sleep(Duration duration) {
-    service.sleep(duration);
+    if (service != null) {
+      service.sleep(duration);
+    } else {
+      try {
+        Thread.sleep(duration.toMillis());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   @Override
   public void registerDelayedCallback(Duration delay, Runnable r) {
+    Preconditions.checkState(
+        service != null, "registerDelayedCallback is not supported with the external service");
     service.registerDelayedCallback(delay, r);
   }
 
   @Override
+  @Deprecated
   public WorkflowServiceStubs getWorkflowService() {
+    return getWorkflowServiceStubs();
+  }
+
+  @Override
+  public WorkflowServiceStubs getWorkflowServiceStubs() {
     return workflowServiceStubs;
   }
 
@@ -148,6 +176,8 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public String getDiagnostics() {
+    Preconditions.checkState(
+        service != null, "getDiagnostics is not supported with the external service");
     StringBuilder result = new StringBuilder();
     service.getDiagnostics(result);
     return result.toString();
@@ -171,10 +201,8 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     workflowServiceStubs.shutdownNow();
     workflowServiceStubs.awaitTermination(10, TimeUnit.SECONDS);
     if (inProcessServer != null) {
-      inProcessServer.shutdownNow();
-      inProcessServer.awaitTermination(10, TimeUnit.SECONDS);
+      inProcessServer.close();
     }
-    service.close();
   }
 
   @Override
@@ -200,7 +228,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   @Override
   @Deprecated
   public void shutdownTestService() {
-    service.close();
+    if (service != null) {
+      service.close();
+    }
   }
 
   @Override

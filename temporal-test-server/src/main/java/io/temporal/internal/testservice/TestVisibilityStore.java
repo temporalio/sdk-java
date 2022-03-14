@@ -19,18 +19,15 @@
 
 package io.temporal.internal.testservice;
 
-import io.temporal.testserver.TestServer;
+import io.temporal.api.enums.v1.IndexedValueType;
+import java.io.Closeable;
+import java.util.Map;
 
-/** @deprecated use {@link TestServer} */
-@Deprecated
-public class TestServiceServer {
+public interface TestVisibilityStore extends Closeable {
+  void registerSearchAttribute(String name, IndexedValueType type);
 
-  public static void main(String[] args) {
-    if (args.length != 1) {
-      System.err.println("Usage: <command> <port>");
-    }
-    Integer port = Integer.parseInt(args[0]);
+  Map<String, IndexedValueType> getRegisteredSearchAttributes();
 
-    TestServer.createPortBoundServer(port);
-  }
+  @Override
+  void close();
 }

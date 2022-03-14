@@ -51,14 +51,7 @@ import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttribute
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.PendingActivityState;
-import io.temporal.api.enums.v1.QueryRejectCondition;
-import io.temporal.api.enums.v1.RetryState;
-import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
+import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
@@ -153,6 +146,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Optional<TestWorkflowMutableState> parent;
   private final OptionalLong parentChildInitiatedEventId;
   private final TestWorkflowStore store;
+  private final TestVisibilityStore visibilityStore;
   private final TestWorkflowService service;
   private final StartWorkflowExecutionRequest startRequest;
   private long nextEventId = 1;
@@ -186,15 +180,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       OptionalLong parentChildInitiatedEventId,
       Optional<String> continuedExecutionRunId,
       TestWorkflowService service,
-      TestWorkflowStore store) {
+      TestWorkflowStore store,
+      TestVisibilityStore visibilityStore) {
+    this.store = store;
+    this.visibilityStore = visibilityStore;
+    this.service = service;
     startRequest = overrideStartWorkflowExecutionRequest(startRequest);
     this.startRequest = startRequest;
-    this.parent = parent;
-    this.parentChildInitiatedEventId = parentChildInitiatedEventId;
-    this.service = service;
     this.executionId =
         new ExecutionId(startRequest.getNamespace(), startRequest.getWorkflowId(), runId);
-    this.store = store;
+    this.parent = parent;
+    this.parentChildInitiatedEventId = parentChildInitiatedEventId;
     selfAdvancingTimer = store.getTimer();
     this.clock = selfAdvancingTimer.getClock();
     WorkflowData data =

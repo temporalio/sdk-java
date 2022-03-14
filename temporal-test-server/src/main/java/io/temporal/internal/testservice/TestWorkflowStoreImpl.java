@@ -76,9 +76,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   private static class HistoryStore {
 
+    private final ExecutionId id;
     private final Lock lock;
     private final Condition newEventsCondition;
-    private final ExecutionId id;
     private final List<HistoryEvent> history = new ArrayList<>();
     private boolean completed;
 

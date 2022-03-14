@@ -39,15 +39,11 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Functions;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,22 +52,9 @@ public class PollWorkflowTaskDispatcherTests {
   LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
   ch.qos.logback.classic.Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
 
-  private TestWorkflowService testService;
-  private WorkflowServiceStubs service;
   private final Scope metricsScope = new NoopScope();
 
-  @Before
-  public void setUp() {
-    testService = new TestWorkflowService();
-    service = testService.newClientStub();
-  }
-
-  @After
-  public void tearDown() {
-    service.shutdownNow();
-    service.awaitTermination(1, TimeUnit.SECONDS);
-    testService.close();
-  }
+  @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
 
   @Test
   public void pollWorkflowTasksAreDispatchedBasedOnTaskQueueName() {
@@ -79,7 +62,8 @@ public class PollWorkflowTaskDispatcherTests {
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
 
     PollWorkflowTaskDispatcher dispatcher =
-        new PollWorkflowTaskDispatcher(service, "default", metricsScope);
+        new PollWorkflowTaskDispatcher(
+            testWorkflowRule.getWorkflowServiceStubs(), "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
 
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
@@ -97,7 +81,8 @@ public class PollWorkflowTaskDispatcherTests {
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
 
     PollWorkflowTaskDispatcher dispatcher =
-        new PollWorkflowTaskDispatcher(service, "default", metricsScope);
+        new PollWorkflowTaskDispatcher(
+            testWorkflowRule.getWorkflowServiceStubs(), "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue2", handler2);
 
@@ -117,7 +102,8 @@ public class PollWorkflowTaskDispatcherTests {
     Functions.Proc1<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
 
     PollWorkflowTaskDispatcher dispatcher =
-        new PollWorkflowTaskDispatcher(service, "default", metricsScope);
+        new PollWorkflowTaskDispatcher(
+            testWorkflowRule.getWorkflowServiceStubs(), "default", metricsScope);
     dispatcher.subscribe("taskqueue1", handler);
     dispatcher.subscribe("taskqueue1", handler2);
 

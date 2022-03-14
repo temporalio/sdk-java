@@ -27,8 +27,8 @@ import io.grpc.protobuf.services.HealthStatusManager;
 import java.util.Collection;
 
 // TODO move to temporal-testing or temporal-test-server modules after WorkflowServiceStubs cleanup
-class GRPCServerHelper {
-  static void registerServicesAndHealthChecks(
+public class GRPCServerHelper {
+  public static void registerServicesAndHealthChecks(
       Collection<BindableService> services, ServerBuilder<?> toServerBuilder) {
     HealthStatusManager healthStatusManager = new HealthStatusManager();
     for (BindableService service : services) {
