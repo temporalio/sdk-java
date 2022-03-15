@@ -13,15 +13,17 @@ dependencies {
     api "io.grpc:grpc-stub" //Part of WorkflowServiceStubs API
     api "io.grpc:grpc-netty-shaded" //Part of WorkflowServiceStubs API, specifically SslContext
     api "com.google.protobuf:protobuf-java-util:$protoVersion" //proto request and response objects are a part of this module's API
+    if (!JavaVersion.current().isJava8()) {
+        //needed for the generated grpc stubs
+        implementation "javax.annotation:javax.annotation-api:$annotationApiVersion"
+    }
+
     api "com.uber.m3:tally-core:$tallyVersion"
 
     implementation "io.grpc:grpc-core"
     implementation "io.grpc:grpc-services"
 
     api "org.slf4j:slf4j-api:$slf4jVersion"
-    if (!JavaVersion.current().isJava8()) {
-        implementation 'javax.annotation:javax.annotation-api:1.3.2'
-    }
 
     testImplementation project(':temporal-testing')
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
@@ -78,6 +80,12 @@ protobuf {
     generatedFilesBaseDir = "$buildDir/generated"
 }
 
+// Needed to include generated files into the source jar
+sourcesJar {
+    dependsOn 'generateProto'
+    from(file("$buildDir/generated/main/java"))
+}
+
 idea {
     module {
         sourceDirs += file("$buildDir/generated/main/java")
@@ -103,12 +111,6 @@ task createProperties(dependsOn: processResources) {
 
 classes {
     dependsOn createProperties
-}
-
-// Needed to include generated files into the source jar
-sourcesJar {
-    dependsOn 'generateProto'
-    from(file("$buildDir/generated/main/java"))
 }
 
 task registerNamespace(type: JavaExec) {
