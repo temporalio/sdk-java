@@ -70,11 +70,14 @@ public class OptionalJsonSerializationTest {
     Optional<Customer> customer2 = Optional.of(new Customer("merry", Optional.of("111-11-1111")));
     WorkflowClient.start(workflow::execute, customer1);
 
+    WorkflowStub workflowStub = WorkflowStub.fromTyped(workflow);
+    SDKTestWorkflowRule.waitForOKQuery(workflowStub);
+
     // send a signal to update customer
     workflow.setCustomer(customer2);
 
     // checking that untyped stub can unbox Optional into the class directly
-    Customer result = WorkflowStub.fromTyped(workflow).getResult(Customer.class);
+    Customer result = workflowStub.getResult(Customer.class);
     assertEquals(customer2.get().getFirstName(), result.getFirstName());
 
     // checking that untyped stub can return the Original optional too
