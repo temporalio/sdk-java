@@ -39,6 +39,8 @@ subprojects {
         if (JavaVersion.current().isJava9Compatible()) {
             options.addBooleanOption('html5', true)
         }
+        //https://stackoverflow.com/questions/53732632/gradle-javadoc-search-redirects-to-undefined-url
+        options.addBooleanOption('-no-module-directories', true)
     }
 
     // add a collection to track failedTests
