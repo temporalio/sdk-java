@@ -23,9 +23,13 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.time.Duration;
+import java.time.Instant;
+import javax.annotation.Nullable;
 
 public class ProtobufTimeUtils {
   public static Duration toJavaDuration(com.google.protobuf.Duration d) {
+    // TODO we should refactor an implicit conversion of empty values into ZERO and rename the
+    // current method into toJavaDurationSafe, toJavaDurationOrDefault or something like that
     if (d == null) {
       return Duration.ZERO;
     }
@@ -34,6 +38,8 @@ public class ProtobufTimeUtils {
   }
 
   public static com.google.protobuf.Duration toProtoDuration(Duration d) {
+    // TODO we should refactor an implicit conversion of empty values into ZERO and rename the
+    // current method into toJavaDurationSafe, toJavaDurationOrDefault or something like that
     if (d == null) {
       return Durations.ZERO;
     }
@@ -51,5 +57,21 @@ public class ProtobufTimeUtils {
 
   public static com.uber.m3.util.Duration toM3DurationSinceNow(Timestamp t) {
     return com.uber.m3.util.Duration.ofMillis(System.currentTimeMillis() - Timestamps.toMillis(t));
+  }
+
+  public static @Nullable Instant toJavaInstant(@Nullable com.google.protobuf.Timestamp t) {
+    if (t == null) {
+      return null;
+    }
+
+    return Instant.ofEpochSecond(t.getSeconds(), t.getNanos());
+  }
+
+  public static @Nullable com.google.protobuf.Timestamp toProtoTimestamp(@Nullable Instant t) {
+    if (t == null) {
+      return null;
+    }
+
+    return Timestamp.newBuilder().setSeconds(t.getEpochSecond()).setNanos(t.getNano()).build();
   }
 }

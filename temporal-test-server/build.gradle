@@ -2,7 +2,10 @@ plugins {
     id 'application'
     id 'com.palantir.graal' version '0.10.0'
     id 'com.palantir.docker' version '0.32.0'
+    id 'com.google.protobuf' version '0.8.18'
 }
+
+apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 
 description = '''Temporal test workflow server'''
 
@@ -10,6 +13,11 @@ dependencies {
     api project(':temporal-sdk')
     implementation("io.grpc:grpc-core")
     implementation("io.grpc:grpc-services")
+    if (!JavaVersion.current().isJava8()) {
+        //needed for the generated grpc stubs
+        implementation "javax.annotation:javax.annotation-api:$annotationApiVersion"
+    }
+
     implementation "com.google.guava:guava:$guavaVersion"
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
 
@@ -22,10 +30,56 @@ application {
 }
 
 jar {
+    exclude '**.proto'
+    includeEmptyDirs false
+
     manifest {
         attributes("Main-Class": application.mainClassName)
     }
 }
+
+protobuf {
+    // version/variables substitution is not supported in protobuf section.
+    // protoc and protoc-gen-grpc-java versions are selected to be compatible
+    // with the oldest supported versions of protoc and grpc artifacts.
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.10.1'
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.34.0'
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {
+                outputSubDir = 'java'
+            }
+        }
+    }
+}
+
+clean {
+    delete protobuf.generatedFilesBaseDir
+}
+
+protobuf {
+    generatedFilesBaseDir = "$buildDir/generated"
+}
+
+// Needed to include generated files into the source jar
+sourcesJar {
+    dependsOn 'generateProto'
+    from(file("$buildDir/generated/main/java"))
+}
+
+idea {
+    module {
+        sourceDirs += file("$buildDir/generated/main/java")
+        sourceDirs += file("$buildDir/generated/main/grpc")
+    }
+}
+
 
 graal {
   outputName "temporal-test-server"

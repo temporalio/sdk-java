@@ -23,7 +23,6 @@ import io.grpc.*;
 import io.temporal.internal.testservice.*;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,12 +31,24 @@ public class TestServer {
   private static final Logger log = LoggerFactory.getLogger(TestServer.class);
 
   public static void main(String[] args) throws IOException {
-    if (args.length != 1) {
-      System.err.println("Usage: <command> <port>");
+    if (args.length < 1 || args.length > 2) {
+      System.err.println("Usage: <command> <port> <flags>");
+      System.err.println("Flags:");
+      System.err.println("--enable-time-skipping - to enable time skipping on start");
     }
-    Integer port = Integer.parseInt(args[0]);
+    int port = Integer.parseInt(args[0]);
+    boolean enableTimeSkipping = false;
 
-    createPortBoundServer(port);
+    // we can't continue doing this. If there is at least one more flag or parameter we should
+    // incorporate a framework like picocli
+    if (args.length > 1) {
+      if ("--enable-time-skipping".equalsIgnoreCase(args[1])) {
+        enableTimeSkipping = true;
+      } else {
+        System.err.println("Unknown flag " + args[1]);
+      }
+    }
+    createPortBoundServer(port, !enableTimeSkipping);
   }
 
   /**
@@ -47,14 +58,25 @@ public class TestServer {
    * @param port the port to listen on
    */
   public static PortBoundTestServer createPortBoundServer(int port) {
-    TestServicesStarter testServicesStarter = new TestServicesStarter(false, 0);
+    return createPortBoundServer(port, true);
+  }
+
+  /**
+   * Creates an out-of-process rather than in-process server, and does not set up a client. Useful,
+   * for example, if you want to use the test service from other SDKs.
+   *
+   * @param lockTimeSkipping true if the time skipping should be locked (disabled) by default after
+   *     creation of the server. To make test server behave like a real one in respect to time, this
+   *     flag should be {@code true}.
+   * @param port the port to listen on
+   */
+  public static PortBoundTestServer createPortBoundServer(int port, boolean lockTimeSkipping) {
+    TestServicesStarter testServicesStarter = new TestServicesStarter(lockTimeSkipping, 0);
     try {
       ServerBuilder<?> serverBuilder =
           Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create());
       GRPCServerHelper.registerServicesAndHealthChecks(
-          Arrays.asList(
-              testServicesStarter.getWorkflowService(), testServicesStarter.getOperatorService()),
-          serverBuilder);
+          testServicesStarter.getServices(), serverBuilder);
       Server outOfProcessServer = serverBuilder.build().start();
       return new PortBoundTestServer(testServicesStarter, outOfProcessServer);
     } catch (IOException e) {
@@ -64,12 +86,13 @@ public class TestServer {
 
   /** @return created in-memory service */
   public static InProcessTestServer createServer() {
-    return createServer(false, 0);
+    return createServer(true, 0);
   }
 
   /**
    * @param lockTimeSkipping true if the time skipping should be locked (disabled) by default after
-   *     creation of the server
+   *     creation of the server. To make test server behave like a real one in respect to time, this
+   *     flag should be {@code true}.
    * @return created in-memory service
    */
   public static InProcessTestServer createServer(boolean lockTimeSkipping) {
@@ -87,10 +110,7 @@ public class TestServer {
     TestServicesStarter testServicesStarter =
         new TestServicesStarter(lockTimeSkipping, initialTimeMillis);
     InProcessGRPCServer inProcessServer =
-        new InProcessGRPCServer(
-            Arrays.asList(
-                testServicesStarter.getWorkflowService(),
-                testServicesStarter.getOperatorService()));
+        new InProcessGRPCServer(testServicesStarter.getServices());
     return new InProcessTestServer(testServicesStarter, inProcessServer);
   }
 
@@ -105,9 +125,10 @@ public class TestServer {
     }
 
     /**
-     * TODO should be removed after exposing time skipping service. WorkflowService instance
-     * shouldn't be called directly.
+     * TODO should be removed after moving registerDelayedCallback into Test Service API.
+     * WorkflowService instance shouldn't be called directly.
      */
+    @Deprecated
     public TestWorkflowService getWorkflowService() {
       return testServicesStarter.getWorkflowService();
     }

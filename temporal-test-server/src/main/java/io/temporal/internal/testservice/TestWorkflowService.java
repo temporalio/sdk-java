@@ -23,6 +23,7 @@ import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.protobuf.Empty;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.*;
@@ -37,6 +38,9 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
+import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
+import io.temporal.api.testservice.v1.SleepRequest;
+import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
@@ -131,8 +135,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final InProcessGRPCServer inProcessServer;
   private final WorkflowServiceStubs workflowServiceStubs;
 
-  TestWorkflowService(long initialTimeMillis, TestVisibilityStore visibilityStore) {
-    this.store = new TestWorkflowStoreImpl(initialTimeMillis);
+  TestWorkflowService(TestWorkflowStore store, TestVisibilityStore visibilityStore) {
+    this.store = store;
     this.outOfProcessServer = null;
     this.inProcessServer = null;
     this.workflowServiceStubs = null;
@@ -1027,6 +1031,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     store.getDiagnostics(result);
   }
 
+  /**
+   * @deprecated use {@link io.temporal.serviceclient.TestServiceStubs} and {@link
+   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#getCurrentTime(Empty)}
+   */
+  @Deprecated
   public long currentTimeMillis() {
     return store.getTimer().getClock().getAsLong();
   }
@@ -1037,22 +1046,38 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   /**
-   * Disables time skipping. To enable back call {@link #unlockTimeSkipping(String)}. These calls
-   * are counted, so calling unlock does not guarantee that time is going to be skipped immediately
-   * as another lock can be holding it.
+   * Disables time skipping. To re-enable call {@link #unlockTimeSkipping(String)}. These calls are
+   * counted, so calling unlock does not guarantee that time is going to be skipped immediately as
+   * another lock can be holding it.
+   *
+   * @deprecated use {@link io.temporal.serviceclient.TestServiceStubs} and {@link
+   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#lockTimeSkipping(LockTimeSkippingRequest)}
    */
+  @Deprecated
   public void lockTimeSkipping(String caller) {
     store.getTimer().lockTimeSkipping(caller);
   }
 
+  /**
+   * @deprecated use {@link io.temporal.serviceclient.TestServiceStubs} and {@link
+   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#unlockTimeSkipping(UnlockTimeSkippingRequest)}
+   */
+  @Deprecated
   public void unlockTimeSkipping(String caller) {
     store.getTimer().unlockTimeSkipping(caller);
   }
 
   /**
-   * Blocks calling thread until internal clock doesn't pass the current + duration time. Might not
-   * block at all due to time skipping.
+   * Unlocks time skipping and blocks the calling thread until internal clock passes the current +
+   * duration time.<br>
+   * When the time is reached, locks time skipping and returns.<br>
+   * Might not block at all due to time skipping. Or might block if the time skipping lock counter
+   * was more than 1.
+   *
+   * @deprecated use {@link io.temporal.serviceclient.TestServiceStubs} and {@link
+   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#sleep(SleepRequest)}
    */
+  @Deprecated
   public void sleep(Duration duration) {
     CompletableFuture<Void> result = new CompletableFuture<>();
     store
@@ -1099,27 +1124,35 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     responseObserver.onError(e);
   }
 
-  /*
-   * Creates an in-memory service along with client stubs for use in Java code.
-   * See also createServerOnly and createWithNoGrpcServer.
+  /**
+   * Creates an in-memory service along with client stubs for use in Java code. See also
+   * createServerOnly and createWithNoGrpcServer.
+   *
+   * @deprecated use {@link io.temporal.testserver.TestServer#createServer(boolean)} instead and
+   *     pass {@code lockTimeSkipping=false} to emulate the behavior of this method
    */
   @Deprecated
   public TestWorkflowService() {
     this(0, true);
   }
 
-  /*
-   * Creates an in-memory service along with client stubs for use in Java code.
-   * See also createServerOnly and createWithNoGrpcServer.
+  /**
+   * Creates an in-memory service along with client stubs for use in Java code. See also
+   * createServerOnly and createWithNoGrpcServer.
+   *
+   * @deprecated use {@link io.temporal.testserver.TestServer#createServer(boolean, long)} instead
+   *     and pass {@code lockTimeSkipping=false} to emulate the behavior of this method
    */
   @Deprecated
   public TestWorkflowService(long initialTimeMillis) {
     this(initialTimeMillis, true);
   }
 
-  /*
-   * Creates an in-memory service along with client stubs for use in Java code.
-   * See also createServerOnly and createWithNoGrpcServer.
+  /**
+   * Creates an in-memory service along with client stubs for use in Java code. See also
+   * createServerOnly and createWithNoGrpcServer.
+   *
+   * @deprecated use {@link io.temporal.testserver.TestServer#createServer(boolean)} instead
    */
   @Deprecated
   public TestWorkflowService(boolean lockTimeSkipping) {
@@ -1162,6 +1195,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    * for example, if you want to use the test service from other SDKs.
    *
    * @param port the port to listen on
+   * @deprecated use {@link io.temporal.testserver.TestServer#createPortBoundServer(int, boolean)}
+   *     instead and pass {@code lockTimeSkipping=false} to emulate the behavior of this method
    */
   @Deprecated
   public static TestWorkflowService createServerOnly(int port) {

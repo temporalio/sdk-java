@@ -40,9 +40,11 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
   /**
-   * Creates a factory that connects to the Temporal according to the specified options. When
-   * serviceImpl is not null generates the client for an in-process service using an in-memory
-   * channel. Useful for testing, usually with mock and spy services.
+   * Creates a factory that connects to the {@link WorkflowServiceGrpc} according to the specified
+   * options.
+   *
+   * @param serviceImpl If serviceImpl is not null generates the client for an in-process service
+   *     using an in-memory channel. Useful for testing, usually with mock and spy services.
    */
   @SuppressWarnings("deprecation")
   WorkflowServiceStubsImpl(BindableService serviceImpl, WorkflowServiceStubsOptions options) {

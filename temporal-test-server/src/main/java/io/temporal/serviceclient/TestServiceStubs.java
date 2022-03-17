@@ -17,23 +17,21 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.testservice;
+package io.temporal.serviceclient;
 
-import io.temporal.testserver.TestServer;
+import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
 
-/**
- * @deprecated use {@link TestServer#main(String[])} with {@code --enable-time-skipping} to get the
- *     behavior of this starter method
- */
-@Deprecated
-public class TestServiceServer {
+import io.temporal.api.testservice.v1.TestServiceGrpc;
+import io.temporal.internal.WorkflowThreadMarker;
 
-  public static void main(String[] args) {
-    if (args.length != 1) {
-      System.err.println("Usage: <command> <port>");
-    }
-    Integer port = Integer.parseInt(args[0]);
+public interface TestServiceStubs
+    extends ServiceStubs<
+        TestServiceGrpc.TestServiceBlockingStub, TestServiceGrpc.TestServiceFutureStub> {
+  String HEALTH_CHECK_SERVICE_NAME = "temporal.api.testservice.v1.TestService";
 
-    TestServer.createPortBoundServer(port, false);
+  static TestServiceStubs newInstance(TestServiceStubsOptions options) {
+    enforceNonWorkflowThread();
+    return WorkflowThreadMarker.protectFromWorkflowThread(
+        new TestServiceStubsImpl(options), TestServiceStubs.class);
   }
 }

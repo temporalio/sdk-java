@@ -20,27 +20,28 @@
 package io.temporal.serviceclient;
 
 import io.grpc.ClientInterceptor;
+import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.health.v1.HealthCheckResponse;
-import io.temporal.api.operatorservice.v1.OperatorServiceGrpc;
+import io.temporal.api.testservice.v1.TestServiceGrpc;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class OperatorServiceStubsImpl implements OperatorServiceStubs {
-  private static final Logger log = LoggerFactory.getLogger(OperatorServiceStubsImpl.class);
+public class TestServiceStubsImpl implements TestServiceStubs {
+  private static final Logger log = LoggerFactory.getLogger(TestServiceStubsImpl.class);
 
   private final ChannelManager channelManager;
 
-  private final OperatorServiceGrpc.OperatorServiceBlockingStub blockingStub;
-  private final OperatorServiceGrpc.OperatorServiceFutureStub futureStub;
+  private final TestServiceGrpc.TestServiceBlockingStub blockingStub;
+  private final TestServiceGrpc.TestServiceFutureStub futureStub;
 
   /**
-   * Creates gRPC Channel and Stubs that connects to the {@link OperatorServiceGrpc} according to
-   * the specified options.
+   * Creates gRPC Channel and Stubs that connects to the {@link TestServiceGrpc} according to the
+   * specified options.
    */
-  OperatorServiceStubsImpl(OperatorServiceStubsOptions options) {
+  TestServiceStubsImpl(TestServiceStubsOptions options) {
     ClientInterceptor deadlineInterceptor =
         new GrpcDeadlineInterceptor(options.getRpcTimeout(), null, null);
 
@@ -54,10 +55,10 @@ final class OperatorServiceStubsImpl implements OperatorServiceStubs {
           "Health check returned unhealthy status: " + healthCheckResponse.getStatus());
     }
 
-    log.info("Created OperatorServiceStubs for channel: {}", channelManager.getRawChannel());
+    log.info("Created TestServiceStubs for channel: {}", channelManager.getRawChannel());
 
-    this.blockingStub = OperatorServiceGrpc.newBlockingStub(channelManager.getInterceptedChannel());
-    this.futureStub = OperatorServiceGrpc.newFutureStub(channelManager.getInterceptedChannel());
+    this.blockingStub = TestServiceGrpc.newBlockingStub(channelManager.getInterceptedChannel());
+    this.futureStub = TestServiceGrpc.newFutureStub(channelManager.getInterceptedChannel());
   }
 
   @Override
@@ -66,13 +67,13 @@ final class OperatorServiceStubsImpl implements OperatorServiceStubs {
   }
 
   @Override
-  public OperatorServiceGrpc.OperatorServiceBlockingStub blockingStub() {
+  public TestServiceGrpc.TestServiceBlockingStub blockingStub() {
     return blockingStub;
   }
 
   @Override
-  public OperatorServiceGrpc.OperatorServiceFutureStub futureStub() {
-    return futureStub;
+  public TestServiceGrpc.TestServiceFutureStub futureStub() {
+    return futureStub.withDeadline(Deadline.after(10, TimeUnit.SECONDS));
   }
 
   @Override

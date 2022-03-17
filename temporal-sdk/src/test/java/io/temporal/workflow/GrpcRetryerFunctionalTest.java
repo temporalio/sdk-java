@@ -21,6 +21,7 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.*;
 
+import com.google.common.base.Throwables;
 import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -108,7 +109,13 @@ public class GrpcRetryerFunctionalTest {
               }
             });
 
-    WorkflowServiceException exception = (WorkflowServiceException) exRef.get();
+    Exception exception = exRef.get();
+    assertTrue(
+        "Expected WorkflowServiceException, got "
+            + exception
+            + " \n "
+            + Throwables.getStackTraceAsString(exception),
+        exception instanceof WorkflowServiceException);
     Throwable cause = exception.getCause();
 
     assertTrue(cause instanceof StatusRuntimeException);

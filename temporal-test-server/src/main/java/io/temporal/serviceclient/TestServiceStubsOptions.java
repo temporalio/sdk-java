@@ -19,8 +19,8 @@
 
 package io.temporal.serviceclient;
 
-public final class OperatorServiceStubsOptions extends ServiceStubsOptions {
-  private static final OperatorServiceStubsOptions DEFAULT_INSTANCE =
+public final class TestServiceStubsOptions extends ServiceStubsOptions {
+  private static final TestServiceStubsOptions DEFAULT_INSTANCE =
       newBuilder().validateAndBuildWithDefaults();
 
   public static Builder newBuilder() {
@@ -31,11 +31,11 @@ public final class OperatorServiceStubsOptions extends ServiceStubsOptions {
     return new Builder(options);
   }
 
-  public static OperatorServiceStubsOptions getDefaultInstance() {
+  public static TestServiceStubsOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
 
-  private OperatorServiceStubsOptions(ServiceStubsOptions serviceStubsOptions) {
+  private TestServiceStubsOptions(ServiceStubsOptions serviceStubsOptions) {
     super(serviceStubsOptions);
   }
 
@@ -53,13 +53,13 @@ public final class OperatorServiceStubsOptions extends ServiceStubsOptions {
      *
      * @return ClientOptions object with the specified params.
      */
-    public OperatorServiceStubsOptions build() {
-      return new OperatorServiceStubsOptions(super.build());
+    public TestServiceStubsOptions build() {
+      return new TestServiceStubsOptions(super.build());
     }
 
-    public OperatorServiceStubsOptions validateAndBuildWithDefaults() {
+    public TestServiceStubsOptions validateAndBuildWithDefaults() {
       ServiceStubsOptions serviceStubsOptions = super.validateAndBuildWithDefaults();
-      return new OperatorServiceStubsOptions(serviceStubsOptions);
+      return new TestServiceStubsOptions(serviceStubsOptions);
     }
   }
 }

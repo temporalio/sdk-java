@@ -19,13 +19,9 @@
 
 package io.temporal.internal.testservice;
 
-import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.temporal.api.operatorservice.v1.*;
-import io.temporal.api.workflowservice.v1.*;
 import java.io.Closeable;
-import java.util.*;
-import java.util.concurrent.*;
 
 /**
  * In memory implementation of the Operator Service. To be used for testing purposes only.
@@ -45,13 +41,9 @@ public final class TestOperatorService extends OperatorServiceGrpc.OperatorServi
   public void addSearchAttributes(
       AddSearchAttributesRequest request,
       StreamObserver<AddSearchAttributesResponse> responseObserver) {
-    request
-        .getSearchAttributesMap()
-        .forEach(
-            (name, type) -> {
-              visibilityStore.registerSearchAttribute(name, type);
-            });
+    request.getSearchAttributesMap().forEach(visibilityStore::registerSearchAttribute);
     responseObserver.onNext(AddSearchAttributesResponse.newBuilder().build());
+    responseObserver.onCompleted();
   }
 
   @Override

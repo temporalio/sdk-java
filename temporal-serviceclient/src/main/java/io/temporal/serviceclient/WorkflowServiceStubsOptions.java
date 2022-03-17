@@ -59,14 +59,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return new Builder();
   }
 
-  public static Builder newBuilder(WorkflowServiceStubsOptions options) {
-    return new Builder(options);
-  }
-
   public static Builder newBuilder(ServiceStubsOptions options) {
-    return options instanceof WorkflowServiceStubsOptions
-        ? newBuilder((WorkflowServiceStubsOptions) options)
-        : new Builder(options);
+    return new Builder(options);
   }
 
   public static WorkflowServiceStubsOptions getDefaultInstance() {
@@ -134,13 +128,12 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
 
     private Builder(ServiceStubsOptions options) {
       super(options);
-    }
-
-    private Builder(WorkflowServiceStubsOptions options) {
-      super(options);
-      this.rpcLongPollTimeout = options.rpcLongPollTimeout;
-      this.rpcQueryTimeout = options.rpcQueryTimeout;
-      this.rpcRetryOptions = options.rpcRetryOptions;
+      if (options instanceof WorkflowServiceStubsOptions) {
+        WorkflowServiceStubsOptions castedOptions = (WorkflowServiceStubsOptions) options;
+        this.rpcLongPollTimeout = castedOptions.rpcLongPollTimeout;
+        this.rpcQueryTimeout = castedOptions.rpcQueryTimeout;
+        this.rpcRetryOptions = castedOptions.rpcRetryOptions;
+      }
     }
 
     /**

@@ -27,7 +27,12 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.testservice.v1.SleepRequest;
+import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.serviceclient.TestServiceStubs;
+import io.temporal.serviceclient.TestServiceStubsOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.TestServiceUtils;
@@ -48,20 +53,30 @@ public class WorkflowCachingTest {
   private final String CALLER = "WorkflowStickynessTest";
 
   private TestServer.InProcessTestServer testServer;
-  private WorkflowServiceStubs service;
+  private WorkflowServiceStubs workflowServiceStubs;
+  private TestServiceStubs testServiceStubs;
 
   @Before
   public void setUp() {
     this.testServer = TestServer.createServer(true);
-    this.service =
+    this.workflowServiceStubs =
         WorkflowServiceStubs.newInstance(
-            WorkflowServiceStubsOptions.newBuilder().setChannel(testServer.getChannel()).build());
+            WorkflowServiceStubsOptions.newBuilder()
+                .setChannel(testServer.getChannel())
+                .validateAndBuildWithDefaults());
+    this.testServiceStubs =
+        TestServiceStubs.newInstance(
+            TestServiceStubsOptions.newBuilder()
+                .setChannel(testServer.getChannel())
+                .validateAndBuildWithDefaults());
   }
 
   @After
   public void tearDown() {
-    this.service.shutdownNow();
-    this.service.awaitTermination(1, TimeUnit.SECONDS);
+    this.testServiceStubs.shutdownNow();
+    this.workflowServiceStubs.shutdownNow();
+    this.testServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
+    this.workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
     this.testServer.close();
   }
 
@@ -70,17 +85,19 @@ public class WorkflowCachingTest {
       taskCompletionWithStickyExecutionAttributesWillScheduleWorkflowTasksOnStickyTaskQueue()
           throws Exception {
 
-    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
+    TestServiceUtils.startWorkflowExecution(
+        NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, workflowServiceStubs);
     PollWorkflowTaskQueueResponse response =
         TestServiceUtils.pollWorkflowTaskQueue(
-            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), workflowServiceStubs);
 
     TestServiceUtils.respondWorkflowTaskCompletedWithSticky(
-        response.getTaskToken(), HOST_TASKQUEUE, service);
-    TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
+        response.getTaskToken(), HOST_TASKQUEUE, workflowServiceStubs);
+    TestServiceUtils.signalWorkflow(
+        response.getWorkflowExecution(), NAMESPACE, workflowServiceStubs);
     response =
         TestServiceUtils.pollWorkflowTaskQueue(
-            NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
+            NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), workflowServiceStubs);
 
     assertEquals(4, response.getHistory().getEventsCount());
     assertEquals(TASK_QUEUE, response.getWorkflowExecutionTaskQueue().getName());
@@ -93,21 +110,24 @@ public class WorkflowCachingTest {
 
   @Test
   public void taskFailureWillRescheduleTheTaskOnTheGlobalList() throws Exception {
-    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
+    TestServiceUtils.startWorkflowExecution(
+        NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, workflowServiceStubs);
     PollWorkflowTaskQueueResponse response =
         TestServiceUtils.pollWorkflowTaskQueue(
-            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), workflowServiceStubs);
 
     TestServiceUtils.respondWorkflowTaskCompletedWithSticky(
-        response.getTaskToken(), HOST_TASKQUEUE, service);
-    TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
+        response.getTaskToken(), HOST_TASKQUEUE, workflowServiceStubs);
+    TestServiceUtils.signalWorkflow(
+        response.getWorkflowExecution(), NAMESPACE, workflowServiceStubs);
     response =
         TestServiceUtils.pollWorkflowTaskQueue(
-            NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
-    TestServiceUtils.respondWorkflowTaskFailedWithSticky(response.getTaskToken(), service);
+            NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), workflowServiceStubs);
+    TestServiceUtils.respondWorkflowTaskFailedWithSticky(
+        response.getTaskToken(), workflowServiceStubs);
     response =
         TestServiceUtils.pollWorkflowTaskQueue(
-            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), workflowServiceStubs);
 
     // Assert Full history
     // Make sure first is workflow execution started
@@ -124,22 +144,30 @@ public class WorkflowCachingTest {
         WORKFLOW_TYPE,
         Duration.ofSeconds(10),
         Duration.ofSeconds(2),
-        service);
+        workflowServiceStubs);
     PollWorkflowTaskQueueResponse response =
         TestServiceUtils.pollWorkflowTaskQueue(
-            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), workflowServiceStubs);
 
     TestServiceUtils.respondWorkflowTaskCompletedWithSticky(
-        response.getTaskToken(), HOST_TASKQUEUE, Duration.ofSeconds(1), service);
-    TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
+        response.getTaskToken(), HOST_TASKQUEUE, Duration.ofSeconds(1), workflowServiceStubs);
+    TestServiceUtils.signalWorkflow(
+        response.getWorkflowExecution(), NAMESPACE, workflowServiceStubs);
     TestServiceUtils.pollWorkflowTaskQueue(
-        NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
-    testServer.getWorkflowService().unlockTimeSkipping(CALLER);
-    testServer.getWorkflowService().sleep(Duration.ofMillis(1100));
+        NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), workflowServiceStubs);
+    testServiceStubs
+        .blockingStub()
+        .unlockTimeSkipping(UnlockTimeSkippingRequest.newBuilder().setCallerId(CALLER).build());
+    testServiceStubs
+        .blockingStub()
+        .sleep(
+            SleepRequest.newBuilder()
+                .setDuration(ProtobufTimeUtils.toProtoDuration(Duration.ofMillis(1100)))
+                .build());
 
     response =
         TestServiceUtils.pollWorkflowTaskQueue(
-            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
+            NAMESPACE, createNormalTaskQueue(TASK_QUEUE), workflowServiceStubs);
 
     // Assert Full history
     // Make sure first is workflow execution started
