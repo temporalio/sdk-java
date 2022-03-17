@@ -244,7 +244,7 @@ public final class Workflow {
   }
 
   /**
-   * Creates untyped client stub that can be used to signal or cancel a child workflow.
+   * Creates untyped client stub that can be used to signal or cancel an existing workflow execution.
    *
    * @param execution execution of the workflow to communicate with.
    */
@@ -253,7 +253,7 @@ public final class Workflow {
   }
 
   /**
-   * Creates untyped client stub that can be used to signal or cancel a child workflow.
+   * Creates untyped client stub that can be used to signal or cancel an existing workflow execution.
    *
    * @param workflowId id of the workflow to communicate with.
    */
