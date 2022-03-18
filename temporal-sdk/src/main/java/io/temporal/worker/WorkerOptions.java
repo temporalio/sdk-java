@@ -285,7 +285,7 @@ public final class WorkerOptions {
           maxWorkerActivitiesPerSecond,
           maxConcurrentActivityExecutionSize,
           maxConcurrentWorkflowTaskExecutionSize,
-          maxConcurrentActivityExecutionSize,
+          maxConcurrentLocalActivityExecutionSize,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers,
           maxConcurrentActivityTaskPollers,
