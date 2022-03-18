@@ -149,7 +149,7 @@ public final class POJOActivityInterfaceMetadata {
 
     if (isCurrentAnActivityInterface) {
       result.stream()
-          .filter(POJOActivityInterfaceMetadata::isValidActivityMethod)
+          .filter(POJOActivityInterfaceMetadata::validateAndQualifiedForActivityMethod)
           .map(method -> new POJOActivityMethodMetadata(method, current, annotation))
           .forEach(
               methodMetadata ->
@@ -211,7 +211,31 @@ public final class POJOActivityInterfaceMetadata {
     }
   }
 
-  private static boolean isValidActivityMethod(Method method) {
-    return !method.isSynthetic() && !Modifier.isStatic(method.getModifiers());
+  /**
+   * @return true if the method should be used as an activity method, false if it shouldn't
+   * @throws IllegalArgumentException if the method is incorrectly configured (for example, a
+   *     combination of ActivityMethod and a static modifier)
+   */
+  private static boolean validateAndQualifiedForActivityMethod(Method method) {
+    if (Modifier.isStatic(method.getModifiers())) {
+      if (method.getAnnotation(ActivityMethod.class) != null) {
+        throw new IllegalArgumentException(
+            "Method with @ActivityMethod annotation can't be static: " + method);
+      } else {
+        return false;
+      }
+    }
+
+    if (method.getAnnotation(ActivityMethod.class) != null) {
+      // all methods explicitly marked with ActivityMethod qualify
+      return true;
+    }
+    if (method.isSynthetic()) {
+      // if method is synthetic and not explicitly marked as an ActivityMethod,
+      // it's not qualified as an activity method.
+      // https://github.com/temporalio/sdk-java/issues/977
+      return false;
+    }
+    return true;
   }
 }
