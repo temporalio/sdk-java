@@ -29,6 +29,7 @@ dependencies {
     testImplementation project(':temporal-testing')
     testImplementation group: 'junit', name: 'junit', version: '4.13.2'
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation 'pl.pragmatists:JUnitParams:1.1.1'
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
 
