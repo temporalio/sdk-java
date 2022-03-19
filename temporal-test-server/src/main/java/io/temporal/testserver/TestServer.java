@@ -48,7 +48,8 @@ public class TestServer {
         System.err.println("Unknown flag " + args[1]);
       }
     }
-    createPortBoundServer(port, !enableTimeSkipping);
+    PortBoundTestServer server = createPortBoundServer(port, !enableTimeSkipping);
+    Runtime.getRuntime().addShutdownHook(new Thread(server::close));
   }
 
   /**
@@ -161,7 +162,7 @@ public class TestServer {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
       if (outOfProcessServer != null) {
         log.info("Shutting down port-bind gRPC server");
         outOfProcessServer.shutdown();
