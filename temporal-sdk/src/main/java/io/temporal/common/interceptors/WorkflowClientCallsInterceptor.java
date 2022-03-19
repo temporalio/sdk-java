@@ -32,28 +32,35 @@ import java.util.concurrent.TimeoutException;
 @Experimental
 public interface WorkflowClientCallsInterceptor {
   /**
-   * @see #signalWithStart if you implement this method, {@link #signalWithStart} most likely needs
-   *     to be implemented too
+   * If you implement this method, {@link #signalWithStart} most likely needs * to be implemented
+   * too.
+   *
+   * @see #signalWithStart
    */
   WorkflowStartOutput start(WorkflowStartInput input);
 
   /**
-   * @see #signalWithStart if you implement this method, {@link #signalWithStart} most likely needs
-   *     to be implemented too
+   * If you implement this method, {@link #signalWithStart} most likely needs * to be implemented
+   * too.
+   *
+   * @see #signalWithStart
    */
   WorkflowSignalOutput signal(WorkflowSignalInput input);
 
   WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input);
 
   /**
-   * @see #getResultAsync if you implement this method, {@link #getResultAsync} most likely needs to
-   *     be implemented too
+   * If you implement this method, {@link #getResultAsync} most likely needs to * be implemented
+   * too.
+   *
+   * @see #getResultAsync
    */
   <R> GetResultOutput<R> getResult(GetResultInput<R> input) throws TimeoutException;
 
   /**
-   * @see #getResult if you implement this method, {@link #getResult} most likely needs to be
-   *     implemented too
+   * If you implement this method, {@link #getResult} most likely needs to be implemented too.
+   *
+   * @see #getResult
    */
   <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input);
 
