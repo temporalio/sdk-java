@@ -52,6 +52,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final @Nullable TestWorkflowService service;
   private final WorkerFactory workerFactory;
   private final @Nullable TimeLockingInterceptor timeLockingInterceptor;
+  private final IdempotentTimeLocker constructorTimeLock;
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions testEnvironmentOptions) {
     if (testEnvironmentOptions == null) {
@@ -78,6 +79,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
               stubsOptionsBuilder.setTarget(testEnvironmentOptions.getTarget()).build());
       this.testServiceStubs = null;
       this.timeLockingInterceptor = null;
+      this.constructorTimeLock = null;
     } else {
       this.inProcessServer =
           TestServer.createServer(true, testEnvironmentOptions.getInitialTimeMillis());
@@ -98,9 +100,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       if (!testEnvironmentOptions.isUseTimeskipping()) {
         // If the options ask for no timeskipping, lock one extra time. There will never be a
         // corresponding unlock, so timeskipping will always be off.
-        new IdempotentTimeLocker(this.testServiceStubs)
-            .lockTimeSkipping("TestEnvironmentOptions.isUseTimeskipping was false");
-        // TODO we should add an unlock once we support time skipping external native test service
+        this.constructorTimeLock = new IdempotentTimeLocker(this.testServiceStubs);
+        this.constructorTimeLock.lockTimeSkipping();
+      } else {
+        this.constructorTimeLock = null;
       }
     }
 
@@ -157,7 +160,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     if (testServiceStubs != null) {
       testServiceStubs
           .blockingStub()
-          .sleep(
+          .unlockTimeSkippingWhileSleep(
               SleepRequest.newBuilder()
                   .setDuration(ProtobufTimeUtils.toProtoDuration(duration))
                   .build());
@@ -221,8 +224,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
     workerFactory.shutdownNow();
     workerFactory.awaitTermination(10, TimeUnit.SECONDS);
+    if (constructorTimeLock != null) {
+      constructorTimeLock.unlockTimeSkipping();
+    }
     workflowServiceStubs.shutdownNow();
-    workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
     if (inProcessServer != null) {
       inProcessServer.close();
     }

@@ -19,7 +19,7 @@
 
 package io.temporal.internal.testservice;
 
-public class StateUtils {
+class StateUtils {
   /** @return true if the workflow was completed not by workflow task completion result */
   public static boolean isWorkflowExecutionForcefullyCompleted(StateMachines.State state) {
     switch (state) {

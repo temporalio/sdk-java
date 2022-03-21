@@ -38,14 +38,12 @@ import "dependencies/gogoproto/gogo.proto";
 // (-- Search Attribute --)
 
 message LockTimeSkippingRequest {
-    string caller_id = 1;
 }
 
 message LockTimeSkippingResponse {
 }
 
 message UnlockTimeSkippingRequest {
-    string caller_id = 1;
 }
 
 message UnlockTimeSkippingResponse {
@@ -56,6 +54,13 @@ message SleepRequest {
 }
 
 message SleepResponse {
+}
+
+message SkipRequest {
+    google.protobuf.Duration duration = 1 [(gogoproto.stdduration) = true];
+}
+
+message SkipResponse {
 }
 
 message GetCurrentTimeResponse {

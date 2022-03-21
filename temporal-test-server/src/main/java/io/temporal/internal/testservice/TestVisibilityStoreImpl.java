@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class TestVisibilityStoreImpl implements TestVisibilityStore {
+class TestVisibilityStoreImpl implements TestVisibilityStore {
 
   private static final String TEST_KEY_STRING = "CustomStringField";
   private static final String TEST_KEY_INTEGER = "CustomIntField";

@@ -34,18 +34,21 @@ import java.util.concurrent.ExecutionException;
  *
  * <p>Do not use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
  */
-public final class TestService extends TestServiceGrpc.TestServiceImplBase implements Closeable {
+final class TestService extends TestServiceGrpc.TestServiceImplBase implements Closeable {
 
   private final TestWorkflowStore workflowStore;
 
-  public TestService(TestWorkflowStore workflowStore) {
+  public TestService(TestWorkflowStore workflowStore, boolean lockTimeSkipping) {
     this.workflowStore = workflowStore;
+    if (lockTimeSkipping) {
+      workflowStore.getTimer().lockTimeSkipping("TestService constructor");
+    }
   }
 
   @Override
   public void lockTimeSkipping(
       LockTimeSkippingRequest request, StreamObserver<LockTimeSkippingResponse> responseObserver) {
-    lockTimeSkipping(request.getCallerId());
+    workflowStore.getTimer().lockTimeSkipping("External Caller");
     responseObserver.onNext(LockTimeSkippingResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
@@ -54,7 +57,7 @@ public final class TestService extends TestServiceGrpc.TestServiceImplBase imple
   public void unlockTimeSkipping(
       UnlockTimeSkippingRequest request,
       StreamObserver<UnlockTimeSkippingResponse> responseObserver) {
-    unlockTimeSkipping(request.getCallerId());
+    workflowStore.getTimer().unlockTimeSkipping("External Caller");
     responseObserver.onNext(UnlockTimeSkippingResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
@@ -67,6 +70,21 @@ public final class TestService extends TestServiceGrpc.TestServiceImplBase imple
   }
 
   @Override
+  public void skip(SkipRequest request, StreamObserver<SkipResponse> responseObserver) {
+    workflowStore.getTimer().skip(ProtobufTimeUtils.toJavaDuration(request.getDuration()));
+    responseObserver.onNext(SkipResponse.newBuilder().build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void unlockTimeSkippingWhileSleep(
+      SleepRequest request, StreamObserver<SleepResponse> responseObserver) {
+    unlockTimeSkippingWhileSleep(ProtobufTimeUtils.toJavaDuration(request.getDuration()));
+    responseObserver.onNext(SleepResponse.newBuilder().build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
   public void getCurrentTime(
       Empty request, StreamObserver<GetCurrentTimeResponse> responseObserver) {
     Timestamp timestamp = workflowStore.currentTime();
@@ -74,17 +92,17 @@ public final class TestService extends TestServiceGrpc.TestServiceImplBase imple
     responseObserver.onCompleted();
   }
 
-  /**
-   * Disables time skipping. To re-enable call {@link #unlockTimeSkipping(String)}. These calls are
-   * counted, so calling unlock does not guarantee that time is going to be skipped immediately as
-   * another lock can be holding it.
-   */
-  public void lockTimeSkipping(String caller) {
-    workflowStore.getTimer().lockTimeSkipping(caller);
-  }
-
-  public void unlockTimeSkipping(String caller) {
-    workflowStore.getTimer().unlockTimeSkipping(caller);
+  private void sleep(Duration duration) {
+    CompletableFuture<Void> result = new CompletableFuture<>();
+    workflowStore.getTimer().schedule(duration, () -> result.complete(null), "TestService sleep");
+    try {
+      result.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -94,18 +112,18 @@ public final class TestService extends TestServiceGrpc.TestServiceImplBase imple
    * Might not block at all due to time skipping. Or might block if the time skipping lock counter
    * was more than 1.
    */
-  public void sleep(Duration duration) {
+  private void unlockTimeSkippingWhileSleep(Duration duration) {
     CompletableFuture<Void> result = new CompletableFuture<>();
     workflowStore
         .getTimer()
         .schedule(
             duration,
             () -> {
-              workflowStore.getTimer().lockTimeSkipping("TestWorkflowService sleep");
+              workflowStore.getTimer().lockTimeSkipping("TestService unlockTimeSkippingWhileSleep");
               result.complete(null);
             },
-            "workflow sleep");
-    workflowStore.getTimer().unlockTimeSkipping("TestWorkflowService sleep");
+            "TestService unlockTimeSkippingWhileSleep");
+    workflowStore.getTimer().unlockTimeSkipping("TestService unlockTimeSkippingWhileSleep");
     try {
       result.get();
     } catch (InterruptedException e) {

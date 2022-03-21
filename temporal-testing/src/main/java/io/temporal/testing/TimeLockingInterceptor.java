@@ -97,21 +97,21 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
 
     @Override
     public <R> R getResult(Class<R> resultClass, Type resultType) {
-      locker.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+      locker.unlockTimeSkipping();
       try {
         return next.getResult(resultClass, resultType);
       } finally {
-        locker.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+        locker.lockTimeSkipping();
       }
     }
 
     @Override
     public <R> R getResult(Class<R> resultClass) {
-      locker.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+      locker.unlockTimeSkipping();
       try {
         return next.getResult(resultClass);
       } finally {
-        locker.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+        locker.lockTimeSkipping();
       }
     }
 
@@ -129,22 +129,22 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     @Override
     public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass, Type resultType)
         throws TimeoutException {
-      locker.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+      locker.unlockTimeSkipping();
       try {
         return next.getResult(timeout, unit, resultClass, resultType);
       } finally {
-        locker.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+        locker.lockTimeSkipping();
       }
     }
 
     @Override
     public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass)
         throws TimeoutException {
-      locker.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+      locker.unlockTimeSkipping();
       try {
         return next.getResult(timeout, unit, resultClass);
       } finally {
-        locker.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+        locker.lockTimeSkipping();
       }
     }
 
@@ -195,7 +195,7 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
         CompletableFuture<R> ignored =
             resultAsync.whenComplete(
                 (r, e) -> {
-                  locker.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture constructor");
+                  locker.lockTimeSkipping();
                   if (e == null) {
                     this.complete(r);
                   } else {
@@ -206,28 +206,28 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
 
       @Override
       public R get() throws InterruptedException, ExecutionException {
-        locker.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+        locker.unlockTimeSkipping();
         try {
           return super.get();
         } finally {
-          locker.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+          locker.lockTimeSkipping();
         }
       }
 
       @Override
       public R get(long timeout, TimeUnit unit)
           throws InterruptedException, ExecutionException, TimeoutException {
-        locker.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+        locker.unlockTimeSkipping();
         try {
           return super.get(timeout, unit);
         } finally {
-          locker.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+          locker.lockTimeSkipping();
         }
       }
 
       @Override
       public R join() {
-        locker.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture join");
+        locker.unlockTimeSkipping();
         return super.join();
       }
     }
