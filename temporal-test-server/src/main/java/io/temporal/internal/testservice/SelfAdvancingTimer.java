@@ -46,11 +46,20 @@ interface SelfAdvancingTimer {
 
   /**
    * Prohibit automatic time skipping until {@link #unlockTimeSkipping(String)} is called. Locks and
-   * unlocks are counted.
+   * unlocks are counted. So calling unlock does not guarantee that time is going to be skipped
+   * immediately as another lock can be holding it.
    */
   LockHandle lockTimeSkipping(String caller);
 
   void unlockTimeSkipping(String caller);
+
+  /**
+   * Adjust the current time of the timer forward by the {@code duration}. This method doesn't
+   * respect time skipping lock counter and state.
+   *
+   * @param duration the time period to adjust the server time
+   */
+  void skip(Duration duration);
 
   /**
    * Update lock count. The same as calling lockTimeSkipping count number of times for positive

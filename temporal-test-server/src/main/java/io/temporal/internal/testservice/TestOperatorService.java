@@ -28,7 +28,7 @@ import java.io.Closeable;
  *
  * <p>Do not use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
  */
-public final class TestOperatorService extends OperatorServiceGrpc.OperatorServiceImplBase
+final class TestOperatorService extends OperatorServiceGrpc.OperatorServiceImplBase
     implements Closeable {
 
   private final TestVisibilityStore visibilityStore;

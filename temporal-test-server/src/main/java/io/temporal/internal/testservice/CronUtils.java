@@ -33,7 +33,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-public class CronUtils {
+class CronUtils {
 
   static Cron parseCron(String schedule) {
     CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);

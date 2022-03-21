@@ -1075,7 +1075,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    * was more than 1.
    *
    * @deprecated use {@link io.temporal.serviceclient.TestServiceStubs} and {@link
-   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#sleep(SleepRequest)}
+   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#unlockTimeSkippingWhileSleep(SleepRequest)}
+   *     (SleepRequest)}
    */
   @Deprecated
   public void sleep(Duration duration) {

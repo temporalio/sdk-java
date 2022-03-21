@@ -157,10 +157,10 @@ public class WorkflowCachingTest {
         NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), workflowServiceStubs);
     testServiceStubs
         .blockingStub()
-        .unlockTimeSkipping(UnlockTimeSkippingRequest.newBuilder().setCallerId(CALLER).build());
+        .unlockTimeSkipping(UnlockTimeSkippingRequest.newBuilder().build());
     testServiceStubs
         .blockingStub()
-        .sleep(
+        .unlockTimeSkippingWhileSleep(
             SleepRequest.newBuilder()
                 .setDuration(ProtobufTimeUtils.toProtoDuration(Duration.ofMillis(1100)))
                 .build());

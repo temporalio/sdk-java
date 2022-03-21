@@ -37,7 +37,7 @@ class IdempotentTimeLocker {
     this.testServiceStubs = testServiceStubs;
   }
 
-  public void lockTimeSkipping(String caller) {
+  public void lockTimeSkipping() {
     if (count.incrementAndGet() == 1) {
       Context.ROOT.run(
           () -> {
@@ -47,12 +47,12 @@ class IdempotentTimeLocker {
             // 2. more importantly, don't override and hide any underlying exceptions
             testServiceStubs
                 .blockingStub()
-                .lockTimeSkipping(LockTimeSkippingRequest.newBuilder().setCallerId(caller).build());
+                .lockTimeSkipping(LockTimeSkippingRequest.newBuilder().build());
           });
     }
   }
 
-  public void unlockTimeSkipping(String caller) {
+  public void unlockTimeSkipping() {
     if (count.decrementAndGet() == 0) {
       Context.ROOT.run(
           () -> {
@@ -62,8 +62,7 @@ class IdempotentTimeLocker {
             // 2. more importantly, don't override and hide any underlying exceptions
             testServiceStubs
                 .blockingStub()
-                .unlockTimeSkipping(
-                    UnlockTimeSkippingRequest.newBuilder().setCallerId(caller).build());
+                .unlockTimeSkipping(UnlockTimeSkippingRequest.newBuilder().build());
           });
     }
   }

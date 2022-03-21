@@ -36,6 +36,8 @@ import "google/protobuf/empty.proto";
 
 // TestService API defines an interface supported only by the Temporal Test Server.
 // It provides functionality needed or supported for testing purposes only.
+//
+// This is an EXPERIMENTAL API.
 service TestService {
     // LockTimeSkipping increments Time Locking Counter by one.
     //
@@ -57,7 +59,17 @@ service TestService {
     rpc UnlockTimeSkipping (UnlockTimeSkippingRequest) returns (UnlockTimeSkippingResponse) {
     }
 
-    // Sleep decreases time locking counter by one and increases it back
+    // This call returns only when the Test Server Time advances by the specified duration.
+    // This is an EXPERIMENTAL API.
+    rpc Sleep (SleepRequest) returns (SleepResponse) {
+    }
+
+    // This call adjusts time by the specified duration irrespectively if the time is locked
+    // This is an EXPERIMENTAL API.
+    rpc Skip (SkipRequest) returns (SkipResponse) {
+    }
+
+    // UnlockTimeSkippingWhileSleep decreases time locking counter by one and increases it back
     // once the Test Server Time advances by the duration specified the the request.
     //
     // This call returns only when the Test Server Time advances by the specified duration.
@@ -66,7 +78,7 @@ service TestService {
     //   - more than 1 and no other unlocks are coming in, rpc call will block for the specified duration, time will not be fast forwarded.
     //   - 1, it will lead to fast forwarding of the time by the duration specified in the request and quick return of this rpc call.
     //   - 0 will lead to rpc call failure same way as an unbalanced UnlockTimeSkipping.
-    rpc Sleep (SleepRequest) returns (SleepResponse) {
+    rpc UnlockTimeSkippingWhileSleep (SleepRequest) returns (SleepResponse) {
     }
 
     // GetCurrentTime returns the current Temporal Test Server time

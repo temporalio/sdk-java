@@ -115,7 +115,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                   + peekedTask.isCanceled());
         }
         if (peekedTask != null
-            && (peekedTask.getExecutionTime() <= currentTime || peekedTask.isCanceled())) {
+            && (peekedTask.getExecutionTime() <= currentTimeMs || peekedTask.isCanceled())) {
           try {
             LockHandle lockHandle = lockTimeSkippingLocked("runnable " + peekedTask.getTaskInfo());
             TimerTask polledTask = tasks.poll();
@@ -147,14 +147,14 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
           continue;
         }
         long timeToAwait =
-            peekedTask == null ? Long.MAX_VALUE : peekedTask.getExecutionTime() - currentTime;
+            peekedTask == null ? Long.MAX_VALUE : peekedTask.getExecutionTime() - currentTimeMs;
 
         if (log.isTraceEnabled()) {
           log.trace("Waiting for {}", Duration.ofMillis(timeToAwait));
           for (TimerTask task : tasks) {
             log.trace(
                 "Outstanding task: +{} {} {}",
-                Duration.ofMillis(task.executionTime - currentTime),
+                Duration.ofMillis(task.executionTime - currentTimeMs),
                 task.taskInfo,
                 task.canceled);
           }
@@ -235,23 +235,25 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
       new ThreadPoolExecutor(
           5, 5, 1, TimeUnit.SECONDS, new LinkedBlockingDeque<>(), r -> new Thread(r, "Timer task"));
 
-  private long currentTime;
+  private long currentTimeMs;
   private int lockCount;
-  private long timeLastLocked = -1;
-  private long systemTimeLastLocked = -1;
+  // stores the last system clock time in ms used during time adjustment while time skipping is
+  // locked.
+  // if <> -1 - time is currently locked
+  private long systemTimeMsLastAdvancedWhileLocked = -1;
   private boolean emptyQueue = true;
-
-  @SuppressWarnings("JdkObsolete")
-  private final LinkedList<LockEvent> lockEvents = new LinkedList<>();
 
   private final PriorityQueue<TimerTask> tasks =
       new PriorityQueue<>(Comparator.comparing(TimerTask::getExecutionTime));
   private final Thread timerPump = new Thread(new TimerPump(), "SelfAdvancingTimer Pump");
   private LockHandle timeLockOnEmptyQueueHandle;
 
-  public SelfAdvancingTimerImpl(long initialTime, Clock systemClock) {
+  // outstanding (unpaired) lock / unlock events. Debugging purposes only.
+  private final LinkedList<LockEvent> lockEvents = new LinkedList<>();
+
+  public SelfAdvancingTimerImpl(long initialTimeMs, Clock systemClock) {
     this.systemClock = systemClock;
-    currentTime = initialTime == 0 ? systemClock.millis() : initialTime;
+    currentTimeMs = initialTimeMs == 0 ? systemClock.millis() : initialTimeMs;
     executor.setRejectedExecutionHandler(new CallerRunsPolicy());
     // Queue is initially empty. The code assumes that in this case skipping is already locked.
     timeLockOnEmptyQueueHandle = lockTimeSkipping("SelfAdvancingTimerImpl constructor empty-queue");
@@ -260,15 +262,17 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
   private void updateTimeLocked() {
     if (lockCount > 0) {
-      if (timeLastLocked < 0 || systemTimeLastLocked < 0) {
-        throw new IllegalStateException("Invalid timeLastLocked or systemTimeLastLocked");
+      if (systemTimeMsLastAdvancedWhileLocked < 0) {
+        throw new IllegalStateException("Invalid systemTimeLastLocked");
       }
-      currentTime = timeLastLocked + (systemClock.millis() - systemTimeLastLocked);
+      long systemTime = systemClock.millis();
+      currentTimeMs = currentTimeMs + (systemTime - systemTimeMsLastAdvancedWhileLocked);
+      systemTimeMsLastAdvancedWhileLocked = systemTime;
     } else {
       TimerTask task = tasks.peek();
-      if (task != null && !task.isCanceled() && task.getExecutionTime() > currentTime) {
-        currentTime = task.getExecutionTime();
-        log.trace("Jumping to the time of the next timer task: " + currentTime);
+      if (task != null && !task.isCanceled() && task.getExecutionTime() > currentTimeMs) {
+        currentTimeMs = task.getExecutionTime();
+        log.trace("Jumping to the time of the next timer task: " + currentTimeMs);
       }
     }
   }
@@ -278,7 +282,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     try {
       {
         updateTimeLocked();
-        return currentTime;
+        return currentTimeMs;
       }
     } finally {
       lock.unlock();
@@ -298,7 +302,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
       // get a last time in case the last TimePump update was relatively long time ago
       updateTimeLocked();
 
-      long executionTime = delay.toMillis() + currentTime;
+      long executionTime = delay.toMillis() + currentTimeMs;
       TimerTask timerTask = new TimerTask(executionTime, task, taskInfo);
       cancellationHandle = timerTask::cancel;
       tasks.add(timerTask);
@@ -338,8 +342,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
   private LockHandle lockTimeSkippingLocked(String caller) {
     if (lockCount++ == 0) {
-      timeLastLocked = currentTime;
-      systemTimeLastLocked = systemClock.millis();
+      systemTimeMsLastAdvancedWhileLocked = systemClock.millis();
     }
     LockEvent event = new LockEvent(caller, LockEventType.LOCK);
     lockEvents.add(event);
@@ -351,6 +354,17 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     lock.lock();
     try {
       unlockTimeSkippingLocked(caller);
+      condition.signal();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public void skip(Duration duration) {
+    lock.lock();
+    try {
+      currentTimeMs += duration.toMillis();
       condition.signal();
     } finally {
       lock.unlock();
@@ -420,8 +434,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     }
     lockCount--;
     if (lockCount == 0) {
-      timeLastLocked = -1;
-      systemTimeLastLocked = -1;
+      systemTimeMsLastAdvancedWhileLocked = -1;
     }
   }
 
