@@ -101,6 +101,15 @@ public class DescribeTest {
     Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
   }
 
+  // The elasticsearch that docker-compose provisions only has a few fields defined.
+  // We need to use them here in order for this test to work against docker-compose.
+  // Sadly, they don't fit our hitchhiker's guide narrative.
+  private static class SearchAttributeFields {
+    public static final String QUESTION = "CustomStringField";
+    public static final String ASKER = "CustomTextField";
+    public static final String ANSWER = "CustomKeywordField";
+  }
+
   private WorkflowOptions options() {
     // The task queue isn't known until the test is running, so we can't just declare a constant
     // WorkflowOptions
@@ -110,6 +119,12 @@ public class DescribeTest {
         .setWorkflowRunTimeout(Duration.ofMinutes(2))
         .setWorkflowTaskTimeout(Duration.ofMinutes(1))
         .setMemo(ImmutableMap.of("memo", "random"))
+        .setSearchAttributes(
+            ImmutableMap.of(
+                SearchAttributeFields.QUESTION,
+                "How many roads must a man walk down?",
+                SearchAttributeFields.ASKER,
+                "Mice"))
         .build();
   }
 
@@ -194,7 +209,15 @@ public class DescribeTest {
         .assertStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED)
         .assertNoParent()
         .assertPendingActivityCount(0)
-        .assertPendingChildrenCount(0);
+        .assertPendingChildrenCount(0)
+        .assertSearchAttributes(
+            ImmutableMap.of(
+                SearchAttributeFields.QUESTION,
+                "What do you get when you multiply six by nine?",
+                SearchAttributeFields.ASKER,
+                "Mice",
+                SearchAttributeFields.ANSWER,
+                "42"));
   }
 
   @Test
@@ -463,6 +486,15 @@ public class DescribeTest {
     @Override
     public void run(
         String myToken, String childToken, boolean heartbeat, int failAttemptsEarlierThan) {
+      Workflow.upsertSearchAttributes(
+          // vs. the attributes present at start, this will add one, update one, and leave one
+          // unchanged
+          ImmutableMap.of(
+              SearchAttributeFields.ANSWER,
+              "42",
+              SearchAttributeFields.QUESTION,
+              "What do you get when you multiply six by nine?"));
+
       if (childToken != null) {
         childStub.run(childToken, null, heartbeat, failAttemptsEarlierThan);
       } else {

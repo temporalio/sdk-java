@@ -50,6 +50,7 @@ import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
@@ -2117,7 +2118,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .setType(this.getStartRequest().getWorkflowType())
         .setMemo(this.startRequest.getMemo())
         // No setAutoResetPoints - the test environment doesn't support that feature
-        .setSearchAttributes(this.startRequest.getSearchAttributes())
+        .setSearchAttributes(computeSearchAttributes(fullHistory))
         .setStatus(this.getWorkflowExecutionStatus())
         .setHistoryLength(fullHistory.size());
 
@@ -2147,6 +2148,24 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .addAllPendingActivities(pendingActivities)
         .addAllPendingChildren(pendingChildren)
         .build();
+  }
+
+  private SearchAttributes computeSearchAttributes(List<HistoryEvent> fullHistory) {
+    SearchAttributes.Builder builder = this.startRequest.getSearchAttributes().toBuilder();
+
+    // We need to go through each history entry and fold UpsertSearchAttributesEvents into the
+    // builder
+    for (HistoryEvent event : fullHistory) {
+      if (event.hasUpsertWorkflowSearchAttributesEventAttributes()) {
+        builder.putAllIndexedFields(
+            event
+                .getUpsertWorkflowSearchAttributesEventAttributes()
+                .getSearchAttributes()
+                .getIndexedFieldsMap());
+      }
+    }
+
+    return builder.build();
   }
 
   private static PendingChildExecutionInfo constructPendingChildExecutionInfo(
