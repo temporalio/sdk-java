@@ -19,11 +19,13 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.temporal.workflow.Functions;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -146,18 +148,22 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
           }
           continue;
         }
-        long timeToAwait =
-            peekedTask == null ? Long.MAX_VALUE : peekedTask.getExecutionTime() - currentTimeMs;
 
-        if (log.isTraceEnabled()) {
-          log.trace("Waiting for {}", Duration.ofMillis(timeToAwait));
-          for (TimerTask task : tasks) {
-            log.trace(
-                "Outstanding task: +{} {} {}",
-                Duration.ofMillis(task.executionTime - currentTimeMs),
-                task.taskInfo,
-                task.canceled);
+        final long timeToAwait;
+        if (peekedTask != null) {
+          timeToAwait = peekedTask.getExecutionTime() - currentTimeMs;
+          if (log.isTraceEnabled()) {
+            log.trace("Waiting for {}", Duration.ofMillis(timeToAwait));
+            for (TimerTask task : tasks) {
+              log.trace(
+                  "Outstanding task: +{} {} {}",
+                  Duration.ofMillis(task.executionTime - currentTimeMs),
+                  task.taskInfo,
+                  task.canceled);
+            }
           }
+        } else {
+          timeToAwait = Long.MAX_VALUE;
         }
 
         try {
@@ -254,6 +260,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   public SelfAdvancingTimerImpl(long initialTimeMs, Clock systemClock) {
     this.systemClock = systemClock;
     currentTimeMs = initialTimeMs == 0 ? systemClock.millis() : initialTimeMs;
+    log.trace("Current time on start: {}", currentTimeMs);
     executor.setRejectedExecutionHandler(new CallerRunsPolicy());
     // Queue is initially empty. The code assumes that in this case skipping is already locked.
     timeLockOnEmptyQueueHandle = lockTimeSkipping("SelfAdvancingTimerImpl constructor empty-queue");
@@ -272,7 +279,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
       TimerTask task = tasks.peek();
       if (task != null && !task.isCanceled() && task.getExecutionTime() > currentTimeMs) {
         currentTimeMs = task.getExecutionTime();
-        log.trace("Jumping to the time of the next timer task: " + currentTimeMs);
+        log.trace("Jumping to the time of the next timer task: {}", currentTimeMs);
       }
     }
   }
@@ -296,32 +303,47 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
   @Override
   public Functions.Proc schedule(Duration delay, Runnable task, String taskInfo) {
-    Functions.Proc cancellationHandle;
     lock.lock();
     try {
       // get a last time in case the last TimePump update was relatively long time ago
       updateTimeLocked();
-
       long executionTime = delay.toMillis() + currentTimeMs;
-      TimerTask timerTask = new TimerTask(executionTime, task, taskInfo);
-      cancellationHandle = timerTask::cancel;
-      tasks.add(timerTask);
-      // Locked when queue became empty
-      if (tasks.size() == 1 && emptyQueue) {
-        if (timeLockOnEmptyQueueHandle == null) {
-          throw new IllegalStateException(
-              "SelfAdvancingTimerImpl should take a lock and get a handle when queue is empty, but handle is null");
-        }
-        timeLockOnEmptyQueueHandle.unlock(
-            "SelfAdvancingTimerImpl schedule non-empty-queue, task: " + taskInfo);
-        timeLockOnEmptyQueueHandle = null;
-        emptyQueue = false;
-      }
-      condition.signal();
-      return cancellationHandle;
+      return scheduleAtLocked(executionTime, task, taskInfo);
     } finally {
       lock.unlock();
     }
+  }
+
+  @Override
+  public Functions.Proc scheduleAt(Instant timestamp, Runnable task, String taskInfo) {
+    lock.lock();
+    try {
+      // get a last time in case the last TimePump update was relatively long time ago
+      updateTimeLocked();
+      return scheduleAtLocked(timestamp.toEpochMilli(), task, taskInfo);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  private Functions.Proc scheduleAtLocked(long timestampMs, Runnable task, String taskInfo) {
+    TimerTask timerTask = new TimerTask(timestampMs, task, taskInfo);
+    Functions.Proc cancellationHandle = timerTask::cancel;
+    tasks.add(timerTask);
+    log.trace("Scheduling task <{}> for timestamp {}", taskInfo, timestampMs);
+    // Locked when queue became empty
+    if (tasks.size() == 1 && emptyQueue) {
+      if (timeLockOnEmptyQueueHandle == null) {
+        throw new IllegalStateException(
+            "SelfAdvancingTimerImpl should take a lock and get a handle when queue is empty, but handle is null");
+      }
+      timeLockOnEmptyQueueHandle.unlock(
+          "SelfAdvancingTimerImpl schedule non-empty-queue, task: " + taskInfo);
+      timeLockOnEmptyQueueHandle = null;
+      emptyQueue = false;
+    }
+    condition.signal();
+    return cancellationHandle;
   }
 
   /** @return Supplier that returns time in milliseconds when called. */
@@ -361,10 +383,31 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   }
 
   @Override
-  public void skip(Duration duration) {
+  public Instant skip(Duration duration) {
     lock.lock();
     try {
       currentTimeMs += duration.toMillis();
+      log.trace("Skipping time by {} to: {}", duration, currentTimeMs);
+      condition.signal();
+      return Instant.ofEpochMilli(currentTimeMs);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public void skipTo(Instant timestamp) {
+    lock.lock();
+    try {
+      if (timestamp.toEpochMilli() > currentTimeMs) {
+        log.trace("Skipping time from {} to: {}", currentTimeMs, timestamp.toEpochMilli());
+        currentTimeMs = timestamp.toEpochMilli();
+      } else {
+        log.trace(
+            "Time Skipping into past with timestamp {} was ignored because the current timestamp is {}",
+            timestamp.toEpochMilli(),
+            currentTimeMs);
+      }
       condition.signal();
     } finally {
       lock.unlock();
@@ -442,5 +485,22 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     StringBuilder result = new StringBuilder();
     getDiagnostics(result);
     return result.toString();
+  }
+
+  /**
+   * TimerPump is very conservative with resources usage and if time is locked, it calculates the
+   * time needed for the first scheduled task and waits for this calculated period to do the next
+   * check. If the unit test is using mocked system clock that behaves differently from a wall
+   * clock, this wait doesn't work and the test needs to trigger timer pump explicitly to forcefully
+   * update the time and internal states.
+   */
+  @VisibleForTesting
+  void pump() {
+    lock.lock();
+    try {
+      condition.signal();
+    } finally {
+      lock.unlock();
+    }
   }
 }

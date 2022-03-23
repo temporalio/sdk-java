@@ -35,6 +35,7 @@ public class TestServer {
       System.err.println("Usage: <command> <port> <flags>");
       System.err.println("Flags:");
       System.err.println("--enable-time-skipping - to enable time skipping on start");
+      return;
     }
     int port = Integer.parseInt(args[0]);
     boolean enableTimeSkipping = false;
@@ -46,6 +47,7 @@ public class TestServer {
         enableTimeSkipping = true;
       } else {
         System.err.println("Unknown flag " + args[1]);
+        return;
       }
     }
     PortBoundTestServer server = createPortBoundServer(port, !enableTimeSkipping);
@@ -143,7 +145,7 @@ public class TestServer {
       if (inProcessServer != null) {
         log.info("Shutting down in-process gRPC server");
         inProcessServer.shutdown();
-        inProcessServer.awaitTermination(1, TimeUnit.SECONDS);
+        inProcessServer.awaitTermination(5, TimeUnit.SECONDS);
       }
 
       log.info("Shutting down gRPC Services");
@@ -163,17 +165,20 @@ public class TestServer {
 
     @Override
     public void close() {
-      if (outOfProcessServer != null) {
-        log.info("Shutting down port-bind gRPC server");
-        outOfProcessServer.shutdown();
-      }
-
-      log.info("Shutting down gRPC Services");
-      testServicesStarter.close();
-
       try {
         if (outOfProcessServer != null) {
-          outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
+          log.info("Shutting down port-bind gRPC server");
+          outOfProcessServer.shutdown();
+          if (!outOfProcessServer.awaitTermination(5, TimeUnit.SECONDS)) {
+            log.warn("Fail to shutdown the server in time (5s)");
+          }
+        }
+
+        log.info("Shutting down gRPC Services");
+        testServicesStarter.close();
+
+        if (outOfProcessServer != null) {
+          outOfProcessServer.shutdownNow();
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
