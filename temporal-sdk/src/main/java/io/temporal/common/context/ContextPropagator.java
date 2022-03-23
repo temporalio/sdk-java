@@ -23,8 +23,11 @@ import io.temporal.api.common.v1.Payload;
 import java.util.Map;
 
 /**
- * Context Propagators are used to propagate information from workflow to activity, workflow to
- * child workflow, and workflow to child thread (using {@link io.temporal.workflow.Async}).
+ * Context Propagators are used to propagate information from the workflow client to workflow
+ * execution, workflow to activity, workflow to child workflow, and workflow to child thread created
+ * using {@link io.temporal.workflow.Async}. <br>
+ * The propagation works from top to bottom, lower level contexts are not propagated back to the
+ * top.
  *
  * <p>A sample <code>ContextPropagator</code> that copies all {@link org.slf4j.MDC} entries starting
  * with a given prefix along the code path looks like this:

@@ -220,9 +220,13 @@ public final class WorkflowOptions {
     }
 
     /**
-     * @param contextPropagators specifies the list of context propagators to use during this
-     *     workflow. This list overrides the list specified on {@link
-     *     WorkflowClientOptions#getContextPropagators()}, {@code null} means no overriding
+     * This list of context propagators overrides the list specified on {@link
+     * WorkflowClientOptions#getContextPropagators()}. <br>
+     * This method is uncommon, the majority of users should just set {@link
+     * WorkflowClientOptions#getContextPropagators()}
+     *
+     * @param contextPropagators specifies the list of overriding context propagators, {@code null}
+     *     means no overriding.
      */
     public Builder setContextPropagators(@Nullable List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;

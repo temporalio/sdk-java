@@ -20,6 +20,7 @@
 package io.temporal.activity;
 
 import com.google.common.base.Objects;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
@@ -154,7 +155,8 @@ public final class ActivityOptions {
 
     /**
      * Note: <br>
-     * This method has an extremely limited usage.
+     * This method has extremely limited usage. The majority of users should just set {@link
+     * WorkflowClientOptions#getContextPropagators()}
      *
      * <p>Both "client" (workflow worker) and "server" (activity worker) sides of context
      * propagation from a workflow to an activity exist in a worker process (potentially the same
