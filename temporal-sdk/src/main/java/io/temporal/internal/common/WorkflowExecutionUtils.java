@@ -43,6 +43,7 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
 import java.util.List;
@@ -79,29 +80,35 @@ public class WorkflowExecutionUtils {
         }
         return Optional.empty();
       case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
-        String message = null;
-        WorkflowExecutionCanceledEventAttributes attributes =
+        WorkflowExecutionCanceledEventAttributes canceled =
             closeEvent.getWorkflowExecutionCanceledEventAttributes();
         Optional<Payloads> details =
-            attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
+            canceled.hasDetails() ? Optional.of(canceled.getDetails()) : Optional.empty();
         throw new WorkflowFailedException(
             workflowExecution,
             workflowType.orElse(null),
-            0,
+            closeEvent.getEventType(),
+            -1,
             RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
             new CanceledFailure("Workflow canceled", new EncodedValues(details, converter), null));
       case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
-        throw new WorkflowExecutionFailedException(
-            failed.getFailure(), failed.getWorkflowTaskCompletedEventId(), failed.getRetryState());
+        throw new WorkflowFailedException(
+            workflowExecution,
+            workflowType.orElse(null),
+            closeEvent.getEventType(),
+            failed.getWorkflowTaskCompletedEventId(),
+            failed.getRetryState(),
+            FailureConverter.failureToException(failed.getFailure(), converter));
       case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
         WorkflowExecutionTerminatedEventAttributes terminated =
             closeEvent.getWorkflowExecutionTerminatedEventAttributes();
         throw new WorkflowFailedException(
             workflowExecution,
             workflowType.orElse(null),
-            0,
+            closeEvent.getEventType(),
+            -1,
             RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
             new TerminatedFailure(terminated.getReason(), null));
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
@@ -110,7 +117,8 @@ public class WorkflowExecutionUtils {
         throw new WorkflowFailedException(
             workflowExecution,
             workflowType.orElse(null),
-            0,
+            closeEvent.getEventType(),
+            -1,
             timedOut.getRetryState(),
             new TimeoutFailure(null, null, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE));
       default:

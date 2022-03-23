@@ -28,7 +28,6 @@ import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -38,8 +37,6 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.FailureConverter;
-import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
@@ -282,10 +279,6 @@ class WorkflowStubImpl implements WorkflowStub {
               if (e instanceof CompletionException) {
                 e = e.getCause();
               }
-              if (e instanceof WorkflowExecutionFailedException) {
-                return mapToWorkflowFailureException(
-                    (WorkflowExecutionFailedException) e, resultClass);
-              }
               if (e != null) {
                 throw CheckedExceptionWrapper.wrap(e);
               }
@@ -300,18 +293,7 @@ class WorkflowStubImpl implements WorkflowStub {
       throw (Error) f;
     }
     failure = (Exception) f;
-    if (failure instanceof WorkflowExecutionFailedException) {
-      WorkflowExecutionFailedException executionFailed = (WorkflowExecutionFailedException) failure;
-      Throwable cause =
-          FailureConverter.failureToException(
-              executionFailed.getFailure(), clientOptions.getDataConverter());
-      throw new WorkflowFailedException(
-          execution.get(),
-          workflowType.orElse(null),
-          executionFailed.getWorkflowTaskCompletedEventId(),
-          executionFailed.getRetryState(),
-          cause);
-    } else if (failure instanceof StatusRuntimeException) {
+    if (failure instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) failure;
       if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));

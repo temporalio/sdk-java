@@ -31,9 +31,9 @@ import io.temporal.api.enums.v1.*;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
@@ -55,7 +55,7 @@ final class WorkflowClientLongPollHelper {
    * @param metricsScope metrics with NAMESPACE tag populated
    * @throws TimeoutException if workflow didn't complete within specified timeout
    * @throws CanceledFailure if workflow was canceled
-   * @throws WorkflowExecutionFailedException if workflow execution failed
+   * @throws WorkflowFailedException if workflow execution failed
    */
   static Optional<Payloads> getWorkflowExecutionResult(
       WorkflowServiceStubs service,
