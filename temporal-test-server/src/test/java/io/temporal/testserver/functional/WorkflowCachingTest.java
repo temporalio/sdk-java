@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.worker;
+package io.temporal.testserver.functional;
 
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
@@ -50,7 +50,6 @@ public class WorkflowCachingTest {
   private final String TASK_QUEUE = "taskQueue";
   private final String HOST_TASKQUEUE = "stickyTaskQueue";
   private final String WORKFLOW_TYPE = "wfType";
-  private final String CALLER = "WorkflowStickynessTest";
 
   private TestServer.InProcessTestServer testServer;
   private WorkflowServiceStubs workflowServiceStubs;

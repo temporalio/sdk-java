@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,15 +40,14 @@ import org.junit.Test;
 public class SelfAdvancingTimerImplTest {
 
   private static final int INITIAL_TIME = 1;
-  private static long INITIAL_SYSTEM_TIME;
+  private static final long INITIAL_SYSTEM_TIME = System.currentTimeMillis();
 
   private Clock mockedSystemClock;
-  private SelfAdvancingTimer fixedTimer;
+  private SelfAdvancingTimerImpl fixedTimer;
   private LongSupplier timerBasedClock;
 
   @Before
   public void setUp() throws Exception {
-    INITIAL_SYSTEM_TIME = System.currentTimeMillis();
     this.mockedSystemClock = mock(Clock.class);
     when(mockedSystemClock.millis()).thenReturn(INITIAL_SYSTEM_TIME);
     this.fixedTimer = new SelfAdvancingTimerImpl(INITIAL_TIME, mockedSystemClock);
@@ -93,5 +93,69 @@ public class SelfAdvancingTimerImplTest {
     for (int i = 0; i < captured.size(); i++) {
       assertEquals(expected.get(i), captured.get(i));
     }
+  }
+
+  @Test
+  public void testSkipTo() throws InterruptedException {
+    List<Long> captured = Collections.synchronizedList(new ArrayList<>());
+    fixedTimer.lockTimeSkipping("unit test");
+
+    fixedTimer.schedule(Duration.ofSeconds(100), () -> captured.add(timerBasedClock.getAsLong()));
+    fixedTimer.schedule(Duration.ofSeconds(200), () -> captured.add(timerBasedClock.getAsLong()));
+
+    fixedTimer.skipTo(Instant.ofEpochMilli(INITIAL_TIME + Duration.ofSeconds(99).toMillis()));
+    Thread.sleep(100);
+    assertEquals(0, captured.size());
+
+    fixedTimer.skipTo(Instant.ofEpochMilli(INITIAL_TIME + Duration.ofSeconds(100).toMillis()));
+    Thread.sleep(100);
+    assertEquals("Jump by 100s should trigger the first task", 1, captured.size());
+
+    captured.clear();
+
+    fixedTimer.skipTo(Instant.ofEpochMilli(INITIAL_TIME + Duration.ofSeconds(195).toMillis()));
+    Thread.sleep(100);
+    assertEquals(0, captured.size());
+
+    when(mockedSystemClock.millis())
+        .thenReturn(INITIAL_SYSTEM_TIME + Duration.ofSeconds(5).toMillis());
+    fixedTimer.pump();
+    Thread.sleep(100);
+    assertEquals(
+        "Jump by 195s and advancement of base clock by 5s should trigger the second task",
+        1,
+        captured.size());
+  }
+
+  @Test
+  public void testSkip() throws InterruptedException {
+    List<Long> captured = Collections.synchronizedList(new ArrayList<>());
+    fixedTimer.lockTimeSkipping("unit test");
+
+    fixedTimer.schedule(Duration.ofSeconds(100), () -> captured.add(timerBasedClock.getAsLong()));
+    fixedTimer.schedule(Duration.ofSeconds(200), () -> captured.add(timerBasedClock.getAsLong()));
+
+    fixedTimer.skip(Duration.ofSeconds(99));
+    Thread.sleep(100);
+    assertEquals(0, captured.size());
+
+    fixedTimer.skip(Duration.ofSeconds(1));
+    Thread.sleep(100);
+    assertEquals("Jump by 100s should trigger the first task", 1, captured.size());
+
+    captured.clear();
+
+    fixedTimer.skip((Duration.ofSeconds(95)));
+    Thread.sleep(100);
+    assertEquals(0, captured.size());
+
+    when(mockedSystemClock.millis())
+        .thenReturn(INITIAL_SYSTEM_TIME + Duration.ofSeconds(5).toMillis());
+    fixedTimer.pump();
+    Thread.sleep(100);
+    assertEquals(
+        "Jump by 195s and advancement of base clock by 5s should trigger the second task",
+        1,
+        captured.size());
   }
 }

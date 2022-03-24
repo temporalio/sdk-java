@@ -21,6 +21,7 @@ package io.temporal.internal.testservice;
 
 import io.temporal.workflow.Functions;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.function.LongSupplier;
 import javax.annotation.Nullable;
@@ -41,6 +42,8 @@ interface SelfAdvancingTimer {
 
   Functions.Proc schedule(Duration delay, Runnable task, String taskInfo);
 
+  Functions.Proc scheduleAt(Instant timestamp, Runnable task, String taskInfo);
+
   /** Supplier that returns current time of the timer when called. */
   LongSupplier getClock();
 
@@ -54,12 +57,28 @@ interface SelfAdvancingTimer {
   void unlockTimeSkipping(String caller);
 
   /**
-   * Adjust the current time of the timer forward by the {@code duration}. This method doesn't
-   * respect time skipping lock counter and state.
+   * Adjust the current time of the timer forward by {@code duration}.
    *
-   * @param duration the time period to adjust the server time
+   * <p>This method doesn't respect time skipping lock counter and state.
+   *
+   * <p>This method returns immediately not waiting for tasks triggering.
+   *
+   * @param duration the time period to adjust the timer
+   * @returns new timer timestamp after skipping
    */
-  void skip(Duration duration);
+  Instant skip(Duration duration);
+
+  /**
+   * Set the current time of the timer to {@code timestamp} if {@code timestamp} is beyond the
+   * current timer time, otherwise does nothing
+   *
+   * <p>This method doesn't respect time skipping lock counter and state.
+   *
+   * <p>This method returns immediately not waiting for tasks triggering.
+   *
+   * @param timestamp the timestamp to set the timer to
+   */
+  void skipTo(Instant timestamp);
 
   /**
    * Update lock count. The same as calling lockTimeSkipping count number of times for positive

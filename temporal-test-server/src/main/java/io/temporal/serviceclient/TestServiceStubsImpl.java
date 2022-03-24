@@ -20,7 +20,6 @@
 package io.temporal.serviceclient;
 
 import io.grpc.ClientInterceptor;
-import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.api.testservice.v1.TestServiceGrpc;
@@ -73,7 +72,7 @@ public class TestServiceStubsImpl implements TestServiceStubs {
 
   @Override
   public TestServiceGrpc.TestServiceFutureStub futureStub() {
-    return futureStub.withDeadline(Deadline.after(10, TimeUnit.SECONDS));
+    return futureStub;
   }
 
   @Override

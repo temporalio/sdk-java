@@ -19,8 +19,9 @@
 
 package io.temporal.workflow.determinism;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.*;
 
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
@@ -32,7 +33,6 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
 import java.time.Duration;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -66,10 +66,8 @@ public class NonDeterministicWorkflowPolicyFailWorkflowTest {
     WorkflowFailedException e =
         assertThrows(
             WorkflowFailedException.class,
-            () -> {
-              workflowStub.execute(testWorkflowRule.getTaskQueue());
-            });
-    Assert.assertTrue(e.getCause() instanceof ApplicationFailure);
+            () -> workflowStub.execute(testWorkflowRule.getTaskQueue()));
+    assertThat(e.getCause(), is(instanceOf(ApplicationFailure.class)));
     assertEquals(
         NonDeterministicException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
   }

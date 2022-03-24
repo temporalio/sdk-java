@@ -26,8 +26,8 @@ dependencies {
     api "org.slf4j:slf4j-api:$slf4jVersion"
 
     testImplementation project(':temporal-testing')
+    testImplementation "junit:junit:${junitVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
-    testImplementation "junit:junit:4.13.2"
 
     testRuntimeOnly "ch.qos.logback:logback-classic:${logbackVersion}"
 }

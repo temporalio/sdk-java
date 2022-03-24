@@ -22,7 +22,10 @@ dependencies {
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
 
     testImplementation project(':temporal-testing')
-    testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
 
 application {

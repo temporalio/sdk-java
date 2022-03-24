@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow.shared;
+package io.temporal.testserver.functional;
 
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
@@ -38,7 +38,7 @@ import org.junit.Assert;
 /*
  * Fluent assertions (ala truth or assert-j) for DescribeWorkflowResults.
  */
-public class DescribeWorkflowAsserter {
+final class DescribeWorkflowAsserter {
 
   private final DescribeWorkflowExecutionResponse actual;
 

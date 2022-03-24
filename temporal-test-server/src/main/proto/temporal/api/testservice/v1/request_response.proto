@@ -35,8 +35,6 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "dependencies/gogoproto/gogo.proto";
 
-// (-- Search Attribute --)
-
 message LockTimeSkippingRequest {
 }
 
@@ -49,6 +47,10 @@ message UnlockTimeSkippingRequest {
 message UnlockTimeSkippingResponse {
 }
 
+message SleepUntilRequest {
+    google.protobuf.Timestamp timestamp = 1 [(gogoproto.stdtime) = true];
+}
+
 message SleepRequest {
     google.protobuf.Duration duration = 1 [(gogoproto.stdduration) = true];
 }
@@ -56,11 +58,19 @@ message SleepRequest {
 message SleepResponse {
 }
 
+message SkipToRequest {
+    google.protobuf.Timestamp timestamp = 1 [(gogoproto.stdtime) = true];
+}
+
+message SkipToResponse {
+}
+
 message SkipRequest {
     google.protobuf.Duration duration = 1 [(gogoproto.stdduration) = true];
 }
 
 message SkipResponse {
+    google.protobuf.Timestamp new_timestamp = 1 [(gogoproto.stdtime) = true];
 }
 
 message GetCurrentTimeResponse {

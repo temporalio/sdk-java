@@ -26,6 +26,7 @@ import io.temporal.api.testservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.io.Closeable;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -64,15 +65,64 @@ final class TestService extends TestServiceGrpc.TestServiceImplBase implements C
 
   @Override
   public void sleep(SleepRequest request, StreamObserver<SleepResponse> responseObserver) {
-    sleep(ProtobufTimeUtils.toJavaDuration(request.getDuration()));
+    CompletableFuture<Void> result = new CompletableFuture<>();
+    workflowStore
+        .getTimer()
+        .schedule(
+            ProtobufTimeUtils.toJavaDuration(request.getDuration()),
+            () -> result.complete(null),
+            "TestService sleep");
+    try {
+      result.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
+
+    responseObserver.onNext(SleepResponse.newBuilder().build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void sleepUntil(
+      SleepUntilRequest request, StreamObserver<SleepResponse> responseObserver) {
+    CompletableFuture<Void> result = new CompletableFuture<>();
+    workflowStore
+        .getTimer()
+        .scheduleAt(
+            ProtobufTimeUtils.toJavaInstant(request.getTimestamp()),
+            () -> result.complete(null),
+            "TestService sleepUntil");
+    try {
+      result.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
+
     responseObserver.onNext(SleepResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
 
   @Override
   public void skip(SkipRequest request, StreamObserver<SkipResponse> responseObserver) {
-    workflowStore.getTimer().skip(ProtobufTimeUtils.toJavaDuration(request.getDuration()));
-    responseObserver.onNext(SkipResponse.newBuilder().build());
+    Instant newTimestamp =
+        workflowStore.getTimer().skip(ProtobufTimeUtils.toJavaDuration(request.getDuration()));
+    responseObserver.onNext(
+        SkipResponse.newBuilder()
+            .setNewTimestamp(ProtobufTimeUtils.toProtoTimestamp(newTimestamp))
+            .build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void skipTo(SkipToRequest request, StreamObserver<SkipToResponse> responseObserver) {
+    workflowStore.getTimer().skipTo(ProtobufTimeUtils.toJavaInstant(request.getTimestamp()));
+    responseObserver.onNext(SkipToResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
 
@@ -90,19 +140,6 @@ final class TestService extends TestServiceGrpc.TestServiceImplBase implements C
     Timestamp timestamp = workflowStore.currentTime();
     responseObserver.onNext(GetCurrentTimeResponse.newBuilder().setTime(timestamp).build());
     responseObserver.onCompleted();
-  }
-
-  private void sleep(Duration duration) {
-    CompletableFuture<Void> result = new CompletableFuture<>();
-    workflowStore.getTimer().schedule(duration, () -> result.complete(null), "TestService sleep");
-    try {
-      result.get();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   /**

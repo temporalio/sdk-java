@@ -63,8 +63,7 @@ public class InProcessGRPCServer {
   public InProcessGRPCServer(Collection<BindableService> services, boolean createChannel) {
     String serverName = InProcessServerBuilder.generateName();
     try {
-      InProcessServerBuilder inProcessServerBuilder =
-          InProcessServerBuilder.forName(serverName).directExecutor();
+      InProcessServerBuilder inProcessServerBuilder = InProcessServerBuilder.forName(serverName);
       GRPCServerHelper.registerServicesAndHealthChecks(services, inProcessServerBuilder);
       server = inProcessServerBuilder.build().start();
     } catch (IOException unexpected) {

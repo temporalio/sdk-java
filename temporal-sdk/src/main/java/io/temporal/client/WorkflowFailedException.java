@@ -101,7 +101,7 @@ public final class WorkflowFailedException extends WorkflowException {
         + (workflowType == null ? "'" : "', workflowType='" + workflowType + "'")
         + "} "
         + getAction(closeEventType)
-        + " with "
+        + ". Metadata: "
         + "{"
         + "closeEventType='"
         + closeEventType

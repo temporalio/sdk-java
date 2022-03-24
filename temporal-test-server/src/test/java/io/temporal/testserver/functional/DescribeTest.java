@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.testserver.functional;
 
 import com.google.common.collect.ImmutableMap;
 import io.grpc.Status;
@@ -39,7 +39,10 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.shared.DescribeWorkflowAsserter;
+import io.temporal.workflow.ChildWorkflowOptions;
+import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;

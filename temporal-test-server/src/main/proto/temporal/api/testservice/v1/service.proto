@@ -64,9 +64,23 @@ service TestService {
     rpc Sleep (SleepRequest) returns (SleepResponse) {
     }
 
+    // This call returns only when the Test Server Time advances to the specified timestamp.
+    // If the current Test Server Time is beyond the specified timestamp, returns immediately.
+    // This is an EXPERIMENTAL API.
+    rpc SleepUntil (SleepUntilRequest) returns (SleepResponse) {
+    }
+
     // This call adjusts time by the specified duration irrespectively if the time is locked
+    // Returns immediately.
     // This is an EXPERIMENTAL API.
     rpc Skip (SkipRequest) returns (SkipResponse) {
+    }
+
+    // This call adjusts time to the specified timestamp irrespectively if the time is locked.
+    // If the current Test Server Time is beyond the specified timestamp, does nothing.
+    // Returns immediately.
+    // This is an EXPERIMENTAL API.
+    rpc SkipTo (SkipToRequest) returns (SkipToResponse) {
     }
 
     // UnlockTimeSkippingWhileSleep decreases time locking counter by one and increases it back
