@@ -24,11 +24,19 @@ subprojects {
         dependsOn 'googleJavaFormat'
         options.encoding = 'UTF-8'
         options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+        if (JavaVersion.current().isJava9Compatible()) {
+            // https://stackoverflow.com/a/43103115/525203
+            options.compilerArgs.addAll(['--release', '8'])
+        }
     }
 
     compileTestJava {
         options.encoding = 'UTF-8'
         options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+        if (JavaVersion.current().isJava9Compatible()) {
+            // https://stackoverflow.com/a/43103115/525203
+            options.compilerArgs.addAll(['--release', '8'])
+        }
     }
 
     javadoc {
@@ -39,7 +47,8 @@ subprojects {
         if (JavaVersion.current().isJava9Compatible()) {
             options.addBooleanOption('html5', true)
         }
-        if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_13)) {
+        if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_1_9) &&
+                !JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_13)) {
             //https://stackoverflow.com/questions/53732632/gradle-javadoc-search-redirects-to-undefined-url
             //the flag is removed in java13: https://bugs.openjdk.java.net/browse/JDK-8215582
             options.addBooleanOption('-no-module-directories', true)
@@ -65,6 +74,7 @@ subprojects {
             }
         }
     }
+
     // print out tracked failed tests when the build has finished
     gradle.buildFinished {
         if (!failedTests.empty) {

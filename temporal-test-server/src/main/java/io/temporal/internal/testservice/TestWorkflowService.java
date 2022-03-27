@@ -96,6 +96,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CancellationException;
@@ -125,9 +126,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final Map<WorkflowId, TestWorkflowMutableState> executionsByWorkflowId = new HashMap<>();
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
   private final Lock lock = new ReentrantLock();
-  private final TestVisibilityStore visibilityStore;
 
   private final TestWorkflowStore store;
+  private final TestVisibilityStore visibilityStore;
+  private final SelfAdvancingTimer selfAdvancingTimer;
+
   private final ScheduledExecutorService backgroundScheduler =
       Executors.newSingleThreadScheduledExecutor();
 
@@ -135,12 +138,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final InProcessGRPCServer inProcessServer;
   private final WorkflowServiceStubs workflowServiceStubs;
 
-  TestWorkflowService(TestWorkflowStore store, TestVisibilityStore visibilityStore) {
+  TestWorkflowService(
+      TestWorkflowStore store,
+      TestVisibilityStore visibilityStore,
+      SelfAdvancingTimer selfAdvancingTimer) {
     this.store = store;
+    this.visibilityStore = visibilityStore;
+    this.selfAdvancingTimer = selfAdvancingTimer;
     this.outOfProcessServer = null;
     this.inProcessServer = null;
     this.workflowServiceStubs = null;
-    this.visibilityStore = visibilityStore;
   }
 
   @Override
@@ -354,7 +361,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             continuedExecutionRunId,
             this,
             store,
-            visibilityStore);
+            visibilityStore,
+            selfAdvancingTimer);
     WorkflowExecution execution = mutableState.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(namespace, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
@@ -1037,7 +1045,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    */
   @Deprecated
   public long currentTimeMillis() {
-    return store.getTimer().getClock().getAsLong();
+    return selfAdvancingTimer.getClock().getAsLong();
   }
 
   /** Invokes callback after the specified delay according to internal service clock. */
@@ -1055,7 +1063,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    */
   @Deprecated
   public void lockTimeSkipping(String caller) {
-    store.getTimer().lockTimeSkipping(caller);
+    selfAdvancingTimer.lockTimeSkipping(caller);
   }
 
   /**
@@ -1064,7 +1072,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    */
   @Deprecated
   public void unlockTimeSkipping(String caller) {
-    store.getTimer().unlockTimeSkipping(caller);
+    selfAdvancingTimer.unlockTimeSkipping(caller);
   }
 
   /**
@@ -1081,16 +1089,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   @Deprecated
   public void sleep(Duration duration) {
     CompletableFuture<Void> result = new CompletableFuture<>();
-    store
-        .getTimer()
-        .schedule(
-            duration,
-            () -> {
-              store.getTimer().lockTimeSkipping("TestWorkflowService sleep");
-              result.complete(null);
-            },
-            "workflow sleep");
-    store.getTimer().unlockTimeSkipping("TestWorkflowService sleep");
+    selfAdvancingTimer.schedule(
+        duration,
+        () -> {
+          selfAdvancingTimer.lockTimeSkipping("TestWorkflowService sleep");
+          result.complete(null);
+        },
+        "workflow sleep");
+    selfAdvancingTimer.unlockTimeSkipping("TestWorkflowService sleep");
     try {
       result.get();
     } catch (InterruptedException e) {
@@ -1175,7 +1181,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   private TestWorkflowService(long initialTimeMillis, boolean startInProcessServer) {
-    store = new TestWorkflowStoreImpl(initialTimeMillis);
+    this.selfAdvancingTimer =
+        new SelfAdvancingTimerImpl(initialTimeMillis, Clock.systemDefaultZone());
+    store = new TestWorkflowStoreImpl(this.selfAdvancingTimer);
     visibilityStore = new TestVisibilityStoreImpl();
     outOfProcessServer = null;
     if (startInProcessServer) {
@@ -1211,7 +1219,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     Preconditions.checkState(isOutOfProc, "Impossible.");
     inProcessServer = null;
     workflowServiceStubs = null;
-    store = new TestWorkflowStoreImpl(0 /* 0 means use current time */);
+    this.selfAdvancingTimer = new SelfAdvancingTimerImpl(0, Clock.systemDefaultZone());
+    store = new TestWorkflowStoreImpl(selfAdvancingTimer);
     visibilityStore = new TestVisibilityStoreImpl();
     try {
       ServerBuilder<?> serverBuilder =

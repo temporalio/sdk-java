@@ -160,7 +160,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     if (testServiceStubs != null) {
       testServiceStubs
           .blockingStub()
-          .unlockTimeSkippingWhileSleep(
+          .unlockTimeSkippingWithSleep(
               SleepRequest.newBuilder()
                   .setDuration(ProtobufTimeUtils.toProtoDuration(duration))
                   .build());

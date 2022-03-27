@@ -64,7 +64,7 @@ interface SelfAdvancingTimer {
    * <p>This method returns immediately not waiting for tasks triggering.
    *
    * @param duration the time period to adjust the timer
-   * @returns new timer timestamp after skipping
+   * @return new timer timestamp after skipping
    */
   Instant skip(Duration duration);
 
@@ -94,6 +94,10 @@ interface SelfAdvancingTimer {
 }
 
 interface LockHandle {
+  /**
+   * Only call this if the same caller that took the lock will release it, otherwise call {@link
+   * #unlock(String)}
+   */
   void unlock();
 
   void unlock(@Nullable String caller);

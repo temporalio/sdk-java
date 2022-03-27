@@ -17,17 +17,12 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.testservice;
+package io.temporal.testserver;
 
-import io.temporal.api.enums.v1.IndexedValueType;
-import java.io.Closeable;
-import java.util.Map;
+import io.temporal.internal.testservice.TestServicesStarter;
 
-interface TestVisibilityStore extends Closeable {
-  void registerSearchAttribute(String name, IndexedValueType type);
-
-  Map<String, IndexedValueType> getRegisteredSearchAttributes();
-
-  @Override
-  void close();
+public final class TestServicesStarterAccessor {
+  public static TestServicesStarter getStarter(TestServer.InProcessTestServer inProcessTestServer) {
+    return inProcessTestServer.getStarter();
+  }
 }

@@ -26,6 +26,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
+import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -89,12 +90,14 @@ import java.util.concurrent.TimeUnit;
  *
  * </code></pre>
  */
-public interface TestWorkflowEnvironment {
+public interface TestWorkflowEnvironment extends Closeable {
 
+  /** Creates the environment with default options. */
   static TestWorkflowEnvironment newInstance() {
     return new TestWorkflowEnvironmentInternal(TestEnvironmentOptions.getDefaultInstance());
   }
 
+  /** Creates the environment with supplied {@code options}. */
   static TestWorkflowEnvironment newInstance(TestEnvironmentOptions options) {
     return new TestWorkflowEnvironmentInternal(options);
   }
@@ -180,6 +183,7 @@ public interface TestWorkflowEnvironment {
   WorkflowExecutionHistory getWorkflowExecutionHistory(WorkflowExecution execution);
 
   /** Calls {@link #shutdownNow()} and {@link #awaitTermination(long, TimeUnit)}. */
+  @Override
   void close();
 
   WorkerFactory getWorkerFactory();

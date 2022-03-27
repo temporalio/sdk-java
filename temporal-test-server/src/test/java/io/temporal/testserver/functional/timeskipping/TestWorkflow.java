@@ -17,17 +17,13 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.testservice;
+package io.temporal.testserver.functional.timeskipping;
 
-import io.temporal.api.enums.v1.IndexedValueType;
-import java.io.Closeable;
-import java.util.Map;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 
-interface TestVisibilityStore extends Closeable {
-  void registerSearchAttribute(String name, IndexedValueType type);
-
-  Map<String, IndexedValueType> getRegisteredSearchAttributes();
-
-  @Override
-  void close();
+@WorkflowInterface
+public interface TestWorkflow {
+  @WorkflowMethod
+  void execute();
 }

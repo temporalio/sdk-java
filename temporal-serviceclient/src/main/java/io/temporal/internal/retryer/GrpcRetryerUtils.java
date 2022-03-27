@@ -56,7 +56,7 @@ class GrpcRetryerUtils {
         // example:
         // https://github.com/grpc-ecosystem/go-grpc-middleware/blob/master/retry/retry.go#L287
       case CANCELLED:
-        return new CancellationException();
+        return new CancellationException("The gRPC request was cancelled");
       case DEADLINE_EXCEEDED:
         if (grpcContextDeadline != null && grpcContextDeadline.isExpired()) {
           return lastMeaningfulException(currentException, previousException);
