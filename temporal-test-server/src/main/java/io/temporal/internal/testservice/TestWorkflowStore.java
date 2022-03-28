@@ -135,8 +135,6 @@ interface TestWorkflowStore {
     }
   }
 
-  SelfAdvancingTimer getTimer();
-
   Timestamp currentTime();
 
   long save(RequestContext requestContext);

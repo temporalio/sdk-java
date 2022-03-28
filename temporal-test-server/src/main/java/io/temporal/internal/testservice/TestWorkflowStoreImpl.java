@@ -44,7 +44,6 @@ import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.workflow.Functions;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,8 +70,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       activityTaskQueues = new HashMap<>();
   private final Map<TaskQueueId, TaskQueue<PollWorkflowTaskQueueResponse.Builder>>
       workflowTaskQueues = new HashMap<>();
-  private final SelfAdvancingTimer timerService;
-  private LockHandle emptyHistoryLockHandle;
+  private final SelfAdvancingTimer selfAdvancingTimer;
 
   private static class HistoryStore {
 
@@ -176,20 +174,13 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
   }
 
-  public TestWorkflowStoreImpl(long initialTimeMillis) {
-    timerService = new SelfAdvancingTimerImpl(initialTimeMillis, Clock.systemDefaultZone());
-    // locked until the first save
-    emptyHistoryLockHandle = timerService.lockTimeSkipping("TestWorkflowStoreImpl constructor");
-  }
-
-  @Override
-  public SelfAdvancingTimer getTimer() {
-    return timerService;
+  public TestWorkflowStoreImpl(SelfAdvancingTimer selfAdvancingTimer) {
+    this.selfAdvancingTimer = selfAdvancingTimer;
   }
 
   @Override
   public Timestamp currentTime() {
-    return Timestamps.fromMillis(timerService.getClock().getAsLong());
+    return Timestamps.fromMillis(selfAdvancingTimer.getClock().getAsLong());
   }
 
   @Override
@@ -211,14 +202,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       history.checkNextEventId(ctx.getInitialEventId());
       history.addAllLocked(events, ctx.currentTime());
       result = history.getNextEventIdLocked();
-      timerService.updateLocks(ctx.getTimerLocks());
+      selfAdvancingTimer.updateLocks(ctx.getTimerLocks());
       ctx.fireCallbacks(history.getEventsLocked().size());
     } finally {
-      if (emptyHistoryLockHandle != null && !histories.isEmpty()) {
-        // Initially locked in the constructor
-        emptyHistoryLockHandle.unlock("TestWorkflowStoreImpl first save");
-        emptyHistoryLockHandle = null;
-      }
       lock.unlock();
     }
     // Push tasks to the queues out of locks
@@ -256,7 +242,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         log.trace(
             "scheduling timer with " + t.getDelay() + "delay. Current time=" + this.currentTime());
         Functions.Proc cancellationHandle =
-            timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
+            selfAdvancingTimer.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
         t.setCancellationHandle(cancellationHandle);
       }
     }
@@ -267,7 +253,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   public void applyTimersAndLocks(RequestContext ctx) {
     lock.lock();
     try {
-      timerService.updateLocks(ctx.getTimerLocks());
+      selfAdvancingTimer.updateLocks(ctx.getTimerLocks());
     } finally {
       lock.unlock();
     }
@@ -276,7 +262,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     if (timers != null) {
       for (Timer t : timers) {
         Functions.Proc cancellationHandle =
-            timerService.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
+            selfAdvancingTimer.schedule(t.getDelay(), t.getCallback(), t.getTaskInfo());
         t.setCancellationHandle(cancellationHandle);
       }
     }
@@ -286,7 +272,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void registerDelayedCallback(Duration delay, Runnable r) {
-    timerService.schedule(delay, r, "registerDelayedCallback");
+    selfAdvancingTimer.schedule(delay, r, "registerDelayedCallback");
   }
 
   private TaskQueue<PollActivityTaskQueueResponse.Builder> getActivityTaskQueueQueue(
@@ -514,6 +500,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void close() {
-    timerService.shutdown();
+    selfAdvancingTimer.shutdown();
   }
 }

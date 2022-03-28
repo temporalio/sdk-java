@@ -119,18 +119,17 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
         if (peekedTask != null
             && (peekedTask.getExecutionTime() <= currentTimeMs || peekedTask.isCanceled())) {
           try {
-            LockHandle lockHandle = lockTimeSkippingLocked("runnable " + peekedTask.getTaskInfo());
             TimerTask polledTask = tasks.poll();
-            log.trace(
-                "running task="
-                    + peekedTask.getTaskInfo()
-                    + ", executionTime="
-                    + peekedTask.getExecutionTime());
-
             if (polledTask.isCanceled()) {
               log.trace("Removed canceled task from the task queue: {}", polledTask.getTaskInfo());
-              lockHandle.unlock();
             } else {
+              LockHandle lockHandle =
+                  lockTimeSkippingLocked("[TimerPump] runnable " + peekedTask.getTaskInfo());
+              log.trace(
+                  "running task="
+                      + polledTask.getTaskInfo()
+                      + ", executionTime="
+                      + polledTask.getExecutionTime());
               Runnable runnable = polledTask.getRunnable();
               executor.execute(
                   () -> {
@@ -153,10 +152,10 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
         if (peekedTask != null) {
           timeToAwait = peekedTask.getExecutionTime() - currentTimeMs;
           if (log.isTraceEnabled()) {
-            log.trace("Waiting for {}", Duration.ofMillis(timeToAwait));
+            log.trace("Waiting for {} with outstanding tasks:", Duration.ofMillis(timeToAwait));
             for (TimerTask task : tasks) {
               log.trace(
-                  "Outstanding task: +{} {} {}",
+                  "    +{} <{}>, cancelled: {}",
                   Duration.ofMillis(task.executionTime - currentTimeMs),
                   task.taskInfo,
                   task.canceled);
@@ -207,27 +206,39 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
     @Override
     public void unlock() {
-      unlock(null);
-    }
-
-    @Override
-    public void unlock(String caller) {
       lock.lock();
       try {
-        unlockFromHandleLocked();
+        unlockFromHandleLocked(event.caller + "[⎌]"); // caller releases its own lock
         condition.signal();
       } finally {
         lock.unlock();
       }
     }
 
-    private void unlockFromHandleLocked() {
+    @Override
+    public void unlock(String caller) {
+      lock.lock();
+      try {
+        unlockFromHandleLocked(
+            "{-"
+                + caller
+                + "}"
+                + " {+"
+                + event.caller
+                + "}"); // the caller releases lock taken by another caller using the same handle
+        condition.signal();
+      } finally {
+        lock.unlock();
+      }
+    }
+
+    private void unlockFromHandleLocked(String callerInfo) {
       boolean removed = lockEvents.remove(event);
       if (!removed) {
         throw new IllegalStateException("Unbalanced lock and unlock calls");
       }
 
-      unlockTimeSkippingLockedInternal();
+      unlockTimeSkippingLockedInternal(callerInfo);
     }
   }
 
@@ -308,6 +319,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
       // get a last time in case the last TimePump update was relatively long time ago
       updateTimeLocked();
       long executionTime = delay.toMillis() + currentTimeMs;
+      log.trace("Scheduling task <{}> in {} for timestamp {}", taskInfo, delay, currentTimeMs);
       return scheduleAtLocked(executionTime, task, taskInfo);
     } finally {
       lock.unlock();
@@ -320,6 +332,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     try {
       // get a last time in case the last TimePump update was relatively long time ago
       updateTimeLocked();
+      log.trace("Scheduling task <{}> for timestamp {}", taskInfo, timestamp.toEpochMilli());
       return scheduleAtLocked(timestamp.toEpochMilli(), task, taskInfo);
     } finally {
       lock.unlock();
@@ -330,7 +343,6 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     TimerTask timerTask = new TimerTask(timestampMs, task, taskInfo);
     Functions.Proc cancellationHandle = timerTask::cancel;
     tasks.add(timerTask);
-    log.trace("Scheduling task <{}> for timestamp {}", taskInfo, timestampMs);
     // Locked when queue became empty
     if (tasks.size() == 1 && emptyQueue) {
       if (timeLockOnEmptyQueueHandle == null) {
@@ -366,6 +378,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     if (lockCount++ == 0) {
       systemTimeMsLastAdvancedWhileLocked = systemClock.millis();
     }
+    log.trace("[LOCK] <{}>, new lock counter value: {}", caller, lockCount);
     LockEvent event = new LockEvent(caller, LockEventType.LOCK);
     lockEvents.add(event);
     return new TimerLockHandle(event);
@@ -419,10 +432,15 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     lock.lock();
     try {
       for (RequestContext.TimerLockChange update : updates) {
-        if (update.getChange() == 1) {
-          lockTimeSkippingLocked(update.getCaller());
-        } else {
-          unlockTimeSkippingLocked(update.getCaller());
+        switch (update.getChange()) {
+          case 1:
+            lockTimeSkippingLocked(update.getCaller());
+            break;
+          case -1:
+            unlockTimeSkippingLocked(update.getCaller());
+            break;
+          default:
+            throw new IllegalStateException("TimerLockChange for not +1/-1 is not implemented");
         }
       }
     } finally {
@@ -467,15 +485,19 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   }
 
   private void unlockTimeSkippingLocked(String caller) {
-    unlockTimeSkippingLockedInternal();
+    unlockTimeSkippingLockedInternal(caller);
     lockEvents.add(new LockEvent(caller, LockEventType.UNLOCK));
   }
 
-  private void unlockTimeSkippingLockedInternal() {
+  private void unlockTimeSkippingLockedInternal(String caller) {
     if (lockCount == 0) {
       throw new IllegalStateException("Unbalanced lock and unlock calls: \n" + getDiagnostics());
     }
     lockCount--;
+    if (caller == null) {
+      log.trace("---");
+    }
+    log.trace("[UNLOCK] <{}>, new lock counter value: {}", caller, lockCount);
     if (lockCount == 0) {
       systemTimeMsLastAdvancedWhileLocked = -1;
     }

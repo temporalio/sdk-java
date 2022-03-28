@@ -141,7 +141,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowMutableStateImpl.class);
 
   private final Lock lock = new ReentrantLock();
-  private final SelfAdvancingTimer selfAdvancingTimer;
+  private final SelfAdvancingTimer timerService;
   private final LongSupplier clock;
   private final ExecutionId executionId;
   private final Optional<TestWorkflowMutableState> parent;
@@ -182,7 +182,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       Optional<String> continuedExecutionRunId,
       TestWorkflowService service,
       TestWorkflowStore store,
-      TestVisibilityStore visibilityStore) {
+      TestVisibilityStore visibilityStore,
+      SelfAdvancingTimer selfAdvancingTimer) {
     this.store = store;
     this.visibilityStore = visibilityStore;
     this.service = service;
@@ -192,7 +193,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         new ExecutionId(startRequest.getNamespace(), startRequest.getWorkflowId(), runId);
     this.parent = parent;
     this.parentChildInitiatedEventId = parentChildInitiatedEventId;
-    selfAdvancingTimer = store.getTimer();
+    this.timerService = selfAdvancingTimer;
     this.clock = selfAdvancingTimer.getClock();
     WorkflowData data =
         new WorkflowData(
@@ -300,7 +301,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void update(boolean completeWorkflowTaskUpdate, UpdateProcedure updater, String caller) {
     String callerInfo = "Command Update from " + caller;
     lock.lock();
-    LockHandle lockHandle = selfAdvancingTimer.lockTimeSkipping(callerInfo);
+    LockHandle lockHandle = timerService.lockTimeSkipping(callerInfo);
     try {
       if (isTerminalState()) {
         throw Status.NOT_FOUND.withDescription("Completed workflow").asRuntimeException();
@@ -1498,7 +1499,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           String activityId = task.getActivityId();
-          StateMachine<ActivityTaskData> activityStateMachine = getActivityById(activityId);
+          StateMachine<ActivityTaskData> activityStateMachine = getPendingActivityById(activityId);
           activityStateMachine.action(StateMachines.Action.START, ctx, pollRequest, 0);
           ActivityTaskData data = activityStateMachine.getData();
           data.identity = pollRequest.getIdentity();
@@ -1559,7 +1560,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long scheduledEventId, RespondActivityTaskCompletedRequest request) {
     update(
         ctx -> {
-          StateMachine<?> activity = getActivity(scheduledEventId);
+          StateMachine<?> activity = getPendingActivityByScheduledEventId(scheduledEventId);
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           removeActivity(scheduledEventId);
           scheduleWorkflowTask(ctx);
@@ -1572,7 +1573,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String activityId, RespondActivityTaskCompletedByIdRequest request) {
     update(
         ctx -> {
-          StateMachine<ActivityTaskData> activity = getActivityById(activityId);
+          StateMachine<ActivityTaskData> activity = getPendingActivityById(activityId);
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           removeActivity(activity.getData().scheduledEventId);
           scheduleWorkflowTask(ctx);
@@ -1584,7 +1585,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void failActivityTask(long scheduledEventId, RespondActivityTaskFailedRequest request) {
     update(
         ctx -> {
-          StateMachine<ActivityTaskData> activity = getActivity(scheduledEventId);
+          StateMachine<ActivityTaskData> activity =
+              getPendingActivityByScheduledEventId(scheduledEventId);
           activity.action(StateMachines.Action.FAIL, ctx, request, 0);
           if (isTerminalState(activity.getState())) {
             removeActivity(scheduledEventId);
@@ -1608,7 +1610,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             return;
           }
           LockHandle lockHandle =
-              selfAdvancingTimer.lockTimeSkipping(
+              timerService.lockTimeSkipping(
                   "activityRetryTimer " + activity.getData().scheduledEvent.getActivityId());
           boolean unlockTimer = false;
           try {
@@ -1641,7 +1643,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String activityId, RespondActivityTaskFailedByIdRequest request) {
     update(
         ctx -> {
-          StateMachine<ActivityTaskData> activity = getActivityById(activityId);
+          StateMachine<ActivityTaskData> activity = getPendingActivityById(activityId);
           activity.action(StateMachines.Action.FAIL, ctx, request, 0);
           if (isTerminalState(activity.getState())) {
             removeActivity(activity.getData().scheduledEventId);
@@ -1658,7 +1660,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long scheduledEventId, RespondActivityTaskCanceledRequest request) {
     update(
         ctx -> {
-          StateMachine<?> activity = getActivity(scheduledEventId);
+          StateMachine<?> activity = getPendingActivityByScheduledEventId(scheduledEventId);
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(scheduledEventId);
           scheduleWorkflowTask(ctx);
@@ -1671,7 +1673,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String activityId, RespondActivityTaskCanceledByIdRequest request) {
     update(
         ctx -> {
-          StateMachine<ActivityTaskData> activity = getActivityById(activityId);
+          StateMachine<ActivityTaskData> activity = getPendingActivityById(activityId);
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(activity.getData().scheduledEventId);
           scheduleWorkflowTask(ctx);
@@ -1684,7 +1686,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     AtomicBoolean result = new AtomicBoolean();
     update(
         ctx -> {
-          StateMachine<ActivityTaskData> activity = getActivity(scheduledEventId);
+          StateMachine<ActivityTaskData> activity =
+              getPendingActivityByScheduledEventId(scheduledEventId);
           if (activity.getState() != State.STARTED
               && activity.getState() != State.CANCELLATION_REQUESTED) {
             throw Status.NOT_FOUND
@@ -1709,7 +1712,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public boolean heartbeatActivityTaskById(String id, Payloads details, String identity) {
-    StateMachine<ActivityTaskData> activity = getActivityById(id);
+    StateMachine<ActivityTaskData> activity = getPendingActivityById(id);
     return heartbeatActivityTask(activity.getData().scheduledEventId, details);
   }
 
@@ -1718,7 +1721,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     try {
       update(
           ctx -> {
-            StateMachine<ActivityTaskData> activity = getActivity(scheduledEventId);
+            StateMachine<ActivityTaskData> activity =
+                getPendingActivityByScheduledEventId(scheduledEventId);
 
             int attempt = activity.getData().getAttempt();
             if (timeoutAttempt != attempt
@@ -1757,7 +1761,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       log.error("Failure trying to timeout an activity", e);
     } finally {
       if (unlockTimer) {
-        selfAdvancingTimer.unlockTimeSkipping("timeoutActivity: " + scheduledEventId);
+        timerService.unlockTimeSkipping("timeoutActivity: " + scheduledEventId);
       }
     }
   }
@@ -2365,14 +2369,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ctx.addEvent(executionSignaled);
   }
 
-  private StateMachine<ActivityTaskData> getActivityById(String activityId) {
+  private StateMachine<ActivityTaskData> getPendingActivityById(String activityId) {
     Long scheduledEventId = activityById.get(activityId);
     if (scheduledEventId == null) {
       throw Status.NOT_FOUND
-          .withDescription("unknown activityId: " + activityId)
+          .withDescription(
+              "cannot find pending activity with ActivityID "
+                  + activityId
+                  + ", check workflow execution history for more details")
           .asRuntimeException();
     }
-    return getActivity(scheduledEventId);
+    return getPendingActivityByScheduledEventId(scheduledEventId);
   }
 
   private void removeActivity(long scheduledEventId) {
@@ -2383,7 +2390,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     activityById.remove(activity.getData().scheduledEvent.getActivityId());
   }
 
-  private StateMachine<ActivityTaskData> getActivity(long scheduledEventId) {
+  private StateMachine<ActivityTaskData> getPendingActivityByScheduledEventId(
+      long scheduledEventId) {
     StateMachine<ActivityTaskData> activity = activities.get(scheduledEventId);
     if (activity == null) {
       throw Status.NOT_FOUND

@@ -26,7 +26,6 @@ import io.temporal.api.testservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.io.Closeable;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -37,19 +36,24 @@ import java.util.concurrent.ExecutionException;
  */
 final class TestService extends TestServiceGrpc.TestServiceImplBase implements Closeable {
 
+  private final SelfAdvancingTimer selfAdvancingTimer;
   private final TestWorkflowStore workflowStore;
 
-  public TestService(TestWorkflowStore workflowStore, boolean lockTimeSkipping) {
+  public TestService(
+      TestWorkflowStore workflowStore,
+      SelfAdvancingTimer selfAdvancingTimer,
+      boolean lockTimeSkipping) {
     this.workflowStore = workflowStore;
+    this.selfAdvancingTimer = selfAdvancingTimer;
     if (lockTimeSkipping) {
-      workflowStore.getTimer().lockTimeSkipping("TestService constructor");
+      selfAdvancingTimer.lockTimeSkipping("TestService constructor");
     }
   }
 
   @Override
   public void lockTimeSkipping(
       LockTimeSkippingRequest request, StreamObserver<LockTimeSkippingResponse> responseObserver) {
-    workflowStore.getTimer().lockTimeSkipping("External Caller");
+    selfAdvancingTimer.lockTimeSkipping("External Caller");
     responseObserver.onNext(LockTimeSkippingResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
@@ -58,7 +62,7 @@ final class TestService extends TestServiceGrpc.TestServiceImplBase implements C
   public void unlockTimeSkipping(
       UnlockTimeSkippingRequest request,
       StreamObserver<UnlockTimeSkippingResponse> responseObserver) {
-    workflowStore.getTimer().unlockTimeSkipping("External Caller");
+    selfAdvancingTimer.unlockTimeSkipping("External Caller");
     responseObserver.onNext(UnlockTimeSkippingResponse.newBuilder().build());
     responseObserver.onCompleted();
   }
@@ -66,12 +70,10 @@ final class TestService extends TestServiceGrpc.TestServiceImplBase implements C
   @Override
   public void sleep(SleepRequest request, StreamObserver<SleepResponse> responseObserver) {
     CompletableFuture<Void> result = new CompletableFuture<>();
-    workflowStore
-        .getTimer()
-        .schedule(
-            ProtobufTimeUtils.toJavaDuration(request.getDuration()),
-            () -> result.complete(null),
-            "TestService sleep");
+    selfAdvancingTimer.schedule(
+        ProtobufTimeUtils.toJavaDuration(request.getDuration()),
+        () -> result.complete(null),
+        "TestService sleep");
     try {
       result.get();
     } catch (InterruptedException e) {
@@ -89,12 +91,10 @@ final class TestService extends TestServiceGrpc.TestServiceImplBase implements C
   public void sleepUntil(
       SleepUntilRequest request, StreamObserver<SleepResponse> responseObserver) {
     CompletableFuture<Void> result = new CompletableFuture<>();
-    workflowStore
-        .getTimer()
-        .scheduleAt(
-            ProtobufTimeUtils.toJavaInstant(request.getTimestamp()),
-            () -> result.complete(null),
-            "TestService sleepUntil");
+    selfAdvancingTimer.scheduleAt(
+        ProtobufTimeUtils.toJavaInstant(request.getTimestamp()),
+        () -> result.complete(null),
+        "TestService sleepUntil");
     try {
       result.get();
     } catch (InterruptedException e) {
@@ -109,25 +109,7 @@ final class TestService extends TestServiceGrpc.TestServiceImplBase implements C
   }
 
   @Override
-  public void skip(SkipRequest request, StreamObserver<SkipResponse> responseObserver) {
-    Instant newTimestamp =
-        workflowStore.getTimer().skip(ProtobufTimeUtils.toJavaDuration(request.getDuration()));
-    responseObserver.onNext(
-        SkipResponse.newBuilder()
-            .setNewTimestamp(ProtobufTimeUtils.toProtoTimestamp(newTimestamp))
-            .build());
-    responseObserver.onCompleted();
-  }
-
-  @Override
-  public void skipTo(SkipToRequest request, StreamObserver<SkipToResponse> responseObserver) {
-    workflowStore.getTimer().skipTo(ProtobufTimeUtils.toJavaInstant(request.getTimestamp()));
-    responseObserver.onNext(SkipToResponse.newBuilder().build());
-    responseObserver.onCompleted();
-  }
-
-  @Override
-  public void unlockTimeSkippingWhileSleep(
+  public void unlockTimeSkippingWithSleep(
       SleepRequest request, StreamObserver<SleepResponse> responseObserver) {
     unlockTimeSkippingWhileSleep(ProtobufTimeUtils.toJavaDuration(request.getDuration()));
     responseObserver.onNext(SleepResponse.newBuilder().build());
@@ -151,16 +133,14 @@ final class TestService extends TestServiceGrpc.TestServiceImplBase implements C
    */
   private void unlockTimeSkippingWhileSleep(Duration duration) {
     CompletableFuture<Void> result = new CompletableFuture<>();
-    workflowStore
-        .getTimer()
-        .schedule(
-            duration,
-            () -> {
-              workflowStore.getTimer().lockTimeSkipping("TestService unlockTimeSkippingWhileSleep");
-              result.complete(null);
-            },
-            "TestService unlockTimeSkippingWhileSleep");
-    workflowStore.getTimer().unlockTimeSkipping("TestService unlockTimeSkippingWhileSleep");
+    selfAdvancingTimer.schedule(
+        duration,
+        () -> {
+          selfAdvancingTimer.lockTimeSkipping("TestService unlockTimeSkippingWhileSleep");
+          result.complete(null);
+        },
+        "TestService unlockTimeSkippingWhileSleep");
+    selfAdvancingTimer.unlockTimeSkipping("TestService unlockTimeSkippingWhileSleep");
     try {
       result.get();
     } catch (InterruptedException e) {

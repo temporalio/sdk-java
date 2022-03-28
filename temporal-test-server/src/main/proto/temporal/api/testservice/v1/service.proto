@@ -70,21 +70,8 @@ service TestService {
     rpc SleepUntil (SleepUntilRequest) returns (SleepResponse) {
     }
 
-    // This call adjusts time by the specified duration irrespectively if the time is locked
-    // Returns immediately.
-    // This is an EXPERIMENTAL API.
-    rpc Skip (SkipRequest) returns (SkipResponse) {
-    }
-
-    // This call adjusts time to the specified timestamp irrespectively if the time is locked.
-    // If the current Test Server Time is beyond the specified timestamp, does nothing.
-    // Returns immediately.
-    // This is an EXPERIMENTAL API.
-    rpc SkipTo (SkipToRequest) returns (SkipToResponse) {
-    }
-
     // UnlockTimeSkippingWhileSleep decreases time locking counter by one and increases it back
-    // once the Test Server Time advances by the duration specified the the request.
+    // once the Test Server Time advances by the duration specified in the request.
     //
     // This call returns only when the Test Server Time advances by the specified duration.
     //
@@ -92,7 +79,7 @@ service TestService {
     //   - more than 1 and no other unlocks are coming in, rpc call will block for the specified duration, time will not be fast forwarded.
     //   - 1, it will lead to fast forwarding of the time by the duration specified in the request and quick return of this rpc call.
     //   - 0 will lead to rpc call failure same way as an unbalanced UnlockTimeSkipping.
-    rpc UnlockTimeSkippingWhileSleep (SleepRequest) returns (SleepResponse) {
+    rpc UnlockTimeSkippingWithSleep (SleepRequest) returns (SleepResponse) {
     }
 
     // GetCurrentTime returns the current Temporal Test Server time

@@ -17,17 +17,13 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.testservice;
+package io.temporal.testserver.functional.timeskipping;
 
-import io.temporal.api.enums.v1.IndexedValueType;
-import java.io.Closeable;
-import java.util.Map;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
 
-interface TestVisibilityStore extends Closeable {
-  void registerSearchAttribute(String name, IndexedValueType type);
-
-  Map<String, IndexedValueType> getRegisteredSearchAttributes();
-
-  @Override
-  void close();
+@ActivityInterface
+public interface SleepingActivity {
+  @ActivityMethod
+  void sleep();
 }

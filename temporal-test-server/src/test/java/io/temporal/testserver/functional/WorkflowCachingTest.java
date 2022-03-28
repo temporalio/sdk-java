@@ -159,7 +159,7 @@ public class WorkflowCachingTest {
         .unlockTimeSkipping(UnlockTimeSkippingRequest.newBuilder().build());
     testServiceStubs
         .blockingStub()
-        .unlockTimeSkippingWhileSleep(
+        .unlockTimeSkippingWithSleep(
             SleepRequest.newBuilder()
                 .setDuration(ProtobufTimeUtils.toProtoDuration(Duration.ofMillis(1100)))
                 .build());

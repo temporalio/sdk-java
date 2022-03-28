@@ -19,6 +19,7 @@
 
 package io.temporal.testserver;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.grpc.*;
 import io.temporal.internal.testservice.*;
 import java.io.Closeable;
@@ -134,6 +135,11 @@ public class TestServer {
     @Deprecated
     public TestWorkflowService getWorkflowService() {
       return testServicesStarter.getWorkflowService();
+    }
+
+    @VisibleForTesting
+    TestServicesStarter getStarter() {
+      return testServicesStarter;
     }
 
     public ManagedChannel getChannel() {

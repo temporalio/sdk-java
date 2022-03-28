@@ -58,21 +58,6 @@ message SleepRequest {
 message SleepResponse {
 }
 
-message SkipToRequest {
-    google.protobuf.Timestamp timestamp = 1 [(gogoproto.stdtime) = true];
-}
-
-message SkipToResponse {
-}
-
-message SkipRequest {
-    google.protobuf.Duration duration = 1 [(gogoproto.stdduration) = true];
-}
-
-message SkipResponse {
-    google.protobuf.Timestamp new_timestamp = 1 [(gogoproto.stdtime) = true];
-}
-
 message GetCurrentTimeResponse {
     google.protobuf.Timestamp time = 1 [(gogoproto.stdtime) = true];
 }
