@@ -1,13 +1,13 @@
 steps:
-  - label: ":fire_extinguisher: JDK17 minimized build"
+  - label: ":fire_extinguisher: JDK18 minimized build"
     agents:
       queue: "default"
       docker: "*"
-    command: "./gradlew --no-daemon build -x test -x nativeImage -x checkLicenses -x googleJavaFormat -x verifyGoogleJavaFormat"
+    command: "./gradlew --no-daemon testClasses build -x test -x nativeImage -x checkLicenses -x googleJavaFormat -x verifyGoogleJavaFormat"
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:
-          run: unit-test-test-service-jdk17
+          run: unit-test-test-service-jdk18
           config: docker/buildkite/docker-compose.yaml
 
   - label: ":java: Unit test with in-memory test service"
