@@ -23,6 +23,7 @@ import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.BackoffThrottler;
+import io.temporal.internal.common.GrpcUtils;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.worker.MetricsType;
 import java.time.Duration;
@@ -285,11 +286,11 @@ public final class Poller<T> implements SuspendableWorker {
       if (e instanceof StatusRuntimeException) {
         StatusRuntimeException te = (StatusRuntimeException) e;
         if (te.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED) {
-          log.warn("Failure in thread {}", t.getName(), e);
+          log.info("DEADLINE_EXCEEDED in poller thread {}", t.getName(), e);
           return;
         }
       }
-      log.error("Failure in thread {}", t.getName(), e);
+      log.warn("Failure in poller thread {}", t.getName(), e);
     }
 
     /**
@@ -305,6 +306,11 @@ public final class Poller<T> implements SuspendableWorker {
     }
 
     private boolean shouldIgnoreDuringShutdown(Throwable ex) {
+      if (ex instanceof StatusRuntimeException) {
+        if (GrpcUtils.isChannelShutdownException((StatusRuntimeException) ex)) {
+          return true;
+        }
+      }
       return
       // if we are terminating and getting rejected execution - it's normal
       ex instanceof RejectedExecutionException

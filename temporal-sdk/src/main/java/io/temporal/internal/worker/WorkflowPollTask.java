@@ -22,8 +22,6 @@ package io.temporal.internal.worker;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -75,19 +73,11 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
       log.trace("poll request begin: " + pollRequest);
     }
     PollWorkflowTaskQueueResponse result;
-    try {
-      result =
-          service
-              .blockingStub()
-              .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-              .pollWorkflowTaskQueue(pollRequest);
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
-          && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
-        return null;
-      }
-      throw e;
-    }
+    result =
+        service
+            .blockingStub()
+            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+            .pollWorkflowTaskQueue(pollRequest);
     if (log.isTraceEnabled()) {
       log.trace(
           "poll request returned workflow task: workflowType="

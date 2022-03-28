@@ -23,8 +23,6 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 
 import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Scope;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
@@ -111,12 +109,6 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
                   response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
       isSuccessful = true;
       return new ActivityTask(response, pollSemaphore::release);
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
-          && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
-        return null;
-      }
-      throw e;
     } finally {
       if (!isSuccessful) pollSemaphore.release();
     }
