@@ -43,16 +43,4 @@ steps:
           run: unit-test-test-service
           config: docker/buildkite/docker-compose.yaml
 
-  - label: ":alien: Fossa scan"
-    agents:
-      queue: "default"
-      docker: "*"
-    command: "fossa init --include-all --no-ansi; fossa analyze --no-ansi -b $${BUILDKITE_BRANCH:-$$(git branch --show-current)}; fossa test --timeout 1800 --no-ansi"
-    branches: "master"
-    timeout_in_minutes: 60
-    plugins:
-      - docker-compose#v3.8.0:
-          run: fossa
-          config: docker/buildkite/docker-compose.yaml
-
   - wait
