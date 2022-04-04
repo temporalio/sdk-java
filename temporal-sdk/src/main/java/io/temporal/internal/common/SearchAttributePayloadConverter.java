@@ -94,8 +94,7 @@ final class SearchAttributePayloadConverter {
           instance.getClass());
     }
 
-    return payload
-        .toBuilder()
+    return payload.toBuilder()
         .putMetadata(METADATA_TYPE_KEY, ByteString.copyFromUtf8(indexValueTypeToEncodedValue(type)))
         .build();
   }

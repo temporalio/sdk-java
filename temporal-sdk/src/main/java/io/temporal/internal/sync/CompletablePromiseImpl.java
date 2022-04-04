@@ -270,7 +270,9 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     return resultPromise;
   }
 
-  /** @return true if there were any handlers invoked */
+  /**
+   * @return true if there were any handlers invoked
+   */
   private boolean invokeHandlers() {
     for (Functions.Proc handler : handlers) {
       handler.apply();

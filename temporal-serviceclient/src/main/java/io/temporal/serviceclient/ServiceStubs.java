@@ -23,10 +23,14 @@ import io.grpc.ManagedChannel;
 import java.util.concurrent.TimeUnit;
 
 public interface ServiceStubs<B, F> {
-  /** @return Blocking (synchronous) stub that allows direct calls to service. */
+  /**
+   * @return Blocking (synchronous) stub that allows direct calls to service.
+   */
   B blockingStub();
 
-  /** @return Future (asynchronous) stub that allows direct calls to service. */
+  /**
+   * @return Future (asynchronous) stub that allows direct calls to service.
+   */
   F futureStub();
 
   /**

@@ -43,7 +43,9 @@ public abstract class WorkflowThreadMarker {
     enableEnforcements = envValue == null || "false".equalsIgnoreCase(envValue);
   }
 
-  /** @return true if the current thread is workflow thread */
+  /**
+   * @return true if the current thread is workflow thread
+   */
   public static boolean isWorkflowThread() {
     return isWorkflowThreadThreadLocal.get();
   }

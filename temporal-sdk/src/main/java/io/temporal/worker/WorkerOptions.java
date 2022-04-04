@@ -402,7 +402,9 @@ public final class WorkerOptions {
     return maxTaskQueueActivitiesPerSecond;
   }
 
-  /** @deprecated use {@link #getMaxConcurrentWorkflowTaskPollers} */
+  /**
+   * @deprecated use {@link #getMaxConcurrentWorkflowTaskPollers}
+   */
   @Deprecated
   public int getWorkflowPollThreadCount() {
     return getMaxConcurrentWorkflowTaskPollers();
@@ -412,7 +414,9 @@ public final class WorkerOptions {
     return maxConcurrentWorkflowTaskPollers;
   }
 
-  /** @deprecated use {@link #getMaxConcurrentActivityTaskPollers} */
+  /**
+   * @deprecated use {@link #getMaxConcurrentActivityTaskPollers}
+   */
   @Deprecated
   public int getActivityPollThreadCount() {
     return getMaxConcurrentActivityTaskPollers();

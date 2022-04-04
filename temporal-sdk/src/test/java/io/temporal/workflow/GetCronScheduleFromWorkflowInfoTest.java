@@ -57,8 +57,7 @@ public class GetCronScheduleFromWorkflowInfoTest {
             .getWorkflowClient()
             .newUntypedWorkflowStub(
                 "TestGetCronScheduleWorkflowsFunc",
-                newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-                    .toBuilder()
+                newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
                     .setCronSchedule("0 0 * * *")
                     .build());
     testWorkflowRule.registerDelayedCallback(Duration.ofDays(1), workflowStub::cancel);

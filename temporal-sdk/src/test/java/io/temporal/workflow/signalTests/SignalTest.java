@@ -59,8 +59,7 @@ public class SignalTest {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId(workflowId)
             .build();
     QueryableWorkflow client = workflowClient.newWorkflowStub(QueryableWorkflow.class, options);
@@ -98,8 +97,7 @@ public class SignalTest {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId(workflowId)
             .build();
     QueryableWorkflow client = workflowClient.newWorkflowStub(QueryableWorkflow.class, options);
@@ -142,8 +140,7 @@ public class SignalTest {
     QueryableWorkflow client4 =
         workflowClient.newWorkflowStub(
             QueryableWorkflow.class,
-            options
-                .toBuilder()
+            options.toBuilder()
                 .setWorkflowIdReusePolicy(
                     WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
                 .build());

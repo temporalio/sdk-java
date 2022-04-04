@@ -33,6 +33,8 @@ package io.temporal.authorization;
  *     JWT</a>
  */
 public interface AuthorizationTokenSupplier {
-  /** @return token to be passed in authorization header */
+  /**
+   * @return token to be passed in authorization header
+   */
   String supply();
 }

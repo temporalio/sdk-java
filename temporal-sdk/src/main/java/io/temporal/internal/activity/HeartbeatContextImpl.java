@@ -92,7 +92,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
             defaultHeartbeatThrottleInterval);
   }
 
-  /** @see ActivityExecutionContext#heartbeat(Object) */
+  /**
+   * @see ActivityExecutionContext#heartbeat(Object)
+   */
   @Override
   public <V> void heartbeat(V details) throws ActivityCompletionException {
     if (heartbeatExecutor.isShutdown()) {
@@ -115,7 +117,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
     }
   }
 
-  /** @see ActivityExecutionContext#getHeartbeatDetails(Class, Type) */
+  /**
+   * @see ActivityExecutionContext#getHeartbeatDetails(Class, Type)
+   */
   @Override
   @SuppressWarnings("unchecked")
   public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType) {

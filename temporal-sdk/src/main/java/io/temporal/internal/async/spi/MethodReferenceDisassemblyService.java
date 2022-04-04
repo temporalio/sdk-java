@@ -38,6 +38,8 @@ public interface MethodReferenceDisassemblyService {
   @Nullable
   Object getMethodReferenceTarget(@Nonnull Object methodReference);
 
-  /** @return language this service provides an extension or implementation for */
+  /**
+   * @return language this service provides an extension or implementation for
+   */
   String getLanguageName();
 }

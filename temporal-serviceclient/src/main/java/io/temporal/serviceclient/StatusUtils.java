@@ -49,7 +49,9 @@ public class StatusUtils {
     return details.is(failureType);
   }
 
-  /** @return a failure of a given type from the StatusRuntimeException object */
+  /**
+   * @return a failure of a given type from the StatusRuntimeException object
+   */
   public static <T extends GeneratedMessageV3> T getFailure(
       StatusRuntimeException exception, Class<T> failureType) {
     Preconditions.checkNotNull(exception, "exception cannot be null");

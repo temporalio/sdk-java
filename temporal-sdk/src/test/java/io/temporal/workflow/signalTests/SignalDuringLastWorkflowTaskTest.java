@@ -51,8 +51,7 @@ public class SignalDuringLastWorkflowTaskTest {
   @Test
   public void testSignalDuringLastWorkflowTask() {
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId("testSignalDuringLastWorkflowTask-" + UUID.randomUUID().toString())
             .build();
     TestSignaledWorkflow client =

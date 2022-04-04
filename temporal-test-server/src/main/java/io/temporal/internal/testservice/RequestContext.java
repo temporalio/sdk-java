@@ -236,7 +236,9 @@ final class RequestContext {
     this.activityTasks.add(activityTask);
   }
 
-  /** @return cancellation handle */
+  /**
+   * @return cancellation handle
+   */
   Functions.Proc addTimer(Duration delay, Runnable callback, String name) {
     Timer timer = new Timer(delay, callback, name);
     this.timers.add(timer);
@@ -263,7 +265,9 @@ final class RequestContext {
     commitCallbacks.add(callback);
   }
 
-  /** @return nextEventId */
+  /**
+   * @return nextEventId
+   */
   long commitChanges(TestWorkflowStore store) {
     return store.save(this);
   }

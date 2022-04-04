@@ -40,8 +40,7 @@ public class GetAttemptFromWorkflowInfoTest {
   public void testGetAttemptFromWorkflowInfo() {
     String workflowId = "testGetAttemptWorkflow";
     WorkflowOptions workflowOptions =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId(workflowId)
             .build();
     TestGetAttemptWorkflowsFunc workflow =

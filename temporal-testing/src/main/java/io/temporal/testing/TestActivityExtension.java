@@ -181,7 +181,9 @@ public class TestActivityExtension
 
     private Builder() {}
 
-    /** @see TestActivityEnvironment#newInstance(TestEnvironmentOptions) */
+    /**
+     * @see TestActivityEnvironment#newInstance(TestEnvironmentOptions)
+     */
     public Builder setTestEnvironmentOptions(TestEnvironmentOptions testEnvironmentOptions) {
       this.testEnvironmentOptions = testEnvironmentOptions;
       return this;

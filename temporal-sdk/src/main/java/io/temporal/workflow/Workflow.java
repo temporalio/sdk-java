@@ -1020,8 +1020,8 @@ public final class Workflow {
    *
    * @param name search attribute name
    * @return deserialized search attribute value
-   * @throws IllegalStateException if the search attribute value is a collection of multiple (&gt 1)
-   *     elements
+   * @throws IllegalStateException if the search attribute value is a collection of multiple (&gt;
+   *     1) elements
    */
   @Nullable
   public static <T> T getSearchAttribute(String name) {
@@ -1119,7 +1119,9 @@ public final class Workflow {
     WorkflowInternal.setDefaultActivityOptions(defaultActivityOptions);
   }
 
-  /** @deprecated use {@link #applyActivityOptions(Map)} */
+  /**
+   * @deprecated use {@link #applyActivityOptions(Map)}
+   */
   @Deprecated
   public static void setActivityOptions(Map<String, ActivityOptions> activityMethodOptions) {
     WorkflowInternal.applyActivityOptions(activityMethodOptions);

@@ -41,7 +41,9 @@ public class AsyncRetryTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestAsyncRetryWorkflowImpl.class).build();
 
-  /** @see DeterministicRunnerTest#testRetry() */
+  /**
+   * @see DeterministicRunnerTest#testRetry()
+   */
   @Test
   public void testAsyncRetry() {
     TestTraceWorkflow client =

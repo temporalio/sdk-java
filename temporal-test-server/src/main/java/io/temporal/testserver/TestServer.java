@@ -88,7 +88,9 @@ public class TestServer {
     }
   }
 
-  /** @return created in-memory service */
+  /**
+   * @return created in-memory service
+   */
   public static InProcessTestServer createServer() {
     return createServer(true, 0);
   }

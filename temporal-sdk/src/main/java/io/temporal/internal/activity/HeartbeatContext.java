@@ -25,9 +25,13 @@ import java.util.Optional;
 
 interface HeartbeatContext {
 
-  /** @see io.temporal.activity.ActivityExecutionContext#heartbeat(Object) */
+  /**
+   * @see io.temporal.activity.ActivityExecutionContext#heartbeat(Object)
+   */
   <V> void heartbeat(V details) throws ActivityCompletionException;
 
-  /** @see io.temporal.activity.ActivityExecutionContext#getHeartbeatDetails(Class, Type) */
+  /**
+   * @see io.temporal.activity.ActivityExecutionContext#getHeartbeatDetails(Class, Type)
+   */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsGenericType);
 }

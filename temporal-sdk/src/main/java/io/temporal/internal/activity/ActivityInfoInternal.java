@@ -37,9 +37,13 @@ interface ActivityInfoInternal extends ActivityInfo {
    */
   Functions.Proc getCompletionHandle();
 
-  /** @return input parameters of the activity execution */
+  /**
+   * @return input parameters of the activity execution
+   */
   Optional<Payloads> getInput();
 
-  /** @return header that is passed with the activity execution */
+  /**
+   * @return header that is passed with the activity execution
+   */
   Header getHeader();
 }

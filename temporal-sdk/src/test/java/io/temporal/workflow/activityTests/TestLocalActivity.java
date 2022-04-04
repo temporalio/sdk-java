@@ -154,8 +154,7 @@ public class TestLocalActivity {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
               VariousTestActivities.class,
-              SDKTestOptions.newLocalActivityOptions()
-                  .toBuilder()
+              SDKTestOptions.newLocalActivityOptions().toBuilder()
                   .setDoNotIncludeArgumentsIntoMarker(doNotIncludeArgumentsIntoMarker)
                   .build());
       try {

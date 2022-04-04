@@ -300,8 +300,7 @@ public final class WorkflowWorker
           retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
 
           RespondWorkflowTaskCompletedRequest request =
-              taskCompleted
-                  .toBuilder()
+              taskCompleted.toBuilder()
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
                   .setBinaryChecksum(options.getBinaryChecksum())
@@ -325,8 +324,7 @@ public final class WorkflowWorker
             retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
 
             RespondWorkflowTaskFailedRequest request =
-                taskFailed
-                    .toBuilder()
+                taskFailed.toBuilder()
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)
                     .setTaskToken(taskToken)
@@ -342,8 +340,7 @@ public final class WorkflowWorker
             RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
             if (queryCompleted != null) {
               queryCompleted =
-                  queryCompleted
-                      .toBuilder()
+                  queryCompleted.toBuilder()
                       .setTaskToken(taskToken)
                       .setNamespace(namespace)
                       .build();

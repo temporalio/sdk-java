@@ -55,8 +55,7 @@ public class WorkflowWithCronScheduleTest {
             .getWorkflowClient()
             .newUntypedWorkflowStub(
                 "TestWorkflowWithCronSchedule",
-                newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-                    .toBuilder()
+                newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
                     .setWorkflowRunTimeout(Duration.ofHours(1))
                     // Slash is used to describe increments of n here so this cron executes every
                     // 6th hour.

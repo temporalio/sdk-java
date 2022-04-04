@@ -263,8 +263,7 @@ public final class ActivityWorker implements SuspendableWorker {
       if (taskCompleted != null) {
         ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
         RespondActivityTaskCompletedRequest request =
-            taskCompleted
-                .toBuilder()
+            taskCompleted.toBuilder()
                 .setTaskToken(task.getTaskToken())
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
@@ -281,9 +280,7 @@ public final class ActivityWorker implements SuspendableWorker {
 
         if (taskFailed != null) {
           RespondActivityTaskFailedRequest request =
-              taskFailed
-                  .getTaskFailedRequest()
-                  .toBuilder()
+              taskFailed.getTaskFailedRequest().toBuilder()
                   .setTaskToken(task.getTaskToken())
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
@@ -301,8 +298,7 @@ public final class ActivityWorker implements SuspendableWorker {
           RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
           if (taskCanceled != null) {
             RespondActivityTaskCanceledRequest request =
-                taskCanceled
-                    .toBuilder()
+                taskCanceled.toBuilder()
                     .setTaskToken(task.getTaskToken())
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)

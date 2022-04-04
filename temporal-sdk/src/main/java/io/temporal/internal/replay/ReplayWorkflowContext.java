@@ -90,7 +90,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   Payload getMemo(String key);
 
-  /** @return search attributes as a non-deserialized protobuf, null if empty */
+  /**
+   * @return search attributes as a non-deserialized protobuf, null if empty
+   */
   @Nullable
   SearchAttributes getSearchAttributes();
 
@@ -102,7 +104,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   Map<String, Object> getPropagatedContexts();
 
-  /** @return the set of configured context propagators */
+  /**
+   * @return the set of configured context propagators
+   */
   List<ContextPropagator> getContextPropagators();
 
   /**
@@ -246,21 +250,31 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /** Replay safe random. */
   Random newRandom();
 
-  /** @return scope to be used for metrics reporting. */
+  /**
+   * @return scope to be used for metrics reporting.
+   */
   Scope getMetricsScope();
 
-  /** @return whether we do logging during workflow code replay. */
+  /**
+   * @return whether we do logging during workflow code replay.
+   */
   boolean getEnableLoggingInReplay();
 
-  /** @return replay safe UUID */
+  /**
+   * @return replay safe UUID
+   */
   UUID randomUUID();
 
   /** Updates or inserts search attributes used to index workflows. */
   void upsertSearchAttributes(SearchAttributes searchAttributes);
 
-  /** @return workflow retry attempt. default is 1 */
+  /**
+   * @return workflow retry attempt. default is 1
+   */
   int getAttempt();
 
-  /** @return workflow cron schedule */
+  /**
+   * @return workflow cron schedule
+   */
   String getCronSchedule();
 }

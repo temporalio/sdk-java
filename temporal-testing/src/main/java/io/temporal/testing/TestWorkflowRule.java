@@ -393,27 +393,37 @@ public class TestWorkflowRule implements TestRule {
     return testEnvironment;
   }
 
-  /** @return name of the task queue that test worker is polling. */
+  /**
+   * @return name of the task queue that test worker is polling.
+   */
   public String getTaskQueue() {
     return taskQueue;
   }
 
-  /** @return client to the Temporal service used to start and query workflows. */
+  /**
+   * @return client to the Temporal service used to start and query workflows.
+   */
   public WorkflowClient getWorkflowClient() {
     return testEnvironment.getWorkflowClient();
   }
 
-  /** @return stubs connected to the test server (in-memory or external) */
+  /**
+   * @return stubs connected to the test server (in-memory or external)
+   */
   public WorkflowServiceStubs getWorkflowServiceStubs() {
     return testEnvironment.getWorkflowServiceStubs();
   }
 
-  /** @return blockingStub */
+  /**
+   * @return blockingStub
+   */
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
     return getWorkflowServiceStubs().blockingStub();
   }
 
-  /** @return tracer. */
+  /**
+   * @return tracer.
+   */
   public <T extends WorkerInterceptor> T getInterceptor(Class<T> type) {
     if (workerFactoryOptions.getWorkerInterceptors() != null) {
       for (WorkerInterceptor interceptor : workerFactoryOptions.getWorkerInterceptors()) {
@@ -425,7 +435,9 @@ public class TestWorkflowRule implements TestRule {
     return null;
   }
 
-  /** @return workflow execution history */
+  /**
+   * @return workflow execution history
+   */
   public History getHistory(WorkflowExecution execution) {
     return testEnvironment.getWorkflowExecutionHistory(execution).getHistory();
   }

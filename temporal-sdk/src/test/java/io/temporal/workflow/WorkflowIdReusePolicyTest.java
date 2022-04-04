@@ -42,8 +42,7 @@ public class WorkflowIdReusePolicyTest {
     // previous run.
     String workflowId = UUID.randomUUID().toString();
     WorkflowOptions workflowOptions =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowIdReusePolicy(
                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY)
             .setWorkflowId(workflowId)
@@ -61,8 +60,7 @@ public class WorkflowIdReusePolicyTest {
 
     // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
     workflowOptions =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowIdReusePolicy(
                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)
             .setWorkflowId(workflowId)

@@ -229,7 +229,9 @@ public final class WorkflowClientOptions {
     return binaryChecksum;
   }
 
-  /** @return the list of context propagators to use with the client. */
+  /**
+   * @return the list of context propagators to use with the client.
+   */
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
   }

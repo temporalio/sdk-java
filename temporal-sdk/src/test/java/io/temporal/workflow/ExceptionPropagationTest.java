@@ -127,8 +127,7 @@ public class ExceptionPropagationTest {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class,
-              SDKTestOptions.newActivityOptions20sScheduleToClose()
-                  .toBuilder()
+              SDKTestOptions.newActivityOptions20sScheduleToClose().toBuilder()
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());
       try {

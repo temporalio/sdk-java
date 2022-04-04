@@ -100,8 +100,7 @@ public class SagaTest {
       VariousTestActivities testActivities =
           Workflow.newActivityStub(
               VariousTestActivities.class,
-              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue)
-                  .toBuilder()
+              SDKTestOptions.newActivityOptionsForTaskQueue(taskQueue).toBuilder()
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());
 

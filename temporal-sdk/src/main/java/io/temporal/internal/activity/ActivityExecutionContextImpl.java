@@ -87,7 +87,9 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
             defaultHeartbeatThrottleInterval);
   }
 
-  /** @see ActivityExecutionContext#heartbeat(Object) */
+  /**
+   * @see ActivityExecutionContext#heartbeat(Object)
+   */
   @Override
   public <V> void heartbeat(V details) throws ActivityCompletionException {
     heartbeatContext.heartbeat(details);

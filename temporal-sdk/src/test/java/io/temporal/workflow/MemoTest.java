@@ -77,8 +77,7 @@ public class MemoTest {
     }
 
     WorkflowOptions workflowOptions =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .setMemo(MEMO)
             .build();
@@ -107,8 +106,7 @@ public class MemoTest {
   @Test
   public void testMemoInWorkflow() {
     WorkflowOptions workflowOptions =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .setMemo(MEMO)
             .build();

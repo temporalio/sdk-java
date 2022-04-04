@@ -301,7 +301,9 @@ public class TestWorkflowExtension
 
     private Builder() {}
 
-    /** @see TestWorkflowEnvironment#newWorker(String, WorkerOptions) */
+    /**
+     * @see TestWorkflowEnvironment#newWorker(String, WorkerOptions)
+     */
     public Builder setWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
       return this;

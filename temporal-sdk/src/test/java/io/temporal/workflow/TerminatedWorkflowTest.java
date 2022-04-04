@@ -54,8 +54,7 @@ public class TerminatedWorkflowTest {
   @Test
   public void testShouldReturnQueryResultAfterWorkflowTimeout() {
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowRunTimeout(Duration.ofSeconds(1))
             .build();
     TestTraceWorkflow workflow =

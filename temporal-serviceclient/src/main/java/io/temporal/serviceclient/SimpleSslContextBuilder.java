@@ -73,7 +73,9 @@ public class SimpleSslContextBuilder {
     return new SimpleSslContextBuilder(PKCS.PKCS_8, keyCertChain, key);
   }
 
-  /** @param pfxKeyArchive - an input stream for .pfx or .p12 PKCS12 archive file */
+  /**
+   * @param pfxKeyArchive - an input stream for .pfx or .p12 PKCS12 archive file
+   */
   public static SimpleSslContextBuilder forPKCS12(@Nullable InputStream pfxKeyArchive) {
     return new SimpleSslContextBuilder(PKCS.PKCS_12, null, pfxKeyArchive);
   }
