@@ -188,8 +188,10 @@ public final class POJOActivityInterfaceMetadata {
       ActivityMethod activityMethod = parentMethod.getAnnotation(ActivityMethod.class);
       if (activityMethod == null) {
         try {
-          currentInterface.getDeclaredMethod(
-              parentMethod.getName(), parentMethod.getParameterTypes());
+          @SuppressWarnings({"ReturnValueIgnored", "unused"})
+          Method ignored =
+              currentInterface.getDeclaredMethod(
+                  parentMethod.getName(), parentMethod.getParameterTypes());
           // Don't add to result as it is redefined by current.
           // This allows overriding methods without annotation with annotated methods.
         } catch (NoSuchMethodException e) {

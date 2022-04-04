@@ -9,7 +9,7 @@ services:
       - "9042:9042"
 
   temporal:
-    image: temporaliotest/auto-setup:1edb0a6b1fb8152e19c26b03a62835434bcfa003
+    image: temporaliotest/auto-setup:latest
     ports:
       - "7233:7233"
       - "7234:7234"
@@ -24,6 +24,8 @@ services:
       - "DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml"
     depends_on:
       - cassandra
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
 
   unit-test-docker:
     build:
@@ -55,16 +57,5 @@ services:
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
-    volumes:
-      - "../../:/temporal-java-client"
-
-  fossa:
-    build:
-      context: ../../
-      dockerfile: ./docker/buildkite/Dockerfile
-    command: /bin/sh
-    environment:
-      - BUILDKITE_BRANCH
-      - FOSSA_API_KEY
     volumes:
       - "../../:/temporal-java-client"

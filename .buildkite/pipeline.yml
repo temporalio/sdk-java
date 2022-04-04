@@ -3,7 +3,7 @@ steps:
     agents:
       queue: "default"
       docker: "*"
-    command: "./gradlew --no-daemon testClasses build -x test -x nativeImage -x checkLicenses -x googleJavaFormat -x verifyGoogleJavaFormat"
+    command: "./gradlew --no-daemon testClasses build -x test -x nativeImage -x checkLicenseMain -x checkLicenses -x googleJavaFormat -x verifyGoogleJavaFormat"
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:
@@ -14,7 +14,7 @@ steps:
     agents:
       queue: "default"
       docker: "*"
-    command: "./gradlew --no-daemon test -x checkLicenses -x googleJavaFormat -x verifyGoogleJavaFormat"
+    command: "./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x googleJavaFormat -x verifyGoogleJavaFormat"
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:
@@ -25,7 +25,7 @@ steps:
     agents:
       queue: "default"
       docker: "*"
-    command: "./gradlew --no-daemon test -x checkLicenses -x googleJavaFormat -x verifyGoogleJavaFormat"
+    command: "./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x googleJavaFormat -x verifyGoogleJavaFormat"
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:
@@ -40,7 +40,7 @@ steps:
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:
-          run: unit-test-test-service
+          run: unit-test-test-service-jdk18
           config: docker/buildkite/docker-compose.yaml
 
   - wait
