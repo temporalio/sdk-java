@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.workflow.Functions;
@@ -84,6 +85,7 @@ public class WorkflowThreadContext {
       yieldReason = reason;
 
       // TODO: Verify that calling unblockFunction under the lock is a sane thing to do.
+      // `while` is here also for proofing against spurious wake-ups
       while (!inRunUntilBlocked || !unblockFunction.get()) {
         status = Status.YIELDED;
         runCondition.signal();
@@ -94,6 +96,9 @@ public class WorkflowThreadContext {
         maybeEvaluateLocked(reason);
       }
 
+      // We may be woken up in Evaluating state.
+      // But evaluation is now done, and we are in the running state if we didn't yield after the
+      // evaluation.
       setStatus(Status.RUNNING);
       yieldReason = null;
     } catch (InterruptedException e) {
@@ -123,33 +128,38 @@ public class WorkflowThreadContext {
       } catch (Exception e) {
         evaluationFunction.apply(Throwables.getStackTraceAsString(e));
       } finally {
-        status = Status.YIELDED;
+        status = Status.RUNNING;
         evaluationCondition.signal();
       }
     }
   }
 
   /**
-   * Call function by the thread that owns this context and is currently blocked in a await. Used to
-   * get information about current state of the thread like current stack trace.
+   * Calls {@code function} in the thread that owns this context and is currently blocked in await.
+   * Used to get information about current state of the thread like current stack trace.
    *
    * @param function to evaluate. Consumes reason for yielding parameter.
    */
   public void evaluateInCoroutineContext(Functions.Proc1<String> function) {
     lock.lock();
     try {
-      if (function == null) {
-        throw new IllegalArgumentException("null function");
-      }
-      if (status != Status.YIELDED && status != Status.RUNNING) {
-        throw new IllegalStateException("Not in yielded status: " + status);
-      }
-      if (evaluationFunction != null) {
-        throw new IllegalStateException("Already evaluating");
-      }
+      Preconditions.checkArgument(function != null, "null function");
       if (inRunUntilBlocked) {
         throw new IllegalStateException("Running runUntilBlocked");
       }
+      // check `evaluationFunction == null` on entrance and setting it to null in `finally` under a
+      // lock
+      // serves as an additional lock to make sure no parallel evaluateInCoroutineContext may be
+      // executed.
+      // Parallel executions possible without this check, because this method calls `await()` that
+      // releases the original lock.
+      if (evaluationFunction != null) {
+        throw new IllegalStateException("Already evaluating");
+      }
+      if (status != Status.YIELDED) {
+        throw new IllegalStateException("Not in yielded status: " + status);
+      }
+
       evaluationFunction = function;
       status = Status.EVALUATING;
       yieldCondition.signal();
@@ -241,18 +251,17 @@ public class WorkflowThreadContext {
       }
       inRunUntilBlocked = true;
       if (status == Status.YIELDED) {
-        // we have to swap it here to allow potentialProgressStatesLocked to start returning true
         status = Status.RUNNING;
       }
       remainedBlocked = true;
       yieldCondition.signal();
-      while (potentialProgressStatesLocked()) {
+      while (isPotentialProgressStateLocked()) {
         boolean awaitTimedOut =
             !runCondition.await(deadlockDetectionTimeoutMs, TimeUnit.MILLISECONDS);
         if (awaitTimedOut
             // check that the condition is still true after acquiring the lock back
             // (it could be moved into DONE meanwhile)
-            && potentialProgressStatesLocked()) {
+            && isPotentialProgressStateLocked()) {
           if (currentThread != null) {
             throw new PotentialDeadlockException(
                 currentThread.getName(), currentThread.getStackTrace(), this);
@@ -286,11 +295,11 @@ public class WorkflowThreadContext {
   /**
    * Should be called under the lock.
    *
-   * @return true is current status is RUNNING or CREATED - two states we actively monitor for
-   *     potential deadlocks
+   * @return true is current status is CREATED, RUNNING or EVALUATING - states that the thread can
+   *     make progress in
    */
-  private boolean potentialProgressStatesLocked() {
-    return status == Status.RUNNING || status == Status.CREATED;
+  private boolean isPotentialProgressStateLocked() {
+    return status == Status.RUNNING || status == Status.CREATED || status == Status.EVALUATING;
   }
 
   public boolean isDestroyRequested() {
