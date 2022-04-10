@@ -435,13 +435,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_UNHANDLED_COMMAND)
                     .setIdentity(request.getIdentity())
                     .build();
-            workflowTaskStateMachine.action(
-                Action.FAIL, ctx, failedRequest, workflowTaskCompletedId);
-            for (RequestContext deferredCtx : workflowTaskStateMachine.getData().bufferedEvents) {
-              ctx.add(deferredCtx);
-            }
-            workflowTaskStateMachine.getData().bufferedEvents.clear();
-            scheduleWorkflowTask(ctx);
+            processFailWorkflowTask(failedRequest, ctx);
             return;
           }
           try {
@@ -962,16 +956,26 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return signal;
   }
 
-  // TODO: insert a single workflow task failure into the history
   @Override
   public void failWorkflowTask(RespondWorkflowTaskFailedRequest request) {
     completeWorkflowTaskUpdate(
-        ctx -> {
-          workflowTaskStateMachine.action(Action.FAIL, ctx, request, 0);
-          scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("failWorkflowTask"); // Unlock timer associated with the workflow task
-        },
-        null); // reset sticky attributes to null
+        ctx -> processFailWorkflowTask(request, ctx), null); // reset sticky attributes to null
+  }
+
+  private void processFailWorkflowTask(
+      RespondWorkflowTaskFailedRequest request, RequestContext ctx) {
+    WorkflowTaskData data = workflowTaskStateMachine.getData();
+    if (data.attempt >= 2) {
+      // server drops failures after the second attempt and let the workflow task timeout
+      return;
+    }
+    workflowTaskStateMachine.action(Action.FAIL, ctx, request, 0);
+    for (RequestContext deferredCtx : workflowTaskStateMachine.getData().bufferedEvents) {
+      ctx.add(deferredCtx);
+    }
+    workflowTaskStateMachine.getData().bufferedEvents.clear();
+    scheduleWorkflowTask(ctx);
+    ctx.unlockTimer("failWorkflowTask"); // Unlock timer associated with the workflow task
   }
 
   // TODO: insert a single  workflow task timeout into the history

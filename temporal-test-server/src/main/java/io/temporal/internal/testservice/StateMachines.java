@@ -261,7 +261,7 @@ class StateMachines {
 
     long scheduledEventId = NO_EVENT_ID;
 
-    int attempt = 1;
+    int attempt = 0;
 
     /** Query requests received during workflow task processing (after start) */
     final Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queryBuffer = new HashMap<>();
@@ -278,7 +278,7 @@ class StateMachines {
       startedEventId = NO_EVENT_ID;
       workflowTask = null;
       scheduledEventId = NO_EVENT_ID;
-      attempt = 1;
+      attempt = 0;
     }
 
     @Override
@@ -1107,7 +1107,7 @@ class StateMachines {
         WorkflowTaskScheduledEventAttributes.newBuilder()
             .setStartToCloseTimeout(request.getWorkflowTaskTimeout())
             .setTaskQueue(request.getTaskQueue())
-            .setAttempt(data.attempt)
+            .setAttempt(++data.attempt)
             .build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -1166,7 +1166,7 @@ class StateMachines {
             : stickyAttributes.getWorkerTaskQueue().getName();
     workflowTaskResponse.setWorkflowExecution(ctx.getExecution());
     workflowTaskResponse.setWorkflowType(request.getWorkflowType());
-    workflowTaskResponse.setAttempt(data.attempt);
+    workflowTaskResponse.setAttempt(++data.attempt);
     TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), taskQueue);
     WorkflowTask workflowTask = new WorkflowTask(taskQueueId, workflowTaskResponse);
     ctx.setWorkflowTask(workflowTask);
@@ -1298,7 +1298,6 @@ class StateMachines {
           }
           if (!queryOnly) {
             data.startedEventId = startedEventId;
-            data.attempt++;
           }
         });
   }

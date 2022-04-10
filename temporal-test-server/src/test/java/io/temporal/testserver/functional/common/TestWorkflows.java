@@ -17,13 +17,15 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.testserver.functional.timeskipping;
+package io.temporal.testserver.functional.common;
 
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
-@WorkflowInterface
-public interface TestWorkflow {
-  @WorkflowMethod
-  void execute();
+public class TestWorkflows {
+  @WorkflowInterface
+  public interface PrimitiveWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
 }
