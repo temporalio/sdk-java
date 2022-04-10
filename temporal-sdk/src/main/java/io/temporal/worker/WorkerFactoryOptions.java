@@ -97,8 +97,8 @@ public class WorkerFactoryOptions {
     }
 
     /**
-     * Timeout for a workflow task routed to the the host that caches a workflow object. Once it
-     * times out then it can be picked up by any worker.
+     * Timeout for a workflow task routed to the "sticky worker" - host that has the workflow
+     * instance cached in memory. Once it times out, then it can be picked up by any worker.
      *
      * <p>Default value is 10 seconds.
      */

@@ -28,14 +28,34 @@ package io.temporal.internal.sync;
 public class PotentialDeadlockException extends RuntimeException {
 
   private final WorkflowThreadContext workflowThreadContext;
-  private String stackDump;
+  private final long detectionTimestamp;
+  private final long stacktraceTimestamp;
+  private String threadDump;
+  private long threadDumpTimestamp;
 
+  /**
+   * Note: because of JVM checkpoints, a timestamp when SDK detects a deadlock and a timestamp when
+   * it's able to take a thread's stacktrace may differ. It may produce misleading stacktraces when
+   * the thread stacktrace is taken from a different point then where it was originally when the
+   * deadlock detection fired. This can give a false lead to the investigator. For that reason, the
+   * exception message includes numerous timestamps to provide more context and make this tricky
+   * scenario more obvious.
+   *
+   * @param threadName name of the thread that is in a potential deadlock state
+   * @param stackTrace stacktrace of the thread that is in a potential deadlock state
+   * @param workflowThreadContext context of the thread that is in a potential deadlock state
+   * @param detectionTimestamp a timestamp the deadlock was detected
+   * @param stacktraceTimestamp a timestamp when the stacktrace of the potentially deadlocked thread
+   *     was taken.
+   */
   PotentialDeadlockException(
       String threadName,
       StackTraceElement[] stackTrace,
-      WorkflowThreadContext workflowThreadContext) {
+      WorkflowThreadContext workflowThreadContext,
+      long detectionTimestamp,
+      long stacktraceTimestamp) {
     super(
-        "Potential deadlock detected: workflow thread \""
+        "Potential deadlock detected. workflow thread \""
             + threadName
             + "\" didn't yield control for over a second.",
         null,
@@ -43,15 +63,29 @@ public class PotentialDeadlockException extends RuntimeException {
         true);
     setStackTrace(stackTrace);
     this.workflowThreadContext = workflowThreadContext;
+    this.detectionTimestamp = detectionTimestamp;
+    this.stacktraceTimestamp = stacktraceTimestamp;
   }
 
-  void setStackDump(String stackDump) {
-    this.stackDump = stackDump;
+  /**
+   * @param stackDump stack dump of other threads of the workflow excluding the thread that
+   *     triggered the deadlock detector
+   * @param threadDumpTimestamp timestamp when the thread dump was taken
+   */
+  void setStackDump(String stackDump, long threadDumpTimestamp) {
+    this.threadDump = stackDump;
+    this.threadDumpTimestamp = threadDumpTimestamp;
   }
 
   @Override
   public String getMessage() {
-    return super.getMessage() + " Other workflow threads:\n\n" + stackDump + "\n";
+    return super.getMessage()
+        + " {"
+        + ("detectionTimestamp=" + detectionTimestamp)
+        + ("stacktraceTimestamp=" + stacktraceTimestamp)
+        + ("threadDumpTimestamp=" + threadDumpTimestamp)
+        + "}"
+        + (!threadDump.isEmpty() ? " Other workflow threads:\n" + "[\n" + threadDump + "]\n" : "");
   }
 
   public WorkflowThreadContext getWorkflowThreadContext() {

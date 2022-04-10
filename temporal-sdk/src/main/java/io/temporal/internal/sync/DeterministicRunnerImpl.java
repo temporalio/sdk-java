@@ -222,7 +222,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           dump.append(t.getStackTrace());
         }
       }
-      e.setStackDump(dump.toString());
+      e.setStackDump(dump.toString(), System.currentTimeMillis());
       throw e;
     } finally {
       inRunUntilAllBlocked = false;
