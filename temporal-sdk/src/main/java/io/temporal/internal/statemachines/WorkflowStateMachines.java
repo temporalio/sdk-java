@@ -50,6 +50,7 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.ChildWorkflowCancellationType;
@@ -1007,6 +1008,9 @@ public final class WorkflowStateMachines {
    */
   private void checkEventLoopExecuting() {
     if (!eventLoopExecuting) {
+      // this call doesn't yield or await, because the await function returns true,
+      // but it checks if the workflow thread needs to be destroyed
+      WorkflowThread.await("kill workflow thread if destroy requested", () -> true);
       throw new IllegalStateException("Operation allowed only while eventLoop is running");
     }
   }

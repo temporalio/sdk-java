@@ -42,7 +42,12 @@ public class DebugModeUtils {
   }
 
   @VisibleForTesting
-  public static void initializeForTests(EnvironmentVariablesProvider environmentVariableProvider) {
-    TEMPORAL_DEBUG_MODE = readTemporalDebugMode(environmentVariableProvider);
+  public static void override(boolean debugMode) {
+    TEMPORAL_DEBUG_MODE = debugMode;
+  }
+
+  @VisibleForTesting
+  public static void reset() {
+    TEMPORAL_DEBUG_MODE = readTemporalDebugMode(SystemEnvironmentVariablesProvider.INSTANCE);
   }
 }
