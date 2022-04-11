@@ -1,7 +1,7 @@
 #!/bin/bash
 set -xeou pipefail
 
-./gradlew --no-daemon checkLicenses googleJavaFormat verifyGoogleJavaFormat
+./gradlew --no-daemon checkLicenseMain checkLicenses googleJavaFormat verifyGoogleJavaFormat
 
 if [ ! -z "$(git status --porcelain)" ]; then 
 	echo 'Some files were improperly formatted. Please run build locally and check in all changes.'
