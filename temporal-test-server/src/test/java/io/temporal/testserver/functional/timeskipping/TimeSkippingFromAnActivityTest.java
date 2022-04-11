@@ -26,6 +26,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testserver.TestServer;
+import io.temporal.testserver.functional.common.TestWorkflows;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Async;
@@ -47,7 +48,7 @@ public class TimeSkippingFromAnActivityTest {
     }
   }
 
-  public static class TestWorkflowImpl implements TestWorkflow {
+  public static class TestWorkflowImpl implements TestWorkflows.PrimitiveWorkflow {
     @Override
     public void execute() {
       SleepingActivity activity =
@@ -95,7 +96,8 @@ public class TimeSkippingFromAnActivityTest {
   public void testAbandonActivity() {
     WorkflowClient.newInstance(workflowServiceStubs)
         .newWorkflowStub(
-            TestWorkflow.class, SDKTestOptions.newWorkflowOptionsWithTimeouts(TASK_QUEUE))
+            TestWorkflows.PrimitiveWorkflow.class,
+            SDKTestOptions.newWorkflowOptionsWithTimeouts(TASK_QUEUE))
         .execute();
     // time skipping is locked here. Workflow is done, but the activity is not
   }
