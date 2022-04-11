@@ -114,7 +114,7 @@ public class WorkflowThreadContext {
    *
    * <p>Should be called under the lock
    *
-   * @param reason human readable reason for current thread blockage passed to await call.
+   * @param reason human-readable reason for current thread blockage passed to await call.
    */
   private void maybeEvaluateLocked(String reason) {
     if (status == Status.EVALUATING) {
@@ -123,17 +123,17 @@ public class WorkflowThreadContext {
       } catch (Exception e) {
         evaluationFunction.apply(Throwables.getStackTraceAsString(e));
       } finally {
-        status = Status.YIELDED;
+        status = Status.RUNNING;
         evaluationCondition.signal();
       }
     }
   }
 
   /**
-   * Call function by the thread that owns this context and is currently blocked in a await. Used to
-   * get information about current state of the thread like current stack trace.
+   * Call {@code function} by the thread that owns this context and is currently blocked in a await.
+   * Used to get information about current state of the thread like current stack trace.
    *
-   * @param function to evaluate. Consumes reason for yielding parameter.
+   * @param function to evaluate. Consumes reason for yielding as a parameter.
    */
   public void evaluateInCoroutineContext(Functions.Proc1<String> function) {
     lock.lock();
@@ -145,6 +145,14 @@ public class WorkflowThreadContext {
         throw new IllegalStateException("Not in yielded status: " + status);
       }
       if (evaluationFunction != null) {
+        // We need to make sure no parallel evaluateInCoroutineContext are permitted.
+        // The lock itself is not enough, because we call `await` later in the method body that
+        // releases the original lock.
+        // So we do a non-atomic CAS by comparing `evaluationFunction` with null and setting it on
+        // entrance and resetting it on exit under a lock to achieve exclusivity.
+        // We don't need an atomic CAS here, because we are under the lock when we perform these
+        // operations.
+        // A more explicit solution may be implemented using a separate lock for evaluate calls.
         throw new IllegalStateException("Already evaluating");
       }
       if (inRunUntilBlocked) {
@@ -253,9 +261,12 @@ public class WorkflowThreadContext {
             // check that the condition is still true after acquiring the lock back
             // (it could be moved into DONE meanwhile)
             && potentialProgressStatesLocked()) {
+          long detectionTimestamp = System.currentTimeMillis();
           if (currentThread != null) {
+            StackTraceElement[] stackTrace = currentThread.getStackTrace();
+            long stackTraceTimestamp = System.currentTimeMillis();
             throw new PotentialDeadlockException(
-                currentThread.getName(), currentThread.getStackTrace(), this);
+                currentThread.getName(), stackTrace, this, detectionTimestamp, stackTraceTimestamp);
           } else {
             // This should never happen.
             // We clear currentThread only after setting the status to DONE.
@@ -263,7 +274,12 @@ public class WorkflowThreadContext {
             // and acquiring the lock back
             log.warn(
                 "Illegal State: WorkflowThreadContext has no currentThread in {} state", status);
-            throw new PotentialDeadlockException("UnknownThread", new StackTraceElement[0], this);
+            throw new PotentialDeadlockException(
+                "UnknownThread",
+                new StackTraceElement[0],
+                this,
+                detectionTimestamp,
+                detectionTimestamp);
           }
         }
         if (evaluationFunction != null) {

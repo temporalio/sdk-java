@@ -932,8 +932,10 @@ public final class Workflow {
    *     changeId are guaranteed to return the same version number. Use this to perform multiple
    *     coordinated changes that should be enabled together.
    * @param minSupported min version supported for the change
-   * @param maxSupported max version supported for the change
-   * @return version
+   * @param maxSupported max version supported for the change, this version is used as the current
+   *     one during the original execution.
+   * @return {@code maxSupported} when is originally executed. Original version recorded in the
+   *     history on replays.
    */
   public static int getVersion(String changeId, int minSupported, int maxSupported) {
     return WorkflowInternal.getVersion(changeId, minSupported, maxSupported);
