@@ -1,0 +1,49 @@
+Highlights:
+
+This release is focused on providing new Search Attributes functionality:
+  - New `Workflow.getSearchAttribute(String)`, `Workflow.getSearchAttributeValues(String)`,
+    `Workflow.getSearchAttributes()` methods to get deserialized search attributes
+  - unit tests can register new search attributes on both Test Server and dockerized Temporal Server
+  - unit tests can use Test Server to verify search attributes behavior and implementation.
+
+Test server exposes new gRPC TestService providing time skipping API to be used in other SDKs.
+
+An upgrade of Temporal Server and Temporal docker-compose to 1.16 is highly recommended to use the new Search Attribute APIs.
+
+Fixes:
+
+- Edge case of "unexpected event WORKFLOW_TASK_COMPLETED" when querying a non-completed workflow evicted from sticky cache #1134
+- Deadlock Detection may cause "Operation allowed only while eventLoop is running" in the workflow code #1127
+- Protobuf version range that was making 1.8.x release hard to use with Maven
+
+Changeset:
+2022-03-03 - 126e318c - Add test release notes (#1059)
+2022-03-03 - d4b91a55 - Improve operation resilience of prepare-release (#1058)
+2022-03-04 - 45768331 - Avoid spurious error notification from prep-release (#1060)
+2022-03-07 - 4678ae47 - Providing OrchestratorServiceStubs (#1057)
+2022-03-07 - 96463355 - Dependencies upgrade (#1064)
+2022-03-11 - 537f225b - Synchronize GrpcSyncRetryer and GrpcAsyncRetryer behavior, make non-final exceptions INFO level (#1065)
+2022-03-11 - e7bafae5 - Code cleanup around Pollers (#1070)
+2022-03-14 - 54f4c87c - Fix flake with dockerized temporal when signal gets reordered with the first workflow task (#1075)
+2022-03-14 - db949e7c - Implement Test Operator Service (#1071)
+2022-03-17 - 28b72721 - Time Skipping Service (#1076)
+2022-03-17 - 49269040 - Fix Search in Javadocs (#1078)
+2022-03-17 - 6ecbbf2e - Fix for WorkerOptions Builder using maxConcurrentActivityExecutionSize for local activities in partial build() (#1082)
+2022-03-17 - 981c4ae9 - Fix comments for newUntypedExternalWorkflowStub (#1077)
+2022-03-18 - 13c338ed - Exclude synthetic and static methods from Activity Interface Hierarchy (#1083)
+2022-03-19 - b5bab2c2 - Add Buildkite step verifying the build on JDK17 and fix incompatibilities (#1084)
+2022-03-21 - 091dfba6 - More time skipping methods in Test Service (#1087)
+2022-03-22 - 6ddde0be - Add support for UpsertSearchAttributes to describe in the test service (#1090)
+2022-03-23 - 5d8caaba - Improve client WorkflowFailedException message with the reason (#1095)
+2022-03-23 - 996a1bef - Improve context propagator javadocs (#1092)
+2022-03-24 - cc64816b - New absolute timestamp based Time Skipping Test Server API (#1096)
+2022-03-28 - 43012f7c - Swallow "Subchannel shutdown" gRPC errors during worker shutdown (#1089)
+2022-04-01 - 93017b2e - Improve Poller's shutdown log message with a poll task class (#1108)
+2022-04-11 - 3291b4e1 - Improve PotentialDeadlockException message with timestamps (#1122)
+2022-04-11 - 4b82f1a4 - Fix "Operation allowed only while eventLoop is running" exception if deadlock is detected (#1127)
+2022-04-11 - 900ea1ff - Turn on cacheless mode of temporal server for buildkite (#1115)
+2022-04-11 - c3fa8066 - Tests verifying that getVersion inside a signal handler works correctly (#1121)
+2022-04-11 - f706bd03 - Test Server now times out workflow task in case of repeated failures after the second attempt (#1124)
+2022-04-12 - 47d881b3 - Deserialized Search Attributes API and full Test Server implementation for Search Attributes (#1067)
+2022-04-12 - d980261a - Changed the Whitesource config URL to point to the raw GH file, not the site.
+2022-04-12 - eb70ea6c - State Machines now don't try to handle already handled events a second time (#1134)
