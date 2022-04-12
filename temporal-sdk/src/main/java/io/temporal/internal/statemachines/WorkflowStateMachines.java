@@ -41,7 +41,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.history.MarkerUtils;
@@ -65,16 +64,26 @@ public final class WorkflowStateMachines {
     NON_MATCHING_EVENT
   }
 
-  private final DataConverter dataConverter = DataConverter.getDefaultInstance();
-
   /**
-   * The eventId of the last event in the history is expected to be startedEventId unless it is
-   * replaying from a JSON file.
+   * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
+   * and triggered a current replay or execution. It's expected to be the last event in the history
+   * unless we are replaying from a JSON file.
    */
   private long workflowTaskStartedEventId;
 
-  /** The eventId of the started event of the last successfully executed workflow task. */
+  /**
+   * EventId of the started event of the last successfully executed workflow task in the history.
+   */
   private long previousStartedEventId;
+
+  /** EventId of the last WorkflowTaskStartedEvent handled by these state machines. */
+  private long currentStartedEventId;
+
+  /**
+   * EventId of the last event seen by these state machines. Events earlier than this one will be
+   * discarded
+   */
+  private long lastHandledEventId;
 
   private final StatesMachinesCallback callbacks;
 
@@ -102,9 +111,6 @@ public final class WorkflowStateMachines {
    * added (due to marker based commands) while iterating over already added commands.
    */
   private final Queue<CancellableCommand> cancellableCommands = new ArrayDeque<>();
-
-  /** EventId of the last handled WorkflowTaskStartedEvent. */
-  private long currentStartedEventId;
 
   /** Is workflow executing new code or replaying from the history. */
   private boolean replaying;
@@ -171,6 +177,12 @@ public final class WorkflowStateMachines {
    * @param hasNextEvent false if this is the last event in the history.
    */
   public void handleEvent(HistoryEvent event, boolean hasNextEvent) {
+    long eventId = event.getEventId();
+    if (eventId <= lastHandledEventId) {
+      // already handled
+      return;
+    }
+    lastHandledEventId = eventId;
     boolean readyToPeek = wftBuffer.addEvent(event, hasNextEvent);
     if (readyToPeek) {
       handleEventsBatch(wftBuffer.fetch(), hasNextEvent);
@@ -183,7 +195,7 @@ public final class WorkflowStateMachines {
    *
    * @param events events belong to one workflow task
    * @param hasNextEvent true if there are more events in the history follow this batch, false if
-   *     this batch caintains last events of the history
+   *     this batch contains the last events of the history
    */
   private void handleEventsBatch(List<HistoryEvent> events, boolean hasNextEvent) {
     for (HistoryEvent event : events) {

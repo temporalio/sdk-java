@@ -24,7 +24,7 @@ ext {
     jacksonVersion = '2.13.1'
     micrometerVersion = '1.8.4'
 
-    protoVersion = '[3.10.0,3.99)!!3.19.4'
+    protoVersion = '[3.10.0,3.99)!!3.20.0'
     annotationApiVersion = '1.3.2'
     guavaVersion = '[10.0,)!!31.1-jre'
     jsonPathVersion = '2.7.0'
