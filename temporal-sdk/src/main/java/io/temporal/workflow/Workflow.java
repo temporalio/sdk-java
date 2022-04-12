@@ -36,12 +36,11 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
+import java.time.OffsetDateTime;
+import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 
@@ -1016,11 +1015,67 @@ public final class Workflow {
   }
 
   /**
-   * {@code upsertSearchAttributes} is used to add or update workflow search attributes. The search
-   * attributes can be used in query of List/Scan/Count workflow APIs. The key and value type must
-   * be registered on Temporal server side; The value has to be Json serializable.
-   * UpsertSearchAttributes will merge attributes to existing map in workflow, for example workflow
-   * code:
+   * Use {@link #getSearchAttributeValues(String)} to access safe version of this method that always
+   * returns a collection of values.
+   *
+   * @param name search attribute name
+   * @return deserialized search attribute value
+   * @throws IllegalStateException if the search attribute value is a collection of multiple (> 1)
+   *     elements
+   */
+  @Nullable
+  public static <T> T getSearchAttribute(String name) {
+    return WorkflowInternal.getSearchAttribute(name);
+  }
+
+  /**
+   * Collection returned from this method is immutable. To modify search attributes associated with
+   * this workflow use {@link #upsertSearchAttributes(Map)}.
+   *
+   * <p>Note: This method never returns an empty list. Empty list is considered an absent value for
+   * search attributes and will be returned as {@code null}.
+   *
+   * @param name search attribute name
+   * @return immutable list of deserialized search attribute values
+   */
+  @Nullable
+  public static <T> List<T> getSearchAttributeValues(String name) {
+    return WorkflowInternal.getSearchAttributeValues(name);
+  }
+
+  /**
+   * Map returned from this method is immutable. To modify search attributes associated with this
+   * workflow use {@link #upsertSearchAttributes(Map)}.
+   *
+   * @return immutable map of search attribute names to deserialized values.
+   */
+  @Nonnull
+  public static Map<String, List<?>> getSearchAttributes() {
+    return WorkflowInternal.getSearchAttributes();
+  }
+
+  /**
+   * Updates Workflow Search Attributes by merging {@code searchAttributes} to the existing Search
+   * Attributes map attached to the workflow. Search Attributes are additional indexed information
+   * attributed to workflow and used for search and visibility.
+   *
+   * <p>The search attributes can be used in query of List/Scan/Count workflow APIs. The key and its
+   * value type must be registered on Temporal server side.
+   *
+   * <p>Supported Java types of the value:
+   *
+   * <ul>
+   *   <li>{@link String}
+   *   <li>{@link Long}, {@link Integer}, {@link Short}, {@link Byte}
+   *   <li>{@link Boolean}
+   *   <li>{@link Double}
+   *   <li>{@link OffsetDateTime}
+   *   <li>{@link Collection} of the types above
+   *   <li>{@link io.temporal.common.SearchAttribute#UNSET_VALUE} can be used to unset or remove the
+   *       search attribute
+   * </ul>
+   *
+   * For example, workflow code:
    *
    * <pre><code>
    *     Map&lt;String, Object&gt; attr1 = new HashMap&lt;&gt;();
@@ -1029,14 +1084,14 @@ public final class Workflow {
    *     Workflow.upsertSearchAttributes(attr1);
    *
    *     Map&lt;String, Object&gt; attr2 = new HashMap&lt;&gt;();
-   *     attr2.put("CustomIntField", 2);
+   *     attr2.put("CustomIntField", Lists.newArrayList(1, 2));
    *     attr2.put("CustomKeywordField", "Seattle");
    *     Workflow.upsertSearchAttributes(attr2);
    * </pre></code> will eventually have search attributes as:
    *
    * <pre><code>
    *     {
-   *       "CustomIntField": 2,
+   *       "CustomIntField": 1, 2,
    *       "CustomBoolField": true,
    *       "CustomKeywordField": "Seattle",
    *     }
@@ -1044,7 +1099,8 @@ public final class Workflow {
    *
    * @param searchAttributes map of String to Object value that can be used to search in list APIs
    */
-  public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+  // WorkflowOptions#setSearchAttributes docs needs to be kept in sync with this method
+  public static void upsertSearchAttributes(Map<String, ?> searchAttributes) {
     WorkflowInternal.upsertSearchAttributes(searchAttributes);
   }
 

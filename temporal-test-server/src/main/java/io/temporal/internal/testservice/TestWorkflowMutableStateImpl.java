@@ -50,7 +50,6 @@ import io.temporal.api.command.v1.StartTimerCommandAttributes;
 import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
-import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.*;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
@@ -97,6 +96,8 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.failure.FailureConverter;
+import io.temporal.failure.ServerFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
@@ -133,6 +134,10 @@ import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
+  /**
+   * If the implementation throws an exception, changes accumulated in the RequestContext will not
+   * be committed.
+   */
   @FunctionalInterface
   private interface UpdateProcedure {
     void apply(RequestContext ctx);
@@ -149,6 +154,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final TestWorkflowStore store;
   private final TestVisibilityStore visibilityStore;
   private final TestWorkflowService service;
+  private final CommandVerifier commandVerifier;
+
   private final StartWorkflowExecutionRequest startRequest;
   private long nextEventId = 1;
   private final Map<Long, StateMachine<ActivityTaskData>> activities = new HashMap<>();
@@ -187,6 +194,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.store = store;
     this.visibilityStore = visibilityStore;
     this.service = service;
+    this.commandVerifier = new CommandVerifier(visibilityStore);
     startRequest = overrideStartWorkflowExecutionRequest(startRequest);
     this.startRequest = startRequest;
     this.executionId =
@@ -244,6 +252,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (taskTimeoutMillis != Durations.toMillis(request.getWorkflowTaskTimeout())) {
       request.setWorkflowTaskTimeout(Durations.fromMillis(taskTimeoutMillis));
     }
+
     return request.build();
   }
 
@@ -289,12 +298,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void completeWorkflowTaskUpdate(
       UpdateProcedure updater, StickyExecutionAttributes attributes) {
     StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-    stickyExecutionAttributes = attributes;
+    lock.lock();
     try {
+      stickyExecutionAttributes = attributes;
       update(true, updater, stackTraceElements[2].getMethodName());
     } catch (RuntimeException e) {
       stickyExecutionAttributes = null;
       throw e;
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -330,6 +342,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       } else {
         // if there is no concurrent workflow task in progress - apply events to the history
         nextEventId = ctx.commitChanges(store);
+      }
+
+      if (ctx.getException() != null) {
+        throw ctx.getException();
       }
     } catch (StatusRuntimeException e) {
       throw e;
@@ -419,25 +435,33 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                         + ctx.getInitialEventId())
                 .asRuntimeException();
           }
-          long workflowTaskCompletedId = ctx.getNextEventId() - 1;
-          // Fail the workflow task if there are new events and a command tries to complete the
-          // workflow
-          boolean newEvents = false;
-          for (RequestContext ctx2 : workflowTaskStateMachine.getData().bufferedEvents) {
-            if (!ctx2.getEvents().isEmpty()) {
-              newEvents = true;
-              break;
-            }
-          }
-          if (newEvents && hasCompletionCommand(request.getCommandsList())) {
-            RespondWorkflowTaskFailedRequest failedRequest =
-                RespondWorkflowTaskFailedRequest.newBuilder()
-                    .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_UNHANDLED_COMMAND)
-                    .setIdentity(request.getIdentity())
-                    .build();
-            processFailWorkflowTask(failedRequest, ctx);
+
+          if (unhandledCommand(request)) {
+            // Fail the workflow task if there are new events and a command tries to complete the
+            // workflow
+            failWorkflowTaskWithAReason(
+                WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_UNHANDLED_COMMAND,
+                null,
+                ctx,
+                request);
             return;
           }
+
+          for (Command command : commands) {
+            CommandVerifier.InvalidCommandResult invalidCommandResult =
+                commandVerifier.verifyCommand(ctx, command);
+            if (invalidCommandResult != null) {
+              failWorkflowTaskWithAReason(
+                  invalidCommandResult.getWorkflowTaskFailedCause(),
+                  invalidCommandResult.getEventAttributesFailure(),
+                  ctx,
+                  request);
+              ctx.setExceptionIfEmpty(invalidCommandResult.getClientException());
+              return;
+            }
+          }
+
+          long workflowTaskCompletedId = ctx.getNextEventId() - 1;
           try {
             workflowTaskStateMachine.action(StateMachines.Action.COMPLETE, ctx, request, 0);
             for (Command command : commands) {
@@ -522,6 +546,33 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
         },
         request.hasStickyAttributes() ? request.getStickyAttributes() : null);
+  }
+
+  private void failWorkflowTaskWithAReason(
+      WorkflowTaskFailedCause failedCause,
+      ServerFailure eventAttributesFailure,
+      RequestContext ctx,
+      RespondWorkflowTaskCompletedRequest request) {
+    RespondWorkflowTaskFailedRequest.Builder failedRequestBuilder =
+        RespondWorkflowTaskFailedRequest.newBuilder()
+            .setCause(failedCause)
+            .setIdentity(request.getIdentity());
+    if (eventAttributesFailure != null) {
+      failedRequestBuilder.setFailure(FailureConverter.exceptionToFailure(eventAttributesFailure));
+    }
+
+    processFailWorkflowTask(failedRequestBuilder.build(), ctx);
+  }
+
+  private boolean unhandledCommand(RespondWorkflowTaskCompletedRequest request) {
+    boolean newEvents = false;
+    for (RequestContext ctx2 : workflowTaskStateMachine.getData().bufferedEvents) {
+      if (!ctx2.getEvents().isEmpty()) {
+        newEvents = true;
+        break;
+      }
+    }
+    return (newEvents && hasCompletionCommand(request.getCommandsList()));
   }
 
   private boolean hasCompletionCommand(List<Command> commands) {
@@ -1401,10 +1452,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         parentChildInitiatedEventId);
   }
 
-  private void processUpsertWorkflowSearchAttributes(
+  private WorkflowTaskFailedCause processUpsertWorkflowSearchAttributes(
       RequestContext ctx,
       UpsertWorkflowSearchAttributesCommandAttributes attr,
       long workflowTaskCompletedId) {
+    visibilityStore.upsertSearchAttributesForExecution(
+        ctx.getExecutionId(), attr.getSearchAttributes());
+
     UpsertWorkflowSearchAttributesEventAttributes.Builder upsertEventAttr =
         UpsertWorkflowSearchAttributesEventAttributes.newBuilder()
             .setSearchAttributes(attr.getSearchAttributes())
@@ -1415,6 +1469,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setUpsertWorkflowSearchAttributesEventAttributes(upsertEventAttr)
             .build();
     ctx.addEvent(event);
+    return null;
   }
 
   @Override
@@ -1423,6 +1478,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     try {
       update(
           ctx -> {
+            visibilityStore.upsertSearchAttributesForExecution(
+                ctx.getExecutionId(), startRequest.getSearchAttributes());
             workflow.action(StateMachines.Action.START, ctx, startRequest, 0);
             signalWithStartSignal.ifPresent(
                 signalWorkflowExecutionRequest ->
@@ -2126,7 +2183,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .setType(this.getStartRequest().getWorkflowType())
         .setMemo(this.startRequest.getMemo())
         // No setAutoResetPoints - the test environment doesn't support that feature
-        .setSearchAttributes(computeSearchAttributes(fullHistory))
+        .setSearchAttributes(visibilityStore.getSearchAttributesForExecution(executionId))
         .setStatus(this.getWorkflowExecutionStatus())
         .setHistoryLength(fullHistory.size());
 
@@ -2156,24 +2213,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .addAllPendingActivities(pendingActivities)
         .addAllPendingChildren(pendingChildren)
         .build();
-  }
-
-  private SearchAttributes computeSearchAttributes(List<HistoryEvent> fullHistory) {
-    SearchAttributes.Builder builder = this.startRequest.getSearchAttributes().toBuilder();
-
-    // We need to go through each history entry and fold UpsertSearchAttributesEvents into the
-    // builder
-    for (HistoryEvent event : fullHistory) {
-      if (event.hasUpsertWorkflowSearchAttributesEventAttributes()) {
-        builder.putAllIndexedFields(
-            event
-                .getUpsertWorkflowSearchAttributesEventAttributes()
-                .getSearchAttributes()
-                .getIndexedFieldsMap());
-      }
-    }
-
-    return builder.build();
   }
 
   private static PendingChildExecutionInfo constructPendingChildExecutionInfo(

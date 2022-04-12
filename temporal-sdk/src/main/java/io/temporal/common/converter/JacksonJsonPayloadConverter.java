@@ -22,6 +22,7 @@ package io.temporal.common.converter;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -39,6 +40,10 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
 
   public JacksonJsonPayloadConverter() {
     mapper = new ObjectMapper();
+    // preserve the original value of timezone coming from the server in Payload
+    // without adjusting to the host timezone
+    // may be important if the replay is happening on a host in another timezone
+    mapper.configure(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE, false);
     mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
     mapper.registerModule(new JavaTimeModule());
     mapper.registerModule(new Jdk8Module());

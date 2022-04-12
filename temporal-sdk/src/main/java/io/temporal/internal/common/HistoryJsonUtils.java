@@ -19,7 +19,6 @@
 
 package io.temporal.internal.common;
 
-import com.google.common.base.CaseFormat;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
@@ -30,10 +29,6 @@ import java.util.function.BiFunction;
  * Helper methods supporting transformation of History's "Proto Json" compatible format, which is
  * supported by {@link com.google.protobuf.util.JsonFormat} to the format of Temporal history
  * supported by tctl and back.
- *
- * @see <a
- *     href="https://github.com/temporalio/gogo-protobuf/commit/b38fb010909b8f81e2e600dc6f04925fc71d6a5e">
- *     Related commit to Go Proto module</>
  */
 class HistoryJsonUtils {
   private static final Configuration JSON_PATH_CONFIGURATION =
@@ -63,11 +58,11 @@ class HistoryJsonUtils {
   }
 
   public static String protoJsonToHistoryFormatJson(String protoJson) {
-    return convertEnumValues(protoJson, HistoryJsonUtils::enumProtoToHistory);
+    return convertEnumValues(protoJson, ProtoEnumNameUtils::uniqueToSimplifiedName);
   }
 
   public static String historyFormatJsonToProtoJson(String historyFormatJson) {
-    return convertEnumValues(historyFormatJson, HistoryJsonUtils::enumHistoryToProto);
+    return convertEnumValues(historyFormatJson, ProtoEnumNameUtils::simplifiedToUniqueName);
   }
 
   private static String convertEnumValues(
@@ -82,27 +77,5 @@ class HistoryJsonUtils {
       }
     }
     return parsed.jsonString();
-  }
-
-  private static String enumProtoToHistory(String protoEnumValue, String prefix) {
-    if (!protoEnumValue.startsWith(prefix)) {
-      throw new IllegalArgumentException("protoEnumValue should start with " + prefix + " prefix");
-    }
-    protoEnumValue = protoEnumValue.substring(prefix.length());
-    return screamingCaseEventTypeToCamelCase(protoEnumValue);
-  }
-
-  private static String enumHistoryToProto(String historyEnumValue, String prefix) {
-    return prefix + camelCaseToScreamingCase(historyEnumValue);
-  }
-
-  // https://github.com/temporalio/gogo-protobuf/commit/b38fb010909b8f81e2e600dc6f04925fc71d6a5e
-  private static String camelCaseToScreamingCase(String camel) {
-    return CaseFormat.UPPER_CAMEL.converterTo(CaseFormat.UPPER_UNDERSCORE).convert(camel);
-  }
-
-  // https://github.com/temporalio/gogo-protobuf/commit/b38fb010909b8f81e2e600dc6f04925fc71d6a5e
-  private static String screamingCaseEventTypeToCamelCase(String screaming) {
-    return CaseFormat.UPPER_UNDERSCORE.converterTo(CaseFormat.UPPER_CAMEL).convert(screaming);
   }
 }

@@ -43,7 +43,6 @@ public final class ByteArrayPayloadConverter implements PayloadConverter {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> T fromData(Payload content, Class<T> valueClass, Type valueType)
       throws DataConverterException {
     ByteString data = content.getData();

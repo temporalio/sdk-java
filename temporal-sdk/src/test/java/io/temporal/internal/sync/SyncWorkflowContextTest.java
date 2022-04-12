@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,17 +44,17 @@ public class SyncWorkflowContextTest {
   }
 
   @Test
-  public void testUpsertSearchAttributes() throws Throwable {
+  public void testUpsertSearchAttributes() {
     Map<String, Object> attr = new HashMap<>();
     attr.put("CustomKeywordField", "keyword");
-    SearchAttributes serializedAttr = InternalUtils.convertMapToSearchAttributes(attr);
+    SearchAttributes serializedAttr = SearchAttributesUtil.encode(attr);
 
     context.upsertSearchAttributes(attr);
     verify(mockReplayWorkflowContext, times(1)).upsertSearchAttributes(serializedAttr);
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void testUpsertSearchAttributesException() throws Throwable {
+  public void testUpsertSearchAttributesException() {
     Map<String, Object> attr = new HashMap<>();
     context.upsertSearchAttributes(attr);
   }

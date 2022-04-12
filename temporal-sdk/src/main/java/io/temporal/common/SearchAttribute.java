@@ -17,20 +17,17 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.common;
+package io.temporal.common;
 
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.common.converter.DataConverter;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
-public class SearchAttributesUtil {
-  private static final DataConverter jsonConverter = DataConverter.getDefaultInstance();
-
-  public static <T> T getValueFromSearchAttributes(
-      SearchAttributes searchAttributes, String key, Class<T> classType) {
-    if (searchAttributes == null || key == null || key.isEmpty()) {
-      return null;
-    }
-    return jsonConverter.fromPayload(
-        searchAttributes.getIndexedFieldsOrThrow(key), classType, classType);
-  }
+public class SearchAttribute {
+  /**
+   * Passing this value as a search attribute value into {@link
+   * io.temporal.workflow.Workflow#upsertSearchAttributes(Map)} will lead to unsetting the search
+   * attribute with the corresponded name if any present.
+   */
+  public static final List<Object> UNSET_VALUE = Collections.emptyList();
 }

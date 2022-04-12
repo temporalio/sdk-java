@@ -23,10 +23,12 @@ import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
@@ -37,6 +39,7 @@ import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ActivityOptionUtils;
+import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.ActivityStub;
@@ -418,7 +421,6 @@ public final class WorkflowInternal {
     return new AllOfPromise(promises);
   }
 
-  @SuppressWarnings("unchecked")
   public static Promise<Void> promiseAllOf(Promise<?>... promises) {
     return new AllOfPromise(promises);
   }
@@ -539,7 +541,41 @@ public final class WorkflowInternal {
     return getRootWorkflowContext().getLastCompletionResult(resultClass, resultType);
   }
 
-  public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+  @Nullable
+  public static <T> T getSearchAttribute(String name) {
+    List<T> list = getSearchAttributeValues(name);
+    if (list == null) {
+      return null;
+    }
+    Preconditions.checkState(list.size() > 0);
+    Preconditions.checkState(
+        list.size() == 1,
+        "search attribute with name '%s' contains a list '%s' of values instead of a single value",
+        name,
+        list);
+    return list.get(0);
+  }
+
+  @Nullable
+  public static <T> List<T> getSearchAttributeValues(String name) {
+    SearchAttributes searchAttributes = getRootWorkflowContext().getContext().getSearchAttributes();
+    if (searchAttributes == null) {
+      return null;
+    }
+    List<T> decoded = SearchAttributesUtil.decode(searchAttributes, name);
+    return decoded != null ? Collections.unmodifiableList(decoded) : null;
+  }
+
+  @Nonnull
+  public static Map<String, List<?>> getSearchAttributes() {
+    SearchAttributes searchAttributes = getRootWorkflowContext().getContext().getSearchAttributes();
+    if (searchAttributes == null) {
+      return Collections.emptyMap();
+    }
+    return Collections.unmodifiableMap(SearchAttributesUtil.decode(searchAttributes));
+  }
+
+  public static void upsertSearchAttributes(Map<String, ?> searchAttributes) {
     getWorkflowInterceptor().upsertSearchAttributes(searchAttributes);
   }
 

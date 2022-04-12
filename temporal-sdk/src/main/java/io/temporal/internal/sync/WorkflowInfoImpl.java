@@ -25,6 +25,7 @@ import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 final class WorkflowInfoImpl implements WorkflowInfo {
 
@@ -80,6 +81,7 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
+  @Nullable
   public SearchAttributes getSearchAttributes() {
     return context.getSearchAttributes();
   }

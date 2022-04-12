@@ -19,11 +19,17 @@
 
 package io.temporal.failure;
 
+import javax.annotation.Nullable;
+
 /** Exceptions originated at the Temporal service. */
 public final class ServerFailure extends TemporalFailure {
   private final boolean nonRetryable;
 
-  public ServerFailure(String message, boolean nonRetryable, Throwable cause) {
+  public ServerFailure(String message, boolean nonRetryable) {
+    this(message, nonRetryable, null);
+  }
+
+  public ServerFailure(String message, boolean nonRetryable, @Nullable Throwable cause) {
     super(message, message, cause);
     this.nonRetryable = nonRetryable;
   }

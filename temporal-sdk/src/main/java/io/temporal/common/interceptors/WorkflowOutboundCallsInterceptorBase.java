@@ -135,7 +135,7 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
-  public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+  public void upsertSearchAttributes(Map<String, ?> searchAttributes) {
     next.upsertSearchAttributes(searchAttributes);
   }
 

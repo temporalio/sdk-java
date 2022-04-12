@@ -28,6 +28,7 @@ import com.google.common.io.CharSink;
 import com.google.common.io.Files;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
@@ -118,7 +119,7 @@ public class SDKTestWorkflowRule implements TestRule {
     private long testTimeoutSeconds;
 
     private boolean workerFactoryOptionsAreSet = false;
-    TestWorkflowRule.Builder testWorkflowRuleBuilder;
+    private final TestWorkflowRule.Builder testWorkflowRuleBuilder;
 
     public Builder() {
       testWorkflowRuleBuilder = TestWorkflowRule.newBuilder();
@@ -191,6 +192,11 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder setUseTimeskipping(boolean useTimeskipping) {
       testWorkflowRuleBuilder.setUseTimeskipping(useTimeskipping);
+      return this;
+    }
+
+    public Builder registerSearchAttribute(String name, IndexedValueType type) {
+      testWorkflowRuleBuilder.registerSearchAttribute(name, type);
       return this;
     }
 
