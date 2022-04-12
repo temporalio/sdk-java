@@ -275,6 +275,11 @@ public class SDKTestWorkflowRule implements TestRule {
   /** Asserts that an event of the given EventType is not found in the history. */
   public void assertNoHistoryEvent(WorkflowExecution execution, EventType eventType) {
     History history = getHistory(execution);
+    assertNoHistoryEvent(history, eventType);
+  }
+
+  /** Asserts that an event of the given EventType is not found in the history. */
+  public static void assertNoHistoryEvent(History history, EventType eventType) {
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         fail("Event of " + eventType + " found in the history");

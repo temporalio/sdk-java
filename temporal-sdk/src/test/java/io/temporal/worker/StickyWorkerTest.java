@@ -28,17 +28,19 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
@@ -58,9 +60,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -94,7 +93,6 @@ public class StickyWorkerTest {
 
   @Rule public TestName testName = new TestName();
 
-  private WorkflowServiceStubs service;
   private Scope metricsScope;
   private TestStatsReporter reporter;
 
@@ -107,14 +105,6 @@ public class StickyWorkerTest {
         new RootScopeBuilder()
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofSeconds(10));
-  }
-
-  @After
-  public void tearDown() {
-    if (service != null) {
-      service.shutdownNow();
-      service.awaitTermination(10, TimeUnit.SECONDS);
-    }
   }
 
   @Test
@@ -140,9 +130,12 @@ public class StickyWorkerTest {
     GreetingSignalWorkflow workflow =
         wrapper.getWorkflowClient().newWorkflowStub(GreetingSignalWorkflow.class, workflowOptions);
 
-    // Act
     WorkflowClient.start(workflow::getGreeting);
-    Thread.sleep(300);
+
+    // Wait for workflow to start. We don't use OK query here to don't mess with the cache hit
+    // counters
+    Thread.sleep(500);
+
     workflow.waitForName("World");
     String greeting = workflow.getGreeting();
     assertEquals("Hello World!", greeting);
@@ -351,7 +344,7 @@ public class StickyWorkerTest {
   }
 
   @Test
-  public void whenCacheIsEvictedTheWorkerCanRecover() throws Exception {
+  public void whenCacheIsEvictedTheWorkerCanRecover() {
     // Arrange
     String taskQueueName = "evictedStickyTest";
     TestEnvironmentWrapper wrapper =
@@ -375,7 +368,8 @@ public class StickyWorkerTest {
     // Act
     WorkflowClient.start(workflow::getGreeting);
 
-    Thread.sleep(1000); // Wait for workflow to start
+    SDKTestWorkflowRule.waitForOKQuery(
+        WorkflowStub.fromTyped(workflow)); // Wait for workflow to start
 
     WorkflowExecutorCache cache = factory.getCache();
     assertNotNull(cache);
@@ -388,6 +382,7 @@ public class StickyWorkerTest {
 
     // Assert
     assertEquals("Hello World!", greeting);
+
     wrapper.close();
   }
 
@@ -433,13 +428,14 @@ public class StickyWorkerTest {
 
     assertEquals("Hello World!", greeting);
     assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.GREETING_GENERATED);
+
     wrapper.close();
   }
 
   @Test
-  public void workflowsCanBeQueriedAfterEviction() throws Exception {
+  public void workflowsCanBeQueriedAfterEviction() {
     // Arrange
-    String taskQueueName = "queryEvictionStickyTest";
+    String taskQueueName = "queryAfterEvictionStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
@@ -459,9 +455,53 @@ public class StickyWorkerTest {
         wrapper.getWorkflowClient().newWorkflowStub(GreetingSignalWorkflow.class, workflowOptions);
 
     // Act
-    WorkflowClient.start(workflow::getGreeting);
+    WorkflowExecution execution = WorkflowClient.start(workflow::getGreeting);
 
-    Thread.sleep(200); // Wait for workflow to start
+    SDKTestWorkflowRule.waitForOKQuery(
+        WorkflowStub.fromTyped(workflow)); // Wait for workflow to start
+
+    WorkflowExecutorCache cache = factory.getCache();
+    assertNotNull(cache);
+    assertEquals(1, cache.size());
+    cache.invalidateAll();
+    assertEquals(0, cache.size());
+
+    // Assert
+    assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
+    SDKTestWorkflowRule.assertNoHistoryEvent(
+        wrapper.testEnv.getWorkflowExecutionHistory(execution).getHistory(),
+        EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+
+    wrapper.close();
+  }
+
+  @Test
+  public void workflowCanContinueExecutionAfterBeingEvictedAndQueried() {
+    // Arrange
+    String taskQueueName = "continueExecutionAfterEvictionAndQueryStickyTest";
+    TestEnvironmentWrapper wrapper =
+        new TestEnvironmentWrapper(WorkerFactoryOptions.newBuilder().build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskQueueName);
+    worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
+    factory.start();
+
+    WorkflowOptions workflowOptions =
+        WorkflowOptions.newBuilder()
+            .setTaskQueue(taskQueueName)
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
+            .build();
+    GreetingSignalWorkflow workflow =
+        wrapper.getWorkflowClient().newWorkflowStub(GreetingSignalWorkflow.class, workflowOptions);
+
+    // Act
+    WorkflowExecution execution = WorkflowClient.start(workflow::getGreeting);
+
+    SDKTestWorkflowRule.waitForOKQuery(
+        WorkflowStub.fromTyped(workflow)); // Wait for workflow to start
 
     WorkflowExecutorCache cache = factory.getCache();
     assertNotNull(cache);
@@ -472,73 +512,51 @@ public class StickyWorkerTest {
     // Assert
     assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
 
+    // Signal and get result to make sure the workflow successfully completed
     workflow.waitForName("World");
     String greeting = workflow.getGreeting();
-
     assertEquals("Hello World!", greeting);
+
+    // Query after completion
     assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.GREETING_GENERATED);
+    SDKTestWorkflowRule.assertNoHistoryEvent(
+        wrapper.testEnv.getWorkflowExecutionHistory(execution).getHistory(),
+        EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+
     wrapper.close();
   }
 
-  // Todo: refactor TestEnvironment to toggle between real and test service.
   private class TestEnvironmentWrapper {
 
-    private TestWorkflowEnvironment testEnv;
-    private WorkerFactory factory;
-    private final String identity = UUID.randomUUID().toString();
-    private final String binaryChecksum = UUID.randomUUID().toString();
+    private final TestWorkflowEnvironment testEnv;
 
     public TestEnvironmentWrapper(WorkerFactoryOptions options) {
       if (options == null) {
         options = WorkerFactoryOptions.newBuilder().build();
       }
       WorkflowClientOptions clientOptions =
-          WorkflowClientOptions.newBuilder()
-              .setNamespace(NAMESPACE)
-              .setIdentity(identity)
-              .setBinaryChecksum(binaryChecksum)
+          WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
+      TestEnvironmentOptions testOptions =
+          TestEnvironmentOptions.newBuilder()
+              .setMetricsScope(metricsScope)
+              .setWorkflowClientOptions(clientOptions)
+              .setWorkerFactoryOptions(options)
+              .setUseExternalService(useExternalService)
+              .setTarget(serviceAddress)
               .build();
-      if (useExternalService) {
-        service =
-            WorkflowServiceStubs.newInstance(
-                WorkflowServiceStubsOptions.newBuilder()
-                    .setTarget(serviceAddress)
-                    .setMetricsScope(metricsScope)
-                    .build());
-        WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
-        factory = WorkerFactory.newInstance(client, options);
-      } else {
-        TestEnvironmentOptions testOptions =
-            TestEnvironmentOptions.newBuilder()
-                .setMetricsScope(metricsScope)
-                .setWorkflowClientOptions(clientOptions)
-                .setWorkerFactoryOptions(options)
-                .build();
-        testEnv = TestWorkflowEnvironment.newInstance(testOptions);
-      }
-    }
-
-    public String getIdentity() {
-      return identity;
+      testEnv = TestWorkflowEnvironment.newInstance(testOptions);
     }
 
     private WorkerFactory getWorkerFactory() {
-      return useExternalService ? factory : testEnv.getWorkerFactory();
+      return testEnv.getWorkerFactory();
     }
 
     private WorkflowClient getWorkflowClient() {
-      return useExternalService ? factory.getWorkflowClient() : testEnv.getWorkflowClient();
+      return testEnv.getWorkflowClient();
     }
 
     private void close() {
-      if (useExternalService) {
-        factory.shutdownNow();
-        factory.awaitTermination(10, TimeUnit.SECONDS);
-        service.shutdownNow();
-        service.awaitTermination(10, TimeUnit.SECONDS);
-      } else {
-        testEnv.close();
-      }
+      testEnv.close();
     }
   }
 
