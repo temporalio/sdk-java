@@ -2,6 +2,6 @@
   "settingsInheritedFrom": "temporalio/whitesource-config@main", 
   "scanSettings": {
     "configMode": "EXTERNAL",
-    "configExternalURL": "https://github.com/temporalio/sdk-java/blob/master/whitesource.config"
+    "configExternalURL": "https://raw.githubusercontent.com/temporalio/sdk-java/master/whitesource.config"
   }
 }
