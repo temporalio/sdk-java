@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.RateLimiter;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
@@ -42,6 +43,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,7 +169,7 @@ class WorkflowThreadImpl implements WorkflowThread {
   WorkflowThreadImpl(
       ExecutorService threadPool,
       DeterministicRunnerImpl runner,
-      String name,
+      @Nonnull String name,
       int priority,
       boolean detached,
       CancellationScopeImpl parentCancellationScope,
@@ -175,15 +177,12 @@ class WorkflowThreadImpl implements WorkflowThread {
       WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators,
       Map<String, Object> propagatedContexts) {
+    Preconditions.checkNotNull(name, "Thread name shouldn't be null");
     this.threadPool = threadPool;
     this.runner = runner;
     this.context = new WorkflowThreadContext(runner.getLock());
     this.cache = cache;
     this.priority = priority;
-    if (name == null) {
-      name = "workflow-" + super.hashCode();
-    }
-
     this.task =
         new RunnableWrapper(
             context,
