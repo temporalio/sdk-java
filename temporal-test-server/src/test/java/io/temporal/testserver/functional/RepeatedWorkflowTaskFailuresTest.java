@@ -19,20 +19,23 @@
 
 package io.temporal.testserver.functional;
 
+import com.google.common.collect.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testserver.functional.common.TestWorkflows;
+import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Server should discard repeated workflow task failures and let the workflow task to time out See
- * https://github.com/temporalio/temporal/pull/2548
+ * Server should discard repeated workflow task failures and let the workflow task to time out
+ *
+ * @see <a href="https://github.com/temporalio/temporal/pull/2548">Related Temporal Server PR</a>
  */
 public class RepeatedWorkflowTaskFailuresTest {
 
@@ -70,7 +73,8 @@ public class RepeatedWorkflowTaskFailuresTest {
     @Override
     public void execute() {
       if (++retryCount < 4) {
-        throw new RuntimeException("simulated workflow task failure");
+        // invalid search attribute type will force the server to fail workflow task
+        Workflow.upsertSearchAttributes(ImmutableMap.of("CustomIntField", "string"));
       }
     }
   }
