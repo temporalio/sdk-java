@@ -443,7 +443,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_UNHANDLED_COMMAND,
                 null,
                 ctx,
-                request);
+                request,
+                false);
             return;
           }
 
@@ -455,7 +456,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   invalidCommandResult.getWorkflowTaskFailedCause(),
                   invalidCommandResult.getEventAttributesFailure(),
                   ctx,
-                  request);
+                  request,
+                  true);
               ctx.setExceptionIfEmpty(invalidCommandResult.getClientException());
               return;
             }
@@ -552,7 +554,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       WorkflowTaskFailedCause failedCause,
       ServerFailure eventAttributesFailure,
       RequestContext ctx,
-      RespondWorkflowTaskCompletedRequest request) {
+      RespondWorkflowTaskCompletedRequest request,
+      boolean timeoutWorkflowTaskIfRecurringFailure) {
     RespondWorkflowTaskFailedRequest.Builder failedRequestBuilder =
         RespondWorkflowTaskFailedRequest.newBuilder()
             .setCause(failedCause)
@@ -561,7 +564,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       failedRequestBuilder.setFailure(FailureConverter.exceptionToFailure(eventAttributesFailure));
     }
 
-    processFailWorkflowTask(failedRequestBuilder.build(), ctx);
+    processFailWorkflowTask(
+        failedRequestBuilder.build(), ctx, timeoutWorkflowTaskIfRecurringFailure);
   }
 
   private boolean unhandledCommand(RespondWorkflowTaskCompletedRequest request) {
@@ -1007,16 +1011,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return signal;
   }
 
+  // TODO: insert a single workflow task failure into the history
   @Override
   public void failWorkflowTask(RespondWorkflowTaskFailedRequest request) {
     completeWorkflowTaskUpdate(
-        ctx -> processFailWorkflowTask(request, ctx), null); // reset sticky attributes to null
+        ctx -> processFailWorkflowTask(request, ctx, false),
+        null); // reset sticky attributes to null
   }
 
   private void processFailWorkflowTask(
-      RespondWorkflowTaskFailedRequest request, RequestContext ctx) {
+      RespondWorkflowTaskFailedRequest request,
+      RequestContext ctx,
+      boolean timeoutWorkflowTaskIfRecurringFailure) {
     WorkflowTaskData data = workflowTaskStateMachine.getData();
-    if (data.attempt >= 2) {
+    if (timeoutWorkflowTaskIfRecurringFailure && data.attempt >= 2) {
       // server drops failures after the second attempt and let the workflow task timeout
       return;
     }
