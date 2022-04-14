@@ -1008,11 +1008,15 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       DescribeWorkflowExecutionRequest request,
       StreamObserver<io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse>
           responseObserver) {
-    String namespace = requireNotNull("Namespace", request.getNamespace());
-    WorkflowExecution execution = requireNotNull("Execution", request.getExecution());
-    ExecutionId executionId = new ExecutionId(namespace, execution);
-
     try {
+      if (request.getNamespace().isEmpty()) {
+        throw createIllegalArgument("Namespace not set on request.");
+      }
+      if (!request.hasExecution()) {
+        throw createIllegalArgument("Execution not set on request.");
+      }
+
+      ExecutionId executionId = new ExecutionId(request.getNamespace(), request.getExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);
       DescribeWorkflowExecutionResponse result = mutableState.describeWorkflowExecution();
       responseObserver.onNext(result);
@@ -1240,5 +1244,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           "Cannot get a client when you created your TestWorkflowService with createServerOnly.");
     }
     return workflowServiceStubs;
+  }
+
+  private static StatusRuntimeException createIllegalArgument(String description) {
+    throw Status.INVALID_ARGUMENT.withDescription(description).asRuntimeException();
   }
 }
