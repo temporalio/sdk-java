@@ -19,6 +19,8 @@
 
 package io.temporal.testing;
 
+import com.uber.m3.tally.Scope;
+import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
@@ -32,7 +34,9 @@ import io.temporal.workflow.DynamicWorkflow;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Parameter;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -92,6 +96,8 @@ public class TestWorkflowExtension
   private final boolean doNotStart;
   private final long initialTimeMillis;
   private final boolean useTimeskipping;
+  private final Map<String, IndexedValueType> searchAttributesToRegister;
+  private final Scope metricsScope;
 
   private final Set<Class<?>> supportedParameterTypes = new HashSet<>();
   private boolean includesDynamicWorkflow;
@@ -112,6 +118,8 @@ public class TestWorkflowExtension
     doNotStart = builder.doNotStart;
     initialTimeMillis = builder.initialTimeMillis;
     useTimeskipping = builder.useTimeskipping;
+    this.searchAttributesToRegister = builder.searchAttributesToRegister;
+    this.metricsScope = builder.metricsScope;
 
     supportedParameterTypes.add(TestWorkflowEnvironment.class);
     supportedParameterTypes.add(WorkflowClient.class);
@@ -198,6 +206,8 @@ public class TestWorkflowExtension
     TestWorkflowEnvironment testEnvironment =
         TestWorkflowEnvironment.newInstance(createTestEnvOptions(currentInitialTimeMillis));
 
+    searchAttributesToRegister.forEach(testEnvironment::registerSearchAttribute);
+
     String taskQueue =
         String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
@@ -221,6 +231,7 @@ public class TestWorkflowExtension
         .setUseTimeskipping(useTimeskipping)
         .setTarget(target)
         .setInitialTimeMillis(initialTimeMillis)
+        .setMetricsScope(metricsScope)
         .build();
   }
 
@@ -285,6 +296,8 @@ public class TestWorkflowExtension
     // Default to TestEnvironmentOptions isUseTimeskipping
     private boolean useTimeskipping =
         TestEnvironmentOptions.getDefaultInstance().isUseTimeskipping();
+    private Map<String, IndexedValueType> searchAttributesToRegister = new HashMap<>();
+    private Scope metricsScope;
 
     private Builder() {}
 
@@ -416,6 +429,43 @@ public class TestWorkflowExtension
      */
     public Builder setUseTimeskipping(boolean useTimeskipping) {
       this.useTimeskipping = useTimeskipping;
+      return this;
+    }
+
+    /**
+     * Add a search attribute to be registered on the Temporal Server.
+     *
+     * @param name name of the search attribute
+     * @param type search attribute type
+     * @return {@code this}
+     * @see <a
+     *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
+     *     a Custom Search Attribute Using tctl</a>
+     */
+    public Builder registerSearchAttribute(String name, IndexedValueType type) {
+      this.searchAttributesToRegister.put(name, type);
+      return this;
+    }
+
+    /**
+     * Sets the scope to be used for metrics reporting. Optional. Default is to not report metrics.
+     *
+     * <p>Note: Don't mock {@link Scope} in tests! If you need to verify the metrics behavior,
+     * create a real Scope and mock, stub or spy a reporter instance:<br>
+     *
+     * <pre>{@code
+     * StatsReporter reporter = mock(StatsReporter.class);
+     * Scope metricsScope =
+     *     new RootScopeBuilder()
+     *         .reporter(reporter)
+     *         .reportEvery(com.uber.m3.util.Duration.ofMillis(10));
+     * }</pre>
+     *
+     * @param metricsScope the scope to be used for metrics reporting.
+     * @return {@code this}
+     */
+    public Builder setMetricsScope(Scope metricsScope) {
+      this.metricsScope = metricsScope;
       return this;
     }
 

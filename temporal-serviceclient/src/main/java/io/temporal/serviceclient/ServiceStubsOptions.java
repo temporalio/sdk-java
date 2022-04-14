@@ -525,6 +525,18 @@ class ServiceStubsOptions {
      *         .build();
      * }</pre>
      *
+     * <p>Note: Don't mock {@link Scope} in tests! If you need to verify the metrics behavior,
+     * create a real Scope and mock, stub or spy a reporter instance:<br>
+     *
+     * <pre>{@code
+     * StatsReporter reporter = mock(StatsReporter.class);
+     * Scope metricsScope =
+     *     new RootScopeBuilder()
+     *         .reporter(reporter)
+     *         .reportEvery(com.uber.m3.util.Duration.ofMillis(10));
+     * }</pre>
+     *
+     * @param metricsScope the scope to be used for metrics reporting.
      * @return {@code this}
      */
     public T setMetricsScope(Scope metricsScope) {
