@@ -1,0 +1,10 @@
+Highlights:
+
+Test server not timing out workflow task in case of subsequent "unhandled command" failures anymore fixing the
+behavior introduced in Test Server 1.9.0 and Temporal Server 1.16
+
+Changeset:
+2022-04-13 - 3a5ffb77 - Don't time out WFT in case of subsequent UNHANDLED_COMMAND failures (#1140)
+2022-04-14 - 1816ad24 - Align Test Server describeWorkflowExecution message with Temporal Server (#1142)
+2022-04-14 - 823c6e6c - Fix workflow thread name strategy to append a clear marker of truncation (#1144)
+2022-04-15 - f35a0971 - setMetricsScope is wired into test rules (#1143)
