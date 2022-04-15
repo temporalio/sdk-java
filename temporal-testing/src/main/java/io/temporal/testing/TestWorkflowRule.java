@@ -19,6 +19,7 @@
 
 package io.temporal.testing;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
@@ -88,7 +89,8 @@ public class TestWorkflowRule implements TestRule {
   private final WorkerOptions workerOptions;
   private final WorkflowClientOptions clientOptions;
   private final String target;
-  private boolean useTimeskipping;
+  private final boolean useTimeskipping;
+  private final Scope metricsScope;
 
   private String taskQueue;
   private final TestWorkflowEnvironment testEnvironment;
@@ -101,37 +103,38 @@ public class TestWorkflowRule implements TestRule {
       };
 
   private TestWorkflowRule(Builder builder) {
-    doNotStart = builder.doNotStart;
-    useExternalService = builder.useExternalService;
-    namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
-    workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
-    activityImplementations =
+    this.doNotStart = builder.doNotStart;
+    this.useExternalService = builder.useExternalService;
+    this.namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
+    this.workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
+    this.activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;
-    workerOptions =
+    this.workerOptions =
         (builder.workerOptions == null)
             ? WorkerOptions.getDefaultInstance()
             : builder.workerOptions;
-    workerFactoryOptions =
+    this.workerFactoryOptions =
         (builder.workerFactoryOptions == null)
             ? WorkerFactoryOptions.getDefaultInstance()
             : builder.workerFactoryOptions;
-    workflowImplementationOptions =
+    this.workflowImplementationOptions =
         (builder.workflowImplementationOptions == null)
             ? WorkflowImplementationOptions.getDefaultInstance()
             : builder.workflowImplementationOptions;
-    globalTimeout =
+    this.globalTimeout =
         !DebugModeUtils.isTemporalDebugModeOn() && builder.testTimeoutSeconds != 0
             ? Timeout.seconds(builder.testTimeoutSeconds)
             : null;
 
-    clientOptions =
+    this.clientOptions =
         (builder.workflowClientOptions == null)
             ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
             : builder.workflowClientOptions.toBuilder().setNamespace(namespace).build();
-    target = builder.target;
-    useTimeskipping = builder.useTimeskipping;
+    this.target = builder.target;
+    this.useTimeskipping = builder.useTimeskipping;
+    this.metricsScope = builder.metricsScope;
 
-    testEnvironment =
+    this.testEnvironment =
         TestWorkflowEnvironment.newInstance(createTestEnvOptions(builder.initialTimeMillis));
 
     builder.searchAttributesToRegister.forEach(testEnvironment::registerSearchAttribute);
@@ -145,6 +148,7 @@ public class TestWorkflowRule implements TestRule {
         .setUseTimeskipping(useTimeskipping)
         .setTarget(target)
         .setInitialTimeMillis(initialTimeMillis)
+        .setMetricsScope(metricsScope)
         .build();
   }
 
@@ -171,6 +175,7 @@ public class TestWorkflowRule implements TestRule {
     private WorkerOptions workerOptions;
     private long testTimeoutSeconds;
     private Map<String, IndexedValueType> searchAttributesToRegister = new HashMap<>();
+    private Scope metricsScope;
 
     protected Builder() {}
 
@@ -301,6 +306,28 @@ public class TestWorkflowRule implements TestRule {
      */
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
       this.searchAttributesToRegister.put(name, type);
+      return this;
+    }
+
+    /**
+     * Sets the scope to be used for metrics reporting. Optional. Default is to not report metrics.
+     *
+     * <p>Note: Don't mock {@link Scope} in tests! If you need to verify the metrics behavior,
+     * create a real Scope and mock, stub or spy a reporter instance:<br>
+     *
+     * <pre>{@code
+     * StatsReporter reporter = mock(StatsReporter.class);
+     * Scope metricsScope =
+     *     new RootScopeBuilder()
+     *         .reporter(reporter)
+     *         .reportEvery(com.uber.m3.util.Duration.ofMillis(10));
+     * }</pre>
+     *
+     * @param metricsScope the scope to be used for metrics reporting.
+     * @return {@code this}
+     */
+    public Builder setMetricsScope(Scope metricsScope) {
+      this.metricsScope = metricsScope;
       return this;
     }
 
