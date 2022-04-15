@@ -24,14 +24,21 @@ import io.temporal.api.common.v1.WorkflowExecution;
 public class ExecutionInfoStrategy implements WorkflowMethodThreadNameStrategy {
   public static final ExecutionInfoStrategy INSTANCE = new ExecutionInfoStrategy();
   private static final int WORKFLOW_ID_TRIM_LENGTH = 50;
+  private static final String TRIM_MARKER = "...";
 
   private ExecutionInfoStrategy() {}
 
   @Override
   public String createThreadName(WorkflowExecution workflowExecution) {
     String workflowId = workflowExecution.getWorkflowId();
+
     String trimmedWorkflowId =
-        workflowId.substring(0, Math.min(WORKFLOW_ID_TRIM_LENGTH, workflowId.length()) - 1);
+        workflowId.length() > WORKFLOW_ID_TRIM_LENGTH
+            ?
+            // add a ' at the end to explicitly show that the id was trimmed
+            workflowId.substring(0, WORKFLOW_ID_TRIM_LENGTH) + TRIM_MARKER
+            : workflowId;
+
     return WORKFLOW_MAIN_THREAD_PREFIX
         + "-"
         + trimmedWorkflowId
