@@ -19,15 +19,9 @@
 
 package io.temporal.internal.worker;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.locks.Lock;
+import java.util.concurrent.*;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,8 +54,13 @@ public class WorkflowRunLockManagerTest {
   }
 
   private String processTask(String runId, int taskId) {
-    Lock runLock = runLockManager.getLockForLocking(runId);
-    runLock.lock();
+    try {
+      log.info("trying to get a lock runId " + runId + " taskId " + taskId);
+      boolean locked = runLockManager.tryLock(runId, 10, TimeUnit.SECONDS);
+      assertTrue(locked);
+    } catch (InterruptedException e) {
+      fail("unexpected");
+    }
 
     log.info("Got lock runId " + runId + " taskId " + taskId);
     try {
