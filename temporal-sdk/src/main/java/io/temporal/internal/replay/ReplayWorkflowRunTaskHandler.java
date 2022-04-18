@@ -35,12 +35,12 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.statemachines.StatesMachinesCallback;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -83,14 +83,11 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
   private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller;
 
+  private final ReplayWorkflow workflow;
+
   private final Map<String, WorkflowQueryResult> queryResults = new HashMap<>();
 
-  private final DataConverter converter;
-
-  private final StatesMachinesCallbackImpl statesMachinesCallback;
   private final WorkflowStateMachines workflowStateMachines;
-
-  private final HistoryEvent firstEvent;
 
   /** Number of non completed local activity tasks */
   private int localActivityTaskCount;
@@ -107,19 +104,19 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller) {
     this.service = service;
     this.namespace = namespace;
-    firstEvent = workflowTask.getHistory().getEvents(0);
 
+    HistoryEvent firstEvent = workflowTask.getHistory().getEvents(0);
     if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
           "First event in the history is not WorkflowExecutionStarted");
     }
-    startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
-    this.statesMachinesCallback = new StatesMachinesCallbackImpl();
-    this.workflowStateMachines = new WorkflowStateMachines(statesMachinesCallback);
-    this.metricsScope = metricsScope;
-    this.converter = options.getDataConverter();
-    this.localActivityTaskPoller = localActivityTaskPoller;
+    this.startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
 
+    this.metricsScope = metricsScope;
+    this.localActivityTaskPoller = localActivityTaskPoller;
+    this.workflow = workflow;
+
+    this.workflowStateMachines = new WorkflowStateMachines(new StatesMachinesCallbackImpl());
     ReplayWorkflowContextImpl context =
         new ReplayWorkflowContextImpl(
             workflowStateMachines,
@@ -130,9 +127,10 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
             options,
             metricsScope);
 
-    replayWorkflowExecutor = new ReplayWorkflowExecutor(workflow, workflowStateMachines, context);
-
-    localActivityCompletionSink = historyEvent -> localActivityCompletionQueue.add(historyEvent);
+    this.replayWorkflowExecutor =
+        new ReplayWorkflowExecutor(workflow, workflowStateMachines, context);
+    this.localActivityCompletionSink =
+        historyEvent -> localActivityCompletionQueue.add(historyEvent);
   }
 
   @Override
@@ -186,7 +184,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           implementationOptions.getFailWorkflowExceptionTypes();
       for (Class<? extends Throwable> failType : failTypes) {
         if (failType.isAssignableFrom(e.getClass())) {
-          throw replayWorkflowExecutor.mapUnexpectedException(e);
+          throw new WorkflowExecutionException(workflow.mapExceptionToFailure(e));
         }
       }
       metricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
