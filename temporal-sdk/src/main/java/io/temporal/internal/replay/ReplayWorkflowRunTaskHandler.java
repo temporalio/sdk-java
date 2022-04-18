@@ -189,7 +189,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           throw replayWorkflowExecutor.mapUnexpectedException(e);
         }
       }
-      metricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
       throw wrap(e);
     } finally {
       if (!timerStopped) {

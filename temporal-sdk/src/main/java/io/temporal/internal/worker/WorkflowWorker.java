@@ -244,6 +244,9 @@ public final class WorkflowWorker
             workflowTypeMetricsScope
                 .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
                 .inc(1);
+            workflowTypeMetricsScope
+                .counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER)
+                .inc(1);
             throw e;
           } finally {
             sw.stop();
