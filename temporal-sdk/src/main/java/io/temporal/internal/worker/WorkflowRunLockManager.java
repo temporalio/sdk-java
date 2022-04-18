@@ -20,99 +20,65 @@
 package io.temporal.internal.worker;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.HashMap;
+import com.google.common.base.Preconditions;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 final class WorkflowRunLockManager {
-  // This is a single lock for the whole worker.
-  // It's ok, because it's acquired for a very short time.
-  // If this ever becomes a bottleneck, consider:
-  //   - rework this lock to use com.google.common.util.concurrent.Striped and
-  //   - make `perRunLock` a ConcurrentHashMap to increase parallelism of this code
-  private final ReentrantLock mapLock = new ReentrantLock();
-  private final Map<String, LockData> perRunLock = new HashMap<>();
+  private final Map<String, RefCountedLock> runIdLock = new ConcurrentHashMap<>();
 
-  /**
-   * @param runId to take a lock for
-   * @param time the maximum time to wait for the lock
-   * @param unit the time unit of the time argument
-   * @return true if the lock is taken
-   */
-  boolean tryLock(String runId, long time, TimeUnit unit) throws InterruptedException {
-    mapLock.lock();
+  public boolean tryLock(String runId, long timeout, TimeUnit unit) throws InterruptedException {
+    RefCountedLock runLock =
+        runIdLock.compute(
+            runId,
+            (id, lock) -> {
+              if (lock == null) {
+                lock = new RefCountedLock();
+              }
+              lock.refCount++;
+              return lock;
+            });
+
+    boolean obtained = false;
     try {
-      long timeoutNanos = unit.toNanos(time);
-      LockData lockData = tryPersistLockByCurrentThreadLocked(runId);
-      while (Thread.currentThread() != lockData.thread) {
-        if (timeoutNanos <= 0) {
-          return false;
-        }
-        timeoutNanos = lockData.condition.awaitNanos(timeoutNanos);
-        lockData = tryPersistLockByCurrentThreadLocked(runId);
-      }
-
-      lockData.count++;
-      return true;
+      obtained = runLock.lock.tryLock(timeout, unit);
+      return obtained;
     } finally {
-      mapLock.unlock();
+      if (!obtained) {
+        derefAndUnlock(runId, false);
+      }
     }
   }
 
-  private LockData tryPersistLockByCurrentThreadLocked(String runId) {
-    return perRunLock.computeIfAbsent(
-        runId, id -> new LockData(Thread.currentThread(), mapLock.newCondition()));
+  public void unlock(String runId) {
+    derefAndUnlock(runId, true);
   }
 
-  void unlock(String runId) {
-    mapLock.lock();
-    try {
-      LockData lockData = perRunLock.get(runId);
-      if (lockData == null) {
-        throw new IllegalStateException("Lock for " + runId + " is not taken");
-      }
-      if (Thread.currentThread() == lockData.thread) {
-        lockData.count--;
-        if (lockData.count == 0) {
-          perRunLock.remove(runId);
-          // it's important to signal all threads,
-          // otherwise n-1 of them will be stuck waiting on a condition that is not in the map
-          // already
-          lockData.condition.signalAll();
-        }
-      } else {
-        throw new IllegalStateException(
-            "Lock for "
-                + runId
-                + " is not acquired by the current thread "
-                + Thread.currentThread().getName());
-      }
-    } finally {
-      mapLock.unlock();
-    }
+  private void derefAndUnlock(String runId, boolean unlock) {
+    runIdLock.compute(
+        runId,
+        (id, runLock) -> {
+          Preconditions.checkState(
+              runLock != null,
+              "Thread '%s' doesn't have an acquired lock for runId '%s'",
+              Thread.currentThread().getName(),
+              runId);
+          if (unlock) {
+            runLock.lock.unlock();
+          }
+          return --runLock.refCount == 0 ? null : runLock;
+        });
   }
 
   @VisibleForTesting
   int totalLocks() {
-    mapLock.lock();
-    try {
-      return perRunLock.size();
-    } finally {
-      mapLock.unlock();
-    }
+    return runIdLock.size();
   }
 
-  private static class LockData {
-    final Thread thread;
-    final Condition condition;
-    // to make lock reentrant
-    int count = 0;
-
-    public LockData(Thread thread, Condition condition) {
-      this.thread = thread;
-      this.condition = condition;
-    }
+  private static class RefCountedLock {
+    final ReentrantLock lock = new ReentrantLock();
+    int refCount = 0;
   }
 }
