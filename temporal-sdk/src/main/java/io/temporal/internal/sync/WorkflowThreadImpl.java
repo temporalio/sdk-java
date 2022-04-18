@@ -347,8 +347,8 @@ class WorkflowThreadImpl implements WorkflowThread {
   }
 
   /**
-   * Interrupt coroutine by throwing DestroyWorkflowThreadError from a await method it is blocked on
-   * and return underlying Future to be waited on.
+   * Interrupt coroutine by throwing DestroyWorkflowThreadError from an await method it is blocked
+   * on and return underlying Future to be waited on.
    */
   @Override
   public Future<?> stopNow() {
@@ -357,7 +357,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     if (Thread.currentThread().equals(thread)) {
       throw new Error("Cannot call destroy on itself: " + thread.getName());
     }
-    context.destroy();
+    context.initiateDestroy();
     if (taskFuture == null) {
       return getCompletedFuture();
     }
