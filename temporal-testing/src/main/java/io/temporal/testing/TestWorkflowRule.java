@@ -31,6 +31,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.internal.docker.RegisterTestNamespace;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -105,7 +106,8 @@ public class TestWorkflowRule implements TestRule {
   private TestWorkflowRule(Builder builder) {
     this.doNotStart = builder.doNotStart;
     this.useExternalService = builder.useExternalService;
-    this.namespace = (builder.namespace == null) ? "UnitTest" : builder.namespace;
+    this.namespace =
+        (builder.namespace == null) ? RegisterTestNamespace.NAMESPACE : builder.namespace;
     this.workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
     this.activityImplementations =
         (builder.activityImplementations == null) ? new Object[0] : builder.activityImplementations;

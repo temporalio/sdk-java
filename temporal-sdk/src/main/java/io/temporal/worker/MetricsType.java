@@ -61,7 +61,12 @@ public class MetricsType {
   /** Workflow task failed, possibly failing workflow or reporting failure to the service. */
   public static final String WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_task_execution_failed";
-  /** Workflow task failed with unhandled exception without replying to the service. */
+  /**
+   * Workflow task failed with unhandled exception without replying to the service.<br>
+   * This typically happens when workflow task fails second time in a row.<br>
+   * SDK drops the task and emulates a time-out instead of keeping reporting the failure.<br>
+   * It's implemented this way to get a sdk controlled backoff behavior.<br>
+   */
   public static final String WORKFLOW_TASK_NO_COMPLETION_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_task_no_completion";
 

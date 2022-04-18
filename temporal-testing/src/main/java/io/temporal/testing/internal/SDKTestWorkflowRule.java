@@ -26,6 +26,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
+import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.IndexedValueType;
@@ -197,6 +198,11 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
       testWorkflowRuleBuilder.registerSearchAttribute(name, type);
+      return this;
+    }
+
+    public Builder setMetricsScope(Scope scope) {
+      testWorkflowRuleBuilder.setMetricsScope(scope);
       return this;
     }
 
