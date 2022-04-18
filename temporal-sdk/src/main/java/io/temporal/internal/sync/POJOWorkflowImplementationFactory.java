@@ -24,7 +24,6 @@ import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.Header;
@@ -35,8 +34,6 @@ import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.FailureConverter;
-import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
@@ -64,7 +61,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private final WorkerInterceptor[] workerInterceptors;
 
-  private DataConverter dataConverter;
+  private final DataConverter dataConverter;
   private final List<ContextPropagator> contextPropagators;
   private final long defaultDeadlockDetectionTimeout;
 
@@ -230,10 +227,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
   }
 
-  public void setDataConverter(DataConverter dataConverter) {
-    this.dataConverter = dataConverter;
-  }
-
   @Override
   public ReplayWorkflow getWorkflow(WorkflowType workflowType) {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
@@ -344,19 +337,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         }
       }
     }
-  }
-
-  static WorkflowExecutionException mapToWorkflowExecutionException(
-      Throwable exception, DataConverter dataConverter) {
-    Throwable e = exception;
-    while (e != null) {
-      if (e instanceof TemporalFailure) {
-        ((TemporalFailure) e).setDataConverter(dataConverter);
-      }
-      e = e.getCause();
-    }
-    Failure failure = FailureConverter.exceptionToFailure(exception);
-    return new WorkflowExecutionException(failure);
   }
 
   @Override

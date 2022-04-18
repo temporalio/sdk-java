@@ -29,10 +29,10 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutorCache;
-import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.workflow.ExecutionInfoStrategy;
 import io.temporal.internal.worker.workflow.WorkflowMethodThreadNameStrategy;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -188,8 +188,7 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public WorkflowExecutionException mapUnexpectedException(Throwable failure) {
-    return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(
-        failure, dataConverter);
+  public Failure mapExceptionToFailure(Throwable failure) {
+    return FailureConverter.exceptionToFailure(failure, dataConverter);
   }
 }

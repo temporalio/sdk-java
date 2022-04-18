@@ -23,9 +23,7 @@ import static io.temporal.internal.sync.WorkflowInternal.unwrap;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.Header;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
@@ -56,12 +54,9 @@ class WorkflowExecuteRunnable implements Runnable {
       WorkflowExecutionStartedEventAttributes attributes,
       WorkflowImplementationOptions options) {
     this.implementationOptions = options;
-    Objects.requireNonNull(context);
-    Objects.requireNonNull(workflow);
-    Objects.requireNonNull(attributes);
-    this.context = context;
-    this.workflow = workflow;
-    this.attributes = attributes;
+    this.context = Objects.requireNonNull(context);
+    this.workflow = Objects.requireNonNull(workflow);
+    this.attributes = Objects.requireNonNull(attributes);
   }
 
   @Override
@@ -80,7 +75,8 @@ class WorkflowExecuteRunnable implements Runnable {
           implementationOptions.getFailWorkflowExceptionTypes();
       if (exception instanceof TemporalFailure) {
         logWorkflowExecutionException(Workflow.getInfo(), exception);
-        throw mapToWorkflowExecutionException(exception, context.getDataConverter());
+        throw new WorkflowExecutionException(
+            FailureConverter.exceptionToFailure(exception, context.getDataConverter()));
       }
       for (Class<? extends Throwable> failType : failTypes) {
         if (failType.isAssignableFrom(exception.getClass())) {
@@ -92,7 +88,8 @@ class WorkflowExecuteRunnable implements Runnable {
               logWorkflowExecutionException(Workflow.getInfo(), exception);
             }
           }
-          throw mapToWorkflowExecutionException(exception, context.getDataConverter());
+          throw new WorkflowExecutionException(
+              FailureConverter.exceptionToFailure(exception, context.getDataConverter()));
         }
       }
       throw wrap(exception);
@@ -131,18 +128,5 @@ class WorkflowExecuteRunnable implements Runnable {
             + ", WorkflowType="
             + info.getWorkflowType(),
         exception);
-  }
-
-  static WorkflowExecutionException mapToWorkflowExecutionException(
-      Throwable exception, DataConverter dataConverter) {
-    Throwable e = exception;
-    while (e != null) {
-      if (e instanceof TemporalFailure) {
-        ((TemporalFailure) e).setDataConverter(dataConverter);
-      }
-      e = e.getCause();
-    }
-    Failure failure = FailureConverter.exceptionToFailure(exception);
-    return new WorkflowExecutionException(failure);
   }
 }

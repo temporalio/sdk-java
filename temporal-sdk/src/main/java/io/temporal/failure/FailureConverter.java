@@ -178,6 +178,22 @@ public class FailureConverter {
     }
   }
 
+  /**
+   * This method is needed when we need to serialize an exception having a {@link
+   * io.temporal.failure.TemporalFailure} instance in the chain with {@code details} field and no
+   * data converter attached explicitly during creation.
+   */
+  public static Failure exceptionToFailure(Throwable e, DataConverter dataConverter) {
+    Throwable ex = e;
+    while (ex != null) {
+      if (ex instanceof TemporalFailure) {
+        ((TemporalFailure) ex).setDataConverter(dataConverter);
+      }
+      ex = ex.getCause();
+    }
+    return FailureConverter.exceptionToFailure(e);
+  }
+
   public static Failure exceptionToFailure(Throwable e) {
     if (e instanceof CheckedExceptionWrapper) {
       return exceptionToFailure(e.getCause());

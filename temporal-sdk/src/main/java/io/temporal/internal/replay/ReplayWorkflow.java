@@ -20,9 +20,9 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Optional;
 
@@ -52,14 +52,16 @@ public interface ReplayWorkflow {
   Optional<Payloads> query(WorkflowQuery query);
 
   /**
-   * Convert exception that happened in the framework code to the format that ReplayWorkflow
-   * implementation understands. The framework code is not aware of DataConverter so this is working
-   * around this layering.
+   * Convert exception to the serialized Failure that can be reported to the server.<br>
+   * This method is needed when framework code needs to serialize a {@link
+   * io.temporal.failure.TemporalFailure} instance with details object produced by the application
+   * code.<br>
+   * The framework code is not aware of DataConverter so this is working around this layering.
    *
-   * @param failure Unexpected failure cause
+   * @param exception throwable to convert
    * @return Serialized failure
    */
-  WorkflowExecutionException mapUnexpectedException(Throwable failure);
+  Failure mapExceptionToFailure(Throwable exception);
 
   WorkflowImplementationOptions getWorkflowImplementationOptions();
 }
