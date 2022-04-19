@@ -83,7 +83,6 @@ public class WorkflowThreadContext {
       }
       yieldReason = reason;
 
-      // TODO: Verify that calling unblockFunction under the lock is a sane thing to do.
       while (!inRunUntilBlocked || !unblockFunction.get()) {
         status = Status.YIELDED;
         runCondition.signal();
@@ -318,7 +317,11 @@ public class WorkflowThreadContext {
     }
   }
 
-  public void destroy() {
+  /**
+   * Non-blocking call, never throws.<br>
+   * There is no guarantee that the thread is destroyed at the end of this call.
+   */
+  void initiateDestroy() {
     lock.lock();
     try {
       destroyRequested = true;
@@ -331,11 +334,14 @@ public class WorkflowThreadContext {
         // we don't want to trigger an event loop if we are running already
         return;
       }
+      if (status == Status.DONE) {
+        // nothing to destroy
+        return;
+      }
+      yieldCondition.signal();
     } finally {
       lock.unlock();
     }
-
-    runUntilBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
   }
 
   /** To be called only from a workflow thread. */
