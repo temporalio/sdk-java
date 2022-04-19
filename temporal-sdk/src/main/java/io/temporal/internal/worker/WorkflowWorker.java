@@ -62,7 +62,7 @@ public final class WorkflowWorker
   private final PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
 
-  private SuspendableWorker poller = new NoopSuspendableWorker();
+  @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
   private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
 
   public WorkflowWorker(
@@ -115,66 +115,41 @@ public final class WorkflowWorker
 
   @Override
   public boolean isStarted() {
-    if (poller == null) {
-      return false;
-    }
     return poller.isStarted();
   }
 
   @Override
   public boolean isShutdown() {
-    if (poller == null) {
-      return true;
-    }
     return poller.isShutdown();
   }
 
   @Override
   public boolean isTerminated() {
-    if (poller == null) {
-      return true;
-    }
     return poller.isTerminated();
   }
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    if (poller == null) {
-      return CompletableFuture.completedFuture(null);
-    }
     return poller.shutdown(shutdownManager, interruptTasks);
   }
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    if (poller == null || !poller.isStarted()) {
-      return;
-    }
-
     poller.awaitTermination(timeout, unit);
   }
 
   @Override
   public void suspendPolling() {
-    if (poller == null) {
-      return;
-    }
     poller.suspendPolling();
   }
 
   @Override
   public void resumePolling() {
-    if (poller == null) {
-      return;
-    }
     poller.resumePolling();
   }
 
   @Override
   public boolean isSuspended() {
-    if (poller == null) {
-      return false;
-    }
     return poller.isSuspended();
   }
 
