@@ -213,16 +213,20 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         workflowThreadsToAdd.clear();
       } while (progress && !threads.isEmpty());
     } catch (PotentialDeadlockException e) {
-      StringBuilder dump = new StringBuilder();
+      String triggerThreadStackTrace = "";
+      StringBuilder otherThreadsDump = new StringBuilder();
       for (WorkflowThread t : threads) {
         if (t.getWorkflowThreadContext() != e.getWorkflowThreadContext()) {
-          if (dump.length() > 0) {
-            dump.append("\n");
+          if (otherThreadsDump.length() > 0) {
+            otherThreadsDump.append("\n");
           }
-          dump.append(t.getStackTrace());
+          otherThreadsDump.append(t.getStackTrace());
+        } else {
+          triggerThreadStackTrace = t.getStackTrace();
         }
       }
-      e.setStackDump(dump.toString(), System.currentTimeMillis());
+      e.setStackDump(
+          triggerThreadStackTrace, otherThreadsDump.toString(), System.currentTimeMillis());
       throw e;
     } finally {
       inRunUntilAllBlocked = false;

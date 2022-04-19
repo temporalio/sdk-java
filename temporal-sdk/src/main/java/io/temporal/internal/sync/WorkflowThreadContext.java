@@ -262,10 +262,7 @@ public class WorkflowThreadContext {
             && potentialProgressStatesLocked()) {
           long detectionTimestamp = System.currentTimeMillis();
           if (currentThread != null) {
-            StackTraceElement[] stackTrace = currentThread.getStackTrace();
-            long stackTraceTimestamp = System.currentTimeMillis();
-            throw new PotentialDeadlockException(
-                currentThread.getName(), stackTrace, this, detectionTimestamp, stackTraceTimestamp);
+            throw new PotentialDeadlockException(currentThread.getName(), this, detectionTimestamp);
           } else {
             // This should never happen.
             // We clear currentThread only after setting the status to DONE.
@@ -273,12 +270,7 @@ public class WorkflowThreadContext {
             // and acquiring the lock back
             log.warn(
                 "Illegal State: WorkflowThreadContext has no currentThread in {} state", status);
-            throw new PotentialDeadlockException(
-                "UnknownThread",
-                new StackTraceElement[0],
-                this,
-                detectionTimestamp,
-                detectionTimestamp);
+            throw new PotentialDeadlockException("UnknownThread", this, detectionTimestamp);
           }
         }
         if (evaluationFunction != null) {
