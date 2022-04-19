@@ -41,7 +41,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -211,16 +210,37 @@ public final class WorkflowWorker
           workerMetricsScope.tagged(
               ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, task.getWorkflowType().getName()));
 
+      String runId = task.getWorkflowExecution().getRunId();
+
       MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, task.getWorkflowType().getName());
-      MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
+      MDC.put(LoggerTag.RUN_ID, runId);
 
-      Lock runLock = null;
+      boolean locked = false;
       if (!Strings.isNullOrEmpty(stickyTaskQueueName)) {
-        runLock = runLocks.getLockForLocking(task.getWorkflowExecution().getRunId());
+        // Serialize workflow task processing for a particular workflow run.
+        // This is used to make sure that query tasks and real workflow tasks
+        // are serialized when sticky is on.
+        //
         // Acquiring a lock with a timeout to avoid having lots of workflow tasks for the same run
         // id waiting for a lock and consuming threads in case if lock is unavailable.
-        if (!runLock.tryLock(1, TimeUnit.SECONDS)) {
+        //
+        // Throws interrupted exception which is propagated. It's a correct way to handle it here.
+        //
+        // TODO 1: "1 second" timeout looks potentially too strict, especially if we are talking
+        //   about workflow tasks with local activities.
+        //   This could lead to unexpected fail of queries and reset of sticky queue.
+        //   Should it be connected to a workflow task timeout / query timeout?
+        // TODO 2: Does "consider increasing workflow task timeout" advice in this exception makes
+        //   any sense?
+        //   This MAYBE makes sense only if a previous workflow task timed out, it's still in
+        //   progress on the worker and the next workflow task got picked up by the same exact
+        //   worker from the general non-sticky task queue.
+        //   Even in this case, this advice looks misleading, something else is going on
+        //   (like an extreme network latency).
+        locked = runLocks.tryLock(runId, 1, TimeUnit.SECONDS);
+
+        if (!locked) {
           throw new UnableToAcquireLockException(
               "Workflow lock for the run id hasn't been released by one of previous execution attempts, "
                   + "consider increasing workflow task timeout.");
@@ -233,49 +253,18 @@ public final class WorkflowWorker
         Optional<PollWorkflowTaskQueueResponse> nextTask = Optional.of(task);
         do {
           PollWorkflowTaskQueueResponse currentTask = nextTask.get();
-          WorkflowExecution execution = currentTask.getWorkflowExecution();
-          Stopwatch sw =
-              workflowTypeMetricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
-          WorkflowTaskHandler.Result response;
-          try {
-            response = handler.handleWorkflowTask(currentTask);
-          } catch (Throwable e) {
-            // logged inside the handler
-            workflowTypeMetricsScope
-                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
-                .inc(1);
-            workflowTypeMetricsScope
-                .counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER)
-                .inc(1);
-            throw e;
-          } finally {
-            sw.stop();
-          }
+          WorkflowTaskHandler.Result response = handleTask(currentTask, workflowTypeMetricsScope);
+          nextTask = sendReply(service, workflowTypeMetricsScope, currentTask, response);
 
-          try {
-            nextTask =
-                sendReply(service, workflowTypeMetricsScope, currentTask.getTaskToken(), response);
-          } catch (Exception e) {
-            log.warn(
-                "Workflow task failure during replying to the server. startedEventId={}, WorkflowId={}, RunId={}. If seen continuously the workflow might be stuck.",
-                currentTask.getStartedEventId(),
-                execution.getWorkflowId(),
-                execution.getRunId(),
-                e);
-            workflowTypeMetricsScope
-                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
-                .inc(1);
-            throw e;
-          }
-
+          // this should be after sendReply, otherwise we may log
+          // WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER twice if sendReply throws
           if (response.getTaskFailed() != null) {
-            // we don't trigger the counter in case of the legacy query (which never has taskFailed
-            // set)
+            // we don't trigger the counter in case of the legacy query
+            // (which never has taskFailed set)
             workflowTypeMetricsScope
                 .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
                 .inc(1);
           }
-
           if (nextTask.isPresent()) {
             workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
           }
@@ -286,8 +275,8 @@ public final class WorkflowWorker
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
 
-        if (runLock != null) {
-          runLocks.unlock(task.getWorkflowExecution().getRunId());
+        if (locked) {
+          runLocks.unlock(runId);
         }
       }
     }
@@ -305,69 +294,106 @@ public final class WorkflowWorker
           failure);
     }
 
+    private WorkflowTaskHandler.Result handleTask(
+        PollWorkflowTaskQueueResponse task, Scope workflowTypeMetricsScope) throws Exception {
+      Stopwatch sw =
+          workflowTypeMetricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
+      try {
+        return handler.handleWorkflowTask(task);
+      } catch (Throwable e) {
+        // more detailed logging that we can do here is already done inside `handler`
+        workflowTypeMetricsScope
+            .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
+            .inc(1);
+        workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
+        throw e;
+      } finally {
+        sw.stop();
+      }
+    }
+
     private Optional<PollWorkflowTaskQueueResponse> sendReply(
         WorkflowServiceStubs service,
-        Scope workflowTypeWorkerMetricsScope,
-        ByteString taskToken,
+        Scope workflowTypeMetricsScope,
+        PollWorkflowTaskQueueResponse task,
         WorkflowTaskHandler.Result response) {
-      RpcRetryOptions retryOptions = response.getRequestRetryOptions();
-      RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
-      if (taskCompleted != null) {
-        retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
-
-        RespondWorkflowTaskCompletedRequest request =
-            taskCompleted
-                .toBuilder()
-                .setIdentity(options.getIdentity())
-                .setNamespace(namespace)
-                .setBinaryChecksum(options.getBinaryChecksum())
-                .setTaskToken(taskToken)
-                .build();
-        AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
-        GrpcRetryer.retry(
-            retryOptions,
-            () ->
-                nextTask.set(
-                    service
-                        .blockingStub()
-                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeWorkerMetricsScope)
-                        .respondWorkflowTaskCompleted(request)));
-        if (nextTask.get().hasWorkflowTask()) {
-          return Optional.of(nextTask.get().getWorkflowTask());
-        }
-      } else {
-        RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
-        if (taskFailed != null) {
+      try {
+        ByteString taskToken = task.getTaskToken();
+        RpcRetryOptions retryOptions = response.getRequestRetryOptions();
+        RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
+        if (taskCompleted != null) {
           retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
 
-          RespondWorkflowTaskFailedRequest request =
-              taskFailed
+          RespondWorkflowTaskCompletedRequest request =
+              taskCompleted
                   .toBuilder()
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
+                  .setBinaryChecksum(options.getBinaryChecksum())
                   .setTaskToken(taskToken)
                   .build();
+          AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
           GrpcRetryer.retry(
               retryOptions,
               () ->
-                  service
-                      .blockingStub()
-                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeWorkerMetricsScope)
-                      .respondWorkflowTaskFailed(request));
+                  nextTask.set(
+                      service
+                          .blockingStub()
+                          .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+                          .respondWorkflowTaskCompleted(request)));
+          if (nextTask.get().hasWorkflowTask()) {
+            return Optional.of(nextTask.get().getWorkflowTask());
+          }
         } else {
-          RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
-          if (queryCompleted != null) {
-            queryCompleted =
-                queryCompleted.toBuilder().setTaskToken(taskToken).setNamespace(namespace).build();
-            // Do not retry query response.
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeWorkerMetricsScope)
-                .respondQueryTaskCompleted(queryCompleted);
+          RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
+          if (taskFailed != null) {
+            retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
+
+            RespondWorkflowTaskFailedRequest request =
+                taskFailed
+                    .toBuilder()
+                    .setIdentity(options.getIdentity())
+                    .setNamespace(namespace)
+                    .setTaskToken(taskToken)
+                    .build();
+            GrpcRetryer.retry(
+                retryOptions,
+                () ->
+                    service
+                        .blockingStub()
+                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+                        .respondWorkflowTaskFailed(request));
+          } else {
+            RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
+            if (queryCompleted != null) {
+              queryCompleted =
+                  queryCompleted
+                      .toBuilder()
+                      .setTaskToken(taskToken)
+                      .setNamespace(namespace)
+                      .build();
+              // Do not retry query response.
+              service
+                  .blockingStub()
+                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+                  .respondQueryTaskCompleted(queryCompleted);
+            }
           }
         }
+        return Optional.empty();
+      } catch (Exception e) {
+        WorkflowExecution execution = task.getWorkflowExecution();
+        log.warn(
+            "Workflow task failure during replying to the server. startedEventId={}, WorkflowId={}, RunId={}. If seen continuously the workflow might be stuck.",
+            task.getStartedEventId(),
+            execution.getWorkflowId(),
+            execution.getRunId(),
+            e);
+        workflowTypeMetricsScope
+            .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
+            .inc(1);
+        throw e;
       }
-      return Optional.empty();
     }
   }
 }

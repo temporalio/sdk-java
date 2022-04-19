@@ -19,89 +19,66 @@
 
 package io.temporal.internal.worker;
 
-import java.util.HashMap;
-import java.util.concurrent.locks.Lock;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 final class WorkflowRunLockManager {
+  private final Map<String, RefCountedLock> runIdLock = new ConcurrentHashMap<>();
 
-  private static class CountableLock {
-    private final Lock lock = new ReentrantLock();
-    private int count = 1;
+  public boolean tryLock(String runId, long timeout, TimeUnit unit) throws InterruptedException {
+    RefCountedLock runLock =
+        runIdLock.compute(
+            runId,
+            (id, lock) -> {
+              if (lock == null) {
+                lock = new RefCountedLock();
+              }
+              lock.refCount++;
+              return lock;
+            });
 
-    void incrementCount() {
-      count++;
-    }
-
-    void decrementCount() {
-      count--;
-    }
-
-    int getCount() {
-      return count;
-    }
-
-    Lock getLock() {
-      return lock;
-    }
-  }
-
-  private final Lock mapLock = new ReentrantLock();
-  private final HashMap<String, CountableLock> perRunLock = new HashMap<>();
-
-  /**
-   * This method returns a lock that can be used to serialize workflow task processing for a
-   * particular workflow run. This is used to make sure that query tasks and real workflow tasks are
-   * serialized when sticky is on.
-   *
-   * @param runId
-   * @return a lock to be used during workflow task processing
-   */
-  Lock getLockForLocking(String runId) {
-    mapLock.lock();
-
+    boolean obtained = false;
     try {
-      CountableLock cl = perRunLock.get(runId);
-      if (cl == null) {
-        cl = new CountableLock();
-        perRunLock.put(runId, cl);
-      } else {
-        cl.incrementCount();
-      }
-
-      return cl.getLock();
+      obtained = runLock.lock.tryLock(timeout, unit);
+      return obtained;
     } finally {
-      mapLock.unlock();
+      if (!obtained) {
+        derefAndUnlock(runId, false);
+      }
     }
   }
 
-  void unlock(String runId) {
-    mapLock.lock();
-
-    try {
-      CountableLock cl = perRunLock.get(runId);
-      if (cl == null) {
-        throw new RuntimeException("lock for run " + runId + " does not exist.");
-      }
-
-      cl.decrementCount();
-      if (cl.getCount() == 0) {
-        perRunLock.remove(runId);
-      }
-
-      cl.getLock().unlock();
-    } finally {
-      mapLock.unlock();
-    }
+  public void unlock(String runId) {
+    derefAndUnlock(runId, true);
   }
 
+  private void derefAndUnlock(String runId, boolean unlock) {
+    runIdLock.compute(
+        runId,
+        (id, runLock) -> {
+          Preconditions.checkState(
+              runLock != null,
+              "Thread '%s' doesn't have an acquired lock for runId '%s'",
+              Thread.currentThread().getName(),
+              runId);
+          if (unlock) {
+            runLock.lock.unlock();
+          }
+          return --runLock.refCount == 0 ? null : runLock;
+        });
+  }
+
+  @VisibleForTesting
   int totalLocks() {
-    mapLock.lock();
+    return runIdLock.size();
+  }
 
-    try {
-      return perRunLock.size();
-    } finally {
-      mapLock.unlock();
-    }
+  private static class RefCountedLock {
+    final ReentrantLock lock = new ReentrantLock();
+    int refCount = 0;
   }
 }
