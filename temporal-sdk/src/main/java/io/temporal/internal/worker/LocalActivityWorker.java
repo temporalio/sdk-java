@@ -45,7 +45,7 @@ import javax.annotation.Nonnull;
 
 public final class LocalActivityWorker implements SuspendableWorker {
 
-  private SuspendableWorker poller = new NoopSuspendableWorker();
+  @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
   private final String namespace;
   private final String taskQueue;
@@ -100,35 +100,22 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
   @Override
   public boolean isStarted() {
-    if (poller == null) {
-      return false;
-    }
     return poller.isStarted();
   }
 
   @Override
   public boolean isShutdown() {
-    if (poller == null) {
-      return true;
-    }
     return poller.isShutdown();
   }
 
   @Override
   public boolean isTerminated() {
-    if (poller == null) {
-      return true;
-    }
     return poller.isTerminated();
   }
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    if (poller != null) {
-      return poller.shutdown(shutdownManager, interruptTasks);
-    } else {
-      return CompletableFuture.completedFuture(null);
-    }
+    return poller.shutdown(shutdownManager, interruptTasks);
   }
 
   @Override
@@ -138,25 +125,16 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
   @Override
   public void suspendPolling() {
-    if (poller == null) {
-      return;
-    }
     poller.suspendPolling();
   }
 
   @Override
   public void resumePolling() {
-    if (poller == null) {
-      return;
-    }
     poller.resumePolling();
   }
 
   @Override
   public boolean isSuspended() {
-    if (poller == null) {
-      return true;
-    }
     return poller.isSuspended();
   }
 

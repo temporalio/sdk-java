@@ -419,11 +419,7 @@ public final class Worker implements Suspendable {
 
   @Override
   public boolean isSuspended() {
-    boolean isSuspended = workflowWorker.isSuspended();
-    if (activityWorker != null) {
-      isSuspended = isSuspended && activityWorker.isSuspended();
-    }
-    return isSuspended;
+    return workflowWorker.isSuspended() && (activityWorker == null || activityWorker.isSuspended());
   }
 
   /**

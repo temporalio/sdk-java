@@ -68,6 +68,6 @@ class NoopSuspendableWorker implements SuspendableWorker {
 
   @Override
   public boolean isSuspended() {
-    return false;
+    return true;
   }
 }

@@ -50,7 +50,7 @@ import javax.annotation.Nonnull;
 import org.slf4j.MDC;
 
 public final class ActivityWorker implements SuspendableWorker {
-  private SuspendableWorker poller = new NoopSuspendableWorker();
+  @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
   private final WorkflowServiceStubs service;
   private final String namespace;
