@@ -10,6 +10,8 @@ apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 description = '''Temporal test workflow server'''
 
 dependencies {
+    api(platform("io.grpc:grpc-bom:$grpcVersion"))
+
     api project(':temporal-sdk')
     implementation("io.grpc:grpc-core")
     implementation("io.grpc:grpc-services")

@@ -60,8 +60,8 @@ jobs:
 
       - name: Dry run
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
-        run: ./gradlew --dry-run publish
+        run: ./gradlew --dry-run publishToSonatype
 
       - name: Publish
         if: ${{ github.event_name == 'push' || github.event.inputs.dry_run == 'false' }}
-        run: ./gradlew publish
+        run: ./gradlew publishToSonatype
