@@ -18,14 +18,14 @@ subprojects {
                 from components.java
             }
         }
-        // to test local publishing use ./gradlew publish
-        repositories {
-            maven {
-                def releasesRepoUrl = "$System.env.HOME/repos/releases"
-                def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
-                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-            }
-        }
+        // to test local publishing use ./gradlew publish and comment nexusPublishing
+//        repositories {
+//            maven {
+//                def releasesRepoUrl = "$System.env.HOME/repos/releases"
+//                def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
+//                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+//            }
+//        }
     }
 
     if (project.hasProperty('signing.keyId')) {
