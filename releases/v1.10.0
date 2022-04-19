@@ -1,0 +1,11 @@
+Highlights:
+
+This release contains fixes for performance and stability issues
+
+Changeset:
+2022-04-18 - 6a1dfb8c - Refactor and cleanup exception to failure conversion code (#1148)
+2022-04-18 - b00561f6 - Make WorkflowThreadContext#destroy non-blocking and remove deadlock detector from the call (#1151)
+2022-04-18 - bd3ae1b7 - Moved NO_COMPLETION counter reporting to handle all cases (#1149)
+2022-04-19 - 397b7785 - Fix for Worker#isSuspended not returning correct state (#1155)
+2022-04-19 - 48bdd4d7 - Reimplemented WorkflowRunLockManager to fix design flaw with an unsafe unlock (#1147)
+2022-04-19 - b12df1f1 - Rework PotentialDeadlockException to don't override the original stacktrace (#1152)
