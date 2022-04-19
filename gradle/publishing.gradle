@@ -1,6 +1,15 @@
+nexusPublishing {
+    // to release to sonatype use ./gradlew publishToSonatype
+    repositories {
+        sonatype {
+            username = project.hasProperty('ossrhUsername') ? project.property('ossrhUsername') : ''
+            password = project.hasProperty('ossrhPassword') ? project.property('ossrhPassword') : ''
+        }
+    }
+}
+
 subprojects {
     apply plugin: 'maven-publish'
-    apply plugin: 'de.marcphilipp.nexus-publish'
     apply plugin: 'signing'
 
     publishing {
@@ -9,22 +18,12 @@ subprojects {
                 from components.java
             }
         }
-
-        // Uncomment to test local publishing and comment nexusPublishing
-//        repositories {
-//            maven {
-//                def releasesRepoUrl = "$System.env.HOME/repos/releases"
-//                def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
-//                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-//            }
-//        }
-    }
-
-    nexusPublishing {
+        // to test local publishing use ./gradlew publish
         repositories {
-            sonatype {
-                username = project.hasProperty('ossrhUsername') ? project.property('ossrhUsername') : ''
-                password = project.hasProperty('ossrhPassword') ? project.property('ossrhPassword') : ''
+            maven {
+                def releasesRepoUrl = "$System.env.HOME/repos/releases"
+                def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
+                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
             }
         }
     }

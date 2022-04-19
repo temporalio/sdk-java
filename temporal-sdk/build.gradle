@@ -1,6 +1,7 @@
 description = '''Temporal Workflow Java SDK'''
 
 dependencies {
+    api(platform("io.grpc:grpc-bom:$grpcVersion"))
     api(platform("com.fasterxml.jackson:jackson-bom:$jacksonVersion"))
     api(platform("io.micrometer:micrometer-bom:$micrometerVersion"))
 
