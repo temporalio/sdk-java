@@ -57,6 +57,9 @@ ext.getClientVersionName = { ->
     return split[0]
 }
 
+group = 'io.temporal'
+version = getVersionName()
+
 subprojects {
     apply plugin: "com.palantir.git-version"
 

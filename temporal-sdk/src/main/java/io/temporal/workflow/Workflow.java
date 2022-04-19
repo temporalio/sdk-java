@@ -1020,7 +1020,7 @@ public final class Workflow {
    *
    * @param name search attribute name
    * @return deserialized search attribute value
-   * @throws IllegalStateException if the search attribute value is a collection of multiple (> 1)
+   * @throws IllegalStateException if the search attribute value is a collection of multiple (&gt 1)
    *     elements
    */
   @Nullable
