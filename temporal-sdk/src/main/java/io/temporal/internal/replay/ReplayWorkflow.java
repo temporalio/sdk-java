@@ -35,7 +35,9 @@ public interface ReplayWorkflow {
 
   boolean eventLoop();
 
-  /** @return null means no output yet */
+  /**
+   * @return null means no output yet
+   */
   Optional<Payloads> getOutput();
 
   void cancel(String reason);

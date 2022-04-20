@@ -571,11 +571,15 @@ public class StickyWorkerTest {
 
   @WorkflowInterface
   public interface GreetingSignalWorkflow {
-    /** @return greeting string */
+    /**
+     * @return greeting string
+     */
     @QueryMethod
     Status getProgress();
 
-    /** @return greeting string */
+    /**
+     * @return greeting string
+     */
     @WorkflowMethod
     String getGreeting();
 

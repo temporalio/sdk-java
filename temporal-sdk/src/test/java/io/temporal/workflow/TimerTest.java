@@ -45,8 +45,7 @@ public class TimerTest {
       options = SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue());
     } else {
       options =
-          SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-              .toBuilder()
+          SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
               .setWorkflowRunTimeout(Duration.ofDays(1))
               .build();
     }

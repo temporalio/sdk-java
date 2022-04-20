@@ -90,7 +90,9 @@ public class MetricsType {
       TEMPORAL_METRICS_PREFIX + "activity_execution_failed";
   public static final String ACTIVITY_EXEC_CANCELLED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_execution_cancelled";
-  /** @deprecated use {@link #ACTIVITY_EXEC_CANCELLED_COUNTER} */
+  /**
+   * @deprecated use {@link #ACTIVITY_EXEC_CANCELLED_COUNTER}
+   */
   @Deprecated
   public static final String ACTIVITY_CANCELED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "activity_canceled";
@@ -108,14 +110,18 @@ public class MetricsType {
 
   public static final String LOCAL_ACTIVITY_EXEC_CANCELLED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_execution_cancelled";
-  /** @deprecated use {@link #LOCAL_ACTIVITY_EXEC_CANCELLED_COUNTER} */
+  /**
+   * @deprecated use {@link #LOCAL_ACTIVITY_EXEC_CANCELLED_COUNTER}
+   */
   @Deprecated
   public static final String LOCAL_ACTIVITY_CANCELED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_canceled";
 
   public static final String LOCAL_ACTIVITY_EXEC_FAILED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_execution_failed";
-  /** @deprecated use {@link #LOCAL_ACTIVITY_EXEC_FAILED_COUNTER} */
+  /**
+   * @deprecated use {@link #LOCAL_ACTIVITY_EXEC_FAILED_COUNTER}
+   */
   @Deprecated
   public static final String LOCAL_ACTIVITY_FAILED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_failed";

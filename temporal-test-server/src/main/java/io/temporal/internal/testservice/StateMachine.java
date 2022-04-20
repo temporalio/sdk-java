@@ -55,7 +55,9 @@ final class StateMachine<Data> {
   @FunctionalInterface
   interface DynamicCallback<D, R> {
 
-    /** @return state after the action */
+    /**
+     * @return state after the action
+     */
     State apply(RequestContext ctx, D data, R request, long referenceId);
   }
 

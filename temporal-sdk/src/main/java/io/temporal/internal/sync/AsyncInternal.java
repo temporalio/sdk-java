@@ -338,7 +338,9 @@ public final class AsyncInternal {
     asyncResult.set(new AtomicReference<>());
   }
 
-  /** @return asynchronous result of an invocation. */
+  /**
+   * @return asynchronous result of an invocation.
+   */
   private static <R> Promise<R> getAsyncInvocationResult() {
     AtomicReference<Promise<?>> reference = asyncResult.get();
     if (reference == null) {

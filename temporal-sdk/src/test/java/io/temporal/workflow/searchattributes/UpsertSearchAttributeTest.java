@@ -51,8 +51,7 @@ public class UpsertSearchAttributeTest {
   @Test
   public void testUpsertSearchAttributes() {
     WorkflowOptions workflowOptions =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(ImmutableMap.of("CustomTextField", "custom"))
             .build();
     TestWorkflowStringArg testWorkflow =

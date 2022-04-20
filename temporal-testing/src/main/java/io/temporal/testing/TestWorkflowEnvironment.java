@@ -163,7 +163,9 @@ public interface TestWorkflowEnvironment extends Closeable {
   @Deprecated
   WorkflowServiceStubs getWorkflowService();
 
-  /** @return {@link WorkflowServiceStubs} connected to the test server (in-memory or external) */
+  /**
+   * @return {@link WorkflowServiceStubs} connected to the test server (in-memory or external)
+   */
   WorkflowServiceStubs getWorkflowServiceStubs();
 
   String getNamespace();

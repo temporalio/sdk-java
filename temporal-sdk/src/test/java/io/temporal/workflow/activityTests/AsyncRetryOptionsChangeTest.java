@@ -49,7 +49,9 @@ public class AsyncRetryOptionsChangeTest {
               TestAsyncRetryOptionsChangeWorkflow.class)
           .build();
 
-  /** @see DeterministicRunnerTest#testRetry() */
+  /**
+   * @see DeterministicRunnerTest#testRetry()
+   */
   @Test
   public void testAsyncRetryOptionsChange() {
     TestTraceWorkflow client =

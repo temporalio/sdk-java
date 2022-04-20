@@ -195,8 +195,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     this.defaultActivityOptions =
         (this.defaultActivityOptions == null)
             ? defaultActivityOptions
-            : this.defaultActivityOptions
-                .toBuilder()
+            : this.defaultActivityOptions.toBuilder()
                 .mergeActivityOptions(defaultActivityOptions)
                 .build();
   }
@@ -214,8 +213,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     this.defaultLocalActivityOptions =
         (this.defaultLocalActivityOptions == null)
             ? defaultLocalActivityOptions
-            : this.defaultLocalActivityOptions
-                .toBuilder()
+            : this.defaultLocalActivityOptions.toBuilder()
                 .mergeActivityOptions(defaultLocalActivityOptions)
                 .build();
   }

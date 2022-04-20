@@ -189,7 +189,9 @@ class TestHistoryBuilder {
     }
   }
 
-  /** @return HistoryInfo for a full replay from history */
+  /**
+   * @return HistoryInfo for a full replay from history
+   */
   public HistoryInfo getHistoryInfo() {
     return getHistoryInfo(Integer.MAX_VALUE);
   }

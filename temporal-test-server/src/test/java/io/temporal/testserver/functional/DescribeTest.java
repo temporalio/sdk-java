@@ -195,8 +195,7 @@ public class DescribeTest {
 
     // Now, our PendingActivityInfo has heartbeat data, but is otherwise unchanged
     expected =
-        expected
-            .toBuilder()
+        expected.toBuilder()
             .setHeartbeatDetails(DescribeWorkflowAsserter.stringsToPayloads("heartbeatDetails"))
             .setLastHeartbeatTime(actual.getLastHeartbeatTime())
             .build();

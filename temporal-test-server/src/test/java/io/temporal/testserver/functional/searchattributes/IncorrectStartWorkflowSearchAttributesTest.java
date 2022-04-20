@@ -58,8 +58,7 @@ public class IncorrectStartWorkflowSearchAttributesTest {
     Map<String, Object> searchAttributes = ImmutableMap.of(TEST_UNKNOWN_KEY, TEST_UNKNOWN_VALUE);
 
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(searchAttributes)
             .setWorkflowId(WORKFLOW_ID)
             .build();
@@ -98,8 +97,7 @@ public class IncorrectStartWorkflowSearchAttributesTest {
         ImmutableMap.of(DEFAULT_KEY_INTEGER, "this_is_string_and_not_an_int");
 
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(searchAttributes)
             .setWorkflowId(WORKFLOW_ID)
             .build();

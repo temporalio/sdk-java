@@ -81,7 +81,9 @@ public final class WorkflowExecutionHistory {
     }
   }
 
-  /** @return full json that can be used for replay and which is compatible with tctl */
+  /**
+   * @return full json that can be used for replay and which is compatible with tctl
+   */
   public String toJson(boolean prettyPrint) {
     JsonFormat.Printer printer = JsonFormat.printer();
     try {

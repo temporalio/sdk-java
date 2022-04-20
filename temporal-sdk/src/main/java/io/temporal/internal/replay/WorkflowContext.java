@@ -169,7 +169,9 @@ final class WorkflowContext {
     return contextPropagators;
   }
 
-  /** @return a map of propagated context objects, keyed by propagator name */
+  /**
+   * @return a map of propagated context objects, keyed by propagator name
+   */
   Map<String, Object> getPropagatedContexts() {
     if (contextPropagators == null || contextPropagators.isEmpty()) {
       return new HashMap<>();

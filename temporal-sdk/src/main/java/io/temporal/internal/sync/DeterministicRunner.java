@@ -75,7 +75,9 @@ interface DeterministicRunner {
   /** IsDone returns true when all of threads are completed */
   boolean isDone();
 
-  /** @return exit value passed to {@link WorkflowThread#exit(Object)} */
+  /**
+   * @return exit value passed to {@link WorkflowThread#exit(Object)}
+   */
   Object getExitValue();
 
   /**

@@ -261,7 +261,9 @@ public final class WorkerFactory {
     return true;
   }
 
-  /** @return instance of the Temporal client that this worker uses. */
+  /**
+   * @return instance of the Temporal client that this worker uses.
+   */
   public WorkflowClient getWorkflowClient() {
     return workflowClient;
   }

@@ -97,7 +97,9 @@ class WorkflowTimers {
     return !timers.isEmpty() && timers.firstKey() <= currentTime;
   }
 
-  /** @return true if any timer fired */
+  /**
+   * @return true if any timer fired
+   */
   public void fireTimers(long currentTime) {
     boolean fired = false;
     boolean newTimersAdded;

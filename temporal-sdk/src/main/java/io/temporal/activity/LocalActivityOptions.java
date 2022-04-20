@@ -31,7 +31,9 @@ public final class LocalActivityOptions {
     return new Builder(null);
   }
 
-  /** @param o null is allowed. */
+  /**
+   * @param o null is allowed.
+   */
   public static Builder newBuilder(LocalActivityOptions o) {
     return new Builder(o);
   }

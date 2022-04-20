@@ -210,17 +210,23 @@ class ServiceStubsOptions {
     return enableHttps;
   }
 
-  /** @return the gRPC SSL Context to use */
+  /**
+   * @return the gRPC SSL Context to use
+   */
   public SslContext getSslContext() {
     return sslContext;
   }
 
-  /** @return how to long to wait for service response on each health check attempt */
+  /**
+   * @return how to long to wait for service response on each health check attempt
+   */
   public Duration getHealthCheckAttemptTimeout() {
     return healthCheckAttemptTimeout;
   }
 
-  /** @return duration of time to wait while checking server connection when creating new client */
+  /**
+   * @return duration of time to wait while checking server connection when creating new client
+   */
   public Duration getHealthCheckTimeout() {
     return healthCheckTimeout;
   }
@@ -249,12 +255,16 @@ class ServiceStubsOptions {
     return keepAliveTimeout;
   }
 
-  /** @return if keep alive ping will be allowed when there are no active RPCs */
+  /**
+   * @return if keep alive ping will be allowed when there are no active RPCs
+   */
   public boolean getKeepAlivePermitWithoutStream() {
     return keepAlivePermitWithoutStream;
   }
 
-  /** @return the rpc timeout value */
+  /**
+   * @return the rpc timeout value
+   */
   public Duration getRpcTimeout() {
     return rpcTimeout;
   }
@@ -267,12 +277,16 @@ class ServiceStubsOptions {
     return connectionBackoffResetFrequency;
   }
 
-  /** @return frequency at which grpc channel should be moved into an idle state */
+  /**
+   * @return frequency at which grpc channel should be moved into an idle state
+   */
   public Duration getGrpcReconnectFrequency() {
     return grpcReconnectFrequency;
   }
 
-  /** @return gRPC headers to be added to every call */
+  /**
+   * @return gRPC headers to be added to every call
+   */
   public Metadata getHeaders() {
     return headers;
   }
@@ -285,12 +299,16 @@ class ServiceStubsOptions {
     return grpcMetadataProviders;
   }
 
-  /** @return gRPC client interceptors to be added to gRPC channel */
+  /**
+   * @return gRPC client interceptors to be added to gRPC channel
+   */
   public Collection<ClientInterceptor> getGrpcClientInterceptors() {
     return grpcClientInterceptors;
   }
 
-  /** @return scope to be used for metrics reporting */
+  /**
+   * @return scope to be used for metrics reporting
+   */
   @Nonnull
   public Scope getMetricsScope() {
     return metricsScope;
@@ -620,13 +638,17 @@ class ServiceStubsOptions {
       return self();
     }
 
-    /** @return {@code this} */
+    /**
+     * @return {@code this}
+     */
     @SuppressWarnings("unchecked")
     private T self() {
       return (T) this;
     }
 
-    /** @return Built ServiceStubOptions object with the specified params */
+    /**
+     * @return Built ServiceStubOptions object with the specified params
+     */
     public ServiceStubsOptions build() {
       return new ServiceStubsOptions(
           this.channel,

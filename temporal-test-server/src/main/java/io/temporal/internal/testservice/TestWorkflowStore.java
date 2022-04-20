@@ -143,11 +143,15 @@ interface TestWorkflowStore {
 
   void registerDelayedCallback(Duration delay, Runnable r);
 
-  /** @return empty if this store is closed or thread interrupted */
+  /**
+   * @return empty if this store is closed or thread interrupted
+   */
   Future<PollWorkflowTaskQueueResponse.Builder> pollWorkflowTaskQueue(
       PollWorkflowTaskQueueRequest pollRequest);
 
-  /** @return empty if this store is closed or thread interrupted */
+  /**
+   * @return empty if this store is closed or thread interrupted
+   */
   Future<PollActivityTaskQueueResponse.Builder> pollActivityTaskQueue(
       PollActivityTaskQueueRequest pollRequest);
 

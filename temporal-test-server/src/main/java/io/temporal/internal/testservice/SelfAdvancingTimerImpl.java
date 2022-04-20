@@ -358,7 +358,9 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     return cancellationHandle;
   }
 
-  /** @return Supplier that returns time in milliseconds when called. */
+  /**
+   * @return Supplier that returns time in milliseconds when called.
+   */
   @Override
   public LongSupplier getClock() {
     return clock;

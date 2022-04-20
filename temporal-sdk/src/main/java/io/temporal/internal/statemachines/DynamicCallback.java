@@ -27,6 +27,8 @@ package io.temporal.internal.statemachines;
 @FunctionalInterface
 interface DynamicCallback<State, Data> {
 
-  /** @return state after the explicitEvent */
+  /**
+   * @return state after the explicitEvent
+   */
   State apply(Data data);
 }

@@ -46,8 +46,7 @@ public class ParentWorkflowInfoInChildWorkflowsTest {
 
     String workflowId = "testParentWorkflowInfoInChildWorkflows";
     WorkflowOptions workflowOptions =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId(workflowId)
             .build();
     TestNoArgsWorkflowFunc parent =

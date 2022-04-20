@@ -127,7 +127,9 @@ public final class POJOWorkflowInterfaceMetadata {
     return new POJOWorkflowInterfaceMetadata(anInterface, true);
   }
 
-  /** @param implementation if the metadata is for a workflow implementation class vs stub. */
+  /**
+   * @param implementation if the metadata is for a workflow implementation class vs stub.
+   */
   private POJOWorkflowInterfaceMetadata(Class<?> anInterface, boolean implementation) {
     this.interfaceClass = anInterface;
     Map<EqualsByName, Method> dedupeMap = new HashMap<>();
@@ -171,7 +173,9 @@ public final class POJOWorkflowInterfaceMetadata {
     return new ArrayList<>(this.methods.values());
   }
 
-  /** @return methods which are not part of an interface annotated with WorkflowInterface */
+  /**
+   * @return methods which are not part of an interface annotated with WorkflowInterface
+   */
   private Set<POJOWorkflowMethod> getWorkflowInterfaceMethods(
       Class<?> current, boolean rootClass, Map<EqualsByName, Method> dedupeMap) {
     WorkflowInterface annotation = current.getAnnotation(WorkflowInterface.class);

@@ -68,8 +68,7 @@ public class IncorrectUpsertSearchAttributesTest {
     SEARCH_ATTRIBUTES = ImmutableMap.of(TEST_UNKNOWN_KEY, TEST_UNKNOWN_VALUE);
 
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId(WORKFLOW_ID)
             .build();
 
@@ -105,8 +104,7 @@ public class IncorrectUpsertSearchAttributesTest {
     SEARCH_ATTRIBUTES = ImmutableMap.of(DEFAULT_KEY_INTEGER, "this_is_string_and_not_an_int");
 
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowId(WORKFLOW_ID)
             .build();
 

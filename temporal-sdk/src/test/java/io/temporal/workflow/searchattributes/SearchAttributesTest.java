@@ -93,8 +93,7 @@ public class SearchAttributesTest {
   @Test
   public void testDefaultTestSearchAttributes() {
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(DEFAULT_SEARCH_ATTRIBUTES)
             .build();
 
@@ -123,8 +122,7 @@ public class SearchAttributesTest {
     searchAttributes.replace(TEST_KEY_INTEGER, Lists.newArrayList(1L, 2L));
 
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(searchAttributes)
             .build();
 
@@ -153,8 +151,7 @@ public class SearchAttributesTest {
     searchAttributes.put(TEST_NEW_KEY, TEST_NEW_VALUE);
 
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(searchAttributes)
             .build();
 
@@ -182,8 +179,7 @@ public class SearchAttributesTest {
     Map<String, Object> searchAttributes = new HashMap<>(DEFAULT_SEARCH_ATTRIBUTES);
     searchAttributes.put(TEST_UNKNOWN_KEY, TEST_VALUE_BOOL);
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(searchAttributes)
             .build();
     TestNoArgsWorkflowFunc unregisteredKeyStub =
@@ -203,8 +199,7 @@ public class SearchAttributesTest {
     Map<String, Object> searchAttributes = new HashMap<>(DEFAULT_SEARCH_ATTRIBUTES);
     searchAttributes.replace(TEST_KEY_INTEGER, TEST_VALUE_BOOL);
     WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
-            .toBuilder()
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(searchAttributes)
             .build();
     TestNoArgsWorkflowFunc unsupportedTypeStub =

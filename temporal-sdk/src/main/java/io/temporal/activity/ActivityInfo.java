@@ -36,10 +36,14 @@ public interface ActivityInfo {
    */
   byte[] getTaskToken();
 
-  /** @return WorkflowId of the Workflow Execution that scheduled the Activity Execution. */
+  /**
+   * @return WorkflowId of the Workflow Execution that scheduled the Activity Execution.
+   */
   String getWorkflowId();
 
-  /** @return RunId of the Workflow Execution that scheduled the Activity Execution. */
+  /**
+   * @return RunId of the Workflow Execution that scheduled the Activity Execution.
+   */
   String getRunId();
 
   /**
@@ -49,7 +53,9 @@ public interface ActivityInfo {
    */
   String getActivityId();
 
-  /** @return type of the Activity. */
+  /**
+   * @return type of the Activity.
+   */
   String getActivityType();
 
   /**
@@ -66,25 +72,37 @@ public interface ActivityInfo {
    */
   long getCurrentAttemptScheduledTimestamp();
 
-  /** @return the Schedule-To-Close Timeout setting as a Duration. */
+  /**
+   * @return the Schedule-To-Close Timeout setting as a Duration.
+   */
   Duration getScheduleToCloseTimeout();
 
-  /** @return the Start-To-Close Timeout setting as a Duration. */
+  /**
+   * @return the Start-To-Close Timeout setting as a Duration.
+   */
   Duration getStartToCloseTimeout();
 
-  /** @return the Heartbeat Timeout setting as a Duration. {@link Duration#ZERO} if absent */
+  /**
+   * @return the Heartbeat Timeout setting as a Duration. {@link Duration#ZERO} if absent
+   */
   @Nonnull
   Duration getHeartbeatTimeout();
 
   Optional<Payloads> getHeartbeatDetails();
 
-  /** @return the Workflow Type of the Workflow Execution that executed the Activity. */
+  /**
+   * @return the Workflow Type of the Workflow Execution that executed the Activity.
+   */
   String getWorkflowType();
 
-  /** @return the Namespace of Workflow Execution that executed the Activity. */
+  /**
+   * @return the Namespace of Workflow Execution that executed the Activity.
+   */
   String getWorkflowNamespace();
 
-  /** @return the Namespace of the Activity Execution. */
+  /**
+   * @return the Namespace of the Activity Execution.
+   */
   String getActivityNamespace();
 
   /**

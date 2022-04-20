@@ -90,12 +90,16 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return disableHealthCheck;
   }
 
-  /** @return Returns the rpc timout for long poll requests. */
+  /**
+   * @return Returns the rpc timout for long poll requests.
+   */
   public Duration getRpcLongPollTimeout() {
     return rpcLongPollTimeout;
   }
 
-  /** @return Returns the rpc timout for query workflow requests. */
+  /**
+   * @return Returns the rpc timout for query workflow requests.
+   */
   public Duration getRpcQueryTimeout() {
     return rpcQueryTimeout;
   }

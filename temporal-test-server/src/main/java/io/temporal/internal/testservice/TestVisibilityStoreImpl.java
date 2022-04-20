@@ -98,8 +98,7 @@ class TestVisibilityStoreImpl implements TestVisibilityStore {
         (key, value) ->
             value == null
                 ? searchAttributes
-                : value
-                    .toBuilder()
+                : value.toBuilder()
                     .putAllIndexedFields(searchAttributes.getIndexedFieldsMap())
                     .build());
   }

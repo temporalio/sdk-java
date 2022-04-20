@@ -49,7 +49,9 @@ public interface ActivityCompletionClient {
 
   <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException;
 
-  /** @throws ActivityCompletionException if activity should stop executing */
+  /**
+   * @throws ActivityCompletionException if activity should stop executing
+   */
   <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException;
 }

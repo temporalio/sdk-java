@@ -1,0 +1,7 @@
+FROM openjdk:11-slim
+
+# Git is needed in order to update the dls submodule
+RUN apt-get update && apt-get install -y protobuf-compiler git
+
+RUN mkdir /temporal-java-client
+WORKDIR /temporal-java-client

@@ -73,12 +73,16 @@ class CommandVerifier {
       return workflowTaskFailedCause;
     }
 
-    /** @return an exception to be used for a failure in the event attributes. */
+    /**
+     * @return an exception to be used for a failure in the event attributes.
+     */
     public ServerFailure getEventAttributesFailure() {
       return eventAttributesFailure;
     }
 
-    /** @return an exception to be returned to the client */
+    /**
+     * @return an exception to be returned to the client
+     */
     public RuntimeException getClientException() {
       return clientException;
     }
