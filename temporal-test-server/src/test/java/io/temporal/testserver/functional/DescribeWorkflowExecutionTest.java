@@ -57,7 +57,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DescribeTest {
+public class DescribeWorkflowExecutionTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
