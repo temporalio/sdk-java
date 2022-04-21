@@ -68,7 +68,6 @@ public class SearchAttributesTest {
   private static final String TEST_NEW_KEY = "NewKey";
   private static final String TEST_NEW_VALUE = "NewVal";
   private static final String TEST_UNKNOWN_KEY = "UnknownKey";
-  private static final String TEST_UNKNOWN_VALUE = "val";
 
   private static final Map<String, Object> DEFAULT_SEARCH_ATTRIBUTES =
       Collections.unmodifiableMap(

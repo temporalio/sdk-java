@@ -108,6 +108,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         this.constructorTimeLock = null;
       }
     }
+
     this.operatorServiceStubs =
         OperatorServiceStubs.newInstance(
             OperatorServiceStubsOptions.newBuilder()
@@ -118,6 +119,8 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         WorkflowClient.newInstance(this.workflowServiceStubs, this.workflowClientOptions);
     this.workerFactory =
         WorkerFactory.newInstance(client, testEnvironmentOptions.getWorkerFactoryOptions());
+
+    testEnvironmentOptions.getSearchAttributes().forEach(this::registerSearchAttribute);
   }
 
   @SuppressWarnings("deprecation")

@@ -22,10 +22,14 @@ package io.temporal.testing;
 import com.google.common.annotations.VisibleForTesting;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactoryOptions;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nonnull;
 
 @VisibleForTesting
 public final class TestEnvironmentOptions {
@@ -65,6 +69,8 @@ public final class TestEnvironmentOptions {
     private long initialTimeMillis;
 
     private boolean useTimeskipping = true;
+
+    private Map<String, IndexedValueType> searchAttributes = new HashMap<>();
 
     private Builder() {}
 
@@ -165,6 +171,30 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
+    /**
+     * Add a search attribute to be registered on the Temporal Server.
+     *
+     * @param name name of the search attribute
+     * @param type search attribute type
+     * @return {@code this}
+     * @see <a
+     *     href="https://docs.temporal.io/docs/tctl/how-to-add-a-custom-search-attribute-to-a-cluster-using-tctl">Add
+     *     a Custom Search Attribute Using tctl</a>
+     */
+    public Builder registerSearchAttribute(String name, IndexedValueType type) {
+      this.searchAttributes.put(name, type);
+      return this;
+    }
+
+    /**
+     * This method is not made public and for framework code only, users are encouraged to use a
+     * better structured {@link #registerSearchAttribute(String, IndexedValueType)}
+     */
+    Builder setSearchAttributes(@Nonnull Map<String, IndexedValueType> searchAttributes) {
+      this.searchAttributes = new HashMap<>(searchAttributes);
+      return this;
+    }
+
     public TestEnvironmentOptions build() {
       return new TestEnvironmentOptions(
           workflowClientOptions,
@@ -174,7 +204,8 @@ public final class TestEnvironmentOptions {
           target,
           initialTimeMillis,
           metricsScope,
-          useTimeskipping);
+          useTimeskipping,
+          searchAttributes);
     }
 
     public TestEnvironmentOptions validateAndBuildWithDefaults() {
@@ -195,7 +226,8 @@ public final class TestEnvironmentOptions {
           target,
           initialTimeMillis,
           metricsScope == null ? new NoopScope() : metricsScope,
-          useTimeskipping);
+          useTimeskipping,
+          searchAttributes);
     }
   }
 
@@ -207,6 +239,7 @@ public final class TestEnvironmentOptions {
   private final String target;
   private final long initialTimeMillis;
   private final boolean useTimeskipping;
+  @Nonnull private final Map<String, IndexedValueType> searchAttributes;
 
   private TestEnvironmentOptions(
       WorkflowClientOptions workflowClientOptions,
@@ -216,7 +249,8 @@ public final class TestEnvironmentOptions {
       String target,
       long initialTimeMillis,
       Scope metricsScope,
-      boolean useTimeskipping) {
+      boolean useTimeskipping,
+      @Nonnull Map<String, IndexedValueType> searchAttributes) {
     this.workflowClientOptions = workflowClientOptions;
     this.workerFactoryOptions = workerFactoryOptions;
     this.workflowServiceStubsOptions = workflowServiceStubsOptions;
@@ -225,6 +259,7 @@ public final class TestEnvironmentOptions {
     this.target = target;
     this.initialTimeMillis = initialTimeMillis;
     this.useTimeskipping = useTimeskipping;
+    this.searchAttributes = searchAttributes;
   }
 
   public WorkerFactoryOptions getWorkerFactoryOptions() {
@@ -259,6 +294,11 @@ public final class TestEnvironmentOptions {
     return initialTimeMillis;
   }
 
+  @Nonnull
+  public Map<String, IndexedValueType> getSearchAttributes() {
+    return searchAttributes;
+  }
+
   @Override
   public String toString() {
     return "TestEnvironmentOptions{"
@@ -276,6 +316,8 @@ public final class TestEnvironmentOptions {
         + target
         + ", initialTimeMillis="
         + initialTimeMillis
+        + ", searchAttributes="
+        + searchAttributes
         + '}';
   }
 }

@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -96,7 +97,7 @@ public class TestWorkflowExtension
   private final boolean doNotStart;
   private final long initialTimeMillis;
   private final boolean useTimeskipping;
-  private final Map<String, IndexedValueType> searchAttributesToRegister;
+  @Nonnull private final Map<String, IndexedValueType> searchAttributes;
   private final Scope metricsScope;
 
   private final Set<Class<?>> supportedParameterTypes = new HashSet<>();
@@ -118,7 +119,7 @@ public class TestWorkflowExtension
     doNotStart = builder.doNotStart;
     initialTimeMillis = builder.initialTimeMillis;
     useTimeskipping = builder.useTimeskipping;
-    this.searchAttributesToRegister = builder.searchAttributesToRegister;
+    this.searchAttributes = builder.searchAttributes;
     this.metricsScope = builder.metricsScope;
 
     supportedParameterTypes.add(TestWorkflowEnvironment.class);
@@ -206,8 +207,6 @@ public class TestWorkflowExtension
     TestWorkflowEnvironment testEnvironment =
         TestWorkflowEnvironment.newInstance(createTestEnvOptions(currentInitialTimeMillis));
 
-    searchAttributesToRegister.forEach(testEnvironment::registerSearchAttribute);
-
     String taskQueue =
         String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
     Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
@@ -232,6 +231,7 @@ public class TestWorkflowExtension
         .setTarget(target)
         .setInitialTimeMillis(initialTimeMillis)
         .setMetricsScope(metricsScope)
+        .setSearchAttributes(searchAttributes)
         .build();
   }
 
@@ -296,7 +296,7 @@ public class TestWorkflowExtension
     // Default to TestEnvironmentOptions isUseTimeskipping
     private boolean useTimeskipping =
         TestEnvironmentOptions.getDefaultInstance().isUseTimeskipping();
-    private Map<String, IndexedValueType> searchAttributesToRegister = new HashMap<>();
+    @Nonnull private Map<String, IndexedValueType> searchAttributes = new HashMap<>();
     private Scope metricsScope;
 
     private Builder() {}
@@ -445,7 +445,7 @@ public class TestWorkflowExtension
      *     a Custom Search Attribute Using tctl</a>
      */
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
-      this.searchAttributesToRegister.put(name, type);
+      this.searchAttributes.put(name, type);
       return this;
     }
 
