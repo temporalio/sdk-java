@@ -314,7 +314,7 @@ public class MetricsTest {
       serviceStubs.blockingStub().describeNamespace(DescribeNamespaceRequest.newBuilder().build());
       fail("failure expected");
     } catch (StatusRuntimeException e) {
-      assertEquals(Status.Code.UNIMPLEMENTED, e.getStatus().getCode());
+      assertEquals(Status.Code.INVALID_ARGUMENT, e.getStatus().getCode());
     }
 
     // Wait for reporter
@@ -328,7 +328,7 @@ public class MetricsTest {
           }
         };
     reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
-    tags.put(MetricsTag.STATUS_CODE, "UNIMPLEMENTED");
+    tags.put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT");
     reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
   }
 

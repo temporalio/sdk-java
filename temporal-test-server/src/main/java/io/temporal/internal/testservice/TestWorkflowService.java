@@ -32,63 +32,19 @@ import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttribut
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.NamespaceState;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
+import io.temporal.api.namespace.v1.NamespaceInfo;
 import io.temporal.api.testservice.v1.LockTimeSkippingRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
 import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
-import io.temporal.api.workflowservice.v1.ListClosedWorkflowExecutionsResponse;
-import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsRequest;
-import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledByIdResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedByIdResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedByIdResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedResponse;
-import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedResponse;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
-import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedResponse;
-import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.serviceclient.StatusUtils;
@@ -119,7 +75,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {
-
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
   // key->WorkflowId
@@ -1010,15 +965,46 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           responseObserver) {
     try {
       if (request.getNamespace().isEmpty()) {
-        throw createIllegalArgument("Namespace not set on request.");
+        throw createInvalidArgument("Namespace not set on request.");
       }
       if (!request.hasExecution()) {
-        throw createIllegalArgument("Execution not set on request.");
+        throw createInvalidArgument("Execution not set on request.");
       }
 
       ExecutionId executionId = new ExecutionId(request.getNamespace(), request.getExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);
       DescribeWorkflowExecutionResponse result = mutableState.describeWorkflowExecution();
+      responseObserver.onNext(result);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      handleStatusRuntimeException(e, responseObserver);
+    }
+  }
+
+  /**
+   * This method doesn't make much sense for test server, it accepts all namespaces as existent and
+   * registered. so, it's a trivial implementation just returning an info that a namespace is
+   * registered irrespectively of the input
+   */
+  @Override
+  public void describeNamespace(
+      DescribeNamespaceRequest request,
+      StreamObserver<DescribeNamespaceResponse> responseObserver) {
+    try {
+      if (request.getNamespace().isEmpty()) {
+        throw createInvalidArgument("Namespace not set on request.");
+      }
+      // generating a stable UUID for name
+      String namespaceId = UUID.nameUUIDFromBytes(request.getNamespace().getBytes()).toString();
+      DescribeNamespaceResponse result =
+          DescribeNamespaceResponse.newBuilder()
+              .setNamespaceInfo(
+                  NamespaceInfo.newBuilder()
+                      .setName(request.getNamespace())
+                      .setState(NamespaceState.NAMESPACE_STATE_REGISTERED)
+                      .setId(namespaceId)
+                      .build())
+              .build();
       responseObserver.onNext(result);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -1246,7 +1232,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return workflowServiceStubs;
   }
 
-  private static StatusRuntimeException createIllegalArgument(String description) {
+  private static StatusRuntimeException createInvalidArgument(String description) {
     throw Status.INVALID_ARGUMENT.withDescription(description).asRuntimeException();
   }
 }
