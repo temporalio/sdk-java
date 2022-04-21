@@ -77,6 +77,7 @@ public final class WorkflowExecutorCache {
                     return null;
                   }
                 });
+    this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
   }
 
   public WorkflowRunTaskHandler getOrCreate(
@@ -148,12 +149,12 @@ public final class WorkflowExecutorCache {
         "Workflow Execution {}-{} has been added to cache",
         workflowExecution.getWorkflowId(),
         workflowExecution.getRunId());
+    this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
   }
 
   public boolean evictAnyNotInProcessing(WorkflowExecution inFavorOfExecution, Scope metricsScope) {
     cacheLock.lock();
     try {
-      this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
       String inFavorOfRunId = inFavorOfExecution.getRunId();
       for (String key : cache.asMap().keySet()) {
         if (!key.equals(inFavorOfRunId) && !inProcessing.contains(key)) {
@@ -163,7 +164,6 @@ public final class WorkflowExecutorCache {
               inFavorOfRunId,
               key);
           cache.invalidate(key);
-          this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
           metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
           return true;
         }
@@ -176,6 +176,7 @@ public final class WorkflowExecutorCache {
       return false;
     } finally {
       cacheLock.unlock();
+      this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
     }
   }
 
@@ -196,6 +197,7 @@ public final class WorkflowExecutorCache {
       metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
     } finally {
       cacheLock.unlock();
+      this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
     }
   }
 
@@ -205,5 +207,6 @@ public final class WorkflowExecutorCache {
 
   public void invalidateAll() {
     cache.invalidateAll();
+    metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
   }
 }

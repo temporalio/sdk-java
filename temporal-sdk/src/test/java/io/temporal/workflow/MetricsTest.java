@@ -41,6 +41,7 @@ import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -52,6 +53,7 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerMetricsTag;
@@ -65,6 +67,8 @@ import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -77,6 +81,9 @@ public class MetricsTest {
   private static final String TASK_QUEUE = "metrics_test";
   private TestWorkflowEnvironment testEnvironment;
   private TestStatsReporter reporter;
+
+  private static final Map<String, String> TAGS_NAMESPACE =
+      new ImmutableMap.Builder<String, String>().putAll(MetricsTag.defaultTags(NAMESPACE)).build();
 
   private static final Map<String, String> TAGS_TASK_QUEUE =
       new ImmutableMap.Builder<String, String>()
@@ -149,7 +156,7 @@ public class MetricsTest {
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(
-        TestMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
+        TestCustomMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
     worker.registerActivitiesImplementations(new TestActivityImpl());
     testEnvironment.start();
 
@@ -181,7 +188,7 @@ public class MetricsTest {
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(
-        TestMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
+        TestCustomMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
     worker.registerActivitiesImplementations(new TestActivityImpl());
     testEnvironment.start();
 
@@ -425,6 +432,36 @@ public class MetricsTest {
     reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
   }
 
+  @Test
+  public void testStickyCacheSize() throws InterruptedException, ExecutionException {
+    setUp(WorkerFactoryOptions.getDefaultInstance());
+
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(TestWorkflowWithSleep.class);
+    testEnvironment.start();
+
+    Thread.sleep(REPORTING_FLUSH_TIME);
+    reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 0);
+
+    WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofSeconds(7000))
+            .setTaskQueue(TASK_QUEUE)
+            .build();
+    NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
+    CompletableFuture<Void> wfFuture = WorkflowClient.execute(workflow::execute);
+    SDKTestWorkflowRule.waitForOKQuery(WorkflowStub.fromTyped(workflow));
+
+    Thread.sleep(REPORTING_FLUSH_TIME);
+    reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 1);
+
+    wfFuture.get();
+
+    Thread.sleep(REPORTING_FLUSH_TIME);
+    reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 0);
+  }
+
   @WorkflowInterface
   public interface TestChildWorkflow {
 
@@ -465,7 +502,7 @@ public class MetricsTest {
     }
   }
 
-  public static class TestMetricsInWorkflow implements NoArgsWorkflow {
+  public static class TestCustomMetricsInWorkflow implements NoArgsWorkflow {
 
     @Override
     public void execute() {
@@ -552,6 +589,14 @@ public class MetricsTest {
       child.signal(sig);
       child.close();
       return greeting.get();
+    }
+  }
+
+  public static class TestWorkflowWithSleep implements NoArgsWorkflow {
+
+    @Override
+    public void execute() {
+      Workflow.sleep(5000);
     }
   }
 
