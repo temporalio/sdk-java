@@ -41,6 +41,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -93,6 +94,8 @@ public class TestWorkflowRule implements TestRule {
   private final boolean useTimeskipping;
   private final Scope metricsScope;
 
+  @Nonnull private final Map<String, IndexedValueType> searchAttributes;
+
   private String taskQueue;
   private final TestWorkflowEnvironment testEnvironment;
   private final TestWatcher watchman =
@@ -135,11 +138,10 @@ public class TestWorkflowRule implements TestRule {
     this.target = builder.target;
     this.useTimeskipping = builder.useTimeskipping;
     this.metricsScope = builder.metricsScope;
+    this.searchAttributes = builder.searchAttributes;
 
     this.testEnvironment =
         TestWorkflowEnvironment.newInstance(createTestEnvOptions(builder.initialTimeMillis));
-
-    builder.searchAttributesToRegister.forEach(testEnvironment::registerSearchAttribute);
   }
 
   protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
@@ -151,6 +153,7 @@ public class TestWorkflowRule implements TestRule {
         .setTarget(target)
         .setInitialTimeMillis(initialTimeMillis)
         .setMetricsScope(metricsScope)
+        .setSearchAttributes(searchAttributes)
         .build();
   }
 
@@ -176,7 +179,7 @@ public class TestWorkflowRule implements TestRule {
     private WorkerFactoryOptions workerFactoryOptions;
     private WorkerOptions workerOptions;
     private long testTimeoutSeconds;
-    private Map<String, IndexedValueType> searchAttributesToRegister = new HashMap<>();
+    @Nonnull private final Map<String, IndexedValueType> searchAttributes = new HashMap<>();
     private Scope metricsScope;
 
     protected Builder() {}
@@ -307,7 +310,7 @@ public class TestWorkflowRule implements TestRule {
      *     a Custom Search Attribute Using tctl</a>
      */
     public Builder registerSearchAttribute(String name, IndexedValueType type) {
-      this.searchAttributesToRegister.put(name, type);
+      this.searchAttributes.put(name, type);
       return this;
     }
 
