@@ -168,6 +168,10 @@ public class SpanFactory {
     toSpan.log(System.currentTimeMillis(), logPayload);
   }
 
+  public void logEviction(Span toSpan) {
+    toSpan.setTag(StandardTagNames.EVICTED, true);
+  }
+
   private Tracer.SpanBuilder createSpan(
       SpanCreationContext context,
       Tracer tracer,

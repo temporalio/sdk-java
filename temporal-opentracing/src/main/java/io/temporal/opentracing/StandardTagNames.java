@@ -28,4 +28,6 @@ public class StandardTagNames {
    * @deprecated use {@link io.opentracing.tag.Tags#ERROR}
    */
   @Deprecated public static final String FAILED = "failed";
+
+  public static final String EVICTED = "evicted";
 }
