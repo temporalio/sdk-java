@@ -23,11 +23,11 @@ package io.temporal.internal.sync;
  * Used to interrupt deterministic thread execution. Assumption is that none of the code that thread
  * executes catches it.
  */
-final class DestroyWorkflowThreadError extends Error {
+public final class DestroyWorkflowThreadError extends Error {
 
-  public DestroyWorkflowThreadError() {}
+  DestroyWorkflowThreadError() {}
 
-  public DestroyWorkflowThreadError(String message) {
+  DestroyWorkflowThreadError(String message) {
     super(message);
   }
 }

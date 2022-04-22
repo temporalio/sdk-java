@@ -26,6 +26,7 @@ import io.opentracing.Tracer;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.internal.sync.DestroyWorkflowThreadError;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.workflow.Workflow;
 
@@ -71,7 +72,11 @@ public class OpenTracingWorkflowInboundCallsInterceptor
     try (Scope scope = tracer.scopeManager().activate(workflowRunSpan)) {
       return super.execute(input);
     } catch (Throwable t) {
-      spanFactory.logFail(workflowRunSpan, t);
+      if (t instanceof DestroyWorkflowThreadError) {
+        spanFactory.logEviction(workflowRunSpan);
+      } else {
+        spanFactory.logFail(workflowRunSpan, t);
+      }
       throw t;
     } finally {
       workflowRunSpan.finish();
