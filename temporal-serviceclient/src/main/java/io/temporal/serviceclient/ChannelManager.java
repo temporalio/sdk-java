@@ -185,7 +185,7 @@ final class ChannelManager {
     builder.idleTimeout(31, TimeUnit.DAYS);
 
     if (options.getChannelInitializer() != null) {
-      options.getChannelInitializer().initChannel(builder);
+      options.getChannelInitializer().accept(builder);
     }
 
     return builder.build();
