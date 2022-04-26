@@ -40,7 +40,7 @@ public class StartTest {
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestMultiArgWorkflowImpl.class).build();
 
   @Test
-  public void testStart() {
+  public void startNoArgFuncWithRejectDuplicate() {
     WorkflowOptions workflowOptions =
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setWorkflowIdReusePolicy(
@@ -53,18 +53,26 @@ public class StartTest {
     assertResult("func", WorkflowClient.start(stubF::func));
     Assert.assertEquals(
         "func", stubF.func()); // Check that duplicated start just returns the result.
-    WorkflowOptions options =
-        WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
-    Test1ArgWorkflowFunc stubF1 =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(Test1ArgWorkflowFunc.class, options);
+  }
 
+  @Test
+  public void startOneArgsFuncWithDefault() {
+    // TODO why it doesn't work with external service?
     if (!SDKTestWorkflowRule.useExternalService) {
+      WorkflowOptions options =
+          WorkflowOptions.newBuilder().setTaskQueue(testWorkflowRule.getTaskQueue()).build();
+      Test1ArgWorkflowFunc stubF1 =
+          testWorkflowRule.getWorkflowClient().newWorkflowStub(Test1ArgWorkflowFunc.class, options);
       // Use worker that polls on a task queue configured through @WorkflowMethod annotation of
       // func1
       assertResult(1, WorkflowClient.start(stubF1::func1, 1));
       Assert.assertEquals(
           1, stubF1.func1(1)); // Check that duplicated start just returns the result.
     }
+  }
+
+  @Test
+  public void startTwoArgsFuncWithAllowDuplicate() {
     // Check that duplicated start is not allowed for AllowDuplicate IdReusePolicy
     Test2ArgWorkflowFunc stubF2 =
         testWorkflowRule
@@ -83,26 +91,50 @@ public class StartTest {
     } catch (IllegalStateException e) {
       // expected
     }
+  }
+
+  @Test
+  public void testStartFunc() {
+    WorkflowOptions workflowOptions =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
+            .build();
+
     Test3ArgWorkflowFunc stubF3 =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(Test3ArgWorkflowFunc.class, workflowOptions);
-    assertResult("123", WorkflowClient.start(stubF3::func3, "1", 2, 3));
+    WorkflowExecution f3Execution = WorkflowClient.start(stubF3::func3, "1", 2, 3);
     Test4ArgWorkflowFunc stubF4 =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(Test4ArgWorkflowFunc.class, workflowOptions);
-    assertResult("1234", WorkflowClient.start(stubF4::func4, "1", 2, 3, 4));
+    WorkflowExecution f4Execution = WorkflowClient.start(stubF4::func4, "1", 2, 3, 4);
     Test5ArgWorkflowFunc stubF5 =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(Test5ArgWorkflowFunc.class, workflowOptions);
-    assertResult("12345", WorkflowClient.start(stubF5::func5, "1", 2, 3, 4, 5));
+    WorkflowExecution f5Execution = WorkflowClient.start(stubF5::func5, "1", 2, 3, 4, 5);
     Test6ArgWorkflowFunc stubF6 =
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(Test6ArgWorkflowFunc.class, workflowOptions);
-    assertResult("123456", WorkflowClient.start(stubF6::func6, "1", 2, 3, 4, 5, 6));
+    WorkflowExecution f6Execution = WorkflowClient.start(stubF6::func6, "1", 2, 3, 4, 5, 6);
+
+    assertResult("123", f3Execution);
+    assertResult("1234", f4Execution);
+    assertResult("12345", f5Execution);
+    assertResult("123456", f6Execution);
+  }
+
+  @Test
+  public void testStartProc() {
+    WorkflowOptions workflowOptions =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
+            .build();
 
     TestNoArgsWorkflowProc stubP =
         testWorkflowRule

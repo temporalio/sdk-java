@@ -1,16 +1,5 @@
 steps:
-  - label: ":fire_extinguisher: JDK18 minimized build"
-    agents:
-      queue: "default"
-      docker: "*"
-    command: "./gradlew --no-daemon testClasses build -x test -x nativeImage -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply"
-    timeout_in_minutes: 15
-    plugins:
-      - docker-compose#v3.8.0:
-          run: jdk18
-          config: docker/buildkite/docker-compose.yaml
-
-  - label: ":java: Unit test with in-memory test service"
+  - label: ":java: JDK18 Unit test with in-memory test service"
     agents:
       queue: "default"
       docker: "*"
@@ -18,10 +7,10 @@ steps:
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:
-          run: unit-test-test-service-jdk8
+          run: unit-test-test-service-jdk18
           config: docker/buildkite/docker-compose.yaml
 
-  - label: ":docker: Unit test with docker service"
+  - label: ":docker: JDK8 Unit test with docker service"
     agents:
       queue: "default"
       docker: "*"

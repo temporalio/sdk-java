@@ -40,10 +40,10 @@ services:
     volumes:
       - "../../:/temporal-java-client"
 
-  unit-test-test-service-jdk8:
+  unit-test-test-service-jdk18:
     build:
       context: ../../
-      dockerfile: ./docker/buildkite/Dockerfile-JDK8
+      dockerfile: ./docker/buildkite/Dockerfile-JDK18
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
