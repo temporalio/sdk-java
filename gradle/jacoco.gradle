@@ -1,4 +1,48 @@
-//./gradlew jacocoTestReport -Pjacoco
+//./gradlew testCodeCoverageReport -Pjacoco
+
+apply plugin: 'jacoco-report-aggregation'
+apply plugin: 'com.github.nbaztec.coveralls-jacoco'
+
+dependencies {
+    jacocoAggregation project(':temporal-kotlin')
+    jacocoAggregation project(':temporal-opentracing')
+    jacocoAggregation project(':temporal-remote-data-encoder')
+    jacocoAggregation project(':temporal-sdk')
+    jacocoAggregation project(':temporal-serviceclient')
+    jacocoAggregation project(':temporal-test-server')
+    jacocoAggregation project(':temporal-testing')
+}
+
+def jacocoExclusions = [
+        '**/io/temporal/api/**',
+        '**/gogoproto/**'
+]
+
+reporting {
+    reports {
+        testCodeCoverageReport(JacocoCoverageReport) {
+            testType = TestSuiteType.UNIT_TEST
+        }
+    }
+}
+
+testCodeCoverageReport {
+    reports {
+        csv.required = true
+        xml.required = true
+    }
+
+    getClassDirectories().setFrom(files(
+            subprojects.collect {it.fileTree(dir: "${it.buildDir}/classes", exclude: jacocoExclusions)}
+    ))
+}
+
+coverallsJacoco {
+    reportPath = "build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml"
+    reportSourceSets = subprojects.sourceSets.main.allSource.srcDirs.flatten()
+}
+
+tasks.coverallsJacoco.dependsOn(testCodeCoverageReport)
 
 subprojects {
     apply plugin: 'jacoco'
@@ -9,20 +53,22 @@ subprojects {
 
     jacocoTestReport {
         reports {
-            xml.enabled false
+            xml.enabled true
             csv.enabled true
         }
 
         afterEvaluate {
             classDirectories.setFrom(files(classDirectories.files.collect {
-                fileTree(dir: it, exclude: ["**/generated/**"])
+                fileTree(dir: it, exclude: jacocoExclusions)
             }))
         }
     }
 
     test {
         // Some tests don't work with Jacoco.
-        // It's not a bug, they are just written assuming that they are working not with a proxy, but a pure instance
+        // It's not a bug, they are just written assuming that they are working not with a proxy, but a pure instance.
         exclude 'io/temporal/workflow/KotlinAsyncChildWorkflowTest.class'
     }
+
+    testCodeCoverageReport.dependsOn jacocoTestReport
 }

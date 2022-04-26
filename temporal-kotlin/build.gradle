@@ -1,14 +1,4 @@
-buildscript {
-    ext {
-        kotlinVersion = "${JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16) ? '1.5.32' : '1.4.32'}"
-    }
-}
-
 plugins {
-//    id 'org.jetbrains.kotlin.jvm' version '1.4.32'
-//    id 'org.jetbrains.kotlin.jvm' version '1.5.32'
-//    id 'org.jetbrains.kotlin.jvm' version '1.6.20'
-    id 'org.jetbrains.kotlin.jvm' version "${kotlinVersion}"
     id 'org.jlleitschuh.gradle.ktlint' version '10.3.0'
 }
 

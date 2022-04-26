@@ -56,7 +56,7 @@ public class WorkflowTaskFailureBackoffTest {
                   .reportEvery(com.uber.m3.util.Duration.ofMillis(10)))
           .build();
 
-  @Test
+  @Test(timeout = 15_000)
   public void testWorkflowTaskFailureBackoff() {
     testWorkflowTaskFailureBackoffReplayCount = 0;
     WorkflowOptions options =

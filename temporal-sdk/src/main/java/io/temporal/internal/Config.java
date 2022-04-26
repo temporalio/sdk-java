@@ -20,7 +20,9 @@
 
 package io.temporal.internal;
 
-public class Config {
+public abstract class Config {
+  private Config() {}
+
   /** Force new workflow task after workflow task timeout multiplied by this coefficient. */
   public static final double WORKFLOW_TAK_HEARTBEAT_COEFFICIENT = 4d / 5d;
 }
