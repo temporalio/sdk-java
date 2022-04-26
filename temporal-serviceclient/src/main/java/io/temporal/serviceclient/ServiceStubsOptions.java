@@ -579,7 +579,9 @@ class ServiceStubsOptions {
      * Set the time to wait between service responses on each health check.
      *
      * @return {@code this}
+     * @deprecated {@link #rpcTimeout} is now used as an attempt timeout.
      */
+    @Deprecated
     public T setHealthCheckAttemptTimeout(Duration healthCheckAttemptTimeout) {
       this.healthCheckAttemptTimeout = healthCheckAttemptTimeout;
       return self();
@@ -590,7 +592,11 @@ class ServiceStubsOptions {
      * creating new client.
      *
      * @return {@code this}
+     * @deprecated Use more explicit {@link
+     *     WorkflowServiceStubs#newConnectedServiceStubs(WorkflowServiceStubsOptions, Duration)}
+     *     with a timeout parameter instead
      */
+    @Deprecated
     public T setHealthCheckTimeout(Duration healthCheckTimeout) {
       this.healthCheckTimeout = healthCheckTimeout;
       return self();

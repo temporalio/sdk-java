@@ -29,7 +29,7 @@ public interface TestServiceStubs
         TestServiceGrpc.TestServiceBlockingStub, TestServiceGrpc.TestServiceFutureStub> {
   String HEALTH_CHECK_SERVICE_NAME = "temporal.api.testservice.v1.TestService";
 
-  static TestServiceStubs newInstance(TestServiceStubsOptions options) {
+  static TestServiceStubs newServiceStubs(TestServiceStubsOptions options) {
     enforceNonWorkflowThread();
     return WorkflowThreadMarker.protectFromWorkflowThread(
         new TestServiceStubsImpl(options), TestServiceStubs.class);

@@ -21,6 +21,7 @@ package io.temporal.serviceclient;
 
 import com.google.common.base.Preconditions;
 import io.grpc.*;
+import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
 import java.util.*;
@@ -82,8 +83,10 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
 
   /**
    * @return false when client checks endpoint to make sure that the server is accessible.
-   * @deprecated eager health check inService Stubs will be enforced and required in the next
-   *     release.
+   * @deprecated ServiceStubs don't perform health check on start anymore to allow lazy
+   *     connectivity. Users that prefer old behavior should explicitly call {@link
+   *     ServiceStubs#healthCheck()} on client/stubs start and wait until it returns {@link
+   *     HealthCheckResponse.ServingStatus#SERVING}
    */
   @Deprecated
   public boolean getDisableHealthCheck() {
@@ -115,7 +118,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
 
   /** Builder is the builder for ClientOptions. */
   public static class Builder extends ServiceStubsOptions.Builder<Builder> {
-    private boolean disableHealthCheck;
+    private boolean disableHealthCheck = true;
     private Duration rpcLongPollTimeout = DEFAULT_POLL_RPC_TIMEOUT;
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
     private RpcRetryOptions rpcRetryOptions = DefaultStubServiceOperationRpcRetryOptions.INSTANCE;
@@ -136,8 +139,9 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
      * If false, enables client to make a request to health check endpoint to make sure that the
      * server is accessible.
      *
-     * @deprecated eager health check inService Stubs will be enforced and required in the next
-     *     release.
+     * @deprecated Use more explicit {@link
+     *     WorkflowServiceStubs#newServiceStubs(WorkflowServiceStubsOptions)} that doesn't perform
+     *     an explicit connection and health check.
      */
     @Deprecated
     public Builder setDisableHealthCheck(boolean disableHealthCheck) {

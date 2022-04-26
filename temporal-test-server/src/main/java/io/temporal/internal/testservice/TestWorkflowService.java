@@ -1179,7 +1179,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     if (startInProcessServer) {
       this.inProcessServer = new InProcessGRPCServer(Collections.singletonList(this));
       this.workflowServiceStubs =
-          WorkflowServiceStubs.newInstance(
+          WorkflowServiceStubs.newServiceStubs(
               WorkflowServiceStubsOptions.newBuilder()
                   .setChannel(inProcessServer.getChannel())
                   .build());

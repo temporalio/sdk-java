@@ -77,7 +77,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       this.inProcessServer = null;
       this.service = null;
       this.workflowServiceStubs =
-          WorkflowServiceStubs.newInstance(
+          WorkflowServiceStubs.newServiceStubs(
               stubsOptionsBuilder.setTarget(testEnvironmentOptions.getTarget()).build());
       this.testServiceStubs = null;
       this.timeLockingInterceptor = null;
@@ -92,9 +92,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
               .setChannel(this.inProcessServer.getChannel())
               .setTarget(null)
               .validateAndBuildWithDefaults();
-      this.workflowServiceStubs = WorkflowServiceStubs.newInstance(workflowServiceStubsOptions);
+      this.workflowServiceStubs = WorkflowServiceStubs.newServiceStubs(workflowServiceStubsOptions);
       this.testServiceStubs =
-          TestServiceStubs.newInstance(
+          TestServiceStubs.newServiceStubs(
               TestServiceStubsOptions.newBuilder(workflowServiceStubsOptions)
                   // we don't want long calls to test service to throw with DEADLINE_EXCEEDED
                   .setRpcTimeout(Duration.ofMillis(Long.MAX_VALUE))
@@ -112,7 +112,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     this.operatorServiceStubs =
-        OperatorServiceStubs.newInstance(
+        OperatorServiceStubs.newServiceStubs(
             OperatorServiceStubsOptions.newBuilder()
                 .setChannel(workflowServiceStubs.getRawChannel())
                 .validateAndBuildWithDefaults());

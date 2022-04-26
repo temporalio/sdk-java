@@ -101,7 +101,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     mockServer =
         new InProcessGRPCServer(Collections.singletonList(new HeartbeatInterceptingService()));
     workflowServiceStubs =
-        WorkflowServiceStubs.newInstance(
+        WorkflowServiceStubs.newServiceStubs(
             WorkflowServiceStubsOptions.newBuilder()
                 .setChannel(mockServer.getChannel())
                 .setMetricsScope(options.getMetricsScope())

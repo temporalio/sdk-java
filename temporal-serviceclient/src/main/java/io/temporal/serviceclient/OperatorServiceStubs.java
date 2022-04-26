@@ -29,18 +29,39 @@ public interface OperatorServiceStubs
     extends ServiceStubs<
         OperatorServiceGrpc.OperatorServiceBlockingStub,
         OperatorServiceGrpc.OperatorServiceFutureStub> {
-  String HEALTH_CHECK_SERVICE_NAME = "temporal.api.workflowservice.v1.WorkflowService";
+  String HEALTH_CHECK_SERVICE_NAME = "temporal.api.operatorservice.v1.OperatorService";
 
   /**
-   * Create gRPC connection stubs using default options. The options default to the connection to
-   * the locally running temporal service.
+   * @deprecated use {@link #newLocalServiceStubs()}
    */
   static OperatorServiceStubs newInstance() {
-    return newInstance(OperatorServiceStubsOptions.getDefaultInstance());
+    return newLocalServiceStubs();
   }
 
-  /** Create gRPC connection stubs using provided options. */
+  /**
+   * @deprecated use {@link #newServiceStubs(OperatorServiceStubsOptions)}
+   */
+  @Deprecated
   static OperatorServiceStubs newInstance(OperatorServiceStubsOptions options) {
+    return newServiceStubs(options);
+  }
+
+  /**
+   * Creates OperatorService gRPC stubs pointed on to the locally running Temporal Server. The
+   * Server should be available on 127.0.0.1:7233
+   */
+  static OperatorServiceStubs newLocalServiceStubs() {
+    return newServiceStubs(OperatorServiceStubsOptions.getDefaultInstance());
+  }
+
+  /**
+   * Creates OperatorService gRPC stubs<br>
+   * This method creates stubs with lazy connectivity, connection is not performed during the
+   * creation time and happens on the first request.
+   *
+   * @param options stub options to use
+   */
+  static OperatorServiceStubs newServiceStubs(OperatorServiceStubsOptions options) {
     enforceNonWorkflowThread();
     return WorkflowThreadMarker.protectFromWorkflowThread(
         new OperatorServiceStubsImpl(options), OperatorServiceStubs.class);

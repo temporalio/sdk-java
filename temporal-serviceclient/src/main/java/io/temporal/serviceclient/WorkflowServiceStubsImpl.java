@@ -24,8 +24,10 @@ import io.grpc.*;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.testservice.InProcessGRPCServer;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +48,6 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
    * @param serviceImpl If serviceImpl is not null generates the client for an in-process service
    *     using an in-memory channel. Useful for testing, usually with mock and spy services.
    */
-  @SuppressWarnings("deprecation")
   WorkflowServiceStubsImpl(BindableService serviceImpl, WorkflowServiceStubsOptions options) {
     Preconditions.checkArgument(
         !(serviceImpl != null && options.getChannel() != null),
@@ -75,16 +76,6 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
     this.channelManager =
         new ChannelManager(this.options, Collections.singletonList(deadlineInterceptor));
-
-    // TODO rework onto eager "healthcheck" using system capabilities endpoint
-    if (!options.getDisableHealthCheck()) {
-      HealthCheckResponse healthCheckResponse =
-          this.channelManager.waitForServer(HEALTH_CHECK_SERVICE_NAME);
-      if (!HealthCheckResponse.ServingStatus.SERVING.equals(healthCheckResponse.getStatus())) {
-        throw new RuntimeException(
-            "Health check returned unhealthy status: " + healthCheckResponse.getStatus());
-      }
-    }
 
     log.info(
         String.format(
@@ -157,6 +148,17 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       return inProcessServer.awaitTermination(left, TimeUnit.MILLISECONDS);
     }
     return true;
+  }
+
+  @Override
+  public void connect(@Nullable Duration timeout) {
+    channelManager.connect(HEALTH_CHECK_SERVICE_NAME, timeout);
+  }
+
+  @Override
+  public HealthCheckResponse healthCheck() {
+    // no need to pass timeout, timeout will be assigned by GrpcDeadlineInterceptor
+    return channelManager.healthCheck(HEALTH_CHECK_SERVICE_NAME, null);
   }
 
   @Override
