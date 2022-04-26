@@ -90,7 +90,7 @@ graal {
   outputName "temporal-test-server"
   mainClass application.mainClassName
   javaVersion '17'
-  graalVersion '21.3.0'
+  graalVersion '22.1.0'
 
   // Ignore type resolution errors at build-time
   option "--allow-incomplete-classpath"
