@@ -20,8 +20,10 @@
 package io.temporal.internal.replay;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.HashMap;
@@ -34,7 +36,9 @@ public class WorkflowContextTest {
   public void testMergeSearchAttributes() {
     WorkflowExecutionStartedEventAttributes startAttr =
         WorkflowExecutionStartedEventAttributes.getDefaultInstance();
-    WorkflowContext workflowContext = new WorkflowContext("namespace", null, startAttr, 0, null);
+    WorkflowContext workflowContext =
+        new WorkflowContext(
+            "namespace", WorkflowExecution.getDefaultInstance(), startAttr, 0, null);
 
     Map<String, Object> indexedFields = new HashMap<>();
     indexedFields.put("CustomKeywordField", "key");
@@ -43,10 +47,10 @@ public class WorkflowContextTest {
 
     workflowContext.mergeSearchAttributes(searchAttributes);
 
+    SearchAttributes decodedAttributes = workflowContext.getSearchAttributes();
+    assertNotNull(decodedAttributes);
+
     assertEquals(
-        "key",
-        SearchAttributesUtil.decode(workflowContext.getSearchAttributes())
-            .get("CustomKeywordField")
-            .get(0));
+        "key", SearchAttributesUtil.decode(decodedAttributes).get("CustomKeywordField").get(0));
   }
 }
