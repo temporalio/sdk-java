@@ -1,0 +1,28 @@
+//./gradlew jacocoTestReport -Pjacoco
+
+subprojects {
+    apply plugin: 'jacoco'
+
+    jacoco {
+        toolVersion = "0.8.8"
+    }
+
+    jacocoTestReport {
+        reports {
+            xml.enabled false
+            csv.enabled true
+        }
+
+        afterEvaluate {
+            classDirectories.setFrom(files(classDirectories.files.collect {
+                fileTree(dir: it, exclude: ["**/generated/**"])
+            }))
+        }
+    }
+
+    test {
+        // Some tests don't work with Jacoco.
+        // It's not a bug, they are just written assuming that they are working not with a proxy, but a pure instance
+        exclude 'io/temporal/workflow/KotlinAsyncChildWorkflowTest.class'
+    }
+}

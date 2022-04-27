@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -159,33 +158,32 @@ public class SignalTest {
   public void testSignalUntyped() {
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     String workflowType = QueryableWorkflow.class.getSimpleName();
-    AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
     WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
             workflowType,
             SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()));
-    // To execute workflow client.execute() would do. But we want to start workflow and immediately
-    // return.
-    testWorkflowRule.registerDelayedCallback(
-        Duration.ofSeconds(1),
-        () -> {
-          assertEquals("initial", workflowStub.query("getState", String.class));
-          workflowStub.signal("testSignal", "Hello ");
-          testWorkflowRule.sleep(Duration.ofMillis(500));
-          while (!"Hello ".equals(workflowStub.query("getState", String.class))) {}
-          assertEquals("Hello ", workflowStub.query("getState", String.class));
-          workflowStub.signal("testSignal", "World!");
-          while (!"World!".equals(workflowStub.query("getState", String.class))) {}
-          assertEquals("World!", workflowStub.query("getState", String.class));
-          assertEquals(
-              "Hello World!",
-              workflowClient
-                  .newUntypedWorkflowStub(execution.get(), Optional.of(workflowType))
-                  .getResult(String.class));
-        });
-    execution.set(workflowStub.start());
+
+    WorkflowExecution execution = workflowStub.start();
+    SDKTestWorkflowRule.waitForOKQuery(workflowStub);
+
+    assertEquals("initial", workflowStub.query("getState", String.class));
+
+    workflowStub.signal("testSignal", "Hello ");
+    while (!"Hello ".equals(workflowStub.query("getState", String.class))) {}
+    assertEquals("Hello ", workflowStub.query("getState", String.class));
+
+    workflowStub.signal("testSignal", "World!");
+    while (!"World!".equals(workflowStub.query("getState", String.class))) {}
+    assertEquals("World!", workflowStub.query("getState", String.class));
+
+    assertEquals(
+        "Hello World!",
+        workflowClient
+            .newUntypedWorkflowStub(execution, Optional.of(workflowType))
+            .getResult(String.class));
     assertEquals("Hello World!", workflowStub.getResult(String.class));
     assertEquals("World!", workflowStub.query("getState", String.class));
+
     WorkflowClient client =
         WorkflowClient.newInstance(
             testWorkflowRule.getWorkflowServiceStubs(),
@@ -194,7 +192,7 @@ public class SignalTest {
                 .setQueryRejectCondition(QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN)
                 .build());
     WorkflowStub workflowStubNotOptionRejectCondition =
-        client.newUntypedWorkflowStub(execution.get(), Optional.of(workflowType));
+        client.newUntypedWorkflowStub(execution, Optional.of(workflowType));
     try {
       workflowStubNotOptionRejectCondition.query("getState", String.class);
       fail("unreachable");
@@ -224,32 +222,6 @@ public class SignalTest {
     @Override
     public void mySignal(String value) {
       log.info("TestSignalWorkflowImpl.mySignal value=" + value);
-      state = value;
-      signals.add(value);
-      if (signals.size() == 2) {
-        promise.complete(null);
-      }
-    }
-  }
-
-  public static class TestSignalWithStartWorkflowImpl implements QueryableWorkflow {
-    String state = "initial";
-    List<String> signals = new ArrayList<>();
-    CompletablePromise<Void> promise = Workflow.newPromise();
-
-    @Override
-    public String execute() {
-      promise.get();
-      return signals.get(0) + signals.get(1);
-    }
-
-    @Override
-    public String getState() {
-      return state;
-    }
-
-    @Override
-    public void mySignal(String value) {
       state = value;
       signals.add(value);
       if (signals.size() == 2) {

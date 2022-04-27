@@ -10,9 +10,10 @@ plugins {
     id 'com.palantir.git-version' version "${palantirGitVersionVersion}" apply false
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
     id 'com.diffplug.spotless' version '6.5.0' apply false
+    id 'base'
 }
 
-subprojects {
+allprojects {
     repositories {
         mavenCentral()
     }
@@ -50,3 +51,6 @@ apply from: "$rootDir/gradle/errorprone.gradle"
 apply from: "$rootDir/gradle/licensing.gradle"
 apply from: "$rootDir/gradle/publishing.gradle"
 apply from: "$rootDir/gradle/dependencyManagement.gradle"
+if (project.project.hasProperty("jacoco")) {
+    apply from: "$rootDir/gradle/jacoco.gradle"
+}
