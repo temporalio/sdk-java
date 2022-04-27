@@ -865,10 +865,12 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     context.upsertSearchAttributes(attr);
   }
 
+  @Nonnull
   public Object newWorkflowMethodThreadIntercepted(Runnable runnable, @Nullable String name) {
     return runner.newWorkflowThread(runnable, false, name);
   }
 
+  @Nonnull
   public Object newWorkflowCallbackThreadIntercepted(Runnable runnable, @Nullable String name) {
     return runner.newCallbackThread(runnable, name);
   }

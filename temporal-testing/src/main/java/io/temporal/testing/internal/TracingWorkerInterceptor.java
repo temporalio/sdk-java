@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,6 +108,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         return super.handleQuery(input);
       }
 
+      @Nonnull
       @Override
       public Object newWorkflowMethodThread(Runnable runnable, String name) {
         if (!WorkflowUnsafe.isReplaying()) {

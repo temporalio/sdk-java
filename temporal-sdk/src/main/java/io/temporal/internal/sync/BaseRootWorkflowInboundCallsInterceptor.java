@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import javax.annotation.Nonnull;
 
 /**
  * Provides core functionality for a root WorkflowInboundCallsInterceptor that is reused by specific
@@ -55,11 +56,13 @@ public abstract class BaseRootWorkflowInboundCallsInterceptor
     return workflowContext.handleInterceptedQuery(input);
   }
 
+  @Nonnull
   @Override
   public Object newWorkflowMethodThread(Runnable runnable, String name) {
     return workflowContext.newWorkflowMethodThreadIntercepted(runnable, name);
   }
 
+  @Nonnull
   @Override
   public Object newCallbackThread(Runnable runnable, String name) {
     return workflowContext.newWorkflowCallbackThreadIntercepted(runnable, name);

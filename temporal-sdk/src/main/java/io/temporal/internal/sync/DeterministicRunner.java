@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
 import java.util.concurrent.ExecutorService;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -108,6 +109,7 @@ interface DeterministicRunner {
    * Creates a new instance of a workflow child thread. To be called only from another workflow
    * thread.
    */
+  @Nonnull
   WorkflowThread newWorkflowThread(Runnable runnable, boolean detached, @Nullable String name);
 
   /** Creates a new instance of a workflow callback thread. */

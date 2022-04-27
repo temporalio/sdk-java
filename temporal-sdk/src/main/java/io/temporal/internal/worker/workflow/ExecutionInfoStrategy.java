@@ -19,7 +19,9 @@
 
 package io.temporal.internal.worker.workflow;
 
+import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.WorkflowExecution;
+import javax.annotation.Nonnull;
 
 public class ExecutionInfoStrategy implements WorkflowMethodThreadNameStrategy {
   public static final ExecutionInfoStrategy INSTANCE = new ExecutionInfoStrategy();
@@ -28,8 +30,10 @@ public class ExecutionInfoStrategy implements WorkflowMethodThreadNameStrategy {
 
   private ExecutionInfoStrategy() {}
 
+  @Nonnull
   @Override
-  public String createThreadName(WorkflowExecution workflowExecution) {
+  public String createThreadName(@Nonnull WorkflowExecution workflowExecution) {
+    Preconditions.checkNotNull(workflowExecution, "workflowExecution");
     String workflowId = workflowExecution.getWorkflowId();
 
     String trimmedWorkflowId =

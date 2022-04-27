@@ -20,6 +20,7 @@
 package io.temporal.common.interceptors;
 
 import io.temporal.common.Experimental;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -141,6 +142,7 @@ public interface WorkflowInboundCallsInterceptor {
    * @return created workflow thread. Should be treated as a pass-through object that shouldn't be
    *     manipulated in any way by the interceptor code.
    */
+  @Nonnull
   Object newWorkflowMethodThread(Runnable runnable, @Nullable String name);
 
   /**
@@ -151,5 +153,6 @@ public interface WorkflowInboundCallsInterceptor {
    * @return created workflow thread. Should be treated as a pass-through object that shouldn't be
    *     manipulated in any way by the interceptor code.
    */
+  @Nonnull
   Object newCallbackThread(Runnable runnable, @Nullable String name);
 }
