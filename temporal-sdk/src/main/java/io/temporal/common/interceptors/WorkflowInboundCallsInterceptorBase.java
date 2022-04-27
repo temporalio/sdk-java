@@ -19,6 +19,8 @@
 
 package io.temporal.common.interceptors;
 
+import javax.annotation.Nonnull;
+
 /** Convenience base class for WorkflowInboundCallsInterceptor implementations. */
 public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCallsInterceptor {
   private final WorkflowInboundCallsInterceptor next;
@@ -47,11 +49,13 @@ public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCalls
     return next.handleQuery(input);
   }
 
+  @Nonnull
   @Override
   public Object newWorkflowMethodThread(Runnable runnable, String name) {
     return next.newWorkflowMethodThread(runnable, name);
   }
 
+  @Nonnull
   @Override
   public Object newCallbackThread(Runnable runnable, String name) {
     return next.newCallbackThread(runnable, name);

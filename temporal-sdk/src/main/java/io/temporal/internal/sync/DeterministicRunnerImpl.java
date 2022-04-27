@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.WorkflowThreadMarker;
@@ -174,7 +175,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       do {
         if (!toExecuteInWorkflowThread.isEmpty()) {
           for (NamedRunnable nr : toExecuteInWorkflowThread) {
-            workflowContext.getWorkflowInboundInterceptor().newCallbackThread(nr.runnable, nr.name);
+            Object thread =
+                workflowContext
+                    .getWorkflowInboundInterceptor()
+                    .newCallbackThread(nr.runnable, nr.name);
+            Preconditions.checkState(
+                thread != null,
+                "[BUG] One of the custom interceptors overrode newCallbackThread result to null. "
+                    + "Check WorkflowInboundCallsInterceptor#newCallbackThread contract.");
           }
 
           // It is important to prepend threads as there are callbacks
@@ -379,6 +387,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     return rootWorkflowThread;
   }
 
+  @Nonnull
   @Override
   public WorkflowThread newWorkflowThread(
       Runnable runnable, boolean detached, @Nullable String name) {
@@ -407,6 +416,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     return result;
   }
 
+  @Nonnull
   @Override
   public WorkflowThread newCallbackThread(Runnable runnable, @Nullable String name) {
     if (name == null) {

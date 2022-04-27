@@ -19,6 +19,7 @@
 
 package io.temporal.internal.replay;
 
+import com.google.common.base.Preconditions;
 import com.google.protobuf.util.Timestamps;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Header;
@@ -34,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 final class WorkflowContext {
@@ -48,16 +50,16 @@ final class WorkflowContext {
   private String currentRunId;
   private SearchAttributes.Builder searchAttributes;
   private final List<ContextPropagator> contextPropagators;
-  private final WorkflowExecution workflowExecution;
+  @Nonnull private final WorkflowExecution workflowExecution;
 
   WorkflowContext(
       String namespace,
-      WorkflowExecution workflowExecution,
+      @Nonnull WorkflowExecution workflowExecution,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       long runStartedTimestampMillis,
       List<ContextPropagator> contextPropagators) {
     this.namespace = namespace;
-    this.workflowExecution = workflowExecution;
+    this.workflowExecution = Preconditions.checkNotNull(workflowExecution);
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
     if (startedAttributes.hasSearchAttributes()) {
@@ -67,6 +69,7 @@ final class WorkflowContext {
     this.contextPropagators = contextPropagators;
   }
 
+  @Nonnull
   WorkflowExecution getWorkflowExecution() {
     return workflowExecution;
   }

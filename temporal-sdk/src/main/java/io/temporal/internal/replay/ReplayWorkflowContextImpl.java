@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -103,6 +104,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     return metricsScope;
   }
 
+  @Nonnull
   @Override
   public WorkflowExecution getWorkflowExecution() {
     return workflowContext.getWorkflowExecution();

@@ -78,12 +78,18 @@ import org.slf4j.LoggerFactory;
 public final class WorkflowInternal {
   public static final int DEFAULT_VERSION = -1;
 
-  public static WorkflowThread newWorkflowMethodThread(Runnable runnable, String name) {
-    return (WorkflowThread)
-        currentThreadInternal()
-            .getWorkflowContext()
-            .getWorkflowInboundInterceptor()
-            .newWorkflowMethodThread(runnable, name);
+  public static @Nonnull WorkflowThread newWorkflowMethodThread(Runnable runnable, String name) {
+    WorkflowThread workflowThread =
+        (WorkflowThread)
+            currentThreadInternal()
+                .getWorkflowContext()
+                .getWorkflowInboundInterceptor()
+                .newWorkflowMethodThread(runnable, name);
+    Preconditions.checkState(
+        workflowThread != null,
+        "[BUG] One of the custom interceptors overrode newWorkflowMethodThread result to null. "
+            + "Check WorkflowInboundCallsInterceptor#newWorkflowMethodThread contract.");
+    return workflowThread;
   }
 
   public static Promise<Void> newTimer(Duration duration) {
