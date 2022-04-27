@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -53,7 +54,7 @@ class ServiceStubsOptions {
    */
   protected final String target;
 
-  protected final @Nullable ChannelInitializer channelInitializer;
+  protected final @Nullable Consumer<ManagedChannelBuilder<?>> channelInitializer;
 
   /** Indicates whether basic HTTPS/SSL/TLS should be enabled * */
   protected final boolean enableHttps;
@@ -141,7 +142,7 @@ class ServiceStubsOptions {
   ServiceStubsOptions(
       ManagedChannel channel,
       String target,
-      @Nullable ChannelInitializer channelInitializer,
+      @Nullable Consumer<ManagedChannelBuilder<?>> channelInitializer,
       boolean enableHttps,
       SslContext sslContext,
       Duration healthCheckAttemptTimeout,
@@ -194,11 +195,16 @@ class ServiceStubsOptions {
   }
 
   /**
+   * Gives an opportunity to provide some additional configuration to the channel builder or
+   * override configurations done by the Temporal Stubs.
+   *
+   * <p>Advanced API
+   *
    * @return listener that will be called as a last step of channel creation if the channel is
-   *     configured by {@link Builder#setTarget(String)}
+   *     configured by {@link Builder#setTarget(String)}.
    */
   @Nullable
-  public ChannelInitializer getChannelInitializer() {
+  public Consumer<ManagedChannelBuilder<?>> getChannelInitializer() {
     return channelInitializer;
   }
 
@@ -319,7 +325,7 @@ class ServiceStubsOptions {
     private SslContext sslContext;
     private boolean enableHttps;
     private String target;
-    private ServiceStubsOptions.ChannelInitializer channelInitializer;
+    private Consumer<ManagedChannelBuilder<?>> channelInitializer;
     private Duration healthCheckAttemptTimeout;
     private Duration healthCheckTimeout;
     private boolean enableKeepAlive;
@@ -372,15 +378,22 @@ class ServiceStubsOptions {
     }
 
     /**
-     * Sets a listener to be called as a last step of channel creation if the channel is configured
-     * by the {@link #setTarget(String)}. This listener can provide additional configuration to the
-     * channel.
+     * Gives an opportunity to provide some additional configuration to the channel builder or
+     * override configurations done by the Temporal Stubs. Currently, Temporal Stubs use {@link
+     * io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder} to create a {@link ManagedChannel}.
+     *
+     * <p>Advanced API
      *
      * <p>Mutually exclusive with {@link #setChannel(ManagedChannel)}.
      *
+     * @param channelInitializer listener that will be called as a last step of channel creation if
+     *     Stubs are configured with {@link Builder#setTarget(String)}. The listener is called with
+     *     an instance of {@link io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder} that will
+     *     be used by Temporal Stubs to create a {@link ManagedChannel}. The builder type may change
+     *     in the future.
      * @return {@code this}
      */
-    public T setChannelInitializer(ChannelInitializer channelInitializer) {
+    public T setChannelInitializer(Consumer<ManagedChannelBuilder<?>> channelInitializer) {
       this.channelInitializer = channelInitializer;
       return self();
     }
@@ -390,14 +403,14 @@ class ServiceStubsOptions {
      *
      * <p>Before supplying a fully custom channel using this method, it's recommended to first
      * consider using {@link #setTarget(String)} + other options of {@link
-     * WorkflowServiceStubsOptions.Builder} + {@link #setChannelInitializer(ChannelInitializer)} for
-     * some rarely used configuration.<br>
+     * WorkflowServiceStubsOptions.Builder} + {@link #setChannelInitializer(Consumer)} for some
+     * rarely used configuration.<br>
      * This option is not intended for the majority of users as it disables some Temporal connection
      * management features and can lead to outages if the channel is configured or managed
      * improperly.
      *
      * <p>Mutually exclusive with {@link #setTarget(String)}, {@link
-     * #setChannelInitializer(ChannelInitializer)}, {@link #setSslContext(SslContext)}, {@link
+     * #setChannelInitializer(Consumer)}, {@link #setSslContext(SslContext)}, {@link
      * #setGrpcReconnectFrequency(Duration)} and {@link
      * #setConnectionBackoffResetFrequency(Duration)}. These options are ignored if the custom
      * channel is supplied.
@@ -729,14 +742,5 @@ class ServiceStubsOptions {
           grpcClientInterceptors,
           metricsScope);
     }
-  }
-
-  /**
-   * If the {@link ServiceStubsOptions} is configured with a {@link #getTarget()} instead of
-   * externally created {@link #getChannel()}, this listener is called as a last step of channel
-   * creation giving an opportunity to provide some additional configuration to the channel.
-   */
-  interface ChannelInitializer {
-    void initChannel(ManagedChannelBuilder<?> managedChannelBuilder);
   }
 }

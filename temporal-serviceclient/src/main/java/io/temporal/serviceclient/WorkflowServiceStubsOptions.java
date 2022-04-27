@@ -113,14 +113,6 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return rpcRetryOptions;
   }
 
-  // TODO remove this after removing of deprecated ChannelInitializer
-  @Override
-  public ChannelInitializer getChannelInitializer() {
-    return channelInitializer instanceof ChannelInitializer
-        ? (ChannelInitializer) channelInitializer
-        : channelInitializer != null ? channelInitializer::initChannel : null;
-  }
-
   /** Builder is the builder for ClientOptions. */
   public static class Builder extends ServiceStubsOptions.Builder<Builder> {
     private boolean disableHealthCheck;
@@ -244,17 +236,5 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
           this.rpcQueryTimeout,
           this.rpcRetryOptions);
     }
-  }
-
-  /**
-   * If the {@link WorkflowServiceStubsOptions} is configured with a {@code target} instead of
-   * externally created {@code channel}, this listener is called as a last step of channel creation
-   * giving an opportunity to provide some additional configuration to the channel.
-   *
-   * @deprecated use {@link ServiceStubsOptions.ChannelInitializer}
-   */
-  @Deprecated
-  public interface ChannelInitializer extends ServiceStubsOptions.ChannelInitializer {
-    void initChannel(ManagedChannelBuilder<?> managedChannelBuilder);
   }
 }
