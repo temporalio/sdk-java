@@ -79,17 +79,22 @@ public final class WorkflowInternal {
   public static final int DEFAULT_VERSION = -1;
 
   public static @Nonnull WorkflowThread newWorkflowMethodThread(Runnable runnable, String name) {
-    WorkflowThread workflowThread =
-        (WorkflowThread)
-            currentThreadInternal()
-                .getWorkflowContext()
-                .getWorkflowInboundInterceptor()
-                .newWorkflowMethodThread(runnable, name);
+    Object workflowThread =
+        currentThreadInternal()
+            .getWorkflowContext()
+            .getWorkflowInboundInterceptor()
+            .newWorkflowMethodThread(runnable, name);
     Preconditions.checkState(
         workflowThread != null,
-        "[BUG] One of the custom interceptors overrode newWorkflowMethodThread result to null. "
+        "[BUG] One of the custom interceptors illegally overrode newWorkflowMethodThread result to null. "
             + "Check WorkflowInboundCallsInterceptor#newWorkflowMethodThread contract.");
-    return workflowThread;
+    Preconditions.checkState(
+        workflowThread instanceof WorkflowThread,
+        "[BUG] One of the custom interceptors illegally overrode newWorkflowMethodThread result. "
+            + "Check WorkflowInboundCallsInterceptor#newWorkflowMethodThread contract. "
+            + "Illegal object returned from the interceptors chain: "
+            + workflowThread);
+    return (WorkflowThread) workflowThread;
   }
 
   public static Promise<Void> newTimer(Duration duration) {
