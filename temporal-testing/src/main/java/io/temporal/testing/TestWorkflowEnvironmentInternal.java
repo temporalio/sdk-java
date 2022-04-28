@@ -96,6 +96,8 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       this.testServiceStubs =
           TestServiceStubs.newInstance(
               TestServiceStubsOptions.newBuilder(workflowServiceStubsOptions)
+                  // we don't want long calls to test service to throw with DEADLINE_EXCEEDED
+                  .setRpcTimeout(Duration.ofMillis(Long.MAX_VALUE))
                   .validateAndBuildWithDefaults());
       this.timeLockingInterceptor = new TimeLockingInterceptor(this.testServiceStubs);
 
