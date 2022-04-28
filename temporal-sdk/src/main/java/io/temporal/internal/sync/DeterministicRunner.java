@@ -113,5 +113,6 @@ interface DeterministicRunner {
   WorkflowThread newWorkflowThread(Runnable runnable, boolean detached, @Nullable String name);
 
   /** Creates a new instance of a workflow callback thread. */
+  @Nonnull
   WorkflowThread newCallbackThread(Runnable runnable, @Nullable String name);
 }

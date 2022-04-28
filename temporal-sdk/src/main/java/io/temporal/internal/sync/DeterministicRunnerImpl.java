@@ -175,14 +175,20 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       do {
         if (!toExecuteInWorkflowThread.isEmpty()) {
           for (NamedRunnable nr : toExecuteInWorkflowThread) {
-            Object thread =
+            Object callbackThread =
                 workflowContext
                     .getWorkflowInboundInterceptor()
                     .newCallbackThread(nr.runnable, nr.name);
             Preconditions.checkState(
-                thread != null,
-                "[BUG] One of the custom interceptors overrode newCallbackThread result to null. "
+                callbackThread != null,
+                "[BUG] One of the custom interceptors illegally overrode newCallbackThread result to null. "
                     + "Check WorkflowInboundCallsInterceptor#newCallbackThread contract.");
+            Preconditions.checkState(
+                callbackThread instanceof WorkflowThread,
+                "[BUG] One of the custom interceptors illegally overrode newCallbackThread result. "
+                    + "Check WorkflowInboundCallsInterceptor#newCallbackThread contract. "
+                    + "Illegal object returned from the interceptors chain: "
+                    + callbackThread);
           }
 
           // It is important to prepend threads as there are callbacks
