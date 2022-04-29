@@ -39,7 +39,13 @@ import org.slf4j.LoggerFactory;
 final class ChannelManager {
   private static final Logger log = LoggerFactory.getLogger(ChannelManager.class);
 
-  private static final int MAX_INBOUND_MESSAGE_SIZE = 25_000_000;
+  /**
+   * This value sets the limit on the incoming responses from Temporal Server to Java SDK. It
+   * doesn't affect the limit that Temporal Server exposes on the messages coming to Temporal
+   * Frontend from Java SDK. The Server Frontend limit on incoming gRPC message value is currently
+   * 4Mb.
+   */
+  private static final int MAX_INBOUND_MESSAGE_SIZE = 128 * 1024 * 1024;
 
   /** refers to the name of the gRPC header that contains the client library version */
   private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
