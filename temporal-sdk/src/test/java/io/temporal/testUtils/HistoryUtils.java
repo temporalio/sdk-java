@@ -41,7 +41,7 @@ public class HistoryUtils {
       throws Exception {
     try (TestServer.InProcessTestServer server = TestServer.createServer(true)) {
       WorkflowServiceStubs workflowServiceStubs =
-          WorkflowServiceStubs.newInstance(
+          WorkflowServiceStubs.newServiceStubs(
               WorkflowServiceStubsOptions.newBuilder().setChannel(server.getChannel()).build());
       try {
         return generateWorkflowTaskWithInitialHistory(
@@ -69,7 +69,7 @@ public class HistoryUtils {
       String namespace, String taskqueueName, String workflowType) throws Exception {
     try (TestServer.InProcessTestServer server = TestServer.createServer(true)) {
       WorkflowServiceStubs workflowServiceStubs =
-          WorkflowServiceStubs.newInstance(
+          WorkflowServiceStubs.newServiceStubs(
               WorkflowServiceStubsOptions.newBuilder().setChannel(server.getChannel()).build());
       try {
         PollWorkflowTaskQueueResponse response =

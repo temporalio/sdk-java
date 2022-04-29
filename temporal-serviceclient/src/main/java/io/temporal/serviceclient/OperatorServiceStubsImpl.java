@@ -23,8 +23,10 @@ import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.api.operatorservice.v1.OperatorServiceGrpc;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,13 +48,6 @@ final class OperatorServiceStubsImpl implements OperatorServiceStubs {
 
     this.channelManager =
         new ChannelManager(options, Collections.singletonList(deadlineInterceptor));
-
-    HealthCheckResponse healthCheckResponse =
-        this.channelManager.waitForServer(HEALTH_CHECK_SERVICE_NAME);
-    if (!HealthCheckResponse.ServingStatus.SERVING.equals(healthCheckResponse.getStatus())) {
-      throw new RuntimeException(
-          "Health check returned unhealthy status: " + healthCheckResponse.getStatus());
-    }
 
     log.info("Created OperatorServiceStubs for channel: {}", channelManager.getRawChannel());
 
@@ -100,5 +95,16 @@ final class OperatorServiceStubsImpl implements OperatorServiceStubs {
   @Override
   public boolean awaitTermination(long timeout, TimeUnit unit) {
     return channelManager.awaitTermination(timeout, unit);
+  }
+
+  @Override
+  public void connect(@Nullable Duration timeout) {
+    channelManager.connect(HEALTH_CHECK_SERVICE_NAME, timeout);
+  }
+
+  @Override
+  public HealthCheckResponse healthCheck() {
+    // no need to pass timeout, timeout will be assigned by GrpcDeadlineInterceptor
+    return this.channelManager.healthCheck(HEALTH_CHECK_SERVICE_NAME, null);
   }
 }

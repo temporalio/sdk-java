@@ -27,12 +27,14 @@ import io.grpc.health.v1.HealthGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.temporal.internal.retryer.GrpcRetryer;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,7 +100,6 @@ final class ChannelManager {
     interceptedChannel = applyHeadStandardInterceptors(interceptedChannel);
     interceptedChannel =
         ClientInterceptors.intercept(interceptedChannel, additionalHeadInterceptors);
-
     this.interceptedChannel = interceptedChannel;
     this.healthBlockingStub = HealthGrpc.newBlockingStub(interceptedChannel);
   }
@@ -250,22 +251,29 @@ final class ChannelManager {
   }
 
   /**
-   * Waits for a responding service using gRPC standard Health Check:
-   * https://github.com/grpc/grpc/blob/master/doc/health-checking.md
+   * Establish a connection to the server and ensures that the server is reachable. Throws if the
+   * server can't be reached after the specified {@code timeout}.
    *
-   * <p>Please note that this method throws if the Health Check service can't be reached.
-   *
-   * @throws StatusRuntimeException if the service is unavailable.
-   * @return gRPC Health HealthCheckResponse
+   * @param timeout how long to wait for a successful connection with the server. If null,
+   *     rpcTimeout configured for this stub will be used.
+   * @throws StatusRuntimeException if the service is unavailable after {@code timeout}
+   * @throws IllegalStateException if the channel is already shutdown
    */
-  public HealthCheckResponse waitForServer(String healthCheckServiceName) {
+  public void connect(String healthCheckServiceName, @Nullable Duration timeout) {
+    ConnectivityState currentState = rawChannel.getState(false);
+    if (ConnectivityState.READY.equals(currentState)) {
+      return;
+    }
+    if (ConnectivityState.SHUTDOWN.equals(currentState)) {
+      throw new IllegalStateException("Can't connect stubs in SHUTDOWN state");
+    }
+    if (timeout == null) {
+      timeout = options.getRpcTimeout();
+    }
     RpcRetryOptions retryOptions =
-        RpcRetryOptions.newBuilder()
-            .setExpiration(options.getHealthCheckTimeout())
-            .validateBuildWithDefaults();
+        RpcRetryOptions.newBuilder().setExpiration(timeout).validateBuildWithDefaults();
 
-    return GrpcRetryer.retryWithResult(
-        retryOptions, () -> this.checkHealth(healthCheckServiceName));
+    GrpcRetryer.retryWithResult(retryOptions, () -> this.healthCheck(healthCheckServiceName, null));
   }
 
   /**
@@ -275,15 +283,22 @@ final class ChannelManager {
    * <p>Please note that this method throws if the Health Check service can't be reached.
    *
    * @param healthCheckServiceName a target service name for the health check request
+   * @param timeout custom timeout for the healthcheck
    * @throws StatusRuntimeException if the service is unavailable.
-   * @return gRPC Health HealthCheckResponse
+   * @return gRPC Health {@link HealthCheckResponse}
    */
-  public HealthCheckResponse checkHealth(String healthCheckServiceName) {
-    return healthBlockingStub
-        .withDeadline(
-            Deadline.after(
-                options.getHealthCheckAttemptTimeout().toMillis(), TimeUnit.MILLISECONDS))
-        .check(HealthCheckRequest.newBuilder().setService(healthCheckServiceName).build());
+  public HealthCheckResponse healthCheck(
+      String healthCheckServiceName, @Nullable Duration timeout) {
+    HealthGrpc.HealthBlockingStub stub;
+    if (timeout != null) {
+      stub =
+          this.healthBlockingStub.withDeadline(
+              Deadline.after(
+                  options.getHealthCheckAttemptTimeout().toMillis(), TimeUnit.MILLISECONDS));
+    } else {
+      stub = this.healthBlockingStub;
+    }
+    return stub.check(HealthCheckRequest.newBuilder().setService(healthCheckServiceName).build());
   }
 
   public void shutdown() {

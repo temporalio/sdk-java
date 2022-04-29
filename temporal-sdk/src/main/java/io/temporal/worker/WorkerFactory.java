@@ -216,7 +216,10 @@ public final class WorkerFactory {
     if (state == State.Started) {
       return;
     }
-    state = State.Started;
+
+    // Workers check and require that Temporal Server is available during start to fail-fast in case
+    // of configuration issues.
+    workflowClient.getWorkflowServiceStubs().connect(null);
 
     for (Worker worker : workers.values()) {
       worker.start();
@@ -228,6 +231,8 @@ public final class WorkerFactory {
     if (stickyPoller != null) {
       stickyPoller.start();
     }
+
+    state = State.Started;
   }
 
   /** Was {@link #start()} called. */

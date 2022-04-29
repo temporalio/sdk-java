@@ -59,12 +59,12 @@ public class WorkflowCachingTest {
   public void setUp() {
     this.testServer = TestServer.createServer(true);
     this.workflowServiceStubs =
-        WorkflowServiceStubs.newInstance(
+        WorkflowServiceStubs.newServiceStubs(
             WorkflowServiceStubsOptions.newBuilder()
                 .setChannel(testServer.getChannel())
                 .validateAndBuildWithDefaults());
     this.testServiceStubs =
-        TestServiceStubs.newInstance(
+        TestServiceStubs.newServiceStubs(
             TestServiceStubsOptions.newBuilder()
                 .setChannel(testServer.getChannel())
                 .validateAndBuildWithDefaults());

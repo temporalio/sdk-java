@@ -50,7 +50,7 @@ public class WorkerFactoryTests {
   @Before
   public void setUp() {
     service =
-        WorkflowServiceStubs.newInstance(
+        WorkflowServiceStubs.newServiceStubs(
             WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
     WorkflowClient client = WorkflowClient.newInstance(service);
     factory = WorkerFactory.newInstance(client);

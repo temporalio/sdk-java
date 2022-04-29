@@ -68,10 +68,10 @@ public class TimeSkippingFromAnActivityTest {
   public void setUp() {
     this.server = TestServer.createServer(false, 0);
     this.workflowServiceStubs =
-        WorkflowServiceStubs.newInstance(
+        WorkflowServiceStubs.newServiceStubs(
             WorkflowServiceStubsOptions.newBuilder().setChannel(server.getChannel()).build());
     this.testServiceStubs =
-        TestServiceStubs.newInstance(
+        TestServiceStubs.newServiceStubs(
             TestServiceStubsOptions.newBuilder()
                 .setChannel(workflowServiceStubs.getRawChannel())
                 .validateAndBuildWithDefaults());

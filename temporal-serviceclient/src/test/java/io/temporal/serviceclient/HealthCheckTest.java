@@ -47,7 +47,7 @@ public class HealthCheckTest {
         }
         // Stub creation triggers health check by default, unless disableHealthCheck flag is set in
         // the WorkflowServiceStubsOptions.
-        workflowServiceStubs = WorkflowServiceStubs.newInstance(stubsOptions);
+        workflowServiceStubs = WorkflowServiceStubs.newServiceStubs(stubsOptions);
       } catch (Exception e) {
         Assert.fail("Health check failed");
       } finally {

@@ -48,7 +48,7 @@ public class RegisterTestNamespace {
 
     WorkflowServiceStubs service = null;
     try {
-      service = WorkflowServiceStubs.newInstance(options.build());
+      service = WorkflowServiceStubs.newServiceStubs(options.build());
       if (doesNamespaceExist(service)) {
         System.out.println("Namespace " + NAMESPACE + " already exists");
       } else {

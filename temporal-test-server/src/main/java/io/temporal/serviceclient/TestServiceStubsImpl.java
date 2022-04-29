@@ -23,8 +23,10 @@ import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.api.testservice.v1.TestServiceGrpc;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,13 +48,6 @@ public class TestServiceStubsImpl implements TestServiceStubs {
 
     this.channelManager =
         new ChannelManager(options, Collections.singletonList(deadlineInterceptor));
-
-    HealthCheckResponse healthCheckResponse =
-        this.channelManager.waitForServer(HEALTH_CHECK_SERVICE_NAME);
-    if (!HealthCheckResponse.ServingStatus.SERVING.equals(healthCheckResponse.getStatus())) {
-      throw new RuntimeException(
-          "Health check returned unhealthy status: " + healthCheckResponse.getStatus());
-    }
 
     log.info("Created TestServiceStubs for channel: {}", channelManager.getRawChannel());
 
@@ -100,5 +95,15 @@ public class TestServiceStubsImpl implements TestServiceStubs {
   @Override
   public boolean awaitTermination(long timeout, TimeUnit unit) {
     return channelManager.awaitTermination(timeout, unit);
+  }
+
+  @Override
+  public void connect(@Nullable Duration timeout) {
+    channelManager.connect(HEALTH_CHECK_SERVICE_NAME, timeout);
+  }
+
+  @Override
+  public HealthCheckResponse healthCheck() {
+    return channelManager.healthCheck(HEALTH_CHECK_SERVICE_NAME, null);
   }
 }

@@ -173,7 +173,7 @@ public class WorkerStressTests {
           WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
       if (useDockerService) {
         service =
-            WorkflowServiceStubs.newInstance(
+            WorkflowServiceStubs.newServiceStubs(
                 WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
