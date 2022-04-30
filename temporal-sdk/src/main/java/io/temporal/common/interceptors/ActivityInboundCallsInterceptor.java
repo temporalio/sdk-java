@@ -22,6 +22,14 @@ package io.temporal.common.interceptors;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.common.Experimental;
 
+/**
+ * Intercepts inbound calls to the activity execution on the worker side.
+ *
+ * <p>Prefer extending {@link ActivityInboundCallsInterceptorBase} and overriding only the methods
+ * you need instead of implementing this interface directly. {@link
+ * ActivityInboundCallsInterceptorBase} provides correct default implementations to all the methods
+ * of this interface.
+ */
 @Experimental
 public interface ActivityInboundCallsInterceptor {
   final class ActivityInput {

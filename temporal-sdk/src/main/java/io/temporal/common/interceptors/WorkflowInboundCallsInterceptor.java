@@ -24,8 +24,24 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Intercepts calls to the workflow execution. Executes under workflow context. So all the
- * restrictions on the workflow code should be obeyed.
+ * Intercepts inbound calls to the workflow execution on the worker side.
+ *
+ * <p>An instance should be created in {@link
+ * WorkerInterceptor#interceptWorkflow(WorkflowInboundCallsInterceptor)}.
+ *
+ * <p>The calls to this interceptor are executed under workflow context, all the rules and
+ * restrictions on the workflow code apply. See {@link io.temporal.workflow}.
+ *
+ * <p>Prefer extending {@link WorkflowInboundCallsInterceptorBase} and overriding only the methods
+ * you need instead of implementing this interface directly. {@link
+ * WorkflowInboundCallsInterceptorBase} provides correct default implementations to all the methods
+ * of this interface.
+ *
+ * <p>The implementation must forward all the calls to {@code next}, but it may change the input
+ * parameters.
+ *
+ * @see WorkerInterceptor#interceptWorkflow(WorkflowInboundCallsInterceptor) for a definition of
+ *     "next" {@link WorkflowInboundCallsInterceptor}
  */
 @Experimental
 public interface WorkflowInboundCallsInterceptor {
@@ -115,9 +131,16 @@ public interface WorkflowInboundCallsInterceptor {
   }
 
   /**
-   * Called when workflow class is instantiated.
+   * Called when workflow class is instantiated. May create a {@link
+   * WorkflowOutboundCallsInterceptor} instance. The instance must forward all the calls to {@code
+   * outboundCalls}, but it may change the input parameters.
    *
-   * @param outboundCalls interceptor for calls that workflow makes to the SDK
+   * <p>The instance should be passed into the {next.init(newWorkflowOutboundCallsInterceptor)}.
+   *
+   * @param outboundCalls an existing interceptor instance to be proxied by the interceptor created
+   *     inside this method
+   * @see WorkerInterceptor#interceptWorkflow for the definition of "next" {@link
+   *     WorkflowInboundCallsInterceptor}
    */
   void init(WorkflowOutboundCallsInterceptor outboundCalls);
 

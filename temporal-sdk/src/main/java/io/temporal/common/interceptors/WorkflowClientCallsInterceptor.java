@@ -29,19 +29,26 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * Intercepts calls to the {@link io.temporal.client.WorkflowClient} related to the lifecycle of a
+ * Workflow.
+ *
+ * <p>Prefer extending {@link WorkflowClientCallsInterceptorBase} and overriding only the methods
+ * you need instead of implementing this interface directly. {@link
+ * WorkflowClientCallsInterceptorBase} provides correct default implementations to all the methods
+ * of this interface.
+ */
 @Experimental
 public interface WorkflowClientCallsInterceptor {
   /**
-   * If you implement this method, {@link #signalWithStart} most likely needs * to be implemented
-   * too.
+   * If you implement this method, {@link #signalWithStart} most likely needs to be implemented too.
    *
    * @see #signalWithStart
    */
   WorkflowStartOutput start(WorkflowStartInput input);
 
   /**
-   * If you implement this method, {@link #signalWithStart} most likely needs * to be implemented
-   * too.
+   * If you implement this method, {@link #signalWithStart} most likely needs to be implemented too.
    *
    * @see #signalWithStart
    */
@@ -50,8 +57,7 @@ public interface WorkflowClientCallsInterceptor {
   WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input);
 
   /**
-   * If you implement this method, {@link #getResultAsync} most likely needs to * be implemented
-   * too.
+   * If you implement this method, {@link #getResultAsync} most likely needs to be implemented too.
    *
    * @see #getResultAsync
    */
