@@ -22,6 +22,7 @@ package io.temporal.internal.activity;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.Objects;
@@ -35,6 +36,7 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   private final Duration defaultHeartbeatThrottleInterval;
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
+  private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
 
   public ActivityExecutionContextFactoryImpl(
       WorkflowServiceStubs service,
@@ -52,6 +54,9 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
         Objects.requireNonNull(defaultHeartbeatThrottleInterval);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.heartbeatExecutor = Objects.requireNonNull(heartbeatExecutor);
+    this.manualCompletionClientFactory =
+        ManualActivityCompletionClientFactory.newFactory(
+            service, namespace, identity, dataConverter);
   }
 
   @Override
@@ -62,6 +67,7 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
         info,
         dataConverter,
         heartbeatExecutor,
+        manualCompletionClientFactory,
         info.getCompletionHandle(),
         metricsScope,
         identity,

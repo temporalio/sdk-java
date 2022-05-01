@@ -19,12 +19,29 @@
 
 package io.temporal.internal.client.external;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 
 public interface ManualActivityCompletionClientFactory {
 
-  ManualActivityCompletionClient getClient(byte[] taskToken);
+  /**
+   * Create a {@link ManualActivityCompletionClientFactory} that emits simple {@link
+   * ManualActivityCompletionClientImpl} implementations
+   */
+  static ManualActivityCompletionClientFactory newFactory(
+      WorkflowServiceStubs service,
+      String namespace,
+      String identity,
+      DataConverter dataConverter) {
+    return new ManualActivityCompletionClientFactoryImpl(
+        service, namespace, identity, dataConverter);
+  }
 
-  ManualActivityCompletionClient getClient(WorkflowExecution execution, String activityId);
+  ManualActivityCompletionClient getClient(byte[] taskToken, Scope metricsScope);
+
+  ManualActivityCompletionClient getClient(
+      WorkflowExecution execution, String activityId, Scope metricsScope);
 }

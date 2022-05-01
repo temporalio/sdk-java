@@ -87,11 +87,17 @@ public interface ActivityExecutionContext {
   /**
    * If this method is called during an Activity Execution then the Activity Execution is not going
    * to complete when it's method returns. It is expected to be completed asynchronously using
-   * {@link io.temporal.client.ActivityCompletionClient}. Async Activity Executions that have {@link
-   * #isUseLocalManualCompletion()} set to false would not respect the limit defined by {@link
-   * WorkerOptions#getMaxConcurrentActivityExecutionSize()}. If you want to limit the number of
-   * concurrent async Activity Executions and if you always complete those Activity Executions with
-   * the same Activity Worker you should use {@link #useLocalManualCompletion()} instead.
+   * {@link io.temporal.client.ActivityCompletionClient}.
+   *
+   * <p>Async Activity Executions that have {@link #isUseLocalManualCompletion()} set to false will
+   * not respect the limit defined by {@link WorkerOptions#getMaxConcurrentActivityExecutionSize()}.
+   *
+   * <p>If you want to maintain the workflow's limit on the total number of concurrent Activity
+   * Executions and if you always complete those Activity Executions within the same Java process,
+   * you may use {@link #useLocalManualCompletion()} instead.
+   *
+   * @see #useLocalManualCompletion() as a stricter version of this method respecting the worker's
+   *     concurrent activities limit
    */
   void doNotCompleteOnReturn();
 
@@ -112,13 +118,16 @@ public interface ActivityExecutionContext {
   /**
    * For local manual completion, sets the {@link #doNotCompleteOnReturn()} flag, making Activity
    * Execution completion asynchronous, and returns the completion client. Returned completion
-   * client must be used to complete the Activity Execution on the same machine. The main difference
-   * from calling {@link #doNotCompleteOnReturn()} directly is that by using this method the maximum
-   * number of concurrent Activity Executions defined by {@link
-   * WorkerOptions#getMaxConcurrentActivityExecutionSize()} will be respected. Users must be careful
-   * and always call the completion method on the {@link ManualActivityCompletionClient} otherwise
-   * the Activity Worker could stop polling as it will consider all Activity Executions, that didn't
-   * explicitly finish, as still running.
+   * client must be used to complete the Activity Execution inside the same Java process.
+   *
+   * <p>The completion client returned from this method updates the Worker's Active Activity
+   * Executions Counter. This way the limit of concurrent Activity Executions defined by {@link
+   * WorkerOptions.Builder#setMaxConcurrentActivityExecutionSize(int)} is respected. It's the main
+   * difference of this method from calling {@link #doNotCompleteOnReturn()}.
+   *
+   * <p>Always call one of the completion methods on the obtained completion client. Otherwise, an
+   * Activity Worker could stop polling as it will consider Activity Executions that wasn't
+   * explicitly completed as still running.
    */
   ManualActivityCompletionClient useLocalManualCompletion();
 

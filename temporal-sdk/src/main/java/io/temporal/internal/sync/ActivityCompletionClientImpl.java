@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
@@ -31,17 +32,21 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   private final ManualActivityCompletionClientFactory factory;
   private final Functions.Proc completionHandle;
 
+  private final Scope metricsScope;
+
   public ActivityCompletionClientImpl(
       ManualActivityCompletionClientFactory manualActivityCompletionClientFactory,
-      Functions.Proc completionHandle) {
+      Functions.Proc completionHandle,
+      Scope metricsScope) {
     this.factory = manualActivityCompletionClientFactory;
     this.completionHandle = completionHandle;
+    this.metricsScope = metricsScope;
   }
 
   @Override
   public <R> void complete(byte[] taskToken, R result) {
     try {
-      factory.getClient(taskToken).complete(result);
+      factory.getClient(taskToken, metricsScope).complete(result);
     } finally {
       completionHandle.apply();
     }
@@ -50,7 +55,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   @Override
   public <R> void complete(String workflowId, Optional<String> runId, String activityId, R result) {
     try {
-      factory.getClient(toExecution(workflowId, runId), activityId).complete(result);
+      factory.getClient(toExecution(workflowId, runId), activityId, metricsScope).complete(result);
     } finally {
       completionHandle.apply();
     }
@@ -59,7 +64,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   @Override
   public void completeExceptionally(byte[] taskToken, Exception result) {
     try {
-      factory.getClient(taskToken).fail(result);
+      factory.getClient(taskToken, metricsScope).fail(result);
     } finally {
       completionHandle.apply();
     }
@@ -69,7 +74,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   public void completeExceptionally(
       String workflowId, Optional<String> runId, String activityId, Exception result) {
     try {
-      factory.getClient(toExecution(workflowId, runId), activityId).fail(result);
+      factory.getClient(toExecution(workflowId, runId), activityId, metricsScope).fail(result);
     } finally {
       completionHandle.apply();
     }
@@ -78,7 +83,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   @Override
   public <V> void reportCancellation(byte[] taskToken, V details) {
     try {
-      factory.getClient(taskToken).reportCancellation(details);
+      factory.getClient(taskToken, metricsScope).reportCancellation(details);
     } finally {
       completionHandle.apply();
     }
@@ -88,7 +93,9 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   public <V> void reportCancellation(
       String workflowId, Optional<String> runId, String activityId, V details) {
     try {
-      factory.getClient(toExecution(workflowId, runId), activityId).reportCancellation(details);
+      factory
+          .getClient(toExecution(workflowId, runId), activityId, metricsScope)
+          .reportCancellation(details);
     } finally {
       completionHandle.apply();
     }
@@ -96,13 +103,15 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
-    factory.getClient(taskToken).recordHeartbeat(details);
+    factory.getClient(taskToken, metricsScope).recordHeartbeat(details);
   }
 
   @Override
   public <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException {
-    factory.getClient(toExecution(workflowId, runId), activityId).recordHeartbeat(details);
+    factory
+        .getClient(toExecution(workflowId, runId), activityId, metricsScope)
+        .recordHeartbeat(details);
   }
 
   private static WorkflowExecution toExecution(String workflowId, Optional<String> runId) {

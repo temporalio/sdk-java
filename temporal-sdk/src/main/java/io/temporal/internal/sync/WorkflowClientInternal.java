@@ -39,7 +39,6 @@ import io.temporal.internal.client.RootWorkflowClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientExternal;
 import io.temporal.internal.client.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.client.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -98,12 +97,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
-        new ManualActivityCompletionClientFactoryImpl(
-            workflowServiceStubs,
-            options.getNamespace(),
-            options.getIdentity(),
-            dataConverter,
-            metricsScope);
+        ManualActivityCompletionClientFactory.newFactory(
+            workflowServiceStubs, options.getNamespace(), options.getIdentity(), dataConverter);
   }
 
   private WorkflowClientCallsInterceptor initializeClientInvoker() {
@@ -232,7 +227,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
   public ActivityCompletionClient newActivityCompletionClient() {
     ActivityCompletionClient result =
         WorkflowThreadMarker.protectFromWorkflowThread(
-            new ActivityCompletionClientImpl(manualActivityCompletionClientFactory, () -> {}),
+            new ActivityCompletionClientImpl(
+                manualActivityCompletionClientFactory, () -> {}, metricsScope),
             ActivityCompletionClient.class);
     for (WorkflowClientInterceptor i : interceptors) {
       result = i.newActivityCompletionClient(result);

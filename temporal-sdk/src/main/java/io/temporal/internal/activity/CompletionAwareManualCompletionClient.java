@@ -17,17 +17,18 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.activity;
 
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.Functions;
+import javax.annotation.Nonnull;
 
-public final class CompletionAwareManualCompletionClient implements ManualActivityCompletionClient {
+final class CompletionAwareManualCompletionClient implements ManualActivityCompletionClient {
   private final ManualActivityCompletionClient client;
   private final Functions.Proc completionHandle;
 
-  public CompletionAwareManualCompletionClient(
+  CompletionAwareManualCompletionClient(
       ManualActivityCompletionClient client, Functions.Proc completionHandle) {
     this.client = client;
     this.completionHandle = completionHandle;
@@ -43,7 +44,7 @@ public final class CompletionAwareManualCompletionClient implements ManualActivi
   }
 
   @Override
-  public void fail(Throwable failure) {
+  public void fail(@Nonnull Throwable failure) {
     try {
       client.fail(failure);
     } finally {
