@@ -26,8 +26,6 @@ import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.client.external.ManualActivityCompletionClientFactoryImpl;
-import io.temporal.internal.sync.CompletionAwareManualCompletionClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
@@ -63,6 +61,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       ActivityInfo info,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
+      ManualActivityCompletionClientFactory manualCompletionClientFactory,
       Functions.Proc completionHandle,
       Scope metricsScope,
       String identity,
@@ -71,9 +70,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     this.metricsScope = metricsScope;
     this.info = info;
     this.completionHandle = completionHandle;
-    this.manualCompletionClientFactory =
-        new ManualActivityCompletionClientFactoryImpl(
-            service, namespace, identity, dataConverter, metricsScope);
+    this.manualCompletionClientFactory = manualCompletionClientFactory;
     this.heartbeatContext =
         new HeartbeatContextImpl(
             service,
@@ -147,7 +144,8 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       doNotCompleteOnReturn();
       useLocalManualCompletion = true;
       return new CompletionAwareManualCompletionClient(
-          manualCompletionClientFactory.getClient(info.getTaskToken()), completionHandle);
+          manualCompletionClientFactory.getClient(info.getTaskToken(), metricsScope),
+          completionHandle);
     } finally {
       lock.unlock();
     }

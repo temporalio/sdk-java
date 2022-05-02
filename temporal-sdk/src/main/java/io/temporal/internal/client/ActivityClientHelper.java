@@ -21,6 +21,7 @@ package io.temporal.internal.client;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
+import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
@@ -33,6 +34,8 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Optional;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Contains methods that could but didn't become a part of the main {@link
@@ -66,13 +69,11 @@ public class ActivityClientHelper {
       String namespace,
       String identity,
       WorkflowExecution execution,
-      String activityId,
+      @Nonnull String activityId,
       DataConverter dataConverter,
       Scope metricsScope,
-      Object details) {
-    if (activityId == null) {
-      throw new IllegalArgumentException("Either activity id or task token are required");
-    }
+      @Nullable Object details) {
+    Preconditions.checkNotNull(activityId, "Either activity id or task token are required");
     RecordActivityTaskHeartbeatByIdRequest.Builder request =
         RecordActivityTaskHeartbeatByIdRequest.newBuilder()
             .setRunId(execution.getRunId())
@@ -80,8 +81,7 @@ public class ActivityClientHelper {
             .setActivityId(activityId)
             .setNamespace(namespace)
             .setIdentity(identity);
-    Optional<Payloads> payloads = dataConverter.toPayloads(details);
-    payloads.ifPresent(request::setDetails);
+    dataConverter.toPayloads(details).ifPresent(request::setDetails);
     return service
         .blockingStub()
         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
