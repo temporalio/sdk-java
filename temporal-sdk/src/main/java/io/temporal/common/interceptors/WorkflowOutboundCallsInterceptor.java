@@ -36,13 +36,24 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 /**
- * Can be used to intercept workflow code calls to the Temporal APIs. An instance should be created
- * through {@link WorkerInterceptor#interceptWorkflow(WorkflowInboundCallsInterceptor)}. An
- * interceptor instance must forward all the calls to the next interceptor passed to the
- * interceptExecuteWorkflow call.
+ * Can be used to intercept calls from to workflow code into the Temporal APIs.
  *
  * <p>The calls to the interceptor are executed in the context of a workflow and must follow the
  * same rules all the other workflow code follows.
+ *
+ * <p>Prefer extending {@link WorkflowOutboundCallsInterceptorBase} and overriding only the methods
+ * you need instead of implementing this interface directly. {@link
+ * WorkflowOutboundCallsInterceptorBase} provides correct default implementations to all the methods
+ * of this interface.
+ *
+ * <p>An instance may be created in {@link
+ * WorkflowInboundCallsInterceptor#init(WorkflowOutboundCallsInterceptor)} and set by passing it
+ * into {@code init} method of the {@code next} {@link WorkflowInboundCallsInterceptor} The
+ * implementation must forward all the calls to the outbound interceptor passed as a {@code
+ * outboundCalls} parameter to the {@code init} call.
+ *
+ * @see WorkerInterceptor#interceptWorkflow for the definition of "next" {@link
+ *     WorkflowInboundCallsInterceptor}.
  */
 @Experimental
 public interface WorkflowOutboundCallsInterceptor {
@@ -489,7 +500,7 @@ public interface WorkflowOutboundCallsInterceptor {
   void upsertSearchAttributes(Map<String, ?> searchAttributes);
 
   /**
-   * Intercepts creation of the workflow child thread.
+   * Intercepts creation of a workflow child thread.
    *
    * <p>Please note, that "workflow child thread" and "child workflow" are different and independent
    * concepts.

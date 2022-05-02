@@ -28,6 +28,15 @@ import io.temporal.common.Experimental;
  */
 @Experimental
 public interface WorkerInterceptor {
+  /**
+   * Called when workflow class is instantiated. May create a {@link
+   * WorkflowInboundCallsInterceptor} instance. The instance must forward all the calls to {@code
+   * next} {@link WorkflowInboundCallsInterceptor}, but it may change the input parameters.
+   *
+   * @param next an existing interceptor instance to be proxied by the interceptor created inside
+   *     this method
+   * @return an interceptor that passes all the calls to {@code next}
+   */
   WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next);
 
   ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next);
