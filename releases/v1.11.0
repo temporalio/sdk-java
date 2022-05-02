@@ -1,0 +1,31 @@
+Highlights:
+
+This release changes the default preferred behavior of WorkflowServiceStubs from an eager connection and throwing error
+if the Temporal Server is not available to a lazy connectivity on the first request. See migration notes.
+
+Fixes:
+
+- sticky_cache_size was updating only during forced evictions
+- test service stubs were time sensitive to time skipping that may require long execution of application code and were throwing DEADLINE_EXCEEDED
+- OpenTracing was logging forced thread evictions from the cache as errors
+
+Migration notes:
+
+`WorkflowServiceStubs#newInstance`, `WorkflowServiceStubsOptions.Builder#setDisableHealthCheck`,
+`WorkflowServiceStubsOptions.Builder#setHealthCheckAttemptTimeout` and `WorkflowServiceStubsOptions.Builder#setHealthCheckTimeout`
+are deprecated.
+
+- The new preferred default is `WorkflowServiceStubs#newServiceStubs`.
+- Switch to `WorkflowServiceStubs#newServiceStubs` if you were disabling health check on the start previously.
+- Switch to `WorkflowServiceStubs#newConnectedServiceStubs` if you prefer an explicit health check on creation. Pass your old `WorkflowServiceStubsOptions.Builder#setHealthCheckTimeout` as a `timeout` parameter to this method (`null` supported for default).
+
+Changeset:
+2022-04-21 - 38b4cd0c - Add TestEnvironmentOptions#registerSearchAttribute (#1161)
+2022-04-21 - a3569d7b - Add trivial describeNamespace test server implementation (#1160)
+2022-04-21 - b23ea602 - Fix sticky_cache_size gauge behavior (#1159)
+2022-04-22 - 08b0d284 - Evictions are not logged as errors in opentracing anymore (#1164)
+2022-04-27 - 489b9480 - Fix test service stubs throwing DEADLINE_EXCEEDED (#1174)
+2022-04-27 - 62c3ddf0 - Add a clear message to signal user mistake if newWorkflowThread is overridden to null (#1173)
+2022-04-27 - b6141767 - Rework #setChannelInitializer method for easier access, remove old deprecated classes and methods (#1170)
+2022-04-29 - 37eb2c86 - Add Stubs#healthCheck(), make eager check during client creation disabled by default (#1168)
+2022-04-29 - 600e2540 - Unify limit on gRPC incoming message across SDKs to 128Mb (#1176)
