@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 
 public final class TestStatsReporter implements StatsReporter {
 
@@ -72,6 +73,10 @@ public final class TestStatsReporter implements StatsReporter {
   }
 
   public void assertGauge(String name, Map<String, String> tags, double expected) {
+    assertGauge(name, tags, val -> Math.abs(expected - val) < 1e-3);
+  }
+
+  public void assertGauge(String name, Map<String, String> tags, Predicate<Double> isExpected) {
     String metricName = getMetricName(name, tags);
     Double value = gauges.get(metricName);
     if (value == null) {
@@ -81,7 +86,7 @@ public final class TestStatsReporter implements StatsReporter {
               + "', reported metrics: \n "
               + String.join("\n ", gauges.keySet()));
     }
-    assertEquals(String.valueOf(value), expected, value, 1e-3);
+    assertTrue(String.valueOf(value), isExpected.test(value));
   }
 
   public void assertTimer(String name, Map<String, String> tags) {

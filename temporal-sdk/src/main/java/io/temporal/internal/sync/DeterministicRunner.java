@@ -21,7 +21,6 @@ package io.temporal.internal.sync;
 
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
-import java.util.concurrent.ExecutorService;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -44,23 +43,26 @@ interface DeterministicRunner {
    * @return instance of the DeterministicRunner.
    */
   static DeterministicRunner newRunner(
-      ExecutorService threadPool,
+      WorkflowThreadExecutor workflowThreadExecutor,
       SyncWorkflowContext workflowContext,
       Runnable root,
       WorkflowExecutorCache cache) {
-    return new DeterministicRunnerImpl(threadPool, workflowContext, root, cache);
+    return new DeterministicRunnerImpl(workflowThreadExecutor, workflowContext, root, cache);
   }
 
   /**
    * Create new instance of DeterministicRunner
    *
+   * @param workflowThreadExecutor executor for workflow thread Runnables
    * @param workflowContext workflow context to use
    * @param root function that root thread of the runner executes.
    * @return instance of the DeterministicRunner.
    */
   static DeterministicRunner newRunner(
-      ExecutorService threadPool, SyncWorkflowContext workflowContext, Runnable root) {
-    return new DeterministicRunnerImpl(threadPool, workflowContext, root, null);
+      WorkflowThreadExecutor workflowThreadExecutor,
+      SyncWorkflowContext workflowContext,
+      Runnable root) {
+    return new DeterministicRunnerImpl(workflowThreadExecutor, workflowContext, root, null);
   }
 
   /**

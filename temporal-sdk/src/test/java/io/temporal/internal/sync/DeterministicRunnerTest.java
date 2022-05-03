@@ -92,7 +92,7 @@ public class DeterministicRunnerTest {
   public void testYield() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -135,7 +135,7 @@ public class DeterministicRunnerTest {
     Duration expiration = Duration.ofMinutes(5);
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("started");
@@ -177,7 +177,7 @@ public class DeterministicRunnerTest {
   public void testRootFailure() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -201,7 +201,7 @@ public class DeterministicRunnerTest {
   public void testDispatcherStop() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               status = "started";
@@ -231,7 +231,7 @@ public class DeterministicRunnerTest {
   public void testDispatcherExit() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -273,7 +273,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -301,7 +301,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -345,7 +345,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -402,7 +402,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -447,7 +447,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -507,7 +507,7 @@ public class DeterministicRunnerTest {
     trace.add("init");
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root started");
@@ -562,7 +562,7 @@ public class DeterministicRunnerTest {
   public void testChild() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               Promise<Void> async =
@@ -620,7 +620,7 @@ public class DeterministicRunnerTest {
   public void testChildTree() {
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             new TestChildTreeRunnable(0)::apply);
     d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
@@ -666,7 +666,7 @@ public class DeterministicRunnerTest {
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             new SyncWorkflowContext(
                 replayWorkflowContext, DataConverter.getDefaultInstance(), null, null, null),
             () -> {
@@ -692,7 +692,7 @@ public class DeterministicRunnerTest {
 
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             new SyncWorkflowContext(
                 replayWorkflowContext, DataConverter.getDefaultInstance(), null, null, null),
             () -> {
@@ -729,7 +729,7 @@ public class DeterministicRunnerTest {
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               Promise<Void> thread =
@@ -754,7 +754,7 @@ public class DeterministicRunnerTest {
 
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               Promise<Void> thread =
@@ -809,7 +809,7 @@ public class DeterministicRunnerTest {
 
     DeterministicRunner d =
         new DeterministicRunnerImpl(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               Promise<Void> async = Async.procedure(() -> status = "started");

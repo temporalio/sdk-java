@@ -60,7 +60,7 @@ public class WorkflowInternalQueueTest {
   public void testTakeBlocking() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -101,7 +101,7 @@ public class WorkflowInternalQueueTest {
   public void testTakeCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -136,7 +136,7 @@ public class WorkflowInternalQueueTest {
   public void testCancellableTakeCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -299,7 +299,7 @@ public class WorkflowInternalQueueTest {
   public void testPutCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -335,7 +335,7 @@ public class WorkflowInternalQueueTest {
   public void testCancellablePutCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newWorkflowQueue(1);
@@ -371,7 +371,7 @@ public class WorkflowInternalQueueTest {
   public void testMap() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Integer> queue = WorkflowInternal.newWorkflowQueue(1);
@@ -425,7 +425,7 @@ public class WorkflowInternalQueueTest {
     int[] result = new int[3];
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               queue.put(1);

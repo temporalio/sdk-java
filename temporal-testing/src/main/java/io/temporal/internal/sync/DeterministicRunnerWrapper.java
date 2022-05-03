@@ -26,12 +26,12 @@ import java.util.concurrent.*;
 
 public class DeterministicRunnerWrapper implements InvocationHandler {
   private final InvocationHandler invocationHandler;
-  private final ExecutorService executorService;
+  private final WorkflowThreadExecutor workflowThreadExecutor;
 
   public DeterministicRunnerWrapper(
-      InvocationHandler invocationHandler, ExecutorService executorService) {
+      InvocationHandler invocationHandler, WorkflowThreadExecutor workflowThreadExecutor) {
     this.invocationHandler = Objects.requireNonNull(invocationHandler);
-    this.executorService = Objects.requireNonNull(executorService);
+    this.workflowThreadExecutor = Objects.requireNonNull(workflowThreadExecutor);
   }
 
   @Override
@@ -39,7 +39,7 @@ public class DeterministicRunnerWrapper implements InvocationHandler {
     CompletableFuture<Object> result = new CompletableFuture<>();
     DeterministicRunner runner =
         new DeterministicRunnerImpl(
-            executorService,
+            workflowThreadExecutor,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               try {

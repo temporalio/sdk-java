@@ -455,11 +455,13 @@ public class MetricsTest {
 
     Thread.sleep(REPORTING_FLUSH_TIME);
     reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 1);
+    reporter.assertGauge(WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, val -> val == 1 || val == 2);
 
     wfFuture.get();
 
     Thread.sleep(REPORTING_FLUSH_TIME);
     reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 0);
+    reporter.assertGauge(WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, 0);
   }
 
   @WorkflowInterface

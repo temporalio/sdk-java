@@ -61,7 +61,7 @@ public class PromiseTest {
   public void testFailure() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<Boolean> f = Workflow.newPromise();
@@ -96,7 +96,7 @@ public class PromiseTest {
   public void testGet() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
@@ -117,7 +117,7 @@ public class PromiseTest {
   public void testCancellableGet() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
@@ -138,7 +138,7 @@ public class PromiseTest {
   public void testCancellableGetCancellation() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
@@ -216,7 +216,7 @@ public class PromiseTest {
   public void testMultiple() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -271,7 +271,7 @@ public class PromiseTest {
   public void tstAsync() {
     DeterministicRunner runner =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -306,7 +306,7 @@ public class PromiseTest {
   public void testAsyncFailure() {
     DeterministicRunner runner =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -350,7 +350,7 @@ public class PromiseTest {
   public void testAllOf() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -411,7 +411,7 @@ public class PromiseTest {
   public void testAllOfImmediatelyReady() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -454,7 +454,7 @@ public class PromiseTest {
   public void testAnyOf() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -516,7 +516,7 @@ public class PromiseTest {
   public void testAllOfArray() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -578,7 +578,7 @@ public class PromiseTest {
   public void testAnyOfArray() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");
@@ -641,7 +641,7 @@ public class PromiseTest {
   public void testAnyOfImmediatelyReady() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               trace.add("root begin");

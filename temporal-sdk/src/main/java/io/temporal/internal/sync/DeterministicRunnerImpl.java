@@ -38,7 +38,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -73,7 +72,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
   private final Lock lock = new ReentrantLock();
   private final Runnable rootRunnable;
-  private final ExecutorService threadPool;
+  private final WorkflowThreadExecutor workflowThreadExecutor;
   private final SyncWorkflowContext workflowContext;
   private final WorkflowExecutorCache cache;
   private boolean inRunUntilAllBlocked;
@@ -129,16 +128,18 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private final CancellationScopeImpl runnerCancellationScope;
 
   DeterministicRunnerImpl(
-      ExecutorService threadPool, @Nonnull SyncWorkflowContext workflowContext, Runnable root) {
-    this(threadPool, workflowContext, root, null);
+      WorkflowThreadExecutor workflowThreadExecutor,
+      @Nonnull SyncWorkflowContext workflowContext,
+      Runnable root) {
+    this(workflowThreadExecutor, workflowContext, root, null);
   }
 
   DeterministicRunnerImpl(
-      ExecutorService threadPool,
+      WorkflowThreadExecutor workflowThreadExecutor,
       @Nonnull SyncWorkflowContext workflowContext,
       Runnable root,
       WorkflowExecutorCache cache) {
-    this.threadPool = threadPool;
+    this.workflowThreadExecutor = workflowThreadExecutor;
     if (workflowContext == null) {
       throw new NullPointerException("workflowContext can't be null");
     }
@@ -380,7 +381,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
     rootWorkflowThread =
         new WorkflowThreadImpl(
-            threadPool,
+            workflowThreadExecutor,
             this,
             name,
             ROOT_THREAD_PRIORITY,
@@ -408,7 +409,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     checkClosed();
     WorkflowThread result =
         new WorkflowThreadImpl(
-            threadPool,
+            workflowThreadExecutor,
             this,
             name,
             WORKFLOW_THREAD_PRIORITY + (addedThreads++),
@@ -430,7 +431,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
     WorkflowThread result =
         new WorkflowThreadImpl(
-            threadPool,
+            workflowThreadExecutor,
             this,
             name,
             CALLBACK_THREAD_PRIORITY

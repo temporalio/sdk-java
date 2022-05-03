@@ -20,7 +20,6 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.RateLimiter;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.context.ContextThreadLocal;
@@ -28,7 +27,6 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.workflow.WorkflowMethodThreadNameStrategy;
-import io.temporal.worker.MetricsType;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import java.io.PrintWriter;
@@ -38,10 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -50,8 +46,6 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 class WorkflowThreadImpl implements WorkflowThread {
-  private static final RateLimiter metricsRateLimiter = RateLimiter.create(1);
-
   /**
    * Runnable passed to the thread that wraps a runnable passed to the WorkflowThreadImpl
    * constructor.
@@ -157,7 +151,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowThreadImpl.class);
 
-  private final ExecutorService threadPool;
+  private final WorkflowThreadExecutor workflowThreadExecutor;
   private final WorkflowThreadContext context;
   private final WorkflowExecutorCache cache;
   private final DeterministicRunnerImpl runner;
@@ -167,7 +161,7 @@ class WorkflowThreadImpl implements WorkflowThread {
   private final Map<WorkflowThreadLocalInternal<?>, Object> threadLocalMap = new HashMap<>();
 
   WorkflowThreadImpl(
-      ExecutorService threadPool,
+      WorkflowThreadExecutor workflowThreadExecutor,
       DeterministicRunnerImpl runner,
       @Nonnull String name,
       int priority,
@@ -178,7 +172,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       List<ContextPropagator> contextPropagators,
       Map<String, Object> propagatedContexts) {
     Preconditions.checkNotNull(name, "Thread name shouldn't be null");
-    this.threadPool = threadPool;
+    this.workflowThreadExecutor = workflowThreadExecutor;
     this.runner = runner;
     this.context = new WorkflowThreadContext(runner.getLock());
     this.cache = cache;
@@ -237,16 +231,9 @@ class WorkflowThreadImpl implements WorkflowThread {
     }
     context.setStatus(Status.RUNNING);
 
-    if (metricsRateLimiter.tryAcquire(1)) {
-      getWorkflowContext()
-          .getMetricsScope()
-          .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
-          .update(((ThreadPoolExecutor) threadPool).getActiveCount());
-    }
-
     while (true) {
       try {
-        taskFuture = threadPool.submit(task);
+        taskFuture = workflowThreadExecutor.submit(task);
         return;
       } catch (RejectedExecutionException e) {
         if (cache != null) {
