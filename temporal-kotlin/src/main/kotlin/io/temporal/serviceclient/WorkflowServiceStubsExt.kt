@@ -23,6 +23,7 @@ import io.temporal.kotlin.TemporalDsl
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.toJavaDuration
+import java.time.Duration as JavaDuration
 
 /**
  * Create gRPC connection stubs using default options.
@@ -73,10 +74,39 @@ inline fun LazyWorkflowServiceStubs(
  *
  * @see WorkflowServiceStubs.newConnectedServiceStubs
  */
-@OptIn(ExperimentalTime::class)
+@ExperimentalTime
+@Deprecated(
+  "Use ConnectedWorkflowServiceStubs(timeout, options)",
+  ReplaceWith("ConnectedWorkflowServiceStubs(timeout, options)")
+)
 inline fun ConnectedWorkflowServiceStubs(
   options: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit,
   timeout: Duration
 ): WorkflowServiceStubs {
-  return WorkflowServiceStubs.newConnectedServiceStubs(WorkflowServiceStubsOptions(options), timeout.toJavaDuration())
+  return ConnectedWorkflowServiceStubs(timeout, options)
+}
+
+/**
+ * Create WorkflowService gRPC stubs using provided [options].
+ *
+ * @see WorkflowServiceStubs.newConnectedServiceStubs
+ */
+@ExperimentalTime
+inline fun ConnectedWorkflowServiceStubs(
+  timeout: Duration,
+  options: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit,
+): WorkflowServiceStubs {
+  return ConnectedWorkflowServiceStubs(timeout.toJavaDuration(), options)
+}
+
+/**
+ * Create WorkflowService gRPC stubs using provided [options].
+ *
+ * @see WorkflowServiceStubs.newConnectedServiceStubs
+ */
+inline fun ConnectedWorkflowServiceStubs(
+  timeout: JavaDuration? = null,
+  options: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit,
+): WorkflowServiceStubs {
+  return WorkflowServiceStubs.newConnectedServiceStubs(WorkflowServiceStubsOptions(options), timeout)
 }
