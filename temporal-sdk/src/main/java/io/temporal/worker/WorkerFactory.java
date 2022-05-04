@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
 import java.util.HashMap;
@@ -65,6 +66,7 @@ public final class WorkerFactory {
   private final UUID id =
       UUID.randomUUID(); // Guarantee uniqueness for stickyTaskQueueName when multiple factories
   private final ThreadPoolExecutor workflowThreadPool;
+  private final WorkflowThreadExecutor workflowThreadExecutor;
   private final AtomicInteger workflowThreadCounter = new AtomicInteger();
   private final WorkerFactoryOptions factoryOptions;
 
@@ -89,22 +91,24 @@ public final class WorkerFactory {
     this.factoryOptions =
         WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
 
-    workflowThreadPool =
+    this.metricsScope =
+        this.workflowClient
+            .getWorkflowServiceStubs()
+            .getOptions()
+            .getMetricsScope()
+            .tagged(MetricsTag.defaultTags(workflowClient.getOptions().getNamespace()));
+
+    this.workflowThreadPool =
         new ThreadPoolExecutor(
             0,
             this.factoryOptions.getMaxWorkflowThreadCount(),
             1,
             TimeUnit.SECONDS,
             new SynchronousQueue<>());
-    workflowThreadPool.setThreadFactory(
+    this.workflowThreadPool.setThreadFactory(
         r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
-
-    metricsScope =
-        this.workflowClient
-            .getWorkflowServiceStubs()
-            .getOptions()
-            .getMetricsScope()
-            .tagged(MetricsTag.defaultTags(workflowClient.getOptions().getNamespace()));
+    this.workflowThreadExecutor =
+        newWorkflowThreadExecutor(this.workflowThreadPool, this.metricsScope);
 
     this.cache =
         new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
@@ -179,7 +183,7 @@ public final class WorkerFactory {
               metricsScope,
               cache,
               getStickyTaskQueueName(),
-              workflowThreadPool,
+              workflowThreadExecutor,
               workflowClient.getOptions().getContextPropagators());
       workers.put(taskQueue, worker);
       return worker;
@@ -391,6 +395,24 @@ public final class WorkerFactory {
   public String toString() {
     return String.format(
         "WorkerFactory{identity=%s, uniqueId=%s}", workflowClient.getOptions().getIdentity(), id);
+  }
+
+  private static WorkflowThreadExecutor newWorkflowThreadExecutor(
+      ThreadPoolExecutor workflowThreadPool, Scope metricsScope) {
+    return r ->
+        workflowThreadPool.submit(
+            () -> {
+              metricsScope
+                  .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
+                  .update(workflowThreadPool.getActiveCount());
+              try {
+                r.run();
+              } finally {
+                metricsScope
+                    .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
+                    .update(workflowThreadPool.getActiveCount() - 1);
+              }
+            });
   }
 
   enum State {

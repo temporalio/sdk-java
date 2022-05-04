@@ -39,7 +39,6 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +52,7 @@ class SyncWorkflow implements ReplayWorkflow {
 
   private final DataConverter dataConverter;
   private final List<ContextPropagator> contextPropagators;
-  private final ExecutorService threadPool;
+  private final WorkflowThreadExecutor workflowThreadExecutor;
   private final SyncWorkflowDefinition workflow;
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkflowExecutorCache cache;
@@ -67,7 +66,7 @@ class SyncWorkflow implements ReplayWorkflow {
       SyncWorkflowDefinition workflow,
       WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
-      ExecutorService threadPool,
+      WorkflowThreadExecutor workflowThreadExecutor,
       WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators,
       long defaultDeadlockDetectionTimeout) {
@@ -77,7 +76,7 @@ class SyncWorkflow implements ReplayWorkflow {
             ? WorkflowImplementationOptions.newBuilder().build()
             : workflowImplementationOptions;
     this.dataConverter = Objects.requireNonNull(dataConverter);
-    this.threadPool = Objects.requireNonNull(threadPool);
+    this.workflowThreadExecutor = Objects.requireNonNull(workflowThreadExecutor);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
@@ -129,7 +128,7 @@ class SyncWorkflow implements ReplayWorkflow {
     // 3. main workflow method
     runner =
         DeterministicRunner.newRunner(
-            threadPool,
+            workflowThreadExecutor,
             syncContext,
             () -> {
               workflow.initialize();

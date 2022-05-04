@@ -51,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,17 +77,17 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   /** If present then it is called for any unknown workflow type. */
   private Functions.Func<? extends DynamicWorkflow> dynamicWorkflowImplementationFactory;
 
-  private final ExecutorService threadPool;
+  private final WorkflowThreadExecutor workflowThreadExecutor;
   private final WorkflowExecutorCache cache;
 
   POJOWorkflowImplementationFactory(
       SingleWorkerOptions singleWorkerOptions,
-      ExecutorService threadPool,
+      WorkflowThreadExecutor workflowThreadExecutor,
       WorkerInterceptor[] workerInterceptors,
       WorkflowExecutorCache cache) {
     Objects.requireNonNull(singleWorkerOptions);
     this.dataConverter = singleWorkerOptions.getDataConverter();
-    this.threadPool = Objects.requireNonNull(threadPool);
+    this.workflowThreadExecutor = Objects.requireNonNull(workflowThreadExecutor);
     this.workerInterceptors = Objects.requireNonNull(workerInterceptors);
     this.cache = cache;
     this.contextPropagators = singleWorkerOptions.getContextPropagators();
@@ -235,7 +234,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         workflow,
         options,
         dataConverter,
-        threadPool,
+        workflowThreadExecutor,
         cache,
         contextPropagators,
         defaultDeadlockDetectionTimeout);

@@ -34,6 +34,7 @@ import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.sync.SyncActivityWorker;
 import io.temporal.internal.sync.SyncWorkflowWorker;
 import io.temporal.internal.sync.WorkflowInternal;
+import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.ShutdownManager;
 import io.temporal.internal.worker.SingleWorkerOptions;
@@ -46,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -71,7 +71,7 @@ public final class Worker implements Suspendable {
    *     activity task queue polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
    * @param stickyTaskQueueName
-   * @param workflowThreadPool thread pool to be used for workflow method threads
+   * @param workflowThreadExecutor workflow methods thread executor
    */
   Worker(
       WorkflowClient client,
@@ -81,7 +81,7 @@ public final class Worker implements Suspendable {
       Scope metricsScope,
       WorkflowExecutorCache cache,
       String stickyTaskQueueName,
-      ThreadPoolExecutor workflowThreadPool,
+      WorkflowThreadExecutor workflowThreadExecutor,
       List<ContextPropagator> contextPropagators) {
 
     Objects.requireNonNull(client, "client should not be null");
@@ -134,7 +134,7 @@ public final class Worker implements Suspendable {
             cache,
             stickyTaskQueueName,
             factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeout(),
-            workflowThreadPool);
+            workflowThreadExecutor);
   }
 
   private static SingleWorkerOptions toActivityOptions(

@@ -57,7 +57,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testTakeBlocking() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -98,7 +98,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testTakeCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -133,7 +133,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testCancellableTakeCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -296,7 +296,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testPutCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -332,7 +332,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testCancellablePutCanceled() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
@@ -368,7 +368,7 @@ public class WorkflowInternalDeprecatedQueueTest {
   public void testMap() {
     DeterministicRunner r =
         DeterministicRunner.newRunner(
-            threadPool,
+            threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
             () -> {
               WorkflowQueue<Integer> queue = WorkflowInternal.newQueue(1);

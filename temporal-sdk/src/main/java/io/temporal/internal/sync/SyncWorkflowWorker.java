@@ -79,9 +79,7 @@ public class SyncWorkflowWorker
       WorkflowExecutorCache cache,
       String stickyTaskQueueName,
       Duration stickyWorkflowTaskScheduleToStartTimeout,
-      ThreadPoolExecutor workflowThreadPool) {
-    Objects.requireNonNull(workflowThreadPool);
-
+      WorkflowThreadExecutor workflowThreadExecutor) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -90,7 +88,10 @@ public class SyncWorkflowWorker
 
     factory =
         new POJOWorkflowImplementationFactory(
-            singleWorkerOptions, workflowThreadPool, workerInterceptors, cache);
+            singleWorkerOptions,
+            Objects.requireNonNull(workflowThreadExecutor),
+            workerInterceptors,
+            cache);
 
     ActivityExecutionContextFactory laActivityExecutionContextFactory =
         new LocalActivityExecutionContextFactoryImpl();

@@ -187,7 +187,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         ActivityInvocationHandler.newInstance(
             activityInterface, options, null, new TestActivityExecutor());
     invocationHandler =
-        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -203,7 +203,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         ActivityInvocationHandler.newInstance(
             activityInterface, options, null, new TestActivityExecutor());
     invocationHandler =
-        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -223,7 +223,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         LocalActivityInvocationHandler.newInstance(
             activityInterface, options, activityMethodOptions, new TestActivityExecutor());
     invocationHandler =
-        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor);
+        new DeterministicRunnerWrapper(invocationHandler, deterministicRunnerExecutor::submit);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
