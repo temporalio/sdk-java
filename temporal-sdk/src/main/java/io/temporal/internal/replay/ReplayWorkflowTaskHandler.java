@@ -99,7 +99,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
   private Result handleWorkflowTaskWithQuery(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
-    boolean legacyQuery = workflowTask.hasQuery();
+    boolean directQuery = workflowTask.hasQuery();
     AtomicBoolean createdNew = new AtomicBoolean();
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
     WorkflowRunTaskHandler workflowRunTaskHandler = null;
@@ -112,11 +112,17 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       boolean finalCommand;
       Result result;
 
-      if (legacyQuery) {
+      if (directQuery) {
+        // Direct query happens when there is no reason (events) to produce a real persisted
+        // workflow task.
+        // But Server needs to notify the workflow about the query and get back the query result.
+        // Server creates a fake non-persisted a PollWorkflowTaskResponse with just the query.
+        // This WFT has no new events in the history to process
+        // and the worker response on such a WFT can't contain any new commands either.
         QueryResult queryResult =
             workflowRunTaskHandler.handleQueryWorkflowTask(workflowTask, workflowTask.getQuery());
         finalCommand = queryResult.isWorkflowMethodCompleted();
-        result = createLegacyQueryResult(workflowTask, queryResult, null);
+        result = createDirectQueryResult(workflowTask, queryResult, null);
       } else {
         // main code path, handle workflow task that can have an embedded query
         WorkflowTaskResult wftResult = workflowRunTaskHandler.handleWorkflowTask(workflowTask);
@@ -146,15 +152,15 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
       if (useCache) {
         cache.invalidate(execution, metricsScope, "Exception", e);
-        // If history if full and exception occurred then sticky session hasn't been established
-        // yet and we can avoid doing a reset.
+        // If history is full and exception occurred then sticky session hasn't been established
+        // yet, and we can avoid doing a reset.
         if (!isFullHistory(workflowTask)) {
           resetStickyTaskQueue(execution);
         }
       }
 
-      if (legacyQuery) {
-        return createLegacyQueryResult(workflowTask, null, e);
+      if (directQuery) {
+        return createDirectQueryResult(workflowTask, null, e);
       } else {
         // this call rethrows an exception in some scenarios
         return failureToWFTResult(workflowTask, e);
@@ -278,7 +284,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         workflowType, null, failedRequest.build(), null, null, false);
   }
 
-  private Result createLegacyQueryResult(
+  private Result createDirectQueryResult(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, QueryResult queryResult, Throwable e) {
     RespondQueryTaskCompletedRequest.Builder queryCompletedRequest =
         RespondQueryTaskCompletedRequest.newBuilder()

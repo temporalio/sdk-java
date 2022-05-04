@@ -67,21 +67,36 @@ public final class WorkflowStateMachines {
   /**
    * EventId of the WorkflowTaskStarted event of the Workflow Task that was picked up by a worker
    * and triggered a current replay or execution. It's expected to be the last event in the history
-   * unless we are replaying from a JSON file.
+   * if we continue to execute the workflow.
+   *
+   * <p>For direct (legacy) queries, it may be:
+   *
+   * <ul>
+   *   <li>0 if it's query a closed workflow execution
+   *   <li>id of the last successfully completed Workflow Task if the workflow is not closed
+   * </ul>
+   *
+   * <p>Set from the "outside" from the PollWorkflowTaskQueueResponse. Not modified by the SDK state
+   * machines.
    */
   private long workflowTaskStartedEventId;
 
   /**
-   * EventId of the started event of the last successfully executed workflow task in the history.
+   * EventId of the WorkflowTaskStarted event of the last successfully executed Workflow Task in the
+   * history. This variable plays a critical role in state machines understanding if it replays code
+   * for an existing history, or it executes it first time and produces new commands.
+   *
+   * <p>Set from the "outside" of state machines from the PollWorkflowTaskQueueResponse. Not
+   * modified by the SDK state machines.
    */
   private long previousStartedEventId;
 
-  /** EventId of the last WorkflowTaskStartedEvent handled by these state machines. */
+  /** EventId of the last WorkflowTaskStarted event handled by these state machines. */
   private long currentStartedEventId;
 
   /**
    * EventId of the last event seen by these state machines. Events earlier than this one will be
-   * discarded
+   * discarded.
    */
   private long lastHandledEventId;
 
@@ -1038,7 +1053,7 @@ public final class WorkflowStateMachines {
 
   private String createShortCurrentStateMessagePostfix() {
     return String.format(
-        "{PreviousStartedEventId=%s, workflowTaskStartedEventId=%s, Currently Processing StartedEventId=%s}",
-        this.getLastStartedEventId(), this.workflowTaskStartedEventId, this.currentStartedEventId);
+        "{PreviousStartedEventId=%s, WorkflowTaskStartedEventId=%s, CurrentStartedEventId=%s}",
+        this.previousStartedEventId, this.workflowTaskStartedEventId, this.currentStartedEventId);
   }
 }

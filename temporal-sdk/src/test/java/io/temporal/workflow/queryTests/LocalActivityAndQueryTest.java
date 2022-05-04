@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow.activityTests;
+package io.temporal.workflow.queryTests;
 
 import static org.junit.Assert.assertEquals;
 
@@ -42,7 +42,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -74,25 +73,19 @@ public class LocalActivityAndQueryTest {
 
     // Ensure that query doesn't see intermediate results of the local activities execution
     // as all these activities are executed in a single workflow task.
-    while (true) {
-      String queryResult = workflowStub.query();
-      Assert.assertTrue(queryResult, queryResult.equals("run4"));
-      List<ForkJoinTask<String>> tasks = new ArrayList<ForkJoinTask<String>>();
-      int threads = 30;
-      if (queryResult.equals("run4")) {
-        for (int i = 0; i < threads; i++) {
-          ForkJoinTask<String> task = ForkJoinPool.commonPool().submit(() -> workflowStub.query());
-          tasks.add(task);
-        }
-        for (int i = 0; i < threads; i++) {
-          assertEquals("run4", tasks.get(i).get());
-        }
-        break;
-      }
+    // Query should only see the result after executing all local activities.
+    List<ForkJoinTask<String>> tasks = new ArrayList<>();
+    int threads = 30;
+    for (int i = 0; i < threads; i++) {
+      ForkJoinTask<String> task = ForkJoinPool.commonPool().submit(workflowStub::query);
+      tasks.add(task);
+      Thread.sleep(5);
     }
-    String result = WorkflowStub.fromTyped(workflowStub).getResult(String.class);
-    assertEquals("done", result);
-    assertEquals("run4", workflowStub.query());
+    for (int i = 0; i < threads; i++) {
+      assertEquals("run4", tasks.get(i).get());
+    }
+
+    assertEquals("done", WorkflowStub.fromTyped(workflowStub).getResult(String.class));
     activitiesImpl.assertInvocations(
         "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity");
     HistoryEvent marker =

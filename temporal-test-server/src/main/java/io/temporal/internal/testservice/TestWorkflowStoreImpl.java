@@ -339,11 +339,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED) {
           if (!iterator.hasNext()
               || iterator.peek().getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
-            previousStaredEventId = startedEventId;
-            startedEventId = event.getEventId();
+            previousStaredEventId = event.getEventId();
+            startedEventId = previousStaredEventId;
           }
         } else if (WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
-          previousStaredEventId = startedEventId;
           startedEventId = 0;
           if (iterator.hasNext()) {
             throw Status.INTERNAL
@@ -353,6 +352,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         }
       }
       task.setPreviousStartedEventId(previousStaredEventId);
+      // it's not a real workflow task and the server sends 0 for startedEventId for such a workflow
+      // task
       task.setStartedEventId(startedEventId);
       if (taskQueue.getTaskQueueName().equals(task.getWorkflowExecutionTaskQueue().getName())) {
         history.addAllEvents(events);

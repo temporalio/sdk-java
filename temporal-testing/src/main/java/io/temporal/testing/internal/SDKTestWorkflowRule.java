@@ -39,19 +39,20 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.worker.WorkerOptions;
-import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.worker.*;
 import io.temporal.workflow.Functions;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -75,6 +76,8 @@ public class SDKTestWorkflowRule implements TestRule {
   private static final Logger log = LoggerFactory.getLogger(SDKTestWorkflowRule.class);
 
   private static final long DEFAULT_TEST_TIMEOUT_SECONDS = 10;
+
+  private static final long BUSY_WAIT_SLEEP_MS = 100;
 
   public static final String NAMESPACE = "UnitTest";
   public static final String UUID_REGEXP =
@@ -183,6 +186,11 @@ public class SDKTestWorkflowRule implements TestRule {
     /** Global test timeout. Default is 10 seconds. */
     public Builder setTestTimeoutSeconds(long testTimeoutSeconds) {
       this.testTimeoutSeconds = testTimeoutSeconds;
+      return this;
+    }
+
+    public Builder setInitialTimeMillis(long initialTimeMillis) {
+      testWorkflowRuleBuilder.setInitialTimeMillis(initialTimeMillis);
       return this;
     }
 
@@ -299,6 +307,31 @@ public class SDKTestWorkflowRule implements TestRule {
     }
   }
 
+  /** Waits till the end of the workflow task if there is a workflow task in progress */
+  public void waitForTheEndOfWFT(WorkflowExecution execution) {
+    WorkflowExecutionHistory initialHistory = getExecutionHistory(execution);
+
+    HistoryEvent lastEvent = initialHistory.getLastEvent();
+    if (isWFTInProgress(lastEvent)) {
+      // wait for completion of a workflow task in progress
+      long startEventId = lastEvent.getEventId();
+      while (true) {
+        History history = getHistory(execution);
+        ListIterator<HistoryEvent> historyEventListIterator =
+            history.getEventsList().listIterator(history.getEventsList().size());
+        HistoryEvent previous;
+        for (previous = historyEventListIterator.previous();
+            historyEventListIterator.hasPrevious() && previous.getEventId() > startEventId;
+            previous = historyEventListIterator.previous()) {
+          if (!isWFTInProgress(historyEventListIterator.previous())) {
+            return;
+          }
+        }
+        busyWaitSleep();
+      }
+    }
+  }
+
   public WorkflowClient getWorkflowClient() {
     return testWorkflowRule.getWorkflowClient();
   }
@@ -341,13 +374,20 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /** Used to ensure that workflow first workflow task is executed. */
-  public static void waitForOKQuery(WorkflowStub stub) {
+  public static void waitForOKQuery(Object anyStub) {
+    WorkflowStub untypedStub;
+    if (anyStub instanceof WorkflowStub) {
+      untypedStub = (WorkflowStub) anyStub;
+    } else {
+      untypedStub = WorkflowStub.fromTyped(anyStub);
+    }
     while (true) {
       try {
-        String stackTrace = stub.query(QUERY_TYPE_STACK_TRACE, String.class);
+        String stackTrace = untypedStub.query(QUERY_TYPE_STACK_TRACE, String.class);
         if (!stackTrace.isEmpty()) {
           break;
         }
+        busyWaitSleep();
       } catch (WorkflowQueryException e) {
         // Ignore
       }
@@ -420,6 +460,44 @@ public class SDKTestWorkflowRule implements TestRule {
       }
     } else {
       testWorkflowRule.getTestEnvironment().sleep(d);
+    }
+  }
+
+  /** Causes eviction of all workflows in the worker cache */
+  // TODO replace the horrible reflection implementation with a normal protected access by hiding
+  //  WorkerFactory under an interface.
+  public void invalidateWorkflowCache() {
+    WorkerFactory workerFactory = testWorkflowRule.getTestEnvironment().getWorkerFactory();
+    try {
+      Method getCache = WorkerFactory.class.getDeclaredMethod("getCache");
+      getCache.setAccessible(true);
+      WorkflowExecutorCache cache = (WorkflowExecutorCache) getCache.invoke(workerFactory);
+      cache.invalidateAll();
+      while (cache.size() > 0) {
+        busyWaitSleep();
+      }
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static boolean isWFTInProgress(HistoryEvent event) {
+    EventType eventType = event.getEventType();
+    switch (eventType) {
+      case EVENT_TYPE_WORKFLOW_TASK_STARTED:
+      case EVENT_TYPE_WORKFLOW_TASK_SCHEDULED:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private static void busyWaitSleep() {
+    try {
+      Thread.sleep(BUSY_WAIT_SLEEP_MS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
     }
   }
 }
