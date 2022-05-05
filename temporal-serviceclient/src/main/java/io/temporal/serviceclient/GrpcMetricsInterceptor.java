@@ -36,20 +36,21 @@ import io.grpc.MethodDescriptor;
 import io.grpc.ServiceDescriptor;
 import io.grpc.Status;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /** Reports metrics on GRPC service calls */
 class GrpcMetricsInterceptor implements ClientInterceptor {
+  private static final Map<Status.Code, Map<String, String>> STATUS_CODE_TAGS;
 
   private final Scope defaultScope;
-  private final Map<MethodDescriptor<?, ?>, Map<String, String>> methodTags = new HashMap<>();
+  private final Map<MethodDescriptor<?, ?>, Map<String, String>> methodTags;
 
   GrpcMetricsInterceptor(Scope scope) {
     this.defaultScope = scope.tagged(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
     ServiceDescriptor descriptor = WorkflowServiceGrpc.getServiceDescriptor();
     String serviceName = descriptor.getName();
+
+    Map<MethodDescriptor<?, ?>, Map<String, String>> methodTags = new HashMap<>();
     Collection<MethodDescriptor<?, ?>> methods = descriptor.getMethods();
     for (MethodDescriptor<?, ?> method : methods) {
       int beginIndex = serviceName.length() + 1;
@@ -58,6 +59,7 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
           new ImmutableMap.Builder<String, String>(1).put(OPERATION_NAME, name).build();
       methodTags.put(method, tags);
     }
+    this.methodTags = Collections.unmodifiableMap(methodTags);
   }
 
   @Override
@@ -78,7 +80,7 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
     private final Stopwatch sw;
     private final boolean longPoll;
 
-    public MetricsClientCall(
+    MetricsClientCall(
         Channel next,
         MethodDescriptor<ReqT, RespT> method,
         CallOptions callOptions,
@@ -107,25 +109,40 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
               responseListener) {
             @Override
             public void onClose(Status status, Metadata trailers) {
-              if (!status.isOk()) {
-                Status.Code code = status.getCode();
-                Scope scope =
-                    metricsScope.tagged(
-                        new ImmutableMap.Builder<String, String>(1)
-                            .put(STATUS_CODE, String.valueOf(code))
-                            .build());
-                if (longPoll) {
-                  scope.counter(MetricsType.TEMPORAL_LONG_REQUEST_FAILURE).inc(1);
-                } else {
-                  scope.counter(MetricsType.TEMPORAL_REQUEST_FAILURE).inc(1);
+              try {
+                // This method SHOULDN'T throw according to it's javadoc,
+                // but we allow users setting custom interceptors.
+                // So we protect from an incorrectly implemented custom user gRPC interceptor
+                // by putting temporal metrics code into finally block
+                super.onClose(status, trailers);
+              } finally {
+                sw.stop();
+                if (!status.isOk()) {
+                  Scope scope = metricsScope.tagged(STATUS_CODE_TAGS.get(status.getCode()));
+                  if (longPoll) {
+                    scope.counter(MetricsType.TEMPORAL_LONG_REQUEST_FAILURE).inc(1);
+                  } else {
+                    scope.counter(MetricsType.TEMPORAL_REQUEST_FAILURE).inc(1);
+                  }
                 }
               }
-              super.onClose(status, trailers);
-              sw.stop();
             }
           };
 
       super.start(listener, headers);
     }
+  }
+
+  static {
+    Map<Status.Code, Map<String, String>> codeTags = new EnumMap<>(Status.Code.class);
+    Arrays.stream(Status.Code.values())
+        .forEach(
+            code ->
+                codeTags.put(
+                    code,
+                    new ImmutableMap.Builder<String, String>(1)
+                        .put(STATUS_CODE, code.name())
+                        .build()));
+    STATUS_CODE_TAGS = Collections.unmodifiableMap(codeTags);
   }
 }

@@ -74,7 +74,7 @@ public class PotentialDeadlockException extends RuntimeException {
     return super.getMessage()
         + " {"
         + ("detectionTimestamp=" + detectionTimestamp)
-        + ("threadDumpTimestamp=" + threadDumpTimestamp)
+        + (", threadDumpTimestamp=" + threadDumpTimestamp)
         + "} \n\n"
         + triggerThreadStackTrace
         + (!otherThreadsDump.isEmpty()
