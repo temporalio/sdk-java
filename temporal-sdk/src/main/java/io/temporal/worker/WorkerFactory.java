@@ -352,6 +352,8 @@ public final class WorkerFactory {
     log.info("awaitTermination done: {}", this);
   }
 
+  // TODO we should hide an actual implementation of WorkerFactory under WorkerFactory interface and
+  // expose this method on the implementation only
   @VisibleForTesting
   WorkflowExecutorCache getCache() {
     return this.cache;

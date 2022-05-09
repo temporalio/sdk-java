@@ -31,7 +31,6 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.common.converter.DataConverterException;
 import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * Provides a wrapper with convenience methods over raw protobuf {@link History} object representing
@@ -123,7 +122,6 @@ public final class WorkflowExecutionHistory {
     return history.getEventsList();
   }
 
-  @Nullable
   public HistoryEvent getLastEvent() {
     int eventsCount = history.getEventsCount();
     return eventsCount > 0 ? history.getEvents(eventsCount - 1) : null;
