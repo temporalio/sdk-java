@@ -819,7 +819,8 @@ public final class WorkflowStateMachines {
             },
             localActivityRequestSink,
             commandSink,
-            stateMachineSink);
+            stateMachineSink,
+            currentTimeMillis);
     localActivityMap.put(activityId, commands);
     return commands::cancel;
   }

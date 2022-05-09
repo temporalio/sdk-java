@@ -41,6 +41,7 @@ import io.temporal.workflow.Functions;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 final class LocalActivityStateMachine
     extends EntityStateMachineInitialCommand<
@@ -67,12 +68,21 @@ final class LocalActivityStateMachine
   /** Accepts proposed current time. Returns accepted current time. */
   private final Functions.Func1<Long, Long> setCurrentTimeCallback;
 
-  private Failure failure;
-  private ActivityTaskHandler.Result result;
-  private Optional<Payloads> laResult;
   private final boolean hasRetryPolicy;
   private final String activityId;
   private final ActivityType activityType;
+
+  /** Workflow timestamp when the LA state machine is initialized */
+  private final long workflowTimeMillisWhenStarted;
+  /**
+   * System.nanoTime result at the moment of LA state machine initialization. May be used to
+   * calculate elapsed time
+   */
+  private final long systemNanoTimeWhenStarted;
+
+  private Failure failure;
+  private ActivityTaskHandler.Result result;
+  private Optional<Payloads> laResult;
 
   /**
    * Creates new local activity marker
@@ -88,7 +98,8 @@ final class LocalActivityStateMachine
       Functions.Proc2<Optional<Payloads>, Failure> callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
       Functions.Proc1<CancellableCommand> commandSink,
-      Functions.Proc1<StateMachine> stateMachineSink) {
+      Functions.Proc1<StateMachine> stateMachineSink,
+      long workflowTimeMillisWhenStarted) {
     return new LocalActivityStateMachine(
         replaying,
         setCurrentTimeCallback,
@@ -96,7 +107,9 @@ final class LocalActivityStateMachine
         callback,
         localActivityRequestSink,
         commandSink,
-        stateMachineSink);
+        stateMachineSink,
+        workflowTimeMillisWhenStarted,
+        System.nanoTime());
   }
 
   private LocalActivityStateMachine(
@@ -106,7 +119,9 @@ final class LocalActivityStateMachine
       Functions.Proc2<Optional<Payloads>, Failure> callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
       Functions.Proc1<CancellableCommand> commandSink,
-      Functions.Proc1<StateMachine> stateMachineSink) {
+      Functions.Proc1<StateMachine> stateMachineSink,
+      long workflowTimeMillisWhenStarted,
+      long systemNanoTimeWhenStarted) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.replaying = replaying;
     this.setCurrentTimeCallback = setCurrentTimeCallback;
@@ -117,6 +132,8 @@ final class LocalActivityStateMachine
     this.activityType = activityTask.getActivityType();
     this.localActivityRequestSink = localActivityRequestSink;
     this.callback = callback;
+    this.workflowTimeMillisWhenStarted = workflowTimeMillisWhenStarted;
+    this.systemNanoTimeWhenStarted = systemNanoTimeWhenStarted;
     explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -239,10 +256,14 @@ final class LocalActivityStateMachine
       details.put(MARKER_ACTIVITY_ID_KEY, id);
       Payloads type = dataConverter.toPayloads(activityType.getName()).get();
       details.put(MARKER_ACTIVITY_TYPE_KEY, type);
-      // TODO(maxim): Consider using elapsed since start instead of Sytem.currentTimeMillis
-      long currentTime = setCurrentTimeCallback.apply(System.currentTimeMillis());
+
+      long elapsedNanoseconds = System.nanoTime() - systemNanoTimeWhenStarted;
+      long currentTime =
+          setCurrentTimeCallback.apply(
+              workflowTimeMillisWhenStarted + TimeUnit.NANOSECONDS.toMillis(elapsedNanoseconds));
       Payloads t = dataConverter.toPayloads(currentTime).get();
       details.put(MARKER_TIME_KEY, t);
+
       if (localActivityParameters != null
           && !localActivityParameters.isDoNotIncludeArgumentsIntoMarker()) {
         details.put(
