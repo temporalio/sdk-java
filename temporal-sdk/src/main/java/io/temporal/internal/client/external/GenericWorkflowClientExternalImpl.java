@@ -23,7 +23,6 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
@@ -34,33 +33,20 @@ import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
-import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 
 public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
 
-  private final String namespace;
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
-  private final String identity;
 
-  public GenericWorkflowClientExternalImpl(
-      WorkflowServiceStubs service, String namespace, String identity, Scope metricsScope) {
+  public GenericWorkflowClientExternalImpl(WorkflowServiceStubs service, Scope metricsScope) {
     this.service = service;
-    this.namespace = namespace;
-    this.identity = identity;
     this.metricsScope = metricsScope;
-  }
-
-  @Override
-  public String getNamespace() {
-    return namespace;
   }
 
   @Override
@@ -111,49 +97,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public WorkflowExecution signalWithStart(SignalWithStartWorkflowExecutionParameters parameters) {
-    StartWorkflowExecutionRequest startParameters = parameters.getStartParameters();
-
-    SignalWithStartWorkflowExecutionRequest.Builder request =
-        SignalWithStartWorkflowExecutionRequest.newBuilder()
-            .setNamespace(namespace)
-            .setRequestId(generateUniqueId())
-            .setIdentity(identity)
-            .setSignalName(parameters.getSignalName())
-            .setWorkflowRunTimeout(startParameters.getWorkflowRunTimeout())
-            .setWorkflowExecutionTimeout(startParameters.getWorkflowExecutionTimeout())
-            .setWorkflowTaskTimeout(startParameters.getWorkflowTaskTimeout())
-            .setWorkflowType(startParameters.getWorkflowType())
-            .setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy())
-            .setCronSchedule(startParameters.getCronSchedule());
-
-    Optional<Payloads> signalInput = parameters.getSignalInput();
-    if (signalInput.isPresent()) {
-      request.setSignalInput(signalInput.get());
-    }
-
-    if (startParameters.hasInput()) {
-      request.setInput(startParameters.getInput());
-    }
-
-    if (startParameters.hasTaskQueue()) {
-      request.setTaskQueue(startParameters.getTaskQueue());
-    }
-
-    String workflowId = startParameters.getWorkflowId();
-    if (workflowId.isEmpty()) {
-      workflowId = generateUniqueId();
-    }
-    request.setWorkflowId(workflowId);
-
-    if (startParameters.hasRetryPolicy()) {
-      request.setRetryPolicy(startParameters.getRetryPolicy());
-    }
-
-    if (startParameters.hasHeader()) {
-      request.setHeader(startParameters.getHeader());
-    }
-
+  public WorkflowExecution signalWithStart(SignalWithStartWorkflowExecutionRequest request) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.WORKFLOW_TYPE, request.getWorkflowType().getName())
@@ -171,7 +115,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
-                    .signalWithStartWorkflowExecution(request.build()));
+                    .signalWithStartWorkflowExecution(request));
     return WorkflowExecution.newBuilder()
         .setRunId(result.getRunId())
         .setWorkflowId(request.getWorkflowId())
@@ -218,10 +162,5 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .queryWorkflow(queryParameters));
-  }
-
-  @Override
-  public String generateUniqueId() {
-    return UUID.randomUUID().toString();
   }
 }

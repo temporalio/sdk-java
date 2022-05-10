@@ -30,7 +30,9 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequestOrBuilder;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
@@ -39,6 +41,8 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.*;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 final class RootWorkflowClientHelper {
   private final WorkflowClientOptions clientOptions;
@@ -47,15 +51,19 @@ final class RootWorkflowClientHelper {
     this.clientOptions = clientOptions;
   }
 
-  StartWorkflowExecutionRequest newStartWorkflowExecutionRequest(
+  // If you add anything new here, keep newSignalWithStartWorkflowExecutionRequest in sync
+  @Nonnull
+  StartWorkflowExecutionRequest.Builder newStartWorkflowExecutionRequest(
       WorkflowClientCallsInterceptor.WorkflowStartInput input) {
     WorkflowOptions options = input.getOptions();
 
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setRequestId(generateUniqueId())
+            .setIdentity(clientOptions.getIdentity())
             .setWorkflowId(input.getWorkflowId())
             .setWorkflowType(WorkflowType.newBuilder().setName(input.getWorkflowType()))
-            .setRequestId(UUID.randomUUID().toString())
             .setWorkflowRunTimeout(
                 ProtobufTimeUtils.toProtoDuration(options.getWorkflowRunTimeout()))
             .setWorkflowExecutionTimeout(
@@ -63,34 +71,33 @@ final class RootWorkflowClientHelper {
             .setWorkflowTaskTimeout(
                 ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
 
-    if (clientOptions.getIdentity() != null) {
-      request.setIdentity(clientOptions.getIdentity());
-    }
-    if (clientOptions.getNamespace() != null) {
-      request.setNamespace(clientOptions.getNamespace());
-    }
     Optional<Payloads> inputArgs =
         clientOptions.getDataConverter().toPayloads(input.getArguments());
     inputArgs.ifPresent(request::setInput);
     if (options.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     }
+
     String taskQueue = options.getTaskQueue();
     if (taskQueue != null && !taskQueue.isEmpty()) {
       request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
     }
+
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       request.setRetryPolicy(toRetryPolicy(retryOptions));
     }
+
     if (!Strings.isNullOrEmpty(options.getCronSchedule())) {
       request.setCronSchedule(options.getCronSchedule());
     }
+
     if (options.getMemo() != null) {
       request.setMemo(
           Memo.newBuilder()
               .putAllFields(intoPayloadMap(clientOptions.getDataConverter(), options.getMemo())));
     }
+
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {
       request.setSearchAttributes(SearchAttributesUtil.encode(options.getSearchAttributes()));
     }
@@ -100,10 +107,66 @@ final class RootWorkflowClientHelper {
             input.getHeader(), extractContextsAndConvertToBytes(options.getContextPropagators()));
     request.setHeader(grpcHeader);
 
-    return request.build();
+    return request;
   }
 
-  public GetWorkflowExecutionHistoryRequest newHistoryLongPollRequest(
+  @Nonnull
+  SignalWithStartWorkflowExecutionRequest.Builder newSignalWithStartWorkflowExecutionRequest(
+      @Nonnull StartWorkflowExecutionRequestOrBuilder startParameters,
+      @Nonnull String signalName,
+      @Nullable Payloads signalInput) {
+    SignalWithStartWorkflowExecutionRequest.Builder request =
+        SignalWithStartWorkflowExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setRequestId(generateUniqueId())
+            .setIdentity(clientOptions.getIdentity())
+            .setSignalName(signalName)
+            .setWorkflowRunTimeout(startParameters.getWorkflowRunTimeout())
+            .setWorkflowExecutionTimeout(startParameters.getWorkflowExecutionTimeout())
+            .setWorkflowTaskTimeout(startParameters.getWorkflowTaskTimeout())
+            .setWorkflowType(startParameters.getWorkflowType())
+            .setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy())
+            .setCronSchedule(startParameters.getCronSchedule());
+
+    String workflowId = startParameters.getWorkflowId();
+    if (workflowId.isEmpty()) {
+      workflowId = generateUniqueId();
+    }
+    request.setWorkflowId(workflowId);
+
+    if (signalInput != null) {
+      request.setSignalInput(signalInput);
+    }
+
+    if (startParameters.hasInput()) {
+      request.setInput(startParameters.getInput());
+    }
+
+    if (startParameters.hasTaskQueue()) {
+      request.setTaskQueue(startParameters.getTaskQueue());
+    }
+
+    if (startParameters.hasRetryPolicy()) {
+      request.setRetryPolicy(startParameters.getRetryPolicy());
+    }
+
+    if (startParameters.hasMemo()) {
+      request.setMemo(startParameters.getMemo());
+    }
+
+    if (startParameters.hasSearchAttributes()) {
+      request.setSearchAttributes(startParameters.getSearchAttributes());
+    }
+
+    if (startParameters.hasHeader()) {
+      request.setHeader(startParameters.getHeader());
+    }
+
+    return request;
+  }
+
+  @Nonnull
+  GetWorkflowExecutionHistoryRequest newHistoryLongPollRequest(
       WorkflowExecution workflowExecution, ByteString pageToken) {
     return GetWorkflowExecutionHistoryRequest.newBuilder()
         .setNamespace(clientOptions.getNamespace())
@@ -132,5 +195,9 @@ final class RootWorkflowClientHelper {
       result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
     }
     return new io.temporal.common.interceptors.Header(result);
+  }
+
+  private static String generateUniqueId() {
+    return UUID.randomUUID().toString();
   }
 }

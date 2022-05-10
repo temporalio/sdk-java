@@ -31,7 +31,6 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
@@ -83,22 +82,20 @@ public final class WorkflowClientInternal implements WorkflowClient {
     options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
-    // For metrics only
-    String namespace = options.getNamespace() == null ? "default" : options.getNamespace();
-    metricsScope =
+    this.metricsScope =
         workflowServiceStubs
             .getOptions()
             .getMetricsScope()
-            .tagged(MetricsTag.defaultTags(namespace));
-    this.genericClient =
-        new GenericWorkflowClientExternalImpl(
-            workflowServiceStubs, options.getNamespace(), options.getIdentity(), metricsScope);
-    DataConverter dataConverter = options.getDataConverter();
+            .tagged(MetricsTag.defaultTags(options.getNamespace()));
+    this.genericClient = new GenericWorkflowClientExternalImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
-            workflowServiceStubs, options.getNamespace(), options.getIdentity(), dataConverter);
+            workflowServiceStubs,
+            options.getNamespace(),
+            options.getIdentity(),
+            options.getDataConverter());
   }
 
   private WorkflowClientCallsInterceptor initializeClientInvoker() {

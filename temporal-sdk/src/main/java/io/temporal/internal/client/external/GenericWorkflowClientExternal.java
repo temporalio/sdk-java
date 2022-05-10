@@ -20,13 +20,7 @@
 package io.temporal.internal.client.external;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
-import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 
 public interface GenericWorkflowClientExternal {
@@ -35,7 +29,7 @@ public interface GenericWorkflowClientExternal {
 
   void signal(SignalWorkflowExecutionRequest request);
 
-  WorkflowExecution signalWithStart(SignalWithStartWorkflowExecutionParameters parameters);
+  WorkflowExecution signalWithStart(SignalWithStartWorkflowExecutionRequest request);
 
   void requestCancel(RequestCancelWorkflowExecutionRequest parameters);
 
@@ -43,9 +37,5 @@ public interface GenericWorkflowClientExternal {
 
   void terminate(TerminateWorkflowExecutionRequest request);
 
-  String generateUniqueId();
-
   WorkflowServiceStubs getService();
-
-  String getNamespace();
 }

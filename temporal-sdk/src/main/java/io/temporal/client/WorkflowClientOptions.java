@@ -209,6 +209,11 @@ public final class WorkflowClientOptions {
     this.queryRejectCondition = queryRejectCondition;
   }
 
+  /**
+   * Should be non-null on a valid instance
+   *
+   * @return namespace
+   */
   public String getNamespace() {
     return namespace;
   }
@@ -221,6 +226,11 @@ public final class WorkflowClientOptions {
     return interceptors;
   }
 
+  /**
+   * Should be non-null on a valid instance
+   *
+   * @return identity
+   */
   public String getIdentity() {
     return identity;
   }
