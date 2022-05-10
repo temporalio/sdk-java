@@ -27,7 +27,6 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClientExternal;
-import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -51,7 +50,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public WorkflowStartOutput start(WorkflowStartInput input) {
-    StartWorkflowExecutionRequest request = requestsHelper.newStartWorkflowExecutionRequest(input);
+    StartWorkflowExecutionRequest request =
+        requestsHelper.newStartWorkflowExecutionRequest(input).build();
     return new WorkflowStartOutput(genericClient.start(request));
   }
 
@@ -60,14 +60,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     SignalWorkflowExecutionRequest.Builder request =
         SignalWorkflowExecutionRequest.newBuilder()
             .setSignalName(input.getSignalName())
-            .setWorkflowExecution(input.getWorkflowExecution());
+            .setWorkflowExecution(input.getWorkflowExecution())
+            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(clientOptions.getNamespace());
 
-    if (clientOptions.getIdentity() != null) {
-      request.setIdentity(clientOptions.getIdentity());
-    }
-    if (clientOptions.getNamespace() != null) {
-      request.setNamespace(clientOptions.getNamespace());
-    }
     Optional<Payloads> inputArgs =
         clientOptions.getDataConverter().toPayloads(input.getArguments());
     inputArgs.ifPresent(request::setInput);
@@ -77,14 +73,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public WorkflowSignalWithStartOutput signalWithStart(WorkflowSignalWithStartInput input) {
-    StartWorkflowExecutionRequest request =
+    StartWorkflowExecutionRequestOrBuilder startRequest =
         requestsHelper.newStartWorkflowExecutionRequest(input.getWorkflowStartInput());
     Optional<Payloads> signalInput =
         clientOptions.getDataConverter().toPayloads(input.getSignalArguments());
-    SignalWithStartWorkflowExecutionParameters p =
-        new SignalWithStartWorkflowExecutionParameters(request, input.getSignalName(), signalInput);
+    SignalWithStartWorkflowExecutionRequest request =
+        requestsHelper
+            .newSignalWithStartWorkflowExecutionRequest(
+                startRequest, input.getSignalName(), signalInput.orElse(null))
+            .build();
     return new WorkflowSignalWithStartOutput(
-        new WorkflowStartOutput(genericClient.signalWithStart(p)));
+        new WorkflowStartOutput(genericClient.signalWithStart(request)));
   }
 
   @Override

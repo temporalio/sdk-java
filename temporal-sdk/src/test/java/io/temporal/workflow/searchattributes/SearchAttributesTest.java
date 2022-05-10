@@ -35,6 +35,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.client.BatchRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowServiceException;
@@ -46,9 +47,8 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestMultiArgWorkflowImpl;
-import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.time.OffsetDateTime;
 import java.util.*;
 import org.junit.Rule;
@@ -84,27 +84,57 @@ public class SearchAttributesTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(
-              TestMultiArgWorkflowImpl.class, TestParentWorkflow.class, TestChild.class)
+          .setWorkflowTypes(TestWorkflowImpl.class, TestParentWorkflow.class, TestChild.class)
           .registerSearchAttribute(TEST_NEW_KEY, IndexedValueType.INDEXED_VALUE_TYPE_TEXT)
           .build();
 
   @Test
-  public void testDefaultTestSearchAttributes() {
+  public void defaultTestSearchAttributes() {
     WorkflowOptions options =
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(DEFAULT_SEARCH_ATTRIBUTES)
             .build();
 
-    TestNoArgsWorkflowFunc stubF =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
-    WorkflowExecution executionF = WorkflowClient.start(stubF::func);
+    TestSignaledWorkflow stubF =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
+    WorkflowExecution executionF = WorkflowClient.start(stubF::execute);
 
     GetWorkflowExecutionHistoryResponse historyResp =
         WorkflowClientHelper.getHistoryPage(
             testWorkflowRule.getWorkflowServiceStubs(),
             SDKTestWorkflowRule.NAMESPACE,
             executionF,
+            ByteString.EMPTY,
+            new NoopScope());
+    HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
+    SearchAttributes searchAttrFromEvent =
+        startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
+
+    Map<String, List<?>> fieldsMap = SearchAttributesUtil.decode(searchAttrFromEvent);
+    assertTrue(Maps.difference(wrapValues(DEFAULT_SEARCH_ATTRIBUTES), fieldsMap).areEqual());
+  }
+
+  @Test
+  public void defaultTestSearchAttributesSignalWithStart() {
+    WorkflowOptions options =
+        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
+            .setSearchAttributes(DEFAULT_SEARCH_ATTRIBUTES)
+            .build();
+
+    TestSignaledWorkflow stubF =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
+
+    BatchRequest batchRequest = testWorkflowRule.getWorkflowClient().newSignalWithStartRequest();
+    batchRequest.add(stubF::execute);
+    batchRequest.add(stubF::signal, "signal");
+    WorkflowExecution execution =
+        testWorkflowRule.getWorkflowClient().signalWithStart(batchRequest);
+
+    GetWorkflowExecutionHistoryResponse historyResp =
+        WorkflowClientHelper.getHistoryPage(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            SDKTestWorkflowRule.NAMESPACE,
+            execution,
             ByteString.EMPTY,
             new NoopScope());
     HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
@@ -125,9 +155,9 @@ public class SearchAttributesTest {
             .setSearchAttributes(searchAttributes)
             .build();
 
-    TestNoArgsWorkflowFunc stubF =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
-    WorkflowExecution executionF = WorkflowClient.start(stubF::func);
+    TestSignaledWorkflow stubF =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
+    WorkflowExecution executionF = WorkflowClient.start(stubF::execute);
 
     GetWorkflowExecutionHistoryResponse historyResp =
         WorkflowClientHelper.getHistoryPage(
@@ -154,9 +184,9 @@ public class SearchAttributesTest {
             .setSearchAttributes(searchAttributes)
             .build();
 
-    TestNoArgsWorkflowFunc stubF =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
-    WorkflowExecution executionF = WorkflowClient.start(stubF::func);
+    TestSignaledWorkflow stubF =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
+    WorkflowExecution executionF = WorkflowClient.start(stubF::execute);
 
     GetWorkflowExecutionHistoryResponse historyResp =
         WorkflowClientHelper.getHistoryPage(
@@ -181,10 +211,10 @@ public class SearchAttributesTest {
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(searchAttributes)
             .build();
-    TestNoArgsWorkflowFunc unregisteredKeyStub =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
+    TestSignaledWorkflow unregisteredKeyStub =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
     try {
-      WorkflowClient.start(unregisteredKeyStub::func);
+      WorkflowClient.start(unregisteredKeyStub::execute);
       fail();
     } catch (WorkflowServiceException e) {
       assertTrue(e.getCause() instanceof StatusRuntimeException);
@@ -201,10 +231,10 @@ public class SearchAttributesTest {
         SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
             .setSearchAttributes(searchAttributes)
             .build();
-    TestNoArgsWorkflowFunc unsupportedTypeStub =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestNoArgsWorkflowFunc.class, options);
+    TestSignaledWorkflow unsupportedTypeStub =
+        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
     try {
-      WorkflowClient.start(unsupportedTypeStub::func);
+      WorkflowClient.start(unsupportedTypeStub::execute);
       fail();
     } catch (WorkflowServiceException exception) {
       assertTrue(exception.getCause() instanceof StatusRuntimeException);
@@ -226,6 +256,16 @@ public class SearchAttributesTest {
             o instanceof Collection
                 ? new ArrayList<>((Collection<?>) o)
                 : Collections.singletonList(o));
+  }
+
+  public static class TestWorkflowImpl implements TestSignaledWorkflow {
+    @Override
+    public String execute() {
+      return "done";
+    }
+
+    @Override
+    public void signal(String arg) {}
   }
 
   @WorkflowInterface
