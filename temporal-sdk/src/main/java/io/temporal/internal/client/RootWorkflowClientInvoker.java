@@ -26,26 +26,26 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
-import io.temporal.internal.client.external.GenericWorkflowClientExternal;
+import io.temporal.internal.client.external.GenericWorkflowClient;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
-  private final GenericWorkflowClientExternal genericClient;
+  private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions clientOptions;
   private final Scope metricsScope;
-  private final RootWorkflowClientHelper requestsHelper;
+  private final WorkflowClientRequestFactory requestsHelper;
 
   public RootWorkflowClientInvoker(
-      GenericWorkflowClientExternal genericClient,
+      GenericWorkflowClient genericClient,
       WorkflowClientOptions clientOptions,
       Scope metricsScope) {
     this.genericClient = genericClient;
     this.clientOptions = clientOptions;
     this.metricsScope = metricsScope;
-    this.requestsHelper = new RootWorkflowClientHelper(clientOptions);
+    this.requestsHelper = new WorkflowClientRequestFactory(clientOptions);
   }
 
   @Override
@@ -90,11 +90,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   public <R> GetResultOutput<R> getResult(GetResultInput<R> input) throws TimeoutException {
     Optional<Payloads> resultValue =
         WorkflowClientLongPollHelper.getWorkflowExecutionResult(
-            genericClient.getService(),
+            genericClient,
             requestsHelper,
             input.getWorkflowExecution(),
             input.getWorkflowType(),
-            metricsScope,
             clientOptions.getDataConverter(),
             input.getTimeout(),
             input.getTimeoutUnit());
@@ -106,7 +105,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   public <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input) {
     CompletableFuture<Optional<Payloads>> resultValue =
         WorkflowClientLongPollAsyncHelper.getWorkflowExecutionResultAsync(
-            genericClient.getService(),
+            genericClient,
             requestsHelper,
             input.getWorkflowExecution(),
             input.getWorkflowType(),

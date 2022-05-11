@@ -19,11 +19,7 @@
 
 package io.temporal.internal.client;
 
-import static io.temporal.serviceclient.MetricsTag.HISTORY_LONG_POLL_CALL_OPTIONS_KEY;
-import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
-
 import com.google.protobuf.ByteString;
-import com.uber.m3.tally.Scope;
 import io.grpc.Deadline;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -34,12 +30,8 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.retryer.GrpcRetryer;
-import io.temporal.serviceclient.RpcRetryOptions;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.rpcretry.DefaultStubLongPollRpcRetryOptions;
-import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -52,17 +44,15 @@ final class WorkflowClientLongPollHelper {
    * execution if present.
    *
    * @param workflowType is optional.
-   * @param metricsScope metrics with NAMESPACE tag populated
    * @throws TimeoutException if workflow didn't complete within specified timeout
    * @throws CanceledFailure if workflow was canceled
    * @throws WorkflowFailedException if workflow execution failed
    */
   static Optional<Payloads> getWorkflowExecutionResult(
-      WorkflowServiceStubs service,
-      RootWorkflowClientHelper workflowClientHelper,
+      GenericWorkflowClient genericClient,
+      WorkflowClientRequestFactory workflowClientHelper,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
-      Scope metricsScope,
       DataConverter converter,
       long timeout,
       TimeUnit unit)
@@ -70,7 +60,7 @@ final class WorkflowClientLongPollHelper {
     // getInstanceCloseEvent waits for workflow completion including new runs.
     HistoryEvent closeEvent =
         getInstanceCloseEvent(
-            service, workflowClientHelper, workflowExecution, metricsScope, timeout, unit);
+            genericClient, workflowClientHelper, workflowExecution, timeout, unit);
     return WorkflowExecutionUtils.getResultFromCloseEvent(
         workflowExecution, workflowType, closeEvent, converter);
   }
@@ -79,21 +69,19 @@ final class WorkflowClientLongPollHelper {
    * Waits up to specified timeout for workflow instance completion.
    *
    * @param workflowExecution workflowId and optional runId
-   * @param metricsScope to use when reporting service calls
    * @param timeout maximum time to wait for completion. 0 means wait forever.
    * @return instance close status
    */
   static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
-      WorkflowServiceStubs service,
-      RootWorkflowClientHelper workflowClientHelper,
+      GenericWorkflowClient genericClient,
+      WorkflowClientRequestFactory workflowClientHelper,
       WorkflowExecution workflowExecution,
-      Scope metricsScope,
       long timeout,
       TimeUnit unit)
       throws TimeoutException {
     HistoryEvent closeEvent =
         getInstanceCloseEvent(
-            service, workflowClientHelper, workflowExecution, metricsScope, timeout, unit);
+            genericClient, workflowClientHelper, workflowExecution, timeout, unit);
     return WorkflowExecutionUtils.getCloseStatus(closeEvent);
   }
 
@@ -105,56 +93,30 @@ final class WorkflowClientLongPollHelper {
    *     executions to complete.
    */
   private static HistoryEvent getInstanceCloseEvent(
-      WorkflowServiceStubs service,
-      RootWorkflowClientHelper workflowClientHelper,
+      GenericWorkflowClient genericClient,
+      WorkflowClientRequestFactory workflowClientHelper,
       WorkflowExecution workflowExecution,
-      Scope metricsScope,
       long timeout,
       TimeUnit unit)
       throws TimeoutException {
     ByteString pageToken = ByteString.EMPTY;
     GetWorkflowExecutionHistoryResponse response;
-    // TODO: Interrupt service long poll call on timeout and on interrupt
-    long start = System.currentTimeMillis();
+    Deadline deadline = Deadline.after(timeout, unit);
+
     do {
+      if (deadline.isExpired()) {
+        throw newTimeoutException(workflowExecution, timeout, unit);
+      }
+
       GetWorkflowExecutionHistoryRequest request =
           workflowClientHelper.newHistoryLongPollRequest(workflowExecution, pageToken);
-      long elapsed = System.currentTimeMillis() - start;
-      long millisRemaining = unit.toMillis(timeout != 0 ? timeout : Integer.MAX_VALUE) - elapsed;
+      // TODO to fix https://github.com/temporalio/sdk-java/issues/1177 we need to process
+      //  DEADLINE_EXCEEDED correctly. It may be thrown if a deadline of one request is exceeded,
+      //  but the total timeout is not.
+      response = genericClient.longPollHistory(request, deadline);
 
-      if (millisRemaining > 0) {
-        RpcRetryOptions retryOptions =
-            DefaultStubLongPollRpcRetryOptions.getBuilder()
-                .setExpiration(Duration.ofMillis(millisRemaining))
-                .build();
-        response =
-            GrpcRetryer.retryWithResult(
-                retryOptions,
-                () -> {
-                  long elapsedInRetry = System.currentTimeMillis() - start;
-                  Deadline expirationInRetry =
-                      Deadline.after(
-                          unit.toMillis(timeout) - elapsedInRetry, TimeUnit.MILLISECONDS);
-                  return service
-                      .blockingStub()
-                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                      .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
-                      .withDeadline(expirationInRetry)
-                      .getWorkflowExecutionHistory(request);
-                });
-        if (response == null || !response.hasHistory()) {
-          continue;
-        }
-      } else {
-        throw new TimeoutException(
-            "WorkflowId="
-                + workflowExecution.getWorkflowId()
-                + ", runId="
-                + workflowExecution.getRunId()
-                + ", timeout="
-                + timeout
-                + ", unit="
-                + unit);
+      if (response == null || !response.hasHistory()) {
+        continue;
       }
 
       pageToken = response.getNextPageToken();
@@ -180,5 +142,18 @@ final class WorkflowClientLongPollHelper {
         return event;
       }
     } while (true);
+  }
+
+  static TimeoutException newTimeoutException(
+      WorkflowExecution workflowExecution, long timeout, TimeUnit unit) {
+    return new TimeoutException(
+        "WorkflowId="
+            + workflowExecution.getWorkflowId()
+            + ", runId="
+            + workflowExecution.getRunId()
+            + ", timeout="
+            + timeout
+            + ", unit="
+            + unit);
   }
 }

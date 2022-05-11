@@ -44,10 +44,10 @@ import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-final class RootWorkflowClientHelper {
+final class WorkflowClientRequestFactory {
   private final WorkflowClientOptions clientOptions;
 
-  public RootWorkflowClientHelper(WorkflowClientOptions clientOptions) {
+  public WorkflowClientRequestFactory(WorkflowClientOptions clientOptions) {
     this.clientOptions = clientOptions;
   }
 
