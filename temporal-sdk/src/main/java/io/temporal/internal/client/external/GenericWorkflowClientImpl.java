@@ -19,39 +19,32 @@
 
 package io.temporal.internal.client.external;
 
+import static io.temporal.serviceclient.MetricsTag.HISTORY_LONG_POLL_CALL_OPTIONS_KEY;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.Deadline;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.rpcretry.DefaultStubLongPollRpcRetryOptions;
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.*;
 
-public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
+public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
 
-  public GenericWorkflowClientExternalImpl(WorkflowServiceStubs service, Scope metricsScope) {
+  public GenericWorkflowClientImpl(WorkflowServiceStubs service, Scope metricsScope) {
     this.service = service;
     this.metricsScope = metricsScope;
-  }
-
-  @Override
-  public WorkflowServiceStubs getService() {
-    return service;
   }
 
   @Override
@@ -144,6 +137,68 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                 .terminateWorkflowExecution(request));
+  }
+
+  @Override
+  public GetWorkflowExecutionHistoryResponse longPollHistory(
+      GetWorkflowExecutionHistoryRequest request, Deadline deadline) {
+    long millisRemaining = deadline.timeRemaining(TimeUnit.MILLISECONDS);
+    RpcRetryOptions retryOptions =
+        DefaultStubLongPollRpcRetryOptions.getBuilder()
+            // TODO rework together with https://github.com/temporalio/sdk-java/issues/1203
+            .setExpiration(Duration.ofMillis(millisRemaining))
+            .build();
+    // TODO to fix https://github.com/temporalio/sdk-java/issues/1177 we need to process
+    //  DEADLINE_EXCEEDED
+    return GrpcRetryer.retryWithResult(
+        retryOptions,
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                .withDeadline(deadline)
+                .getWorkflowExecutionHistory(request));
+  }
+
+  @Override
+  public CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
+      GetWorkflowExecutionHistoryRequest request, Deadline deadline) {
+    long millisRemaining = deadline.timeRemaining(TimeUnit.MILLISECONDS);
+
+    RpcRetryOptions retryOptions =
+        DefaultStubLongPollRpcRetryOptions.getBuilder()
+            // TODO rework together with https://github.com/temporalio/sdk-java/issues/1203
+            .setExpiration(Duration.ofMillis(millisRemaining))
+            .build();
+
+    return GrpcRetryer.retryWithResultAsync(
+        retryOptions,
+        () -> {
+          CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
+          ListenableFuture<GetWorkflowExecutionHistoryResponse> resultFuture =
+              service
+                  .futureStub()
+                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                  .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                  .withDeadline(deadline)
+                  .getWorkflowExecutionHistory(request);
+
+          // TODO to fix https://github.com/temporalio/sdk-java/issues/1177 we need to process
+          //  DEADLINE_EXCEEDED
+          resultFuture.addListener(
+              () -> {
+                try {
+                  result.complete(resultFuture.get());
+                } catch (ExecutionException e) {
+                  result.completeExceptionally(e.getCause());
+                } catch (Exception e) {
+                  result.completeExceptionally(e);
+                }
+              },
+              ForkJoinPool.commonPool());
+          return result;
+        });
   }
 
   @Override

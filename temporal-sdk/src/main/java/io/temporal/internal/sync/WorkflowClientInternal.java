@@ -35,8 +35,8 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.RootWorkflowClientInvoker;
-import io.temporal.internal.client.external.GenericWorkflowClientExternal;
-import io.temporal.internal.client.external.GenericWorkflowClientExternalImpl;
+import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
 import io.temporal.serviceclient.MetricsTag;
@@ -54,7 +54,7 @@ import java.util.concurrent.CompletableFuture;
 
 public final class WorkflowClientInternal implements WorkflowClient {
 
-  private final GenericWorkflowClientExternal genericClient;
+  private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions options;
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
   private final WorkflowClientInterceptor[] interceptors;
@@ -87,7 +87,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
             .getOptions()
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
-    this.genericClient = new GenericWorkflowClientExternalImpl(workflowServiceStubs, metricsScope);
+    this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
