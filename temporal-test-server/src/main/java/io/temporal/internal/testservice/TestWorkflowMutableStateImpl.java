@@ -1978,7 +1978,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline) {
+  public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long timeoutMs) {
     WorkflowExecutionStatus status = getWorkflowExecutionStatus();
     if (status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING) {
       boolean rejectNotOpen =
@@ -2001,13 +2001,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 && workflowTaskStateMachine.getState() != State.STARTED);
 
     if (safeToDispatchDirectly) {
-      return directQuery(queryRequest, deadline);
+      return directQuery(queryRequest, timeoutMs);
     } else {
-      return stronglyConsistentQuery(queryRequest, deadline);
+      return stronglyConsistentQuery(queryRequest, timeoutMs);
     }
   }
 
-  private QueryWorkflowResponse directQuery(QueryWorkflowRequest queryRequest, long deadline) {
+  private QueryWorkflowResponse directQuery(QueryWorkflowRequest queryRequest, long timeoutMs) {
     CompletableFuture<QueryWorkflowResponse> result = new CompletableFuture<>();
     try {
       QueryId queryId = new QueryId(executionId);
@@ -2030,7 +2030,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       lock.unlock(); // locked in the query method
     }
     try {
-      return result.get(deadline, TimeUnit.MILLISECONDS);
+      return result.get(timeoutMs, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return QueryWorkflowResponse.getDefaultInstance();
@@ -2046,7 +2046,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (TimeoutException e) {
       throw Status.DEADLINE_EXCEEDED
           .withCause(e)
-          .withDescription("Query deadline of " + deadline + "milliseconds exceeded")
+          .withDescription("Query deadline of " + timeoutMs + " milliseconds exceeded")
           .asRuntimeException();
     }
   }
@@ -2087,7 +2087,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private QueryWorkflowResponse stronglyConsistentQuery(
-      QueryWorkflowRequest queryRequest, long deadline) {
+      QueryWorkflowRequest queryRequest, long timeoutMs) {
     ConsistentQuery consistentQuery = new ConsistentQuery(queryRequest);
     try {
       update(ctx -> workflowTaskStateMachine.action(Action.QUERY, ctx, consistentQuery, 0));
@@ -2096,13 +2096,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       lock.unlock();
     }
     CompletableFuture<QueryWorkflowResponse> result = consistentQuery.getResult();
-    return getQueryWorkflowResponse(deadline, result);
+    return getQueryWorkflowResponse(timeoutMs, result);
   }
 
   private QueryWorkflowResponse getQueryWorkflowResponse(
-      long deadline, CompletableFuture<QueryWorkflowResponse> result) {
+      long timeoutMs, CompletableFuture<QueryWorkflowResponse> result) {
     try {
-      return result.get(deadline, TimeUnit.MILLISECONDS);
+      return result.get(timeoutMs, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return QueryWorkflowResponse.getDefaultInstance();
