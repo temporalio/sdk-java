@@ -65,6 +65,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -948,9 +949,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       ExecutionId executionId =
           new ExecutionId(queryRequest.getNamespace(), queryRequest.getExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);
-      Deadline deadline = Context.current().getDeadline();
+      @Nullable Deadline deadline = Context.current().getDeadline();
       QueryWorkflowResponse result =
-          mutableState.query(queryRequest, deadline.timeRemaining(TimeUnit.MILLISECONDS));
+          mutableState.query(
+              queryRequest,
+              deadline != null ? deadline.timeRemaining(TimeUnit.MILLISECONDS) : Long.MAX_VALUE);
       responseObserver.onNext(result);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -1073,8 +1076,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    * was more than 1.
    *
    * @deprecated use {@link io.temporal.serviceclient.TestServiceStubs} and {@link
-   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#unlockTimeSkippingWhileSleep(SleepRequest)}
-   *     (SleepRequest)}
+   *     io.temporal.api.testservice.v1.TestServiceGrpc.TestServiceBlockingStub#unlockTimeSkippingWithSleep(SleepRequest)}
    */
   @Deprecated
   public void sleep(Duration duration) {
@@ -1105,7 +1107,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
    * @return minimum between the context deadline and maximum long poll deadline.
    */
   private Deadline getLongPollDeadline() {
-    Deadline deadline = Context.current().getDeadline();
+    @Nullable Deadline deadline = Context.current().getDeadline();
     Deadline maximumDeadline =
         Deadline.after(
             WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT.toMillis(),
