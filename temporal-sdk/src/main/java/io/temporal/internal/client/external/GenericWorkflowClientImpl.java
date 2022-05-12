@@ -33,9 +33,9 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.rpcretry.DefaultStubLongPollRpcRetryOptions;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.*;
+import javax.annotation.Nonnull;
 
 public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
@@ -141,39 +141,24 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   @Override
   public GetWorkflowExecutionHistoryResponse longPollHistory(
-      GetWorkflowExecutionHistoryRequest request, Deadline deadline) {
-    long millisRemaining = deadline.timeRemaining(TimeUnit.MILLISECONDS);
-    RpcRetryOptions retryOptions =
-        DefaultStubLongPollRpcRetryOptions.getBuilder()
-            // TODO rework together with https://github.com/temporalio/sdk-java/issues/1203
-            .setExpiration(Duration.ofMillis(millisRemaining))
-            .build();
-    // TODO to fix https://github.com/temporalio/sdk-java/issues/1177 we need to process
-    //  DEADLINE_EXCEEDED
+      @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
     return GrpcRetryer.retryWithResult(
-        retryOptions,
+        DefaultStubLongPollRpcRetryOptions.INSTANCE,
         () ->
             service
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                 .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
                 .withDeadline(deadline)
-                .getWorkflowExecutionHistory(request));
+                .getWorkflowExecutionHistory(request),
+        deadline);
   }
 
   @Override
   public CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
-      GetWorkflowExecutionHistoryRequest request, Deadline deadline) {
-    long millisRemaining = deadline.timeRemaining(TimeUnit.MILLISECONDS);
-
-    RpcRetryOptions retryOptions =
-        DefaultStubLongPollRpcRetryOptions.getBuilder()
-            // TODO rework together with https://github.com/temporalio/sdk-java/issues/1203
-            .setExpiration(Duration.ofMillis(millisRemaining))
-            .build();
-
+      @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
     return GrpcRetryer.retryWithResultAsync(
-        retryOptions,
+        DefaultStubLongPollRpcRetryOptions.INSTANCE,
         () -> {
           CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
           ListenableFuture<GetWorkflowExecutionHistoryResponse> resultFuture =
@@ -184,8 +169,6 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                   .withDeadline(deadline)
                   .getWorkflowExecutionHistory(request);
 
-          // TODO to fix https://github.com/temporalio/sdk-java/issues/1177 we need to process
-          //  DEADLINE_EXCEEDED
           resultFuture.addListener(
               () -> {
                 try {
@@ -198,7 +181,8 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
               },
               ForkJoinPool.commonPool());
           return result;
-        });
+        },
+        deadline);
   }
 
   @Override

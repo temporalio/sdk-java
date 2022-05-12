@@ -25,7 +25,6 @@ import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.serviceclient.RpcRetryOptions;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,8 +35,7 @@ import org.junit.Test;
 
 public class GrpcAsyncRetryerTest {
 
-  private static final GrpcAsyncRetryer DEFAULT_ASYNC_RETRYER =
-      new GrpcAsyncRetryer(Clock.systemUTC());
+  private static final GrpcAsyncRetryer DEFAULT_ASYNC_RETRYER = new GrpcAsyncRetryer();
 
   private static ScheduledExecutorService scheduledExecutor;
 
@@ -68,7 +66,8 @@ public class GrpcAsyncRetryerTest {
               options,
               () -> {
                 throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
-              })
+              },
+              null)
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -99,7 +98,8 @@ public class GrpcAsyncRetryerTest {
                 result.completeExceptionally(
                     new StatusRuntimeException(Status.fromCode(STATUS_CODE)));
                 return result;
-              })
+              },
+              null)
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -129,7 +129,8 @@ public class GrpcAsyncRetryerTest {
                 result.completeExceptionally(
                     new StatusRuntimeException(Status.fromCode(STATUS_CODE)));
                 return result;
-              })
+              },
+              null)
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -157,7 +158,8 @@ public class GrpcAsyncRetryerTest {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(new InterruptedException("simulated"));
                 return result;
-              })
+              },
+              null)
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -184,7 +186,8 @@ public class GrpcAsyncRetryerTest {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(new IllegalArgumentException("simulated"));
                 return result;
-              })
+              },
+              null)
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -222,7 +225,8 @@ public class GrpcAsyncRetryerTest {
                               new StatusRuntimeException(
                                   Status.fromCode(Status.Code.DEADLINE_EXCEEDED)));
                           return future;
-                        })
+                        },
+                        null)
                     .get();
               } catch (ExecutionException ex) {
                 throw ex.getCause();
@@ -271,7 +275,8 @@ public class GrpcAsyncRetryerTest {
                                           new StatusRuntimeException(
                                               Status.fromCode(Status.Code.DATA_LOSS)));
                                       return future;
-                                    })
+                                    },
+                                    null)
                                 .get();
                           } catch (ExecutionException e) {
                             throw e.getCause();
@@ -317,7 +322,8 @@ public class GrpcAsyncRetryerTest {
                                         throw new StatusRuntimeException(
                                             Status.fromCode(Status.Code.DATA_LOSS));
                                       }
-                                    })
+                                    },
+                                    null)
                                 .get();
                           } catch (ExecutionException e) {
                             throw e.getCause();

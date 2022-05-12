@@ -17,8 +17,10 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient;
+package io.temporal.serviceclient.functional;
 
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import org.junit.Assert;
 import org.junit.Test;
 

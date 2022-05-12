@@ -19,7 +19,6 @@
 
 package io.temporal.serviceclient;
 
-import com.google.common.base.Preconditions;
 import io.grpc.*;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
@@ -170,19 +169,15 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
 
     /**
      * Sets the rpc timeout value for the following long poll based operations:
-     * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory.
+     * PollWorkflowTaskQueue, PollActivityTaskQueue, GetWorkflowExecutionHistory. Defaults to 70
+     * seconds.
      *
-     * <p>Server side timeout for the long poll is 60s. This parameter should never be below 70
-     * seconds (server timeout + additional delay). Default is 70 seconds.
-     *
-     * @throws IllegalArgumentException if {@code timeout} is less than 70s
-     * @deprecated exposing of this option for users configuration deemed non-beneficial and
-     *     dangerous
+     * <p>Server always responds below this timeout. Most users should never modify the default
+     * value of 70s. The only reasonable reason to modify this timeout it if there is a reversed
+     * proxy in the network that cuts the gRPC requests really short and there is no way to adjust
+     * it.
      */
-    @Deprecated
     public Builder setRpcLongPollTimeout(Duration timeout) {
-      Preconditions.checkArgument(
-          timeout.toMillis() > 70_000, "rpcLongPollTimeout has to be longer 70s");
       this.rpcLongPollTimeout = Objects.requireNonNull(timeout);
       return this;
     }
@@ -194,10 +189,11 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     }
 
     /**
-     * Allows customization of retry options for the outgoing RPC calls to temporal service. Note
-     * that default values should be reasonable for most users, be cautious when changing these
-     * values as it may result in increased load to the temporal backend or bad network instability
-     * tolerance.
+     * Allows customization of retry options for the outgoing RPC calls to temporal service.
+     *
+     * <p>Note that default values should be reasonable for most users, be cautious when changing
+     * these values as it may result in increased load to the temporal backend or bad network
+     * instability tolerance.
      *
      * @see #setRpcTimeout(Duration)
      */
@@ -233,12 +229,14 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
 
     public WorkflowServiceStubsOptions validateAndBuildWithDefaults() {
       ServiceStubsOptions serviceStubsOptions = super.validateAndBuildWithDefaults();
+      RpcRetryOptions retryOptions =
+          RpcRetryOptions.newBuilder(this.rpcRetryOptions).validateBuildWithDefaults();
       return new WorkflowServiceStubsOptions(
           serviceStubsOptions,
           this.disableHealthCheck,
           this.rpcLongPollTimeout,
           this.rpcQueryTimeout,
-          this.rpcRetryOptions);
+          retryOptions);
     }
   }
 }

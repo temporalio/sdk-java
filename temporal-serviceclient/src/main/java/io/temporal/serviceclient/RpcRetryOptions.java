@@ -122,15 +122,20 @@ public final class RpcRetryOptions {
     }
 
     /**
-     * Maximum time to retry. Required. When exceeded the retries stop even if maximum retries is
-     * not reached yet.
+     * Maximum time to retry. When exceeded the retries stop even if maximum retries is not reached
+     * yet.
+     *
+     * <p>At least one of the expiration or {@link #setMaximumAttempts(int)} is required to be set.
      */
     public Builder setExpiration(Duration expiration) {
-      Objects.requireNonNull(expiration);
-      if (expiration.isNegative() || expiration.isZero()) {
-        throw new IllegalArgumentException("Invalid interval: " + expiration);
+      if (expiration != null) {
+        if (expiration.isNegative() || expiration.isZero()) {
+          throw new IllegalArgumentException("Invalid interval: " + expiration);
+        }
+        this.expiration = expiration;
+      } else {
+        this.expiration = null;
       }
-      this.expiration = expiration;
       return this;
     }
 
@@ -149,6 +154,9 @@ public final class RpcRetryOptions {
     /**
      * When exceeded the amount of attempts, stop. Even if expiration time is not reached. <br>
      * Default is unlimited.
+     *
+     * <p>At least one of the maximum attempts or {@link #setExpiration(Duration)} is required to be
+     * set.
      *
      * @param maximumAttempts Maximum number of attempts. Default will be used if set to {@code 0}.
      */
@@ -266,15 +274,23 @@ public final class RpcRetryOptions {
       if (expiration == null || expiration.isZero() || expiration.isNegative()) {
         expiration = DefaultStubServiceOperationRpcRetryOptions.EXPIRATION_INTERVAL;
       }
-      if (maximumInterval == null || maximumInterval.isZero() || maximumInterval.isNegative()) {
-        maximumInterval = DefaultStubServiceOperationRpcRetryOptions.MAXIMUM_INTERVAL;
+
+      Duration maxInterval = this.maximumInterval;
+
+      if (maxInterval == null || maxInterval.isZero() || maxInterval.isNegative()) {
+        if (maximumAttempts == 0) {
+          maxInterval = DefaultStubServiceOperationRpcRetryOptions.MAXIMUM_INTERVAL;
+        } else {
+          maxInterval = null;
+        }
       }
+
       if (doNotRetry == null || doNotRetry.size() == 0) {
         doNotRetry = DefaultStubServiceOperationRpcRetryOptions.INSTANCE.doNotRetry;
       }
       RpcRetryOptions result =
           new RpcRetryOptions(
-              initialInterval, backoff, expiration, maximumAttempts, maximumInterval, doNotRetry);
+              initialInterval, backoff, expiration, maximumAttempts, maxInterval, doNotRetry);
       result.validate();
       return result;
     }
@@ -328,10 +344,17 @@ public final class RpcRetryOptions {
   }
 
   public void validate() {
+    validate(true);
+  }
+
+  public void validate(boolean hasToBeFinite) {
     if (initialInterval == null) {
       throw new IllegalStateException("required property initialInterval not set");
     }
-    if (expiration == null && maximumAttempts <= 0) {
+    if (maximumAttempts < 0) {
+      throw new IllegalArgumentException("negative maximum attempts");
+    }
+    if (hasToBeFinite && expiration == null && maximumAttempts == 0) {
       throw new IllegalArgumentException(
           "both MaximumAttempts and Expiration on retry policy are not set, at least one of them must be set");
     }
@@ -344,9 +367,6 @@ public final class RpcRetryOptions {
     }
     if (backoffCoefficient != 0d && backoffCoefficient < 1.0) {
       throw new IllegalArgumentException("coefficient less than 1");
-    }
-    if (maximumAttempts != 0 && maximumAttempts < 0) {
-      throw new IllegalArgumentException("negative maximum attempts");
     }
   }
 

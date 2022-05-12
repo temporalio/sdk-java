@@ -25,7 +25,6 @@ import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.serviceclient.RpcRetryOptions;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executors;
@@ -39,8 +38,7 @@ import org.junit.Test;
 
 public class GrpcSyncRetryerTest {
 
-  private static final GrpcSyncRetryer DEFAULT_SYNC_RETRYER =
-      new GrpcSyncRetryer(Clock.systemUTC());
+  private static final GrpcSyncRetryer DEFAULT_SYNC_RETRYER = new GrpcSyncRetryer();
 
   private static ScheduledExecutorService scheduledExecutor;
 
@@ -70,7 +68,8 @@ public class GrpcSyncRetryerTest {
           options,
           () -> {
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
-          });
+          },
+          null);
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof StatusRuntimeException);
@@ -96,7 +95,8 @@ public class GrpcSyncRetryerTest {
           options,
           () -> {
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
-          });
+          },
+          null);
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof StatusRuntimeException);
@@ -120,7 +120,8 @@ public class GrpcSyncRetryerTest {
           options,
           () -> {
             throw new InterruptedException();
-          });
+          },
+          null);
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof CancellationException);
@@ -142,7 +143,8 @@ public class GrpcSyncRetryerTest {
           options,
           () -> {
             throw new IllegalArgumentException("simulated");
-          });
+          },
+          null);
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof IllegalArgumentException);
@@ -174,7 +176,8 @@ public class GrpcSyncRetryerTest {
                     attempts.incrementAndGet();
                     throw new StatusRuntimeException(
                         Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
-                  });
+                  },
+                  null);
             });
 
     assertEquals(Status.Code.DEADLINE_EXCEEDED, e.getStatus().getCode());
@@ -213,7 +216,8 @@ public class GrpcSyncRetryerTest {
                                 attempts.incrementAndGet();
                                 throw new StatusRuntimeException(
                                     Status.fromCode(Status.Code.DATA_LOSS));
-                              });
+                              },
+                              null);
                         })));
 
     assertEquals(Status.Code.DATA_LOSS, exception.get().getStatus().getCode());
@@ -253,7 +257,8 @@ public class GrpcSyncRetryerTest {
                                   throw new StatusRuntimeException(
                                       Status.fromCode(Status.Code.DATA_LOSS));
                                 }
-                              });
+                              },
+                              null);
                         })));
 
     assertEquals(

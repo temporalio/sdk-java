@@ -19,35 +19,35 @@
 
 package io.temporal.internal.retryer;
 
+import com.google.common.base.Preconditions;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.BackoffThrottler;
 import io.temporal.serviceclient.RpcRetryOptions;
-import java.time.Clock;
 import java.util.concurrent.CancellationException;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class GrpcSyncRetryer {
   private static final Logger log = LoggerFactory.getLogger(GrpcSyncRetryer.class);
 
-  private final Clock clock;
-
-  public GrpcSyncRetryer(Clock clock) {
-    this.clock = clock;
-  }
-
   public <R, T extends Throwable> R retry(
-      RpcRetryOptions options, GrpcRetryer.RetryableFunc<R, T> r) throws T {
+      RpcRetryOptions options, GrpcRetryer.RetryableFunc<R, T> r, @Nullable Deadline deadline)
+      throws T {
     int attempt = 0;
-    long startTime = clock.millis();
+    @Nullable
+    Deadline retriesExpirationDeadline =
+        GrpcRetryerUtils.mergeDurationWithAnAbsoluteDeadline(options.getExpiration(), deadline);
+    Preconditions.checkState(
+        retriesExpirationDeadline != null || options.getMaximumAttempts() > 0,
+        "configuration of the retries has to be finite");
     BackoffThrottler throttler =
         new BackoffThrottler(
             options.getInitialInterval(),
             options.getMaximumInterval(),
             options.getBackoffCoefficient());
-    Deadline grpcContextDeadline = Context.current().getDeadline();
 
     StatusRuntimeException lastMeaningfulException = null;
     do {
@@ -66,8 +66,7 @@ class GrpcSyncRetryer {
         throw new CancellationException();
       } catch (StatusRuntimeException e) {
         RuntimeException finalException =
-            GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
-                e, lastMeaningfulException, options, grpcContextDeadline);
+            GrpcRetryerUtils.createFinalExceptionIfNotRetryable(e, options);
         if (finalException != null) {
           log.warn("Non retryable failure", finalException);
           throw finalException;
@@ -80,7 +79,7 @@ class GrpcSyncRetryer {
 
       throttler.failure();
     } while (!GrpcRetryerUtils.ranOutOfRetries(
-        options, startTime, clock.millis(), attempt, grpcContextDeadline));
+        options, attempt, retriesExpirationDeadline, Context.current().getDeadline()));
 
     log.warn("Failure, out of retries", lastMeaningfulException);
     rethrow(lastMeaningfulException);

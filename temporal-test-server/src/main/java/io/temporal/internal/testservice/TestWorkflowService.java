@@ -333,24 +333,41 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StreamObserver<GetWorkflowExecutionHistoryResponse> responseObserver) {
     ExecutionId executionId = new ExecutionId(getRequest.getNamespace(), getRequest.getExecution());
     forkJoinPool.execute(
-        () -> {
-          try {
-            TestWorkflowMutableState mutableState = getMutableState(executionId);
-            Deadline deadline = getLongPollDeadline();
-            responseObserver.onNext(
-                store.getWorkflowExecutionHistory(
-                    mutableState.getExecutionId(), getRequest, deadline));
-            responseObserver.onCompleted();
-          } catch (StatusRuntimeException e) {
-            if (e.getStatus().getCode() == Status.Code.INTERNAL) {
-              log.error("unexpected", e);
-            }
-            responseObserver.onError(e);
-          } catch (Exception e) {
-            log.error("unexpected", e);
-            responseObserver.onError(e);
-          }
-        });
+        // preserving gRPC context deadline between threads
+        Context.current()
+            .wrap(
+                () -> {
+                  try {
+                    TestWorkflowMutableState mutableState = getMutableState(executionId);
+                    responseObserver.onNext(
+                        store.getWorkflowExecutionHistory(
+                            mutableState.getExecutionId(),
+                            getRequest,
+                            // We explicitly don't try to respond inside the context deadline.
+                            // If we try to fit into the context deadline, the deadline may be not
+                            // expired on
+                            // the client side and an empty response will lead to a new request,
+                            // making
+                            // the client hammer the server at the tail end of the deadline.
+                            // So this call is designed to wait fully till the end of the context
+                            // deadline and throw
+                            // DEADLINE_EXCEEDED if the deadline is less than 60s (our default for
+                            // long polls)
+                            Deadline.after(
+                                WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT
+                                    .toNanos(),
+                                TimeUnit.NANOSECONDS)));
+                    responseObserver.onCompleted();
+                  } catch (StatusRuntimeException e) {
+                    if (e.getStatus().getCode() == Status.Code.INTERNAL) {
+                      log.error("unexpected", e);
+                    }
+                    responseObserver.onError(e);
+                  } catch (Exception e) {
+                    log.error("unexpected", e);
+                    responseObserver.onError(e);
+                  }
+                }));
   }
 
   private <T> T pollTaskQueue(Context ctx, Future<T> futureValue)
@@ -368,9 +385,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void pollWorkflowTaskQueue(
       PollWorkflowTaskQueueRequest pollRequest,
       StreamObserver<PollWorkflowTaskQueueResponse> responseObserver) {
-    try (Context.CancellableContext ctx =
-        deadlineCtx(WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT)) {
-      PollWorkflowTaskQueueResponse.Builder task = null;
+    try (Context.CancellableContext ctx = deadlineCtx(getLongPollDeadline())) {
+      PollWorkflowTaskQueueResponse.Builder task;
       try {
         task = pollTaskQueue(ctx, store.pollWorkflowTaskQueue(pollRequest));
       } catch (ExecutionException e) {
@@ -454,18 +470,15 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  private Context.CancellableContext deadlineCtx(Duration dur) {
-    return Context.current()
-        .withDeadline(
-            Deadline.after(dur.toNanos(), TimeUnit.NANOSECONDS), this.backgroundScheduler);
+  private Context.CancellableContext deadlineCtx(Deadline deadline) {
+    return Context.current().withDeadline(deadline, this.backgroundScheduler);
   }
 
   @Override
   public void pollActivityTaskQueue(
       PollActivityTaskQueueRequest pollRequest,
       StreamObserver<PollActivityTaskQueueResponse> responseObserver) {
-    try (Context.CancellableContext ctx =
-        deadlineCtx(WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT)) {
+    try (Context.CancellableContext ctx = deadlineCtx(getLongPollDeadline())) {
 
       PollActivityTaskQueueResponse.Builder task = null;
       try {
@@ -1100,9 +1113,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   /**
-   * Temporal server times out long poll calls after 1 minute and returns an empty result. After
-   * which the request has to be retried by the client if it wants to continue waiting. We emulate
-   * this behavior here.
+   * Temporal server times out task queue long poll calls after 1 minute and returns an empty
+   * result. After which the request has to be retried by the client if it wants to continue
+   * waiting. We emulate this behavior here.
+   *
+   * <p>If there is a deadline present, for task queue poll requests server will respond inside the
+   * deadline. Note that the latest is not applicable for getWorkflowExecutionHistory() long polls.
    *
    * @return minimum between the context deadline and maximum long poll deadline.
    */

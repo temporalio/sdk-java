@@ -19,38 +19,42 @@
 
 package io.temporal.internal.retryer;
 
+import com.google.common.base.Preconditions;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.AsyncBackoffThrottler;
 import io.temporal.serviceclient.RpcRetryOptions;
-import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class GrpcAsyncRetryer {
   private static final Logger log = LoggerFactory.getLogger(GrpcAsyncRetryer.class);
 
-  private final Clock clock;
-
-  public GrpcAsyncRetryer(Clock clock) {
-    this.clock = clock;
-  }
-
   public <R> CompletableFuture<R> retry(
-      RpcRetryOptions options, Supplier<CompletableFuture<R>> function) {
-    long startTime = clock.millis();
+      RpcRetryOptions options,
+      Supplier<CompletableFuture<R>> function,
+      @Nullable Deadline deadline) {
+    int attempt = 1;
+
+    @Nullable
+    Deadline retriesExpirationDeadline =
+        GrpcRetryerUtils.mergeDurationWithAnAbsoluteDeadline(options.getExpiration(), deadline);
+    Preconditions.checkState(
+        retriesExpirationDeadline != null || options.getMaximumAttempts() > 0,
+        "configuration of the retries has to be finite");
+
     AsyncBackoffThrottler throttler =
         new AsyncBackoffThrottler(
             options.getInitialInterval(),
             options.getMaximumInterval(),
             options.getBackoffCoefficient());
-    options.validate();
     CompletableFuture<R> resultCF = new CompletableFuture<>();
-    retry(options, function, 1, startTime, throttler, null, resultCF);
+    retry(options, function, attempt, retriesExpirationDeadline, throttler, null, resultCF);
     return resultCF;
   }
 
@@ -58,7 +62,7 @@ class GrpcAsyncRetryer {
       RpcRetryOptions options,
       Supplier<CompletableFuture<R>> function,
       int attempt,
-      long startTime,
+      @Nullable Deadline retriesExpirationDeadline,
       AsyncBackoffThrottler throttler,
       StatusRuntimeException previousException,
       CompletableFuture<R> resultCF) {
@@ -82,7 +86,7 @@ class GrpcAsyncRetryer {
                     options,
                     function,
                     attempt,
-                    startTime,
+                    retriesExpirationDeadline,
                     throttler,
                     previousException,
                     e,
@@ -105,7 +109,7 @@ class GrpcAsyncRetryer {
                           options,
                           function,
                           attempt,
-                          startTime,
+                          retriesExpirationDeadline,
                           throttler,
                           previousException,
                           e,
@@ -119,7 +123,7 @@ class GrpcAsyncRetryer {
       RpcRetryOptions options,
       Supplier<CompletableFuture<R>> function,
       int attempt,
-      long startTime,
+      @Nullable Deadline retriesExpirationDeadline,
       AsyncBackoffThrottler throttler,
       StatusRuntimeException previousException,
       Throwable currentException,
@@ -139,10 +143,8 @@ class GrpcAsyncRetryer {
 
     StatusRuntimeException statusRuntimeException = (StatusRuntimeException) currentException;
 
-    Deadline grpcContextDeadline = Context.current().getDeadline();
     RuntimeException finalException =
-        GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
-            statusRuntimeException, previousException, options, grpcContextDeadline);
+        GrpcRetryerUtils.createFinalExceptionIfNotRetryable(statusRuntimeException, options);
     if (finalException != null) {
       log.warn("Non retryable failure", finalException);
       resultCF.completeExceptionally(finalException);
@@ -152,13 +154,19 @@ class GrpcAsyncRetryer {
     StatusRuntimeException lastMeaningfulException =
         GrpcRetryerUtils.lastMeaningfulException(statusRuntimeException, previousException);
     if (GrpcRetryerUtils.ranOutOfRetries(
-        options, startTime, clock.millis(), attempt, grpcContextDeadline)) {
+        options, attempt, retriesExpirationDeadline, Context.current().getDeadline())) {
       log.warn("Failure, out of retries", lastMeaningfulException);
       resultCF.completeExceptionally(lastMeaningfulException);
     } else {
       log.info("Retrying after failure", currentException);
       retry(
-          options, function, attempt + 1, startTime, throttler, lastMeaningfulException, resultCF);
+          options,
+          function,
+          attempt + 1,
+          retriesExpirationDeadline,
+          throttler,
+          lastMeaningfulException,
+          resultCF);
     }
   }
 

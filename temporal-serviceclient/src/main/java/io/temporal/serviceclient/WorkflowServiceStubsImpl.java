@@ -69,6 +69,9 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       inProcessServer = null;
     }
     this.options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
+    // if the line above is ever gone, this line still needs to stay to validate an input
+    // rpcRetryOptions
+    this.options.getRpcRetryOptions().validate();
 
     ClientInterceptor deadlineInterceptor =
         new GrpcDeadlineInterceptor(

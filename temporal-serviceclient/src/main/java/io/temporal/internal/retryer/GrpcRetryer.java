@@ -19,14 +19,15 @@
 
 package io.temporal.internal.retryer;
 
+import io.grpc.Deadline;
 import io.temporal.serviceclient.RpcRetryOptions;
-import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 public final class GrpcRetryer {
-  private static final GrpcSyncRetryer SYNC = new GrpcSyncRetryer(Clock.systemUTC());
-  private static final GrpcAsyncRetryer ASYNC = new GrpcAsyncRetryer(Clock.systemUTC());
+  private static final GrpcSyncRetryer SYNC = new GrpcSyncRetryer();
+  private static final GrpcAsyncRetryer ASYNC = new GrpcAsyncRetryer();
 
   public interface RetryableProc<E extends Throwable> {
     void apply() throws E;
@@ -38,22 +39,52 @@ public final class GrpcRetryer {
 
   public static <T extends Throwable> void retry(RpcRetryOptions options, RetryableProc<T> r)
       throws T {
+    retry(options, r, null);
+  }
+
+  /**
+   * @param options allows partially built options without an expiration without an expiration or
+   *     maxAttempts set if {@code retriesDeadline} is supplied
+   */
+  public static <T extends Throwable> void retry(
+      RpcRetryOptions options, RetryableProc<T> r, @Nullable Deadline retriesDeadline) throws T {
     retryWithResult(
         options,
         () -> {
           r.apply();
           return null;
-        });
+        },
+        retriesDeadline);
   }
 
   public static <R, T extends Throwable> R retryWithResult(
       RpcRetryOptions options, RetryableFunc<R, T> r) throws T {
-    return SYNC.retry(options, r);
+    return retryWithResult(options, r, null);
+  }
+
+  /**
+   * @param options allows partially built options without an expiration without an expiration or
+   *     maxAttempts set if {@code retriesDeadline} is supplied
+   */
+  public static <R, T extends Throwable> R retryWithResult(
+      RpcRetryOptions options, RetryableFunc<R, T> r, @Nullable Deadline deadline) throws T {
+    return SYNC.retry(options, r, deadline);
   }
 
   public static <R> CompletableFuture<R> retryWithResultAsync(
       RpcRetryOptions options, Supplier<CompletableFuture<R>> function) {
-    return ASYNC.retry(options, function);
+    return ASYNC.retry(options, function, null);
+  }
+
+  /**
+   * @param options allows partially built options without an expiration without an expiration or
+   *     maxAttempts set if {@code retriesDeadline} is supplied
+   */
+  public static <R> CompletableFuture<R> retryWithResultAsync(
+      RpcRetryOptions options,
+      Supplier<CompletableFuture<R>> function,
+      @Nullable Deadline deadline) {
+    return ASYNC.retry(options, function, deadline);
   }
 
   /** Prohibits instantiation. */
