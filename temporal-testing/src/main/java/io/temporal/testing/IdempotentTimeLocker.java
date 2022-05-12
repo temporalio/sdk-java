@@ -31,14 +31,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 class IdempotentTimeLocker {
   private final TestServiceStubs testServiceStubs;
-  private final AtomicInteger count = new AtomicInteger(1);
+  private final AtomicInteger count = new AtomicInteger(0);
 
   IdempotentTimeLocker(TestServiceStubs testServiceStubs) {
     this.testServiceStubs = testServiceStubs;
   }
 
   public void lockTimeSkipping() {
-    if (count.incrementAndGet() == 1) {
+    int newCount = count.incrementAndGet();
+    // perform an action only if we bring the counter to 0 (release of unlock)
+    // or were the first who perform a lock
+    if (newCount == 0 || newCount == 1) {
       Context.ROOT.run(
           () -> {
             // we want to ignore the gRPC deadline already existing in the context when we
@@ -53,7 +56,10 @@ class IdempotentTimeLocker {
   }
 
   public void unlockTimeSkipping() {
-    if (count.decrementAndGet() == 0) {
+    int newCount = count.decrementAndGet();
+    // perform an action only if we bring the counter to 0 (release of lock)
+    // or were the first who perform an unlock
+    if (newCount == 0 || newCount == -1) {
       Context.ROOT.run(
           () -> {
             // we want to ignore the gRPC deadline already existing in the context when we
