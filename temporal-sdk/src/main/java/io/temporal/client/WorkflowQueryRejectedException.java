@@ -20,30 +20,11 @@
 package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.QueryRejectCondition;
-import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 
-public final class WorkflowQueryRejectedException extends WorkflowQueryException {
-
-  private final QueryRejectCondition queryRejectCondition;
-  private final WorkflowExecutionStatus workflowExecutionStatus;
+public class WorkflowQueryRejectedException extends WorkflowQueryException {
 
   public WorkflowQueryRejectedException(
-      WorkflowExecution execution,
-      String workflowType,
-      QueryRejectCondition queryRejectCondition,
-      WorkflowExecutionStatus workflowExecutionStatus,
-      Throwable cause) {
+      WorkflowExecution execution, String workflowType, Throwable cause) {
     super(execution, workflowType, cause);
-    this.queryRejectCondition = queryRejectCondition;
-    this.workflowExecutionStatus = workflowExecutionStatus;
-  }
-
-  public QueryRejectCondition getQueryRejectCondition() {
-    return queryRejectCondition;
-  }
-
-  public WorkflowExecutionStatus getWorkflowExecutionStatus() {
-    return workflowExecutionStatus;
   }
 }

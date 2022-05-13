@@ -472,6 +472,11 @@ class StateMachines {
             CANCELLATION_REQUESTED,
             StateMachines::requestWorkflowCancellation)
         .add(STARTED, TERMINATE, TERMINATED, StateMachines::terminateWorkflow)
+        .add(
+            CANCELLATION_REQUESTED,
+            REQUEST_CANCELLATION,
+            CANCELLATION_REQUESTED,
+            StateMachines::noop)
         .add(CANCELLATION_REQUESTED, COMPLETE, COMPLETED, StateMachines::completeWorkflow)
         .add(CANCELLATION_REQUESTED, CANCEL, CANCELED, StateMachines::cancelWorkflow)
         .add(CANCELLATION_REQUESTED, TERMINATE, TERMINATED, StateMachines::terminateWorkflow)
@@ -1051,7 +1056,6 @@ class StateMachines {
             .setInput(d.getInput())
             .setActivityId(d.getActivityId())
             .setActivityType(d.getActivityType())
-            .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
             .setHeartbeatTimeout(d.getHeartbeatTimeout())
             .setRetryPolicy(retryPolicy)
             .setScheduleToCloseTimeout(d.getScheduleToCloseTimeout())

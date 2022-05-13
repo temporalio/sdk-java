@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 
 /**
  * Intercepts calls to the {@link io.temporal.client.WorkflowClient} related to the lifecycle of a
@@ -348,10 +349,11 @@ public interface WorkflowClientCallsInterceptor {
 
   final class TerminateInput {
     private final WorkflowExecution workflowExecution;
-    private final String reason;
+    private final @Nullable String reason;
     private final Object[] details;
 
-    public TerminateInput(WorkflowExecution workflowExecution, String reason, Object[] details) {
+    public TerminateInput(
+        WorkflowExecution workflowExecution, @Nullable String reason, Object[] details) {
       this.workflowExecution = workflowExecution;
       this.reason = reason;
       this.details = details;
@@ -361,6 +363,7 @@ public interface WorkflowClientCallsInterceptor {
       return workflowExecution;
     }
 
+    @Nullable
     public String getReason() {
       return reason;
     }
