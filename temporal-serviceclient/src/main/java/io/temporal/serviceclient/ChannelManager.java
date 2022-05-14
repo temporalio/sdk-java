@@ -273,7 +273,7 @@ final class ChannelManager {
     RpcRetryOptions retryOptions =
         RpcRetryOptions.newBuilder().setExpiration(timeout).validateBuildWithDefaults();
 
-    GrpcRetryer.retryWithResult(retryOptions, () -> this.healthCheck(healthCheckServiceName, null));
+    GrpcRetryer.retryWithResult(() -> this.healthCheck(healthCheckServiceName, null), retryOptions);
   }
 
   /**

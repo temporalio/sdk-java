@@ -19,10 +19,12 @@
 
 package io.temporal.internal.retryer;
 
+import com.google.common.base.Preconditions;
 import io.grpc.Deadline;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class GrpcRetryer {
@@ -37,56 +39,76 @@ public final class GrpcRetryer {
     R apply() throws E;
   }
 
-  public static <T extends Throwable> void retry(RpcRetryOptions options, RetryableProc<T> r)
+  public static <T extends Throwable> void retry(RetryableProc<T> r, RpcRetryOptions options)
       throws T {
-    retry(options, r, null);
+    retry(r, new GrpcRetryerOptions(options, null));
   }
 
-  /**
-   * @param options allows partially built options without an expiration without an expiration or
-   *     maxAttempts set if {@code retriesDeadline} is supplied
-   */
-  public static <T extends Throwable> void retry(
-      RpcRetryOptions options, RetryableProc<T> r, @Nullable Deadline retriesDeadline) throws T {
+  public static <T extends Throwable> void retry(RetryableProc<T> r, GrpcRetryerOptions options)
+      throws T {
     retryWithResult(
-        options,
         () -> {
           r.apply();
           return null;
         },
-        retriesDeadline);
+        options);
   }
 
   public static <R, T extends Throwable> R retryWithResult(
-      RpcRetryOptions options, RetryableFunc<R, T> r) throws T {
-    return retryWithResult(options, r, null);
+      RetryableFunc<R, T> r, RpcRetryOptions options) throws T {
+    return retryWithResult(r, new GrpcRetryerOptions(options, null));
   }
 
-  /**
-   * @param options allows partially built options without an expiration without an expiration or
-   *     maxAttempts set if {@code retriesDeadline} is supplied
-   */
+  /** */
   public static <R, T extends Throwable> R retryWithResult(
-      RpcRetryOptions options, RetryableFunc<R, T> r, @Nullable Deadline deadline) throws T {
-    return SYNC.retry(options, r, deadline);
+      RetryableFunc<R, T> r, GrpcRetryerOptions options) throws T {
+    return SYNC.retry(r, options);
   }
 
   public static <R> CompletableFuture<R> retryWithResultAsync(
-      RpcRetryOptions options, Supplier<CompletableFuture<R>> function) {
-    return ASYNC.retry(options, function, null);
+      Supplier<CompletableFuture<R>> function, RpcRetryOptions options) {
+    return ASYNC.retry(function, new GrpcRetryerOptions(options, null));
   }
 
-  /**
-   * @param options allows partially built options without an expiration without an expiration or
-   *     maxAttempts set if {@code retriesDeadline} is supplied
-   */
   public static <R> CompletableFuture<R> retryWithResultAsync(
-      RpcRetryOptions options,
-      Supplier<CompletableFuture<R>> function,
-      @Nullable Deadline deadline) {
-    return ASYNC.retry(options, function, deadline);
+      Supplier<CompletableFuture<R>> function, GrpcRetryerOptions options) {
+    return ASYNC.retry(function, options);
   }
 
   /** Prohibits instantiation. */
   private GrpcRetryer() {}
+
+  public static class GrpcRetryerOptions {
+    @Nonnull private final RpcRetryOptions options;
+    @Nullable private final Deadline deadline;
+
+    /**
+     * @param options allows partially built options without an expiration without an expiration or
+     *     * maxAttempts set if {@code retriesDeadline} is supplied
+     * @param deadline an absolute deadline for the retries
+     */
+    public GrpcRetryerOptions(@Nonnull RpcRetryOptions options, @Nullable Deadline deadline) {
+      this.options = options;
+      this.deadline = deadline;
+    }
+
+    @Nonnull
+    public RpcRetryOptions getOptions() {
+      return options;
+    }
+
+    @Nullable
+    public Deadline getDeadline() {
+      return deadline;
+    }
+
+    public void validate() {
+      options.validate(false);
+      Preconditions.checkState(
+          options.getMaximumInterval() != null
+              || options.getMaximumAttempts() > 0
+              || deadline != null,
+          "configuration of the retries has to be finite");
+    }
+  }
 }

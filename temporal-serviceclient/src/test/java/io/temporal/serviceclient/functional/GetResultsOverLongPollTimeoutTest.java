@@ -35,7 +35,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * These tests are covering the situation when a getResult wait time crosses a boundary of one long
+ * These tests are covering the situation when a getResult wait time crosses a boundary of a long
  * poll timeout.
  */
 public class GetResultsOverLongPollTimeoutTest {
@@ -58,7 +58,6 @@ public class GetResultsOverLongPollTimeoutTest {
         testWorkflowRule.getWorkflowClient().getWorkflowServiceStubs().getOptions();
     WorkflowServiceStubsOptions modifiedOptions =
         WorkflowServiceStubsOptions.newBuilder(options)
-            // Server always cuts a long poll and return earlier than this timeout
             .setRpcLongPollTimeout(Duration.ofSeconds(LONG_POLL_TIMEOUT_SECONDS))
             .build();
 

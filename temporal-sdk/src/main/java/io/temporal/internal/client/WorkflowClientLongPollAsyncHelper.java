@@ -109,16 +109,18 @@ final class WorkflowClientLongPollAsyncHelper {
           History history = r.getHistory();
           if (history.getEventsCount() == 0) {
             // Empty poll returned
+            ByteString nextPageToken =
+                r.getNextPageToken().isEmpty() ? pageToken : r.getNextPageToken();
             return getInstanceCloseEventAsync(
                 genericClient,
                 workflowClientHelper,
                 workflowExecution,
-                pageToken,
+                nextPageToken,
                 longPollTimeoutDeadline);
           }
-          HistoryEvent event = history.getEvents(0);
+          HistoryEvent event = history.getEvents(0); // should be only one event
           if (!WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
-            throw new RuntimeException("Last history event is not completion event: " + event);
+            throw new RuntimeException("Unexpected workflow execution closing event: " + event);
           }
           // Workflow called continueAsNew. Start polling the new generation with new runId.
           if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW) {
@@ -134,7 +136,7 @@ final class WorkflowClientLongPollAsyncHelper {
                 genericClient,
                 workflowClientHelper,
                 nextWorkflowExecution,
-                r.getNextPageToken(),
+                ByteString.EMPTY,
                 longPollTimeoutDeadline);
           }
           return CompletableFuture.completedFuture(event);

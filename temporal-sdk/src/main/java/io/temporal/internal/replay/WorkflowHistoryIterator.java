@@ -119,12 +119,12 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
             .build();
     try {
       return GrpcRetryer.retryWithResult(
-          retryOptions,
           () ->
               service
                   .blockingStub()
                   .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                  .getWorkflowExecutionHistory(request));
+                  .getWorkflowExecutionHistory(request),
+          retryOptions);
     } catch (Exception e) {
       throw new Error(e);
     }

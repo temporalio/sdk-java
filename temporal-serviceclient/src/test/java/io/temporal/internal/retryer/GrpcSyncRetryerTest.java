@@ -65,11 +65,10 @@ public class GrpcSyncRetryerTest {
     long start = System.currentTimeMillis();
     try {
       DEFAULT_SYNC_RETRYER.retry(
-          options,
           () -> {
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
           },
-          null);
+          new GrpcRetryer.GrpcRetryerOptions(options, null));
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof StatusRuntimeException);
@@ -92,11 +91,10 @@ public class GrpcSyncRetryerTest {
     long start = System.currentTimeMillis();
     try {
       DEFAULT_SYNC_RETRYER.retry(
-          options,
           () -> {
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
           },
-          null);
+          new GrpcRetryer.GrpcRetryerOptions(options, null));
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof StatusRuntimeException);
@@ -117,11 +115,10 @@ public class GrpcSyncRetryerTest {
     long start = System.currentTimeMillis();
     try {
       DEFAULT_SYNC_RETRYER.retry(
-          options,
           () -> {
             throw new InterruptedException();
           },
-          null);
+          new GrpcRetryer.GrpcRetryerOptions(options, null));
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof CancellationException);
@@ -140,11 +137,10 @@ public class GrpcSyncRetryerTest {
     long start = System.currentTimeMillis();
     try {
       DEFAULT_SYNC_RETRYER.retry(
-          options,
           () -> {
             throw new IllegalArgumentException("simulated");
           },
-          null);
+          new GrpcRetryer.GrpcRetryerOptions(options, null));
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof IllegalArgumentException);
@@ -169,16 +165,14 @@ public class GrpcSyncRetryerTest {
     StatusRuntimeException e =
         assertThrows(
             StatusRuntimeException.class,
-            () -> {
-              DEFAULT_SYNC_RETRYER.retry(
-                  options,
-                  () -> {
-                    attempts.incrementAndGet();
-                    throw new StatusRuntimeException(
-                        Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
-                  },
-                  null);
-            });
+            () ->
+                DEFAULT_SYNC_RETRYER.retry(
+                    () -> {
+                      attempts.incrementAndGet();
+                      throw new StatusRuntimeException(
+                          Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
+                    },
+                    new GrpcRetryer.GrpcRetryerOptions(options, null)));
 
     assertEquals(Status.Code.DEADLINE_EXCEEDED, e.getStatus().getCode());
     assertTrue(
@@ -209,16 +203,14 @@ public class GrpcSyncRetryerTest {
                 exception.set(
                     assertThrows(
                         StatusRuntimeException.class,
-                        () -> {
-                          DEFAULT_SYNC_RETRYER.retry(
-                              options,
-                              () -> {
-                                attempts.incrementAndGet();
-                                throw new StatusRuntimeException(
-                                    Status.fromCode(Status.Code.DATA_LOSS));
-                              },
-                              null);
-                        })));
+                        () ->
+                            DEFAULT_SYNC_RETRYER.retry(
+                                () -> {
+                                  attempts.incrementAndGet();
+                                  throw new StatusRuntimeException(
+                                      Status.fromCode(Status.Code.DATA_LOSS));
+                                },
+                                new GrpcRetryer.GrpcRetryerOptions(options, null)))));
 
     assertEquals(Status.Code.DATA_LOSS, exception.get().getStatus().getCode());
     assertTrue(
@@ -246,20 +238,18 @@ public class GrpcSyncRetryerTest {
                 exception.set(
                     assertThrows(
                         StatusRuntimeException.class,
-                        () -> {
-                          DEFAULT_SYNC_RETRYER.retry(
-                              options,
-                              () -> {
-                                if (Context.current().getDeadline().isExpired()) {
-                                  throw new StatusRuntimeException(
-                                      Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
-                                } else {
-                                  throw new StatusRuntimeException(
-                                      Status.fromCode(Status.Code.DATA_LOSS));
-                                }
-                              },
-                              null);
-                        })));
+                        () ->
+                            DEFAULT_SYNC_RETRYER.retry(
+                                () -> {
+                                  if (Context.current().getDeadline().isExpired()) {
+                                    throw new StatusRuntimeException(
+                                        Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
+                                  } else {
+                                    throw new StatusRuntimeException(
+                                        Status.fromCode(Status.Code.DATA_LOSS));
+                                  }
+                                },
+                                new GrpcRetryer.GrpcRetryerOptions(options, null)))));
 
     assertEquals(
         "We should get a previous exception in case of DEADLINE_EXCEEDED",

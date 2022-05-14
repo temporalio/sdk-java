@@ -115,7 +115,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         history.add(eBuilder.build());
         completed = completed || WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(eBuilder);
       }
-      newEventsCondition.signal();
+      newEventsCondition.signalAll();
     }
 
     long getNextEventIdLocked() {
@@ -128,7 +128,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
     List<HistoryEvent> waitForNewEvents(
         long expectedNextEventId, HistoryEventFilterType filterType, Deadline deadline) {
-      long start = System.currentTimeMillis();
       lock.lock();
       try {
         while (true) {
@@ -152,10 +151,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
           try {
             long toWait;
             if (deadline != null) {
-              toWait =
-                  deadline.timeRemaining(TimeUnit.MILLISECONDS)
-                      - System.currentTimeMillis()
-                      + start;
+              toWait = deadline.timeRemaining(TimeUnit.MILLISECONDS);
               if (toWait <= 0) {
                 return null;
               }
@@ -371,7 +367,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest, Deadline deadline) {
+      ExecutionId executionId,
+      GetWorkflowExecutionHistoryRequest getRequest,
+      Deadline deadlineToReturnEmptyResponse) {
     HistoryStore history;
     // Used to eliminate the race condition on waitForNewEvents
     long expectedNextEventId;
@@ -405,7 +403,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
     List<HistoryEvent> events =
         history.waitForNewEvents(
-            expectedNextEventId, getRequest.getHistoryEventFilterType(), deadline);
+            expectedNextEventId,
+            getRequest.getHistoryEventFilterType(),
+            deadlineToReturnEmptyResponse);
     GetWorkflowExecutionHistoryResponse.Builder result =
         GetWorkflowExecutionHistoryResponse.newBuilder();
     if (events != null) {

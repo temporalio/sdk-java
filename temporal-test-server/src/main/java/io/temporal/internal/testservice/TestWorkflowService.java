@@ -55,14 +55,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
@@ -80,7 +73,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
   // key->WorkflowId
   private final Map<WorkflowId, TestWorkflowMutableState> executionsByWorkflowId = new HashMap<>();
-  private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
+  private final ExecutorService executor = Executors.newCachedThreadPool();
   private final Lock lock = new ReentrantLock();
 
   private final TestWorkflowStore store;
@@ -127,10 +120,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       inProcessServer.shutdown();
     }
 
-    forkJoinPool.shutdown();
+    executor.shutdown();
 
     try {
-      forkJoinPool.awaitTermination(1, TimeUnit.SECONDS);
+      executor.awaitTermination(1, TimeUnit.SECONDS);
 
       if (outOfProcessServer != null) {
         outOfProcessServer.awaitTermination(1, TimeUnit.SECONDS);
@@ -332,7 +325,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       GetWorkflowExecutionHistoryRequest getRequest,
       StreamObserver<GetWorkflowExecutionHistoryResponse> responseObserver) {
     ExecutionId executionId = new ExecutionId(getRequest.getNamespace(), getRequest.getExecution());
-    forkJoinPool.execute(
+    executor.execute(
         // preserving gRPC context deadline between threads
         Context.current()
             .wrap(
@@ -345,18 +338,14 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                             getRequest,
                             // We explicitly don't try to respond inside the context deadline.
                             // If we try to fit into the context deadline, the deadline may be not
-                            // expired on
-                            // the client side and an empty response will lead to a new request,
-                            // making
-                            // the client hammer the server at the tail end of the deadline.
-                            // So this call is designed to wait fully till the end of the context
-                            // deadline and throw
-                            // DEADLINE_EXCEEDED if the deadline is less than 60s (our default for
-                            // long polls)
-                            Deadline.after(
-                                WorkflowServiceStubsOptions.DEFAULT_SERVER_LONG_POLL_RPC_TIMEOUT
-                                    .toNanos(),
-                                TimeUnit.NANOSECONDS)));
+                            // expired on the client side and an empty response will lead to a new
+                            // request, making the client hammer the server at the tail end of the
+                            // deadline.
+                            // So this call is designed to wait fully till the end of the
+                            // context deadline and throw DEADLINE_EXCEEDED if the deadline is less
+                            // than 20s.
+                            // If it's longer than 20 seconds - we return an empty result.
+                            Deadline.after(20, TimeUnit.SECONDS)));
                     responseObserver.onCompleted();
                   } catch (StatusRuntimeException e) {
                     if (e.getStatus().getCode() == Status.Code.INTERNAL) {

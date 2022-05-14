@@ -123,16 +123,11 @@ final class WorkflowClientLongPollHelper {
         throw e;
       }
 
-      if (response == null || !response.hasHistory()) {
-        continue;
-      }
-
-      pageToken = response.getNextPageToken();
       History history = response.getHistory();
       if (history.getEventsCount() > 0) {
-        HistoryEvent event = history.getEvents(0);
+        HistoryEvent event = history.getEvents(0); // should be only one event
         if (!WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
-          throw new RuntimeException("Last history event is not completion event: " + event);
+          throw new RuntimeException("Unexpected workflow execution closing event: " + event);
         }
         // Workflow called continueAsNew. Start polling the new execution with new runId.
         if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW) {
@@ -148,6 +143,9 @@ final class WorkflowClientLongPollHelper {
           continue;
         }
         return event;
+      }
+      if (!response.getNextPageToken().isEmpty()) {
+        pageToken = response.getNextPageToken();
       }
     }
   }

@@ -58,13 +58,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
     StartWorkflowExecutionResponse result;
     result =
         GrpcRetryer.retryWithResult(
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
-                    .startWorkflowExecution(request));
+                    .startWorkflowExecution(request),
+            RpcRetryOptions.newBuilder()
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
 
     return WorkflowExecution.newBuilder()
         .setRunId(result.getRunId())
@@ -80,13 +80,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
             .build();
     Scope scope = metricsScope.tagged(tags);
     GrpcRetryer.retry(
-        RpcRetryOptions.newBuilder()
-            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
         () ->
             service
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
-                .signalWorkflowExecution(request));
+                .signalWorkflowExecution(request),
+        RpcRetryOptions.newBuilder()
+            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
   }
 
   @Override
@@ -102,13 +102,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
     SignalWithStartWorkflowExecutionResponse result;
     result =
         GrpcRetryer.retryWithResult(
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             () ->
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
-                    .signalWithStartWorkflowExecution(request));
+                    .signalWithStartWorkflowExecution(request),
+            RpcRetryOptions.newBuilder()
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
     return WorkflowExecution.newBuilder()
         .setRunId(result.getRunId())
         .setWorkflowId(request.getWorkflowId())
@@ -118,32 +118,31 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public void requestCancel(RequestCancelWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
-        RpcRetryOptions.newBuilder()
-            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
         () ->
             service
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .requestCancelWorkflowExecution(request));
+                .requestCancelWorkflowExecution(request),
+        RpcRetryOptions.newBuilder()
+            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
   }
 
   @Override
   public void terminate(TerminateWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
-        RpcRetryOptions.newBuilder()
-            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
         () ->
             service
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .terminateWorkflowExecution(request));
+                .terminateWorkflowExecution(request),
+        RpcRetryOptions.newBuilder()
+            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
   }
 
   @Override
   public GetWorkflowExecutionHistoryResponse longPollHistory(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
     return GrpcRetryer.retryWithResult(
-        DefaultStubLongPollRpcRetryOptions.INSTANCE,
         () ->
             service
                 .blockingStub()
@@ -151,14 +150,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
                 .withDeadline(deadline)
                 .getWorkflowExecutionHistory(request),
-        deadline);
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
   }
 
   @Override
   public CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
     return GrpcRetryer.retryWithResultAsync(
-        DefaultStubLongPollRpcRetryOptions.INSTANCE,
         () -> {
           CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
           ListenableFuture<GetWorkflowExecutionHistoryResponse> resultFuture =
@@ -182,7 +180,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
               ForkJoinPool.commonPool());
           return result;
         },
-        deadline);
+        new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
   }
 
   @Override
@@ -194,12 +192,12 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
     Scope scope = metricsScope.tagged(tags);
 
     return GrpcRetryer.retryWithResult(
-        RpcRetryOptions.newBuilder()
-            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
         () ->
             service
                 .blockingStub()
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
-                .queryWorkflow(queryParameters));
+                .queryWorkflow(queryParameters),
+        RpcRetryOptions.newBuilder()
+            .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
   }
 }
