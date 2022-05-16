@@ -159,7 +159,9 @@ interface TestWorkflowStore {
       ExecutionId executionId, TaskQueueId taskQueue, PollWorkflowTaskQueueResponse.Builder task);
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest, Deadline deadline);
+      ExecutionId executionId,
+      GetWorkflowExecutionHistoryRequest getRequest,
+      Deadline deadlineToReturnEmptyResponse);
 
   void getDiagnostics(StringBuilder result);
 

@@ -23,6 +23,8 @@ import static io.temporal.internal.common.WorkflowExecutionUtils.getResultFromCl
 
 import com.google.protobuf.ByteString;
 import io.grpc.Deadline;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
@@ -33,9 +35,9 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.util.Optional;
 import java.util.concurrent.*;
+import javax.annotation.Nonnull;
 
 /** This class encapsulates async long poll logic of {@link RootWorkflowClientInvoker} */
 final class WorkflowClientLongPollAsyncHelper {
@@ -43,16 +45,52 @@ final class WorkflowClientLongPollAsyncHelper {
   static CompletableFuture<Optional<Payloads>> getWorkflowExecutionResultAsync(
       GenericWorkflowClient genericClient,
       WorkflowClientRequestFactory workflowClientHelper,
-      WorkflowExecution workflowExecution,
+      @Nonnull WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       long timeout,
       TimeUnit unit,
       DataConverter converter) {
+    Deadline longPollTimeoutDeadline = Deadline.after(timeout, unit);
     return getInstanceCloseEventAsync(
-            genericClient, workflowClientHelper, workflowExecution, ByteString.EMPTY, timeout, unit)
-        .thenApply(
-            (closeEvent) ->
-                getResultFromCloseEvent(workflowExecution, workflowType, closeEvent, converter));
+            genericClient,
+            workflowClientHelper,
+            workflowExecution,
+            ByteString.EMPTY,
+            longPollTimeoutDeadline)
+        .handle(
+            (closeEvent, e) -> {
+              if (e == null) {
+                return getResultFromCloseEvent(
+                    workflowExecution, workflowType, closeEvent, converter);
+              } else {
+                throw handleException(e, longPollTimeoutDeadline, workflowExecution, timeout, unit);
+              }
+            });
+  }
+
+  private static CompletionException handleException(
+      Throwable e,
+      Deadline longPollTimeoutDeadline,
+      @Nonnull WorkflowExecution workflowExecution,
+      long timeout,
+      TimeUnit unit) {
+    if (e instanceof CompletionException) {
+      Throwable cause = e.getCause();
+      if (longPollTimeoutDeadline.isExpired()
+          && cause instanceof StatusRuntimeException
+          && Status.Code.DEADLINE_EXCEEDED.equals(
+              ((StatusRuntimeException) cause).getStatus().getCode())) {
+        // we want to form timeout exception only if the original deadline is indeed expired.
+        // Otherwise, we should rethrow a raw DEADLINE_EXCEEDED. throwing TimeoutException
+        // in this case will be highly misleading.
+        return new CompletionException(
+            WorkflowClientLongPollHelper.newTimeoutException(workflowExecution, timeout, unit));
+      } else {
+        return (CompletionException) e;
+      }
+    } else {
+      return new CompletionException(e);
+    }
   }
 
   /** Returns an instance closing event, potentially waiting for workflow to complete. */
@@ -61,34 +99,28 @@ final class WorkflowClientLongPollAsyncHelper {
       WorkflowClientRequestFactory workflowClientHelper,
       final WorkflowExecution workflowExecution,
       ByteString pageToken,
-      long timeout,
-      TimeUnit unit) {
+      Deadline longPollTimeoutDeadline) {
     GetWorkflowExecutionHistoryRequest request =
         workflowClientHelper.newHistoryLongPollRequest(workflowExecution, pageToken);
-    Deadline deadline = Deadline.after(timeout, unit);
     CompletableFuture<GetWorkflowExecutionHistoryResponse> response =
-        genericClient.longPollHistoryAsync(request, deadline);
+        genericClient.longPollHistoryAsync(request, longPollTimeoutDeadline);
     return response.thenComposeAsync(
         (r) -> {
-          // TODO to fix https://github.com/temporalio/sdk-java/issues/1177 we need to process
-          //  DEADLINE_EXCEEDED
-          //  or an underlying TimeoutException
-          if (deadline.isExpired()) {
-            // TODO check that such throwing populates a stacktrace into TimeoutException. It likely
-            // doesn't.
-            //  Instead a CompletionException should be used
-            throw CheckedExceptionWrapper.wrap(
-                WorkflowClientLongPollHelper.newTimeoutException(workflowExecution, timeout, unit));
-          }
           History history = r.getHistory();
           if (history.getEventsCount() == 0) {
             // Empty poll returned
+            ByteString nextPageToken =
+                r.getNextPageToken().isEmpty() ? pageToken : r.getNextPageToken();
             return getInstanceCloseEventAsync(
-                genericClient, workflowClientHelper, workflowExecution, pageToken, timeout, unit);
+                genericClient,
+                workflowClientHelper,
+                workflowExecution,
+                nextPageToken,
+                longPollTimeoutDeadline);
           }
-          HistoryEvent event = history.getEvents(0);
+          HistoryEvent event = history.getEvents(0); // should be only one event
           if (!WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
-            throw new RuntimeException("Last history event is not completion event: " + event);
+            throw new RuntimeException("Unexpected workflow execution closing event: " + event);
           }
           // Workflow called continueAsNew. Start polling the new generation with new runId.
           if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW) {
@@ -104,9 +136,8 @@ final class WorkflowClientLongPollAsyncHelper {
                 genericClient,
                 workflowClientHelper,
                 nextWorkflowExecution,
-                r.getNextPageToken(),
-                timeout,
-                unit);
+                ByteString.EMPTY,
+                longPollTimeoutDeadline);
           }
           return CompletableFuture.completedFuture(event);
         });

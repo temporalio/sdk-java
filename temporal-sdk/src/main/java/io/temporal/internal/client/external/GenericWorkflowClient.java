@@ -23,6 +23,7 @@ import io.grpc.Deadline;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nonnull;
 
 public interface GenericWorkflowClient {
 
@@ -39,8 +40,8 @@ public interface GenericWorkflowClient {
   void terminate(TerminateWorkflowExecutionRequest request);
 
   GetWorkflowExecutionHistoryResponse longPollHistory(
-      GetWorkflowExecutionHistoryRequest request, Deadline deadline);
+      @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline);
 
   CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
-      GetWorkflowExecutionHistoryRequest request, Deadline deadline);
+      @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline);
 }

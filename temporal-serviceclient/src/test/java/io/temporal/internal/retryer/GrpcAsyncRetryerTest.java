@@ -25,7 +25,6 @@ import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.serviceclient.RpcRetryOptions;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,8 +35,7 @@ import org.junit.Test;
 
 public class GrpcAsyncRetryerTest {
 
-  private static final GrpcAsyncRetryer DEFAULT_ASYNC_RETRYER =
-      new GrpcAsyncRetryer(Clock.systemUTC());
+  private static final GrpcAsyncRetryer DEFAULT_ASYNC_RETRYER = new GrpcAsyncRetryer();
 
   private static ScheduledExecutorService scheduledExecutor;
 
@@ -65,10 +63,10 @@ public class GrpcAsyncRetryerTest {
     try {
       DEFAULT_ASYNC_RETRYER
           .retry(
-              options,
               () -> {
                 throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
-              })
+              },
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -93,13 +91,13 @@ public class GrpcAsyncRetryerTest {
     try {
       DEFAULT_ASYNC_RETRYER
           .retry(
-              options,
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(
                     new StatusRuntimeException(Status.fromCode(STATUS_CODE)));
                 return result;
-              })
+              },
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -123,13 +121,13 @@ public class GrpcAsyncRetryerTest {
     try {
       DEFAULT_ASYNC_RETRYER
           .retry(
-              options,
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(
                     new StatusRuntimeException(Status.fromCode(STATUS_CODE)));
                 return result;
-              })
+              },
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -152,12 +150,12 @@ public class GrpcAsyncRetryerTest {
     try {
       DEFAULT_ASYNC_RETRYER
           .retry(
-              options,
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(new InterruptedException("simulated"));
                 return result;
-              })
+              },
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -179,12 +177,12 @@ public class GrpcAsyncRetryerTest {
     try {
       DEFAULT_ASYNC_RETRYER
           .retry(
-              options,
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(new IllegalArgumentException("simulated"));
                 return result;
-              })
+              },
+              new GrpcRetryer.GrpcRetryerOptions(options, null))
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -214,7 +212,6 @@ public class GrpcAsyncRetryerTest {
               try {
                 DEFAULT_ASYNC_RETRYER
                     .retry(
-                        options,
                         () -> {
                           attempts.incrementAndGet();
                           CompletableFuture<?> future = new CompletableFuture<>();
@@ -222,7 +219,8 @@ public class GrpcAsyncRetryerTest {
                               new StatusRuntimeException(
                                   Status.fromCode(Status.Code.DEADLINE_EXCEEDED)));
                           return future;
-                        })
+                        },
+                        new GrpcRetryer.GrpcRetryerOptions(options, null))
                     .get();
               } catch (ExecutionException ex) {
                 throw ex.getCause();
@@ -263,7 +261,6 @@ public class GrpcAsyncRetryerTest {
                           try {
                             DEFAULT_ASYNC_RETRYER
                                 .retry(
-                                    options,
                                     () -> {
                                       attempts.incrementAndGet();
                                       CompletableFuture<?> future = new CompletableFuture<>();
@@ -271,7 +268,8 @@ public class GrpcAsyncRetryerTest {
                                           new StatusRuntimeException(
                                               Status.fromCode(Status.Code.DATA_LOSS)));
                                       return future;
-                                    })
+                                    },
+                                    new GrpcRetryer.GrpcRetryerOptions(options, null))
                                 .get();
                           } catch (ExecutionException e) {
                             throw e.getCause();
@@ -308,7 +306,6 @@ public class GrpcAsyncRetryerTest {
                           try {
                             DEFAULT_ASYNC_RETRYER
                                 .retry(
-                                    options,
                                     () -> {
                                       if (Context.current().getDeadline().isExpired()) {
                                         throw new StatusRuntimeException(
@@ -317,7 +314,8 @@ public class GrpcAsyncRetryerTest {
                                         throw new StatusRuntimeException(
                                             Status.fromCode(Status.Code.DATA_LOSS));
                                       }
-                                    })
+                                    },
+                                    new GrpcRetryer.GrpcRetryerOptions(options, null))
                                 .get();
                           } catch (ExecutionException e) {
                             throw e.getCause();

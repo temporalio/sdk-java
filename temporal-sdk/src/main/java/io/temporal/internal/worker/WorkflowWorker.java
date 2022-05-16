@@ -308,13 +308,13 @@ public final class WorkflowWorker
                   .build();
           AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
           GrpcRetryer.retry(
-              retryOptions,
               () ->
                   nextTask.set(
                       service
                           .blockingStub()
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                          .respondWorkflowTaskCompleted(request)));
+                          .respondWorkflowTaskCompleted(request)),
+              retryOptions);
           if (nextTask.get().hasWorkflowTask()) {
             return Optional.of(nextTask.get().getWorkflowTask());
           }
@@ -330,12 +330,12 @@ public final class WorkflowWorker
                     .setTaskToken(taskToken)
                     .build();
             GrpcRetryer.retry(
-                retryOptions,
                 () ->
                     service
                         .blockingStub()
                         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                        .respondWorkflowTaskFailed(request));
+                        .respondWorkflowTaskFailed(request),
+                retryOptions);
           } else {
             RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
             if (queryCompleted != null) {

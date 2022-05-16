@@ -28,7 +28,16 @@ public class DefaultStubLongPollRpcRetryOptions {
   public static final Duration MAXIMUM_INTERVAL = Duration.ofMinutes(1);
   public static final double BACKOFF = 1.2;
 
-  public static RpcRetryOptions.Builder getBuilder() {
+  // partial build because expiration is not set, long polls work with absolute deadlines instead
+  public static final RpcRetryOptions INSTANCE = getBuilder().build();
+
+  static {
+    // retryer code that works with these options passes and accepts an absolute deadline
+    // to ensure that the retry is finite
+    INSTANCE.validate(false);
+  }
+
+  private static RpcRetryOptions.Builder getBuilder() {
     RpcRetryOptions.Builder roBuilder =
         RpcRetryOptions.newBuilder()
             .setInitialInterval(INITIAL_INTERVAL)

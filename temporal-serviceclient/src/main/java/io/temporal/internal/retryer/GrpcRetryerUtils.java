@@ -28,6 +28,7 @@ import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -45,10 +46,7 @@ class GrpcRetryerUtils {
    *     external code otherwise.
    */
   static @Nullable RuntimeException createFinalExceptionIfNotRetryable(
-      @Nonnull StatusRuntimeException currentException,
-      @Nullable StatusRuntimeException previousException,
-      @Nonnull RpcRetryOptions options,
-      @Nullable Deadline grpcContextDeadline) {
+      @Nonnull StatusRuntimeException currentException, @Nonnull RpcRetryOptions options) {
     Status.Code code = currentException.getStatus().getCode();
 
     switch (code) {
@@ -58,14 +56,9 @@ class GrpcRetryerUtils {
       case CANCELLED:
         return new CancellationException("The gRPC request was cancelled");
       case DEADLINE_EXCEEDED:
-        if (grpcContextDeadline != null && grpcContextDeadline.isExpired()) {
-          return lastMeaningfulException(currentException, previousException);
-        } else {
-          // If this specific request's deadline has expired, but the higher-level deadline
-          // that was established when GrpcRetryer was initialized not been exceeded, we
-          // should keep retrying.
-          break;
-        }
+        // By default, we keep retrying with DEADLINE_EXCEEDED assuming that it's the deadline of
+        // one attempt which expired, but not the whole sequence.
+        break;
       default:
         for (RpcRetryOptions.DoNotRetryItem pair : options.getDoNotRetry()) {
           if (pair.getCode() == code
@@ -82,40 +75,59 @@ class GrpcRetryerUtils {
   static StatusRuntimeException lastMeaningfulException(
       @Nonnull StatusRuntimeException currentException,
       @Nullable StatusRuntimeException previousException) {
-    if (currentException.getStatus().getCode() == DEADLINE_EXCEEDED) {
-      if (previousException != null
-          && previousException.getStatus().getCode() != DEADLINE_EXCEEDED) {
-        // If there was another exception before this DEADLINE_EXCEEDED that wasn't
-        // DEADLINE_EXCEEDED, we prefer it
-        // over DEADLINE_EXCEEDED
-        return previousException;
-      } else {
-        return currentException;
-      }
-    } else {
-      return currentException;
+    if (previousException != null
+        && currentException.getStatus().getCode() == DEADLINE_EXCEEDED
+        && previousException.getStatus().getCode() != DEADLINE_EXCEEDED) {
+      // If there was another exception before this DEADLINE_EXCEEDED that wasn't
+      // DEADLINE_EXCEEDED, we prefer it over DEADLINE_EXCEEDED
+      return previousException;
     }
+
+    return currentException;
   }
 
   /**
    * @param options retry options
-   * @param startTimeMs timestamp when attempts started
-   * @param currentTimeMillis current timestamp
+   * @param retriesExpirationDeadline deadline calculated based on {@link
+   *     RpcRetryOptions#getExpiration()}
    * @param attempt number of the last made attempt
+   * @param grpcContextDeadline deadline coming from gRPC context of the request
    * @return true if we out of attempts or time to retry
    */
   static boolean ranOutOfRetries(
       RpcRetryOptions options,
-      long startTimeMs,
-      long currentTimeMillis,
       int attempt,
+      @Nullable Deadline retriesExpirationDeadline,
       @Nullable Deadline grpcContextDeadline) {
     int maxAttempts = options.getMaximumAttempts();
-    Duration expirationDuration = options.getExpiration();
-    long expirationInterval = expirationDuration != null ? expirationDuration.toMillis() : 0;
 
     return (maxAttempts > 0 && attempt >= maxAttempts)
-        || (expirationDuration != null && currentTimeMillis - startTimeMs >= expirationInterval)
+        // check if the deadline for the whole sequence calculated based on {@link
+        // RpcRetryOptions#getExpiration()} is expired
+        || (retriesExpirationDeadline != null && retriesExpirationDeadline.isExpired())
+        // if context has a gRPC deadline, no requests will be possible anyway, the best we can do
+        // is wrap up
         || (grpcContextDeadline != null && grpcContextDeadline.isExpired());
+  }
+
+  @Nullable
+  static Deadline mergeDurationWithAnAbsoluteDeadline(
+      @Nullable Duration duration, @Nullable Deadline deadline) {
+    Deadline durationDeadline = null;
+    if (duration != null) {
+      long ms = duration.toMillis();
+      if (ms > 0) {
+        durationDeadline = Deadline.after(ms, TimeUnit.MILLISECONDS);
+      } else {
+        long ns = duration.toNanos();
+        durationDeadline = Deadline.after(ns, TimeUnit.NANOSECONDS);
+      }
+    }
+
+    if (deadline != null) {
+      return (durationDeadline != null) ? deadline.minimum(durationDeadline) : deadline;
+    } else {
+      return durationDeadline;
+    }
   }
 }

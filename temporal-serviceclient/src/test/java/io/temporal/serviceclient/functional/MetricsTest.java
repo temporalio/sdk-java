@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient;
+package io.temporal.serviceclient.functional;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static junit.framework.TestCase.assertEquals;
@@ -33,6 +33,10 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.reporter.MicrometerClientStatsReporter;
+import io.temporal.serviceclient.MetricsTag;
+import io.temporal.serviceclient.MetricsType;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.util.List;

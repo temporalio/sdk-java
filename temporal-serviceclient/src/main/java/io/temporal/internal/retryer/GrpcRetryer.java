@@ -19,14 +19,17 @@
 
 package io.temporal.internal.retryer;
 
+import com.google.common.base.Preconditions;
+import io.grpc.Deadline;
 import io.temporal.serviceclient.RpcRetryOptions;
-import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class GrpcRetryer {
-  private static final GrpcSyncRetryer SYNC = new GrpcSyncRetryer(Clock.systemUTC());
-  private static final GrpcAsyncRetryer ASYNC = new GrpcAsyncRetryer(Clock.systemUTC());
+  private static final GrpcSyncRetryer SYNC = new GrpcSyncRetryer();
+  private static final GrpcAsyncRetryer ASYNC = new GrpcAsyncRetryer();
 
   public interface RetryableProc<E extends Throwable> {
     void apply() throws E;
@@ -36,26 +39,76 @@ public final class GrpcRetryer {
     R apply() throws E;
   }
 
-  public static <T extends Throwable> void retry(RpcRetryOptions options, RetryableProc<T> r)
+  public static <T extends Throwable> void retry(RetryableProc<T> r, RpcRetryOptions options)
+      throws T {
+    retry(r, new GrpcRetryerOptions(options, null));
+  }
+
+  public static <T extends Throwable> void retry(RetryableProc<T> r, GrpcRetryerOptions options)
       throws T {
     retryWithResult(
-        options,
         () -> {
           r.apply();
           return null;
-        });
+        },
+        options);
   }
 
   public static <R, T extends Throwable> R retryWithResult(
-      RpcRetryOptions options, RetryableFunc<R, T> r) throws T {
-    return SYNC.retry(options, r);
+      RetryableFunc<R, T> r, RpcRetryOptions options) throws T {
+    return retryWithResult(r, new GrpcRetryerOptions(options, null));
+  }
+
+  /** */
+  public static <R, T extends Throwable> R retryWithResult(
+      RetryableFunc<R, T> r, GrpcRetryerOptions options) throws T {
+    return SYNC.retry(r, options);
   }
 
   public static <R> CompletableFuture<R> retryWithResultAsync(
-      RpcRetryOptions options, Supplier<CompletableFuture<R>> function) {
-    return ASYNC.retry(options, function);
+      Supplier<CompletableFuture<R>> function, RpcRetryOptions options) {
+    return ASYNC.retry(function, new GrpcRetryerOptions(options, null));
+  }
+
+  public static <R> CompletableFuture<R> retryWithResultAsync(
+      Supplier<CompletableFuture<R>> function, GrpcRetryerOptions options) {
+    return ASYNC.retry(function, options);
   }
 
   /** Prohibits instantiation. */
   private GrpcRetryer() {}
+
+  public static class GrpcRetryerOptions {
+    @Nonnull private final RpcRetryOptions options;
+    @Nullable private final Deadline deadline;
+
+    /**
+     * @param options allows partially built options without an expiration without an expiration or
+     *     * maxAttempts set if {@code retriesDeadline} is supplied
+     * @param deadline an absolute deadline for the retries
+     */
+    public GrpcRetryerOptions(@Nonnull RpcRetryOptions options, @Nullable Deadline deadline) {
+      this.options = options;
+      this.deadline = deadline;
+    }
+
+    @Nonnull
+    public RpcRetryOptions getOptions() {
+      return options;
+    }
+
+    @Nullable
+    public Deadline getDeadline() {
+      return deadline;
+    }
+
+    public void validate() {
+      options.validate(false);
+      Preconditions.checkState(
+          options.getMaximumInterval() != null
+              || options.getMaximumAttempts() > 0
+              || deadline != null,
+          "configuration of the retries has to be finite");
+    }
+  }
 }

@@ -269,12 +269,12 @@ public final class ActivityWorker implements SuspendableWorker {
                 .setNamespace(namespace)
                 .build();
         GrpcRetryer.retry(
-            ro,
             () ->
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                    .respondActivityTaskCompleted(request));
+                    .respondActivityTaskCompleted(request),
+            ro);
       } else {
         Result.TaskFailedResult taskFailed = response.getTaskFailed();
 
@@ -288,12 +288,12 @@ public final class ActivityWorker implements SuspendableWorker {
           ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
 
           GrpcRetryer.retry(
-              ro,
               () ->
                   service
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                      .respondActivityTaskFailed(request));
+                      .respondActivityTaskFailed(request),
+              ro);
         } else {
           RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
           if (taskCanceled != null) {
@@ -306,12 +306,12 @@ public final class ActivityWorker implements SuspendableWorker {
             ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
 
             GrpcRetryer.retry(
-                ro,
                 () ->
                     service
                         .blockingStub()
                         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                        .respondActivityTaskCanceled(request));
+                        .respondActivityTaskCanceled(request),
+                ro);
           }
         }
       }

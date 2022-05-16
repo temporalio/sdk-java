@@ -21,6 +21,8 @@ package io.temporal.internal.client;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Deadline;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.*;
@@ -35,6 +37,7 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nonnull;
 
 /** This class encapsulates sync long poll logic of {@link RootWorkflowClientInvoker} */
 final class WorkflowClientLongPollHelper {
@@ -51,7 +54,7 @@ final class WorkflowClientLongPollHelper {
   static Optional<Payloads> getWorkflowExecutionResult(
       GenericWorkflowClient genericClient,
       WorkflowClientRequestFactory workflowClientHelper,
-      WorkflowExecution workflowExecution,
+      @Nonnull WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       DataConverter converter,
       long timeout,
@@ -75,7 +78,7 @@ final class WorkflowClientLongPollHelper {
   static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
       GenericWorkflowClient genericClient,
       WorkflowClientRequestFactory workflowClientHelper,
-      WorkflowExecution workflowExecution,
+      @Nonnull WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
       throws TimeoutException {
@@ -95,36 +98,36 @@ final class WorkflowClientLongPollHelper {
   private static HistoryEvent getInstanceCloseEvent(
       GenericWorkflowClient genericClient,
       WorkflowClientRequestFactory workflowClientHelper,
-      WorkflowExecution workflowExecution,
+      @Nonnull WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
       throws TimeoutException {
     ByteString pageToken = ByteString.EMPTY;
     GetWorkflowExecutionHistoryResponse response;
-    Deadline deadline = Deadline.after(timeout, unit);
+    Deadline longPollTimeoutDeadline = Deadline.after(timeout, unit);
 
-    do {
-      if (deadline.isExpired()) {
-        throw newTimeoutException(workflowExecution, timeout, unit);
-      }
-
+    while (true) {
       GetWorkflowExecutionHistoryRequest request =
           workflowClientHelper.newHistoryLongPollRequest(workflowExecution, pageToken);
-      // TODO to fix https://github.com/temporalio/sdk-java/issues/1177 we need to process
-      //  DEADLINE_EXCEEDED correctly. It may be thrown if a deadline of one request is exceeded,
-      //  but the total timeout is not.
-      response = genericClient.longPollHistory(request, deadline);
 
-      if (response == null || !response.hasHistory()) {
-        continue;
+      try {
+        response = genericClient.longPollHistory(request, longPollTimeoutDeadline);
+      } catch (StatusRuntimeException e) {
+        if (longPollTimeoutDeadline.isExpired()
+            && Status.Code.DEADLINE_EXCEEDED.equals(e.getStatus().getCode())) {
+          // we want to form timeout exception only if the original deadline is indeed expired.
+          // Otherwise, we should rethrow a raw DEADLINE_EXCEEDED. throwing TimeoutException
+          // in this case will be highly misleading.
+          throw newTimeoutException(workflowExecution, timeout, unit);
+        }
+        throw e;
       }
 
-      pageToken = response.getNextPageToken();
       History history = response.getHistory();
       if (history.getEventsCount() > 0) {
-        HistoryEvent event = history.getEvents(0);
+        HistoryEvent event = history.getEvents(0); // should be only one event
         if (!WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(event)) {
-          throw new RuntimeException("Last history event is not completion event: " + event);
+          throw new RuntimeException("Unexpected workflow execution closing event: " + event);
         }
         // Workflow called continueAsNew. Start polling the new execution with new runId.
         if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW) {
@@ -141,11 +144,14 @@ final class WorkflowClientLongPollHelper {
         }
         return event;
       }
-    } while (true);
+      if (!response.getNextPageToken().isEmpty()) {
+        pageToken = response.getNextPageToken();
+      }
+    }
   }
 
   static TimeoutException newTimeoutException(
-      WorkflowExecution workflowExecution, long timeout, TimeUnit unit) {
+      @Nonnull WorkflowExecution workflowExecution, long timeout, TimeUnit unit) {
     return new TimeoutException(
         "WorkflowId="
             + workflowExecution.getWorkflowId()

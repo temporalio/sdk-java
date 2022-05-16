@@ -221,7 +221,7 @@ class WorkflowStubImpl implements WorkflowStub {
       // int max to not overflow long
       return getResult(Integer.MAX_VALUE, TimeUnit.MILLISECONDS, resultClass, resultType);
     } catch (TimeoutException e) {
-      throw CheckedExceptionWrapper.wrap(e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
   }
 
@@ -241,8 +241,6 @@ class WorkflowStubImpl implements WorkflowStub {
               new WorkflowClientCallsInterceptor.GetResultInput<>(
                   execution.get(), workflowType, timeout, unit, resultClass, resultType));
       return result.getResult();
-    } catch (TimeoutException e) {
-      throw e;
     } catch (Exception e) {
       return mapToWorkflowFailureException(e, resultClass);
     }
@@ -274,25 +272,30 @@ class WorkflowStubImpl implements WorkflowStub {
                 execution.get(), workflowType, timeout, unit, resultClass, resultType));
     return result
         .getResult()
-        .handle(
-            (r, e) -> {
-              if (e instanceof CompletionException) {
-                e = e.getCause();
+        .exceptionally(
+            e -> {
+              try {
+                return mapToWorkflowFailureException(e, resultClass);
+              } catch (TimeoutException ex) {
+                throw new CompletionException(ex);
               }
-              if (e != null) {
-                throw CheckedExceptionWrapper.wrap(e);
-              }
-              return r;
             });
   }
 
+  // This function never returns anything, it only throws
   private <R> R mapToWorkflowFailureException(
-      Exception failure, @SuppressWarnings("unused") Class<R> returnType) {
-    Throwable f = CheckedExceptionWrapper.unwrap(failure);
-    if (f instanceof Error) {
-      throw (Error) f;
+      Throwable failure, @SuppressWarnings("unused") Class<R> returnType) throws TimeoutException {
+    if (failure instanceof CompletionException) {
+      // if we work with CompletableFuture, the exception may be wrapped into CompletionException
+      failure = failure.getCause();
     }
-    failure = (Exception) f;
+    failure = CheckedExceptionWrapper.unwrap(failure);
+    if (failure instanceof Error) {
+      throw (Error) failure;
+    }
+    if (failure instanceof TimeoutException) {
+      throw (TimeoutException) failure;
+    }
     if (failure instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) failure;
       if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
