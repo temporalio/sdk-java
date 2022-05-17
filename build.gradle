@@ -9,7 +9,7 @@ plugins {
     id 'org.cadixdev.licenser' version '0.6.1'
     id 'com.palantir.git-version' version "${palantirGitVersionVersion}" apply false
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
-    id 'com.diffplug.spotless' version '6.5.2' apply false
+    id 'com.diffplug.spotless' version '6.6.1' apply false
     id 'base'
 }
 
@@ -29,7 +29,7 @@ ext {
     // micrometerVersion = '[1.0.0,)!!1.8.3'
     grpcVersion = '1.46.0'
     jacksonVersion = '2.13.1'
-    micrometerVersion = '1.8.5'
+    micrometerVersion = '1.9.0'
 
     protoVersion = '[3.10.0,3.99)!!3.20.1'
     annotationApiVersion = '1.3.2'
@@ -46,7 +46,9 @@ ext {
 
 apply from: "$rootDir/gradle/versioning.gradle"
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/google-java-format.gradle"
+if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)) {
+    apply from: "$rootDir/gradle/google-java-format.gradle"
+}
 apply from: "$rootDir/gradle/errorprone.gradle"
 apply from: "$rootDir/gradle/licensing.gradle"
 apply from: "$rootDir/gradle/publishing.gradle"

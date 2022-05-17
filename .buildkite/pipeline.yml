@@ -3,7 +3,7 @@ steps:
     agents:
       queue: "default"
       docker: "*"
-    command: "./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply"
+    command: "./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -x spotlessJava"
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:
@@ -14,7 +14,7 @@ steps:
     agents:
       queue: "default"
       docker: "*"
-    command: "./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply"
+    command: "./gradlew --no-daemon test -x checkLicenseMain -x checkLicenses"
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:

@@ -17,7 +17,10 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow.activityTests;
+package io.temporal.workflow.activityTests.cancellation;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityOptions;
@@ -35,7 +38,6 @@ import io.temporal.workflow.shared.TestActivities.CompletionClientActivitiesImpl
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -70,14 +72,15 @@ public class AbandonOnCancelActivityTest {
     long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     try {
       stub.getResult(String.class);
-      Assert.fail("unreachable");
+      fail("unreachable");
     } catch (WorkflowFailedException e) {
-      Assert.assertTrue(e.getCause() instanceof CanceledFailure);
+      assertTrue(e.getCause() instanceof CanceledFailure);
     }
     long elapsed = testWorkflowRule.getTestEnvironment().currentTimeMillis() - start;
-    Assert.assertTrue(String.valueOf(elapsed), elapsed < 500);
+    assertTrue(String.valueOf(elapsed), elapsed < 500);
     activitiesImpl.assertInvocations("activityWithDelay");
-    Assert.assertTrue(
+    assertTrue(
+        "Activity with CancellationType=ABANDON should never have a requested cancellation in history",
         testWorkflowRule
             .getHistoryEvents(execution, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
             .isEmpty());
