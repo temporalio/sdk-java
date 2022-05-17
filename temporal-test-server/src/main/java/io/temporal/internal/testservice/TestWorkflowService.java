@@ -23,6 +23,7 @@ import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
@@ -52,6 +53,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.*;
@@ -472,6 +474,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       PollActivityTaskQueueResponse.Builder task = null;
       try {
         task = pollTaskQueue(ctx, store.pollActivityTaskQueue(pollRequest));
+        task.setTaskToken(new ActivityIdWithAttempt(ActivityId.fromBytes(task.getTaskToken()), task.getAttempt()).toBytes());
       } catch (ExecutionException e) {
         responseObserver.onError(e);
         return;
@@ -517,7 +520,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RecordActivityTaskHeartbeatRequest heartbeatRequest,
       StreamObserver<RecordActivityTaskHeartbeatResponse> responseObserver) {
     try {
-      ActivityId activityId = ActivityId.fromBytes(heartbeatRequest.getTaskToken());
+      ActivityId activityId = ActivityIdWithAttempt.fromBytes(heartbeatRequest.getTaskToken()).getActivityId();
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
       boolean cancelRequested =
           mutableState.heartbeatActivityTask(
@@ -563,7 +566,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskCompletedRequest completeRequest,
       StreamObserver<RespondActivityTaskCompletedResponse> responseObserver) {
     try {
-      ActivityId activityId = ActivityId.fromBytes(completeRequest.getTaskToken());
+      ActivityId activityId = ActivityIdWithAttempt.fromBytes(completeRequest.getTaskToken()).getActivityId();
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
       mutableState.completeActivityTask(activityId.getScheduledEventId(), completeRequest);
       responseObserver.onNext(RespondActivityTaskCompletedResponse.getDefaultInstance());
@@ -597,7 +600,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskFailedRequest failRequest,
       StreamObserver<RespondActivityTaskFailedResponse> responseObserver) {
     try {
-      ActivityId activityId = ActivityId.fromBytes(failRequest.getTaskToken());
+      ActivityId activityId = ActivityIdWithAttempt.fromBytes(failRequest.getTaskToken()).getActivityId();
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
       mutableState.failActivityTask(activityId.getScheduledEventId(), failRequest);
       responseObserver.onNext(RespondActivityTaskFailedResponse.getDefaultInstance());
@@ -629,7 +632,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskCanceledRequest canceledRequest,
       StreamObserver<RespondActivityTaskCanceledResponse> responseObserver) {
     try {
-      ActivityId activityId = ActivityId.fromBytes(canceledRequest.getTaskToken());
+      ActivityId activityId = ActivityIdWithAttempt.fromBytes(canceledRequest.getTaskToken()).getActivityId();
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
       mutableState.cancelActivityTask(activityId.getScheduledEventId(), canceledRequest);
       responseObserver.onNext(RespondActivityTaskCanceledResponse.getDefaultInstance());

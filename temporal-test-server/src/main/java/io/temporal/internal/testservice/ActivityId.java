@@ -89,15 +89,19 @@ final class ActivityId {
     ByteArrayOutputStream bout = new ByteArrayOutputStream();
     DataOutputStream out = new DataOutputStream(bout);
     try {
-      out.writeUTF(executionId.getNamespace());
-      WorkflowExecution execution = executionId.getExecution();
-      out.writeUTF(execution.getWorkflowId());
-      out.writeUTF(execution.getRunId());
-      out.writeLong(scheduledEventId);
+      this.writeBytes(out);
       return ByteString.copyFrom(bout.toByteArray());
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
+  }
+
+  public void writeBytes(DataOutputStream out) throws IOException {
+    out.writeUTF(executionId.getNamespace());
+    WorkflowExecution execution = executionId.getExecution();
+    out.writeUTF(execution.getWorkflowId());
+    out.writeUTF(execution.getRunId());
+    out.writeLong(scheduledEventId);
   }
 
   static ActivityId fromBytes(ByteString serialized) {
@@ -108,14 +112,18 @@ final class ActivityId {
     ByteArrayInputStream bin = new ByteArrayInputStream(serialized);
     DataInputStream in = new DataInputStream(bin);
     try {
-      String namespace = in.readUTF();
-      String workflowId = in.readUTF();
-      String runId = in.readUTF();
-      long scheduledEventId = in.readLong();
-      return new ActivityId(namespace, workflowId, runId, scheduledEventId);
+      return ActivityId.readBytes(in);
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
+  }
+
+  public static ActivityId readBytes(DataInputStream in) throws IOException {
+    String namespace = in.readUTF();
+    String workflowId = in.readUTF();
+    String runId = in.readUTF();
+    long scheduledEventId = in.readLong();
+    return new ActivityId(namespace, workflowId, runId, scheduledEventId);
   }
 
   public WorkflowId getWorkflowId() {
