@@ -8,9 +8,14 @@ before we can merge in any of your changes
 
 ## Development Environment
 
-* Java 8.
-* Gradle build tool
+* Java 11
 * Docker
+
+## Build
+
+```
+./gradlew clean build
+```
 
 ## Licence headers
 
@@ -26,6 +31,11 @@ To generate licence headers execute
 ```lang=bash
 ./gradlew licenseFormat
 ```
+
+## Code Formatting
+
+Code autoformatting is applied automatically during a full gradle build. Build the project before submitting a PR.
+Code is formatted using `spotless` plugin with `google-java-format` tool.
 
 ## Commit Messages
 

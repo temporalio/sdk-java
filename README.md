@@ -17,7 +17,11 @@ Temporal in general:
 - [Install Temporal Server](https://docs.temporal.io/docs/server/quick-install)
 - [Temporal CLI](https://docs.temporal.io/docs/devtools/tctl/)
 
-## Build a configuration
+## Requirements
+
+- Java 1.8+
+
+## Build configuration
 
 [Find the latest release](https://search.maven.org/artifact/io.temporal/temporal-sdk) of the Temporal Java SDK at maven central.
 
