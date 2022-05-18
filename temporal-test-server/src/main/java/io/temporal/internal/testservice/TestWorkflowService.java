@@ -58,6 +58,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -242,9 +243,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       } else {
         retryState = Optional.empty();
       }
+      String runId = UUID.randomUUID().toString();
       return startWorkflowExecutionNoRunningCheckLocked(
           startRequest,
-          UUID.randomUUID().toString(),
+          runId,
+          // it's the first execution in the continue-as-new chain, so firstExecutionRunId = runId
+          runId,
           Optional.empty(),
           retryState,
           backoffStartInterval,
@@ -286,7 +290,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(
       StartWorkflowExecutionRequest startRequest,
-      String runId,
+      @Nonnull String runId,
+      @Nonnull String firstExecutionRunId,
       Optional<String> continuedExecutionRunId,
       Optional<TestServiceRetryState> retryState,
       Duration backoffStartInterval,
@@ -300,6 +305,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     TestWorkflowMutableState mutableState =
         new TestWorkflowMutableStateImpl(
             startRequest,
+            firstExecutionRunId,
             runId,
             retryState,
             backoffStartInterval,
@@ -835,7 +841,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       WorkflowExecutionContinuedAsNewEventAttributes a,
       Optional<TestServiceRetryState> retryState,
       String identity,
-      ExecutionId executionId,
+      ExecutionId continuedExecutionId,
+      String firstExecutionRunId,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId) {
     StartWorkflowExecutionRequest.Builder startRequestBuilder =
@@ -844,9 +851,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .setWorkflowType(a.getWorkflowType())
             .setWorkflowRunTimeout(a.getWorkflowRunTimeout())
             .setWorkflowTaskTimeout(a.getWorkflowTaskTimeout())
-            .setNamespace(executionId.getNamespace())
+            .setNamespace(continuedExecutionId.getNamespace())
             .setTaskQueue(a.getTaskQueue())
-            .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
+            .setWorkflowId(continuedExecutionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)
             .setCronSchedule(previousRunStartRequest.getCronSchedule());
@@ -870,7 +877,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           startWorkflowExecutionNoRunningCheckLocked(
               startRequest,
               a.getNewExecutionRunId(),
-              Optional.of(executionId.getExecution().getRunId()),
+              firstExecutionRunId,
+              Optional.of(continuedExecutionId.getExecution().getRunId()),
               retryState,
               ProtobufTimeUtils.toJavaDuration(a.getBackoffStartInterval()),
               a.getLastCompletionResult(),
@@ -878,7 +886,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               parent,
               parentChildInitiatedEventId,
               Optional.empty(),
-              executionId.getWorkflowId());
+              continuedExecutionId.getWorkflowId());
       return response.getRunId();
     } finally {
       lock.unlock();

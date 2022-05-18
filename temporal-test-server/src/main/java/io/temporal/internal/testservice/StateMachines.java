@@ -41,6 +41,7 @@ import static io.temporal.internal.testservice.StateMachines.State.STARTED;
 import static io.temporal.internal.testservice.StateMachines.State.TERMINATED;
 import static io.temporal.internal.testservice.StateMachines.State.TIMED_OUT;
 
+import com.google.common.base.Preconditions;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
@@ -145,6 +146,7 @@ import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -195,8 +197,18 @@ class StateMachines {
     String cronSchedule;
     Payloads lastCompletionResult;
     Optional<Failure> lastFailure;
-    String originalExecutionRunId;
+    /**
+     * @see WorkflowExecutionStartedEventAttributes#getFirstExecutionRunId()
+     */
+    final @Nonnull String firstExecutionRunId;
+    /**
+     * @see WorkflowExecutionStartedEventAttributes#getOriginalExecutionRunId()
+     */
+    final @Nonnull String originalExecutionRunId;
+
+    /** RunId that was continued by this run as a result of Retry or Continue-As-New. */
     Optional<String> continuedExecutionRunId;
+
     Functions.Proc runTimerCancellationHandle;
 
     WorkflowData(
@@ -205,13 +217,17 @@ class StateMachines {
         String cronSchedule,
         Payloads lastCompletionResult,
         Optional<Failure> lastFailure,
-        String originalExecutionRunId,
+        @Nonnull String firstExecutionRunId,
+        @Nonnull String originalExecutionRunId,
         Optional<String> continuedExecutionRunId) {
       this.retryState = retryState;
       this.backoffStartInterval = backoffStartInterval;
       this.cronSchedule = cronSchedule;
       this.lastCompletionResult = lastCompletionResult;
-      this.originalExecutionRunId = originalExecutionRunId;
+      this.firstExecutionRunId =
+          Preconditions.checkNotNull(firstExecutionRunId, "firstExecutionRunId");
+      this.originalExecutionRunId =
+          Preconditions.checkNotNull(originalExecutionRunId, "originalExecutionRunId");
       this.continuedExecutionRunId = continuedExecutionRunId;
       this.lastFailure = Objects.requireNonNull(lastFailure);
     }
@@ -228,6 +244,9 @@ class StateMachines {
           + '\''
           + ", lastCompletionResult="
           + lastCompletionResult
+          + ", firstExecutionRunId='"
+          + firstExecutionRunId
+          + '\''
           + ", originalExecutionRunId='"
           + originalExecutionRunId
           + '\''
@@ -825,19 +844,15 @@ class StateMachines {
             .setInput(request.getInput())
             .setTaskQueue(request.getTaskQueue())
             .setAttempt(1);
-    if (data.retryState.isPresent()) {
-      a.setAttempt(data.retryState.get().getAttempt());
-    }
+    data.retryState.ifPresent(
+        testServiceRetryState -> a.setAttempt(testServiceRetryState.getAttempt()));
+    a.setFirstExecutionRunId(data.firstExecutionRunId);
     a.setOriginalExecutionRunId(data.originalExecutionRunId);
-    if (data.continuedExecutionRunId.isPresent()) {
-      a.setContinuedExecutionRunId(data.continuedExecutionRunId.get());
-    }
+    data.continuedExecutionRunId.ifPresent(a::setContinuedExecutionRunId);
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
     }
-    if (data.lastFailure.isPresent()) {
-      a.setContinuedFailure(data.lastFailure.get());
-    }
+    data.lastFailure.ifPresent(a::setContinuedFailure);
     if (request.hasMemo()) {
       a.setMemo(request.getMemo());
     }
