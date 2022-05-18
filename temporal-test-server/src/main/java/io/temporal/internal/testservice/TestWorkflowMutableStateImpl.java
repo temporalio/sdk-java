@@ -149,7 +149,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final SelfAdvancingTimer timerService;
   private final LongSupplier clock;
   private final ExecutionId executionId;
+  /** Parent workflow if this workflow was started as a child workflow. */
   private final Optional<TestWorkflowMutableState> parent;
+
   private final OptionalLong parentChildInitiatedEventId;
   private final TestWorkflowStore store;
   private final TestVisibilityStore visibilityStore;
@@ -179,6 +181,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
    */
   TestWorkflowMutableStateImpl(
       StartWorkflowExecutionRequest startRequest,
+      String firstExecutionRunId,
       String runId,
       Optional<TestServiceRetryState> retryState,
       Duration backoffStartInterval,
@@ -210,6 +213,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             startRequest.getCronSchedule(),
             lastCompletionResult,
             lastFailure,
+            firstExecutionRunId,
             runId, // Test service doesn't support reset. Thus, originalRunId is always the same as
             // runId.
             continuedExecutionRunId);
@@ -1274,6 +1278,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             continuedRetryState,
             identity,
             getExecutionId(),
+            workflow.getData().firstExecutionRunId,
             parent,
             parentChildInitiatedEventId);
         return;
@@ -1402,6 +1407,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         Optional.empty(),
         identity,
         getExecutionId(),
+        workflow.getData().firstExecutionRunId,
         parent,
         parentChildInitiatedEventId);
   }
@@ -1456,6 +1462,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         workflow.getData().retryState,
         identity,
         getExecutionId(),
+        workflow.getData().firstExecutionRunId,
         parent,
         parentChildInitiatedEventId);
   }
