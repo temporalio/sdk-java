@@ -22,7 +22,7 @@ package io.temporal.client
 import io.temporal.common.converter.DefaultDataConverter
 import io.temporal.common.converter.JacksonJsonPayloadConverter
 import io.temporal.common.converter.KotlinObjectMapperFactory
-import io.temporal.testing.TestWorkflowRule
+import io.temporal.testing.internal.SDKTestWorkflowRule
 import io.temporal.workflow.SignalMethod
 import io.temporal.workflow.Workflow
 import io.temporal.workflow.WorkflowInterface
@@ -36,7 +36,7 @@ class WorkflowClientExtTest {
 
   @Rule
   @JvmField
-  val testWorkflowRule = TestWorkflowRule.newBuilder()
+  val testWorkflowRule = SDKTestWorkflowRule.newBuilder()
     .setWorkflowTypes(TestWorkflowImpl::class.java)
     .setWorkflowClientOptions(
       WorkflowClientOptions {
@@ -45,7 +45,7 @@ class WorkflowClientExtTest {
     )
     .build()
 
-  @Test(timeout = 5000)
+  @Test
   fun `signalWithStart extension should work the same as the original method`() {
     val workflowClient = testWorkflowRule.workflowClient
 
@@ -54,18 +54,18 @@ class WorkflowClientExtTest {
       setTaskQueue(testWorkflowRule.taskQueue)
     }
     workflowClient.signalWithStart {
-      add { typedStub.start(Duration.ofHours(10)) }
+      add { typedStub.start(Duration.ofSeconds(3)) }
       add { typedStub.collectString("v1") }
     }
 
-    testWorkflowRule.testEnvironment.sleep(Duration.ofHours(1))
+    testWorkflowRule.testEnvironment.sleep(Duration.ofSeconds(1))
 
     val typedStub2 = workflowClient.newWorkflowStub<TestWorkflow> {
       setWorkflowId("1")
       setTaskQueue(testWorkflowRule.taskQueue)
     }
     workflowClient.signalWithStart {
-      add { typedStub2.start(Duration.ofHours(20)) }
+      add { typedStub2.start(Duration.ofSeconds(5)) }
       add { typedStub2.collectString("v2") }
     }
 

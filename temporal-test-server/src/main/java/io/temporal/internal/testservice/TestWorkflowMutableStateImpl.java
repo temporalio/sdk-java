@@ -1604,15 +1604,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return isTerminalState(workflowState);
   }
 
-  private boolean isTerminalState(State workflowState) {
-    return workflowState == State.COMPLETED
-        || workflowState == State.TIMED_OUT
-        || workflowState == State.FAILED
-        || workflowState == State.CANCELED
-        || workflowState == State.TERMINATED
-        || workflowState == State.CONTINUED_AS_NEW;
-  }
-
   private void updateHeartbeatTimer(
       RequestContext ctx,
       long activityId,
@@ -1720,6 +1711,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getPendingActivityById(activityId);
+          throwIfActivityNotInFlightState(activity.getState());
           activity.action(StateMachines.Action.FAIL, ctx, request, 0);
           if (isTerminalState(activity.getState())) {
             removeActivity(activity.getData().scheduledEventId);
@@ -1737,6 +1729,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<?> activity = getPendingActivityByScheduledEventId(scheduledEventId);
+          throwIfActivityNotInFlightState(activity.getState());
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(scheduledEventId);
           scheduleWorkflowTask(ctx);
@@ -1750,6 +1743,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getPendingActivityById(activityId);
+          throwIfActivityNotInFlightState(activity.getState());
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(activity.getData().scheduledEventId);
           scheduleWorkflowTask(ctx);
@@ -1764,12 +1758,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           StateMachine<ActivityTaskData> activity =
               getPendingActivityByScheduledEventId(scheduledEventId);
-          if (activity.getState() != State.STARTED
-              && activity.getState() != State.CANCELLATION_REQUESTED) {
-            throw Status.NOT_FOUND
-                .withDescription("Activity is in " + activity.getState() + "  state")
-                .asRuntimeException();
-          }
+          throwIfActivityNotInFlightState(activity.getState());
           activity.action(StateMachines.Action.UPDATE, ctx, details, 0);
           if (activity.getState() == StateMachines.State.CANCELLATION_REQUESTED) {
             result.set(true);
@@ -2475,5 +2464,30 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
     return child;
+  }
+
+  /**
+   * @throws StatusRuntimeException if the activity state is allowing heartbeats and other updates
+   *     from the activity worker
+   */
+  private void throwIfActivityNotInFlightState(StateMachines.State activityState) {
+    switch (activityState) {
+      case STARTED:
+      case CANCELLATION_REQUESTED:
+        return;
+      default:
+        throw Status.NOT_FOUND
+            .withDescription("Activity is in " + activityState + "  state")
+            .asRuntimeException();
+    }
+  }
+
+  private boolean isTerminalState(State workflowState) {
+    return workflowState == State.COMPLETED
+        || workflowState == State.TIMED_OUT
+        || workflowState == State.FAILED
+        || workflowState == State.CANCELED
+        || workflowState == State.TERMINATED
+        || workflowState == State.CONTINUED_AS_NEW;
   }
 }

@@ -34,9 +34,12 @@ import java.time.Duration;
 import java.util.Map;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 public class ActivityOptionsTest {
+  public @Rule Timeout timeout = Timeout.seconds(10);
 
   private TestActivityEnvironment testEnv;
   private ActivityOptions defaultOps = ActivityTestOptions.newActivityOptions1();

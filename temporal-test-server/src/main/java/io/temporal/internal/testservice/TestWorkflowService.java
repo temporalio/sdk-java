@@ -475,7 +475,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StreamObserver<PollActivityTaskQueueResponse> responseObserver) {
     try (Context.CancellableContext ctx = deadlineCtx(getLongPollDeadline())) {
 
-      PollActivityTaskQueueResponse.Builder task = null;
+      PollActivityTaskQueueResponse.Builder task;
       try {
         task = pollTaskQueue(ctx, store.pollActivityTaskQueue(pollRequest));
       } catch (ExecutionException e) {
@@ -499,7 +499,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         mutableState.startActivityTask(task, pollRequest);
         responseObserver.onNext(task.build());
         responseObserver.onCompleted();
-        return;
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           if (log.isDebugEnabled()) {
@@ -512,7 +511,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             log.error("unexpected", e);
           }
           responseObserver.onError(e);
-          return;
         }
       }
     }
