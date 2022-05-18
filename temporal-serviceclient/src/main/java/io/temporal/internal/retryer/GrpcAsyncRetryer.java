@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class GrpcAsyncRetryer {
-  private static final Logger log = LoggerFactory.getLogger(GrpcAsyncRetryer.class);
+  private static final Logger log = LoggerFactory.getLogger(GrpcRetryer.class);
 
   public <R> CompletableFuture<R> retry(
       Supplier<CompletableFuture<R>> function, GrpcRetryer.GrpcRetryerOptions options) {
@@ -66,6 +66,10 @@ class GrpcAsyncRetryer {
         .throttle()
         .thenAccept(
             (ignore) -> {
+              if (previousException != null) {
+                log.debug("Retrying after failure", previousException);
+              }
+
               // try-catch is because get() call might throw.
               CompletableFuture<R> result;
 
@@ -142,7 +146,7 @@ class GrpcAsyncRetryer {
     RuntimeException finalException =
         GrpcRetryerUtils.createFinalExceptionIfNotRetryable(statusRuntimeException, options);
     if (finalException != null) {
-      log.warn("Non retryable failure", finalException);
+      log.debug("Final exception, throwing", finalException);
       resultCF.completeExceptionally(finalException);
       return;
     }
@@ -151,10 +155,9 @@ class GrpcAsyncRetryer {
         GrpcRetryerUtils.lastMeaningfulException(statusRuntimeException, previousException);
     if (GrpcRetryerUtils.ranOutOfRetries(
         options, attempt, retriesExpirationDeadline, Context.current().getDeadline())) {
-      log.warn("Failure, out of retries", lastMeaningfulException);
+      log.debug("Out of retries, throwing", lastMeaningfulException);
       resultCF.completeExceptionally(lastMeaningfulException);
     } else {
-      log.info("Retrying after failure", currentException);
       retry(
           options,
           function,

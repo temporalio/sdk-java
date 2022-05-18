@@ -21,6 +21,7 @@ package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
@@ -28,10 +29,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.FailureWrapperException;
@@ -47,9 +45,13 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 public final class ActivityWorker implements SuspendableWorker {
+  private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
+
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
   private final WorkflowServiceStubs service;
@@ -171,14 +173,15 @@ public final class ActivityWorker implements SuspendableWorker {
 
     @Override
     public void handle(ActivityTask task) throws Exception {
-      PollActivityTaskQueueResponse r = task.getResponse();
+      PollActivityTaskQueueResponse pollResponse = task.getResponse();
+      ByteString taskToken = pollResponse.getTaskToken();
       Scope metricsScope =
           workerMetricsScope.tagged(
               ImmutableMap.of(
                   MetricsTag.ACTIVITY_TYPE,
-                  r.getActivityType().getName(),
+                  pollResponse.getActivityType().getName(),
                   MetricsTag.WORKFLOW_TYPE,
-                  r.getWorkflowType().getName()));
+                  pollResponse.getWorkflowType().getName()));
 
       ActivityTaskHandler.Result result = null;
       try {
@@ -186,17 +189,18 @@ public final class ActivityWorker implements SuspendableWorker {
             .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
             .record(
                 ProtobufTimeUtils.toM3Duration(
-                    r.getStartedTime(), r.getCurrentAttemptScheduledTime()));
+                    pollResponse.getStartedTime(), pollResponse.getCurrentAttemptScheduledTime()));
 
         // The following tags are for logging.
-        MDC.put(LoggerTag.ACTIVITY_ID, r.getActivityId());
-        MDC.put(LoggerTag.ACTIVITY_TYPE, r.getActivityType().getName());
-        MDC.put(LoggerTag.WORKFLOW_ID, r.getWorkflowExecution().getWorkflowId());
-        MDC.put(LoggerTag.RUN_ID, r.getWorkflowExecution().getRunId());
+        MDC.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
+        MDC.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());
+        MDC.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
+        MDC.put(LoggerTag.WORKFLOW_TYPE, pollResponse.getWorkflowType().getName());
+        MDC.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
 
-        if (r.hasHeader()) {
+        if (pollResponse.hasHeader()) {
           ActivityWorkerHelper.deserializeAndPopulateContext(
-              r.getHeader(), options.getContextPropagators());
+              pollResponse.getHeader(), options.getContextPropagators());
         }
 
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
@@ -205,10 +209,20 @@ public final class ActivityWorker implements SuspendableWorker {
         } finally {
           sw.stop();
         }
-        sendReply(r, result, metricsScope);
+        try {
+          sendReply(taskToken, result, metricsScope);
+        } catch (Exception e) {
+          logExceptionDuringResultReporting(e, pollResponse, result);
+          // TODO this class doesn't report activity success and failure metrics now, instead it's
+          //  located inside an activity handler. We should lift it up to this level,
+          //  so we can increment a failure counter instead of success if send result failed.
+          //  This will also align the behavior of ActivityWorker with WorkflowWorker.
+          throw e;
+        }
 
         if (result.getTaskCompleted() != null) {
-          Duration e2eDuration = ProtobufTimeUtils.toM3DurationSinceNow(r.getScheduledTime());
+          Duration e2eDuration =
+              ProtobufTimeUtils.toM3DurationSinceNow(pollResponse.getScheduledTime());
           metricsScope.timer(MetricsType.ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
         }
       } catch (FailureWrapperException e) {
@@ -222,13 +236,25 @@ public final class ActivityWorker implements SuspendableWorker {
           if (info.hasDetails()) {
             canceledRequest.setDetails(info.getDetails());
           }
-          result = new Result(r.getActivityId(), null, null, canceledRequest.build(), null, false);
-          sendReply(r, result, metricsScope);
+          result =
+              new Result(
+                  pollResponse.getActivityId(), null, null, canceledRequest.build(), null, false);
+          try {
+            sendReply(taskToken, result, metricsScope);
+          } catch (Exception ex) {
+            logExceptionDuringResultReporting(e, pollResponse, result);
+            // TODO this class doesn't report activity success and failure metrics now, instead it's
+            //  located inside an activity handler. We should lift it up to this level,
+            //  so we can increment a failure counter instead of success if send result failed.
+            //  This will also align the behavior of ActivityWorker with WorkflowWorker.
+            throw e;
+          }
         }
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);
+        MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
         // Apply completion handle if task has been completed synchronously or is async and manual
         // completion hasn't been requested.
@@ -255,16 +281,14 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     private void sendReply(
-        PollActivityTaskQueueResponse task,
-        ActivityTaskHandler.Result response,
-        Scope metricsScope) {
+        ByteString taskToken, ActivityTaskHandler.Result response, Scope metricsScope) {
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
         RespondActivityTaskCompletedRequest request =
             taskCompleted.toBuilder()
-                .setTaskToken(task.getTaskToken())
+                .setTaskToken(taskToken)
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
                 .build();
@@ -281,7 +305,7 @@ public final class ActivityWorker implements SuspendableWorker {
         if (taskFailed != null) {
           RespondActivityTaskFailedRequest request =
               taskFailed.getTaskFailedRequest().toBuilder()
-                  .setTaskToken(task.getTaskToken())
+                  .setTaskToken(taskToken)
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
                   .build();
@@ -299,7 +323,7 @@ public final class ActivityWorker implements SuspendableWorker {
           if (taskCanceled != null) {
             RespondActivityTaskCanceledRequest request =
                 taskCanceled.toBuilder()
-                    .setTaskToken(task.getTaskToken())
+                    .setTaskToken(taskToken)
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)
                     .build();
@@ -316,6 +340,37 @@ public final class ActivityWorker implements SuspendableWorker {
         }
       }
       // Manual activity completion
+    }
+
+    private void logExceptionDuringResultReporting(
+        Exception e,
+        PollActivityTaskQueueResponse pollResponse,
+        ActivityTaskHandler.Result result) {
+      MDC.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
+      MDC.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());
+      MDC.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
+      MDC.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
+
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "Failure during reporting of activity result to the server. ActivityId = {}, ActivityType = {}, WorkflowId={}, WorkflowType={}, RunId={}, ActivityResult={}",
+            pollResponse.getActivityId(),
+            pollResponse.getActivityType().getName(),
+            pollResponse.getWorkflowExecution().getWorkflowId(),
+            pollResponse.getWorkflowType().getName(),
+            pollResponse.getWorkflowExecution().getRunId(),
+            result,
+            e);
+      } else {
+        log.warn(
+            "Failure during reporting of activity result to the server. ActivityId = {}, ActivityType = {}, WorkflowId={}, WorkflowType={}, RunId={}",
+            pollResponse.getActivityId(),
+            pollResponse.getActivityType().getName(),
+            pollResponse.getWorkflowExecution().getWorkflowId(),
+            pollResponse.getWorkflowType().getName(),
+            pollResponse.getWorkflowExecution().getRunId(),
+            e);
+      }
     }
   }
 }
