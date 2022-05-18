@@ -92,7 +92,7 @@ public class SignalTest {
   }
 
   @Test
-  public void testSignalWithStart() throws Exception {
+  public void testSignalWithStart() {
     String workflowId = UUID.randomUUID().toString();
     WorkflowClient workflowClient = testWorkflowRule.getWorkflowClient();
     WorkflowOptions options =
@@ -196,7 +196,7 @@ public class SignalTest {
     try {
       workflowStubNotOptionRejectCondition.query("getState", String.class);
       fail("unreachable");
-    } catch (WorkflowQueryRejectedException e) {
+    } catch (WorkflowQueryConditionallyRejectedException e) {
       assertEquals(
           WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED,
           e.getWorkflowExecutionStatus());

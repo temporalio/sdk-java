@@ -165,8 +165,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     TerminateWorkflowExecutionRequest.Builder request =
         TerminateWorkflowExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
-            .setWorkflowExecution(input.getWorkflowExecution())
-            .setReason(input.getReason());
+            .setWorkflowExecution(input.getWorkflowExecution());
+    if (input.getReason() != null) {
+      request.setReason(input.getReason());
+    }
     Optional<Payloads> payloads = clientOptions.getDataConverter().toPayloads(input.getDetails());
     payloads.ifPresent(request::setDetails);
     genericClient.terminate(request.build());

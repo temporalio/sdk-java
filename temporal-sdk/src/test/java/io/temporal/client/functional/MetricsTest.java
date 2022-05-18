@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient.functional;
+package io.temporal.client.functional;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static junit.framework.TestCase.assertEquals;

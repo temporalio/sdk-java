@@ -1945,33 +1945,41 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void requestCancelWorkflowExecution(
       RequestCancelWorkflowExecutionRequest cancelRequest,
       Optional<CancelExternalWorkflowExecutionCallerInfo> callerInfo) {
-    update(
-        ctx -> {
-          workflow.action(StateMachines.Action.REQUEST_CANCELLATION, ctx, cancelRequest, 0);
-          scheduleWorkflowTask(ctx);
-        });
-    if (callerInfo.isPresent()) {
-      CancelExternalWorkflowExecutionCallerInfo ci = callerInfo.get();
-      ExternalWorkflowExecutionCancelRequestedEventAttributes a =
-          ExternalWorkflowExecutionCancelRequestedEventAttributes.newBuilder()
-              .setInitiatedEventId(ci.getExternalInitiatedEventId())
-              .setWorkflowExecution(executionId.getExecution())
-              .setNamespace(ci.getNamespace())
-              .build();
-      ForkJoinPool.commonPool()
-          .execute(
-              () -> {
-                try {
-                  ci.getCaller().reportCancelRequested(a);
-                } catch (StatusRuntimeException e) {
-                  // NOT_FOUND is expected as the parent might just close by now.
-                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+    lock.lock();
+    try {
+      if (isTerminalState()) {
+        return;
+      }
+      update(
+          ctx -> {
+            workflow.action(StateMachines.Action.REQUEST_CANCELLATION, ctx, cancelRequest, 0);
+            scheduleWorkflowTask(ctx);
+          });
+      if (callerInfo.isPresent()) {
+        CancelExternalWorkflowExecutionCallerInfo ci = callerInfo.get();
+        ExternalWorkflowExecutionCancelRequestedEventAttributes a =
+            ExternalWorkflowExecutionCancelRequestedEventAttributes.newBuilder()
+                .setInitiatedEventId(ci.getExternalInitiatedEventId())
+                .setWorkflowExecution(executionId.getExecution())
+                .setNamespace(ci.getNamespace())
+                .build();
+        ForkJoinPool.commonPool()
+            .execute(
+                () -> {
+                  try {
+                    ci.getCaller().reportCancelRequested(a);
+                  } catch (StatusRuntimeException e) {
+                    // NOT_FOUND is expected as the parent might just close by now.
+                    if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                      log.error("Failure reporting external cancellation requested", e);
+                    }
+                  } catch (Throwable e) {
                     log.error("Failure reporting external cancellation requested", e);
                   }
-                } catch (Throwable e) {
-                  log.error("Failure reporting external cancellation requested", e);
-                }
-              });
+                });
+      }
+    } finally {
+      lock.unlock();
     }
   }
 

@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 
 class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
 
@@ -178,7 +179,7 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public void terminate(String reason, Object... details) {
+    public void terminate(@Nullable String reason, Object... details) {
       next.terminate(reason, details);
     }
 

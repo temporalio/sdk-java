@@ -25,15 +25,8 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowException;
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.client.WorkflowNotFoundException;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowQueryException;
-import io.temporal.client.WorkflowQueryRejectedException;
-import io.temporal.client.WorkflowServiceException;
-import io.temporal.client.WorkflowStub;
+import io.temporal.api.errordetails.v1.WorkflowNotReadyFailure;
+import io.temporal.client.*;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
@@ -47,6 +40,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 
 class WorkflowStubImpl implements WorkflowStub {
   private final WorkflowClientOptions clientOptions;
@@ -90,14 +84,9 @@ class WorkflowStubImpl implements WorkflowStub {
       workflowClientInvoker.signal(
           new WorkflowClientCallsInterceptor.WorkflowSignalInput(
               currentExecutionWithoutRunId(), signalName, args));
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
-      } else {
-        throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
-      }
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
+      Throwable throwable = throwAsWorkflowFailureException(e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), throwable);
     }
   }
 
@@ -165,23 +154,6 @@ class WorkflowStubImpl implements WorkflowStub {
     }
   }
 
-  private RuntimeException wrapStartException(
-      String workflowId, String workflowType, StatusRuntimeException e) {
-    WorkflowExecution.Builder executionBuilder =
-        WorkflowExecution.newBuilder().setWorkflowId(workflowId);
-
-    WorkflowExecutionAlreadyStartedFailure f =
-        StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
-    if (f != null) {
-      WorkflowExecution exe = executionBuilder.setRunId(f.getRunId()).build();
-      execution.set(exe);
-      return new WorkflowExecutionAlreadyStarted(exe, workflowType, e);
-    } else {
-      WorkflowExecution exe = executionBuilder.build();
-      return new WorkflowServiceException(exe, workflowType, e);
-    }
-  }
-
   private static String getWorkflowIdForStart(WorkflowOptions options) {
     String workflowId = options.getWorkflowId();
     if (workflowId == null) {
@@ -242,7 +214,7 @@ class WorkflowStubImpl implements WorkflowStub {
                   execution.get(), workflowType, timeout, unit, resultClass, resultType));
       return result.getResult();
     } catch (Exception e) {
-      return mapToWorkflowFailureException(e, resultClass);
+      return throwAsWorkflowFailureExceptionForResult(e, resultClass);
     }
   }
 
@@ -275,41 +247,11 @@ class WorkflowStubImpl implements WorkflowStub {
         .exceptionally(
             e -> {
               try {
-                return mapToWorkflowFailureException(e, resultClass);
+                return throwAsWorkflowFailureExceptionForResult(e, resultClass);
               } catch (TimeoutException ex) {
                 throw new CompletionException(ex);
               }
             });
-  }
-
-  // This function never returns anything, it only throws
-  private <R> R mapToWorkflowFailureException(
-      Throwable failure, @SuppressWarnings("unused") Class<R> returnType) throws TimeoutException {
-    if (failure instanceof CompletionException) {
-      // if we work with CompletableFuture, the exception may be wrapped into CompletionException
-      failure = failure.getCause();
-    }
-    failure = CheckedExceptionWrapper.unwrap(failure);
-    if (failure instanceof Error) {
-      throw (Error) failure;
-    }
-    if (failure instanceof TimeoutException) {
-      throw (TimeoutException) failure;
-    }
-    if (failure instanceof StatusRuntimeException) {
-      StatusRuntimeException sre = (StatusRuntimeException) failure;
-      if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
-      } else {
-        throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
-      }
-    } else if (failure instanceof CanceledFailure) {
-      throw (CanceledFailure) failure;
-    } else if (failure instanceof WorkflowException) {
-      throw (WorkflowException) failure;
-    } else {
-      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
-    }
   }
 
   @Override
@@ -327,18 +269,11 @@ class WorkflowStubImpl implements WorkflowStub {
           workflowClientInvoker.query(
               new WorkflowClientCallsInterceptor.QueryInput<>(
                   workflowExecution, queryType, args, resultClass, resultType));
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(workflowExecution, workflowType.orElse(null));
-      } else if (StatusUtils.hasFailure(e, QueryFailedFailure.class)) {
-        throw new WorkflowQueryException(workflowExecution, workflowType.orElse(null), e);
-      }
-      throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
     } catch (Exception e) {
-      throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
+      return throwAsWorkflowFailureExceptionForQuery(e, resultClass);
     }
     if (result.isQueryRejected()) {
-      throw new WorkflowQueryRejectedException(
+      throw new WorkflowQueryConditionallyRejectedException(
           workflowExecution,
           workflowType.orElse(null),
           clientOptions.getQueryRejectCondition(),
@@ -351,16 +286,26 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public void cancel() {
     checkStarted();
-    workflowClientInvoker.cancel(
-        new WorkflowClientCallsInterceptor.CancelInput(currentExecutionWithoutRunId()));
+    try {
+      workflowClientInvoker.cancel(
+          new WorkflowClientCallsInterceptor.CancelInput(currentExecutionWithoutRunId()));
+    } catch (Exception e) {
+      Throwable failure = throwAsWorkflowFailureException(e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
+    }
   }
 
   @Override
-  public void terminate(String reason, Object... details) {
+  public void terminate(@Nullable String reason, Object... details) {
     checkStarted();
-    workflowClientInvoker.terminate(
-        new WorkflowClientCallsInterceptor.TerminateInput(
-            currentExecutionWithoutRunId(), reason, details));
+    try {
+      workflowClientInvoker.terminate(
+          new WorkflowClientCallsInterceptor.TerminateInput(
+              currentExecutionWithoutRunId(), reason, details));
+    } catch (Exception e) {
+      Throwable failure = throwAsWorkflowFailureException(e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
+    }
   }
 
   @Override
@@ -383,6 +328,26 @@ class WorkflowStubImpl implements WorkflowStub {
     }
   }
 
+  /*
+   * Exceptions handling and processing for all methods of the stub
+   */
+  private RuntimeException wrapStartException(
+      String workflowId, String workflowType, StatusRuntimeException e) {
+    WorkflowExecution.Builder executionBuilder =
+        WorkflowExecution.newBuilder().setWorkflowId(workflowId);
+
+    WorkflowExecutionAlreadyStartedFailure f =
+        StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
+    if (f != null) {
+      WorkflowExecution exe = executionBuilder.setRunId(f.getRunId()).build();
+      execution.set(exe);
+      return new WorkflowExecutionAlreadyStarted(exe, workflowType, e);
+    } else {
+      WorkflowExecution exe = executionBuilder.build();
+      return new WorkflowServiceException(exe, workflowType, e);
+    }
+  }
+
   /**
    * RunId can change e.g. workflow does ContinueAsNew. Emptying runId in workflowExecution allows
    * Temporal server figure out the current run id dynamically.
@@ -394,5 +359,54 @@ class WorkflowStubImpl implements WorkflowStub {
     } else {
       return WorkflowExecution.newBuilder(workflowExecution).setRunId("").build();
     }
+  }
+
+  private <R> R throwAsWorkflowFailureExceptionForQuery(
+      Throwable failure, @SuppressWarnings("unused") Class<R> returnType) {
+    failure = throwAsWorkflowFailureException(failure);
+    if (failure instanceof StatusRuntimeException) {
+      StatusRuntimeException sre = (StatusRuntimeException) failure;
+      if (StatusUtils.hasFailure(sre, QueryFailedFailure.class)) {
+        throw new WorkflowQueryException(execution.get(), workflowType.orElse(null), failure);
+      } else if (Status.Code.FAILED_PRECONDITION.equals(sre.getStatus().getCode())
+          && StatusUtils.hasFailure(sre, WorkflowNotReadyFailure.class)) {
+        // Processes the edge case introduced by https://github.com/temporalio/temporal/pull/2826
+        throw new WorkflowQueryRejectedException(
+            execution.get(), workflowType.orElse(null), failure);
+      }
+    }
+    throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
+  }
+
+  // This function never returns anything, it only throws
+  private <R> R throwAsWorkflowFailureExceptionForResult(
+      Throwable failure, @SuppressWarnings("unused") Class<R> returnType) throws TimeoutException {
+    failure = throwAsWorkflowFailureException(failure);
+    if (failure instanceof TimeoutException) {
+      throw (TimeoutException) failure;
+    } else if (failure instanceof CanceledFailure) {
+      throw (CanceledFailure) failure;
+    }
+    throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
+  }
+
+  private Throwable throwAsWorkflowFailureException(Throwable failure) {
+    if (failure instanceof CompletionException) {
+      // if we work with CompletableFuture, the exception may be wrapped into CompletionException
+      failure = failure.getCause();
+    }
+    failure = CheckedExceptionWrapper.unwrap(failure);
+    if (failure instanceof Error) {
+      throw (Error) failure;
+    }
+    if (failure instanceof StatusRuntimeException) {
+      StatusRuntimeException sre = (StatusRuntimeException) failure;
+      if (Status.Code.NOT_FOUND.equals(sre.getStatus().getCode())) {
+        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
+      }
+    } else if (failure instanceof WorkflowException) {
+      throw (WorkflowException) failure;
+    }
+    return failure;
   }
 }

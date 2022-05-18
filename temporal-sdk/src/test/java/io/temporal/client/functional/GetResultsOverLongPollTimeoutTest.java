@@ -17,16 +17,16 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient.functional;
+package io.temporal.client.functional;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.serviceclient.functional.common.TestWorkflows;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import org.junit.After;
@@ -73,9 +73,9 @@ public class GetResultsOverLongPollTimeoutTest {
 
   @Test(timeout = 2 * LONG_POLL_TIMEOUT_SECONDS * 1000)
   public void testGetResults() {
-    TestWorkflows.PrimitiveWorkflow workflow =
+    TestWorkflows.NoArgsWorkflow workflow =
         workflowClient.newWorkflowStub(
-            TestWorkflows.PrimitiveWorkflow.class,
+            TestWorkflows.NoArgsWorkflow.class,
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
@@ -85,9 +85,9 @@ public class GetResultsOverLongPollTimeoutTest {
 
   @Test(timeout = 2 * LONG_POLL_TIMEOUT_SECONDS * 1000)
   public void testGetResultAsync() throws ExecutionException, InterruptedException {
-    TestWorkflows.PrimitiveWorkflow workflow =
+    TestWorkflows.NoArgsWorkflow workflow =
         workflowClient.newWorkflowStub(
-            TestWorkflows.PrimitiveWorkflow.class,
+            TestWorkflows.NoArgsWorkflow.class,
             WorkflowOptions.newBuilder()
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .validateBuildWithDefaults());
@@ -95,7 +95,7 @@ public class GetResultsOverLongPollTimeoutTest {
     WorkflowStub.fromTyped(workflow).getResultAsync(Void.class).get();
   }
 
-  public static class TestWorkflowImpl implements TestWorkflows.PrimitiveWorkflow {
+  public static class TestWorkflowImpl implements TestWorkflows.NoArgsWorkflow {
     @Override
     public void execute() {
       Workflow.sleep(Duration.ofSeconds(3 * LONG_POLL_TIMEOUT_SECONDS / 2));

@@ -17,13 +17,13 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient.functional;
+package io.temporal.client.functional;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
-import io.temporal.serviceclient.functional.common.TestWorkflows;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,13 +47,13 @@ public class GetResultsSyncOverMaximumLongPollWaitTest {
 
   @Test(timeout = 2 * HISTORY_LONG_POLL_TIMEOUT_SECONDS * 1000)
   public void testGetResults() {
-    TestWorkflows.PrimitiveWorkflow workflow =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.PrimitiveWorkflow.class);
+    TestWorkflows.NoArgsWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestWorkflows.NoArgsWorkflow.class);
     WorkflowClient.start(workflow::execute);
     WorkflowStub.fromTyped(workflow).getResult(Void.class);
   }
 
-  public static class TestWorkflowImpl implements TestWorkflows.PrimitiveWorkflow {
+  public static class TestWorkflowImpl implements TestWorkflows.NoArgsWorkflow {
     @Override
     public void execute() {
       Workflow.sleep(Duration.ofSeconds(3 * HISTORY_LONG_POLL_TIMEOUT_SECONDS / 2));
