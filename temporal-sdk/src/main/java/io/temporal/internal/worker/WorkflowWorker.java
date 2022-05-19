@@ -229,7 +229,16 @@ public final class WorkflowWorker
         do {
           PollWorkflowTaskQueueResponse currentTask = nextTask.get();
           WorkflowTaskHandler.Result response = handleTask(currentTask, workflowTypeMetricsScope);
-          nextTask = sendReply(service, workflowTypeMetricsScope, currentTask, response);
+          try {
+            nextTask =
+                sendReply(currentTask.getTaskToken(), service, workflowTypeMetricsScope, response);
+          } catch (Exception e) {
+            logExceptionDuringResultReporting(e, currentTask, response);
+            workflowTypeMetricsScope
+                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
+                .inc(1);
+            throw e;
+          }
 
           // this should be after sendReply, otherwise we may log
           // WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER twice if sendReply throws
@@ -288,83 +297,85 @@ public final class WorkflowWorker
     }
 
     private Optional<PollWorkflowTaskQueueResponse> sendReply(
+        ByteString taskToken,
         WorkflowServiceStubs service,
         Scope workflowTypeMetricsScope,
-        PollWorkflowTaskQueueResponse task,
         WorkflowTaskHandler.Result response) {
-      try {
-        ByteString taskToken = task.getTaskToken();
-        RpcRetryOptions retryOptions = response.getRequestRetryOptions();
-        RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
-        if (taskCompleted != null) {
-          retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
+      RpcRetryOptions retryOptions = response.getRequestRetryOptions();
+      RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
+      if (taskCompleted != null) {
+        retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
 
-          RespondWorkflowTaskCompletedRequest request =
-              taskCompleted.toBuilder()
-                  .setIdentity(options.getIdentity())
-                  .setNamespace(namespace)
-                  .setBinaryChecksum(options.getBinaryChecksum())
-                  .setTaskToken(taskToken)
-                  .build();
-          AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
-          GrpcRetryer.retry(
-              () ->
-                  nextTask.set(
-                      service
-                          .blockingStub()
-                          .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                          .respondWorkflowTaskCompleted(request)),
-              retryOptions);
-          if (nextTask.get().hasWorkflowTask()) {
-            return Optional.of(nextTask.get().getWorkflowTask());
-          }
-        } else {
-          RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
-          if (taskFailed != null) {
-            retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
-
-            RespondWorkflowTaskFailedRequest request =
-                taskFailed.toBuilder()
-                    .setIdentity(options.getIdentity())
-                    .setNamespace(namespace)
-                    .setTaskToken(taskToken)
-                    .build();
-            GrpcRetryer.retry(
-                () ->
+        RespondWorkflowTaskCompletedRequest request =
+            taskCompleted.toBuilder()
+                .setIdentity(options.getIdentity())
+                .setNamespace(namespace)
+                .setBinaryChecksum(options.getBinaryChecksum())
+                .setTaskToken(taskToken)
+                .build();
+        AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
+        GrpcRetryer.retry(
+            () ->
+                nextTask.set(
                     service
                         .blockingStub()
                         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                        .respondWorkflowTaskFailed(request),
-                retryOptions);
-          } else {
-            RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
-            if (queryCompleted != null) {
-              queryCompleted =
-                  queryCompleted.toBuilder()
-                      .setTaskToken(taskToken)
-                      .setNamespace(namespace)
-                      .build();
-              // Do not retry query response.
-              service
-                  .blockingStub()
-                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                  .respondQueryTaskCompleted(queryCompleted);
-            }
+                        .respondWorkflowTaskCompleted(request)),
+            retryOptions);
+        if (nextTask.get().hasWorkflowTask()) {
+          return Optional.of(nextTask.get().getWorkflowTask());
+        }
+      } else {
+        RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
+        if (taskFailed != null) {
+          retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
+
+          RespondWorkflowTaskFailedRequest request =
+              taskFailed.toBuilder()
+                  .setIdentity(options.getIdentity())
+                  .setNamespace(namespace)
+                  .setTaskToken(taskToken)
+                  .build();
+          GrpcRetryer.retry(
+              () ->
+                  service
+                      .blockingStub()
+                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+                      .respondWorkflowTaskFailed(request),
+              retryOptions);
+        } else {
+          RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
+          if (queryCompleted != null) {
+            queryCompleted =
+                queryCompleted.toBuilder().setTaskToken(taskToken).setNamespace(namespace).build();
+            // Do not retry query response.
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+                .respondQueryTaskCompleted(queryCompleted);
           }
         }
-        return Optional.empty();
-      } catch (Exception e) {
-        WorkflowExecution execution = task.getWorkflowExecution();
-        log.warn(
-            "Workflow task failure during replying to the server. startedEventId={}, WorkflowId={}, RunId={}. If seen continuously the workflow might be stuck.",
-            task.getStartedEventId(),
-            execution.getWorkflowId(),
-            execution.getRunId(),
+      }
+      return Optional.empty();
+    }
+
+    private void logExceptionDuringResultReporting(
+        Exception e, PollWorkflowTaskQueueResponse currentTask, WorkflowTaskHandler.Result result) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "Failure during reporting of workflow progress to the server. If seen continuously the workflow might be stuck. WorkflowId={}, RunId={}, startedEventId={}, WFTResult={}",
+            currentTask.getWorkflowExecution().getWorkflowId(),
+            currentTask.getWorkflowExecution().getRunId(),
+            currentTask.getStartedEventId(),
+            result,
             e);
-        workflowTypeMetricsScope
-            .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
-            .inc(1);
-        throw e;
+      } else {
+        log.warn(
+            "Failure while reporting workflow progress to the server. If seen continuously the workflow might be stuck. WorkflowId={}, RunId={}, startedEventId={}",
+            currentTask.getWorkflowExecution().getWorkflowId(),
+            currentTask.getWorkflowExecution().getRunId(),
+            currentTask.getStartedEventId(),
+            e);
       }
     }
   }

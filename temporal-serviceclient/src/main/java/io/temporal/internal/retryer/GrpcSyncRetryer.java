@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class GrpcSyncRetryer {
-  private static final Logger log = LoggerFactory.getLogger(GrpcSyncRetryer.class);
+  private static final Logger log = LoggerFactory.getLogger(GrpcRetryer.class);
 
   public <R, T extends Throwable> R retry(
       GrpcRetryer.RetryableFunc<R, T> r, GrpcRetryer.GrpcRetryerOptions options) throws T {
@@ -50,12 +50,12 @@ class GrpcSyncRetryer {
     StatusRuntimeException lastMeaningfulException = null;
     do {
       attempt++;
-      if (lastMeaningfulException != null) {
-        log.info("Retrying after failure", lastMeaningfulException);
-      }
 
       try {
         throttler.throttle();
+        if (lastMeaningfulException != null) {
+          log.debug("Retrying after failure", lastMeaningfulException);
+        }
         R result = r.apply();
         throttler.success();
         return result;
@@ -66,7 +66,7 @@ class GrpcSyncRetryer {
         RuntimeException finalException =
             GrpcRetryerUtils.createFinalExceptionIfNotRetryable(e, rpcOptions);
         if (finalException != null) {
-          log.warn("Non retryable failure", finalException);
+          log.debug("Final exception, throwing", finalException);
           throw finalException;
         }
         lastMeaningfulException =
@@ -79,7 +79,7 @@ class GrpcSyncRetryer {
     } while (!GrpcRetryerUtils.ranOutOfRetries(
         rpcOptions, attempt, retriesExpirationDeadline, Context.current().getDeadline()));
 
-    log.warn("Failure, out of retries", lastMeaningfulException);
+    log.debug("Out of retries, throwing", lastMeaningfulException);
     rethrow(lastMeaningfulException);
     throw new IllegalStateException("unreachable");
   }

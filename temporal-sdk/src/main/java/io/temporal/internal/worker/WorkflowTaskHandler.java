@@ -78,7 +78,10 @@ public interface WorkflowTaskHandler {
     @Override
     public String toString() {
       return "Result{"
-          + "taskCompleted="
+          + "workflowType='"
+          + workflowType
+          + '\''
+          + ", taskCompleted="
           + taskCompleted
           + ", taskFailed="
           + taskFailed
@@ -86,6 +89,8 @@ public interface WorkflowTaskHandler {
           + queryCompleted
           + ", requestRetryOptions="
           + requestRetryOptions
+          + ", completionCommand="
+          + completionCommand
           + '}';
     }
 
