@@ -7,7 +7,7 @@ Fixes:
 - sticky_cache_size, stale version may be observed
 - Fixed a problem with test server not respecting disabled time skipping introduced in 1.9.0
 - SDK doesn't log exceptions internally that are getting propagated to the user code anymore
-- Behavior of Workflow#getResult, WorkflowStub#cancel and WorkflowStub#terminate got aligned with their contract for exceptions.
+- Behavior of Workflow#getResult, WorkflowStub#cancel and WorkflowStub#terminate got aligned with their contract for exceptions
 
 Changeset:
 2022-05-02 - 7d86cdf3 - Add documentation to ManualActivityCompletionClient, fix absent service call retries (#1181)
