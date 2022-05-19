@@ -1,0 +1,27 @@
+Highlights:
+
+This release mostly contains changes and fixes for the WorkflowClient and WorkflowStub behavior.
+
+Fixes:
+
+- sticky_cache_size, stale version may be observed
+- Fixed a problem with test server not respecting disabled time skipping introduced in 1.9.0
+- SDK doesn't log exceptions internally that are getting propagated to the user code anymore
+- Behavior of Workflow#getResult, WorkflowStub#cancel and WorkflowStub#terminate got aligned with their contract for exceptions.
+
+Changeset:
+2022-05-02 - 7d86cdf3 - Add documentation to ManualActivityCompletionClient, fix absent service call retries (#1181)
+2022-05-03 - b74dbe06 - Fix workflow_active_thread_count tags (#1185)
+2022-05-03 - ee4c54c3 - Polish Kotlin ConnectedWorkflowServiceStubs methods (#1186)
+2022-05-05 - bc13193a - Fix absent request level metrics not logging with incorrectly implemented custom grpc interceptor (#1188)
+2022-05-09 - 26c92f94 - Align Test Server direct query behavior with the real server (#1191)
+2022-05-09 - bcd9a376 - Local Activity now uses server time and elapsed period to calculate updated workflow task timestamps (#1196)
+2022-05-10 - a9bafd3a - Make signalWithStart set search attributes if it starts a new execution (#1199)
+2022-05-11 - 0fca591d - Rework async long poll to use the same configuration as the main long poll (#1204)
+2022-05-12 - 3aa188f7 - Fix Test Server throwing on queries without a deadline (#1207)
+2022-05-12 - 98f4ca9e - Fix test server with disabled time skipping mode (#1210)
+2022-05-15 - 94aac379 - Make getResult methods to throw TimeoutException instead of raw gRPC DEADLINE_EXCEEDED (#1209)
+2022-05-17 - 3f166696 - Add unit test verifying behavior of finishing Activity with CancellationType=ABANDON if it was canceled by the workflow (#1217)
+2022-05-18 - 24d5e822 - Fix WorkflowStub#cancel and WorkflowStub#terminate exceptions contract (#1218)
+2022-05-18 - bdee7626 - Deescalate GrpcRetryer logging to trace level (#1227)
+2022-05-18 - eb898be9 - Implement WorkflowExecutionStartEventAttributes#firstExecutionRunId attribute in TestServer (#1225)
