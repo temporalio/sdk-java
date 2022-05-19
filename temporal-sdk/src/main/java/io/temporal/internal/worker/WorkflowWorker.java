@@ -371,7 +371,7 @@ public final class WorkflowWorker
             e);
       } else {
         log.warn(
-            "Failure during reporting of workflow progress to the server. If seen continuously the workflow might be stuck. WorkflowId={}, RunId={}, startedEventId={}",
+            "Failure while reporting workflow progress to the server. If seen continuously the workflow might be stuck. WorkflowId={}, RunId={}, startedEventId={}",
             currentTask.getWorkflowExecution().getWorkflowId(),
             currentTask.getWorkflowExecution().getRunId(),
             currentTask.getStartedEventId(),
