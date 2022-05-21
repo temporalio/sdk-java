@@ -43,11 +43,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
-import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.common.interceptors.*;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -57,7 +53,6 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerMetricsTag;
-import io.temporal.workflow.interceptors.SignalWorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.TestActivity3;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
@@ -69,6 +64,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -261,19 +257,7 @@ public class MetricsTest {
             .setWorkerInterceptors(
                 new CorruptedSignalWorkerInterceptor(),
                 // Add noop just to test that list of interceptors is working.
-                new WorkerInterceptor() {
-                  @Override
-                  public WorkflowInboundCallsInterceptor interceptWorkflow(
-                      WorkflowInboundCallsInterceptor next) {
-                    return next;
-                  }
-
-                  @Override
-                  public ActivityInboundCallsInterceptor interceptActivity(
-                      ActivityInboundCallsInterceptor next) {
-                    return next;
-                  }
-                })
+                new WorkerInterceptorBase())
             .build());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
@@ -341,24 +325,7 @@ public class MetricsTest {
 
   @Test
   public void testTemporalActivityFailureMetric() throws InterruptedException {
-    setUp(
-        WorkerFactoryOptions.newBuilder()
-            .setWorkerInterceptors(
-                // Add noop just to test that list of interceptors is working.
-                new WorkerInterceptor() {
-                  @Override
-                  public WorkflowInboundCallsInterceptor interceptWorkflow(
-                      WorkflowInboundCallsInterceptor next) {
-                    return next;
-                  }
-
-                  @Override
-                  public ActivityInboundCallsInterceptor interceptActivity(
-                      ActivityInboundCallsInterceptor next) {
-                    return next;
-                  }
-                })
-            .build());
+    setUp(WorkerFactoryOptions.getDefaultInstance());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(TestActivityFailureCountersWorkflow.class);
@@ -603,12 +570,10 @@ public class MetricsTest {
   }
 
   public static class Signal {
-
     public String value;
   }
 
-  private static class CorruptedSignalWorkerInterceptor implements WorkerInterceptor {
-
+  private static class CorruptedSignalWorkerInterceptor extends WorkerInterceptorBase {
     @Override
     public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
       return new WorkflowInboundCallsInterceptorBase(next) {
@@ -627,10 +592,33 @@ public class MetricsTest {
         }
       };
     }
+  }
+
+  private static class SignalWorkflowOutboundCallsInterceptor
+      extends WorkflowOutboundCallsInterceptorBase {
+    private final Function<Object[], Object[]> overrideArgs;
+    private final Function<String, String> overrideSignalName;
+
+    public SignalWorkflowOutboundCallsInterceptor(
+        Function<Object[], Object[]> overrideArgs,
+        Function<String, String> overrideSignalName,
+        WorkflowOutboundCallsInterceptor next) {
+      super(next);
+      this.overrideArgs = overrideArgs;
+      this.overrideSignalName = overrideSignalName;
+    }
 
     @Override
-    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
-      return next;
+    public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
+      Object[] args = input.getArgs();
+      if (args != null && args.length > 0) {
+        args = new Object[] {"corrupted signal"};
+      }
+      return super.signalExternalWorkflow(
+          new SignalExternalInput(
+              input.getExecution(),
+              overrideSignalName.apply(input.getSignalName()),
+              overrideArgs.apply(args)));
     }
   }
 }
