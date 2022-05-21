@@ -67,6 +67,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,6 +76,8 @@ public class WorkflowTestingTest {
   private static final Logger log = LoggerFactory.getLogger(WorkflowTestingTest.class);
   private static final String TASK_QUEUE = "test-workflow";
   private TestWorkflowEnvironment testEnvironment;
+
+  public @Rule Timeout timeout = Timeout.seconds(10);
 
   @Rule
   public TestWatcher watchman =
@@ -190,74 +193,6 @@ public class WorkflowTestingTest {
       TimeoutFailure te = (TimeoutFailure) e.getCause().getCause();
       assertEquals(TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, te.getTimeoutType());
       assertEquals("progress1", te.getLastHeartbeatDetails().get(String.class));
-    }
-  }
-
-  @Test
-  public void testActivityStartToCloseTimeout() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
-    worker.registerActivitiesImplementations(new TimingOutActivityImpl());
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
-    try {
-      workflow.workflow(10, 10, 1, true);
-      fail("unreacheable");
-    } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertEquals(
-          TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
-          ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
-      assertEquals(
-          TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE,
-          ((TimeoutFailure) e.getCause().getCause().getCause()).getTimeoutType());
-    }
-  }
-
-  @Test
-  public void testActivityScheduleToStartTimeout() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
-    try {
-      workflow.workflow(10, 1, 10, true);
-      fail("unreacheable");
-    } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertEquals(
-          TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START,
-          ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
-    }
-  }
-
-  @Test
-  public void testActivityScheduleToCloseTimeout() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
-    worker.registerActivitiesImplementations(new TimingOutActivityImpl());
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
-    try {
-      workflow.workflow(2, 10, 1, false);
-      fail("unreacheable");
-    } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ActivityFailure);
-      assertEquals(
-          TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
-          ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
-      assertEquals(
-          TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE,
-          ((TimeoutFailure) e.getCause().getCause().getCause()).getTimeoutType());
     }
   }
 

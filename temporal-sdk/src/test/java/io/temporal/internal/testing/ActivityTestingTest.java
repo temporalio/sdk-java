@@ -39,11 +39,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 public class ActivityTestingTest {
 
   private TestActivityEnvironment testEnvironment;
+
+  public @Rule Timeout timeout = Timeout.seconds(10);
 
   @Before
   public void setUp() {

@@ -28,9 +28,13 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 public class LocalActivityMethodOptionsTest {
+
+  public @Rule Timeout timeout = Timeout.seconds(10);
 
   private static final LocalActivityOptions defaultOps =
       LocalActivityOptions.newBuilder()

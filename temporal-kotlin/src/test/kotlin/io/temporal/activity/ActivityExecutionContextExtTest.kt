@@ -25,6 +25,7 @@ import io.temporal.common.converter.DefaultDataConverter
 import io.temporal.common.converter.JacksonJsonPayloadConverter
 import io.temporal.common.converter.KotlinObjectMapperFactory
 import io.temporal.testing.TestWorkflowRule
+import io.temporal.testing.internal.SDKTestWorkflowRule
 import io.temporal.workflow.Workflow
 import io.temporal.workflow.WorkflowInterface
 import io.temporal.workflow.WorkflowMethod
@@ -38,7 +39,7 @@ class ActivityExecutionContextExtTest {
 
   @Rule
   @JvmField
-  var testWorkflowRule = TestWorkflowRule.newBuilder()
+  var testWorkflowRule = SDKTestWorkflowRule.newBuilder()
     .setWorkflowTypes(TestWorkflowImpl::class.java)
     .setActivityImplementations(TestActivityForHeartbeatDetails())
     .setWorkflowClientOptions(
