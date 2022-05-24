@@ -48,7 +48,7 @@ fun WorkerFactory(
  */
 inline fun WorkerFactory.newWorker(
   taskQueue: String,
-  options: @TemporalDsl WorkerOptions.Builder.() -> Unit,
+  options: @TemporalDsl WorkerOptions.Builder.() -> Unit
 ): Worker {
   return newWorker(taskQueue, WorkerOptions(options))
 }

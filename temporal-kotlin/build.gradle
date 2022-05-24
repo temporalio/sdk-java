@@ -55,3 +55,4 @@ task registerNamespace(type: JavaExec) {
 }
 
 test.dependsOn 'registerNamespace'
+

@@ -24,7 +24,6 @@ import io.temporal.client.newWorkflowStub
 import io.temporal.common.converter.DefaultDataConverter
 import io.temporal.common.converter.JacksonJsonPayloadConverter
 import io.temporal.common.converter.KotlinObjectMapperFactory
-import io.temporal.testing.TestWorkflowRule
 import io.temporal.testing.internal.SDKTestWorkflowRule
 import io.temporal.workflow.Workflow
 import io.temporal.workflow.WorkflowInterface

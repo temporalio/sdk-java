@@ -19,44 +19,21 @@
 
 package io.temporal.serviceclient.functional;
 
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import org.junit.Assert;
+import static org.junit.Assert.assertEquals;
+
+import io.grpc.health.v1.HealthCheckResponse;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
+import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * This test needs to be performed with env variable USE_DOCKER_SERVICE=true. It should fail if
- * docker is not up or returns health status other than SERVING.
- */
 public class HealthCheckTest {
 
-  private static final boolean useDockerService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-
-  public static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+  @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
 
   @Test
   public void testHealthCheck() {
-    WorkflowServiceStubs workflowServiceStubs = null;
-    if (useDockerService) {
-      try {
-        WorkflowServiceStubsOptions stubsOptions = WorkflowServiceStubsOptions.getDefaultInstance();
-        if (temporalServiceAddress != null) {
-          stubsOptions =
-              WorkflowServiceStubsOptions.newBuilder(stubsOptions)
-                  .setTarget(temporalServiceAddress)
-                  .build();
-        }
-        // Stub creation triggers health check by default, unless disableHealthCheck flag is set in
-        // the WorkflowServiceStubsOptions.
-        workflowServiceStubs = WorkflowServiceStubs.newServiceStubs(stubsOptions);
-      } catch (Exception e) {
-        Assert.fail("Health check failed");
-      } finally {
-        if (workflowServiceStubs != null) {
-          workflowServiceStubs.shutdown();
-        }
-      }
-    }
+    HealthCheckResponse healthCheckResponse =
+        testWorkflowRule.getWorkflowServiceStubs().healthCheck();
+    assertEquals(HealthCheckResponse.ServingStatus.SERVING, healthCheckResponse.getStatus());
   }
 }

@@ -28,7 +28,7 @@ import io.temporal.kotlin.TemporalDsl
  */
 inline fun Worker.registerWorkflowImplementationTypes(
   vararg workflowImplementationClasses: Class<*>,
-  options: @TemporalDsl WorkflowImplementationOptions.Builder.() -> Unit,
+  options: @TemporalDsl WorkflowImplementationOptions.Builder.() -> Unit
 ) {
   registerWorkflowImplementationTypes(
     WorkflowImplementationOptions(options),

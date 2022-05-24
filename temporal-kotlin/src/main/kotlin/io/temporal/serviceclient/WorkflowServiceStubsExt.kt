@@ -94,7 +94,7 @@ inline fun ConnectedWorkflowServiceStubs(
 @ExperimentalTime
 inline fun ConnectedWorkflowServiceStubs(
   timeout: Duration,
-  options: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit,
+  options: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit
 ): WorkflowServiceStubs {
   return ConnectedWorkflowServiceStubs(timeout.toJavaDuration(), options)
 }
@@ -106,7 +106,7 @@ inline fun ConnectedWorkflowServiceStubs(
  */
 inline fun ConnectedWorkflowServiceStubs(
   timeout: JavaDuration? = null,
-  options: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit,
+  options: @TemporalDsl WorkflowServiceStubsOptions.Builder.() -> Unit
 ): WorkflowServiceStubs {
   return WorkflowServiceStubs.newConnectedServiceStubs(WorkflowServiceStubsOptions(options), timeout)
 }

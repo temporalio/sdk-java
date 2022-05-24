@@ -26,7 +26,7 @@ import io.temporal.kotlin.TemporalDsl
  * @see WorkflowOptions
  */
 inline fun WorkflowOptions(
-  options: @TemporalDsl WorkflowOptions.Builder.() -> Unit,
+  options: @TemporalDsl WorkflowOptions.Builder.() -> Unit
 ): WorkflowOptions {
   return WorkflowOptions.newBuilder().apply(options).build()
 }

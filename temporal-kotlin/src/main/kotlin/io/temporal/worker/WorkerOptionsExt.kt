@@ -25,7 +25,7 @@ import io.temporal.kotlin.TemporalDsl
  * @see WorkerOptions
  */
 inline fun WorkerOptions(
-  options: @TemporalDsl WorkerOptions.Builder.() -> Unit,
+  options: @TemporalDsl WorkerOptions.Builder.() -> Unit
 ): WorkerOptions {
   return WorkerOptions.newBuilder().apply(options).build()
 }
