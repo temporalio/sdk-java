@@ -24,7 +24,62 @@ import io.temporal.common.Experimental;
 /**
  * Intercepts workflow and activity executions.
  *
- * <p>TODO(maxim): JavaDoc with sample
+ * <p>Prefer extending {@link WorkerInterceptorBase} and overriding only the methods you need
+ * instead of implementing this interface directly. {@link WorkerInterceptorBase} provides correct
+ * default implementations to all the methods of this interface.
+ *
+ * <p>You may want to start your implementation with this initial structure:
+ *
+ * <pre>{@code
+ * public class CustomWorkerInterceptor extends WorkerInterceptorBase {
+ *   // remove if you don't need to have a custom WorkflowInboundCallsInterceptor or
+ *   // WorkflowOutboundCallsInterceptor
+ *   @Override
+ *   public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
+ *     return new CustomWorkflowInboundCallsInterceptor(next) {
+ *       // remove if you don't need to have a custom WorkflowOutboundCallsInterceptor
+ *       @Override
+ *       public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
+ *         next.init(new CustomWorkflowOutboundCallsInterceptor(outboundCalls));
+ *       }
+ *     };
+ *   }
+ *
+ *   // remove if you don't need to have a custom ActivityInboundCallsInterceptor
+ *   @Override
+ *   public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
+ *     return new CustomActivityInboundCallsInterceptor(next);
+ *   }
+ *
+ *   private static class CustomWorkflowInboundCallsInterceptor
+ *       extends WorkflowInboundCallsInterceptorBase {
+ *     public CustomWorkflowInboundCallsInterceptor(WorkflowInboundCallsInterceptor next) {
+ *       super(next);
+ *     }
+ *
+ *     // override only the methods you need
+ *   }
+ *
+ *   private static class CustomWorkflowOutboundCallsInterceptor
+ *       extends WorkflowOutboundCallsInterceptorBase {
+ *     public CustomWorkflowOutboundCallsInterceptor(WorkflowOutboundCallsInterceptor next) {
+ *       super(next);
+ *     }
+ *
+ *     // override only the methods you need
+ *   }
+ *
+ *   private static class CustomActivityInboundCallsInterceptor
+ *       extends ActivityInboundCallsInterceptorBase {
+ *     public CustomActivityInboundCallsInterceptor(ActivityInboundCallsInterceptor next) {
+ *       super(next);
+ *     }
+ *
+ *     // override only the methods you need
+ *   }
+ * }
+ *
+ * }</pre>
  */
 @Experimental
 public interface WorkerInterceptor {
