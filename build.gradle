@@ -47,7 +47,7 @@ ext {
 apply from: "$rootDir/gradle/versioning.gradle"
 apply from: "$rootDir/gradle/java.gradle"
 if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)) {
-    apply from: "$rootDir/gradle/google-java-format.gradle"
+    apply from: "$rootDir/gradle/linting.gradle"
 }
 apply from: "$rootDir/gradle/errorprone.gradle"
 apply from: "$rootDir/gradle/licensing.gradle"

@@ -1,0 +1,22 @@
+subprojects {
+    apply plugin: 'com.diffplug.spotless'
+
+    spotless {
+        java {
+            target 'src/*/java/**/*.java'
+            targetExclude '**/generated/*'
+            targetExclude '**/.idea/**'
+            googleJavaFormat('1.15.0')
+        }
+
+        kotlin {
+            ktlint('0.44.0')
+                    .setUseExperimental(true)
+                    // needs to be aligned with .editorconfig
+                    // https://github.com/diffplug/spotless/tree/main/plugin-gradle#ktlint
+                    .userData(['indent_size': '2'])
+        }
+    }
+
+    classes.dependsOn 'spotlessApply'
+}

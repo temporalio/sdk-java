@@ -36,8 +36,8 @@ class KotlinObjectMapperFactory {
       mapper.registerModule(JavaTimeModule())
       mapper.registerModule(Jdk8Module())
       mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
-      @Suppress("deprecation")
       // use deprecated constructor instead of builder to maintain compatibility with old jackson versions
+      @Suppress("deprecation")
       val km = KotlinModule()
       mapper.registerModule(km)
       return mapper
