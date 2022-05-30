@@ -48,7 +48,7 @@ protobuf {
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
     // with the oldest supported versions of protoc and grpc artifacts.
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.10.1'
+        artifact = 'com.google.protobuf:protoc:3.21.1'
     }
     plugins {
         grpc {
