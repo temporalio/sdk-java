@@ -104,17 +104,17 @@ final class VersionStateMachine {
                   State.SKIPPED,
                   CommandType.COMMAND_TYPE_RECORD_MARKER,
                   State.SKIPPED_NOTIFIED,
-                  InvocationStateMachine::cancelCommandValidateCallAndNotifyResultCachedExecuting)
+                  InvocationStateMachine::notifySkippedExecuting)
               .add(
                   State.REPLAYING,
                   ExplicitEvent.SCHEDULE,
                   new State[] {State.MARKER_COMMAND_CREATED_REPLAYING, State.SKIPPED_REPLAYING},
-                  InvocationStateMachine::createMarker_replaying)
+                  InvocationStateMachine::createMarkerReplaying)
               .add(
                   State.MARKER_COMMAND_CREATED_REPLAYING,
                   CommandType.COMMAND_TYPE_RECORD_MARKER,
                   State.RESULT_NOTIFIED_REPLAYING,
-                  InvocationStateMachine::validateCallAndNotifyPreloaded_replaying)
+                  InvocationStateMachine::notifyMarkerCreatedReplaying)
               .add(
                   State.RESULT_NOTIFIED_REPLAYING,
                   EventType.EVENT_TYPE_MARKER_RECORDED,
@@ -129,8 +129,7 @@ final class VersionStateMachine {
                   State.SKIPPED_REPLAYING,
                   CommandType.COMMAND_TYPE_RECORD_MARKER,
                   State.SKIPPED_NOTIFIED,
-                  InvocationStateMachine
-                      ::cancelCommandValidateCallAndNotifyCachedOrDefaultReplaying);
+                  InvocationStateMachine::notifySkippedReplaying);
 
   /** Represents a single invocation of version. */
   @VisibleForTesting
@@ -208,8 +207,7 @@ final class VersionStateMachine {
       if (versionToUse == null) {
         throw new IllegalStateException((preloaded ? "preloaded " : "") + " version not set");
       }
-      if ((versionToUse < minSupported || versionToUse > maxSupported)
-          && versionToUse != DEFAULT_VERSION) {
+      if (versionToUse < minSupported || versionToUse > maxSupported) {
         throw new UnsupportedVersion.UnsupportedVersionException(
             String.format(
                 "Version %d of changeId %s is not supported. Supported v is between %d and %d.",
@@ -234,6 +232,7 @@ final class VersionStateMachine {
 
     State createMarkerExecuting() {
       if (version != null) {
+        // version for this change-id is already set and no maker should be created
         addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
         return State.SKIPPED;
       } else {
@@ -245,26 +244,32 @@ final class VersionStateMachine {
       }
     }
 
-    void cancelCommandValidateCallAndNotifyResultCachedExecuting() {
+    void notifySkippedExecuting() {
       cancelCommand();
       try {
-        validateVersionAndThrow(false);
-        notifyFromVersion(false);
+        // It's an original execution, and we are in the skipping mode,
+        // so we use a version from the original execution set by an earlier getVersion invocation
+        final boolean usePreloadedVersion = false;
+        validateVersionAndThrow(usePreloadedVersion);
+        notifyFromVersion(usePreloadedVersion);
       } catch (RuntimeException ex) {
         notifyFromException(ex);
       }
     }
 
-    void validateCallAndNotifyPreloaded_replaying() {
+    void notifyMarkerCreatedReplaying() {
       try {
-        validateVersionAndThrow(true);
-        notifyFromVersion(true);
+        // it's a replay and the version to return from the getVersion call should be preloaded from
+        // the history
+        final boolean usePreloadedVersion = true;
+        validateVersionAndThrow(usePreloadedVersion);
+        notifyFromVersion(usePreloadedVersion);
       } catch (RuntimeException ex) {
         notifyFromException(ex);
       }
     }
 
-    State createMarker_replaying() {
+    State createMarkerReplaying() {
       createFakeCommand();
       if (preloadedVersion != null) {
         return State.MARKER_COMMAND_CREATED_REPLAYING;
@@ -279,28 +284,34 @@ final class VersionStateMachine {
       flushPreloadedVersionAndUpdateFromEvent(currentEvent);
     }
 
-    void cancelCommandValidateCallAndNotifyCachedOrDefaultReplaying() {
+    void notifySkippedReplaying() {
       cancelCommand();
       if (version == null) {
+        // We are in replay and in a skipped state, which means there was no matching marker in the
+        // history
+        // getVersion call wasn't here during the original execution, so we have to assume the
+        // version to be DEFAULT_VERSION
         version = DEFAULT_VERSION;
       }
       try {
-        validateVersionAndThrow(false);
-        notifyFromVersion(false);
+        // we are in the skipped state, so no preloaded event is expected from the history
+        final boolean usePreloadedVersion = false;
+        validateVersionAndThrow(usePreloadedVersion);
+        notifyFromVersion(usePreloadedVersion);
       } catch (RuntimeException ex) {
-        System.out.println("notifyFromThrowable");
         notifyFromException(ex);
       }
     }
 
     void missingMarkerReplaying() {
-      // 1. There is a version marker for the changeId, because there is a preloaded version.
-      // 2. This version marker doesn't match this command and this version marker is recorded
-      // later than this command.
-      // Because either a matched event or earlier non-matched version marker supposed to already
-      // flush the preloaded version, preloadedVersion != null means that this getVersion call
-      // is added before the original getVersion call cause the creation of the marker
       if (preloadedVersion != null) {
+        // 1. There is a version marker for the changeId, because there is a preloaded version.
+        // 2. This version marker doesn't match this command, which means this version marker is
+        // recorded later than this command. Otherwise, it would be flushed already by either a
+        // matched event or earlier non-matched version marker.
+        //
+        // So, preloadedVersion != null means that this getVersion call is added before the original
+        // getVersion call that caused the recording of the marker.
         throw new NonDeterministicException(
             "getVersion call before the existing version marker event. "
                 + RETROACTIVE_ADDITION_ERROR_STRING);

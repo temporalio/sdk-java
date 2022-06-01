@@ -301,6 +301,56 @@ public class VersionStateMachineTest {
   }
 
   /**
+   * Tests when 1. an original execution is performed without any versions specified
+   * (DEFAULT_VERSION is assumed) 2. replay is performed with code that has a version call with a
+   * range no longer including DEFAULT_VERSION
+   */
+  @Test
+  public void unsupportedVersionAddedOnReplay() {
+    AtomicReference<RuntimeException> versionCallException = new AtomicReference<>();
+
+    class ReplayTestListener extends TestEntityManagerListenerBase {
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Integer, RuntimeException>add2((v, c) -> stateMachines.getVersion("id1", 1, 1, c))
+            .add(
+                (v) -> {
+                  versionCallException.set(v.getT2());
+                  stateMachines.completeWorkflow(Optional.empty());
+                });
+      }
+    }
+    /*
+      1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+      2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+      3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+      4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+      6: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+
+    {
+      versionCallException.set(null);
+      // test full replay
+      TestEntityManagerListenerBase listener = new ReplayTestListener();
+      stateMachines = newStateMachines(listener);
+      h.handleWorkflowTaskTakeCommands(stateMachines);
+
+      assertNotNull(versionCallException.get());
+      assertTrue(
+          versionCallException
+              .get()
+              .getMessage()
+              .startsWith("Version " + DEFAULT_VERSION + " of changeId id1 is not supported"));
+    }
+  }
+
+  /**
    * Tests that getVersion call returns DEFAULT version when there is no correspondent marker in the
    * history. It happens when getVersion call was added at the workflow place that already executed.
    */

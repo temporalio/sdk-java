@@ -270,8 +270,6 @@ public class LocalActivityStateMachineTest {
   @Test
   public void testLocalActivityStateMachineForcedWorkflowTaskFailure() {
     class TestListener extends TestEntityManagerListenerBase {
-      Optional<Payloads> result;
-
       @Override
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         ExecuteLocalActivityParameters parameters1 =

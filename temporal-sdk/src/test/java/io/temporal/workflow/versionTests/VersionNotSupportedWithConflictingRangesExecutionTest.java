@@ -37,15 +37,20 @@ import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class VersionNotSupportedTest {
+/**
+ * Verifies a situation with a workflow having two getVersion calls.These calls have version ranges
+ * that are incompatible with each other.
+ */
+public class VersionNotSupportedWithConflictingRangesExecutionTest {
 
   private static boolean hasReplayed;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestVersionNotSupportedWorkflowImpl.class)
+          .setWorkflowTypes(WorkflowWithIncompatibleRangesForTheSameChangeId.class)
           .setActivityImplementations(new TestActivitiesImpl())
+          // needed for a quick retry / replay
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
@@ -68,7 +73,7 @@ public class VersionNotSupportedTest {
     assertTrue(hasReplayed);
   }
 
-  public static class TestVersionNotSupportedWorkflowImpl implements TestWorkflow1 {
+  public static class WorkflowWithIncompatibleRangesForTheSameChangeId implements TestWorkflow1 {
 
     @Override
     public String execute(String taskQueue) {
@@ -87,8 +92,6 @@ public class VersionNotSupportedTest {
         result += testActivities.activity2("activity2", 2); // This is executed.
       }
 
-      // Catching error from getVersion is only for unit test purpose.
-      // Do not ever do it in production code.
       try {
         Workflow.getVersion("test_change", 2, 3);
       } catch (Error e) {

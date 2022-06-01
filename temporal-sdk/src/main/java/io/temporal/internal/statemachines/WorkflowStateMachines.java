@@ -772,6 +772,9 @@ public final class WorkflowStateMachines {
         maxSupported,
         (v, e) -> {
           callback.apply(v, e);
+          // without this getVersion call will trigger the end of WFT,
+          // instead we want to prepare subsequent commands and unblock the execution one more
+          // time.
           eventLoop();
         });
   }
