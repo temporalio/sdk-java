@@ -19,9 +19,9 @@
 
 package io.temporal.testing;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertFalse;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 public class TestWorkflowExtensionTimeSkippingTest {
   @Test
@@ -30,7 +30,7 @@ public class TestWorkflowExtensionTimeSkippingTest {
         TestWorkflowExtension.newBuilder().setUseTimeskipping(false).build();
 
     assertFalse(
-        testWorkflow.createTestEnvOptions(System.currentTimeMillis()).isUseTimeskipping(),
-        "We disabled the time skipping on the extension, so the TestEnvironmentOptions should have it off too");
+        "We disabled the time skipping on the extension, so the TestEnvironmentOptions should have it off too",
+        testWorkflow.createTestEnvOptions(System.currentTimeMillis()).isUseTimeskipping());
   }
 }
