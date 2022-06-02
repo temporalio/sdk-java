@@ -40,7 +40,7 @@ ext {
     slf4jVersion = '[1.4.0,)!!1.7.36'
 
     logbackVersion = '1.2.11'
-    mockitoVersion = '4.5.1'
+    mockitoVersion = '4.6.0'
     junitVersion = '4.13.2'
 }
 

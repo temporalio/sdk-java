@@ -20,7 +20,6 @@
 package io.temporal.testing;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
@@ -55,12 +54,7 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     return new TimeLockingWorkflowStub(locker, next);
   }
 
-  @Override
-  public ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next) {
-    return next;
-  }
-
-  private static class TimeLockingWorkflowStub implements WorkflowStub {
+  static class TimeLockingWorkflowStub implements WorkflowStub {
 
     private final IdempotentTimeLocker locker;
     private final WorkflowStub next;
@@ -196,7 +190,6 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
         CompletableFuture<R> ignored =
             resultAsync.whenComplete(
                 (r, e) -> {
-                  locker.lockTimeSkipping();
                   if (e == null) {
                     this.complete(r);
                   } else {
@@ -229,7 +222,11 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
       @Override
       public R join() {
         locker.unlockTimeSkipping();
-        return super.join();
+        try {
+          return super.join();
+        } finally {
+          locker.lockTimeSkipping();
+        }
       }
     }
   }
