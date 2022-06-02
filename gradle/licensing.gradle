@@ -1,7 +1,7 @@
 subprojects {
     apply plugin: 'org.cadixdev.licenser'
     license {
-        header rootProject.file('license-header.txt')
+        header rootProject.file('LICENSE.header')
         exclude '**/*.puml'
     }
     tasks.check.dependsOn('checkLicenseMain')
