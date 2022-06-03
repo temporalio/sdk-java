@@ -35,11 +35,11 @@ import io.temporal.common.Experimental;
  * public class CustomWorkerInterceptor extends WorkerInterceptorBase {
  *   // remove if you don't need to have a custom WorkflowInboundCallsInterceptor or
  *   // WorkflowOutboundCallsInterceptor
- *   @Override
+ *   {@literal @}Override
  *   public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
  *     return new CustomWorkflowInboundCallsInterceptor(next) {
  *       // remove if you don't need to have a custom WorkflowOutboundCallsInterceptor
- *       @Override
+ *       {@literal @}Override
  *       public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
  *         next.init(new CustomWorkflowOutboundCallsInterceptor(outboundCalls));
  *       }
@@ -47,7 +47,7 @@ import io.temporal.common.Experimental;
  *   }
  *
  *   // remove if you don't need to have a custom ActivityInboundCallsInterceptor
- *   @Override
+ *   {@literal @}Override
  *   public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
  *     return new CustomActivityInboundCallsInterceptor(next);
  *   }
@@ -79,7 +79,6 @@ import io.temporal.common.Experimental;
  *     // override only the methods you need
  *   }
  * }
- *
  * }</pre>
  */
 @Experimental
