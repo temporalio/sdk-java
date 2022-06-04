@@ -39,10 +39,7 @@ class GrpcRetryerUtils {
    * not.
    *
    * @param currentException exception to analyze
-   * @param previousException previous exception happened before this one, {@code null} if {@code
-   *     currentException} is the first exception in the chain
    * @param options retry options
-   * @param grpcContextDeadline current grpc context deadline
    * @return null if the {@code exception} can be retried, a final exception to throw in the
    *     external code otherwise.
    */
@@ -56,6 +53,15 @@ class GrpcRetryerUtils {
         // https://github.com/grpc-ecosystem/go-grpc-middleware/blob/master/retry/retry.go#L287
       case CANCELLED:
         return new CancellationException("The gRPC request was cancelled");
+      case INVALID_ARGUMENT:
+      case NOT_FOUND:
+      case ALREADY_EXISTS:
+      case FAILED_PRECONDITION:
+      case PERMISSION_DENIED:
+      case UNAUTHENTICATED:
+      case UNIMPLEMENTED:
+        // never retry these codes
+        return currentException;
       case DEADLINE_EXCEEDED:
         // By default, we keep retrying with DEADLINE_EXCEEDED assuming that it's the deadline of
         // one attempt which expired, but not the whole sequence.

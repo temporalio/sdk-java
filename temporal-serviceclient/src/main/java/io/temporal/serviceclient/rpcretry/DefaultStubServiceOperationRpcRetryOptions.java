@@ -20,11 +20,8 @@
 
 package io.temporal.serviceclient.rpcretry;
 
-import io.grpc.Status;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Default rpc retry options for outgoing requests to the temporal server that supposed to be
@@ -36,22 +33,6 @@ public class DefaultStubServiceOperationRpcRetryOptions {
   public static final Duration EXPIRATION_INTERVAL = Duration.ofMinutes(1);
   public static final Duration MAXIMUM_INTERVAL;
   public static final double BACKOFF = 2;
-
-  public static final List<RpcRetryOptions.DoNotRetryItem> TEMPORAL_SERVER_DEFAULT_NON_RETRY =
-      new ArrayList<RpcRetryOptions.DoNotRetryItem>() {
-        {
-          // CANCELLED is always considered non-retryable
-          // DEADLINE_EXCEEDED is handled in a special way (retry till the root gRPC context is
-          // expired)
-          add(new RpcRetryOptions.DoNotRetryItem(Status.Code.INVALID_ARGUMENT, null));
-          add(new RpcRetryOptions.DoNotRetryItem(Status.Code.NOT_FOUND, null));
-          add(new RpcRetryOptions.DoNotRetryItem(Status.Code.ALREADY_EXISTS, null));
-          add(new RpcRetryOptions.DoNotRetryItem(Status.Code.FAILED_PRECONDITION, null));
-          add(new RpcRetryOptions.DoNotRetryItem(Status.Code.PERMISSION_DENIED, null));
-          add(new RpcRetryOptions.DoNotRetryItem(Status.Code.UNAUTHENTICATED, null));
-          add(new RpcRetryOptions.DoNotRetryItem(Status.Code.UNIMPLEMENTED, null));
-        }
-      };
 
   public static final RpcRetryOptions INSTANCE;
 
@@ -66,13 +47,10 @@ public class DefaultStubServiceOperationRpcRetryOptions {
   }
 
   public static RpcRetryOptions.Builder getBuilder() {
-    RpcRetryOptions.Builder roBuilder =
-        RpcRetryOptions.newBuilder()
-            .setInitialInterval(INITIAL_INTERVAL)
-            .setExpiration(EXPIRATION_INTERVAL)
-            .setBackoffCoefficient(BACKOFF)
-            .setMaximumInterval(MAXIMUM_INTERVAL);
-    TEMPORAL_SERVER_DEFAULT_NON_RETRY.forEach(roBuilder::addDoNotRetry);
-    return roBuilder;
+    return RpcRetryOptions.newBuilder()
+        .setInitialInterval(INITIAL_INTERVAL)
+        .setExpiration(EXPIRATION_INTERVAL)
+        .setBackoffCoefficient(BACKOFF)
+        .setMaximumInterval(MAXIMUM_INTERVAL);
   }
 }

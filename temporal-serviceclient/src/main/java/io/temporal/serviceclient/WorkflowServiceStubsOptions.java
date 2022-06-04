@@ -20,7 +20,6 @@
 
 package io.temporal.serviceclient;
 
-import io.grpc.*;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import java.time.Duration;
@@ -152,16 +151,17 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     /**
      * Sets the rpc timeout value for non-query and non-long-poll calls. Default is 10 seconds.
      *
-     * <p>This timeout is applied to only a single rpc call within a temporal client, not a complete
-     * client-server interaction. In case of failure, the requests are automatically retried
-     * according to {@link #setRpcRetryOptions(RpcRetryOptions)}. The full timeout for an
-     * interaction is limited by {@link RpcRetryOptions.Builder#setExpiration(Duration)} or {@link
+     * <p>This timeout is applied to only a single rpc server call, not a complete client-server
+     * interaction. In case of failure, the requests are automatically retried according to {@link
+     * #setRpcRetryOptions(RpcRetryOptions)}. The full interaction is limited by {@link
+     * RpcRetryOptions.Builder#setExpiration(Duration)} or {@link
      * RpcRetryOptions.Builder#setMaximumAttempts(int)}}, whichever happens first.
      *
-     * <p><b>For example, let's consider you've called WorkflowClient#start, and this timeout is set
-     * to 1s, while {@link RpcRetryOptions.Builder#setExpiration(Duration)} is set to 5s, and the
-     * server is responding slowly. The first two RPC calls may time out and be retried, but if the
-     * third one completes in &lt;1s, the overall call will successfully resolve.
+     * <p>For example, let's consider you've called {@code WorkflowClient#start}, and this timeout
+     * is set to 10s, while {@link RpcRetryOptions.Builder#setExpiration(Duration)} is set to 60s,
+     * and the server is responding slowly. The first two RPC calls may time out and be retried, but
+     * if the third one completes fast, the overall {@code WorkflowClient#start} call will
+     * successfully resolve.
      */
     @Override
     public Builder setRpcTimeout(Duration timeout) {
@@ -183,7 +183,21 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
       return this;
     }
 
-    /** Sets the rpc timeout for queries. Defaults to 10 seconds. */
+    /**
+     * Sets the rpc timeout value for query calls. Default is 10 seconds.
+     *
+     * <p>This timeout is applied to only a single rpc server call, not a complete client-server
+     * interaction. In case of failure, the requests are automatically retried according to {@link
+     * #setRpcRetryOptions(RpcRetryOptions)}. The full interaction is limited by {@link
+     * RpcRetryOptions.Builder#setExpiration(Duration)} or {@link
+     * RpcRetryOptions.Builder#setMaximumAttempts(int)}}, whichever happens first.
+     *
+     * <p>For example, let's consider you've called {@code WorkflowStub#query}, and this timeout is
+     * set to 10s, while {@link RpcRetryOptions.Builder#setExpiration(Duration)} is set to 60s, and
+     * the server is responding slowly or the query is not getting picked up by the worker for any
+     * reason. The first two RPC calls may time out and be retried, but if the third one completes
+     * fast, the overall {@code WorkflowStub#query} call will successfully resolve.
+     */
     public Builder setRpcQueryTimeout(Duration rpcQueryTimeout) {
       this.rpcQueryTimeout = rpcQueryTimeout;
       return this;
@@ -196,7 +210,18 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
      * these values as it may result in increased load to the temporal backend or bad network
      * instability tolerance.
      *
+     * <p>Defaults are:
+     *
+     * <ul>
+     *   <li>Retries are limited by the maximum period of 1 minute
+     *   <li>Initial period between retries: 50ms
+     *   <li>Exponential Backoff Coefficient (exponential rate) for the retry period is 2
+     * </ul>
+     *
+     * @see <a href="http://backoffcalculator.com">Backoff Calculator</a> to get a grasp on an
+     *     Exponential Backoff as a retry strategy
      * @see #setRpcTimeout(Duration)
+     * @see #setRpcQueryTimeout(Duration)
      */
     public Builder setRpcRetryOptions(RpcRetryOptions rpcRetryOptions) {
       this.rpcRetryOptions = rpcRetryOptions;

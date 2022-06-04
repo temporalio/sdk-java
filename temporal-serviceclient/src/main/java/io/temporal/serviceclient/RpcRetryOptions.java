@@ -20,6 +20,8 @@
 
 package io.temporal.serviceclient;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
 import io.temporal.internal.common.OptionsUtils;
@@ -66,10 +68,7 @@ public final class RpcRetryOptions {
      */
     public DoNotRetryItem(
         @Nonnull Status.Code code, @Nullable Class<? extends GeneratedMessageV3> detailsClass) {
-      if (code == null) {
-        throw new NullPointerException("code");
-      }
-      this.code = code;
+      this.code = Preconditions.checkNotNull(code, "code");
       this.detailsClass = detailsClass;
     }
 
@@ -186,32 +185,55 @@ public final class RpcRetryOptions {
     }
 
     /**
-     * Add <code>Status.Code</code> with associated details class to not retry. If <code>
-     * detailsClass</code> is null all failures with the code are non retryable.
+     * Makes request that receives a server response with gRPC {@code code} and failure of {@code
+     * detailsClass} type non-retryable.
      *
-     * <p>{@link Status.Code#CANCELLED} and {@link Status.Code#DEADLINE_EXCEEDED} are always
-     * considered non-retryable.
+     * <p>The following gRPC codes are never retried:
+     *
+     * <ul>
+     *   <li>{@link Status.Code#CANCELLED}
+     *   <li>{@link Status.Code#INVALID_ARGUMENT}
+     *   <li>{@link Status.Code#NOT_FOUND}
+     *   <li>{@link Status.Code#ALREADY_EXISTS}
+     *   <li>{@link Status.Code#FAILED_PRECONDITION}
+     *   <li>{@link Status.Code#PERMISSION_DENIED}
+     *   <li>{@link Status.Code#UNAUTHENTICATED}
+     *   <li>{@link Status.Code#UNIMPLEMENTED}
+     * </ul>
+     *
+     * @param code gRPC code to don't retry
+     * @param detailsClass failure type to don't retry. {@code null} means to wildcard, all failures
+     *     with the {@code code} code are non retryable.
      */
     public Builder addDoNotRetry(
-        Status.Code code, Class<? extends GeneratedMessageV3> detailsClass) {
+        Status.Code code, @Nullable Class<? extends GeneratedMessageV3> detailsClass) {
       doNotRetry.add(new DoNotRetryItem(code, detailsClass));
       return this;
     }
 
     /**
-     * Add {@link DoNotRetryItem} to not retry. If <code>DoNotRetryItem#detailsClass</code> is null
-     * all failures with the code are non retryable.
+     * Makes request that receives a server response with gRPC {@code doNotRetryItem.code} and
+     * failure of {@code doNotRetryItem.detailsClass} type non-retryable.
      *
-     * <p>{@link Status.Code#CANCELLED} and {@link Status.Code#DEADLINE_EXCEEDED} are always
-     * considered non-retryable.
+     * <p>The following gRPC codes are never retried:
+     *
+     * <ul>
+     *   <li>{@link Status.Code#CANCELLED}
+     *   <li>{@link Status.Code#INVALID_ARGUMENT}
+     *   <li>{@link Status.Code#NOT_FOUND}
+     *   <li>{@link Status.Code#ALREADY_EXISTS}
+     *   <li>{@link Status.Code#FAILED_PRECONDITION}
+     *   <li>{@link Status.Code#PERMISSION_DENIED}
+     *   <li>{@link Status.Code#UNAUTHENTICATED}
+     *   <li>{@link Status.Code#UNIMPLEMENTED}
+     * </ul>
+     *
+     * @param doNotRetryItem specifies gRPC code and failure type that shouldn't be retried. If
+     *     {@code doNotRetryItem.detailsClass==null}, all failures with the {@code
+     *     doNotRetryItem.code} code are non retryable.
      */
     public Builder addDoNotRetry(DoNotRetryItem doNotRetryItem) {
       doNotRetry.add(doNotRetryItem);
-      return this;
-    }
-
-    Builder setDoNotRetry(List<DoNotRetryItem> pairs) {
-      doNotRetry = pairs;
       return this;
     }
 
@@ -228,7 +250,7 @@ public final class RpcRetryOptions {
       setBackoffCoefficient(
           OptionsUtils.merge(backoffCoefficient, o.getBackoffCoefficient(), double.class));
       setMaximumAttempts(OptionsUtils.merge(maximumAttempts, o.getMaximumAttempts(), int.class));
-      setDoNotRetry(merge(doNotRetry, o.getDoNotRetry()));
+      doNotRetry = merge(doNotRetry, o.getDoNotRetry());
       validateBuildWithDefaults();
       return this;
     }
@@ -286,12 +308,14 @@ public final class RpcRetryOptions {
         }
       }
 
-      if (doNotRetry == null || doNotRetry.size() == 0) {
-        doNotRetry = DefaultStubServiceOperationRpcRetryOptions.INSTANCE.doNotRetry;
-      }
       RpcRetryOptions result =
           new RpcRetryOptions(
-              initialInterval, backoff, expiration, maximumAttempts, maxInterval, doNotRetry);
+              initialInterval,
+              backoff,
+              expiration,
+              maximumAttempts,
+              maxInterval,
+              MoreObjects.firstNonNull(doNotRetry, Collections.emptyList()));
       result.validate();
       return result;
     }
@@ -307,7 +331,7 @@ public final class RpcRetryOptions {
 
   private final Duration maximumInterval;
 
-  private final List<DoNotRetryItem> doNotRetry;
+  private final @Nonnull List<DoNotRetryItem> doNotRetry;
 
   private RpcRetryOptions(
       Duration initialInterval,
@@ -315,13 +339,13 @@ public final class RpcRetryOptions {
       Duration expiration,
       int maximumAttempts,
       Duration maximumInterval,
-      List<DoNotRetryItem> doNotRetry) {
+      @Nonnull List<DoNotRetryItem> doNotRetry) {
     this.initialInterval = initialInterval;
     this.backoffCoefficient = backoffCoefficient;
     this.expiration = expiration;
     this.maximumAttempts = maximumAttempts;
     this.maximumInterval = maximumInterval;
-    this.doNotRetry = doNotRetry != null ? Collections.unmodifiableList(doNotRetry) : null;
+    this.doNotRetry = Collections.unmodifiableList(doNotRetry);
   }
 
   public Duration getInitialInterval() {
@@ -371,7 +395,7 @@ public final class RpcRetryOptions {
     }
   }
 
-  public List<DoNotRetryItem> getDoNotRetry() {
+  public @Nonnull List<DoNotRetryItem> getDoNotRetry() {
     return doNotRetry;
   }
 

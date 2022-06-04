@@ -45,9 +45,6 @@ public class DefaultStubLongPollRpcRetryOptions {
             .setBackoffCoefficient(BACKOFF)
             .setMaximumInterval(MAXIMUM_INTERVAL);
 
-    DefaultStubServiceOperationRpcRetryOptions.TEMPORAL_SERVER_DEFAULT_NON_RETRY.forEach(
-        roBuilder::addDoNotRetry);
-
     return roBuilder;
   }
 }
