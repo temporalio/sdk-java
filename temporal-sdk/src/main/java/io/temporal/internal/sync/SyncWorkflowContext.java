@@ -823,7 +823,7 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     payloads.ifPresent(attributes::setInput);
 
     context.continueAsNewOnCompletion(attributes.build());
-    WorkflowThread.exit(null);
+    WorkflowThread.exit();
   }
 
   @Override

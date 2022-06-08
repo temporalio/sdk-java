@@ -102,7 +102,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       ContextThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
       try {
         // initialYield blocks thread until the first runUntilBlocked is called.
-        // Otherwise r starts executing without control of the sync.
+        // Otherwise, r starts executing without control of the sync.
         threadContext.initialYield();
         cancellationScope.run();
       } catch (DestroyWorkflowThreadError e) {
@@ -400,8 +400,8 @@ class WorkflowThreadImpl implements WorkflowThread {
   }
 
   @Override
-  public <R> void exitThread(R value) {
-    runner.exit(value);
+  public void exitThread() {
+    runner.exit();
     throw new DestroyWorkflowThreadError("exit");
   }
 

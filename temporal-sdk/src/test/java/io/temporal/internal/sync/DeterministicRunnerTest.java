@@ -40,6 +40,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.replay.*;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.HistoryUtils;
+import io.temporal.testUtils.Signal;
 import io.temporal.worker.MetricsType;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -57,6 +58,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.*;
 
@@ -126,7 +128,7 @@ public class DeterministicRunnerTest {
    */
   @Test
   @Ignore // timer removed from dispatcher
-  public void testRetry() throws Throwable {
+  public void testRetry() {
     RetryOptions retryOptions =
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(10))
@@ -249,7 +251,7 @@ public class DeterministicRunnerTest {
                         trace.add("child2 started");
                         WorkflowThread.await("reason2", () -> unblock2);
                         trace.add("child2 exiting");
-                        WorkflowThread.exit("exitValue");
+                        WorkflowThread.exit();
                         trace.add("child2 done");
                       });
               thread1.get();
@@ -261,7 +263,6 @@ public class DeterministicRunnerTest {
     unblock2 = true;
     d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     assertTrue(d.isDone());
-    assertEquals("exitValue", d.getExitValue());
     String[] expected =
         new String[] {
           "root started", "child1 started", "child2 started", "child2 exiting",
@@ -824,5 +825,58 @@ public class DeterministicRunnerTest {
     } catch (Throwable t) {
       assertTrue(t instanceof WorkflowRejectedExecutionError);
     }
+  }
+
+  @Test
+  public void testCloseBlockedUntilDone() throws InterruptedException {
+    final int THREAD_SLEEP_MS = 2000;
+
+    ThreadPoolExecutor threadPool =
+        new ThreadPoolExecutor(0, 1, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+
+    final Signal threadStarted = new Signal();
+    final AtomicBoolean threadFinished = new AtomicBoolean();
+
+    DeterministicRunner d =
+        new DeterministicRunnerImpl(
+            threadPool::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> {
+              try {
+                threadStarted.signal();
+                Thread.sleep(THREAD_SLEEP_MS);
+                threadFinished.set(true);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+              }
+            });
+
+    new Thread(
+            () -> {
+              try {
+                d.runUntilAllBlocked(THREAD_SLEEP_MS + 1000);
+              } catch (Throwable t) {
+                assertTrue(t instanceof WorkflowRejectedExecutionError);
+              }
+            })
+        .start();
+
+    threadStarted.waitForSignal();
+    assertFalse("The thread shouldn't be finished yet", threadFinished.get());
+
+    // We start two closes into two parallel threads, and we check that they return only when the
+    // workflow thread is done
+
+    new Thread(
+            () -> {
+              d.close();
+              assertTrue(
+                  "Close should return only after the thread finished", threadFinished.get());
+            })
+        .start();
+
+    d.close();
+    assertTrue("Close should return only after the thread finished", threadFinished.get());
   }
 }

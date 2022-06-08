@@ -29,7 +29,6 @@ import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.Promise;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -38,10 +37,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -60,36 +61,70 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
   private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
+
+  // Runner Lock is taken shortly by Workflow Threads when they resume and yield.
+  // It's taken and retained also by DeterministicRunnerImpl control code.
+  // This ensures happens-before between all workflow threads and DeterministicRunnerImpl control
+  // code.
+  // Note that the Runner Lock is not retained when workflow thread executes and not inside yield
+  // method.
+  // To check for an active event loop, inRunUntilAllBlocked value taken under Runner Lock should be
+  // used.
+  private final Lock lock = new ReentrantLock();
+  // true when the control code of the main workflow event loop is running.
+  // Workflow methods may get unblocked and executed by the control code when true.
+  // Updated always with Runner Lock taken.
+  private boolean inRunUntilAllBlocked;
+
   // Note that threads field is a set. So we need to make sure that getPriority never returns the
   // same value for different threads. We use addedThreads variable for this. Protected by lock
   private final Set<WorkflowThread> threads =
       new TreeSet<>((t1, t2) -> Ints.compare(t1.getPriority(), t2.getPriority()));
   // Values from RunnerLocalInternal
   private final Map<RunnerLocalInternal<?>, Object> runnerLocalMap = new HashMap<>();
-  private final List<WorkflowThread> workflowThreadsToAdd =
-      Collections.synchronizedList(new ArrayList<>());
-  private final List<WorkflowThread> callbackThreadsToAdd =
-      Collections.synchronizedList(new ArrayList<>());
-  private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
-  private final Lock lock = new ReentrantLock();
   private final Runnable rootRunnable;
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final SyncWorkflowContext workflowContext;
   private final WorkflowExecutorCache cache;
-  private boolean inRunUntilAllBlocked;
-  private boolean closeRequested;
-  private boolean closed;
+
+  // always accessed under the runner lock
+  private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
+
+  // Access to workflowThreadsToAdd, callbackThreadsToAdd, addedThreads doesn't have to be
+  // synchronized.
+  // Inside DeterministicRunner the access to these variables is under the runner lock.
+  //
+  // newWorkflowThread can be called from the workflow thread directly by using an Async.
+  // But Workflow Threads when resuming or yielding are required to get the same runner lock as the
+  // DeterministicRunner itself, which provides happens-before and guarantees visibility of changes
+  // to these collections.
+  // Only one Workflow Thread can run at a time and no DeterministicRunner code modifying these
+  // variables run at the same time with the Workflow Thread.
+  private final List<WorkflowThread> workflowThreadsToAdd = new ArrayList<>();
+  private final List<WorkflowThread> callbackThreadsToAdd = new ArrayList<>();
   private int addedThreads;
 
-  private static class NamedRunnable {
-    private final String name;
-    private final Runnable runnable;
+  /**
+   * Close is requested by the workflow code and the workflow thread itself. Such close is processed
+   * immediately after the requesting thread is blocked, other workflow threads don't get a chance
+   * to proceed after it.
+   */
+  private boolean exitRequested;
 
-    private NamedRunnable(String name, Runnable runnable) {
-      this.name = name;
-      this.runnable = runnable;
-    }
-  }
+  /**
+   * Close is requested by the control code. This close is potentially delayed and wait till the
+   * workflow code is blocked if it's currently processing.
+   */
+  private boolean closeRequested;
+
+  /**
+   * true if some thread already started performing closure. Only one thread can do it and only
+   * once.
+   */
+  private boolean closeStarted;
+
+  /** If this future is filled, the runner is successfully closed */
+  private final CompletableFuture<?> closeFuture = new CompletableFuture<>();
 
   static WorkflowThread currentThreadInternal() {
     WorkflowThread result = currentThreadThreadLocal.get();
@@ -121,10 +156,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
    * Used to check for failedPromises that contain an error, but never where accessed. It is to
    * avoid failure swallowing by failedPromises which is very hard to troubleshoot.
    */
-  private final Set<Promise> failedPromises = new HashSet<>();
+  private final Set<Promise<?>> failedPromises = new HashSet<>();
 
-  private boolean exitRequested;
-  private Object exitValue;
   private WorkflowThread rootWorkflowThread;
   private final CancellationScopeImpl runnerCancellationScope;
 
@@ -141,10 +174,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       Runnable root,
       WorkflowExecutorCache cache) {
     this.workflowThreadExecutor = workflowThreadExecutor;
-    if (workflowContext == null) {
-      throw new NullPointerException("workflowContext can't be null");
-    }
-    this.workflowContext = workflowContext;
+    this.workflowContext = Preconditions.checkNotNull(workflowContext, "workflowContext");
     this.workflowContext.setRunner(this);
     this.cache = cache;
     this.runnerCancellationScope = new CancellationScopeImpl(true, null, null);
@@ -167,10 +197,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
     lock.lock();
     try {
-      checkClosed();
+      checkNotClosed();
 
       inRunUntilAllBlocked = true;
-      Throwable unhandledException = null;
       // Keep repeating until at least one of the threads makes progress.
       boolean progress;
       outerLoop:
@@ -210,20 +239,17 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           WorkflowThread c = ci.next();
           progress = c.runUntilBlocked(deadlockDetectionTimeout) || progress;
           if (exitRequested) {
-            close();
+            closeRequested = true;
             break outerLoop;
           }
           if (c.isDone()) {
             ci.remove();
-            if (c.getUnhandledException() != null) {
-              unhandledException = c.getUnhandledException();
-              break;
+            Throwable unhandledException = c.getUnhandledException();
+            if (unhandledException != null) {
+              closeRequested = true;
+              throw WorkflowInternal.wrap(unhandledException);
             }
           }
-        }
-        if (unhandledException != null) {
-          close();
-          throw WorkflowInternal.wrap(unhandledException);
         }
         threads.addAll(workflowThreadsToAdd);
         workflowThreadsToAdd.clear();
@@ -258,23 +284,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   public boolean isDone() {
     lock.lock();
     try {
-      return closed || threads.isEmpty();
+      return closeFuture.isDone() || threads.isEmpty();
     } finally {
       lock.unlock();
     }
-  }
-
-  @Override
-  public Object getExitValue() {
-    lock.lock();
-    try {
-      if (!closed) {
-        throw new Error("not done");
-      }
-    } finally {
-      lock.unlock();
-    }
-    return exitValue;
   }
 
   @Override
@@ -282,66 +295,80 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     executeInWorkflowThread("cancel workflow callback", () -> rootWorkflowThread.cancel(reason));
   }
 
+  /**
+   * Destroys all controlled workflow threads by throwing {@link DestroyWorkflowThreadError} from
+   * {@link WorkflowThreadContext#yield(String, Supplier)} when the threads are blocking on the
+   * temporal-sdk code.
+   */
   @Override
   public void close() {
     List<Future<?>> threadFutures = new ArrayList<>();
     lock.lock();
-    if (closed) {
+    if (closeFuture.isDone()) {
       lock.unlock();
       return;
     }
-    // Do not close while runUntilAllBlocked executes.
-    // closeRequested tells it to call close() at the end.
     closeRequested = true;
-    if (inRunUntilAllBlocked) {
+    if (
+    // If runUntilAllBlocked is true, event loop and workflow threads are executing.
+    // Do not close immediately in this case.
+    // closeRequested set earlier will make an event loop control thread to call close()
+    // at the end that will actually perform the closure.
+    inRunUntilAllBlocked
+        // some other thread or caller is already in the process of closing
+        || closeStarted) {
+
       lock.unlock();
+      // We will not perform the closure in this call and should just wait on the future when
+      // another thread responsible for it will close.
+      closeFuture.join();
       return;
     }
+    closeStarted = true;
     try {
-      for (WorkflowThread c : workflowThreadsToAdd) {
-        threads.add(c);
-      }
-      workflowThreadsToAdd.clear();
+      try {
+        threads.addAll(workflowThreadsToAdd);
+        workflowThreadsToAdd.clear();
 
-      for (WorkflowThread c : threads) {
-        threadFutures.add(c.stopNow());
-      }
-      threads.clear();
-
-      // We cannot use an iterator to unregister failed Promises since f.get()
-      // will remove the promise directly from failedPromises. This causes an
-      // ConcurrentModificationException
-      // For this reason we will loop over a copy of failedPromises.
-      Set<Promise> failedPromisesLoop = new HashSet<>(failedPromises);
-      for (Promise f : failedPromisesLoop) {
-        if (!f.isCompleted()) {
-          throw new Error("expected failed");
+        for (WorkflowThread c : threads) {
+          threadFutures.add(c.stopNow());
         }
+        threads.clear();
+
+        // We cannot use an iterator to unregister failed Promises since f.get()
+        // will remove the promise directly from failedPromises. This causes an
+        // ConcurrentModificationException
+        // For this reason we will loop over a copy of failedPromises.
+        Set<Promise<?>> failedPromisesLoop = new HashSet<>(failedPromises);
+        for (Promise<?> f : failedPromisesLoop) {
+          try {
+            f.get();
+            throw new Error("unreachable");
+          } catch (RuntimeException e) {
+            log.warn(
+                "Promise completed with exception and was never accessed. The ignored exception:",
+                CheckedExceptionWrapper.unwrap(e));
+          }
+        }
+      } finally {
+        lock.unlock();
+      }
+
+      // Context is destroyed in c.StopNow(). Wait on all tasks outside the lock since
+      // these tasks use the same lock to execute.
+      for (Future<?> future : threadFutures) {
         try {
-          f.get();
-          throw new Error("unreachable");
-        } catch (RuntimeException e) {
-          log.warn(
-              "Promise completed with exception and was never accessed. The ignored exception:",
-              CheckedExceptionWrapper.unwrap(e));
+          future.get();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          log.warn("Unexpected interrupt during Deterministic Runner closing");
+          return;
+        } catch (ExecutionException e) {
+          throw new Error("[BUG] Unexpected failure stopping coroutine", e);
         }
       }
     } finally {
-      closed = true;
-      lock.unlock();
-    }
-
-    // Context is destroyed in c.StopNow(). Wait on all tasks outside the lock since
-    // these tasks use the same lock to execute.
-    for (Future<?> future : threadFutures) {
-      try {
-        future.get();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new Error("Unexpected interrupt", e);
-      } catch (ExecutionException e) {
-        throw new Error("Unexpected failure stopping coroutine", e);
-      }
+      closeFuture.complete(null);
     }
   }
 
@@ -350,7 +377,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     StringBuilder result = new StringBuilder();
     lock.lock();
     try {
-      if (closed) {
+      if (closeFuture.isDone()) {
         return "Workflow is closed.";
       }
       for (WorkflowThread coroutine : threads) {
@@ -363,12 +390,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       lock.unlock();
     }
     return result.toString();
-  }
-
-  private void checkClosed() {
-    if (closed) {
-      throw new Error("closed");
-    }
   }
 
   /** Creates a new instance of a root workflow thread. */
@@ -407,7 +428,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           "newChildThread can be called only with existing root workflow thread");
     }
     checkWorkflowThreadOnly();
-    checkClosed();
+    checkNotClosed();
     WorkflowThread result =
         new WorkflowThreadImpl(
             workflowThreadExecutor,
@@ -420,7 +441,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             cache,
             getContextPropagators(),
             getPropagatedContexts());
-    workflowThreadsToAdd.add(result); // This is synchronized collection.
+    workflowThreadsToAdd.add(result);
     return result;
   }
 
@@ -469,25 +490,37 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   /** Register a promise that had failed but wasn't accessed yet. */
-  void registerFailedPromise(Promise promise) {
+  void registerFailedPromise(Promise<?> promise) {
+    if (!promise.isCompleted()) {
+      throw new Error("expected failed");
+    }
     failedPromises.add(promise);
   }
 
   /** Forget a failed promise as it was accessed. */
-  void forgetFailedPromise(Promise promise) {
+  void forgetFailedPromise(Promise<?> promise) {
     failedPromises.remove(promise);
   }
 
-  <R> void exit(R value) {
-    checkClosed();
+  void exit() {
+    checkNotClosed();
     checkWorkflowThreadOnly();
-    this.exitValue = value;
     this.exitRequested = true;
   }
 
   private void checkWorkflowThreadOnly() {
+    // TODO this is not a correct way to test for the fact that the method is called from the
+    // workflow method.
+    //  This check verifies that the workflow methods or controlling code are now running,
+    //  but it doesn't verify if the calling thread is the one.
     if (!inRunUntilAllBlocked) {
       throw new Error("called from non workflow thread");
+    }
+  }
+
+  private void checkNotClosed() {
+    if (closeFuture.isDone()) {
+      throw new Error("closed");
     }
   }
 
@@ -530,6 +563,16 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     public static void markAsNonWorkflowThread() {
       isWorkflowThreadThreadLocal.set(false);
+    }
+  }
+
+  private static class NamedRunnable {
+    private final String name;
+    private final Runnable runnable;
+
+    private NamedRunnable(String name, Runnable runnable) {
+      this.name = name;
+      this.runnable = runnable;
     }
   }
 }

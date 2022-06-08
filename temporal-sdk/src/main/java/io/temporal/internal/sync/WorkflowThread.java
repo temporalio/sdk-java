@@ -103,14 +103,12 @@ public interface WorkflowThread extends CancellationScope {
   /**
    * Stop executing all workflow threads and puts {@link DeterministicRunner} into closed state. To
    * be called only from a workflow thread.
-   *
-   * @param value accessible through {@link DeterministicRunner#getExitValue()}.
    */
-  static <R> void exit(R value) {
-    currentThreadInternal().exitThread(value); // needed to close WorkflowThreadContext
+  static void exit() {
+    currentThreadInternal().exitThread(); // needed to close WorkflowThreadContext
   }
 
-  <R> void exitThread(R value);
+  void exitThread();
 
   <T> void setThreadLocal(WorkflowThreadLocalInternal<T> key, T value);
 
