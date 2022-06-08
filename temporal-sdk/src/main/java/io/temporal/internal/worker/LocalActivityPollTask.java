@@ -29,18 +29,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class LocalActivityPollTask
-    implements Poller.PollTask<LocalActivityWorker.Task>,
-        BiFunction<LocalActivityWorker.Task, Duration, Boolean> {
+    implements Poller.PollTask<LocalActivityTask>,
+        BiFunction<LocalActivityTask, Duration, Boolean> {
   private static final Logger log = LoggerFactory.getLogger(LocalActivityPollTask.class);
 
   private static final int QUEUE_SIZE = 1000;
-  private final BlockingQueue<LocalActivityWorker.Task> pendingTasks =
+  private final BlockingQueue<LocalActivityTask> pendingTasks =
       new ArrayBlockingQueue<>(QUEUE_SIZE);
 
   @Override
-  public LocalActivityWorker.Task poll() {
+  public LocalActivityTask poll() {
     try {
-      LocalActivityWorker.Task task = pendingTasks.take();
+      LocalActivityTask task = pendingTasks.take();
       if (log.isTraceEnabled()) {
         log.trace("LocalActivity Task poll returned: " + task.getActivityId());
       }
@@ -52,7 +52,7 @@ final class LocalActivityPollTask
   }
 
   @Override
-  public Boolean apply(LocalActivityWorker.Task task, Duration maxWaitAllowed) {
+  public Boolean apply(LocalActivityTask task, Duration maxWaitAllowed) {
     try {
       boolean accepted = pendingTasks.offer(task, maxWaitAllowed.toMillis(), TimeUnit.MILLISECONDS);
       if (log.isTraceEnabled()) {

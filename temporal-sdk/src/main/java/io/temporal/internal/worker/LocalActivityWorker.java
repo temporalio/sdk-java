@@ -30,11 +30,9 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.internal.worker.activity.ActivityWorkerHelper;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
-import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
@@ -44,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 
-public final class LocalActivityWorker implements SuspendableWorker {
+final class LocalActivityWorker implements SuspendableWorker {
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
@@ -74,7 +72,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
   @Override
   public void start() {
     if (handler.isAnyTypeSupported()) {
-      PollTaskExecutor<Task> pollTaskExecutor =
+      PollTaskExecutor<LocalActivityTask> pollTaskExecutor =
           new PollTaskExecutor<>(
               namespace,
               taskQueue,
@@ -151,28 +149,11 @@ public final class LocalActivityWorker implements SuspendableWorker {
     return pollerOptions;
   }
 
-  public static class Task {
-    private final ExecuteLocalActivityParameters params;
-    private final Functions.Proc1<ActivityTaskHandler.Result> eventConsumer;
-    long taskStartTime;
-
-    public Task(
-        ExecuteLocalActivityParameters params,
-        Functions.Proc1<ActivityTaskHandler.Result> eventConsumer) {
-      this.params = params;
-      this.eventConsumer = eventConsumer;
-    }
-
-    public String getActivityId() {
-      return params.getActivityTask().getActivityId();
-    }
-  }
-
-  public BiFunction<Task, Duration, Boolean> getLocalActivityTaskPoller() {
+  public BiFunction<LocalActivityTask, Duration, Boolean> getLocalActivityTaskPoller() {
     return laPollTask;
   }
 
-  private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<Task> {
+  private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<LocalActivityTask> {
 
     final ActivityTaskHandler handler;
 
@@ -181,19 +162,19 @@ public final class LocalActivityWorker implements SuspendableWorker {
     }
 
     @Override
-    public void handle(Task task) throws Exception {
-      task.taskStartTime = System.currentTimeMillis();
-      ActivityTaskHandler.Result result = handleLocalActivity(task);
-      task.eventConsumer.apply(result);
+    public void handle(LocalActivityTask task) throws Exception {
+      ActivityTaskHandler.Result result = handleLocalActivity(task, System.currentTimeMillis());
+      task.getEventConsumer().apply(result);
     }
 
     @Override
-    public Throwable wrapFailure(Task task, Throwable failure) {
+    public Throwable wrapFailure(LocalActivityTask task, Throwable failure) {
       return new RuntimeException("Failure processing local activity task.", failure);
     }
 
-    private ActivityTaskHandler.Result handleLocalActivity(Task task) throws InterruptedException {
-      ExecuteLocalActivityParameters params = task.params;
+    private ActivityTaskHandler.Result handleLocalActivity(
+        LocalActivityTask task, long activityStartTimeMs) throws InterruptedException {
+      ExecuteLocalActivityParameters params = task.getParams();
       PollActivityTaskQueueResponse.Builder activityTask = params.getActivityTask();
       Map<String, String> activityTypeTag =
           new ImmutableMap.Builder<String, String>(1)
@@ -223,7 +204,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       if (result.getTaskCompleted() != null) {
         com.uber.m3.util.Duration e2eDuration =
             ProtobufTimeUtils.toM3DurationSinceNow(
-                task.params.getActivityTask().getScheduledTime());
+                task.getParams().getActivityTask().getScheduledTime());
         metricsScope.timer(MetricsType.LOCAL_ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
       }
 
@@ -236,7 +217,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       RetryOptions retryOptions = buildRetryOptions(activityTask.getRetryPolicy());
 
       long sleepMillis = retryOptions.calculateSleepTime(attempt);
-      long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
+      long elapsedTask = System.currentTimeMillis() - activityStartTimeMs;
       long sinceScheduled =
           System.currentTimeMillis() - Timestamps.toMillis(activityTask.getScheduledTime());
       long elapsedTotal = elapsedTask + sinceScheduled;
@@ -252,10 +233,10 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       // For small backoff we do local retry. Otherwise we will schedule timer on server side.
       // TODO(maxim): Use timer queue for retries to avoid tying up a thread.
-      if (elapsedTask + sleepMillis < task.params.getLocalRetryThreshold().toMillis()) {
+      if (elapsedTask + sleepMillis < task.getParams().getLocalRetryThreshold().toMillis()) {
         Thread.sleep(sleepMillis);
         activityTask.setAttempt(attempt + 1);
-        return handleLocalActivity(task);
+        return handleLocalActivity(task, activityStartTimeMs);
       } else {
         return result;
       }

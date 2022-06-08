@@ -55,7 +55,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
+public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
@@ -81,7 +81,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final WorkflowExecutorCache cache;
 
-  POJOWorkflowImplementationFactory(
+  public POJOWorkflowImplementationFactory(
       SingleWorkerOptions singleWorkerOptions,
       WorkflowThreadExecutor workflowThreadExecutor,
       WorkerInterceptor[] workerInterceptors,
@@ -95,14 +95,14 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     this.defaultDeadlockDetectionTimeout = singleWorkerOptions.getDefaultDeadlockDetectionTimeout();
   }
 
-  void registerWorkflowImplementationTypes(
+  public void registerWorkflowImplementationTypes(
       WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes) {
     for (Class<?> type : workflowImplementationTypes) {
       registerWorkflowImplementationType(options, type);
     }
   }
 
-  <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
+  public <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
     @SuppressWarnings("unchecked")
     WorkflowImplementationOptions unitTestingOptions =
         WorkflowImplementationOptions.newBuilder()
@@ -112,7 +112,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   }
 
   @SuppressWarnings("unchecked")
-  <R> void addWorkflowImplementationFactory(
+  public <R> void addWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory) {
     if (DynamicWorkflow.class.isAssignableFrom(clazz)) {
       if (dynamicWorkflowImplementationFactory != null) {

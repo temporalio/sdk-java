@@ -38,10 +38,7 @@ import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.statemachines.StatesMachinesCallback;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
-import io.temporal.internal.worker.ActivityTaskHandler;
-import io.temporal.internal.worker.LocalActivityWorker;
-import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -82,7 +79,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   private final BlockingQueue<ActivityTaskHandler.Result> localActivityCompletionQueue =
       new LinkedBlockingDeque<>();
 
-  private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller;
+  private final BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller;
 
   private final ReplayWorkflow workflow;
 
@@ -102,7 +99,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       SingleWorkerOptions options,
       Scope metricsScope,
-      BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller) {
+      BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller) {
     this.service = service;
     this.namespace = namespace;
 
@@ -266,7 +263,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         }
         boolean accepted =
             localActivityTaskPoller.apply(
-                new LocalActivityWorker.Task(laRequest, localActivityCompletionSink), maxWaitTime);
+                new LocalActivityTask(laRequest, localActivityCompletionSink), maxWaitTime);
         localActivityTaskCount++;
         if (!accepted) {
           throw new Error("Unable to schedule local activity for execution");

@@ -21,7 +21,6 @@
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.worker.MetricsType;
 import java.util.Objects;
@@ -127,7 +126,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    InternalUtils.awaitTermination(taskExecutor, unit.toMillis(timeout));
+    ShutdownManager.awaitTermination(taskExecutor, unit.toMillis(timeout));
   }
 
   @Override

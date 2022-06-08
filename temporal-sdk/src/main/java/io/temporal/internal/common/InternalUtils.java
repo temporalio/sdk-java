@@ -23,13 +23,9 @@ package io.temporal.internal.common;
 import com.google.common.base.Defaults;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.internal.worker.Shutdownable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /** Utility functions shared by the implementation code. */
 public final class InternalUtils {
-
   public static TaskQueue createStickyTaskQueue(String taskQueueName) {
     return TaskQueue.newBuilder()
         .setName(taskQueueName)
@@ -42,39 +38,6 @@ public final class InternalUtils {
         .setName(taskQueueName)
         .setKind(TaskQueueKind.TASK_QUEUE_KIND_NORMAL)
         .build();
-  }
-
-  public static long awaitTermination(Shutdownable s, long timeoutMillis) {
-    if (s == null) {
-      return timeoutMillis;
-    }
-    return awaitTermination(
-        timeoutMillis, () -> s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS));
-  }
-
-  public static long awaitTermination(ExecutorService s, long timeoutMillis) {
-    if (s == null) {
-      return timeoutMillis;
-    }
-    return awaitTermination(
-        timeoutMillis,
-        () -> {
-          try {
-            s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-          }
-        });
-  }
-
-  public static long awaitTermination(long timeoutMillis, Runnable toTerminate) {
-    long started = System.currentTimeMillis();
-    toTerminate.run();
-    long remainingTimeout = timeoutMillis - (System.currentTimeMillis() - started);
-    if (remainingTimeout < 0) {
-      remainingTimeout = 0;
-    }
-    return remainingTimeout;
   }
 
   public static Object getValueOrDefault(Object value, Class<?> valueClass) {

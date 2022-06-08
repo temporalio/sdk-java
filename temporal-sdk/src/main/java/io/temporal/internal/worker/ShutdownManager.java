@@ -57,7 +57,6 @@ public class ShutdownManager implements Closeable {
   public CompletableFuture<Void> shutdownExecutor(
       ExecutorService executorToShutdown, String executorName, Duration timeout) {
     executorToShutdown.shutdown();
-
     return limitedWait(executorToShutdown, executorName, timeout);
   }
 
@@ -177,5 +176,40 @@ public class ShutdownManager implements Closeable {
       }
       scheduledExecutorService.schedule(this, CHECK_PERIOD_MS, TimeUnit.MILLISECONDS);
     }
+  }
+
+  public static long awaitTermination(ExecutorService s, long timeoutMillis) {
+    if (s == null) {
+      return timeoutMillis;
+    }
+    return runAndGetRemainingTimeoutMs(
+        timeoutMillis,
+        () -> {
+          try {
+            s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        });
+  }
+
+  public static long runAndGetRemainingTimeoutMs(long initialTimeoutMs, Runnable toRun) {
+    long startedNs = System.nanoTime();
+    try {
+      toRun.run();
+    } catch (Throwable e) {
+      log.warn("Exception during waiting for termination", e);
+    }
+    long remainingTimeoutMs =
+        initialTimeoutMs - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNs);
+    return remainingTimeoutMs < 0 ? 0 : remainingTimeoutMs;
+  }
+
+  public static long awaitTermination(Shutdownable s, long timeoutMillis) {
+    if (s == null) {
+      return timeoutMillis;
+    }
+    return runAndGetRemainingTimeoutMs(
+        timeoutMillis, () -> s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS));
   }
 }

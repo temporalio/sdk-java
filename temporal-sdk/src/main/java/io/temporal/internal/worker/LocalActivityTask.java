@@ -20,4 +20,29 @@
 
 package io.temporal.internal.worker;
 
-public interface Lifecycle extends Startable, Shutdownable {}
+import io.temporal.internal.replay.ExecuteLocalActivityParameters;
+import io.temporal.workflow.Functions;
+
+public class LocalActivityTask {
+  private final ExecuteLocalActivityParameters params;
+  private final Functions.Proc1<ActivityTaskHandler.Result> eventConsumer;
+
+  public LocalActivityTask(
+      ExecuteLocalActivityParameters params,
+      Functions.Proc1<ActivityTaskHandler.Result> eventConsumer) {
+    this.params = params;
+    this.eventConsumer = eventConsumer;
+  }
+
+  public String getActivityId() {
+    return params.getActivityTask().getActivityId();
+  }
+
+  public ExecuteLocalActivityParameters getParams() {
+    return params;
+  }
+
+  public Functions.Proc1<ActivityTaskHandler.Result> getEventConsumer() {
+    return eventConsumer;
+  }
+}

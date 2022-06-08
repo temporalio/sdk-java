@@ -20,4 +20,4 @@
 
 package io.temporal.internal.worker;
 
-public interface SuspendableWorker extends Lifecycle, Suspendable {}
+public interface SuspendableWorker extends Startable, Shutdownable, Suspendable {}

@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.worker;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -27,11 +27,11 @@ import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.POJOActivityTaskHandler;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.replay.WorkflowExecutorCache;
-import io.temporal.internal.worker.*;
+import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
+import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -191,8 +191,8 @@ public class SyncWorkflowWorker
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    long timeoutMillis = InternalUtils.awaitTermination(laWorker, unit.toMillis(timeout));
-    InternalUtils.awaitTermination(workflowWorker, timeoutMillis);
+    long timeoutMillis = ShutdownManager.awaitTermination(laWorker, unit.toMillis(timeout));
+    ShutdownManager.awaitTermination(workflowWorker, timeoutMillis);
   }
 
   @Override
