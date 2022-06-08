@@ -40,7 +40,7 @@ public class WorkerPollerThreadCountTest {
   private static final String ACTIVITY_POLLER_THREAD_NAME_PREFIX = "Activity Poller task";
   private static final String WORKFLOW_POLLER_THREAD_NAME_PREFIX = "Workflow Poller task";
   private static final String WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX =
-      "Host Local Workflow ";
+      "Sticky Workflow Poll";
   private static final int HOST_LOCAL_THREAD_COUNT = 22;
   private static final int WORKFLOW_POLL_COUNT = 11;
   private static final int ACTIVITY_POLL_COUNT = 18;

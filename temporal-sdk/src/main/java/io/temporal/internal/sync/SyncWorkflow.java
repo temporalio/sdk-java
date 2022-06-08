@@ -34,8 +34,6 @@ import io.temporal.failure.FailureConverter;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutorCache;
-import io.temporal.internal.worker.workflow.ExecutionInfoStrategy;
-import io.temporal.internal.worker.workflow.WorkflowMethodThreadNameStrategy;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import java.util.Objects;

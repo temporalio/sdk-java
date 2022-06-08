@@ -101,7 +101,7 @@ public class WorkerFactoryOptions {
      * Timeout for a workflow task routed to the "sticky worker" - host that has the workflow
      * instance cached in memory. Once it times out, then it can be picked up by any worker.
      *
-     * <p>Default value is 10 seconds.
+     * <p>Default value is 5 seconds.
      */
     public Builder setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration timeout) {
       this.workflowHostLocalTaskQueueScheduleToStartTimeout = timeout;
@@ -118,6 +118,12 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    /**
+     * Number of simultaneous poll requests on the "sticky queue" ("host local task queue") of this
+     * process.
+     *
+     * <p>Default is 5.
+     */
     public Builder setWorkflowHostLocalPollThreadCount(int workflowHostLocalPollThreadCount) {
       this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
       return this;

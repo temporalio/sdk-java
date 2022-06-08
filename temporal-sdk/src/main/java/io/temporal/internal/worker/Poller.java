@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class Poller<T> implements SuspendableWorker {
+final class Poller<T> implements SuspendableWorker {
 
   public interface PollTask<TT> {
     /**
@@ -149,6 +149,9 @@ public final class Poller<T> implements SuspendableWorker {
         // it's ok to forcefully shutdown pollers, especially because they stuck in a long poll call
         // we don't lose any progress doing that
         .shutdownExecutorNow(pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1))
+        // TODO Poller shouldn't shutdown taskExecutor, because it gets it already created
+        // externally.
+        //  Creator of taskExecutor should be responsible for it's shutdown
         .thenCompose(ignore -> taskExecutor.shutdown(shutdownManager, interruptTasks))
         .exceptionally(
             e -> {
