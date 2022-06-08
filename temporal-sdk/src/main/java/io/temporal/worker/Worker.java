@@ -52,7 +52,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * tasks and processes them in a correspondent thread pool.
  */
 public final class Worker {
-
   private final WorkerOptions options;
   private final String taskQueue;
   final SyncWorkflowWorker workflowWorker;
@@ -132,71 +131,6 @@ public final class Worker {
             stickyTaskQueueName,
             factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeout(),
             workflowThreadExecutor);
-  }
-
-  private static SingleWorkerOptions toActivityOptions(
-      WorkerFactoryOptions factoryOptions,
-      WorkerOptions options,
-      WorkflowClientOptions clientOptions,
-      List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
-        .setPollerOptions(
-            PollerOptions.newBuilder()
-                .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
-                .setPollThreadCount(options.getMaxConcurrentActivityTaskPollers())
-                .build())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
-        .setMetricsScope(metricsScope)
-        .build();
-  }
-
-  private static SingleWorkerOptions toWorkflowWorkerOptions(
-      WorkerFactoryOptions factoryOptions,
-      WorkerOptions options,
-      WorkflowClientOptions clientOptions,
-      String taskQueue,
-      List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
-        .setPollerOptions(
-            PollerOptions.newBuilder()
-                .setPollThreadCount(options.getMaxConcurrentWorkflowTaskPollers())
-                .build())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
-        .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
-        .setMetricsScope(metricsScope.tagged(tags))
-        .build();
-  }
-
-  private static SingleWorkerOptions toLocalActivityOptions(
-      WorkerFactoryOptions factoryOptions,
-      WorkerOptions options,
-      WorkflowClientOptions clientOptions,
-      List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
-        .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
-        .setMetricsScope(metricsScope)
-        .build();
-  }
-
-  private static SingleWorkerOptions.Builder toSingleWorkerOptions(
-      WorkerFactoryOptions factoryOptions,
-      WorkerOptions options,
-      WorkflowClientOptions clientOptions,
-      List<ContextPropagator> contextPropagators) {
-    return SingleWorkerOptions.newBuilder()
-        .setDataConverter(clientOptions.getDataConverter())
-        .setIdentity(clientOptions.getIdentity())
-        .setBinaryChecksum(clientOptions.getBinaryChecksum())
-        .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
-        .setContextPropagators(contextPropagators)
-        .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
-        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval());
   }
 
   /**
@@ -424,5 +358,70 @@ public final class Worker {
    */
   public static String getWorkflowType(Class<?> workflowInterfaceClass) {
     return WorkflowInternal.getWorkflowType(workflowInterfaceClass);
+  }
+
+  private static SingleWorkerOptions toActivityOptions(
+      WorkerFactoryOptions factoryOptions,
+      WorkerOptions options,
+      WorkflowClientOptions clientOptions,
+      List<ContextPropagator> contextPropagators,
+      Scope metricsScope) {
+    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
+                .setPollThreadCount(options.getMaxConcurrentActivityTaskPollers())
+                .build())
+        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
+        .setMetricsScope(metricsScope)
+        .build();
+  }
+
+  private static SingleWorkerOptions toWorkflowWorkerOptions(
+      WorkerFactoryOptions factoryOptions,
+      WorkerOptions options,
+      WorkflowClientOptions clientOptions,
+      String taskQueue,
+      List<ContextPropagator> contextPropagators,
+      Scope metricsScope) {
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
+    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setPollThreadCount(options.getMaxConcurrentWorkflowTaskPollers())
+                .build())
+        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
+        .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
+        .setMetricsScope(metricsScope.tagged(tags))
+        .build();
+  }
+
+  private static SingleWorkerOptions toLocalActivityOptions(
+      WorkerFactoryOptions factoryOptions,
+      WorkerOptions options,
+      WorkflowClientOptions clientOptions,
+      List<ContextPropagator> contextPropagators,
+      Scope metricsScope) {
+    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+        .setPollerOptions(PollerOptions.newBuilder().setPollThreadCount(1).build())
+        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
+        .setMetricsScope(metricsScope)
+        .build();
+  }
+
+  private static SingleWorkerOptions.Builder toSingleWorkerOptions(
+      WorkerFactoryOptions factoryOptions,
+      WorkerOptions options,
+      WorkflowClientOptions clientOptions,
+      List<ContextPropagator> contextPropagators) {
+    return SingleWorkerOptions.newBuilder()
+        .setDataConverter(clientOptions.getDataConverter())
+        .setIdentity(clientOptions.getIdentity())
+        .setBinaryChecksum(clientOptions.getBinaryChecksum())
+        .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
+        .setContextPropagators(contextPropagators)
+        .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
+        .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval());
   }
 }

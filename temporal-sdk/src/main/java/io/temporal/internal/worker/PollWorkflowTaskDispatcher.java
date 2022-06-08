@@ -39,13 +39,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class PollWorkflowTaskDispatcher
+final class PollWorkflowTaskDispatcher
     implements ShutdownableTaskExecutor<PollWorkflowTaskQueueResponse> {
 
   private static final Logger log = LoggerFactory.getLogger(PollWorkflowTaskDispatcher.class);
   private final Map<String, Functions.Proc1<PollWorkflowTaskQueueResponse>> subscribers =
       new ConcurrentHashMap<>();
-  private String namespace;
+  private final String namespace;
   private final Scope metricsScope;
   private final WorkflowServiceStubs service;
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =

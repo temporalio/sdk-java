@@ -24,9 +24,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
-import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
@@ -50,17 +49,6 @@ public final class WorkerFactory {
 
   private final Scope metricsScope;
 
-  public static WorkerFactory newInstance(WorkflowClient workflowClient) {
-    return WorkerFactory.newInstance(workflowClient, WorkerFactoryOptions.getDefaultInstance());
-  }
-
-  public static WorkerFactory newInstance(
-      WorkflowClient workflowClient, WorkerFactoryOptions options) {
-    return new WorkerFactory(workflowClient, options);
-  }
-
-  private static final String POLL_THREAD_NAME = "Host Local Workflow Poller";
-
   private final Map<String, Worker> workers = new HashMap<>();
   private final WorkflowClient workflowClient;
   private final UUID id =
@@ -70,14 +58,22 @@ public final class WorkerFactory {
   private final AtomicInteger workflowThreadCounter = new AtomicInteger();
   private final WorkerFactoryOptions factoryOptions;
 
-  private final Poller<PollWorkflowTaskQueueResponse> stickyPoller;
-  private final PollWorkflowTaskDispatcher dispatcher;
+  private final StickyPoller stickyPoller;
   private final WorkflowExecutorCache cache;
 
   private State state = State.Initial;
 
   private final String statusErrorMessage =
       "attempted to %s while in %s state. Acceptable States: %s";
+
+  public static WorkerFactory newInstance(WorkflowClient workflowClient) {
+    return WorkerFactory.newInstance(workflowClient, WorkerFactoryOptions.getDefaultInstance());
+  }
+
+  public static WorkerFactory newInstance(
+      WorkflowClient workflowClient, WorkerFactoryOptions options) {
+    return new WorkerFactory(workflowClient, options);
+  }
 
   /**
    * Creates a factory. Workers will connect to the temporal server using the workflowService client
@@ -88,6 +84,9 @@ public final class WorkerFactory {
    */
   private WorkerFactory(WorkflowClient workflowClient, WorkerFactoryOptions factoryOptions) {
     this.workflowClient = Objects.requireNonNull(workflowClient);
+    WorkflowClientOptions workflowClientOptions = workflowClient.getOptions();
+    String namespace = workflowClientOptions.getNamespace();
+
     this.factoryOptions =
         WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
 
@@ -96,7 +95,7 @@ public final class WorkerFactory {
             .getWorkflowServiceStubs()
             .getOptions()
             .getMetricsScope()
-            .tagged(MetricsTag.defaultTags(workflowClient.getOptions().getNamespace()));
+            .tagged(MetricsTag.defaultTags(namespace));
 
     this.workflowThreadPool =
         new ThreadPoolExecutor(
@@ -112,33 +111,14 @@ public final class WorkerFactory {
 
     this.cache =
         new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
-    Scope stickyScope =
-        metricsScope.tagged(
-            new ImmutableMap.Builder<String, String>(1)
-                .put(MetricsTag.TASK_QUEUE, "sticky")
-                .build());
-    dispatcher =
-        new PollWorkflowTaskDispatcher(
+
+    this.stickyPoller =
+        new StickyPoller(
             workflowClient.getWorkflowServiceStubs(),
-            workflowClient.getOptions().getNamespace(),
+            getStickyTaskQueueName(),
+            this.factoryOptions.getWorkflowHostLocalPollThreadCount(),
+            workflowClientOptions,
             metricsScope);
-    stickyPoller =
-        new Poller<>(
-            id.toString(),
-            new WorkflowPollTaskFactory(
-                    workflowClient.getWorkflowServiceStubs(),
-                    workflowClient.getOptions().getNamespace(),
-                    getStickyTaskQueueName(),
-                    stickyScope,
-                    id.toString(),
-                    workflowClient.getOptions().getBinaryChecksum())
-                .get(),
-            dispatcher,
-            PollerOptions.newBuilder()
-                .setPollThreadNamePrefix(POLL_THREAD_NAME)
-                .setPollThreadCount(this.factoryOptions.getWorkflowHostLocalPollThreadCount())
-                .build(),
-            stickyScope);
   }
 
   /**
@@ -228,7 +208,7 @@ public final class WorkerFactory {
     for (Worker worker : workers.values()) {
       worker.start();
       if (worker.workflowWorker.isStarted()) {
-        dispatcher.subscribe(worker.getTaskQueue(), worker.workflowWorker);
+        stickyPoller.subscribe(worker.getTaskQueue(), worker.workflowWorker);
       }
     }
 

@@ -27,7 +27,6 @@ import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutorCache;
-import io.temporal.internal.worker.workflow.WorkflowMethodThreadNameStrategy;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import java.io.PrintWriter;

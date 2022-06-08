@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueResponse> {
+public final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueResponse> {
   private static final Logger log = LoggerFactory.getLogger(WorkflowPollTask.class);
 
   private final WorkflowServiceStubs service;
@@ -45,7 +45,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueRes
   private final String binaryChecksum;
   private final Scope metricsScope;
 
-  WorkflowPollTask(
+  public WorkflowPollTask(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String taskQueue,

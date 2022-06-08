@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.worker.workflow;
+package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import javax.annotation.Nonnull;

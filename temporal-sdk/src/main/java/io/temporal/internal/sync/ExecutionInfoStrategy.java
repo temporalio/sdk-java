@@ -18,14 +18,15 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.worker.workflow;
+package io.temporal.internal.sync;
 
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import javax.annotation.Nonnull;
 
-public class ExecutionInfoStrategy implements WorkflowMethodThreadNameStrategy {
-  public static final ExecutionInfoStrategy INSTANCE = new ExecutionInfoStrategy();
+final class ExecutionInfoStrategy implements WorkflowMethodThreadNameStrategy {
+  public static final io.temporal.internal.sync.ExecutionInfoStrategy INSTANCE =
+      new io.temporal.internal.sync.ExecutionInfoStrategy();
   private static final int WORKFLOW_ID_TRIM_LENGTH = 50;
   private static final String TRIM_MARKER = "...";
 

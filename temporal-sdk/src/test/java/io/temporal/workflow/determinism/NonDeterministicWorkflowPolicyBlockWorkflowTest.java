@@ -30,7 +30,7 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.TimeoutFailure;
-import io.temporal.internal.worker.workflow.WorkflowMethodThreadNameStrategy;
+import io.temporal.internal.sync.WorkflowMethodThreadNameStrategy;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.WorkerFactoryOptions;
