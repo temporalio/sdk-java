@@ -28,7 +28,6 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
@@ -338,17 +337,17 @@ public final class WorkerFactory {
 
   /**
    * Blocks until all tasks have completed execution after a shutdown request, or the timeout
-   * occurs, or the current thread is interrupted, whichever happens first.
+   * occurs.
    */
   public void awaitTermination(long timeout, TimeUnit unit) {
     log.info("awaitTermination begin: {}", this);
     long timeoutMillis = unit.toMillis(timeout);
-    timeoutMillis = InternalUtils.awaitTermination(stickyPoller, timeoutMillis);
+    timeoutMillis = ShutdownManager.awaitTermination(stickyPoller, timeoutMillis);
     for (Worker worker : workers.values()) {
       long t = timeoutMillis; // closure needs immutable value
       timeoutMillis =
-          InternalUtils.awaitTermination(
-              timeoutMillis, () -> worker.awaitTermination(t, TimeUnit.MILLISECONDS));
+          ShutdownManager.runAndGetRemainingTimeoutMs(
+              t, () -> worker.awaitTermination(t, TimeUnit.MILLISECONDS));
     }
     log.info("awaitTermination done: {}", this);
   }

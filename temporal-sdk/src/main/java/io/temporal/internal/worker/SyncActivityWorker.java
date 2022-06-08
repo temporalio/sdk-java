@@ -18,14 +18,12 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.internal.worker;
 
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.POJOActivityTaskHandler;
-import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -129,8 +127,8 @@ public class SyncActivityWorker implements SuspendableWorker {
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
     long timeoutMillis = unit.toMillis(timeout);
-    timeoutMillis = InternalUtils.awaitTermination(worker, timeoutMillis);
-    InternalUtils.awaitTermination(heartbeatExecutor, timeoutMillis);
+    timeoutMillis = ShutdownManager.awaitTermination(worker, timeoutMillis);
+    ShutdownManager.awaitTermination(heartbeatExecutor, timeoutMillis);
   }
 
   @Override

@@ -29,17 +29,13 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
-import io.temporal.internal.sync.SyncActivityWorker;
-import io.temporal.internal.sync.SyncWorkflowWorker;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
-import io.temporal.internal.worker.PollerOptions;
-import io.temporal.internal.worker.ShutdownManager;
-import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.internal.worker.Suspendable;
+import io.temporal.internal.worker.*;
+import io.temporal.internal.worker.SyncActivityWorker;
+import io.temporal.internal.worker.SyncWorkflowWorker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions.Func;
@@ -55,7 +51,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Hosts activity and workflow implementations. Uses long poll to receive activity and workflow
  * tasks and processes them in a correspondent thread pool.
  */
-public final class Worker implements Suspendable {
+public final class Worker {
 
   private final WorkerOptions options;
   private final String taskQueue;
@@ -347,11 +343,11 @@ public final class Worker implements Suspendable {
   }
 
   void awaitTermination(long timeout, TimeUnit unit) {
-    long timeoutMillis = timeout;
+    long timeoutMillis = unit.toMillis(timeout);
     if (activityWorker != null) {
-      timeoutMillis = InternalUtils.awaitTermination(activityWorker, unit.toMillis(timeout));
+      timeoutMillis = ShutdownManager.awaitTermination(activityWorker, timeoutMillis);
     }
-    InternalUtils.awaitTermination(workflowWorker, timeoutMillis);
+    ShutdownManager.awaitTermination(workflowWorker, timeoutMillis);
   }
 
   @Override
@@ -402,7 +398,6 @@ public final class Worker implements Suspendable {
     return taskQueue;
   }
 
-  @Override
   public void suspendPolling() {
     workflowWorker.suspendPolling();
     if (activityWorker != null) {
@@ -410,7 +405,6 @@ public final class Worker implements Suspendable {
     }
   }
 
-  @Override
   public void resumePolling() {
     workflowWorker.resumePolling();
     if (activityWorker != null) {
@@ -418,7 +412,6 @@ public final class Worker implements Suspendable {
     }
   }
 
-  @Override
   public boolean isSuspended() {
     return workflowWorker.isSuspended() && (activityWorker == null || activityWorker.isSuspended());
   }

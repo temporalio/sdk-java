@@ -36,7 +36,6 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.internal.worker.activity.ActivityWorkerHelper;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -50,7 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-public final class ActivityWorker implements SuspendableWorker {
+final class ActivityWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();

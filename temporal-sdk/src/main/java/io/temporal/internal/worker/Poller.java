@@ -25,7 +25,6 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.BackoffThrottler;
 import io.temporal.internal.common.GrpcUtils;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.worker.MetricsType;
 import java.time.Duration;
 import java.util.Objects;
@@ -132,7 +131,7 @@ public final class Poller<T> implements SuspendableWorker {
 
   @Override
   public boolean isShutdown() {
-    return pollExecutor.isShutdown() && taskExecutor.isShutdown();
+    return pollExecutor.isShutdown();
   }
 
   @Override
@@ -164,8 +163,8 @@ public final class Poller<T> implements SuspendableWorker {
       return;
     }
     long timeoutMillis = unit.toMillis(timeout);
-    timeoutMillis = InternalUtils.awaitTermination(pollExecutor, timeoutMillis);
-    InternalUtils.awaitTermination(taskExecutor, timeoutMillis);
+    timeoutMillis = ShutdownManager.awaitTermination(pollExecutor, timeoutMillis);
+    ShutdownManager.awaitTermination(taskExecutor, timeoutMillis);
   }
 
   @Override
@@ -265,10 +264,9 @@ public final class Poller<T> implements SuspendableWorker {
     @Override
     public void run() throws Exception {
       T task = pollTask.poll();
-      if (task == null) {
-        return;
+      if (task != null) {
+        taskExecutor.process(task);
       }
-      taskExecutor.process(task);
     }
   }
 

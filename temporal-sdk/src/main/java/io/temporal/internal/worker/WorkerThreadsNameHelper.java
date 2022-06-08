@@ -20,7 +20,7 @@
 
 package io.temporal.internal.worker;
 
-public class WorkerThreadsNameHelper {
+class WorkerThreadsNameHelper {
   private static final String WORKFLOW_POLL_THREAD_NAME_PREFIX = "Workflow Poller taskQueue=";
   private static final String LOCAL_ACTIVITY_POLL_THREAD_NAME_PREFIX =
       "Local Activity Poller taskQueue=";

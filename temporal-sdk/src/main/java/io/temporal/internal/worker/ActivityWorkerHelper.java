@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.worker.activity;
+package io.temporal.internal.worker;
 
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.context.ContextPropagator;
@@ -30,7 +30,7 @@ import java.util.Map;
  * Provides functionality common for all types of ActivityWorkers ({@code
  * io.temporal.internal.ActivityWorker} and {@code io.temporal.internal.LocalActivityWorker})
  */
-public class ActivityWorkerHelper {
+class ActivityWorkerHelper {
   public static void deserializeAndPopulateContext(
       io.temporal.api.common.v1.Header header, List<ContextPropagator> contextPropagatorList) {
     if (contextPropagatorList == null || contextPropagatorList.isEmpty()) {

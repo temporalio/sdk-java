@@ -40,7 +40,7 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.worker.LocalActivityWorker;
+import io.temporal.internal.worker.LocalActivityTask;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowTaskHandler;
@@ -68,7 +68,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private final Duration stickyTaskQueueScheduleToStartTimeout;
   private final WorkflowServiceStubs service;
   private final String stickyTaskQueueName;
-  private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller;
+  private final BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller;
 
   public ReplayWorkflowTaskHandler(
       String namespace,
@@ -78,7 +78,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       String stickyTaskQueueName,
       Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
-      BiFunction<LocalActivityWorker.Task, Duration, Boolean> localActivityTaskPoller) {
+      BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller) {
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;

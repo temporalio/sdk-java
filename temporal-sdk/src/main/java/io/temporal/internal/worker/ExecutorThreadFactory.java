@@ -23,7 +23,7 @@ package io.temporal.internal.worker;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class ExecutorThreadFactory implements ThreadFactory {
+class ExecutorThreadFactory implements ThreadFactory {
   private final String threadPrefix;
 
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
