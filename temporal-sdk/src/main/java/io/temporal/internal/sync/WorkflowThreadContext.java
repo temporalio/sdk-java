@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WorkflowThreadContext {
+class WorkflowThreadContext {
   private static final Logger log = LoggerFactory.getLogger(WorkflowThreadContext.class);
 
   // Shared runner lock
@@ -61,6 +61,11 @@ public class WorkflowThreadContext {
     this.evaluationCondition = lock.newCondition();
   }
 
+  /**
+   * Initial yield allows the workflow thread to block at the start before exercising any user code.
+   * This gives a control over when the execution may be started. It also provides happens-before
+   * relationship with other threads and DeterministicRunnerImpl through shared lock.
+   */
   public void initialYield() {
     Status status = getStatus();
     if (status == Status.DONE) {

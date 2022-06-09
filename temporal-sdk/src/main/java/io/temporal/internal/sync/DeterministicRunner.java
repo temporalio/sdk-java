@@ -80,20 +80,12 @@ interface DeterministicRunner {
   boolean isDone();
 
   /**
-   * @return exit value passed to {@link WorkflowThread#exit(Object)}
-   */
-  Object getExitValue();
-
-  /**
    * Request cancellation of the computation. Calls {@link CancellationScope#cancel(String)} on the
    * root scope that wraps the root Runnable.
    */
   void cancel(String reason);
 
-  /**
-   * Destroys all threads by throwing {@link DestroyWorkflowThreadError} without waiting for their
-   * completion
-   */
+  /** Destroys all controlled workflow threads, blocks until the threads are destroyed */
   void close();
 
   /** Stack trace of all threads owned by the DeterministicRunner instance */
