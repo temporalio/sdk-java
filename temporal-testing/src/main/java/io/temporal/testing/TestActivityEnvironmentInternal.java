@@ -44,7 +44,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
-import io.temporal.internal.activity.POJOActivityTaskHandler;
+import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.testservice.InProcessGRPCServer;
@@ -89,7 +89,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final AtomicBoolean cancellationRequested = new AtomicBoolean();
   private final AtomicInteger idSequencer = new AtomicInteger();
   private final InProcessGRPCServer mockServer;
-  private final POJOActivityTaskHandler activityTaskHandler;
+  private final ActivityTaskHandlerImpl activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
   private ClassConsumerPair<Object> activityHeartbeatListener;
@@ -118,11 +118,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor);
     activityTaskHandler =
-        new POJOActivityTaskHandler(
+        new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
+            activityExecutionContextFactory,
             testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors(),
-            activityExecutionContextFactory);
+            testEnvironmentOptions.getWorkflowClientOptions().getContextPropagators());
   }
 
   private class HeartbeatInterceptingService extends WorkflowServiceGrpc.WorkflowServiceImplBase {

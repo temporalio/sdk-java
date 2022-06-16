@@ -261,10 +261,10 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     // yet increase the retry interval.
     if (workflowTask.getAttempt() > 1) {
       /*
-       *TODO we probably shouldn't swallow Error even if workflowTask.getAttempt() == 1.
-       * But leaving as it is for now, because a trivial change to rethrow
-       * will leave us without reporting Errors as WorkflowTaskFailure to the server,
-       * which we probably should at least attempt to do for visibility that the Error occurs.
+       * TODO we shouldn't swallow Error even if workflowTask.getAttempt() == 1.
+       *  But leaving as it is for now, because a trivial change to rethrow
+       *  will leave us without reporting Errors as WorkflowTaskFailure to the server,
+       *  which we probably should at least attempt to do for visibility that the Error occurs.
        */
       if (e instanceof Error) {
         throw (Error) e;

@@ -24,6 +24,7 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.WorkerInterceptor;
 import java.time.Duration;
 import java.util.List;
 
@@ -47,6 +48,7 @@ public final class SingleWorkerOptions {
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
     private List<ContextPropagator> contextPropagators;
+    private WorkerInterceptor[] workerInterceptors;
     private long defaultDeadlockDetectionTimeout;
     private Duration maxHeartbeatThrottleInterval;
     private Duration defaultHeartbeatThrottleInterval;
@@ -65,6 +67,7 @@ public final class SingleWorkerOptions {
       this.metricsScope = options.getMetricsScope();
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
       this.contextPropagators = options.getContextPropagators();
+      this.workerInterceptors = options.getWorkerInterceptors();
       this.defaultDeadlockDetectionTimeout = options.getDefaultDeadlockDetectionTimeout();
       this.maxHeartbeatThrottleInterval = options.getMaxHeartbeatThrottleInterval();
       this.defaultHeartbeatThrottleInterval = options.getDefaultHeartbeatThrottleInterval();
@@ -111,6 +114,12 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    /** Specifies the list of worker interceptors to use during this workflow. */
+    public Builder setWorkerInterceptors(WorkerInterceptor[] workerInterceptors) {
+      this.workerInterceptors = workerInterceptors;
+      return this;
+    }
+
     public Builder setDefaultDeadlockDetectionTimeout(long defaultDeadlockDetectionTimeout) {
       this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
       return this;
@@ -151,6 +160,7 @@ public final class SingleWorkerOptions {
           metricsScope,
           this.enableLoggingInReplay,
           this.contextPropagators,
+          this.workerInterceptors,
           this.defaultDeadlockDetectionTimeout,
           this.maxHeartbeatThrottleInterval,
           this.defaultHeartbeatThrottleInterval);
@@ -165,6 +175,7 @@ public final class SingleWorkerOptions {
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
   private final List<ContextPropagator> contextPropagators;
+  private final WorkerInterceptor[] workerInterceptors;
   private final long defaultDeadlockDetectionTimeout;
   private final Duration maxHeartbeatThrottleInterval;
   private final Duration defaultHeartbeatThrottleInterval;
@@ -178,6 +189,7 @@ public final class SingleWorkerOptions {
       Scope metricsScope,
       boolean enableLoggingInReplay,
       List<ContextPropagator> contextPropagators,
+      WorkerInterceptor[] workerInterceptors,
       long defaultDeadlockDetectionTimeout,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval) {
@@ -189,6 +201,7 @@ public final class SingleWorkerOptions {
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.contextPropagators = contextPropagators;
+    this.workerInterceptors = workerInterceptors;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
@@ -224,6 +237,10 @@ public final class SingleWorkerOptions {
 
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
+  }
+
+  public WorkerInterceptor[] getWorkerInterceptors() {
+    return workerInterceptors;
   }
 
   public long getDefaultDeadlockDetectionTimeout() {

@@ -28,12 +28,9 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.failure.v1.CanceledFailureInfo;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.MetricsTag;
@@ -174,7 +171,6 @@ final class ActivityWorker implements SuspendableWorker {
     @Override
     public void handle(ActivityTask task) throws Exception {
       PollActivityTaskQueueResponse pollResponse = task.getResponse();
-      ByteString taskToken = pollResponse.getTaskToken();
       Scope metricsScope =
           workerMetricsScope.tagged(
               ImmutableMap.of(
@@ -183,85 +179,77 @@ final class ActivityWorker implements SuspendableWorker {
                   MetricsTag.WORKFLOW_TYPE,
                   pollResponse.getWorkflowType().getName()));
 
+      MDC.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
+      MDC.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());
+      MDC.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
+      MDC.put(LoggerTag.WORKFLOW_TYPE, pollResponse.getWorkflowType().getName());
+      MDC.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
+
       ActivityTaskHandler.Result result = null;
       try {
-        metricsScope
-            .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-            .record(
-                ProtobufTimeUtils.toM3Duration(
-                    pollResponse.getStartedTime(), pollResponse.getCurrentAttemptScheduledTime()));
-
-        // The following tags are for logging.
-        MDC.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
-        MDC.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());
-        MDC.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
-        MDC.put(LoggerTag.WORKFLOW_TYPE, pollResponse.getWorkflowType().getName());
-        MDC.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
-
-        if (pollResponse.hasHeader()) {
-          ActivityWorkerHelper.deserializeAndPopulateContext(
-              pollResponse.getHeader(), options.getContextPropagators());
-        }
-
-        Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
-        try {
-          result = handler.handle(task, metricsScope, false);
-        } finally {
-          sw.stop();
-        }
-        try {
-          sendReply(taskToken, result, metricsScope);
-        } catch (Exception e) {
-          logExceptionDuringResultReporting(e, pollResponse, result);
-          // TODO this class doesn't report activity success and failure metrics now, instead it's
-          //  located inside an activity handler. We should lift it up to this level,
-          //  so we can increment a failure counter instead of success if send result failed.
-          //  This will also align the behavior of ActivityWorker with WorkflowWorker.
-          throw e;
-        }
-
-        if (result.getTaskCompleted() != null) {
-          Duration e2eDuration =
-              ProtobufTimeUtils.toM3DurationSinceNow(pollResponse.getScheduledTime());
-          metricsScope.timer(MetricsType.ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
-        }
-      } catch (FailureWrapperException e) {
-        Failure failure = e.getFailure();
-        if (failure.hasCanceledFailureInfo()) {
-          CanceledFailureInfo info = failure.getCanceledFailureInfo();
-          RespondActivityTaskCanceledRequest.Builder canceledRequest =
-              RespondActivityTaskCanceledRequest.newBuilder()
-                  .setIdentity(options.getIdentity())
-                  .setNamespace(namespace);
-          if (info.hasDetails()) {
-            canceledRequest.setDetails(info.getDetails());
-          }
-          result =
-              new Result(
-                  pollResponse.getActivityId(), null, null, canceledRequest.build(), null, false);
-          try {
-            sendReply(taskToken, result, metricsScope);
-          } catch (Exception ex) {
-            logExceptionDuringResultReporting(e, pollResponse, result);
-            // TODO this class doesn't report activity success and failure metrics now, instead it's
-            //  located inside an activity handler. We should lift it up to this level,
-            //  so we can increment a failure counter instead of success if send result failed.
-            //  This will also align the behavior of ActivityWorker with WorkflowWorker.
-            throw e;
-          }
-        }
+        result = handleActivity(task, metricsScope);
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
-        // Apply completion handle if task has been completed synchronously or is async and manual
-        // completion hasn't been requested.
-        if (result != null && !result.isManualCompletion()) {
-          task.getCompletionHandle().apply();
+        if (
+        // handleActivity throw an exception (not a normal scenario)
+        result == null
+            // completed synchronously or manual completion hasn't been requested
+            || !result.isManualCompletion()) {
+          task.getCompletionCallback().apply();
         }
       }
+
+      if (result.getTaskFailed() != null && result.getTaskFailed().getFailure() instanceof Error) {
+        // don't just swallow Errors, we need to propagate it to the top
+        throw (Error) result.getTaskFailed().getFailure();
+      }
+    }
+
+    private ActivityTaskHandler.Result handleActivity(ActivityTask task, Scope metricsScope) {
+      PollActivityTaskQueueResponse pollResponse = task.getResponse();
+      ByteString taskToken = pollResponse.getTaskToken();
+      metricsScope
+          .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
+          .record(
+              ProtobufTimeUtils.toM3Duration(
+                  pollResponse.getStartedTime(), pollResponse.getCurrentAttemptScheduledTime()));
+
+      ActivityTaskHandler.Result result;
+
+      Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
+      try {
+        result = handler.handle(task, metricsScope, false);
+      } catch (Throwable ex) {
+        // handler.handle if expected to never throw an exception and return result
+        // that can be used for a workflow callback if this method throws, it's a bug.
+        log.error("[BUG] Code that expected to never throw an exception threw an exception", ex);
+        throw ex;
+      } finally {
+        sw.stop();
+      }
+
+      try {
+        sendReply(taskToken, result, metricsScope);
+      } catch (Exception e) {
+        logExceptionDuringResultReporting(e, pollResponse, result);
+        // TODO this class doesn't report activity success and failure metrics now, instead it's
+        //  located inside an activity handler. We should lift it up to this level,
+        //  so we can increment a failure counter instead of success if send result failed.
+        //  This will also align the behavior of ActivityWorker with WorkflowWorker.
+        throw e;
+      }
+
+      if (result.getTaskCompleted() != null) {
+        Duration e2eDuration =
+            ProtobufTimeUtils.toM3DurationSinceNow(pollResponse.getScheduledTime());
+        metricsScope.timer(MetricsType.ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
+      }
+
+      return result;
     }
 
     @Override
@@ -285,13 +273,13 @@ final class ActivityWorker implements SuspendableWorker {
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
         RespondActivityTaskCompletedRequest request =
             taskCompleted.toBuilder()
                 .setTaskToken(taskToken)
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
                 .build();
+        ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
         GrpcRetryer.retry(
             () ->
                 service
@@ -301,7 +289,6 @@ final class ActivityWorker implements SuspendableWorker {
             ro);
       } else {
         Result.TaskFailedResult taskFailed = response.getTaskFailed();
-
         if (taskFailed != null) {
           RespondActivityTaskFailedRequest request =
               taskFailed.getTaskFailedRequest().toBuilder()
@@ -310,7 +297,6 @@ final class ActivityWorker implements SuspendableWorker {
                   .setNamespace(namespace)
                   .build();
           ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
-
           GrpcRetryer.retry(
               () ->
                   service
@@ -328,7 +314,6 @@ final class ActivityWorker implements SuspendableWorker {
                     .setNamespace(namespace)
                     .build();
             ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
-
             GrpcRetryer.retry(
                 () ->
                     service

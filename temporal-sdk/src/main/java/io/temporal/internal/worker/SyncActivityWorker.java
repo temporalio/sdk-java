@@ -20,10 +20,9 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
-import io.temporal.internal.activity.POJOActivityTaskHandler;
+import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -42,7 +41,7 @@ public class SyncActivityWorker implements SuspendableWorker {
   private final String taskQueue;
 
   private final ScheduledExecutorService heartbeatExecutor;
-  private final POJOActivityTaskHandler taskHandler;
+  private final ActivityTaskHandlerImpl taskHandler;
   private final ActivityWorker worker;
 
   public SyncActivityWorker(
@@ -50,7 +49,6 @@ public class SyncActivityWorker implements SuspendableWorker {
       String namespace,
       String taskQueue,
       double taskQueueActivitiesPerSecond,
-      WorkerInterceptor[] workerInterceptors,
       SingleWorkerOptions options) {
     this.identity = options.getIdentity();
     this.namespace = namespace;
@@ -76,11 +74,12 @@ public class SyncActivityWorker implements SuspendableWorker {
             options.getDataConverter(),
             heartbeatExecutor);
     this.taskHandler =
-        new POJOActivityTaskHandler(
+        new ActivityTaskHandlerImpl(
             namespace,
             options.getDataConverter(),
-            workerInterceptors,
-            activityExecutionContextFactory);
+            activityExecutionContextFactory,
+            options.getWorkerInterceptors(),
+            options.getContextPropagators());
     this.worker =
         new ActivityWorker(
             service, namespace, taskQueue, taskQueueActivitiesPerSecond, options, taskHandler);

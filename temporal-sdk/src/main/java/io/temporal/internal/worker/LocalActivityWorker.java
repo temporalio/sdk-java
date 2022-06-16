@@ -25,24 +25,31 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.RetryPolicy;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 final class LocalActivityWorker implements SuspendableWorker {
+  private static final Logger log = LoggerFactory.getLogger(LocalActivityWorker.class);
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
@@ -155,7 +162,7 @@ final class LocalActivityWorker implements SuspendableWorker {
 
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<LocalActivityTask> {
 
-    final ActivityTaskHandler handler;
+    private final ActivityTaskHandler handler;
 
     private TaskHandlerImpl(ActivityTaskHandler handler) {
       this.handler = handler;
@@ -163,8 +170,63 @@ final class LocalActivityWorker implements SuspendableWorker {
 
     @Override
     public void handle(LocalActivityTask task) throws Exception {
-      ActivityTaskHandler.Result result = handleLocalActivity(task, System.currentTimeMillis());
-      task.getEventConsumer().apply(result);
+      ExecuteLocalActivityParameters params = task.getParams();
+      PollActivityTaskQueueResponse.Builder activityTask = params.getActivityTask();
+      Scope metricsScope =
+          workerMetricsScope.tagged(
+              ImmutableMap.of(
+                  MetricsTag.ACTIVITY_TYPE,
+                  activityTask.getActivityType().getName(),
+                  MetricsTag.WORKFLOW_TYPE,
+                  activityTask.getWorkflowType().getName()));
+
+      MDC.put(LoggerTag.ACTIVITY_ID, activityTask.getActivityId());
+      MDC.put(LoggerTag.ACTIVITY_TYPE, activityTask.getActivityType().getName());
+      MDC.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
+      MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
+      MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
+
+      ActivityTaskHandler.Result result = null;
+      try {
+        result =
+            handleLocalActivity(
+                params.getActivityTask(),
+                System.currentTimeMillis(),
+                params.getLocalRetryThreshold().toMillis(),
+                metricsScope);
+      } catch (Throwable ex) {
+        // handleLocalActivity if expected to never throw an exception and return result
+        // that can be used for a workflow callback if this method throws, it's a bug.
+        log.error("[BUG] Code that expected to never throw an exception threw an exception", ex);
+
+        // Even if some unexpected underlying exception happened, wee have to create the result
+        // and make it published to the caller any way. But it's not a normal code path.
+        Failure failure = FailureConverter.exceptionToFailure(ex);
+        RespondActivityTaskFailedRequest.Builder taskFailedRequest =
+            RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
+        result =
+            new ActivityTaskHandler.Result(
+                params.getActivityTask().getActivityId(),
+                null,
+                new ActivityTaskHandler.Result.TaskFailedResult(taskFailedRequest.build(), ex),
+                null,
+                null,
+                false);
+        throw ex;
+      } finally {
+        MDC.remove(LoggerTag.ACTIVITY_ID);
+        MDC.remove(LoggerTag.ACTIVITY_TYPE);
+        MDC.remove(LoggerTag.WORKFLOW_ID);
+        MDC.remove(LoggerTag.WORKFLOW_TYPE);
+        MDC.remove(LoggerTag.RUN_ID);
+
+        task.getResultCallback().apply(result);
+      }
+
+      if (result.getTaskFailed() != null && result.getTaskFailed().getFailure() instanceof Error) {
+        // don't just swallow Error from activities, propagate it to the top
+        throw (Error) result.getTaskFailed().getFailure();
+      }
     }
 
     @Override
@@ -172,29 +234,23 @@ final class LocalActivityWorker implements SuspendableWorker {
       return new RuntimeException("Failure processing local activity task.", failure);
     }
 
-    private ActivityTaskHandler.Result handleLocalActivity(
-        LocalActivityTask task, long activityStartTimeMs) throws InterruptedException {
-      ExecuteLocalActivityParameters params = task.getParams();
-      PollActivityTaskQueueResponse.Builder activityTask = params.getActivityTask();
-      Map<String, String> activityTypeTag =
-          new ImmutableMap.Builder<String, String>(1)
-              .put(MetricsTag.ACTIVITY_TYPE, activityTask.getActivityType().getName())
-              .put(MetricsTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName())
-              .build();
+    private @Nonnull ActivityTaskHandler.Result handleLocalActivity(
+        PollActivityTaskQueueResponse.Builder activityTask,
+        long activityStartTimeMs,
+        long localRetryThresholdMs,
+        Scope metricsScope) {
+      int attempt = activityTask.getAttempt();
 
-      Scope metricsScope = workerMetricsScope.tagged(activityTypeTag);
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_TOTAL_COUNTER).inc(1);
 
-      if (activityTask.hasHeader()) {
-        ActivityWorkerHelper.deserializeAndPopulateContext(
-            activityTask.getHeader(), options.getContextPropagators());
-      }
-
+      ActivityTaskHandler.Result result;
       Stopwatch sw = metricsScope.timer(MetricsType.LOCAL_ACTIVITY_EXECUTION_LATENCY).start();
-      ActivityTaskHandler.Result result =
-          handler.handle(new ActivityTask(activityTask.build(), () -> {}), metricsScope, true);
-      sw.stop();
-      int attempt = activityTask.getAttempt();
+      try {
+        result =
+            handler.handle(new ActivityTask(activityTask.build(), () -> {}), metricsScope, true);
+      } finally {
+        sw.stop();
+      }
       result.setAttempt(attempt);
 
       if (isNonRetryableApplicationFailure(result)) {
@@ -203,8 +259,7 @@ final class LocalActivityWorker implements SuspendableWorker {
 
       if (result.getTaskCompleted() != null) {
         com.uber.m3.util.Duration e2eDuration =
-            ProtobufTimeUtils.toM3DurationSinceNow(
-                task.getParams().getActivityTask().getScheduledTime());
+            ProtobufTimeUtils.toM3DurationSinceNow(activityTask.getScheduledTime());
         metricsScope.timer(MetricsType.LOCAL_ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
       }
 
@@ -233,10 +288,17 @@ final class LocalActivityWorker implements SuspendableWorker {
 
       // For small backoff we do local retry. Otherwise we will schedule timer on server side.
       // TODO(maxim): Use timer queue for retries to avoid tying up a thread.
-      if (elapsedTask + sleepMillis < task.getParams().getLocalRetryThreshold().toMillis()) {
-        Thread.sleep(sleepMillis);
+      if (elapsedTask + sleepMillis < localRetryThresholdMs) {
+        try {
+          Thread.sleep(sleepMillis);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          // if the activity thread got interrupted, we use the last failed result and exit fast
+          return result;
+        }
         activityTask.setAttempt(attempt + 1);
-        return handleLocalActivity(task, activityStartTimeMs);
+        return handleLocalActivity(
+            activityTask, activityStartTimeMs, localRetryThresholdMs, metricsScope);
       } else {
         return result;
       }

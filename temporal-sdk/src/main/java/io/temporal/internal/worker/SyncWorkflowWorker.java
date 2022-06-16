@@ -23,10 +23,9 @@ package io.temporal.internal.worker;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
+import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
-import io.temporal.internal.activity.POJOActivityTaskHandler;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.replay.WorkflowExecutorCache;
@@ -68,13 +67,12 @@ public class SyncWorkflowWorker
   private final LocalActivityWorker laWorker;
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
-  private final POJOActivityTaskHandler laTaskHandler;
+  private final ActivityTaskHandlerImpl laTaskHandler;
 
   public SyncWorkflowWorker(
       WorkflowServiceStubs service,
       String namespace,
       String taskQueue,
-      WorkerInterceptor[] workerInterceptors,
       SingleWorkerOptions singleWorkerOptions,
       SingleWorkerOptions localActivityOptions,
       WorkflowExecutorCache cache,
@@ -91,17 +89,18 @@ public class SyncWorkflowWorker
         new POJOWorkflowImplementationFactory(
             singleWorkerOptions,
             Objects.requireNonNull(workflowThreadExecutor),
-            workerInterceptors,
+            singleWorkerOptions.getWorkerInterceptors(),
             cache);
 
     ActivityExecutionContextFactory laActivityExecutionContextFactory =
         new LocalActivityExecutionContextFactoryImpl();
     laTaskHandler =
-        new POJOActivityTaskHandler(
+        new ActivityTaskHandlerImpl(
             namespace,
             localActivityOptions.getDataConverter(),
-            workerInterceptors,
-            laActivityExecutionContextFactory);
+            laActivityExecutionContextFactory,
+            localActivityOptions.getWorkerInterceptors(),
+            localActivityOptions.getContextPropagators());
     laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
 
     WorkflowTaskHandler taskHandler =

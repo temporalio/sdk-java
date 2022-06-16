@@ -25,11 +25,11 @@ import io.temporal.workflow.Functions;
 
 public final class ActivityTask {
   private final PollActivityTaskQueueResponse response;
-  private final Functions.Proc completionHandle;
+  private final Functions.Proc completionCallback;
 
-  public ActivityTask(PollActivityTaskQueueResponse response, Functions.Proc completionHandle) {
+  public ActivityTask(PollActivityTaskQueueResponse response, Functions.Proc completionCallback) {
     this.response = response;
-    this.completionHandle = completionHandle;
+    this.completionCallback = completionCallback;
   }
 
   public PollActivityTaskQueueResponse getResponse() {
@@ -40,7 +40,7 @@ public final class ActivityTask {
    * Completion handle function that must be called by the handler whenever activity processing is
    * completed.
    */
-  public Functions.Proc getCompletionHandle() {
-    return completionHandle;
+  public Functions.Proc getCompletionCallback() {
+    return completionCallback;
   }
 }

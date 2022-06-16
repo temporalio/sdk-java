@@ -104,7 +104,6 @@ public final class Worker {
               namespace,
               taskQueue,
               this.options.getMaxTaskQueueActivitiesPerSecond(),
-              factoryOptions.getWorkerInterceptors(),
               activityOptions);
     }
 
@@ -124,7 +123,6 @@ public final class Worker {
             service,
             namespace,
             taskQueue,
-            factoryOptions.getWorkerInterceptors(),
             singleWorkerOptions,
             localActivityOptions,
             cache,
@@ -421,6 +419,7 @@ public final class Worker {
         .setBinaryChecksum(clientOptions.getBinaryChecksum())
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
+        .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
         .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
         .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval());
   }
