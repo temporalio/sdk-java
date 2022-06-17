@@ -46,6 +46,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nonnull;
 
 /**
  * Hosts activity and workflow implementations. Uses long poll to receive activity and workflow
@@ -75,7 +76,7 @@ public final class Worker {
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       Scope metricsScope,
-      WorkflowExecutorCache cache,
+      @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
       WorkflowThreadExecutor workflowThreadExecutor,
       List<ContextPropagator> contextPropagators) {

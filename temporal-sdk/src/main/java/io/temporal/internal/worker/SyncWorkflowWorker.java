@@ -40,6 +40,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +76,7 @@ public class SyncWorkflowWorker
       String taskQueue,
       SingleWorkerOptions singleWorkerOptions,
       SingleWorkerOptions localActivityOptions,
-      WorkflowExecutorCache cache,
+      @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
       Duration stickyWorkflowTaskScheduleToStartTimeout,
       WorkflowThreadExecutor workflowThreadExecutor) {
@@ -116,7 +117,13 @@ public class SyncWorkflowWorker
 
     workflowWorker =
         new WorkflowWorker(
-            service, namespace, taskQueue, stickyTaskQueueName, singleWorkerOptions, taskHandler);
+            service,
+            namespace,
+            taskQueue,
+            stickyTaskQueueName,
+            singleWorkerOptions,
+            cache,
+            taskHandler);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache
