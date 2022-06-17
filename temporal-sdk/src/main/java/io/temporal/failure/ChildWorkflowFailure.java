@@ -24,6 +24,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.RetryState;
 import java.util.Objects;
 
+/** <b>This exception is expected to be thrown only by the Temporal framework code.</b> */
 public final class ChildWorkflowFailure extends TemporalFailure {
 
   private final long initiatedEventId;

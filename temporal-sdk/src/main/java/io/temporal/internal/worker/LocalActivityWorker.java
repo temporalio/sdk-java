@@ -210,7 +210,6 @@ final class LocalActivityWorker implements SuspendableWorker {
                 null,
                 new ActivityTaskHandler.Result.TaskFailedResult(taskFailedRequest.build(), ex),
                 null,
-                null,
                 false);
         throw ex;
       } finally {

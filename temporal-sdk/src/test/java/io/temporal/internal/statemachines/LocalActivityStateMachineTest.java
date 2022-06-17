@@ -181,7 +181,6 @@ public class LocalActivityStateMachineTest {
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result2).build(),
               null,
               null,
-              null,
               false);
       stateMachines.handleLocalActivityCompletion(completionActivity2);
       requests = stateMachines.takeLocalActivityRequests();
@@ -193,7 +192,6 @@ public class LocalActivityStateMachineTest {
           new ActivityTaskHandler.Result(
               "id3",
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result3).build(),
-              null,
               null,
               null,
               false);
@@ -232,7 +230,6 @@ public class LocalActivityStateMachineTest {
           new ActivityTaskHandler.Result(
               "id1",
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result).build(),
-              null,
               null,
               null,
               false);

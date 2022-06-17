@@ -96,7 +96,7 @@ final class ActivityTaskExecutors {
                 new ActivityInboundCallsInterceptor.ActivityInput(header, args));
         if (context.isDoNotCompleteOnReturn()) {
           return new ActivityTaskHandler.Result(
-              info.getActivityId(), null, null, null, null, context.isUseLocalManualCompletion());
+              info.getActivityId(), null, null, null, context.isUseLocalManualCompletion());
         }
 
         return this.constructSuccessfulResultValue(info, result);
@@ -140,7 +140,7 @@ final class ActivityTaskExecutors {
         serialized.ifPresent(request::setResult);
       }
       return new ActivityTaskHandler.Result(
-          info.getActivityId(), request.build(), null, null, null, false);
+          info.getActivityId(), request.build(), null, null, false);
     }
 
     static void deserializeAndPopulateContext(

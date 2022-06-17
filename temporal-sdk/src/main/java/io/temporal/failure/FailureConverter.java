@@ -89,12 +89,6 @@ public class FailureConverter {
       case APPLICATION_FAILURE_INFO:
         {
           ApplicationFailureInfo info = failure.getApplicationFailureInfo();
-          // Unwrap SimulatedTimeoutFailure
-          if (failure.getSource().equals(JAVA_SDK)
-              && info.getType().equals(SimulatedTimeoutFailure.class.getName())
-              && cause != null) {
-            return cause;
-          }
           Optional<Payloads> details =
               info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
           return ApplicationFailure.newFromValues(

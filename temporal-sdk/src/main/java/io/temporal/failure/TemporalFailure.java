@@ -29,8 +29,10 @@ import java.util.Optional;
  *
  * <p>Only exceptions that extend this class will be propagated to the caller.
  *
- * <p><b>Never extend this class or any of its derivatives.</b> They are to be used by the SDK code
- * only. Throw an instance {@link ApplicationFailure} to pass application specific errors between
+ * <p><b>Never extend this class or any of its derivatives. Don't throw any subtype of this class
+ * except {@link ApplicationFailure}.</b> They are to be used by the SDK code only.
+ *
+ * <p>Throw an instance {@link ApplicationFailure} to pass application specific errors between
  * workflows and activities.
  *
  * <p>Any unhandled exception thrown by an activity or workflow will be converted to an instance of
