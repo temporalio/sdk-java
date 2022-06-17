@@ -184,12 +184,12 @@ public final class WorkflowExecutorCache {
   }
 
   public void invalidate(
-      WorkflowExecution execution, Scope metricsScope, String reason, Throwable cause) {
+      WorkflowExecution execution, Scope workflowTypeScope, String reason, Throwable cause) {
     cacheLock.lock();
     try {
       String runId = execution.getRunId();
       log.trace(
-          "Invalidating {}-{} because of {}, value is present in the cache: {}",
+          "Invalidating {}-{} because of '{}', value is present in the cache: {}",
           execution.getWorkflowId(),
           runId,
           reason,
@@ -197,7 +197,7 @@ public final class WorkflowExecutorCache {
           cause);
       cache.invalidate(runId);
       inProcessing.remove(runId);
-      metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
+      workflowTypeScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
     } finally {
       cacheLock.unlock();
       this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());

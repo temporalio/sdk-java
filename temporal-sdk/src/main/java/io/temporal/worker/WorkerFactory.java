@@ -40,6 +40,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,7 @@ public final class WorkerFactory {
   private final WorkerFactoryOptions factoryOptions;
 
   private final StickyPoller stickyPoller;
-  private final WorkflowExecutorCache cache;
+  private final @Nonnull WorkflowExecutorCache cache;
 
   private State state = State.Initial;
 

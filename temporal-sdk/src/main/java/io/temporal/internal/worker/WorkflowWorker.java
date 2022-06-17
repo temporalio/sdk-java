@@ -30,6 +30,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
@@ -58,6 +59,7 @@ final class WorkflowWorker
   private final String namespace;
   private final String taskQueue;
   private final SingleWorkerOptions options;
+  private final WorkflowExecutorCache cache;
   private final WorkflowTaskHandler handler;
   private final String stickyTaskQueueName;
   private final PollerOptions pollerOptions;
@@ -72,16 +74,18 @@ final class WorkflowWorker
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueueName,
       @Nonnull SingleWorkerOptions options,
+      @Nonnull WorkflowExecutorCache cache,
       @Nonnull WorkflowTaskHandler handler) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.options = Objects.requireNonNull(options);
-    this.handler = Objects.requireNonNull(handler);
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
         MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.WORKFLOW_WORKER);
+    this.cache = Objects.requireNonNull(cache);
+    this.handler = Objects.requireNonNull(handler);
   }
 
   @Override
@@ -182,14 +186,15 @@ final class WorkflowWorker
 
     @Override
     public void handle(PollWorkflowTaskQueueResponse task) throws Exception {
-      Scope workflowTypeMetricsScope =
-          workerMetricsScope.tagged(
-              ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, task.getWorkflowType().getName()));
+      WorkflowExecution workflowExecution = task.getWorkflowExecution();
+      String runId = workflowExecution.getRunId();
+      String workflowType = task.getWorkflowType().getName();
 
-      String runId = task.getWorkflowExecution().getRunId();
+      Scope workflowTypeScope =
+          workerMetricsScope.tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
 
-      MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
-      MDC.put(LoggerTag.WORKFLOW_TYPE, task.getWorkflowType().getName());
+      MDC.put(LoggerTag.WORKFLOW_ID, workflowExecution.getWorkflowId());
+      MDC.put(LoggerTag.WORKFLOW_TYPE, workflowType);
       MDC.put(LoggerTag.RUN_ID, runId);
 
       boolean locked = false;
@@ -224,20 +229,23 @@ final class WorkflowWorker
       }
 
       Stopwatch swTotal =
-          workflowTypeMetricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
+          workflowTypeScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
       try {
         Optional<PollWorkflowTaskQueueResponse> nextTask = Optional.of(task);
         do {
           PollWorkflowTaskQueueResponse currentTask = nextTask.get();
-          WorkflowTaskHandler.Result response = handleTask(currentTask, workflowTypeMetricsScope);
+          WorkflowTaskHandler.Result response = handleTask(currentTask, workflowTypeScope);
           try {
-            nextTask =
-                sendReply(currentTask.getTaskToken(), service, workflowTypeMetricsScope, response);
+            nextTask = sendReply(currentTask.getTaskToken(), service, workflowTypeScope, response);
           } catch (Exception e) {
             logExceptionDuringResultReporting(e, currentTask, response);
-            workflowTypeMetricsScope
-                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
-                .inc(1);
+            workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
+            // if we failed to report the workflow task completion back to the server,
+            // our cached version of the workflow may be more advanced than the server is aware of.
+            // We should discard this execution and perform a clean replay based on what server
+            // knows next time.
+            cache.invalidate(
+                workflowExecution, workflowTypeScope, "Failed result reporting to the server", e);
             throw e;
           }
 
@@ -246,12 +254,10 @@ final class WorkflowWorker
           if (response.getTaskFailed() != null) {
             // we don't trigger the counter in case of the legacy query
             // (which never has taskFailed set)
-            workflowTypeMetricsScope
-                .counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER)
-                .inc(1);
+            workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
           }
           if (nextTask.isPresent()) {
-            workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
+            workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
           }
         } while (nextTask.isPresent());
       } finally {
