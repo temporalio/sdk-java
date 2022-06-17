@@ -145,7 +145,10 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   }
 
   @Override
-  public Header getHeader() {
-    return response.getHeader();
+  public Optional<Header> getHeader() {
+    if (response.hasHeader()) {
+      return Optional.of(response.getHeader());
+    }
+    return Optional.empty();
   }
 }

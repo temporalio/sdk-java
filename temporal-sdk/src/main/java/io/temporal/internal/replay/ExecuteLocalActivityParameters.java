@@ -26,7 +26,7 @@ import java.time.Duration;
 public class ExecuteLocalActivityParameters {
   private final PollActivityTaskQueueResponse.Builder activityTask;
   private final Duration localRetryThreshold;
-  private boolean doNotIncludeArgumentsIntoMarker;
+  private final boolean doNotIncludeArgumentsIntoMarker;
 
   public ExecuteLocalActivityParameters(
       PollActivityTaskQueueResponse.Builder activityTask,

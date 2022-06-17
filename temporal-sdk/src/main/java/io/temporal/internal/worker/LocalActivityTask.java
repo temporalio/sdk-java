@@ -25,13 +25,13 @@ import io.temporal.workflow.Functions;
 
 public class LocalActivityTask {
   private final ExecuteLocalActivityParameters params;
-  private final Functions.Proc1<ActivityTaskHandler.Result> eventConsumer;
+  private final Functions.Proc1<ActivityTaskHandler.Result> resultCallback;
 
   public LocalActivityTask(
       ExecuteLocalActivityParameters params,
-      Functions.Proc1<ActivityTaskHandler.Result> eventConsumer) {
+      Functions.Proc1<ActivityTaskHandler.Result> resultCallback) {
     this.params = params;
-    this.eventConsumer = eventConsumer;
+    this.resultCallback = resultCallback;
   }
 
   public String getActivityId() {
@@ -42,7 +42,7 @@ public class LocalActivityTask {
     return params;
   }
 
-  public Functions.Proc1<ActivityTaskHandler.Result> getEventConsumer() {
-    return eventConsumer;
+  public Functions.Proc1<ActivityTaskHandler.Result> getResultCallback() {
+    return resultCallback;
   }
 }

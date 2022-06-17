@@ -91,12 +91,19 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
             MDC.put(LoggerTag.NAMESPACE, namespace);
             MDC.put(LoggerTag.TASK_QUEUE, taskQueue);
             handler.handle(task);
-          } catch (Throwable ee) {
+          } catch (Throwable e) {
             if (!isShutdown()) {
               pollerOptions
                   .getUncaughtExceptionHandler()
-                  .uncaughtException(Thread.currentThread(), handler.wrapFailure(task, ee));
+                  .uncaughtException(Thread.currentThread(), handler.wrapFailure(task, e));
             }
+            // TODO we should stop swallowing errors with the uncaught exception handler and
+            // let them go to the top. Errors are not recoverable. This should be done as a separate
+            // PR and carefully to make sure our own Temporal Errors thrown in the workflow code
+            // are not killing threads in the thread pool.
+            //            if (e instanceof Error) {
+            //              throw (Error)e;
+            //            }
           } finally {
             availableTaskSlots.incrementAndGet();
             publishSlotsMetric();

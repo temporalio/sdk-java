@@ -23,11 +23,12 @@ package io.temporal.common.interceptors;
 import io.temporal.api.common.v1.Payload;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 public class Header {
   private final Map<String, Payload> values;
 
-  public Header(io.temporal.api.common.v1.Header header) {
+  public Header(@Nonnull io.temporal.api.common.v1.Header header) {
     values = header.getFieldsMap();
   }
 

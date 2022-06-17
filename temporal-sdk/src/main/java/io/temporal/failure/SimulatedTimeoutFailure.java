@@ -23,6 +23,11 @@ package io.temporal.failure;
 import com.google.common.annotations.VisibleForTesting;
 
 /** Internal do not use in application code. */
+// TODO this class leaked from testing package into the main codebase during a past fat finger
+// refactoring.
+//  This exception is created currently in a place which should be never reachable.
+//  This exception is not used by any testing code.
+//  Will be removed in a separate PR
 @VisibleForTesting
 public final class SimulatedTimeoutFailure extends RuntimeException {
 

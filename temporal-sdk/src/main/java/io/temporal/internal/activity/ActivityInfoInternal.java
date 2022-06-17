@@ -46,5 +46,5 @@ interface ActivityInfoInternal extends ActivityInfo {
   /**
    * @return header that is passed with the activity execution
    */
-  Header getHeader();
+  Optional<Header> getHeader();
 }
