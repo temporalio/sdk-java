@@ -24,7 +24,6 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 
 /**
@@ -40,7 +39,6 @@ public interface ActivityTaskHandler {
     private final RespondActivityTaskCompletedRequest taskCompleted;
     private final TaskFailedResult taskFailed;
     private final RespondActivityTaskCanceledRequest taskCanceled;
-    private final RpcRetryOptions requestRetryOptions;
     private final boolean manualCompletion;
     private int attempt;
     private Duration backoff;
@@ -93,13 +91,11 @@ public interface ActivityTaskHandler {
         RespondActivityTaskCompletedRequest taskCompleted,
         TaskFailedResult taskFailed,
         RespondActivityTaskCanceledRequest taskCanceled,
-        RpcRetryOptions requestRetryOptions,
         boolean manualCompletion) {
       this.activityId = activityId;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.taskCanceled = taskCanceled;
-      this.requestRetryOptions = requestRetryOptions;
       this.manualCompletion = manualCompletion;
     }
 
@@ -117,10 +113,6 @@ public interface ActivityTaskHandler {
 
     public RespondActivityTaskCanceledRequest getTaskCanceled() {
       return taskCanceled;
-    }
-
-    public RpcRetryOptions getRequestRetryOptions() {
-      return requestRetryOptions;
     }
 
     public void setAttempt(int attempt) {

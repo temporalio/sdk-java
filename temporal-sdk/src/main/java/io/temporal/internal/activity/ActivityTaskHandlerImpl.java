@@ -35,8 +35,6 @@ import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.failure.FailureConverter;
-import io.temporal.failure.SimulatedTimeoutFailure;
-import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.activity.ActivityTaskExecutors.ActivityTaskExecutor;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -166,12 +164,7 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
         metricsScope.counter(MetricsType.ACTIVITY_CANCELED_COUNTER).inc(1);
       }
       return new ActivityTaskHandler.Result(
-          activityId,
-          null,
-          null,
-          RespondActivityTaskCanceledRequest.newBuilder().build(),
-          null,
-          false);
+          activityId, null, null, RespondActivityTaskCanceledRequest.newBuilder().build(), false);
     }
     Scope ms =
         metricsScope.tagged(
@@ -182,10 +175,6 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
     } else {
       ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
-    // TODO should go away with SimulatedTimeoutFailure
-    if (exception instanceof TimeoutFailure) {
-      exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);
-    }
     Failure failure = FailureConverter.exceptionToFailure(exception, dataConverter);
     RespondActivityTaskFailedRequest.Builder result =
         RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
@@ -193,7 +182,6 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
         activityId,
         null,
         new ActivityTaskHandler.Result.TaskFailedResult(result.build(), exception),
-        null,
         null,
         false);
   }

@@ -26,6 +26,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
 
+/** <b>This exception is expected to be thrown only by the Temporal framework code.</b> */
 public final class TimeoutFailure extends TemporalFailure {
   private final Values lastHeartbeatDetails;
   private final TimeoutType timeoutType;

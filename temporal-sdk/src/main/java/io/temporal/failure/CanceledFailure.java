@@ -25,6 +25,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.Values;
 import java.util.Objects;
 
+/** <b>This exception is expected to be thrown only by the Temporal framework code.</b> */
 public final class CanceledFailure extends TemporalFailure {
   private final Values details;
 

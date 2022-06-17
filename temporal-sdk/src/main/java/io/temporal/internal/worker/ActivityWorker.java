@@ -34,8 +34,8 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.MetricsTag;
-import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import java.util.Objects;
@@ -270,7 +270,6 @@ final class ActivityWorker implements SuspendableWorker {
 
     private void sendReply(
         ByteString taskToken, ActivityTaskHandler.Result response, Scope metricsScope) {
-      RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         RespondActivityTaskCompletedRequest request =
@@ -279,14 +278,14 @@ final class ActivityWorker implements SuspendableWorker {
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
                 .build();
-        ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
+
         GrpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskCompleted(request),
-            ro);
+            DefaultStubServiceOperationRpcRetryOptions.INSTANCE);
       } else {
         Result.TaskFailedResult taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
@@ -296,14 +295,14 @@ final class ActivityWorker implements SuspendableWorker {
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
                   .build();
-          ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
+
           GrpcRetryer.retry(
               () ->
                   service
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                       .respondActivityTaskFailed(request),
-              ro);
+              DefaultStubServiceOperationRpcRetryOptions.INSTANCE);
         } else {
           RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
           if (taskCanceled != null) {
@@ -313,14 +312,14 @@ final class ActivityWorker implements SuspendableWorker {
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)
                     .build();
-            ro = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(ro);
+
             GrpcRetryer.retry(
                 () ->
                     service
                         .blockingStub()
                         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                         .respondActivityTaskCanceled(request),
-                ro);
+                DefaultStubServiceOperationRpcRetryOptions.INSTANCE);
           }
         }
       }

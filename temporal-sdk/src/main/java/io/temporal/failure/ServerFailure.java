@@ -22,7 +22,11 @@ package io.temporal.failure;
 
 import javax.annotation.Nullable;
 
-/** Exceptions originated at the Temporal service. */
+/**
+ * Exceptions originated at the Temporal service.
+ *
+ * <p><b>This exception is expected to be thrown only by the Temporal framework code.</b>
+ */
 public final class ServerFailure extends TemporalFailure {
   private final boolean nonRetryable;
 

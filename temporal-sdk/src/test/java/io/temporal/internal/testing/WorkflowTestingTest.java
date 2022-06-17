@@ -178,7 +178,7 @@ public class WorkflowTestingTest {
   }
 
   @Test
-  public void testActivitySimulatedTimeout() {
+  public void testActivityScheduleToCloseTimeout() {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(ActivityWorkflow.class);
     worker.registerActivitiesImplementations(new SimulatedTimeoutActivityImpl());
@@ -464,15 +464,13 @@ public class WorkflowTestingTest {
     private final TestActivity1 activity =
         Workflow.newActivityStub(
             TestActivity1.class,
-            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(2)).build());
 
     @Override
     public String execute(String input) {
-      Workflow.sleep(Duration.ofHours(1)); // test time skipping
       try {
         return activity.execute(input);
       } catch (ActivityFailure e) {
-        log.info("Failure", e);
         throw e;
       }
     }
@@ -537,8 +535,15 @@ public class WorkflowTestingTest {
 
     @Override
     public String execute(String input) {
-      throw new TimeoutFailure(
-          "simulated", "progress1", TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE);
+      Activity.getExecutionContext().heartbeat("progress1");
+      try {
+        Thread.sleep(3000);
+      } catch (InterruptedException e) {
+        // not expected
+        Thread.currentThread().interrupt();
+        return "interrupt";
+      }
+      return "done";
     }
   }
 

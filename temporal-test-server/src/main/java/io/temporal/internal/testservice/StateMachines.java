@@ -1534,7 +1534,8 @@ class StateMachines {
   private static State failActivityTaskByRequestType(
       RequestContext ctx, ActivityTaskData data, Failure failure, String identity) {
     if (!failure.hasApplicationFailureInfo()) {
-      throw new IllegalArgumentException("application failure expected: " + failure);
+      throw new IllegalArgumentException(
+          "Failure must have ApplicationFailureInfo. Got: " + failure);
     }
     RetryState retryState = attemptActivityRetry(ctx, Optional.of(failure), data);
     if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
