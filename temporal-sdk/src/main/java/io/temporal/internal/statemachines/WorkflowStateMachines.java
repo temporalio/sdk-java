@@ -204,6 +204,14 @@ public final class WorkflowStateMachines {
       // already handled
       return;
     }
+    Preconditions.checkState(
+        eventId == lastHandledEventId + 1,
+        "History is out of order. "
+            + "There is a gap between the last event workflow state machine observed and currently handling event. "
+            + "Last processed eventId: %s, handling eventId: %s",
+        lastHandledEventId,
+        eventId);
+
     lastHandledEventId = eventId;
     boolean readyToPeek = wftBuffer.addEvent(event, hasNextEvent);
     if (readyToPeek) {
