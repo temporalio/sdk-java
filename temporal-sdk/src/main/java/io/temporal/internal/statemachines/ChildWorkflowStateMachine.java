@@ -216,7 +216,7 @@ final class ChildWorkflowStateMachine
             WorkflowExecution.newBuilder().setWorkflowId(workflowId).build(),
             namespace,
             RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
-            new CanceledFailure("Child immediately canceled", null, null));
+            new CanceledFailure("Child immediately canceled"));
     completionCallback.apply(Optional.empty(), failure);
   }
 

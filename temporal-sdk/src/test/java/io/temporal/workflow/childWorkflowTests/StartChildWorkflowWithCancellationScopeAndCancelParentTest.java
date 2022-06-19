@@ -33,8 +33,8 @@ import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.TestWorkflows;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflowCancellationType;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
@@ -63,7 +63,7 @@ public class StartChildWorkflowWithCancellationScopeAndCancelParentTest {
   }
 
   public static class ParentThatStartsChildInCancellationScope
-      implements TestWorkflowCancellationType {
+      implements TestWorkflows.TestWorkflowCancellationType {
     @Override
     public void execute(ChildWorkflowCancellationType cancellationType) {
       NoArgsWorkflow child =

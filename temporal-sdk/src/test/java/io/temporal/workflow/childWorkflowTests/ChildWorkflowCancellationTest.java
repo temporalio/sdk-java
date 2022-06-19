@@ -36,8 +36,8 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
+import io.temporal.workflow.shared.TestWorkflows;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
-import io.temporal.workflow.shared.TestWorkflows.TestWorkflowCancellationType;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Before;
@@ -146,7 +146,7 @@ public class ChildWorkflowCancellationTest {
         detachedScopeFinished.isSignalled());
   }
 
-  public static class TestParentWorkflowImpl implements TestWorkflowCancellationType {
+  public static class TestParentWorkflowImpl implements TestWorkflows.TestWorkflowCancellationType {
 
     @Override
     public void execute(ChildWorkflowCancellationType cancellationType) {
