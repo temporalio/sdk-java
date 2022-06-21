@@ -41,9 +41,7 @@ final class LocalActivityPollTask
   public LocalActivityTask poll() {
     try {
       LocalActivityTask task = pendingTasks.take();
-      if (log.isTraceEnabled()) {
-        log.trace("LocalActivity Task poll returned: " + task.getActivityId());
-      }
+      log.trace("LocalActivity Task poll returned: {}", task.getActivityId());
       return task;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -55,16 +53,13 @@ final class LocalActivityPollTask
   public Boolean apply(LocalActivityTask task, Duration maxWaitAllowed) {
     try {
       boolean accepted = pendingTasks.offer(task, maxWaitAllowed.toMillis(), TimeUnit.MILLISECONDS);
-      if (log.isTraceEnabled()) {
-        if (accepted) {
-          log.trace("LocalActivity queued: " + task.getActivityId());
-        } else {
-          log.trace(
-              "LocalActivity queue timed out for "
-                  + task.getActivityId()
-                  + " maxWaitAllowed="
-                  + maxWaitAllowed);
-        }
+      if (accepted) {
+        log.trace("LocalActivity queued: {}" + task.getActivityId());
+      } else {
+        log.trace(
+            "LocalActivity queue submitting timed out for activity {}, maxWaitAllowed: {}",
+            task.getActivityId(),
+            maxWaitAllowed);
       }
       return accepted;
     } catch (InterruptedException e) {

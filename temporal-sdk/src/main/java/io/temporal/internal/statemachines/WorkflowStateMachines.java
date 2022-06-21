@@ -47,7 +47,6 @@ import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -804,11 +803,12 @@ public final class WorkflowStateMachines {
   }
 
   public void handleLocalActivityCompletion(ActivityTaskHandler.Result laCompletion) {
-    LocalActivityStateMachine commands = localActivityMap.get(laCompletion.getActivityId());
-    if (commands == null) {
-      throw new IllegalStateException("Unknown local activity: " + laCompletion.getActivityId());
+    String activityId = laCompletion.getActivityId();
+    LocalActivityStateMachine laStateMachine = localActivityMap.get(activityId);
+    if (laStateMachine == null) {
+      throw new IllegalStateException("Unknown local activity: " + activityId);
     }
-    commands.handleCompletion(laCompletion);
+    laStateMachine.handleCompletion(laCompletion);
     prepareCommands();
   }
 

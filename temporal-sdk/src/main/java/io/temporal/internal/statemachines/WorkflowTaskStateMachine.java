@@ -41,9 +41,8 @@ final class WorkflowTaskStateMachine
      * @param currentTimeMillis time of the workflow taken from the WorkflowTaskStarted event
      *     timestamp.
      * @param nonProcessedWorkflowTask true if the task is the task that wasn't processed. During
-     *     workflow execution this is the last event in the history. During replay (due to query for
-     *     example) the last workflow task still can return false if it is followed by other events
-     *     like WorkflowExecutionCompleted.
+     *     workflow execution it's true during the last event in the history that doesn't have a
+     *     completion event.
      */
     void workflowTaskStarted(
         long startEventId, long currentTimeMillis, boolean nonProcessedWorkflowTask);
@@ -58,6 +57,8 @@ final class WorkflowTaskStateMachine
   // TODO write a comment describing the difference between workflowTaskStartedEventId and
   // startedEventId
   private long startedEventId;
+
+  private boolean originalExecution;
 
   public static WorkflowTaskStateMachine newInstance(
       long workflowTaskStartedEventId, Listener listener) {
@@ -112,24 +113,21 @@ final class WorkflowTaskStateMachine
   private void handleStarted() {
     eventTimeOfTheLastWorkflowStartTask = Timestamps.toMillis(currentEvent.getEventTime());
     startedEventId = currentEvent.getEventId();
-    // The last started event in the history. So no completed is expected.
-    if (currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent) {
-      handleCompleted();
+    // The last started event in the history, no completion, we need to process
+    originalExecution = startedEventId >= workflowTaskStartedEventId && !hasNextEvent;
+    if (originalExecution) {
+      listener.workflowTaskStarted(startedEventId, eventTimeOfTheLastWorkflowStartTask, true);
     }
   }
 
   private void handleCompleted() {
-    boolean lastTaskInHistory =
-        currentEvent.getEventId() >= workflowTaskStartedEventId && !hasNextEvent;
-    // we trigger listener.workflowTaskStarted from handleCompleted by design.
-    // If the workflow task has FAILED or other unsuccessful finish event, we don't replay such
-    // workflow tasks
-    listener.workflowTaskStarted(
-        startedEventId, eventTimeOfTheLastWorkflowStartTask, lastTaskInHistory);
+    if (!originalExecution) {
+      listener.workflowTaskStarted(startedEventId, eventTimeOfTheLastWorkflowStartTask, false);
+    }
   }
 
   private void handleFailed() {
-    // Reset creates a new run of a workflow. The tricky part is that that the replay
+    // Reset creates a new run of a workflow. The tricky part is that the replay
     // of the reset workflow has to use the original runId up to the reset point to
     // maintain the same results. This code resets the id to the new one after the reset to
     // ensure that the new random and UUID are generated form this point.

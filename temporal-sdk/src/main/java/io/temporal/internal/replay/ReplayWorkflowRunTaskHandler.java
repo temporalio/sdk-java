@@ -127,8 +127,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
     this.replayWorkflowExecutor =
         new ReplayWorkflowExecutor(workflow, workflowStateMachines, context);
-    this.localActivityCompletionSink =
-        historyEvent -> localActivityCompletionQueue.add(historyEvent);
+    this.localActivityCompletionSink = localActivityCompletionQueue::add;
   }
 
   @Override
@@ -137,10 +136,14 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     lock.lock();
     try {
       queryResults.clear();
-      long startTime = System.currentTimeMillis();
+      long startTimeNanos = System.nanoTime();
       handleWorkflowTaskImpl(workflowTask);
-      processLocalActivityRequests(startTime);
+      processLocalActivityRequests(startTimeNanos);
       List<Command> commands = workflowStateMachines.takeCommands();
+      if (replayWorkflowExecutor.isCompleted()) {
+        // it's important for query
+        close();
+      }
       executeQueries(workflowTask.getQueriesMap());
       return WorkflowTaskResult.newBuilder()
           .setCommands(commands)
@@ -148,6 +151,23 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
           .setFinalCommand(replayWorkflowExecutor.isCompleted())
           .setForceWorkflowTask(localActivityTaskCount > 0 && !replayWorkflowExecutor.isCompleted())
           .build();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public QueryResult handleQueryWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) {
+    lock.lock();
+    try {
+      handleWorkflowTaskImpl(workflowTask);
+      if (replayWorkflowExecutor.isCompleted()) {
+        // it's important for query
+        close();
+      }
+      Optional<Payloads> resultPayloads = replayWorkflowExecutor.query(query);
+      return new QueryResult(resultPayloads, replayWorkflowExecutor.isCompleted());
     } finally {
       lock.unlock();
     }
@@ -190,9 +210,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       if (!timerStopped) {
         sw.stop();
       }
-      if (replayWorkflowExecutor.isCompleted()) {
-        close();
-      }
     }
   }
 
@@ -230,25 +247,12 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
   }
 
-  @Override
-  public QueryResult handleQueryWorkflowTask(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) {
-    lock.lock();
-    try {
-      handleWorkflowTaskImpl(workflowTask);
-      Optional<Payloads> resultPayloads = replayWorkflowExecutor.query(query);
-      return new QueryResult(resultPayloads, replayWorkflowExecutor.isCompleted());
-    } finally {
-      lock.unlock();
-    }
-  }
-
-  private void processLocalActivityRequests(long startTime) {
-    long forcedDecisionTimeout =
+  private void processLocalActivityRequests(long startTimeNanos) {
+    long forcedDecisionTimeoutNanos =
         (long)
-            (Durations.toMillis(startedEvent.getWorkflowTaskTimeout())
+            (Durations.toNanos(startedEvent.getWorkflowTaskTimeout())
                 * FORCED_DECISION_TIME_COEFFICIENT);
-    long nextForcedDecisionTime = startTime + forcedDecisionTimeout;
+    long nextForcedDecisionTimeNanos = startTimeNanos + forcedDecisionTimeoutNanos;
     while (true) {
       List<ExecuteLocalActivityParameters> laRequests =
           workflowStateMachines.takeLocalActivityRequests();
@@ -256,8 +260,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         // TODO(maxim): In the presence of workflow task heartbeat this timeout doesn't make
         // much sense. I believe we should add ScheduleToStart timeout for the local activities
         // as well.
-        Duration maxWaitTime =
-            Duration.ofMillis(nextForcedDecisionTime - System.currentTimeMillis());
+        Duration maxWaitTime = Duration.ofNanos(nextForcedDecisionTimeNanos - System.nanoTime());
         if (maxWaitTime.isNegative()) {
           maxWaitTime = Duration.ZERO;
         }
@@ -266,28 +269,29 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
                 new LocalActivityTask(laRequest, localActivityCompletionSink), maxWaitTime);
         localActivityTaskCount++;
         if (!accepted) {
-          throw new Error("Unable to schedule local activity for execution");
+          throw new IllegalStateException(
+              "Unable to schedule local activity for execution, no more slots available and local activity task queue is full");
         }
       }
       if (localActivityTaskCount == 0) {
         // No outstanding local activity requests
         break;
       }
-      waitAndProcessLocalActivityCompletion(nextForcedDecisionTime);
-      if (nextForcedDecisionTime <= System.currentTimeMillis()) {
+      waitAndProcessLocalActivityCompletion(nextForcedDecisionTimeNanos);
+      if (nextForcedDecisionTimeNanos <= System.nanoTime()) {
         break;
       }
     }
   }
 
-  private void waitAndProcessLocalActivityCompletion(long nextForcedDecisionTime) {
-    long maxWaitTime = nextForcedDecisionTime - System.currentTimeMillis();
-    if (maxWaitTime <= 0) {
+  private void waitAndProcessLocalActivityCompletion(long nextForcedDecisionTimeNanos) {
+    long maxWaitTimeNanos = nextForcedDecisionTimeNanos - System.nanoTime();
+    if (maxWaitTimeNanos <= 0) {
       return;
     }
     ActivityTaskHandler.Result laCompletion;
     try {
-      laCompletion = localActivityCompletionQueue.poll(maxWaitTime, TimeUnit.MILLISECONDS);
+      laCompletion = localActivityCompletionQueue.poll(maxWaitTimeNanos, TimeUnit.NANOSECONDS);
     } catch (InterruptedException e) {
       // TODO(maxim): interrupt when worker shutdown is called
       Thread.currentThread().interrupt();
