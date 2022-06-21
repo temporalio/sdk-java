@@ -112,4 +112,39 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   public String getCronSchedule() {
     return context.getCronSchedule();
   }
+
+  @Override
+  public String toString() {
+    return "ActivityInfo{"
+        + "namespace="
+        + getNamespace()
+        + ", workflowId="
+        + getWorkflowId()
+        + ", runId="
+        + getRunId()
+        + ", workflowType="
+        + getWorkflowType()
+        + ", continuedExecutionRunId="
+        + getContinuedExecutionRunId()
+        + ", taskQueue='"
+        + getTaskQueue()
+        + '\''
+        + ", workflowRunTimeout="
+        + getWorkflowRunTimeout()
+        + ", workflowExecutionTimeout="
+        + getWorkflowExecutionTimeout()
+        + ", runStartedTimestampMillis="
+        + getRunStartedTimestampMillis()
+        + ", searchAttributes="
+        + getSearchAttributes()
+        + ", parentWorkflowId="
+        + getParentWorkflowId()
+        + ", parentRunId="
+        + getParentRunId()
+        + ", attempt="
+        + getAttempt()
+        + ", cronSchedule="
+        + getCronSchedule()
+        + '}';
+  }
 }

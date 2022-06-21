@@ -27,6 +27,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -150,5 +151,43 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
       return Optional.of(response.getHeader());
     }
     return Optional.empty();
+  }
+
+  @Override
+  public String toString() {
+    return "WorkflowInfo{"
+        + ", workflowId="
+        + getWorkflowId()
+        + ", runId="
+        + getRunId()
+        + ", activityId="
+        + getActivityId()
+        + ", activityType="
+        + getActivityType()
+        + ", scheduledTimestamp="
+        + getScheduledTimestamp()
+        + ", currentAttemptScheduledTimestamp="
+        + getCurrentAttemptScheduledTimestamp()
+        + ", scheduleToCloseTimeout="
+        + getScheduleToCloseTimeout()
+        + ", startToCloseTimeout="
+        + getStartToCloseTimeout()
+        + ", heartbeatTimeout="
+        + getHeartbeatTimeout()
+        + ", heartbeatDetails="
+        + getHeartbeatDetails()
+        + ", workflowType="
+        + getWorkflowType()
+        + ", workflowNamespace="
+        + getWorkflowNamespace()
+        + ", activityNamespace='"
+        + getActivityNamespace()
+        + ", attempt="
+        + getAttempt()
+        + ", isLocal="
+        + isLocal()
+        + "taskToken="
+        + Base64.getEncoder().encodeToString(getTaskToken())
+        + '}';
   }
 }
