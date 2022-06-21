@@ -226,10 +226,10 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public Functions.Proc1<Exception> startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
-      Functions.Proc1<WorkflowExecution> executionCallback,
-      Functions.Proc2<Optional<Payloads>, Exception> callback) {
+      Functions.Proc2<WorkflowExecution, Exception> startCallback,
+      Functions.Proc2<Optional<Payloads>, Exception> completionCallback) {
     Functions.Proc cancellationHandler =
-        workflowStateMachines.startChildWorkflow(parameters, executionCallback, callback);
+        workflowStateMachines.startChildWorkflow(parameters, startCallback, completionCallback);
     return (exception) -> cancellationHandler.apply();
   }
 
