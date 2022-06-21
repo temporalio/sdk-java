@@ -54,14 +54,27 @@ protobuf {
     // version/variables substitution is not supported in protobuf section.
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
     // with the oldest supported versions of protoc and grpc artifacts.
-    protoc {
-        artifact = 'com.google.protobuf:protoc:3.10.1'
-    }
-    plugins {
-        grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.34.0'
+    // For aarch64 (M1) using oldest version with binary available for this platform
+    if (System.getProperty("os.arch") == 'aarch64') {
+        protoc {
+            artifact = 'com.google.protobuf:protoc:3.17.3'
+        }
+        plugins {
+            grpc {
+                artifact = 'io.grpc:protoc-gen-grpc-java:1.42.1'
+            }
+        }
+    } else {
+        protoc {
+            artifact = 'com.google.protobuf:protoc:3.10.1'
+        }
+        plugins {
+            grpc {
+                artifact = 'io.grpc:protoc-gen-grpc-java:1.34.0'
+            }
         }
     }
+
     generateProtoTasks {
         all().each { task -> task.dependsOn updateSubmodules }
         all()*.plugins {
