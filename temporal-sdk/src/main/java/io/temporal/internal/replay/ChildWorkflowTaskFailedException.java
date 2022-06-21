@@ -20,55 +20,35 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.failure.ChildWorkflowFailure;
 
-/** Internal. Do not catch or throw by application level code. */
-@SuppressWarnings("serial")
+/**
+ * Internal. Do not catch or throw by application level code. Used by the child workflow state
+ * machines in case of child workflow task execution failure and contains an original unparsed
+ * Failure message with details from the attributes in the exception.
+ *
+ * <p>This class is needed to don't make Failure -> Exception conversion inside the state machines.
+ * So the state machine forms ChildWorkflowFailure without cause and parse the original Failure, so
+ * the outside code may join them together.
+ */
 public class ChildWorkflowTaskFailedException extends RuntimeException {
 
-  private final long eventId;
+  private final ChildWorkflowFailure exception;
 
-  private final WorkflowExecution workflowExecution;
-
-  private final WorkflowType workflowType;
-
-  private final RetryState retryState;
-
-  private final Failure failure;
+  private final Failure originalCauseFailure;
 
   public ChildWorkflowTaskFailedException(
-      long eventId,
-      WorkflowExecution workflowExecution,
-      WorkflowType workflowType,
-      RetryState retryState,
-      Failure failure) {
-    this.eventId = eventId;
-    this.workflowExecution = workflowExecution;
-    this.workflowType = workflowType;
-    this.retryState = retryState;
-    this.failure = failure;
+      ChildWorkflowFailure exception, Failure originalCauseFailure) {
+    this.exception = exception;
+    this.originalCauseFailure = originalCauseFailure;
   }
 
-  public long getEventId() {
-    return eventId;
+  public ChildWorkflowFailure getException() {
+    return exception;
   }
 
-  public WorkflowExecution getWorkflowExecution() {
-    return workflowExecution;
-  }
-
-  public WorkflowType getWorkflowType() {
-    return workflowType;
-  }
-
-  public Failure getFailure() {
-    return failure;
-  }
-
-  public RetryState getRetryState() {
-    return retryState;
+  public Failure getOriginalCauseFailure() {
+    return originalCauseFailure;
   }
 }

@@ -34,12 +34,10 @@ import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionTerminatedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.common.converter.EncodedValues;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.failure.TerminatedFailure;
-import io.temporal.failure.TimeoutFailure;
+import io.temporal.failure.*;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
@@ -140,7 +138,7 @@ final class ChildWorkflowStateMachine
 
   private StartChildWorkflowExecutionCommandAttributes startAttributes;
 
-  private final Functions.Proc1<WorkflowExecution> startedCallback;
+  private final Functions.Proc2<WorkflowExecution, Exception> startedCallback;
 
   private final Functions.Proc2<Optional<Payloads>, Exception> completionCallback;
 
@@ -148,17 +146,13 @@ final class ChildWorkflowStateMachine
    * Creates a new child workflow state machine
    *
    * @param attributes child workflow start command attributes
-   * @param startedCallback
-   * @param completionCallback invoked when child reports completion or failure. The following types
-   *     of events can be passed to the callback: StartChildWorkflowExecutionFailedEvent,
-   *     ChildWorkflowExecutionCompletedEvent, ChildWorkflowExecutionFailedEvent,
-   *     ChildWorkflowExecutionTimedOutEvent, ChildWorkflowExecutionCanceledEvent,
-   *     ChildWorkflowExecutionTerminatedEvent.
+   * @param startedCallback callback that is notified about child start
+   * @param completionCallback invoked when child reports completion or failure
    * @return cancellation callback that should be invoked to cancel the child
    */
   public static ChildWorkflowStateMachine newInstance(
       StartChildWorkflowExecutionCommandAttributes attributes,
-      Functions.Proc1<WorkflowExecution> startedCallback,
+      Functions.Proc2<WorkflowExecution, Exception> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
@@ -168,7 +162,7 @@ final class ChildWorkflowStateMachine
 
   private ChildWorkflowStateMachine(
       StartChildWorkflowExecutionCommandAttributes startAttributes,
-      Functions.Proc1<WorkflowExecution> startedCallback,
+      Functions.Proc2<WorkflowExecution, Exception> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
@@ -217,6 +211,7 @@ final class ChildWorkflowStateMachine
             namespace,
             RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
             new CanceledFailure("Child immediately canceled"));
+    startedCallback.apply(null, failure);
     completionCallback.apply(Optional.empty(), failure);
   }
 
@@ -231,31 +226,41 @@ final class ChildWorkflowStateMachine
   private void notifyStartFailed() {
     StartChildWorkflowExecutionFailedEventAttributes attributes =
         currentEvent.getStartChildWorkflowExecutionFailedEventAttributes();
-    Exception failure =
-        new ChildWorkflowTaskFailedException(
-            currentEvent.getEventId(),
-            WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
-            attributes.getWorkflowType(),
-            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
-            null);
-    failure.initCause(
+    // TODO should use attributes.startChildWorkflowExecutionFailedCause here and add a handling for
+    // NAMESPACE_NOT_FOUND
+    WorkflowException cause =
         new WorkflowExecutionAlreadyStarted(
             WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
             attributes.getWorkflowType().getName(),
-            null));
+            null);
+    RuntimeException failure =
+        new ChildWorkflowFailure(
+            attributes.getInitiatedEventId(),
+            0,
+            attributes.getWorkflowType().getName(),
+            WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
+            attributes.getNamespace(),
+            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
+            cause);
+
+    startedCallback.apply(null, failure);
     completionCallback.apply(Optional.empty(), failure);
   }
 
   private void notifyFailed() {
     ChildWorkflowExecutionFailedEventAttributes attributes =
         currentEvent.getChildWorkflowExecutionFailedEventAttributes();
-    RuntimeException failure =
-        new ChildWorkflowTaskFailedException(
-            currentEvent.getEventId(),
+    ChildWorkflowFailure exception =
+        new ChildWorkflowFailure(
+            attributes.getInitiatedEventId(),
+            attributes.getStartedEventId(),
+            attributes.getWorkflowType().getName(),
             attributes.getWorkflowExecution(),
-            attributes.getWorkflowType(),
+            attributes.getNamespace(),
             attributes.getRetryState(),
-            attributes.getFailure());
+            null);
+    RuntimeException failure =
+        new ChildWorkflowTaskFailedException(exception, attributes.getFailure());
     completionCallback.apply(Optional.empty(), failure);
   }
 
@@ -309,6 +314,7 @@ final class ChildWorkflowStateMachine
 
   private void notifyStarted() {
     startedCallback.apply(
-        currentEvent.getChildWorkflowExecutionStartedEventAttributes().getWorkflowExecution());
+        currentEvent.getChildWorkflowExecutionStartedEventAttributes().getWorkflowExecution(),
+        null);
   }
 }

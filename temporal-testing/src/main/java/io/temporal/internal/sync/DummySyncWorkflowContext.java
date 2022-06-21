@@ -169,7 +169,7 @@ public class DummySyncWorkflowContext {
     @Override
     public Functions.Proc1<Exception> startChildWorkflow(
         StartChildWorkflowExecutionParameters parameters,
-        Functions.Proc1<WorkflowExecution> executionCallback,
+        Functions.Proc2<WorkflowExecution, Exception> executionCallback,
         Functions.Proc2<Optional<Payloads>, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }

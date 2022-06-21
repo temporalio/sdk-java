@@ -431,11 +431,11 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
       ChildWorkflowOptions options,
       Header header,
       Optional<Payloads> input,
-      CompletablePromise<WorkflowExecution> executionResult) {
+      CompletablePromise<WorkflowExecution> startResult) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     if (CancellationScope.current().isCancelRequested()) {
       CanceledFailure CanceledFailure = new CanceledFailure("execute called from a canceled scope");
-      executionResult.completeExceptionally(CanceledFailure);
+      startResult.completeExceptionally(CanceledFailure);
       result.completeExceptionally(CanceledFailure);
       return result;
     }
@@ -493,9 +493,16 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     Functions.Proc1<Exception> cancellationCallback =
         context.startChildWorkflow(
             parameters,
-            (we) ->
+            (execution, failure) -> {
+              if (failure != null) {
                 runner.executeInWorkflowThread(
-                    "child workflow started callback", () -> executionResult.complete(we)),
+                    "child workflow start failed callback",
+                    () -> startResult.completeExceptionally(mapChildWorkflowException(failure)));
+              } else {
+                runner.executeInWorkflowThread(
+                    "child workflow started callback", () -> startResult.complete(execution));
+              }
+            },
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(
@@ -551,18 +558,16 @@ final class SyncWorkflowContext implements WorkflowOutboundCallsInterceptor {
     }
     ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
     Throwable cause =
-        FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
-    // To support WorkflowExecutionAlreadyStarted set at handleStartChildWorkflowExecutionFailed
-    if (cause == null) {
-      cause = failure.getCause();
-    }
+        FailureConverter.failureToException(
+            taskFailed.getOriginalCauseFailure(), getDataConverter());
+    ChildWorkflowFailure exception = taskFailed.getException();
     return new ChildWorkflowFailure(
-        0,
-        0,
-        taskFailed.getWorkflowType().getName(),
-        taskFailed.getWorkflowExecution(),
-        null,
-        taskFailed.getRetryState(),
+        exception.getInitiatedEventId(),
+        exception.getStartedEventId(),
+        exception.getWorkflowType(),
+        exception.getExecution(),
+        exception.getNamespace(),
+        exception.getRetryState(),
         cause);
   }
 

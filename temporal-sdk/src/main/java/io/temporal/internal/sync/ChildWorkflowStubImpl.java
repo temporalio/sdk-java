@@ -26,12 +26,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ChildWorkflowOutput;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ChildWorkflowStub;
-import io.temporal.workflow.CompletablePromise;
-import io.temporal.workflow.Promise;
-import io.temporal.workflow.SignalExternalWorkflowException;
-import io.temporal.workflow.Workflow;
+import io.temporal.workflow.*;
 import java.lang.reflect.Type;
 import java.util.Objects;
 
@@ -50,6 +45,11 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
     this.options = ChildWorkflowOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.outboundCallsInterceptor = Objects.requireNonNull(outboundCallsInterceptor);
     this.execution = Workflow.newPromise();
+    // We register an empty handler to make sure that this promise is always "accessed" and never
+    // leads to a log about it being completed exceptionally and non-accessed.
+    // The "main" Child Workflow promise is the one returned from the execute method and that
+    // promise will always be logged if not accessed.
+    this.execution.handle((ex, failure) -> null);
   }
 
   @Override
@@ -59,7 +59,10 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public Promise<WorkflowExecution> getExecution() {
-    return execution;
+    // We create a new Promise here because we want it to be registered with the Runner
+    CompletablePromise<WorkflowExecution> result = Workflow.newPromise();
+    result.completeFrom(this.execution);
+    return result;
   }
 
   @Override

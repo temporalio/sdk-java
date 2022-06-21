@@ -599,14 +599,14 @@ public final class WorkflowStateMachines {
   /**
    * Creates a new child state machine
    *
-   * @param parameters child workflow start command parameters.
+   * @param parameters child workflow start command parameters
    * @param startedCallback callback that is notified about child start
-   * @param completionCallback invoked when child reports completion or failure.
+   * @param completionCallback invoked when child reports completion or failure
    * @return cancellation callback that should be invoked to cancel the child
    */
   public Functions.Proc startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
-      Functions.Proc1<WorkflowExecution> startedCallback,
+      Functions.Proc2<WorkflowExecution, Exception> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback) {
     checkEventLoopExecuting();
     StartChildWorkflowExecutionCommandAttributes attributes = parameters.getRequest().build();

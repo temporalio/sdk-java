@@ -129,16 +129,17 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /**
    * Start child workflow.
    *
-   * @param parameters An object which encapsulates all the information required to schedule a child
-   *     workflow for execution
-   * @param callback Callback that is called upon child workflow completion or failure.
+   * @param parameters encapsulates all the information required to schedule a child workflow for
+   *     execution
+   * @param startCallback callback that is called upon child start or failure to start
+   * @param completionCallback callback that is called upon child workflow completion or failure
    * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
    *     to cancel activity task.
    */
   Functions.Proc1<Exception> startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
-      Functions.Proc1<WorkflowExecution> executionCallback,
-      Functions.Proc2<Optional<Payloads>, Exception> callback);
+      Functions.Proc2<WorkflowExecution, Exception> startCallback,
+      Functions.Proc2<Optional<Payloads>, Exception> completionCallback);
 
   /**
    * Signal a workflow execution by WorkflowId and optionally RunId.
