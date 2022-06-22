@@ -36,7 +36,6 @@ import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
-import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
