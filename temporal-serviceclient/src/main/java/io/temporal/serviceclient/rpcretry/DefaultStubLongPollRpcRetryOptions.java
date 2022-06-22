@@ -25,7 +25,7 @@ import java.time.Duration;
 
 /** Default rpc retry options for long polls like waiting for the workflow finishing and result. */
 public class DefaultStubLongPollRpcRetryOptions {
-  public static final Duration INITIAL_INTERVAL = Duration.ofMillis(1);
+  public static final Duration INITIAL_INTERVAL = Duration.ofMillis(50);
   public static final Duration MAXIMUM_INTERVAL = Duration.ofMinutes(1);
   public static final double BACKOFF = 1.2;
 

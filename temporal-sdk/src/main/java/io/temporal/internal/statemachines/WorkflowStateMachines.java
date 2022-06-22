@@ -47,7 +47,6 @@ import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.internal.replay.InternalWorkflowTaskException;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.sync.WorkflowThread;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -286,12 +285,15 @@ public final class WorkflowStateMachines {
         && currentStartedEventId >= previousStartedEventId
         && event.getEventType() != EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
       // Important note for understanding how does this condition for finishing replay work:
-      // 1. when we process EVENT_TYPE_WORKFLOW_TASK_STARTED,
-      // currentStartedEventId still points on the previous workflow task.
+      // 1. when we process EVENT_TYPE_WORKFLOW_TASK_SCHEDULED/EVENT_TYPE_WORKFLOW_TASK_STARTED,
+      // currentStartedEventId still points on the previous workflow task (outdated, that's why we
+      // need >= and not > here).
       // 2. command events are not reaching this line by having a return earlier.
       // ^ This allows to correctly set replaying=false after the whole last
       // EVENT_TYPE_WORKFLOW_TASK_STARTED, EVENT_TYPE_WORKFLOW_TASK_COMPLETED, COMMAND_EVENTS
       // sequence is finished processing.
+      // It happens when we are pointing on the last EVENT_TYPE_WORKFLOW_TASK_SCHEDULED +
+      // EVENT_TYPE_WORKFLOW_TASK_STARTED combination in the history.
       replaying = false;
     }
   }
@@ -804,11 +806,12 @@ public final class WorkflowStateMachines {
   }
 
   public void handleLocalActivityCompletion(ActivityTaskHandler.Result laCompletion) {
-    LocalActivityStateMachine commands = localActivityMap.get(laCompletion.getActivityId());
-    if (commands == null) {
-      throw new IllegalStateException("Unknown local activity: " + laCompletion.getActivityId());
+    String activityId = laCompletion.getActivityId();
+    LocalActivityStateMachine laStateMachine = localActivityMap.get(activityId);
+    if (laStateMachine == null) {
+      throw new IllegalStateException("Unknown local activity: " + activityId);
     }
-    commands.handleCompletion(laCompletion);
+    laStateMachine.handleCompletion(laCompletion);
     prepareCommands();
   }
 

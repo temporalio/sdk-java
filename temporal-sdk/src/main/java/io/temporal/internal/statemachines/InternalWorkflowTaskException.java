@@ -18,9 +18,13 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.replay;
+package io.temporal.internal.statemachines;
 
-public final class InternalWorkflowTaskException extends RuntimeException {
+/**
+ * Originated by Temporal State Machines and happens during application of the events inside
+ * #handleEvent call.
+ */
+final class InternalWorkflowTaskException extends RuntimeException {
 
   public InternalWorkflowTaskException(String message, Throwable cause) {
     super(message, cause);
