@@ -93,7 +93,7 @@ public class DeterministicRunnerTest {
 
   @Test
   public void testYield() {
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -178,7 +178,7 @@ public class DeterministicRunnerTest {
 
   @Test
   public void testRootFailure() {
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -202,7 +202,7 @@ public class DeterministicRunnerTest {
 
   @Test
   public void testDispatcherStop() {
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -232,7 +232,7 @@ public class DeterministicRunnerTest {
 
   @Test
   public void testDispatcherExit() {
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -273,7 +273,7 @@ public class DeterministicRunnerTest {
   @Test
   public void testRootCancellation() {
     trace.add("init");
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -301,7 +301,7 @@ public class DeterministicRunnerTest {
   @Test
   public void testExplicitScopeCancellation() {
     trace.add("init");
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -345,7 +345,7 @@ public class DeterministicRunnerTest {
   @Test
   public void testExplicitDetachedScopeCancellation() {
     trace.add("init");
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -402,7 +402,7 @@ public class DeterministicRunnerTest {
   @Test
   public void testExplicitThreadCancellation() {
     trace.add("init");
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -447,7 +447,7 @@ public class DeterministicRunnerTest {
   @Test
   public void testExplicitCancellationOnFailure() {
     trace.add("init");
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -507,7 +507,7 @@ public class DeterministicRunnerTest {
   @Test
   public void testDetachedCancellation() {
     trace.add("init");
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -562,7 +562,7 @@ public class DeterministicRunnerTest {
 
   @Test
   public void testChild() {
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),
@@ -620,7 +620,7 @@ public class DeterministicRunnerTest {
 
   @Test
   public void testChildTree() {
-    DeterministicRunner d =
+    DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
             DummySyncWorkflowContext.newDummySyncWorkflowContext(),

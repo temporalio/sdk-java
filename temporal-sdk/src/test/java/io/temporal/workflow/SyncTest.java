@@ -20,10 +20,8 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 import static org.junit.Assert.*;
 
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
@@ -35,7 +33,6 @@ import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
-import java.time.Duration;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -79,31 +76,6 @@ public class SyncTest {
             "activity ActivityWithDelay",
             "executeActivity Activity2",
             "activity Activity2");
-  }
-
-  @Test
-  public void testSyncUntypedAndStackTrace() {
-    completionClientActivitiesImpl.setCompletionClient(
-        testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
-    WorkflowStub workflowStub =
-        testWorkflowRule.newUntypedWorkflowStubTimeoutOptions("TestWorkflow1");
-    WorkflowExecution execution = workflowStub.start(testWorkflowRule.getTaskQueue());
-    testWorkflowRule.sleep(Duration.ofMillis(500));
-    String stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
-    assertTrue(stackTrace, stackTrace.contains("TestSyncWorkflowImpl.execute"));
-    assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
-    // Test stub created from workflow execution.
-    workflowStub =
-        testWorkflowRule
-            .getWorkflowClient()
-            .newUntypedWorkflowStub(execution, workflowStub.getWorkflowType());
-    stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
-    assertTrue(stackTrace, stackTrace.contains("TestSyncWorkflowImpl.execute"));
-    assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
-    String result = workflowStub.getResult(String.class);
-    assertEquals("activity10", result);
-    // No stacktrace after the workflow is closed. Assert message.
-    assertEquals("Workflow is closed.", workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class));
   }
 
   @Test

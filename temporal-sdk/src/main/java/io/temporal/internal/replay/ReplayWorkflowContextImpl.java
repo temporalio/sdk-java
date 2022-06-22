@@ -135,6 +135,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     workflowContext.setCancelRequested(flag);
   }
 
+  @Nullable
   @Override
   public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
     return workflowContext.getContinueAsNewOnCompletion();

@@ -76,9 +76,6 @@ interface DeterministicRunner {
    */
   void runUntilAllBlocked(long deadlockDetectionTimeout);
 
-  /** IsDone returns true when all of threads are completed */
-  boolean isDone();
-
   /**
    * Request cancellation of the computation. Calls {@link CancellationScope#cancel(String)} on the
    * root scope that wraps the root Runnable.

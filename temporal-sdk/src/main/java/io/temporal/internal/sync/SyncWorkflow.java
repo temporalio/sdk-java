@@ -60,6 +60,7 @@ class SyncWorkflow implements ReplayWorkflow {
       ExecutionInfoStrategy.INSTANCE;
   private WorkflowExecuteRunnable workflowProc;
   private DeterministicRunner runner;
+  private SyncWorkflowContext syncContext;
 
   public SyncWorkflow(
       SyncWorkflowDefinition workflow,
@@ -109,7 +110,7 @@ class SyncWorkflow implements ReplayWorkflow {
         startEvent.hasContinuedFailure()
             ? Optional.of(startEvent.getContinuedFailure())
             : Optional.empty();
-    SyncWorkflowContext syncContext =
+    syncContext =
         new SyncWorkflowContext(
             context,
             workflowImplementationOptions,
@@ -152,7 +153,7 @@ class SyncWorkflow implements ReplayWorkflow {
       return false;
     }
     runner.runUntilAllBlocked(defaultDeadlockDetectionTimeout);
-    return runner.isDone() || workflowProc.isDone(); // Do not wait for all other threads.
+    return isCompleted();
   }
 
   @Override
@@ -178,7 +179,7 @@ class SyncWorkflow implements ReplayWorkflow {
       return Optional.empty();
     }
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
-      return dataConverter.toPayloads(runner.stackTrace());
+      return dataConverter.toPayloads(isCompleted() ? "Workflow is closed." : runner.stackTrace());
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();
@@ -188,5 +189,14 @@ class SyncWorkflow implements ReplayWorkflow {
   @Override
   public Failure mapExceptionToFailure(Throwable failure) {
     return FailureConverter.exceptionToFailure(failure, dataConverter);
+  }
+
+  // This workflow execution is completed either because the main workflow method is finished or
+  // because continue-as-new is called
+  private boolean isCompleted() {
+    return workflowProc.isDone() // Do not wait for other threads
+        ||
+        // if continueAsNew is called, the workflowProc is not done
+        syncContext.getContext().getContinueAsNewOnCompletion() != null;
   }
 }

@@ -137,11 +137,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       handleWorkflowTaskImpl(workflowTask);
       processLocalActivityRequests(startTimeNanos);
       List<Command> commands = workflowStateMachines.takeCommands();
-      if (replayWorkflowExecutor.isCompleted()) {
-        // it's important for query, otherwise the WorkflowRunTaskHandler is responsible for closing
-        // and invalidation
-        close();
-      }
       Map<String, WorkflowQueryResult> queryResults = executeQueries(workflowTask.getQueriesMap());
       return WorkflowTaskResult.newBuilder()
           .setCommands(commands)
@@ -160,11 +155,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     lock.lock();
     try {
       handleWorkflowTaskImpl(workflowTask);
-      if (replayWorkflowExecutor.isCompleted()) {
-        // it's important for query, otherwise the WorkflowRunTaskHandler is responsible for closing
-        // and invalidation
-        close();
-      }
       Optional<Payloads> resultPayloads = replayWorkflowExecutor.query(query);
       return new QueryResult(resultPayloads, replayWorkflowExecutor.isCompleted());
     } finally {

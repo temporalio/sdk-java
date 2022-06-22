@@ -63,6 +63,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * When these attributes are present upon completion of the workflow code the ContinueAsNew
    * command is emitted instead of the workflow completion.
    */
+  @Nullable
   ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
 
   /**
