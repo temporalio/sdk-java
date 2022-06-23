@@ -361,10 +361,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           future.get();
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
-          log.warn("Unexpected interrupt during Deterministic Runner closing");
-          return;
+          // Worker is likely stopped with shutdownNow()
+          // TODO consider propagating as an original interrupted exception to the top level
+          throw new Error("Worker executor thread interrupted during stopping of a coroutine", e);
         } catch (ExecutionException e) {
-          throw new Error("[BUG] Unexpected failure stopping coroutine", e);
+          throw new Error("[BUG] Unexpected failure stopping of a coroutine", e);
         }
       }
     } finally {
