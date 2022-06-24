@@ -129,8 +129,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public WorkflowTaskResult handleWorkflowTask(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
+  public WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask)
+      throws InterruptedException {
     lock.lock();
     try {
       long startTimeNanos = System.nanoTime();
@@ -248,7 +248,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
   }
 
-  private void processLocalActivityRequests(long startTimeNs) {
+  private void processLocalActivityRequests(long startTimeNs) throws InterruptedException {
     long durationUntilWFTHeartbeatNs =
         (long)
             (Durations.toNanos(startedEvent.getWorkflowTaskTimeout())
@@ -286,19 +286,14 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
   }
 
-  private void waitAndProcessLocalActivityCompletion(long nextForcedDecisionTimeNanos) {
-    long maxWaitTimeNanos = nextForcedDecisionTimeNanos - System.nanoTime();
-    if (maxWaitTimeNanos <= 0) {
+  private void waitAndProcessLocalActivityCompletion(long nextForcedDecisionTimeNs)
+      throws InterruptedException {
+    long maxWaitTimeNs = nextForcedDecisionTimeNs - System.nanoTime();
+    if (maxWaitTimeNs <= 0) {
       return;
     }
     ActivityTaskHandler.Result laCompletion;
-    try {
-      laCompletion = localActivityCompletionQueue.poll(maxWaitTimeNanos, TimeUnit.NANOSECONDS);
-    } catch (InterruptedException e) {
-      // TODO(maxim): interrupt when worker shutdown is called
-      Thread.currentThread().interrupt();
-      throw new IllegalStateException("interrupted", e);
-    }
+    laCompletion = localActivityCompletionQueue.poll(maxWaitTimeNs, TimeUnit.NANOSECONDS);
     if (laCompletion == null) {
       // Need to force a new task as nextForcedDecisionTime has passed.
       return;
