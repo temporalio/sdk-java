@@ -37,7 +37,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-/** https://github.com/temporalio/sdk-java/issues/744 */
+/**
+ * Test the behavior when workflow code throws a non-temporal exception and this exception is
+ * specified in failWorkflowExceptionTypes <a
+ * href="https://github.com/temporalio/sdk-java/issues/744">Issue #744</a>
+ */
 public class WorkflowFailureNonStandardThrowableTest {
 
   public static class NonStandardThrowable extends Throwable {}

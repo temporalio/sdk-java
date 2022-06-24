@@ -31,7 +31,8 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
-import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.internal.worker.WorkflowExecutionFailingException;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Optional;
@@ -48,7 +49,7 @@ final class ReplayWorkflowExecutor {
 
   private boolean completed;
 
-  private WorkflowExecutionException failure;
+  private WorkflowExecutionFailingException failure;
 
   private boolean cancelRequested;
 
@@ -66,18 +67,21 @@ final class ReplayWorkflowExecutor {
     return completed;
   }
 
+  /**
+   * @throws CheckedExceptionWrapper if one of the threads didn't handle an exception
+   */
   public void eventLoop() {
     if (completed) {
       return;
     }
     try {
       completed = workflow.eventLoop();
-    } catch (WorkflowExecutionException e) {
+    } catch (WorkflowExecutionFailingException e) {
       failure = e;
       completed = true;
     } catch (CanceledFailure e) {
       if (!cancelRequested) {
-        failure = new WorkflowExecutionException(workflow.mapExceptionToFailure(e));
+        failure = new WorkflowExecutionFailingException(workflow.mapExceptionToFailure(e));
       }
       completed = true;
     }

@@ -32,7 +32,7 @@ import java.util.List;
  * This class buffers events between WorkflowTaskStarted events and return them in one chunk so any
  * kinds of look ahead and preloading can be implemented.
  */
-public class WFTBuffer {
+class WFTBuffer {
   private enum WFTState {
     // we are not "inside" a started task
     None,

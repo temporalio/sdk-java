@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.CancellationScope;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -70,9 +71,9 @@ interface DeterministicRunner {
    * ExecuteUntilAllBlocked executes threads one by one in deterministic order until all of them are
    * completed or blocked.
    *
-   * @throws Throwable if one of the threads didn't handle an exception.
+   * @throws CheckedExceptionWrapper if one of the threads didn't handle an exception
    * @param deadlockDetectionTimeout the maximum time in milliseconds a thread can run without
-   *     calling yield.
+   *     calling yield
    */
   void runUntilAllBlocked(long deadlockDetectionTimeout);
 

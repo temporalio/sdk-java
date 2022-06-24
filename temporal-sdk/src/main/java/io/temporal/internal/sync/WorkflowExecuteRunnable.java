@@ -28,7 +28,7 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.common.interceptors.Header;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.internal.worker.WorkflowExecutionFailingException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
@@ -76,7 +76,7 @@ class WorkflowExecuteRunnable implements Runnable {
           implementationOptions.getFailWorkflowExceptionTypes();
       if (exception instanceof TemporalFailure) {
         logWorkflowExecutionException(Workflow.getInfo(), exception);
-        throw new WorkflowExecutionException(
+        throw new WorkflowExecutionFailingException(
             FailureConverter.exceptionToFailure(exception, context.getDataConverter()));
       }
       for (Class<? extends Throwable> failType : failTypes) {
@@ -89,7 +89,7 @@ class WorkflowExecuteRunnable implements Runnable {
               logWorkflowExecutionException(Workflow.getInfo(), exception);
             }
           }
-          throw new WorkflowExecutionException(
+          throw new WorkflowExecutionFailingException(
               FailureConverter.exceptionToFailure(exception, context.getDataConverter()));
         }
       }

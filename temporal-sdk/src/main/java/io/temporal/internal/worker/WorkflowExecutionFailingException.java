@@ -29,10 +29,10 @@ import io.temporal.api.failure.v1.Failure;
  * <p>This exception is used to signal that the workflow execution should be failed with {@link
  * CommandType#COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION}
  */
-public final class WorkflowExecutionException extends RuntimeException {
+public final class WorkflowExecutionFailingException extends RuntimeException {
   private final Failure failure;
 
-  public WorkflowExecutionException(Failure failure) {
+  public WorkflowExecutionFailingException(Failure failure) {
     super(failure.getMessage());
     this.failure = failure;
   }

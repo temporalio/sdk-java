@@ -24,6 +24,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Optional;
 
@@ -34,6 +35,11 @@ public interface ReplayWorkflow {
   /** Handle an external signal event. */
   void handleSignal(String signalName, Optional<Payloads> input, long eventId);
 
+  /**
+   * @throws CheckedExceptionWrapper if one of the threads didn't handle an exception
+   * @return true if workflow is closed (main workflow thread completed or continue-as-new has been
+   *     called)
+   */
   boolean eventLoop();
 
   /**

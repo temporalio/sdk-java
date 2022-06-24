@@ -42,7 +42,7 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.worker.LocalActivityTask;
 import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.internal.worker.WorkflowExecutionFailingException;
 import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -230,7 +230,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private Result failureToWFTResult(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, Throwable e) throws Exception {
     String workflowType = workflowTask.getWorkflowType().getName();
-    if (e instanceof WorkflowExecutionException) {
+    if (e instanceof WorkflowExecutionFailingException) {
       RespondWorkflowTaskCompletedRequest response =
           RespondWorkflowTaskCompletedRequest.newBuilder()
               .setTaskToken(workflowTask.getTaskToken())
@@ -242,7 +242,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                       .setCommandType(CommandType.COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION)
                       .setFailWorkflowExecutionCommandAttributes(
                           FailWorkflowExecutionCommandAttributes.newBuilder()
-                              .setFailure(((WorkflowExecutionException) e).getFailure()))
+                              .setFailure(((WorkflowExecutionFailingException) e).getFailure()))
                       .build())
               .build();
       return new WorkflowTaskHandler.Result(workflowType, response, null, null, null, false);

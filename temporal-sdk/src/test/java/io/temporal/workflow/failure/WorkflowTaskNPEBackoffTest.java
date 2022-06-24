@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.failure;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;

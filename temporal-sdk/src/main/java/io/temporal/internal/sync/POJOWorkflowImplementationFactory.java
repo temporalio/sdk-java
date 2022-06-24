@@ -39,7 +39,7 @@ import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.internal.worker.WorkflowExecutionFailingException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
@@ -273,7 +273,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
 
     @Override
     public Optional<Payloads> execute(Header header, Optional<Payloads> input)
-        throws CanceledFailure, WorkflowExecutionException {
+        throws CanceledFailure, WorkflowExecutionFailingException {
       Object[] args =
           DataConverter.arrayFromPayloads(
               dataConverter,

@@ -21,6 +21,7 @@
 package io.temporal.internal.statemachines;
 
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.serviceclient.CheckedExceptionWrapper;
 
 public interface StatesMachinesCallback {
 
@@ -30,5 +31,8 @@ public interface StatesMachinesCallback {
 
   void cancel(HistoryEvent cancelEvent);
 
+  /**
+   * @throws CheckedExceptionWrapper if one of the threads didn't handle an exception
+   */
   void eventLoop();
 }

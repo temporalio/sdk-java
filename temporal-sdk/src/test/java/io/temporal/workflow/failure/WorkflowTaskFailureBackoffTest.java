@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.workflow.failure;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 
