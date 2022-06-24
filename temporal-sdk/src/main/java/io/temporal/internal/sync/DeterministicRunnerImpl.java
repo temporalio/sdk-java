@@ -365,7 +365,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           // TODO consider propagating as an original interrupted exception to the top level
           throw new Error("Worker executor thread interrupted during stopping of a coroutine", e);
         } catch (ExecutionException e) {
-          throw new Error("[BUG] Unexpected failure stopping of a coroutine", e);
+          throw new Error("[BUG] Unexpected failure while stopping a coroutine", e);
         }
       }
     } finally {
