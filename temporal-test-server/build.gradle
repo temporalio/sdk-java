@@ -1,7 +1,7 @@
 plugins {
     id 'application'
     id 'com.palantir.graal' version '0.10.0'
-    id 'com.palantir.docker' version '0.33.0'
+    id 'com.palantir.docker' version '0.34.0'
     id 'com.google.protobuf' version '0.8.18'
 }
 
