@@ -43,7 +43,9 @@ public class ActivityTimeoutTest {
   private TestWorkflowEnvironment testEnvironment;
   private static final String TASK_QUEUE = "test-activities";
 
-  public @Rule Timeout timeout = Timeout.seconds(10);
+  // TODO This test takes longer than it should to complete because
+  //  of the cached heartbeat that prevents a quit shutdown
+  public @Rule Timeout timeout = Timeout.seconds(12);
 
   @Before
   public void setUp() {
@@ -56,8 +58,6 @@ public class ActivityTimeoutTest {
     testEnvironment.close();
   }
 
-  // TODO This test takes longer than it should to complete because
-  //  of the cached heartbeat that prevents a quit shutdown
   @Test(timeout = 11_000)
   public void testActivityStartToCloseTimeout() {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);

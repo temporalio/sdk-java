@@ -1544,20 +1544,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setNamespace(getExecutionId().getNamespace())
               .setWorkflowType(startRequest.getWorkflowType())
               .build();
-      ForkJoinPool.commonPool()
-          .execute(
-              () -> {
-                try {
-                  parent.get().childWorkflowStarted(a);
-                } catch (StatusRuntimeException e) {
-                  // NOT_FOUND is expected as the parent might just close by now.
-                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
-                    log.error("Failure reporting child completion", e);
-                  }
-                } catch (Throwable e) {
-                  log.error("Failure trying to add task for an delayed workflow retry", e);
-                }
-              });
+
+      // notifying the parent state machine in the same transaction and thread, otherwise the parent
+      // may see
+      // completion before start if it's done asynchronously.
+      try {
+        parent.get().childWorkflowStarted(a);
+      } catch (StatusRuntimeException e) {
+        // NOT_FOUND is expected as the parent might just close by now.
+        if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+          log.error("Failure reporting child completion", e);
+        }
+      } catch (Exception e) {
+        log.error("Failure trying to add task for an delayed workflow retry", e);
+      }
     }
   }
 

@@ -38,7 +38,7 @@ public final class TestStatsReporter implements StatsReporter {
   private final Map<String, Double> gauges = new HashMap<>();
   private final Map<String, StatsAccumulator> timers = new HashMap<>();
 
-  public void assertCounter(String name, Map<String, String> tags) {
+  public synchronized void assertCounter(String name, Map<String, String> tags) {
     String metricName = getMetricName(name, tags);
     if (!counters.containsKey(metricName)) {
       fail(
@@ -49,7 +49,7 @@ public final class TestStatsReporter implements StatsReporter {
     }
   }
 
-  public void assertNoMetric(String name, Map<String, String> tags) {
+  public synchronized void assertNoMetric(String name, Map<String, String> tags) {
     String metricName = getMetricName(name, tags);
     if (counters.containsKey(metricName)) {
       fail(
@@ -60,7 +60,7 @@ public final class TestStatsReporter implements StatsReporter {
     }
   }
 
-  public void assertCounter(String name, Map<String, String> tags, long expected) {
+  public synchronized void assertCounter(String name, Map<String, String> tags, long expected) {
     String metricName = getMetricName(name, tags);
     AtomicLong accumulator = counters.get(metricName);
     if (accumulator == null) {
@@ -73,11 +73,12 @@ public final class TestStatsReporter implements StatsReporter {
     assertEquals(String.valueOf(accumulator.get()), expected, accumulator.get());
   }
 
-  public void assertGauge(String name, Map<String, String> tags, double expected) {
+  public synchronized void assertGauge(String name, Map<String, String> tags, double expected) {
     assertGauge(name, tags, val -> Math.abs(expected - val) < 1e-3);
   }
 
-  public void assertGauge(String name, Map<String, String> tags, Predicate<Double> isExpected) {
+  public synchronized void assertGauge(
+      String name, Map<String, String> tags, Predicate<Double> isExpected) {
     String metricName = getMetricName(name, tags);
     Double value = gauges.get(metricName);
     if (value == null) {
@@ -90,7 +91,7 @@ public final class TestStatsReporter implements StatsReporter {
     assertTrue(String.valueOf(value), isExpected.test(value));
   }
 
-  public void assertTimer(String name, Map<String, String> tags) {
+  public synchronized void assertTimer(String name, Map<String, String> tags) {
     String metricName = getMetricName(name, tags);
     if (!timers.containsKey(metricName)) {
       fail(
@@ -101,7 +102,8 @@ public final class TestStatsReporter implements StatsReporter {
     }
   }
 
-  public void assertTimerMinDuration(String name, Map<String, String> tags, Duration minDuration) {
+  public synchronized void assertTimerMinDuration(
+      String name, Map<String, String> tags, Duration minDuration) {
     String metricName = getMetricName(name, tags);
     StatsAccumulator value = timers.get(metricName);
     if (value == null) {
@@ -134,7 +136,7 @@ public final class TestStatsReporter implements StatsReporter {
   }
 
   @Override
-  public void reportTimer(
+  public synchronized void reportTimer(
       String name, Map<String, String> tags, com.uber.m3.util.Duration interval) {
     String metricName = getMetricName(name, tags);
     StatsAccumulator value = timers.get(metricName);
@@ -147,7 +149,7 @@ public final class TestStatsReporter implements StatsReporter {
 
   @SuppressWarnings("deprecation")
   @Override
-  public void reportHistogramValueSamples(
+  public synchronized void reportHistogramValueSamples(
       String name,
       Map<String, String> tags,
       com.uber.m3.tally.Buckets buckets,
@@ -159,7 +161,7 @@ public final class TestStatsReporter implements StatsReporter {
 
   @SuppressWarnings("deprecation")
   @Override
-  public void reportHistogramDurationSamples(
+  public synchronized void reportHistogramDurationSamples(
       String name,
       Map<String, String> tags,
       com.uber.m3.tally.Buckets buckets,
