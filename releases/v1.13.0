@@ -1,0 +1,35 @@
+Highlights:
+
+Release focused on resiliency of Workflow Workers.
+
+Fixes:
+
+- Fix Version State Machine ignoring range check during replay if the history was unversioned
+- Fix cancellation of child workflows in some edge cases
+- Fix awaiting on child workflow start not throwing exceptions if the start is not possible leading to stuck workflows
+- Added more guards and workflow invalidation logic to make sure history events are not applied to outdated or too advanced state of the workflow
+- and other
+
+2022-05-21 - 4a953d91 - Test Server responds NOT_FOUND if the activity is in incorrect state (#1228)
+2022-05-24 - 58f4d9d9 - Fix kotlin linting and style checking during build (#1232)
+2022-05-24 - c7fcb4ba - Add WorkerInterceptorBase and improve WorkerInterceptor docs to help new interceptor users (#1231)
+2022-06-01 - 1cb3bd4a - Fix Version State Machine ignoring range check during replay if the history was unversioned (#1240)
+2022-06-02 - 3b53cdc7 - Fix WorkflowStub.getResultAsync leading to unbalanced time locking in test environment (#1244)
+2022-06-03 - 37a0e463 - Update license so Github and licensee recognise it correctly as Apache (#1245)
+2022-06-04 - bce036ed - Make Temporal standard non-retryable gRPC codes not configurable (#1247)
+2022-06-08 - 0831d12d - Fix sticky poller using unique id from the sticky queue as a workerIdentity (#1254)
+2022-06-08 - e3bb57a7 - Improve io.temporal.internal.worker package structure and worker shutdown (#1253)
+2022-06-09 - 1b1c1d4c - Make DeterministicRunner#close always block until the closing is done (#1255)
+2022-06-17 - 1ffabeb9 - Throw if the server workflow progress is below the progress known to the Workflow Worker (#1267)
+2022-06-17 - 7a6c8413 - Cleanup never used confusing ActivityTaskHandler#Result#requestRetryOptions (#1264)
+2022-06-17 - 8ceb7ce0 - Invalidate cached workflow state if worker fails to send the result to the server (#1265)
+2022-06-17 - 8f279012 - Simplify code and error handling between ActivityWorker and LocalActivityWorker (#1263)
+2022-06-19 - 3c99036d - Fix state machines NullPointerException during one of the modes of child workflow cancellation (#1269)
+2022-06-19 - 75af596b - Guard against applying new events to workflow state machines if there is a gap (#1268)
+2022-06-21 - 29ed6d82 - Add toString method to ActivityInfo and WorkflowInfo (#1275)
+2022-06-21 - 63feea22 - Fix child workflow execution start promise not throwing exceptions (#1271)
+2022-06-21 - 967933a5 - Fix build on aarch64 (M1) (#1274)
+2022-06-22 - da51b485 - Rework LocalActivities waiting code to use nanoseconds (#1277)
+2022-06-24 - 5079086e - Cleanup forced worker shutdown from interrupted exceptions in the log (#1279)
+2022-06-27 - 462a3cf9 - Add log warning if workflow eviction / closure is taking too long time to close (#1282)
+2022-06-27 - aee11a80 - Fix test server publishing the Completion of child workflows before the Start sometimes (#1289)
