@@ -517,8 +517,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     lock.lock();
     try {
       // if the execution is closed, we will just add the callbacks, but we will never create
-      // threads for them,
-      // so they will be effectively ignored
+      // threads for them, so they will be effectively ignored
       toExecuteInWorkflowThread.add(new NamedRunnable(name, runnable));
     } finally {
       lock.unlock();
