@@ -60,7 +60,7 @@ public class PollWorkflowTaskDispatcherTests {
   @Test
   public void pollWorkflowTasksAreDispatchedBasedOnTaskQueueName() {
     AtomicBoolean handled = new AtomicBoolean(false);
-    Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
+    Functions.Proc1<WorkflowTask> handler = r -> handled.set(true);
 
     PollWorkflowTaskDispatcher dispatcher =
         new PollWorkflowTaskDispatcher(
@@ -68,7 +68,7 @@ public class PollWorkflowTaskDispatcherTests {
     dispatcher.subscribe("taskqueue1", handler);
 
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
-    dispatcher.process(response);
+    dispatcher.process(new WorkflowTask(response, System.nanoTime()));
 
     assertTrue(handled.get());
   }
@@ -78,8 +78,8 @@ public class PollWorkflowTaskDispatcherTests {
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
-    Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
-    Functions.Proc1<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
+    Functions.Proc1<WorkflowTask> handler = r -> handled.set(true);
+    Functions.Proc1<WorkflowTask> handler2 = r -> handled2.set(true);
 
     PollWorkflowTaskDispatcher dispatcher =
         new PollWorkflowTaskDispatcher(
@@ -88,7 +88,7 @@ public class PollWorkflowTaskDispatcherTests {
     dispatcher.subscribe("taskqueue2", handler2);
 
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
-    dispatcher.process(response);
+    dispatcher.process(new WorkflowTask(response, System.nanoTime()));
 
     assertTrue(handled.get());
     assertFalse(handled2.get());
@@ -99,8 +99,8 @@ public class PollWorkflowTaskDispatcherTests {
     AtomicBoolean handled = new AtomicBoolean(false);
     AtomicBoolean handled2 = new AtomicBoolean(false);
 
-    Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
-    Functions.Proc1<PollWorkflowTaskQueueResponse> handler2 = r -> handled2.set(true);
+    Functions.Proc1<WorkflowTask> handler = r -> handled.set(true);
+    Functions.Proc1<WorkflowTask> handler2 = r -> handled2.set(true);
 
     PollWorkflowTaskDispatcher dispatcher =
         new PollWorkflowTaskDispatcher(
@@ -109,7 +109,7 @@ public class PollWorkflowTaskDispatcherTests {
     dispatcher.subscribe("taskqueue1", handler2);
 
     PollWorkflowTaskQueueResponse response = CreatePollWorkflowTaskQueueResponse("taskqueue1");
-    dispatcher.process(response);
+    dispatcher.process(new WorkflowTask(response, System.nanoTime()));
 
     assertTrue(handled2.get());
     assertFalse(handled.get());
@@ -124,7 +124,7 @@ public class PollWorkflowTaskDispatcherTests {
     logger.addAppender(appender);
 
     AtomicBoolean handled = new AtomicBoolean(false);
-    Functions.Proc1<PollWorkflowTaskQueueResponse> handler = r -> handled.set(true);
+    Functions.Proc1<WorkflowTask> handler = r -> handled.set(true);
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub stub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
@@ -137,7 +137,7 @@ public class PollWorkflowTaskDispatcherTests {
 
     PollWorkflowTaskQueueResponse response =
         CreatePollWorkflowTaskQueueResponse("I Don't Exist TaskQueue");
-    dispatcher.process(response);
+    dispatcher.process(new WorkflowTask(response, System.nanoTime()));
 
     verify(stub, times(1)).respondWorkflowTaskFailed(any());
     assertFalse(handled.get());

@@ -22,7 +22,6 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -31,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 public class StickyPoller implements SuspendableWorker {
-  private final Poller<PollWorkflowTaskQueueResponse> poller;
+  private final Poller<WorkflowTask> poller;
   private final PollWorkflowTaskDispatcher dispatcher;
 
   public StickyPoller(
@@ -67,7 +66,7 @@ public class StickyPoller implements SuspendableWorker {
             stickyScope);
   }
 
-  public void subscribe(String taskQueue, Functions.Proc1<PollWorkflowTaskQueueResponse> consumer) {
+  public void subscribe(String taskQueue, Functions.Proc1<WorkflowTask> consumer) {
     dispatcher.subscribe(taskQueue, consumer);
   }
 

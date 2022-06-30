@@ -21,7 +21,6 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
@@ -55,8 +54,7 @@ import org.slf4j.LoggerFactory;
  *
  * and exposing additional management helper methods for the assembly.
  */
-public class SyncWorkflowWorker
-    implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
+public class SyncWorkflowWorker implements SuspendableWorker, Functions.Proc1<WorkflowTask> {
   private static final Logger log = LoggerFactory.getLogger(SyncWorkflowWorker.class);
 
   private final String identity;
@@ -232,8 +230,8 @@ public class SyncWorkflowWorker
   }
 
   @Override
-  public void apply(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
-    workflowWorker.apply(pollWorkflowTaskQueueResponse);
+  public void apply(WorkflowTask workflowTask) {
+    workflowWorker.apply(workflowTask);
   }
 
   @Override

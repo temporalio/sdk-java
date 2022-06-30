@@ -49,8 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-final class WorkflowWorker
-    implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
+final class WorkflowWorker implements SuspendableWorker, Functions.Proc1<WorkflowTask> {
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
@@ -66,7 +65,7 @@ final class WorkflowWorker
   private final Scope workerMetricsScope;
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
-  private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
+  private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
 
   public WorkflowWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -159,8 +158,8 @@ final class WorkflowWorker
   }
 
   @Override
-  public void apply(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
-    pollTaskExecutor.process(pollWorkflowTaskQueueResponse);
+  public void apply(WorkflowTask workflowTask) {
+    pollTaskExecutor.process(workflowTask);
   }
 
   private PollerOptions getPollerOptions(SingleWorkerOptions options) {
@@ -175,8 +174,7 @@ final class WorkflowWorker
     return pollerOptions;
   }
 
-  private class TaskHandlerImpl
-      implements PollTaskExecutor.TaskHandler<PollWorkflowTaskQueueResponse> {
+  private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<WorkflowTask> {
 
     final WorkflowTaskHandler handler;
 
@@ -185,10 +183,10 @@ final class WorkflowWorker
     }
 
     @Override
-    public void handle(PollWorkflowTaskQueueResponse task) throws Exception {
-      WorkflowExecution workflowExecution = task.getWorkflowExecution();
+    public void handle(WorkflowTask task) throws Exception {
+      WorkflowExecution workflowExecution = task.getResponse().getWorkflowExecution();
       String runId = workflowExecution.getRunId();
-      String workflowType = task.getWorkflowType().getName();
+      String workflowType = task.getResponse().getWorkflowType().getName();
 
       Scope workflowTypeScope =
           workerMetricsScope.tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
@@ -198,43 +196,46 @@ final class WorkflowWorker
       MDC.put(LoggerTag.RUN_ID, runId);
 
       boolean locked = false;
-      if (!Strings.isNullOrEmpty(stickyTaskQueueName)) {
-        // Serialize workflow task processing for a particular workflow run.
-        // This is used to make sure that query tasks and real workflow tasks
-        // are serialized when sticky is on.
-        //
-        // Acquiring a lock with a timeout to avoid having lots of workflow tasks for the same run
-        // id waiting for a lock and consuming threads in case if lock is unavailable.
-        //
-        // Throws interrupted exception which is propagated. It's a correct way to handle it here.
-        //
-        // TODO 1: "1 second" timeout looks potentially too strict, especially if we are talking
-        //   about workflow tasks with local activities.
-        //   This could lead to unexpected fail of queries and reset of sticky queue.
-        //   Should it be connected to a workflow task timeout / query timeout?
-        // TODO 2: Does "consider increasing workflow task timeout" advice in this exception makes
-        //   any sense?
-        //   This MAYBE makes sense only if a previous workflow task timed out, it's still in
-        //   progress on the worker and the next workflow task got picked up by the same exact
-        //   worker from the general non-sticky task queue.
-        //   Even in this case, this advice looks misleading, something else is going on
-        //   (like an extreme network latency).
-        locked = runLocks.tryLock(runId, 1, TimeUnit.SECONDS);
-
-        if (!locked) {
-          throw new UnableToAcquireLockException(
-              "Workflow lock for the run id hasn't been released by one of previous execution attempts, "
-                  + "consider increasing workflow task timeout.");
-        }
-      }
-
       Stopwatch swTotal =
           workflowTypeScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
       try {
-        Optional<PollWorkflowTaskQueueResponse> nextTask = Optional.of(task);
+        if (!Strings.isNullOrEmpty(stickyTaskQueueName)) {
+          // Serialize workflow task processing for a particular workflow run.
+          // This is used to make sure that query tasks and real workflow tasks
+          // are serialized when sticky is on.
+          //
+          // Acquiring a lock with a timeout to avoid having lots of workflow tasks for the same run
+          // id waiting for a lock and consuming threads in case if lock is unavailable.
+          //
+          // Throws interrupted exception which is propagated. It's a correct way to handle it here.
+          //
+          // TODO 1: 10 seconds is chosen as a default workflow task timeout. Replace with
+          // reasonable
+          //  calculations based on the workflow task timeout of this workflow. Warning: may be
+          // tricky
+          //  to achieve because access to the WorkflowExecutionStarted  event is needed.
+          //  The underlying ReplayWorkflowRunTaskHandler has this information though.
+          // TODO 2: Does "consider increasing workflow task timeout" advice in this exception makes
+          //   any sense?
+          //   This MAYBE makes sense only if a previous workflow task timed out, it's still in
+          //   progress on the worker and the next workflow task got picked up by the same exact
+          //   worker from the general non-sticky task queue.
+          //   Even in this case, this advice looks misleading, something else is going on
+          //   (like an extreme network latency).
+          locked = runLocks.tryLock(runId, 10, TimeUnit.SECONDS);
+
+          if (!locked) {
+            throw new UnableToAcquireLockException(
+                "Workflow lock for the run id hasn't been released by one of previous execution attempts, "
+                    + "consider increasing workflow task timeout.");
+          }
+        }
+        long workflowTaskStartTimeNs = task.getTaskPollTimeNs();
+        Optional<PollWorkflowTaskQueueResponse> nextTask = Optional.of(task.getResponse());
         do {
           PollWorkflowTaskQueueResponse currentTask = nextTask.get();
-          WorkflowTaskHandler.Result response = handleTask(currentTask, workflowTypeScope);
+          WorkflowTaskHandler.Result response =
+              handleTask(currentTask, workflowTypeScope, workflowTaskStartTimeNs);
           try {
             nextTask = sendReply(currentTask.getTaskToken(), service, workflowTypeScope, response);
           } catch (Exception e) {
@@ -257,7 +258,18 @@ final class WorkflowWorker
             workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
           }
           if (nextTask.isPresent()) {
+            workflowTaskStartTimeNs = System.nanoTime();
             workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
+          }
+
+          RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
+          boolean forcedWFTWasRequested =
+              taskCompleted != null
+                  && taskCompleted.getForceCreateNewWorkflowTask()
+                  && taskCompleted.getReturnNewWorkflowTask();
+          if (forcedWFTWasRequested && !nextTask.isPresent()) {
+            log.error(
+                "[TEMPORAL SERVER BUG] Workflow Task Heartbeat was requested, but Server returned no next Workflow Task in the response");
           }
         } while (nextTask.isPresent());
       } finally {
@@ -273,24 +285,27 @@ final class WorkflowWorker
     }
 
     @Override
-    public Throwable wrapFailure(PollWorkflowTaskQueueResponse task, Throwable failure) {
-      WorkflowExecution execution = task.getWorkflowExecution();
+    public Throwable wrapFailure(WorkflowTask task, Throwable failure) {
+      WorkflowExecution execution = task.getResponse().getWorkflowExecution();
       return new RuntimeException(
           "Failure processing workflow task. WorkflowId="
               + execution.getWorkflowId()
               + ", RunId="
               + execution.getRunId()
               + ", Attempt="
-              + task.getAttempt(),
+              + task.getResponse().getAttempt(),
           failure);
     }
 
     private WorkflowTaskHandler.Result handleTask(
-        PollWorkflowTaskQueueResponse task, Scope workflowTypeMetricsScope) throws Exception {
+        PollWorkflowTaskQueueResponse task,
+        Scope workflowTypeMetricsScope,
+        long workflowTaskStartTimeNs)
+        throws Exception {
       Stopwatch sw =
           workflowTypeMetricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
       try {
-        return handler.handleWorkflowTask(task);
+        return handler.handleWorkflowTask(task, workflowTaskStartTimeNs);
       } catch (Throwable e) {
         // more detailed logging that we can do here is already done inside `handler`
         workflowTypeMetricsScope

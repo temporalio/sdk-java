@@ -35,10 +35,12 @@ public interface WorkflowRunTaskHandler {
    * Handles a single workflow task.
    *
    * @param workflowTask task to handle
+   * @param workflowTaskStartTimeNs
    * @return true if new workflow task should be force created synchronously as local activities are
    *     still running.
    */
-  WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask)
+  WorkflowTaskResult handleWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, long workflowTaskStartTimeNs)
       throws InterruptedException;
 
   QueryResult handleQueryWorkflowTask(

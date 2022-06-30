@@ -129,13 +129,13 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask)
+  public WorkflowTaskResult handleWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, long workflowTaskStartTimeNs)
       throws InterruptedException {
     lock.lock();
     try {
-      long startTimeNanos = System.nanoTime();
       handleWorkflowTaskImpl(workflowTask);
-      processLocalActivityRequests(startTimeNanos);
+      processLocalActivityRequests(workflowTaskStartTimeNs);
       List<Command> commands = workflowStateMachines.takeCommands();
       if (replayWorkflowExecutor.isCompleted()) {
         // it's important for query, otherwise the WorkflowRunTaskHandler is responsible for closing

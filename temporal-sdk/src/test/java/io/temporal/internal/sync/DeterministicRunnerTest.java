@@ -788,7 +788,7 @@ public class DeterministicRunnerTest {
 
     @Override
     public WorkflowTaskResult handleWorkflowTask(
-        PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask, long workflowTaskStartTimeNs) {
       return WorkflowTaskResult.newBuilder().build();
     }
 
