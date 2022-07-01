@@ -43,7 +43,7 @@ import org.junit.Test;
 public class LocalActivityGettingScheduledRightBeforeWorkflowTaskHeartbeatTest {
   private static final Duration WORKFLOW_TASK_TIMEOUT = Duration.ofSeconds(5);
   private static final Duration SLEEP_DURATION =
-      Duration.ofMillis(800); // << 1000 to don't hit deadlock detection
+      Duration.ofMillis(800); // << 1000 to avoid deadlock detection
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
