@@ -23,6 +23,7 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
@@ -36,6 +37,7 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import io.temporal.internal.Config;
 import io.temporal.internal.statemachines.StatesMachinesCallback;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.*;
@@ -61,9 +63,6 @@ import java.util.function.BiFunction;
  */
 class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
-  /** Force new decision task after workflow task timeout multiplied by this coefficient. */
-  public static final double FORCED_DECISION_TIME_COEFFICIENT = 4d / 5d;
-
   private final WorkflowServiceStubs service;
 
   private final String namespace;
@@ -86,6 +85,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   private final WorkflowStateMachines workflowStateMachines;
 
   /** Number of non completed local activity tasks */
+  // TODO move and maintain this counter inside workflowStateMachines
   private int localActivityTaskCount;
 
   private final ReplayWorkflowExecutor replayWorkflowExecutor;
@@ -252,54 +252,58 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     long durationUntilWFTHeartbeatNs =
         (long)
             (Durations.toNanos(startedEvent.getWorkflowTaskTimeout())
-                * FORCED_DECISION_TIME_COEFFICIENT);
+                * Config.WORKFLOW_TAK_HEARTBEAT_COEFFICIENT);
 
     long nextWFTHeartbeatTimeNs = startTimeNs + durationUntilWFTHeartbeatNs;
+
     while (true) {
       List<ExecuteLocalActivityParameters> laRequests =
           workflowStateMachines.takeLocalActivityRequests();
+      localActivityTaskCount += laRequests.size();
+
       for (ExecuteLocalActivityParameters laRequest : laRequests) {
         // TODO(maxim): In the presence of workflow task heartbeat this timeout doesn't make
         // much sense. I believe we should add ScheduleToStart timeout for the local activities
         // as well.
-        Duration maxWaitTime = Duration.ofNanos(nextWFTHeartbeatTimeNs - System.nanoTime());
-        if (maxWaitTime.isNegative()) {
-          maxWaitTime = Duration.ZERO;
-        }
+        long maxWaitTimeNs = Math.max(nextWFTHeartbeatTimeNs - System.nanoTime(), 0);
         boolean accepted =
             localActivityTaskPoller.apply(
-                new LocalActivityTask(laRequest, localActivityCompletionSink), maxWaitTime);
-        localActivityTaskCount++;
-        if (!accepted) {
-          throw new IllegalStateException(
-              "Unable to schedule local activity for execution, no more slots available and local activity task queue is full");
-        }
+                new LocalActivityTask(laRequest, localActivityCompletionSink),
+                Duration.ofNanos(maxWaitTimeNs));
+        Preconditions.checkState(
+            accepted,
+            "Unable to schedule local activity for execution, "
+                + "no more slots available and local activity task queue is full");
       }
+
       if (localActivityTaskCount == 0) {
         // No outstanding local activity requests
         break;
       }
-      waitAndProcessLocalActivityCompletion(nextWFTHeartbeatTimeNs);
-      if (nextWFTHeartbeatTimeNs <= System.nanoTime()) {
+
+      long maxWaitTimeTillHeartbeatNs = Math.max(nextWFTHeartbeatTimeNs - System.nanoTime(), 0);
+      ActivityTaskHandler.Result laCompletion =
+          localActivityCompletionQueue.poll(maxWaitTimeTillHeartbeatNs, TimeUnit.NANOSECONDS);
+      if (laCompletion == null) {
+        // Need to force a new task as we are out of time
         break;
       }
-    }
-  }
 
-  private void waitAndProcessLocalActivityCompletion(long nextForcedDecisionTimeNs)
-      throws InterruptedException {
-    long maxWaitTimeNs = nextForcedDecisionTimeNs - System.nanoTime();
-    if (maxWaitTimeNs <= 0) {
-      return;
+      localActivityTaskCount--;
+      workflowStateMachines.handleLocalActivityCompletion(laCompletion);
+      // handleLocalActivityCompletion triggers eventLoop.
+      // After this call, there may be new local activity requests available in
+      // workflowStateMachines.takeLocalActivityRequests()
+      // These requests need to be processed and accounted for, otherwise we may end up not
+      // heartbeating and completing workflow task instead. So we have to make another iteration.
     }
-    ActivityTaskHandler.Result laCompletion;
-    laCompletion = localActivityCompletionQueue.poll(maxWaitTimeNs, TimeUnit.NANOSECONDS);
-    if (laCompletion == null) {
-      // Need to force a new task as nextForcedDecisionTime has passed.
-      return;
-    }
-    localActivityTaskCount--;
-    workflowStateMachines.handleLocalActivityCompletion(laCompletion);
+
+    // it's safe to call and discard the result of takeLocalActivityRequests() here, because if it's
+    // not empty - we are in trouble anyway
+    Preconditions.checkState(
+        workflowStateMachines.takeLocalActivityRequests().isEmpty(),
+        "[BUG] Local activities requests from the last event loop were not drained "
+            + "and accounted in the outstanding local activities counter");
   }
 
   private class StatesMachinesCallbackImpl implements StatesMachinesCallback {
