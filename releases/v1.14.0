@@ -1,0 +1,7 @@
+Highlights:
+
+This release fixes a bug that may lead to workflows being stuck when sequential synchronous calls of local activities are present.
+See https://github.com/temporalio/sdk-java/issues/1262 for more details.
+
+Changeset:
+2022-07-01 - 9e78e8a2 - Fix erroneous closing of workflow tasks instead of heartbeating in some edge cases (#1295)
