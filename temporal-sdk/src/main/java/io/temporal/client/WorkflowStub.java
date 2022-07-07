@@ -60,6 +60,17 @@ public interface WorkflowStub {
     return (WorkflowStub) supplier.__getUntypedStub();
   }
 
+  /**
+   * Synchronously signals a workflow by invoking its signal handler. Usually a signal handler is a
+   * method annotated with {@link io.temporal.workflow.SignalMethod}.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param args signal method arguments
+   * @throws WorkflowNotFoundException if the workflow execution doesn't exist or completed and
+   *     can't be signalled
+   * @throws WorkflowServiceException for all other failures including networking and service
+   *     availability issues
+   */
   void signal(String signalName, Object... args);
 
   WorkflowExecution start(Object... args);

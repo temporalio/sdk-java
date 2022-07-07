@@ -54,7 +54,7 @@ public abstract class WorkflowException extends TemporalException {
     return workflowType;
   }
 
-  public static String getMessage(WorkflowExecution execution, String workflowType) {
+  private static String getMessage(WorkflowExecution execution, String workflowType) {
     return "workflowId='"
         + execution.getWorkflowId()
         + "', runId='"

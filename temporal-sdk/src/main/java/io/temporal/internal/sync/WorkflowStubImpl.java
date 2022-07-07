@@ -403,7 +403,7 @@ class WorkflowStubImpl implements WorkflowStub {
     if (failure instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) failure;
       if (Status.Code.NOT_FOUND.equals(sre.getStatus().getCode())) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
+        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null), sre);
       }
     } else if (failure instanceof WorkflowException) {
       throw (WorkflowException) failure;
