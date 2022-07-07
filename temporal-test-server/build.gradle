@@ -9,7 +9,7 @@ plugins {
     id 'application'
     id 'com.palantir.graal' version "${graalVersion}"
     id 'com.palantir.docker' version '0.34.0'
-    id 'com.google.protobuf' version '0.8.18'
+    id 'com.google.protobuf' version '0.8.19'
 }
 
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos

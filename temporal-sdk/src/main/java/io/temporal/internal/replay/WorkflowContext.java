@@ -46,9 +46,6 @@ final class WorkflowContext {
   private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
   private final WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String namespace;
-  // RunId can change when reset happens. This remembers the actual runId that is used as in this
-  // particular part of the history.
-  private String currentRunId;
   private SearchAttributes.Builder searchAttributes;
   private final List<ContextPropagator> contextPropagators;
   @Nonnull private final WorkflowExecution workflowExecution;
@@ -62,7 +59,6 @@ final class WorkflowContext {
     this.namespace = namespace;
     this.workflowExecution = Preconditions.checkNotNull(workflowExecution);
     this.startedAttributes = startedAttributes;
-    this.currentRunId = startedAttributes.getOriginalExecutionRunId();
     if (startedAttributes.hasSearchAttributes()) {
       this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
     }
@@ -140,14 +136,6 @@ final class WorkflowContext {
 
   private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
     return startedAttributes;
-  }
-
-  void setCurrentRunId(String currentRunId) {
-    this.currentRunId = currentRunId;
-  }
-
-  String getCurrentRunId() {
-    return currentRunId;
   }
 
   public Map<String, Payload> getHeader() {
