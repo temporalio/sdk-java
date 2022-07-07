@@ -23,7 +23,7 @@ package io.temporal.client;
 import io.temporal.api.common.v1.WorkflowExecution;
 
 /**
- * Thrown when workflow with the given id is not known to the Temporal service or in an incorrect
+ * Thrown when a workflow with the given id is not known to the Temporal service or in an incorrect
  * state to perform the operation.
  *
  * <p>Examples of possible causes:

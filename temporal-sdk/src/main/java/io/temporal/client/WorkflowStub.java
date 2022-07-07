@@ -61,7 +61,7 @@ public interface WorkflowStub {
   }
 
   /**
-   * Synchronously signals workflow by invoking its signal handler. Usually a signal handler is a
+   * Synchronously signals a workflow by invoking its signal handler. Usually a signal handler is a
    * method annotated with {@link io.temporal.workflow.SignalMethod}.
    *
    * @param signalName name of the signal handler. Usually it is a method name.
