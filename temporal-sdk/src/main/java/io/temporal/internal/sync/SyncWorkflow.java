@@ -30,6 +30,7 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -178,7 +179,9 @@ class SyncWorkflow implements ReplayWorkflow {
       return Optional.empty();
     }
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
-      return dataConverter.toPayloads(runner.stackTrace());
+      // stack trace query result should be readable for UI even if user specifies a custom data
+      // converter
+      return DefaultDataConverter.STANDARD_DATA_CONVERTER.toPayloads(runner.stackTrace());
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();
