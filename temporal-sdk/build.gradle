@@ -17,9 +17,7 @@ dependencies {
     api "com.fasterxml.jackson.core:jackson-databind"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"
-    if (!JavaVersion.current().isJava8()) {
-        implementation 'javax.annotation:javax.annotation-api:1.3.2'
-    }
+
     // compileOnly and testImplementation because this dependency is needed only to work with json format of history
     // which shouldn't be needed for any production usage of temporal-sdk.
     // It's useful only for unit tests and debugging.
