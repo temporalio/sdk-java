@@ -52,8 +52,10 @@ public class DefaultDataConverter implements DataConverter {
     new JacksonJsonPayloadConverter()
   };
 
+  public static final DataConverter STANDARD_DATA_CONVERTER = newDefaultInstance();
+
   private static final AtomicReference<DataConverter> defaultDataConverterInstance =
-      new AtomicReference<>(newDefaultInstance());
+      new AtomicReference<>(STANDARD_DATA_CONVERTER);
 
   private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
 
@@ -64,10 +66,12 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   /**
-   * Override the global data converter default. Consider overriding data converter per client
-   * instance (using {@link
-   * io.temporal.client.WorkflowClientOptions.Builder#setDataConverter(DataConverter)} to avoid
-   * potential conflicts.
+   * Override the global data converter default.
+   *
+   * <p>Consider using {@link
+   * io.temporal.client.WorkflowClientOptions.Builder#setDataConverter(DataConverter)} to set data
+   * converter per client / worker instance to avoid conflicts if your setup requires different
+   * converters for different clients / workers.
    */
   public static void setDefaultDataConverter(DataConverter converter) {
     defaultDataConverterInstance.set(converter);

@@ -43,8 +43,6 @@ final class SearchAttributePayloadConverter {
 
   private static final String METADATA_TYPE_KEY = "type";
 
-  private final DefaultDataConverter defaultDataConverter =
-      DefaultDataConverter.newDefaultInstance();
   public static final SearchAttributePayloadConverter INSTANCE =
       new SearchAttributePayloadConverter();
 
@@ -71,7 +69,7 @@ final class SearchAttributePayloadConverter {
       return (Payload) instance;
     }
 
-    Payload payload = defaultDataConverter.toPayload(instance).get();
+    Payload payload = DefaultDataConverter.STANDARD_DATA_CONVERTER.toPayload(instance).get();
 
     IndexedValueType type = extractIndexValueTypeName(instance);
 
@@ -134,10 +132,12 @@ final class SearchAttributePayloadConverter {
 
     try {
       // single-value search attribute
-      return Collections.singletonList(defaultDataConverter.fromPayload(payload, type, type));
+      return Collections.singletonList(
+          DefaultDataConverter.STANDARD_DATA_CONVERTER.fromPayload(payload, type, type));
     } catch (Exception e) {
       try {
-        return defaultDataConverter.fromPayload(payload, List.class, createListType(type));
+        return DefaultDataConverter.STANDARD_DATA_CONVERTER.fromPayload(
+            payload, List.class, createListType(type));
       } catch (Exception ex) {
         throw new IllegalArgumentException(
             ("Payload "
@@ -151,7 +151,8 @@ final class SearchAttributePayloadConverter {
 
   private boolean isUnset(@Nonnull Payload payload) {
     try {
-      List<?> o = defaultDataConverter.fromPayload(payload, List.class, List.class);
+      List<?> o =
+          DefaultDataConverter.STANDARD_DATA_CONVERTER.fromPayload(payload, List.class, List.class);
       if (o.size() == 0) {
         // this is an "unset" token, we don't need a type for it
         return true;
