@@ -40,6 +40,7 @@ import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
@@ -103,7 +104,6 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   }
 
   public <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
-    @SuppressWarnings("unchecked")
     WorkflowImplementationOptions unitTestingOptions =
         WorkflowImplementationOptions.newBuilder()
             .setFailWorkflowExceptionTypes(Throwable.class)
@@ -116,7 +116,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory) {
     if (DynamicWorkflow.class.isAssignableFrom(clazz)) {
       if (dynamicWorkflowImplementationFactory != null) {
-        throw new IllegalStateException(
+        throw new TypeAlreadyRegisteredException(
+            "DynamicWorkflow",
             "An implementation of DynamicWorkflow or its factory is already registered with the worker");
       }
       dynamicWorkflowImplementationFactory = (Func<? extends DynamicWorkflow>) factory;
@@ -133,17 +134,18 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     for (POJOWorkflowMethodMetadata methodMetadata : methodsMetadata) {
       switch (methodMetadata.getType()) {
         case WORKFLOW:
-          String workflowName = methodMetadata.getName();
-          if (workflowDefinitions.containsKey(workflowName)) {
-            throw new IllegalStateException(
-                workflowName + " workflow type is already registered with the worker");
+          String typeName = methodMetadata.getName();
+          if (workflowDefinitions.containsKey(typeName)) {
+            throw new TypeAlreadyRegisteredException(
+                typeName,
+                "\"" + typeName + "\" workflow type is already registered with the worker");
           }
           workflowDefinitions.put(
-              workflowName,
+              typeName,
               () ->
                   new POJOWorkflowImplementation(
                       clazz, methodMetadata.getName(), methodMetadata.getWorkflowMethod()));
-          implementationOptions.put(workflowName, options);
+          implementationOptions.put(typeName, options);
           break;
         case SIGNAL:
           // Signals are registered through Workflow.registerListener

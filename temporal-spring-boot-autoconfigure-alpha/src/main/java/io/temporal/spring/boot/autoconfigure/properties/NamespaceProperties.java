@@ -20,46 +20,55 @@
 
 package io.temporal.spring.boot.autoconfigure.properties;
 
+import com.google.common.base.MoreObjects;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+
 import org.springframework.boot.context.properties.ConstructorBinding;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
-@ConfigurationProperties(prefix = "spring.temporal")
 @ConstructorBinding
-public class TemporalProperties extends NamespaceProperties {
-  private final @NestedConfigurationProperty @Nonnull ServiceStubProperties serviceStubs;
-  private final @NestedConfigurationProperty @Nullable TestServerProperties testServer;
-  private final @Nullable Boolean startWorkers;
+public class NamespaceProperties {
+  public static final String NAMESPACE_DEFAULT = "default";
 
-  public TemporalProperties(
-      @Nonnull ServiceStubProperties serviceStubs,
+  private final @NestedConfigurationProperty @Nullable WorkersAutoDiscoveryProperties
+      workersAutoDiscovery;
+  private final @NestedConfigurationProperty @Nullable ClientProperties client;
+  private final @Nullable List<WorkerProperties> workers;
+  private final @Nonnull String namespace;
+
+  public NamespaceProperties(
       @Nullable String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable ClientProperties client,
-      @Nullable List<WorkerProperties> workers,
-      @Nullable Boolean startWorkers,
-      @Nullable TestServerProperties testServer) {
-    super(namespace, workersAutoDiscovery, client, workers);
-    this.serviceStubs = serviceStubs;
-    this.testServer = testServer;
-    this.startWorkers = startWorkers;
+      @Nullable List<WorkerProperties> workers) {
+    this.workersAutoDiscovery = workersAutoDiscovery;
+    this.client = client;
+    this.workers = workers;
+    this.namespace = MoreObjects.firstNonNull(namespace, NAMESPACE_DEFAULT);
   }
 
+  @Nullable
+  public WorkersAutoDiscoveryProperties getWorkersAutoDiscovery() {
+    return workersAutoDiscovery;
+  }
+
+  @Nullable
+  public ClientProperties getClient() {
+    return client;
+  }
+
+  @Nullable
+  public List<WorkerProperties> getWorkers() {
+    return workers;
+  }
+
+  /**
+   * @see io.temporal.client.WorkflowClientOptions.Builder#setNamespace(String)
+   */
   @Nonnull
-  public ServiceStubProperties getServiceStubs() {
-    return serviceStubs;
-  }
-
-  @Nullable
-  public TestServerProperties getTestServer() {
-    return testServer;
-  }
-
-  @Nullable
-  public Boolean getStartWorkers() {
-    return startWorkers;
+  public String getNamespace() {
+    return namespace;
   }
 }

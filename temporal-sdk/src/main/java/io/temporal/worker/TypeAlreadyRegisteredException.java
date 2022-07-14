@@ -18,21 +18,28 @@
  * limitations under the License.
  */
 
-package io.temporal.spring.boot.autoconfigure.properties;
+package io.temporal.worker;
 
-import javax.annotation.Nullable;
-import org.springframework.boot.context.properties.ConstructorBinding;
+/**
+ * This exception is thrown when worker has
+ *
+ * <ul>
+ *   <li>an activity instance for the activity type
+ *   <li>a workflow type or factory for the workflow type
+ * </ul>
+ *
+ * already registered.
+ */
+public class TypeAlreadyRegisteredException extends IllegalStateException {
+  private final String registeredTypeName;
 
-@ConstructorBinding
-public class TestServerProperties {
-  private final @Nullable Boolean enabled;
-
-  public TestServerProperties(@Nullable Boolean enabled) {
-    this.enabled = enabled;
+  public TypeAlreadyRegisteredException(String registeredTypeName, String message) {
+    super(message);
+    this.registeredTypeName = registeredTypeName;
   }
 
-  @Nullable
-  public Boolean getEnabled() {
-    return enabled;
+  /** Workflow or Activity type that is already registered */
+  public String getRegisteredTypeName() {
+    return registeredTypeName;
   }
 }

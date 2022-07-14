@@ -9,6 +9,11 @@ dependencies {
     implementation "org.springframework.boot:spring-boot"
     implementation "org.springframework.boot:spring-boot-autoconfigure"
 
+    if (JavaVersion.current().isJava9Compatible()) {
+        //needed for the generated grpc stubs and is not a part of JDK since java 9
+        implementation "javax.annotation:javax.annotation-api:$annotationApiVersion"
+    }
+
     // this dependency is not mandatory for the module to work, but it provides a better IDE experience developing the module
     // it's needed to auto-generate configuration metadata. See for more details:
     // https://docs.spring.io/spring-boot/docs/2.4.0/reference/html/appendix-configuration-metadata.html#configuration-metadata-annotation-processor

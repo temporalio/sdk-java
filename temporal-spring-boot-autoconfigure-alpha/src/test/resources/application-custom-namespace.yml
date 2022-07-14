@@ -19,10 +19,11 @@
 #
 
 spring.temporal:
+  serviceStubs:
+    target: local
+  namespace: custom
   startWorkers: false
   testServer:
     enabled: false
-  client:
-    target: local
-    namespace: custom
+
 

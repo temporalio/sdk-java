@@ -25,6 +25,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,6 +41,7 @@ public class AutoDiscoveryTest {
   @Autowired WorkflowClient workflowClient;
 
   @Test
+  @Timeout(value = 10)
   public void testAutoDiscovery() {
     TestWorkflow testWorkflow =
         workflowClient.newWorkflowStub(

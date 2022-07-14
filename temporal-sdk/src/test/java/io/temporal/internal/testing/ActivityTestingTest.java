@@ -513,7 +513,7 @@ public class ActivityTestingTest {
     EImpl eImpl = new EImpl();
     try {
       testEnvironment.registerActivitiesImplementations(dImpl, eImpl);
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalStateException e) {
       assertTrue(e.getMessage().contains("a"));
       assertTrue(e.getMessage().contains("already registered"));
     }
@@ -526,7 +526,7 @@ public class ActivityTestingTest {
     try {
       testEnvironment.registerActivitiesImplementations(dImpl);
       testEnvironment.registerActivitiesImplementations(eImpl);
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalStateException e) {
       assertTrue(e.getMessage().contains("a"));
       assertTrue(e.getMessage().contains("already registered"));
     }

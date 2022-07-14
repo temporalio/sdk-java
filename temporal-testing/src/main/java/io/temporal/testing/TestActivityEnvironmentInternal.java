@@ -158,16 +158,6 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
   }
 
-  /**
-   * Register activity implementation objects with a worker. Overwrites previously registered
-   * objects. As activities are reentrant and stateless only one instance per activity type is
-   * registered.
-   *
-   * <p>Implementations that share a worker must implement different interfaces as an activity type
-   * is identified by the activity interface, not by the implementation.
-   *
-   * <p>
-   */
   @Override
   public void registerActivitiesImplementations(Object... activityImplementations) {
     activityTaskHandler.registerActivityImplementations(activityImplementations);

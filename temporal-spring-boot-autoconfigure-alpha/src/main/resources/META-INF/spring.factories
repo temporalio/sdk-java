@@ -1,5 +1,4 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 io.temporal.spring.boot.autoconfigure.TestServerAutoConfiguration,\
-io.temporal.spring.boot.autoconfigure.ClientAutoConfiguration,\
-io.temporal.spring.boot.autoconfigure.WorkersAutoConfiguration,\
-io.temporal.spring.boot.autoconfigure.WorkersAutoDiscoveryAutoConfiguration
+io.temporal.spring.boot.autoconfigure.ServiceStubsAutoConfiguration,\
+io.temporal.spring.boot.autoconfigure.RootNamespaceAutoConfiguration

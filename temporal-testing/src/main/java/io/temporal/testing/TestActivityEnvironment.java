@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -69,6 +70,11 @@ public interface TestActivityEnvironment {
   /**
    * Registers activity implementations to test. Use {@link #newActivityStub(Class)} to create stubs
    * that can be used to invoke them.
+   *
+   * <p>Implementations that share a worker must implement different interfaces as an activity type
+   * is identified by the activity interface, not by the implementation.
+   *
+   * @throws TypeAlreadyRegisteredException if one of the activity types is already registered
    */
   void registerActivitiesImplementations(Object... activityImplementations);
 

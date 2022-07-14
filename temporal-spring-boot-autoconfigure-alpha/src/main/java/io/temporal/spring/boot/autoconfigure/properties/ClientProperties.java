@@ -20,40 +20,7 @@
 
 package io.temporal.spring.boot.autoconfigure.properties;
 
-import com.google.common.base.MoreObjects;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.springframework.boot.context.properties.ConstructorBinding;
 
 @ConstructorBinding
-public class ClientProperties {
-  public static final String TARGET_IN_PROCESS_TEST_SERVER = "inprocess";
-
-  public static final String TARGET_LOCAL_SERVICE = "local";
-
-  public static final String NAMESPACE_DEFAULT = "default";
-
-  @Nonnull private final String target;
-  @Nonnull private final String namespace;
-
-  ClientProperties(@Nonnull String target, @Nullable String namespace) {
-    this.target = target;
-    this.namespace = MoreObjects.firstNonNull(namespace, NAMESPACE_DEFAULT);
-  }
-
-  /**
-   * @see io.temporal.serviceclient.WorkflowServiceStubsOptions.Builder#setTarget(String)
-   */
-  @Nonnull
-  public String getTarget() {
-    return target;
-  }
-
-  /**
-   * @see io.temporal.client.WorkflowClientOptions.Builder#setNamespace(String)
-   */
-  @Nonnull
-  public String getNamespace() {
-    return namespace;
-  }
-}
+public class ClientProperties {}
