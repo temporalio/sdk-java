@@ -145,6 +145,7 @@ public class WorkersAutoConfiguration {
                 "Registering configured workflow class {} on a task queue {}", clazz, taskQueue);
             configureWorkflowImplementation(worker, clazz);
           });
+
     }
 
     return worker;
