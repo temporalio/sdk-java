@@ -20,6 +20,8 @@
 
 package io.temporal.workflow.activityTests;
 
+import static org.junit.Assert.assertThrows;
+
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -71,6 +73,7 @@ public class NonSerializableArgumentsInActivityTest {
           Workflow.newUntypedActivityStub(
               ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());
       ActivityStub localActivity =
           Workflow.newUntypedLocalActivityStub(
@@ -78,22 +81,20 @@ public class NonSerializableArgumentsInActivityTest {
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                   .build());
-      try {
-        activity.execute("Execute", Void.class, "boo");
-      } catch (ActivityFailure e) {
-        result.append(e.getCause().getClass().getSimpleName());
-      }
+
+      ActivityFailure activityFailure =
+          assertThrows(ActivityFailure.class, () -> activity.execute("Execute", Void.class, "boo"));
+      result.append(activityFailure.getCause().getClass().getSimpleName());
       result.append("-");
-      try {
-        localActivity.execute("Execute", Void.class, "boo");
-      } catch (ActivityFailure e) {
-        result.append(((ApplicationFailure) e.getCause()).getType());
-      }
+      activityFailure =
+          assertThrows(
+              ActivityFailure.class, () -> localActivity.execute("Execute", Void.class, "boo"));
+      result.append(((ApplicationFailure) activityFailure.getCause()).getType());
       return result.toString();
     }
   }
 
-  public class NonDeserializableExceptionActivityImpl
+  public static class NonDeserializableExceptionActivityImpl
       implements NonDeserializableArgumentsActivity {
 
     @Override
