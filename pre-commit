@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# Copy this script into .git/hooks to reduce amount of commit that will fail in CI with formatting issues
+# Make this script executable by running chmod +x pre-commit
+
+./gradlew spotlessApply

@@ -34,8 +34,12 @@ To generate licence headers execute
 
 ## Code Formatting
 
-Code autoformatting is applied automatically during a full gradle build. Build the project before submitting a PR.
-Code is formatted using `spotless` plugin with `google-java-format` tool.
+Code in this project is formatted using `spotless` gradle plugin with `google-java-format` tool.
+Code autoformatting is applied automatically during a full gradle build.
+Or you can run `./gradlew spotlessApply` manually to check and apply formatting.
+
+You can use template git pre-commit hook in `./pre-commit` that ensures that the code is formatted
+before each commit. See comments in `./pre-commit` for installation info.
 
 ## Commit Messages
 
