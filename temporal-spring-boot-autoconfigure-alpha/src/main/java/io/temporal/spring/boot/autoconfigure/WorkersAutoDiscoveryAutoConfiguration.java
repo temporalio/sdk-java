@@ -20,6 +20,7 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
+import com.google.common.base.Preconditions;
 import io.temporal.spring.boot.ActivityImpl;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
@@ -61,6 +62,9 @@ public class WorkersAutoDiscoveryAutoConfiguration {
 
   @Bean(name = "autoDiscoveredWorkflowImplementations")
   public Collection<Class<?>> autoDiscoveredWorkflowImplementations() {
+    Preconditions.checkState(
+        properties.getWorkersAutoDiscovery() != null,
+        "WorkersAutoDiscoveryAutoConfiguration should be conditional on presence of spring.temporal.workersAutoDiscovery.packages");
     ClassPathScanningCandidateComponentProvider scanner =
         new ClassPathScanningCandidateComponentProvider(false);
     scanner.addIncludeFilter(new AnnotationTypeFilter(WorkflowImpl.class));
@@ -99,12 +103,21 @@ public class WorkersAutoDiscoveryAutoConfiguration {
           AnnotationUtils.findAnnotation(targetClass, ActivityImpl.class);
       if (activityAnnotation != null) {
         for (String taskQueue : activityAnnotation.taskQueues()) {
+          WorkerFactory workerFactory = workerFactoryProvider.getObject();
+          Worker worker = workerFactory.tryGetWorker(taskQueue);
+          if (worker == null) {
+            worker = workerFactory.newWorker(taskQueue);
+            log.info(
+                "Creating auto-discovered worker with default settings for a task queue {} caused by an activity class {}",
+                taskQueue,
+                targetClass);
+          }
+
           log.info(
               "Registering auto-discovered activity bean '{}' of class {} on task queue {}",
               beanName,
               targetClass,
               taskQueue);
-          Worker worker = workerFactoryProvider.getObject().newWorker(taskQueue);
           worker.registerActivitiesImplementations(bean);
         }
       }

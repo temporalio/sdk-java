@@ -178,8 +178,10 @@ public final class WorkerFactory {
   }
 
   /**
-   * Returns a worker created previously through {@link #newWorker(String)} for the given task
-   * queue.
+   * @param taskQueue task queue name to lookup an existing worker for
+   * @return a worker created previously through {@link #newWorker(String)} for the given task
+   *     queue.
+   * @throws IllegalStateException if the worker has not been registered for the given task queue.
    */
   public synchronized Worker getWorker(String taskQueue) {
     Worker result = workers.get(taskQueue);
@@ -187,6 +189,15 @@ public final class WorkerFactory {
       throw new IllegalArgumentException("No worker for taskQueue: " + taskQueue);
     }
     return result;
+  }
+
+  /**
+   * @param taskQueue task queue name to lookup an existing worker for
+   * @return a worker created previously through {@link #newWorker(String)} for the given task queue
+   *     or null.
+   */
+  public synchronized Worker tryGetWorker(String taskQueue) {
+    return workers.get(taskQueue);
   }
 
   /** Starts all the workers created by this factory. */

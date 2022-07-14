@@ -87,17 +87,29 @@ public class WorkersAutoConfiguration {
       @Qualifier("autoDiscoveredWorkflowImplementations") @Autowired(required = false) @Nullable
           Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses) {
     Set<Worker> workers =
-        properties.getWorkers().stream()
-            .map(workerProperties -> newWorker(workerFactory, workerProperties))
-            .collect(Collectors.toSet());
+        properties.getWorkers() != null
+            ? properties.getWorkers().stream()
+                .map(
+                    workerProperties ->
+                        createExplicitWorkerWithProperties(workerFactory, workerProperties))
+                .collect(Collectors.toSet())
+            : new HashSet<>();
 
     if (autoDiscoveredWorkflowImplementationClasses != null) {
       for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
         WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
         for (String taskQueue : annotation.taskQueues()) {
+          Worker worker = workerFactory.tryGetWorker(taskQueue);
+          if (worker == null) {
+            worker = workerFactory.newWorker(taskQueue);
+            log.info(
+                "Creating auto-discovered worker with default settings for a task queue {} caused by a workflow class {}",
+                taskQueue,
+                clazz);
+          }
+
           log.info(
               "Registering auto-discovered workflow class {} on a task queue {}", clazz, taskQueue);
-          Worker worker = workerFactory.newWorker(taskQueue);
           configureWorkflowImplementation(worker, clazz);
           workers.add(worker);
         }
@@ -116,17 +128,21 @@ public class WorkersAutoConfiguration {
     return new WorkerFactoryStarter(workerFactory);
   }
 
-  Worker newWorker(WorkerFactory workerFactory, WorkerProperties workerProperties) {
-    Worker worker = workerFactory.newWorker(workerProperties.getTaskQueue());
-
+  Worker createExplicitWorkerWithProperties(
+      WorkerFactory workerFactory, WorkerProperties workerProperties) {
+    String taskQueue = workerProperties.getTaskQueue();
+    if (workerFactory.tryGetWorker(taskQueue) != null) {
+      throw new BeanDefinitionValidationException(
+          "Worker for the task queue " + taskQueue + " already exists");
+    }
+    log.info("Creating configured worker for a task queue {}", taskQueue);
+    Worker worker = workerFactory.newWorker(taskQueue);
     Collection<Class<?>> workflowClasses = workerProperties.getWorkflowClasses();
     if (workflowClasses != null) {
       workflowClasses.forEach(
           clazz -> {
             log.info(
-                "Registering configured workflow class {} on a task queue {}",
-                clazz,
-                workerProperties.getTaskQueue());
+                "Registering configured workflow class {} on a task queue {}", clazz, taskQueue);
             configureWorkflowImplementation(worker, clazz);
           });
     }
