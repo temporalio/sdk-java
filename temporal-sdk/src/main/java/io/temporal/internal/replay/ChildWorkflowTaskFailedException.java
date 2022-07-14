@@ -28,9 +28,9 @@ import io.temporal.failure.ChildWorkflowFailure;
  * machines in case of child workflow task execution failure and contains an original unparsed
  * Failure message with details from the attributes in the exception.
  *
- * <p>This class is needed to don't make Failure -> Exception conversion inside the state machines.
- * So the state machine forms ChildWorkflowFailure without cause and parse the original Failure, so
- * the outside code may join them together.
+ * <p>This class is needed to don't make Failure -&gt; Exception conversion inside the state
+ * machines. So the state machine forms ChildWorkflowFailure without cause and parse the original
+ * Failure, so the outside code may join them together.
  */
 public class ChildWorkflowTaskFailedException extends RuntimeException {
 

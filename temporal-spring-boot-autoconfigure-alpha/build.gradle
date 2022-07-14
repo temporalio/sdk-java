@@ -1,0 +1,30 @@
+description = '''Spring Boot AutoConfigure for Temporal Java SDK'''
+
+dependencies {
+    api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+
+    api project(':temporal-sdk')
+    compileOnly project(':temporal-testing')
+
+    implementation "org.springframework.boot:spring-boot"
+    implementation "org.springframework.boot:spring-boot-autoconfigure"
+
+    // this dependency is not mandatory for the module to work, but it provides a better IDE experience developing the module
+    // it's needed to auto-generate configuration metadata. See for more details:
+    // https://docs.spring.io/spring-boot/docs/2.4.0/reference/html/appendix-configuration-metadata.html#configuration-metadata-annotation-processor
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor:$springBootVersion"
+
+    testImplementation project(':temporal-testing')
+
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+}
+
+tasks.test {
+    useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
+}

@@ -7,7 +7,7 @@ target
 .gradle
 /build
 /*/build
-/out
+**/out
 /lib
 dummy
 $buildDir

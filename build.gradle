@@ -24,20 +24,23 @@ ext {
     // We have to use specific versions with platforms until Maven 4.0.0 is released
     // See https://github.com/temporalio/sdk-java/issues/1033
     //
-    // grpcVersion = '[1.34.0,)!!1.44.1'
+    // grpcVersion = '[1.34.0,)!!1.47.0'
     // jacksonVersion = '[2.9.0,)!!2.13.1'
-    // micrometerVersion = '[1.0.0,)!!1.8.3'
+    // micrometerVersion = '[1.0.0,)!!1.9.2'
+    // springBootVersion = '[2.4.0,)!!2.7.1'
     grpcVersion = '1.47.0'
     jacksonVersion = '2.13.1'
-    micrometerVersion = '1.9.1'
+    micrometerVersion = '1.9.2'
+    springBootVersion = '2.7.1'
 
+    slf4jVersion = '[1.4.0,)!!1.7.36'
     protoVersion = '[3.10.0,3.99)!!3.20.1'
     annotationApiVersion = '1.3.2'
     guavaVersion = '[10.0,)!!31.1-jre'
-    jsonPathVersion = '2.7.0'
     tallyVersion = '[0.4.0,)!!0.11.1'
+
+    jsonPathVersion = '2.7.0'
     gsonVersion = '[2.0,)!!2.9.0'
-    slf4jVersion = '[1.4.0,)!!1.7.36'
 
     logbackVersion = '1.2.11'
     mockitoVersion = '4.6.1'
