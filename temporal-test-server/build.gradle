@@ -28,7 +28,7 @@ dependencies {
     }
 
     implementation "com.google.guava:guava:$guavaVersion"
-    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.6'
+    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.7'
 
     testImplementation project(':temporal-testing')
     testImplementation "junit:junit:${junitVersion}"
