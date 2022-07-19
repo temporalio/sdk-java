@@ -27,6 +27,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 
 /** Provides a client based on `spring.temporal.testServer` section */
 @Configuration
@@ -36,6 +37,7 @@ import org.springframework.context.annotation.Configuration;
     prefix = "spring.temporal",
     name = "testServer.enabled",
     havingValue = "true")
+@Order(1)
 public class TestServerAutoConfiguration {
   @Bean(name = "temporalTestWorkflowEnvironment", destroyMethod = "close")
   public TestWorkflowEnvironment testServer() {

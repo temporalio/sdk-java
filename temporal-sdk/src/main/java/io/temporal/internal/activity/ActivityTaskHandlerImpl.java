@@ -40,6 +40,7 @@ import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
+import io.temporal.worker.TypeAlreadyRegisteredException;
 import java.lang.reflect.Method;
 import java.util.*;
 import javax.annotation.Nonnull;
@@ -114,7 +115,8 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
     }
     if (activity instanceof DynamicActivity) {
       if (dynamicActivity != null) {
-        throw new IllegalStateException(
+        throw new TypeAlreadyRegisteredException(
+            "DynamicActivity",
             "An implementation of DynamicActivity is already registered with the worker");
       }
       dynamicActivity =
@@ -131,8 +133,8 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
           activityImplMetadata.getActivityMethods()) {
         String typeName = activityMetadata.getActivityTypeName();
         if (activities.containsKey(typeName)) {
-          throw new IllegalArgumentException(
-              "\"" + typeName + "\" activity type is already registered with the worker");
+          throw new TypeAlreadyRegisteredException(
+              typeName, "\"" + typeName + "\" activity type is already registered with the worker");
         }
         Method method = activityMetadata.getMethod();
         ActivityTaskExecutor implementation =

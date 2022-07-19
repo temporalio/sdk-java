@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.temporal.client.WorkflowClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,6 +38,7 @@ public class CustomClientConfigTest {
   @Autowired protected WorkflowClient workflowClient;
 
   @Test
+  @Timeout(value = 10)
   public void shouldCustomizeNamespace() {
     assertEquals("custom", workflowClient.getOptions().getNamespace());
   }

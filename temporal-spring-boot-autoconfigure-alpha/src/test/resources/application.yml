@@ -19,10 +19,10 @@
 #
 
 spring.temporal:
+  serviceStubs:
+    target: local
   testServer:
     enabled: true
-  client:
-    target: inprocess
   workers:
     - taskQueue: UnitTest
 

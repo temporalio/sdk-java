@@ -21,18 +21,18 @@
 package io.temporal.spring.boot.autoconfigure.properties;
 
 import java.util.List;
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.springframework.boot.context.properties.ConstructorBinding;
 
 @ConstructorBinding
 public class WorkersAutoDiscoveryProperties {
-  private final @Nonnull List<String> packages;
+  private final @Nullable List<String> packages;
 
-  public WorkersAutoDiscoveryProperties(@Nonnull List<String> packages) {
+  public WorkersAutoDiscoveryProperties(@Nullable List<String> packages) {
     this.packages = packages;
   }
 
-  @Nonnull
+  @Nullable
   public List<String> getPackages() {
     return packages;
   }

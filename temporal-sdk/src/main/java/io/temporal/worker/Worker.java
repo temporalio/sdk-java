@@ -144,6 +144,8 @@ public final class Worker {
    * <p>Use {@link io.temporal.workflow.DynamicWorkflow} implementation to implement many workflow
    * types dynamically. It can be useful for implementing DSL based workflows. Only a single type
    * that implements DynamicWorkflow can be registered per worker.
+   *
+   * @throws TypeAlreadyRegisteredException if one of the workflow types is already registered
    */
   public void registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
     Preconditions.checkState(
@@ -166,6 +168,8 @@ public final class Worker {
    * <p>Use {@link io.temporal.workflow.DynamicWorkflow} implementation to implement many workflow
    * types dynamically. It can be useful for implementing DSL based workflows. Only a single type
    * that implements DynamicWorkflow can be registered per worker.
+   *
+   * @throws TypeAlreadyRegisteredException if one of the workflow types is already registered
    */
   public void registerWorkflowImplementationTypes(
       WorkflowImplementationOptions options, Class<?>... workflowImplementationClasses) {
@@ -186,7 +190,8 @@ public final class Worker {
    * @param workflowInterface Workflow interface that this factory implements
    * @param factory factory that when called creates a new instance of the workflow implementation
    *     object.
-   * @param <R> type of the workflow object to create.
+   * @param <R> type of the workflow object to create
+   * @throws TypeAlreadyRegisteredException if one of the workflow types is already registered
    */
   public <R> void addWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> workflowInterface, Func<R> factory) {
@@ -212,7 +217,8 @@ public final class Worker {
    * @param workflowInterface Workflow interface that this factory implements
    * @param factory factory that when called creates a new instance of the workflow implementation
    *     object.
-   * @param <R> type of the workflow object to create.
+   * @param <R> type of the workflow object to create
+   * @throws TypeAlreadyRegisteredException if one of the workflow types is already registered
    */
   @VisibleForTesting
   public <R> void addWorkflowImplementationFactory(Class<R> workflowInterface, Func<R> factory) {
@@ -233,6 +239,8 @@ public final class Worker {
    * <p>Use an implementation of {@link io.temporal.activity.DynamicActivity} to register an object
    * that can implement activity types dynamically. A single registration of DynamicActivity
    * implementation per worker is allowed.
+   *
+   * @throws TypeAlreadyRegisteredException if one of the activity types is already registered
    */
   public void registerActivitiesImplementations(Object... activityImplementations) {
     Preconditions.checkState(

@@ -18,15 +18,26 @@
  * limitations under the License.
  */
 
-package io.temporal.spring.boot.autoconfigure;
+package io.temporal.spring.boot.autoconfigure.properties;
 
-import org.springframework.boot.autoconfigure.condition.ConditionMessage;
-import org.springframework.boot.autoconfigure.condition.OnPropertyListCondition;
+import javax.annotation.Nonnull;
+import org.springframework.boot.context.properties.ConstructorBinding;
 
-class WorkersAutoDiscoveryPackagesPresentCondition extends OnPropertyListCondition {
-  public WorkersAutoDiscoveryPackagesPresentCondition() {
-    super(
-        "spring.temporal.workersAutoDiscovery.packages".toLowerCase(),
-        () -> ConditionMessage.forCondition("Present Workers Auto Discovery Packages"));
+@ConstructorBinding
+public class ServiceStubProperties {
+  public static final String TARGET_LOCAL_SERVICE = "local";
+
+  private final @Nonnull String target;
+
+  public ServiceStubProperties(@Nonnull String target) {
+    this.target = target;
+  }
+
+  /**
+   * @see io.temporal.serviceclient.WorkflowServiceStubsOptions.Builder#setTarget(String)
+   */
+  @Nonnull
+  public String getTarget() {
+    return target;
   }
 }
