@@ -20,9 +20,8 @@
 
 package io.temporal.spring.boot.autoconfigure.properties;
 
-import org.springframework.boot.context.properties.ConstructorBinding;
-
 import javax.annotation.Nonnull;
+import org.springframework.boot.context.properties.ConstructorBinding;
 
 @ConstructorBinding
 public class ServiceStubProperties {
