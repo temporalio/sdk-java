@@ -23,6 +23,7 @@ package io.temporal.serviceclient;
 import com.google.common.base.Preconditions;
 import io.grpc.*;
 import io.grpc.health.v1.HealthCheckResponse;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.testservice.InProcessGRPCServer;
 import java.time.Duration;
@@ -163,6 +164,11 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   public HealthCheckResponse healthCheck() {
     // no need to pass timeout, timeout will be assigned by GrpcDeadlineInterceptor
     return channelManager.healthCheck(HEALTH_CHECK_SERVICE_NAME, null);
+  }
+
+  @Override
+  public GetSystemInfoResponse.Capabilities getServerCapabilities() {
+    return channelManager.getServerCapabilities();
   }
 
   @Override

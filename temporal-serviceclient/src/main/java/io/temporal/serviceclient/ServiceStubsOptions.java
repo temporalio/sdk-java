@@ -694,22 +694,22 @@ class ServiceStubsOptions {
     public ServiceStubsOptions validateAndBuildWithDefaults() {
       if (this.target != null && this.channel != null) {
         throw new IllegalStateException(
-            "Only one of the target and channel options can be set at a time");
+            "Only one of the 'target' or 'channel' options can be set at a time");
       }
 
       if (this.channelInitializer != null && this.channel != null) {
         throw new IllegalStateException(
-            "Only one of the channelInitializer and channel options can be set at a time");
+            "Only one of the 'channelInitializer' or 'channel' options can be set at a time");
       }
 
       if (this.sslContext != null && this.channel != null) {
         throw new IllegalStateException(
-            "Only one of the sslContext and channel options can be set at a time");
+            "Only one of the 'sslContext' or 'channel' options can be set at a time");
       }
 
       if (this.enableHttps && this.channel != null) {
         throw new IllegalStateException(
-            "Only one of the enableHttps and channel options can be set at a time");
+            "Only one of the 'enableHttps' or 'channel' options can be set at a time");
       }
 
       String target =

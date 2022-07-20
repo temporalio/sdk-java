@@ -24,6 +24,7 @@ import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.api.testservice.v1.TestServiceGrpc;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -106,5 +107,10 @@ public class TestServiceStubsImpl implements TestServiceStubs {
   @Override
   public HealthCheckResponse healthCheck() {
     return channelManager.healthCheck(HEALTH_CHECK_SERVICE_NAME, null);
+  }
+
+  @Override
+  public GetSystemInfoResponse.Capabilities getServerCapabilities() {
+    return channelManager.getServerCapabilities();
   }
 }
