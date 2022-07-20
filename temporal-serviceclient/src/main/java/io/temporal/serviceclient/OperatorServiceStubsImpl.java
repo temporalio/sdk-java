@@ -24,6 +24,7 @@ import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.api.operatorservice.v1.OperatorServiceGrpc;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -107,5 +108,10 @@ final class OperatorServiceStubsImpl implements OperatorServiceStubs {
   public HealthCheckResponse healthCheck() {
     // no need to pass timeout, timeout will be assigned by GrpcDeadlineInterceptor
     return this.channelManager.healthCheck(HEALTH_CHECK_SERVICE_NAME, null);
+  }
+
+  @Override
+  public GetSystemInfoResponse.Capabilities getServerCapabilities() {
+    return this.channelManager.getServerCapabilities();
   }
 }

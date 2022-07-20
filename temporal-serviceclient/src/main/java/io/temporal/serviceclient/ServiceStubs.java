@@ -23,6 +23,7 @@ package io.temporal.serviceclient;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import io.grpc.health.v1.HealthCheckResponse;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -86,4 +87,6 @@ public interface ServiceStubs<B, F> {
    * @return gRPC Health {@link HealthCheckResponse}
    */
   HealthCheckResponse healthCheck();
+
+  GetSystemInfoResponse.Capabilities getServerCapabilities();
 }

@@ -27,10 +27,12 @@ import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.internal.retryer.GrpcRetryer;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -74,6 +76,9 @@ final class ChannelManager {
   private final ManagedChannel rawChannel;
   private final Channel interceptedChannel;
   private final HealthGrpc.HealthBlockingStub healthBlockingStub;
+
+  private final CompletableFuture<GetSystemInfoResponse.Capabilities> serverCapabilitiesFuture =
+      new CompletableFuture<>();
 
   public ChannelManager(
       ServiceStubsOptions options, List<ClientInterceptor> additionalHeadInterceptors) {
@@ -140,7 +145,9 @@ final class ChannelManager {
     headers.put(CLIENT_NAME_HEADER_KEY, CLIENT_NAME_HEADER_VALUE);
 
     return ClientInterceptors.intercept(
-        channel, MetadataUtils.newAttachHeadersInterceptor(headers));
+        channel,
+        MetadataUtils.newAttachHeadersInterceptor(headers),
+        new SystemInfoInterceptor(serverCapabilitiesFuture));
   }
 
   private Channel applyCustomInterceptors(Channel channel) {
@@ -300,6 +307,15 @@ final class ChannelManager {
       stub = this.healthBlockingStub;
     }
     return stub.check(HealthCheckRequest.newBuilder().setService(healthCheckServiceName).build());
+  }
+
+  public GetSystemInfoResponse.Capabilities getServerCapabilities() {
+    GetSystemInfoResponse.Capabilities capabilities = serverCapabilitiesFuture.getNow(null);
+    if (capabilities == null) {
+      serverCapabilitiesFuture.complete(
+          SystemInfoInterceptor.getServerCapabilitiesOrThrow(interceptedChannel, null));
+    }
+    return capabilities;
   }
 
   public void shutdown() {
