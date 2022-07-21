@@ -40,11 +40,6 @@ public final class GrpcRetryer {
     R apply() throws E;
   }
 
-  public static <T extends Throwable> void retry(RetryableProc<T> r, RpcRetryOptions options)
-      throws T {
-    retry(r, new GrpcRetryerOptions(options, null));
-  }
-
   public static <T extends Throwable> void retry(RetryableProc<T> r, GrpcRetryerOptions options)
       throws T {
     retryWithResult(
@@ -56,19 +51,8 @@ public final class GrpcRetryer {
   }
 
   public static <R, T extends Throwable> R retryWithResult(
-      RetryableFunc<R, T> r, RpcRetryOptions options) throws T {
-    return retryWithResult(r, new GrpcRetryerOptions(options, null));
-  }
-
-  /** */
-  public static <R, T extends Throwable> R retryWithResult(
       RetryableFunc<R, T> r, GrpcRetryerOptions options) throws T {
     return SYNC.retry(r, options);
-  }
-
-  public static <R> CompletableFuture<R> retryWithResultAsync(
-      Supplier<CompletableFuture<R>> function, RpcRetryOptions options) {
-    return ASYNC.retry(function, new GrpcRetryerOptions(options, null));
   }
 
   public static <R> CompletableFuture<R> retryWithResultAsync(

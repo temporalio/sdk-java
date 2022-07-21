@@ -61,6 +61,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final String activityId;
   private final Scope metricsScope;
   private final byte[] taskToken;
+  private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
 
   ManualActivityCompletionClientImpl(
       WorkflowServiceStubs service,
@@ -77,6 +78,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.activityId = null;
     this.metricsScope = metricsScope;
     this.taskToken = taskToken;
+    this.replyGrpcRetryerOptions =
+        new GrpcRetryer.GrpcRetryerOptions(
+            RpcRetryOptions.newBuilder()
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
+            null);
   }
 
   ManualActivityCompletionClientImpl(
@@ -95,6 +101,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.activityId = activityId;
     this.dataConverter = dataConverter;
     this.metricsScope = metricsScope;
+    this.replyGrpcRetryerOptions =
+        new GrpcRetryer.GrpcRetryerOptions(
+            RpcRetryOptions.newBuilder()
+                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
+            null);
   }
 
   @Override
@@ -114,8 +125,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskCompleted(request.build()),
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
+            replyGrpcRetryerOptions);
       } catch (Exception e) {
         processException(e);
       }
@@ -137,8 +147,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskCompletedById(request.build()),
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
+            replyGrpcRetryerOptions);
       } catch (Exception e) {
         processException(e);
       }
@@ -163,8 +172,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskFailed(request),
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
+            replyGrpcRetryerOptions);
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(e);
@@ -192,8 +200,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskFailedById(request),
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
+            replyGrpcRetryerOptions);
       } catch (Exception e) {
         processException(e);
       }
@@ -246,8 +253,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskCanceled(request.build()),
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
+            replyGrpcRetryerOptions);
       } catch (Exception e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.
@@ -271,8 +277,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskCanceledById(request.build()),
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()));
+            replyGrpcRetryerOptions);
       } catch (Exception e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.

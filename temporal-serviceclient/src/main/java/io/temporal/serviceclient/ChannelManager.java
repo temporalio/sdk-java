@@ -278,10 +278,12 @@ final class ChannelManager {
     if (timeout == null) {
       timeout = options.getRpcTimeout();
     }
-    RpcRetryOptions retryOptions =
-        RpcRetryOptions.newBuilder().setExpiration(timeout).validateBuildWithDefaults();
+    GrpcRetryer.GrpcRetryerOptions grpcRetryerOptions =
+        new GrpcRetryer.GrpcRetryerOptions(
+            RpcRetryOptions.newBuilder().setExpiration(timeout).validateBuildWithDefaults(), null);
 
-    GrpcRetryer.retryWithResult(() -> this.healthCheck(healthCheckServiceName, null), retryOptions);
+    GrpcRetryer.retryWithResult(
+        () -> this.healthCheck(healthCheckServiceName, null), grpcRetryerOptions);
   }
 
   /**

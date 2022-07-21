@@ -59,6 +59,8 @@ final class ActivityWorker implements SuspendableWorker {
   private final PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
 
+  private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
+
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
@@ -75,6 +77,9 @@ final class ActivityWorker implements SuspendableWorker {
     this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
         MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.ACTIVITY_WORKER);
+    this.replyGrpcRetryerOptions =
+        new GrpcRetryer.GrpcRetryerOptions(
+            DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
   }
 
   @Override
@@ -285,7 +290,7 @@ final class ActivityWorker implements SuspendableWorker {
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                     .respondActivityTaskCompleted(request),
-            DefaultStubServiceOperationRpcRetryOptions.INSTANCE);
+            replyGrpcRetryerOptions);
       } else {
         Result.TaskFailedResult taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
@@ -302,7 +307,7 @@ final class ActivityWorker implements SuspendableWorker {
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                       .respondActivityTaskFailed(request),
-              DefaultStubServiceOperationRpcRetryOptions.INSTANCE);
+              replyGrpcRetryerOptions);
         } else {
           RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
           if (taskCanceled != null) {
@@ -319,7 +324,7 @@ final class ActivityWorker implements SuspendableWorker {
                         .blockingStub()
                         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                         .respondActivityTaskCanceled(request),
-                DefaultStubServiceOperationRpcRetryOptions.INSTANCE);
+                replyGrpcRetryerOptions);
           }
         }
       }
