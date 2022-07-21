@@ -311,7 +311,9 @@ final class WorkflowWorker
       RpcRetryOptions retryOptions = response.getRequestRetryOptions();
       RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
+        GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
+            new GrpcRetryer.GrpcRetryerOptions(
+                RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
 
         RespondWorkflowTaskCompletedRequest request =
             taskCompleted.toBuilder()
@@ -328,14 +330,16 @@ final class WorkflowWorker
                         .blockingStub()
                         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
                         .respondWorkflowTaskCompleted(request)),
-            retryOptions);
+            grpcRetryOptions);
         if (nextTask.get().hasWorkflowTask()) {
           return Optional.of(nextTask.get().getWorkflowTask());
         }
       } else {
         RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          retryOptions = RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions);
+          GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
+              new GrpcRetryer.GrpcRetryerOptions(
+                  RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
 
           RespondWorkflowTaskFailedRequest request =
               taskFailed.toBuilder()
@@ -349,7 +353,7 @@ final class WorkflowWorker
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
                       .respondWorkflowTaskFailed(request),
-              retryOptions);
+              grpcRetryOptions);
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {

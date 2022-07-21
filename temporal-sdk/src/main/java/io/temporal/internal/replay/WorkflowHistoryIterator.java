@@ -112,6 +112,8 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
             .setInitialInterval(retryServiceOperationInitialInterval)
             .setMaximumInterval(retryServiceOperationMaxInterval)
             .build();
+    GrpcRetryer.GrpcRetryerOptions grpcRetryerOptions =
+        new GrpcRetryer.GrpcRetryerOptions(retryOptions, null);
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
             .setNamespace(namespace)
@@ -125,7 +127,7 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
                   .blockingStub()
                   .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                   .getWorkflowExecutionHistory(request),
-          retryOptions);
+          grpcRetryerOptions);
     } catch (Exception e) {
       throw new Error(e);
     }
