@@ -55,6 +55,7 @@ public class WorkflowHistoryIteratorTest {
     AtomicInteger timesCalledServer = new AtomicInteger(0);
     WorkflowHistoryIterator iterator =
         new WorkflowHistoryIterator(null, "default", workflowTask, Duration.ofSeconds(10), null) {
+          @Override
           GetWorkflowExecutionHistoryResponse queryWorkflowExecutionHistory() {
             timesCalledServer.incrementAndGet();
             try {

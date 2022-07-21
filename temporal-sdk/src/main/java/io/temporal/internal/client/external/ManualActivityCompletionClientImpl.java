@@ -61,6 +61,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final String activityId;
   private final Scope metricsScope;
   private final byte[] taskToken;
+  private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
 
   ManualActivityCompletionClientImpl(
@@ -78,6 +79,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.activityId = null;
     this.metricsScope = metricsScope;
     this.taskToken = taskToken;
+    this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             RpcRetryOptions.newBuilder()
@@ -101,6 +103,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.activityId = activityId;
     this.dataConverter = dataConverter;
     this.metricsScope = metricsScope;
+    this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             RpcRetryOptions.newBuilder()
@@ -119,7 +122,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setTaskToken(ByteString.copyFrom(taskToken));
       payloads.ifPresent(request::setResult);
       try {
-        GrpcRetryer.retry(
+        grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
@@ -141,7 +144,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setRunId(execution.getRunId());
       payloads.ifPresent(request::setResult);
       try {
-        GrpcRetryer.retry(
+        grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
@@ -166,7 +169,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
       try {
-        GrpcRetryer.retry(
+        grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
@@ -194,7 +197,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setActivityId(activityId)
               .build();
       try {
-        GrpcRetryer.retry(
+        grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
@@ -247,7 +250,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setTaskToken(ByteString.copyFrom(taskToken));
       convertedDetails.ifPresent(request::setDetails);
       try {
-        GrpcRetryer.retry(
+        grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
@@ -271,7 +274,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setActivityId(activityId);
       convertedDetails.ifPresent(request::setDetails);
       try {
-        GrpcRetryer.retry(
+        grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()

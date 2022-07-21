@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -282,8 +283,8 @@ final class ChannelManager {
         new GrpcRetryer.GrpcRetryerOptions(
             RpcRetryOptions.newBuilder().setExpiration(timeout).validateBuildWithDefaults(), null);
 
-    GrpcRetryer.retryWithResult(
-        () -> this.healthCheck(healthCheckServiceName, null), grpcRetryerOptions);
+    new GrpcRetryer(getServerCapabilities())
+        .retryWithResult(() -> this.healthCheck(healthCheckServiceName, null), grpcRetryerOptions);
   }
 
   /**
@@ -311,13 +312,15 @@ final class ChannelManager {
     return stub.check(HealthCheckRequest.newBuilder().setService(healthCheckServiceName).build());
   }
 
-  public GetSystemInfoResponse.Capabilities getServerCapabilities() {
-    GetSystemInfoResponse.Capabilities capabilities = serverCapabilitiesFuture.getNow(null);
-    if (capabilities == null) {
-      serverCapabilitiesFuture.complete(
-          SystemInfoInterceptor.getServerCapabilitiesOrThrow(interceptedChannel, null));
-    }
-    return capabilities;
+  public Supplier<GetSystemInfoResponse.Capabilities> getServerCapabilities() {
+    return () -> {
+      GetSystemInfoResponse.Capabilities capabilities = serverCapabilitiesFuture.getNow(null);
+      if (capabilities == null) {
+        serverCapabilitiesFuture.complete(
+            SystemInfoInterceptor.getServerCapabilitiesOrThrow(interceptedChannel, null));
+      }
+      return capabilities;
+    };
   }
 
   public void shutdown() {

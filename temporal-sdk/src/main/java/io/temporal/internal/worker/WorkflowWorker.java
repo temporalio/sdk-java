@@ -64,6 +64,7 @@ final class WorkflowWorker
   private final String stickyTaskQueueName;
   private final PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
+  private final GrpcRetryer grpcRetryer;
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
   private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
@@ -86,6 +87,7 @@ final class WorkflowWorker
         MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.WORKFLOW_WORKER);
     this.cache = Objects.requireNonNull(cache);
     this.handler = Objects.requireNonNull(handler);
+    this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
   }
 
   @Override
@@ -323,7 +325,7 @@ final class WorkflowWorker
                 .setTaskToken(taskToken)
                 .build();
         AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
-        GrpcRetryer.retry(
+        grpcRetryer.retry(
             () ->
                 nextTask.set(
                     service
@@ -347,7 +349,7 @@ final class WorkflowWorker
                   .setNamespace(namespace)
                   .setTaskToken(taskToken)
                   .build();
-          GrpcRetryer.retry(
+          grpcRetryer.retry(
               () ->
                   service
                       .blockingStub()

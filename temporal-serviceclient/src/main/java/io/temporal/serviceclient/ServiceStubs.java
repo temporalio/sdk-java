@@ -26,6 +26,7 @@ import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 public interface ServiceStubs<B, F> {
@@ -88,5 +89,13 @@ public interface ServiceStubs<B, F> {
    */
   HealthCheckResponse healthCheck();
 
-  GetSystemInfoResponse.Capabilities getServerCapabilities();
+  /**
+   * Note: This method is needed mostly for internal SDK purposes only to adjust behavior for
+   * different server versions.
+   *
+   * @return Supplier of Server Capabilities. This method returns a supplier instead of the instance
+   *     to allow for lazy initialization of the capabilities while eager wiring of the components.
+   *     This also leaves the flexibility to implement dynamic reloading in the future.
+   */
+  Supplier<GetSystemInfoResponse.Capabilities> getServerCapabilities();
 }

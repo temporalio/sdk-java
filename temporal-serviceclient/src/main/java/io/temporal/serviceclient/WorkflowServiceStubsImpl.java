@@ -29,6 +29,7 @@ import io.temporal.internal.testservice.InProcessGRPCServer;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,7 +168,7 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   }
 
   @Override
-  public GetSystemInfoResponse.Capabilities getServerCapabilities() {
+  public Supplier<GetSystemInfoResponse.Capabilities> getServerCapabilities() {
     return channelManager.getServerCapabilities();
   }
 

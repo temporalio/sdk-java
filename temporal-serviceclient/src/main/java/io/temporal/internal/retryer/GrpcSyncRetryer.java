@@ -23,6 +23,7 @@ package io.temporal.internal.retryer;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.internal.BackoffThrottler;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.util.concurrent.CancellationException;
@@ -34,7 +35,10 @@ class GrpcSyncRetryer {
   private static final Logger log = LoggerFactory.getLogger(GrpcRetryer.class);
 
   public <R, T extends Throwable> R retry(
-      GrpcRetryer.RetryableFunc<R, T> r, GrpcRetryer.GrpcRetryerOptions options) throws T {
+      GrpcRetryer.RetryableFunc<R, T> r,
+      GrpcRetryer.GrpcRetryerOptions options,
+      GetSystemInfoResponse.Capabilities serverCapabilities)
+      throws T {
     options.validate();
     RpcRetryOptions rpcOptions = options.getOptions();
     @Nullable Deadline deadline = options.getDeadline();
@@ -65,7 +69,7 @@ class GrpcSyncRetryer {
         throw new CancellationException();
       } catch (StatusRuntimeException e) {
         RuntimeException finalException =
-            GrpcRetryerUtils.createFinalExceptionIfNotRetryable(e, rpcOptions);
+            GrpcRetryerUtils.createFinalExceptionIfNotRetryable(e, rpcOptions, serverCapabilities);
         if (finalException != null) {
           log.debug("Final exception, throwing", finalException);
           throw finalException;
