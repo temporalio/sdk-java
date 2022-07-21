@@ -25,6 +25,7 @@ import static org.junit.Assert.*;
 import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.*;
@@ -67,7 +68,8 @@ public class GrpcAsyncRetryerTest {
               () -> {
                 throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null))
+              new GrpcRetryer.GrpcRetryerOptions(options, null),
+              GetSystemInfoResponse.Capabilities.getDefaultInstance())
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -98,7 +100,8 @@ public class GrpcAsyncRetryerTest {
                     new StatusRuntimeException(Status.fromCode(STATUS_CODE)));
                 return result;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null))
+              new GrpcRetryer.GrpcRetryerOptions(options, null),
+              GetSystemInfoResponse.Capabilities.getDefaultInstance())
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -128,7 +131,8 @@ public class GrpcAsyncRetryerTest {
                     new StatusRuntimeException(Status.fromCode(STATUS_CODE)));
                 return result;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null))
+              new GrpcRetryer.GrpcRetryerOptions(options, null),
+              GetSystemInfoResponse.Capabilities.getDefaultInstance())
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -156,7 +160,8 @@ public class GrpcAsyncRetryerTest {
                 result.completeExceptionally(new InterruptedException("simulated"));
                 return result;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null))
+              new GrpcRetryer.GrpcRetryerOptions(options, null),
+              GetSystemInfoResponse.Capabilities.getDefaultInstance())
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -183,7 +188,8 @@ public class GrpcAsyncRetryerTest {
                 result.completeExceptionally(new IllegalArgumentException("simulated"));
                 return result;
               },
-              new GrpcRetryer.GrpcRetryerOptions(options, null))
+              new GrpcRetryer.GrpcRetryerOptions(options, null),
+              GetSystemInfoResponse.Capabilities.getDefaultInstance())
           .get();
       fail("unreachable");
     } catch (ExecutionException e) {
@@ -221,7 +227,8 @@ public class GrpcAsyncRetryerTest {
                                   Status.fromCode(Status.Code.DEADLINE_EXCEEDED)));
                           return future;
                         },
-                        new GrpcRetryer.GrpcRetryerOptions(options, null))
+                        new GrpcRetryer.GrpcRetryerOptions(options, null),
+                        GetSystemInfoResponse.Capabilities.getDefaultInstance())
                     .get();
               } catch (ExecutionException ex) {
                 throw ex.getCause();
@@ -270,7 +277,8 @@ public class GrpcAsyncRetryerTest {
                                               Status.fromCode(Status.Code.DATA_LOSS)));
                                       return future;
                                     },
-                                    new GrpcRetryer.GrpcRetryerOptions(options, null))
+                                    new GrpcRetryer.GrpcRetryerOptions(options, null),
+                                    GetSystemInfoResponse.Capabilities.getDefaultInstance())
                                 .get();
                           } catch (ExecutionException e) {
                             throw e.getCause();
@@ -316,7 +324,8 @@ public class GrpcAsyncRetryerTest {
                                             Status.fromCode(Status.Code.DATA_LOSS));
                                       }
                                     },
-                                    new GrpcRetryer.GrpcRetryerOptions(options, null))
+                                    new GrpcRetryer.GrpcRetryerOptions(options, null),
+                                    GetSystemInfoResponse.Capabilities.getDefaultInstance())
                                 .get();
                           } catch (ExecutionException e) {
                             throw e.getCause();

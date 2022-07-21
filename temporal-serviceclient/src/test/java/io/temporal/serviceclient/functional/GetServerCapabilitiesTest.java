@@ -34,7 +34,7 @@ public class GetServerCapabilitiesTest {
   @Test
   public void trivial() {
     GetSystemInfoResponse.Capabilities capabilities =
-        testWorkflowRule.getWorkflowServiceStubs().getServerCapabilities();
+        testWorkflowRule.getWorkflowServiceStubs().getServerCapabilities().get();
     assertNotNull(capabilities);
   }
 }

@@ -22,6 +22,7 @@ package io.temporal.internal.retryer;
 
 import com.google.common.base.Preconditions;
 import io.grpc.Deadline;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -32,6 +33,8 @@ public final class GrpcRetryer {
   private static final GrpcSyncRetryer SYNC = new GrpcSyncRetryer();
   private static final GrpcAsyncRetryer ASYNC = new GrpcAsyncRetryer();
 
+  private final Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities;
+
   public interface RetryableProc<E extends Throwable> {
     void apply() throws E;
   }
@@ -40,8 +43,11 @@ public final class GrpcRetryer {
     R apply() throws E;
   }
 
-  public static <T extends Throwable> void retry(RetryableProc<T> r, GrpcRetryerOptions options)
-      throws T {
+  public GrpcRetryer(Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
+    this.serverCapabilities = serverCapabilities;
+  }
+
+  public <T extends Throwable> void retry(RetryableProc<T> r, GrpcRetryerOptions options) throws T {
     retryWithResult(
         () -> {
           r.apply();
@@ -50,18 +56,15 @@ public final class GrpcRetryer {
         options);
   }
 
-  public static <R, T extends Throwable> R retryWithResult(
+  public <R, T extends Throwable> R retryWithResult(
       RetryableFunc<R, T> r, GrpcRetryerOptions options) throws T {
-    return SYNC.retry(r, options);
+    return SYNC.retry(r, options, serverCapabilities.get());
   }
 
-  public static <R> CompletableFuture<R> retryWithResultAsync(
+  public <R> CompletableFuture<R> retryWithResultAsync(
       Supplier<CompletableFuture<R>> function, GrpcRetryerOptions options) {
-    return ASYNC.retry(function, options);
+    return ASYNC.retry(function, options, serverCapabilities.get());
   }
-
-  /** Prohibits instantiation. */
-  private GrpcRetryer() {}
 
   public static class GrpcRetryerOptions {
     @Nonnull private final RpcRetryOptions options;

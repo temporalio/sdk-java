@@ -23,6 +23,7 @@ package io.temporal.internal.retryer;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.internal.AsyncBackoffThrottler;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.util.concurrent.CompletableFuture;
@@ -36,7 +37,9 @@ class GrpcAsyncRetryer {
   private static final Logger log = LoggerFactory.getLogger(GrpcRetryer.class);
 
   public <R> CompletableFuture<R> retry(
-      Supplier<CompletableFuture<R>> function, GrpcRetryer.GrpcRetryerOptions options) {
+      Supplier<CompletableFuture<R>> function,
+      GrpcRetryer.GrpcRetryerOptions options,
+      GetSystemInfoResponse.Capabilities serverCapabilities) {
     options.validate();
     RpcRetryOptions rpcOptions = options.getOptions();
     @Nullable Deadline deadline = options.getDeadline();
@@ -51,12 +54,21 @@ class GrpcAsyncRetryer {
 
     int attempt = 1;
     CompletableFuture<R> resultCF = new CompletableFuture<>();
-    retry(options, function, attempt, retriesExpirationDeadline, throttler, null, resultCF);
+    retry(
+        options,
+        serverCapabilities,
+        function,
+        attempt,
+        retriesExpirationDeadline,
+        throttler,
+        null,
+        resultCF);
     return resultCF;
   }
 
   private <R> void retry(
       GrpcRetryer.GrpcRetryerOptions options,
+      GetSystemInfoResponse.Capabilities serverCapabilities,
       Supplier<CompletableFuture<R>> function,
       int attempt,
       @Nullable Deadline retriesExpirationDeadline,
@@ -85,6 +97,7 @@ class GrpcAsyncRetryer {
                 // Do not retry if it's not StatusRuntimeException
                 failOrRetry(
                     options,
+                    serverCapabilities,
                     function,
                     attempt,
                     retriesExpirationDeadline,
@@ -108,6 +121,7 @@ class GrpcAsyncRetryer {
                       throttler.failure();
                       failOrRetry(
                           options,
+                          serverCapabilities,
                           function,
                           attempt,
                           retriesExpirationDeadline,
@@ -122,6 +136,7 @@ class GrpcAsyncRetryer {
 
   private <R> void failOrRetry(
       GrpcRetryer.GrpcRetryerOptions options,
+      GetSystemInfoResponse.Capabilities serverCapabilities,
       Supplier<CompletableFuture<R>> function,
       int attempt,
       @Nullable Deadline retriesExpirationDeadline,
@@ -146,7 +161,7 @@ class GrpcAsyncRetryer {
 
     RuntimeException finalException =
         GrpcRetryerUtils.createFinalExceptionIfNotRetryable(
-            statusRuntimeException, options.getOptions());
+            statusRuntimeException, options.getOptions(), serverCapabilities);
     if (finalException != null) {
       log.debug("Final exception, throwing", finalException);
       resultCF.completeExceptionally(finalException);
@@ -165,6 +180,7 @@ class GrpcAsyncRetryer {
     } else {
       retry(
           options,
+          serverCapabilities,
           function,
           attempt + 1,
           retriesExpirationDeadline,

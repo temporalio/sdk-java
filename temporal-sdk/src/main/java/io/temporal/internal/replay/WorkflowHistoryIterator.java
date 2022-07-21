@@ -49,6 +49,7 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
   private final String namespace;
   private final Scope metricsScope;
   private final PollWorkflowTaskQueueResponseOrBuilder task;
+  private final GrpcRetryer grpcRetryer;
   private Iterator<HistoryEvent> current;
   ByteString nextPageToken;
 
@@ -63,6 +64,10 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
     this.task = task;
     this.workflowTaskTimeout = Objects.requireNonNull(workflowTaskTimeout);
     this.metricsScope = metricsScope;
+    // TODO Refactor WorkflowHistoryIteratorTest or WorkflowHistoryIterator to remove this check.
+    //  `service == null` shouldn't be allowed as it's needed for a normal functioning of this
+    // class.
+    this.grpcRetryer = service != null ? new GrpcRetryer(service.getServerCapabilities()) : null;
     History history = task.getHistory();
     current = history.getEventsList().iterator();
     nextPageToken = task.getNextPageToken();
@@ -121,7 +126,7 @@ class WorkflowHistoryIterator implements Iterator<HistoryEvent> {
             .setNextPageToken(nextPageToken)
             .build();
     try {
-      return GrpcRetryer.retryWithResult(
+      return grpcRetryer.retryWithResult(
           () ->
               service
                   .blockingStub()

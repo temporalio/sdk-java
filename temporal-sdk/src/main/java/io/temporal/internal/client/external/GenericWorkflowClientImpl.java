@@ -42,6 +42,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
+  private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions grpcRetryerOptions;
 
   public GenericWorkflowClientImpl(WorkflowServiceStubs service, Scope metricsScope) {
@@ -50,6 +51,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
     RpcRetryOptions rpcRetryOptions =
         RpcRetryOptions.newBuilder()
             .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions());
+    this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.grpcRetryerOptions = new GrpcRetryer.GrpcRetryerOptions(rpcRetryOptions, null);
   }
 
@@ -63,7 +65,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
     Scope scope = metricsScope.tagged(tags);
     StartWorkflowExecutionResponse result;
     result =
-        GrpcRetryer.retryWithResult(
+        grpcRetryer.retryWithResult(
             () ->
                 service
                     .blockingStub()
@@ -84,7 +86,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
             .put(MetricsTag.SIGNAL_NAME, request.getSignalName())
             .build();
     Scope scope = metricsScope.tagged(tags);
-    GrpcRetryer.retry(
+    grpcRetryer.retry(
         () ->
             service
                 .blockingStub()
@@ -105,7 +107,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
     SignalWithStartWorkflowExecutionResponse result;
     result =
-        GrpcRetryer.retryWithResult(
+        grpcRetryer.retryWithResult(
             () ->
                 service
                     .blockingStub()
@@ -120,7 +122,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   @Override
   public void requestCancel(RequestCancelWorkflowExecutionRequest request) {
-    GrpcRetryer.retry(
+    grpcRetryer.retry(
         () ->
             service
                 .blockingStub()
@@ -131,7 +133,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   @Override
   public void terminate(TerminateWorkflowExecutionRequest request) {
-    GrpcRetryer.retry(
+    grpcRetryer.retry(
         () ->
             service
                 .blockingStub()
@@ -143,7 +145,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public GetWorkflowExecutionHistoryResponse longPollHistory(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
-    return GrpcRetryer.retryWithResult(
+    return grpcRetryer.retryWithResult(
         () ->
             service
                 .blockingStub()
@@ -157,7 +159,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   @Override
   public CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
-    return GrpcRetryer.retryWithResultAsync(
+    return grpcRetryer.retryWithResultAsync(
         () -> {
           CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
           ListenableFuture<GetWorkflowExecutionHistoryResponse> resultFuture =
@@ -192,7 +194,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
             .build();
     Scope scope = metricsScope.tagged(tags);
 
-    return GrpcRetryer.retryWithResult(
+    return grpcRetryer.retryWithResult(
         () ->
             service
                 .blockingStub()

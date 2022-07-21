@@ -58,7 +58,7 @@ final class ActivityWorker implements SuspendableWorker {
   private final double taskQueueActivitiesPerSecond;
   private final PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
-
+  private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
 
   public ActivityWorker(
@@ -77,6 +77,7 @@ final class ActivityWorker implements SuspendableWorker {
     this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
         MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.ACTIVITY_WORKER);
+    this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
@@ -284,7 +285,7 @@ final class ActivityWorker implements SuspendableWorker {
                 .setNamespace(namespace)
                 .build();
 
-        GrpcRetryer.retry(
+        grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
@@ -301,7 +302,7 @@ final class ActivityWorker implements SuspendableWorker {
                   .setNamespace(namespace)
                   .build();
 
-          GrpcRetryer.retry(
+          grpcRetryer.retry(
               () ->
                   service
                       .blockingStub()
@@ -318,7 +319,7 @@ final class ActivityWorker implements SuspendableWorker {
                     .setNamespace(namespace)
                     .build();
 
-            GrpcRetryer.retry(
+            grpcRetryer.retry(
                 () ->
                     service
                         .blockingStub()

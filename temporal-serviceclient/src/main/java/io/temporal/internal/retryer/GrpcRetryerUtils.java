@@ -25,6 +25,7 @@ import static io.grpc.Status.Code.DEADLINE_EXCEEDED;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.StatusUtils;
 import java.time.Duration;
@@ -40,11 +41,14 @@ class GrpcRetryerUtils {
    *
    * @param currentException exception to analyze
    * @param options retry options
+   * @param serverCapabilities server capabilities defining the retry behavior
    * @return null if the {@code exception} can be retried, a final exception to throw in the
    *     external code otherwise.
    */
   static @Nullable RuntimeException createFinalExceptionIfNotRetryable(
-      @Nonnull StatusRuntimeException currentException, @Nonnull RpcRetryOptions options) {
+      @Nonnull StatusRuntimeException currentException,
+      @Nonnull RpcRetryOptions options,
+      GetSystemInfoResponse.Capabilities serverCapabilities) {
     Status.Code code = currentException.getStatus().getCode();
 
     switch (code) {
@@ -62,6 +66,12 @@ class GrpcRetryerUtils {
       case UNIMPLEMENTED:
         // never retry these codes
         return currentException;
+      case INTERNAL:
+        // false and unset is the same for this flag, no need for has* check
+        if (serverCapabilities.getInternalErrorDifferentiation()) {
+          return currentException;
+        }
+        break;
       case DEADLINE_EXCEEDED:
         // By default, we keep retrying with DEADLINE_EXCEEDED assuming that it's the deadline of
         // one attempt which expired, but not the whole sequence.

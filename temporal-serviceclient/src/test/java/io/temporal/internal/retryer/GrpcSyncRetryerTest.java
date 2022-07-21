@@ -25,6 +25,7 @@ import static org.junit.Assert.*;
 import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
@@ -69,7 +70,8 @@ public class GrpcSyncRetryerTest {
           () -> {
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
           },
-          new GrpcRetryer.GrpcRetryerOptions(options, null));
+          new GrpcRetryer.GrpcRetryerOptions(options, null),
+          GetSystemInfoResponse.Capabilities.getDefaultInstance());
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof StatusRuntimeException);
@@ -95,7 +97,8 @@ public class GrpcSyncRetryerTest {
           () -> {
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
           },
-          new GrpcRetryer.GrpcRetryerOptions(options, null));
+          new GrpcRetryer.GrpcRetryerOptions(options, null),
+          GetSystemInfoResponse.Capabilities.getDefaultInstance());
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof StatusRuntimeException);
@@ -119,7 +122,8 @@ public class GrpcSyncRetryerTest {
           () -> {
             throw new InterruptedException();
           },
-          new GrpcRetryer.GrpcRetryerOptions(options, null));
+          new GrpcRetryer.GrpcRetryerOptions(options, null),
+          GetSystemInfoResponse.Capabilities.getDefaultInstance());
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof CancellationException);
@@ -141,7 +145,8 @@ public class GrpcSyncRetryerTest {
           () -> {
             throw new IllegalArgumentException("simulated");
           },
-          new GrpcRetryer.GrpcRetryerOptions(options, null));
+          new GrpcRetryer.GrpcRetryerOptions(options, null),
+          GetSystemInfoResponse.Capabilities.getDefaultInstance());
       fail("unreachable");
     } catch (Exception e) {
       assertTrue(e instanceof IllegalArgumentException);
@@ -173,7 +178,8 @@ public class GrpcSyncRetryerTest {
                       throw new StatusRuntimeException(
                           Status.fromCode(Status.Code.DEADLINE_EXCEEDED));
                     },
-                    new GrpcRetryer.GrpcRetryerOptions(options, null)));
+                    new GrpcRetryer.GrpcRetryerOptions(options, null),
+                    GetSystemInfoResponse.Capabilities.getDefaultInstance()));
 
     assertEquals(Status.Code.DEADLINE_EXCEEDED, e.getStatus().getCode());
     assertTrue(
@@ -211,7 +217,8 @@ public class GrpcSyncRetryerTest {
                                   throw new StatusRuntimeException(
                                       Status.fromCode(Status.Code.DATA_LOSS));
                                 },
-                                new GrpcRetryer.GrpcRetryerOptions(options, null)))));
+                                new GrpcRetryer.GrpcRetryerOptions(options, null),
+                                GetSystemInfoResponse.Capabilities.getDefaultInstance()))));
 
     assertEquals(Status.Code.DATA_LOSS, exception.get().getStatus().getCode());
     assertTrue(
@@ -250,7 +257,8 @@ public class GrpcSyncRetryerTest {
                                         Status.fromCode(Status.Code.DATA_LOSS));
                                   }
                                 },
-                                new GrpcRetryer.GrpcRetryerOptions(options, null)))));
+                                new GrpcRetryer.GrpcRetryerOptions(options, null),
+                                GetSystemInfoResponse.Capabilities.getDefaultInstance()))));
 
     assertEquals(
         "We should get a previous exception in case of DEADLINE_EXCEEDED",

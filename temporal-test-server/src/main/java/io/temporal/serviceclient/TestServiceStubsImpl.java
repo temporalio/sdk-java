@@ -28,6 +28,7 @@ import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +111,7 @@ public class TestServiceStubsImpl implements TestServiceStubs {
   }
 
   @Override
-  public GetSystemInfoResponse.Capabilities getServerCapabilities() {
+  public Supplier<GetSystemInfoResponse.Capabilities> getServerCapabilities() {
     return channelManager.getServerCapabilities();
   }
 }
