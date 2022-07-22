@@ -21,7 +21,7 @@
 package io.temporal.worker.shutdown;
 
 import io.temporal.client.WorkflowClient;
-import io.temporal.testUtils.Signal;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Workflow;

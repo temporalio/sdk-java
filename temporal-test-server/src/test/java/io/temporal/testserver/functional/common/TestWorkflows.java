@@ -29,4 +29,10 @@ public class TestWorkflows {
     @WorkflowMethod
     void execute();
   }
+
+  @WorkflowInterface
+  public interface PrimitiveChildWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
 }

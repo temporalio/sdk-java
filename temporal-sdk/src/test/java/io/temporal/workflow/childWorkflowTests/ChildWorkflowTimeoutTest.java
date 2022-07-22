@@ -20,9 +20,12 @@
 
 package io.temporal.workflow.childWorkflowTests;
 
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Throwables;
+import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
@@ -61,12 +64,12 @@ public class ChildWorkflowTimeoutTest {
 
     @Override
     public String execute(String taskQueue) {
-      try {
-        child.execute("Hello ", (int) Duration.ofDays(1).toMillis());
-      } catch (Exception e) {
-        return Throwables.getStackTraceAsString(e);
-      }
-      throw new RuntimeException("not reachable");
+      ChildWorkflowFailure failure =
+          assertThrows(
+              ChildWorkflowFailure.class,
+              () -> child.execute("Hello ", (int) Duration.ofDays(1).toMillis()));
+      assertTrue(failure.getCause() instanceof TimeoutFailure);
+      return Throwables.getStackTraceAsString(failure);
     }
   }
 }

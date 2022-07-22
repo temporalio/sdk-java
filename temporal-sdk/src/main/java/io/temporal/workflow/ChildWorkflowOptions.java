@@ -30,6 +30,8 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
 import java.util.List;
@@ -152,9 +154,26 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * The time after which workflow run is automatically terminated by the Temporal service. Do not
-     * rely on the run timeout for business level timeouts. It is preferred to use in workflow
-     * timers for this purpose.
+     * The time after which child workflow run is automatically terminated by Temporal service with
+     * CHILD_WORKFLOW_EXECUTION_TIMED_OUT status. <br>
+     * Parent workflow receives {@link ChildWorkflowFailure} exception with {@link TimeoutFailure}
+     * cause from the child's {@link Promise} if this happens.
+     *
+     * <p>When a workflow reaches Workflow Run Timeout, it can't make any progress after that. Do
+     * not rely on this timeout in workflow implementation or business logic. This timeout is not
+     * designed to be handled in workflow code to perform any logic in case of timeout. Consider
+     * using workflow timers instead.
+     *
+     * <p>If you catch yourself setting this timeout to very small values, you're likely using it
+     * wrong.
+     *
+     * <p>Example: If Workflow Run Timeout is 30 seconds and the network was unavailable for 1
+     * minute, workflows that were scheduled before the network blip will never have a chance to
+     * make progress or react, and will be terminated. <br>
+     * A timer that is scheduled in the workflow code using {@link Workflow#newTimer(Duration)} will
+     * handle this situation gracefully. A workflow with such a timer will start after the network
+     * blip. If it started before the network blip and the timer fires during the network blip, it
+     * will get delivered after connectivity is restored and the workflow will be able to resume.
      */
     public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
       this.workflowRunTimeout = workflowRunTimeout;
@@ -162,9 +181,27 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * The maximum time that parent workflow is willing to wait for a child execution (which
-     * includes retries and continue as new calls). If exceeded the child is automatically
-     * terminated by the Temporal service.
+     * The time after which child workflow execution (which includes run retries and continue as
+     * new) is automatically terminated by Temporal service with WORKFLOW_EXECUTION_TIMED_OUT
+     * status. <br>
+     * Parent workflow receives {@link ChildWorkflowFailure} exception with {@link TimeoutFailure}
+     * cause from the child's {@link Promise} if this happens.
+     *
+     * <p>When a workflow reaches Workflow Execution Timeout, it can't make any progress after that.
+     * Do not rely on this timeout in workflow implementation or business logic. This timeout is not
+     * designed to be handled in workflow code to perform any logic in case of timeout. Consider
+     * using workflow timers instead.
+     *
+     * <p>If you catch yourself setting this timeout to very small values, you're likely using it
+     * wrong.
+     *
+     * <p>Example: If Workflow Execution Timeout is 30 seconds and the network was unavailable for 1
+     * minute, workflows that were scheduled before the network blip will never have a chance to
+     * make progress or react, and will be terminated. <br>
+     * A timer that is scheduled in the workflow code using {@link Workflow#newTimer(Duration)} will
+     * handle this situation gracefully. A workflow with such a timer will start after the network
+     * blip. If it started before the network blip and the timer fires during the network blip, it
+     * will get delivered after connectivity is restored and the workflow will be able to resume.
      */
     public Builder setWorkflowExecutionTimeout(Duration workflowExecutionTimeout) {
       this.workflowExecutionTimeout = workflowExecutionTimeout;

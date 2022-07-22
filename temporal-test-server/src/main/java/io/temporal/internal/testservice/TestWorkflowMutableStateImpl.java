@@ -944,16 +944,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ab.setTaskQueue(startRequest.getTaskQueue());
     }
 
-    // Inherit workflow timeout from parent workflow execution if not provided on workflow task
-    if (Durations.compare(a.getWorkflowExecutionTimeout(), Durations.ZERO) <= 0) {
-      ab.setWorkflowExecutionTimeout(startRequest.getWorkflowExecutionTimeout());
-    }
-
-    // Inherit workflow timeout from parent workflow execution if not provided on workflow task
-    if (Durations.compare(a.getWorkflowRunTimeout(), Durations.ZERO) <= 0) {
-      ab.setWorkflowRunTimeout(startRequest.getWorkflowRunTimeout());
-    }
-
     // Inherit workflow task timeout from parent workflow execution if not provided on workflow task
     if (Durations.compare(a.getWorkflowTaskTimeout(), Durations.ZERO) <= 0) {
       ab.setWorkflowTaskTimeout(startRequest.getWorkflowTaskTimeout());
