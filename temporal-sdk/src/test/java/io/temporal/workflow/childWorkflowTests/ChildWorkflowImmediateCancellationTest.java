@@ -24,7 +24,7 @@ import static org.junit.Assert.*;
 
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.testUtils.Signal;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;

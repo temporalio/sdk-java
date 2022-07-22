@@ -139,7 +139,11 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                     } catch (Throwable e) {
                       log.error("Unexpected failure in timer callback", e);
                     } finally {
-                      lockHandle.unlock();
+                      try {
+                        lockHandle.unlock();
+                      } catch (Throwable e) {
+                        log.error("Failed to unlock the timer", e);
+                      }
                     }
                   });
             }
@@ -463,7 +467,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
         } else {
           lockCount--;
         }
-        String indent = new String(new char[lockCount * 2]).replace("\0", " ");
+        String indent = new String(new char[Math.max(lockCount * 2, 0)]).replace("\0", " ");
         result
             .append(new Timestamp(event.timestamp))
             .append("\t")

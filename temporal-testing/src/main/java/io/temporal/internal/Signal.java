@@ -18,8 +18,10 @@
  * limitations under the License.
  */
 
-package io.temporal.testUtils;
+package io.temporal.internal;
 
+import java.time.Duration;
+import java.time.temporal.TemporalUnit;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -53,14 +55,49 @@ public class Signal {
   /**
    * Wait up to timeout for the signal
    *
-   * @param timeout timeout in milliseconds - this will be honoured unless wait wakes up spuriously
+   * @param timeout timeout
+   * @param timeUnit unit for timeout
    * @return true if signaled, false if returned by timeout
    * @throws InterruptedException on interruption of awaiting thread
    */
   public boolean waitForSignal(long timeout, TimeUnit timeUnit) throws InterruptedException {
+    return waitForSignal(timeUnit.toMillis(timeout));
+  }
+
+  /**
+   * Wait up to timeout for the signal
+   *
+   * @param timeout timeout
+   * @param timeUnit unit for timeout
+   * @return true if signaled, false if returned by timeout
+   * @throws InterruptedException on interruption of awaiting thread
+   */
+  public boolean waitForSignal(long timeout, TemporalUnit timeUnit) throws InterruptedException {
+    return waitForSignal(Duration.of(timeout, timeUnit).toMillis());
+  }
+
+  /**
+   * Wait up to timeout for the signal
+   *
+   * @param timeout timeout
+   * @return true if signaled, false if returned by timeout
+   * @throws InterruptedException on interruption of awaiting thread
+   */
+  public boolean waitForSignal(Duration timeout) throws InterruptedException {
+    return waitForSignal(timeout.toMillis());
+  }
+
+  /**
+   * Wait up to timeout for the signal
+   *
+   * @param timeoutMs timeout in milliseconds
+   * @return true if signaled, false if returned by timeout
+   * @throws InterruptedException on interruption of awaiting thread
+   */
+  public boolean waitForSignal(long timeoutMs) throws InterruptedException {
     if (!isSignalled()) {
       synchronized (this) {
-        wait(timeUnit.toMillis(timeout));
+        wait(timeoutMs);
       }
     }
     return isSignalled();

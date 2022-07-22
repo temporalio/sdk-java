@@ -26,7 +26,7 @@ import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.testUtils.Signal;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;

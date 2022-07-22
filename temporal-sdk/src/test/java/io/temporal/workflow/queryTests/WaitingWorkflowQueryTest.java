@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.testUtils.Signal;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows;

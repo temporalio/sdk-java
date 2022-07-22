@@ -28,7 +28,7 @@ import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.JacksonJsonPayloadConverter;
-import io.temporal.testUtils.Signal;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactory;
