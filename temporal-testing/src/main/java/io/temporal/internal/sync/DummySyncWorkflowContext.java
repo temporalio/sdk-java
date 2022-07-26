@@ -31,7 +31,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
@@ -45,7 +45,11 @@ public class DummySyncWorkflowContext {
   public static SyncWorkflowContext newDummySyncWorkflowContext() {
     SyncWorkflowContext context =
         new SyncWorkflowContext(
-            new DummyReplayWorkflowContext(), DataConverter.getDefaultInstance(), null, null, null);
+            new DummyReplayWorkflowContext(),
+            DefaultDataConverter.STANDARD_INSTANCE,
+            null,
+            null,
+            null);
     context.initHeadOutboundCallsInterceptor(context);
     context.initHeadInboundCallsInterceptor(
         new BaseRootWorkflowInboundCallsInterceptor(context) {

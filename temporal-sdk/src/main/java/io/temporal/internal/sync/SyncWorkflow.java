@@ -181,7 +181,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
       // stack trace query result should be readable for UI even if user specifies a custom data
       // converter
-      return DefaultDataConverter.STANDARD_DATA_CONVERTER.toPayloads(runner.stackTrace());
+      return DefaultDataConverter.STANDARD_INSTANCE.toPayloads(runner.stackTrace());
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();

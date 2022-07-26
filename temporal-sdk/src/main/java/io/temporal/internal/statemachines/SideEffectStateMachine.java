@@ -50,7 +50,6 @@ final class SideEffectStateMachine
     MARKER_COMMAND_RECORDED,
   }
 
-  private static final String MARKER_HEADER_KEY = "header";
   static final String MARKER_DATA_KEY = "data";
   static final String SIDE_EFFECT_MARKER_NAME = "SideEffect";
 

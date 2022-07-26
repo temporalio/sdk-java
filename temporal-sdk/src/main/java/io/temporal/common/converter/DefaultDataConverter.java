@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * DataConverter that delegates conversion to type specific PayloadConverter instance.
@@ -44,7 +43,7 @@ public class DefaultDataConverter implements DataConverter {
   // Order is important as the first converter that can convert the payload is used. Needs to match
   // the other SDKs. Go SDK:
   // https://github.com/temporalio/sdk-go/blob/5e5645f0c550dcf717c095ae32c76a7087d2e985/converter/default_data_converter.go#L28
-  private static final PayloadConverter[] DEFAULT_PAYLOAD_CONVERTERS = {
+  private static final PayloadConverter[] STANDARD_PAYLOAD_CONVERTERS = {
     new NullPayloadConverter(),
     new ByteArrayPayloadConverter(),
     new ProtobufJsonPayloadConverter(),
@@ -52,29 +51,31 @@ public class DefaultDataConverter implements DataConverter {
     new JacksonJsonPayloadConverter()
   };
 
-  public static final DataConverter STANDARD_DATA_CONVERTER = newDefaultInstance();
-
-  private static final AtomicReference<DataConverter> defaultDataConverterInstance =
-      new AtomicReference<>(STANDARD_DATA_CONVERTER);
+  /**
+   * Default data converter that is used for all objects if not overridden by {@link
+   * io.temporal.client.WorkflowClientOptions.Builder#setDataConverter(DataConverter)} or {@link
+   * GlobalDataConverter#register(DataConverter)} (less preferred).
+   *
+   * <p>This data converter is also always used to perform serialization of values essential for
+   * functionality of Temporal SDK, Server, tctl or WebUI:
+   *
+   * <ul>
+   *   <li>Local Activity, Version, MutableSideEffect Markers metadata like id, time, name
+   *   <li>Search attribute values
+   *   <li>Stacktrace query return value
+   * </ul>
+   */
+  public static final DataConverter STANDARD_INSTANCE = newDefaultInstance();
 
   private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
 
   private final List<PayloadConverter> converters = new ArrayList<>();
 
-  static DataConverter getDefaultInstance() {
-    return defaultDataConverterInstance.get();
-  }
-
   /**
-   * Override the global data converter default.
-   *
-   * <p>Consider using {@link
-   * io.temporal.client.WorkflowClientOptions.Builder#setDataConverter(DataConverter)} to set data
-   * converter per client / worker instance to avoid conflicts if your setup requires different
-   * converters for different clients / workers.
+   * @deprecated use {@link GlobalDataConverter#register(DataConverter)}
    */
   public static void setDefaultDataConverter(DataConverter converter) {
-    defaultDataConverterInstance.set(converter);
+    GlobalDataConverter.register(converter);
   }
 
   /**
@@ -82,7 +83,7 @@ public class DefaultDataConverter implements DataConverter {
    * payload converters.
    */
   public static DefaultDataConverter newDefaultInstance() {
-    return new DefaultDataConverter(DEFAULT_PAYLOAD_CONVERTERS);
+    return new DefaultDataConverter(STANDARD_PAYLOAD_CONVERTERS);
   }
 
   /**

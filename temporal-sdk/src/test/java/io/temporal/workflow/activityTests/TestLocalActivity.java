@@ -29,7 +29,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
@@ -85,18 +85,17 @@ public class TestLocalActivity {
         testWorkflowRule.getHistoryEvents(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
     for (HistoryEvent marker : markers) {
       String activityType =
-          DataConverter.getDefaultInstance()
-              .fromPayloads(
-                  0,
-                  Optional.of(
-                      marker.getMarkerRecordedEventAttributes().getDetailsMap().get("type")),
-                  String.class,
-                  String.class);
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(
+              0,
+              Optional.of(marker.getMarkerRecordedEventAttributes().getDetailsMap().get("type")),
+              String.class,
+              String.class);
       if (activityType.equals("Activity2")) {
         Optional<Payloads> input =
             Optional.of(marker.getMarkerRecordedEventAttributes().getDetailsMap().get("input"));
         String arg0 =
-            DataConverter.getDefaultInstance().fromPayloads(0, input, String.class, String.class);
+            DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(
+                0, input, String.class, String.class);
         assertEquals("test", arg0);
       }
     }
@@ -129,13 +128,11 @@ public class TestLocalActivity {
         testWorkflowRule.getHistoryEvents(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
     for (HistoryEvent marker : markers) {
       String activityType =
-          DataConverter.getDefaultInstance()
-              .fromPayloads(
-                  0,
-                  Optional.of(
-                      marker.getMarkerRecordedEventAttributes().getDetailsMap().get("type")),
-                  String.class,
-                  String.class);
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(
+              0,
+              Optional.of(marker.getMarkerRecordedEventAttributes().getDetailsMap().get("type")),
+              String.class,
+              String.class);
       if (activityType.equals("Activity2")) {
         assertFalse(marker.getMarkerRecordedEventAttributes().getDetailsMap().containsKey("input"));
       }

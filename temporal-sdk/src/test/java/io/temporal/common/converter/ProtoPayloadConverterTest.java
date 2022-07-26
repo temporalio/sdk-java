@@ -40,7 +40,7 @@ public class ProtoPayloadConverterTest {
 
   @Test
   public void testProtoJson() {
-    DataConverter converter = DataConverter.getDefaultInstance();
+    DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
             .setWorkflowId(UUID.randomUUID().toString())
@@ -86,7 +86,7 @@ public class ProtoPayloadConverterTest {
 
   @Test
   public void testProtoMessageType() {
-    DataConverter converter = DataConverter.getDefaultInstance();
+    DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
             .setWorkflowId(UUID.randomUUID().toString())

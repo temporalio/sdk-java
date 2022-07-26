@@ -24,12 +24,11 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import java.util.Optional;
 
 public class MarkerUtils {
   public static final String VERSION_MARKER_NAME = "Version";
-  public static final DataConverter DATA_CONVERTER = DataConverter.getDefaultInstance();
 
   /**
    * @param event {@code HistoryEvent} to inspect
@@ -45,15 +44,19 @@ public class MarkerUtils {
   }
 
   /**
-   * @param markerAttributes
-   * @param key
-   * @param simpleValueType
-   * @param <T>
-   * @return
+   * This method should be used to extract values from the marker persisted by the SDK itself. These
+   * values are converted using standard data converter to be always accessible by the SDK.
+   *
+   * @param markerAttributes marker attributes to extract the value frm
+   * @param key key of the value in {@code markerAttributes} details map
+   * @param simpleValueType class of a non-generic value to extract
+   * @param <T> type of the value to extract
+   * @return the value deserialized using standard data converter
    */
   public static <T> T getValueFromMarker(
       MarkerRecordedEventAttributes markerAttributes, String key, Class<T> simpleValueType) {
     Optional<Payloads> payloads = Optional.ofNullable(markerAttributes.getDetailsMap().get(key));
-    return DATA_CONVERTER.fromPayloads(0, payloads, simpleValueType, simpleValueType);
+    return StdConverterBackwardsCompatAdapter.fromPayloads(
+        0, payloads, simpleValueType, simpleValueType);
   }
 }

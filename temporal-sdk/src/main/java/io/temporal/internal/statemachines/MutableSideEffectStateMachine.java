@@ -28,7 +28,8 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import io.temporal.workflow.Functions;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,13 +38,11 @@ import java.util.Optional;
 
 final class MutableSideEffectStateMachine {
 
-  private static final String MARKER_HEADER_KEY = "header";
   static final String MARKER_DATA_KEY = "data";
   static final String MARKER_SKIP_COUNT_KEY = "skipCount";
   static final String MARKER_ID_KEY = "id";
   static final String MUTABLE_SIDE_EFFECT_MARKER_NAME = "MutableSideEffect";
 
-  private final DataConverter dataConverter = DataConverter.getDefaultInstance();
   private final String id;
   private final Functions.Func<Boolean> replaying;
   private final Functions.Proc1<CancellableCommand> commandSink;
@@ -162,7 +161,9 @@ final class MutableSideEffectStateMachine {
       }
       Map<String, Payloads> detailsMap = event.getMarkerRecordedEventAttributes().getDetailsMap();
       Optional<Payloads> idPayloads = Optional.ofNullable(detailsMap.get(MARKER_ID_KEY));
-      String expectedId = dataConverter.fromPayloads(0, idPayloads, String.class, String.class);
+      String expectedId =
+          StdConverterBackwardsCompatAdapter.fromPayloads(
+              0, idPayloads, String.class, String.class);
       if (Strings.isNullOrEmpty(expectedId)) {
         throw new IllegalStateException(
             "Marker details map missing required key: " + MARKER_ID_KEY);
@@ -182,11 +183,12 @@ final class MutableSideEffectStateMachine {
         return State.SKIPPED;
       } else {
         result = updated;
-        DataConverter dataConverter = DataConverter.getDefaultInstance();
         Map<String, Payloads> details = new HashMap<>();
-        details.put(MARKER_ID_KEY, dataConverter.toPayloads(id).get());
+        details.put(MARKER_ID_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(id).get());
         details.put(MARKER_DATA_KEY, updated.get());
-        details.put(MARKER_SKIP_COUNT_KEY, dataConverter.toPayloads(currentSkipCount).get());
+        details.put(
+            MARKER_SKIP_COUNT_KEY,
+            DefaultDataConverter.STANDARD_INSTANCE.toPayloads(currentSkipCount).get());
         RecordMarkerCommandAttributes markerAttributes =
             RecordMarkerCommandAttributes.newBuilder()
                 .setMarkerName(MUTABLE_SIDE_EFFECT_MARKER_NAME)
@@ -228,12 +230,14 @@ final class MutableSideEffectStateMachine {
             "Marker details detailsMap missing required key: " + MARKER_SKIP_COUNT_KEY);
       }
       Optional<Payloads> oid = Optional.ofNullable(detailsMap.get(MARKER_ID_KEY));
-      String idFromMarker = dataConverter.fromPayloads(0, oid, String.class, String.class);
+      String idFromMarker =
+          StdConverterBackwardsCompatAdapter.fromPayloads(0, oid, String.class, String.class);
       if (!id.equals(idFromMarker)) {
         throw new IllegalArgumentException("Ids doesnt match: " + id + "<>" + idFromMarker);
       }
       skipCountFromMarker =
-          dataConverter.fromPayloads(0, skipCountPayloads, Integer.class, Integer.class);
+          StdConverterBackwardsCompatAdapter.fromPayloads(
+              0, skipCountPayloads, Integer.class, Integer.class);
       if (++currentSkipCount < skipCountFromMarker) {
         skipCountFromMarker = Integer.MAX_VALUE;
         return State.SKIPPED_NOTIFIED;

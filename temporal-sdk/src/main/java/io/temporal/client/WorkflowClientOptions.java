@@ -23,6 +23,7 @@ package io.temporal.client;
 import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
@@ -163,7 +164,7 @@ public final class WorkflowClientOptions {
       String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
       return new WorkflowClientOptions(
           namespace == null ? DEFAULT_NAMESPACE : namespace,
-          dataConverter == null ? DataConverter.getDefaultInstance() : dataConverter,
+          dataConverter == null ? GlobalDataConverter.get() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           name,
           binaryChecksum == null ? DEFAULT_BINARY_CHECKSUM : binaryChecksum,

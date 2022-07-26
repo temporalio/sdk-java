@@ -38,6 +38,7 @@ import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import java.util.ArrayList;
@@ -48,7 +49,7 @@ import org.junit.Test;
 
 public class LocalActivityStateMachineTest {
 
-  private final DataConverter converter = DataConverter.getDefaultInstance();
+  private final DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
   private WorkflowStateMachines stateMachines;
 
   private static final List<

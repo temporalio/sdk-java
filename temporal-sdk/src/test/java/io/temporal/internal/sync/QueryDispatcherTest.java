@@ -26,7 +26,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import java.lang.reflect.Type;
@@ -45,7 +45,7 @@ public class QueryDispatcherTest {
 
   private QueryDispatcher initializeDispatcher(String... queries) {
     // Initialize the dispatcher.
-    dispatcher = new QueryDispatcher(DataConverter.getDefaultInstance());
+    dispatcher = new QueryDispatcher(DefaultDataConverter.STANDARD_INSTANCE);
     for (String query : queries) {
       WorkflowOutboundCallsInterceptor.RegisterQueryInput request =
           new WorkflowOutboundCallsInterceptor.RegisterQueryInput(

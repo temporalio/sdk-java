@@ -25,7 +25,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import java.util.HashMap;
@@ -41,7 +41,7 @@ public class SyncWorkflowContextTest {
   public void setUp() {
     this.context =
         new SyncWorkflowContext(
-            mockReplayWorkflowContext, DataConverter.getDefaultInstance(), null, null, null);
+            mockReplayWorkflowContext, DefaultDataConverter.STANDARD_INSTANCE, null, null, null);
   }
 
   @Test

@@ -610,6 +610,8 @@ public final class WorkflowInternal {
   public static Optional<Exception> getPreviousRunFailure() {
     return getRootWorkflowContext()
         .getPreviousRunFailure()
-        .map(f -> FailureConverter.failureToException(f, DataConverter.getDefaultInstance()));
+        // Temporal Failure Values are additional user payload and serialized using user data
+        // converter
+        .map(f -> FailureConverter.failureToException(f, getDataConverter()));
   }
 }
