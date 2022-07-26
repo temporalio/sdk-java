@@ -30,11 +30,11 @@ import java.util.Optional;
  * functionality. See comments on {@link DefaultDataConverter#STANDARD_INSTANCE}
  *
  * <p>Unfortunately, bad code hygiene and overload of the word "default" with several meanings in
- * DefaultDataConverter led to a situation where a user-defined converter may be used to
- * serialize these internal fields instead. This problem is solved now and all SDK internal fields
- * are serialized using Standard data converter. But users may already have workflows created by
- * older SDKs and overridden "default" (in meaning "global") converter containing payloads in
- * internal fields that must be deserialized using the user-defined converter.
+ * DefaultDataConverter led to a situation where a user-defined converter may be used to serialize
+ * these internal fields instead. This problem is solved now and all SDK internal fields are
+ * serialized using Standard data converter. But users may already have workflows created by older
+ * SDKs and overridden "default" (in meaning "global") converter containing payloads in internal
+ * fields that must be deserialized using the user-defined converter.
  *
  * <p>This class provides a compatibility layer for deserialization of such internal fields by first
  * using {@link DefaultDataConverter#STANDARD_INSTANCE} and falling back to {@link

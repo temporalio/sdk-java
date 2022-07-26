@@ -56,8 +56,9 @@ public class DefaultDataConverter implements DataConverter {
    * io.temporal.client.WorkflowClientOptions.Builder#setDataConverter(DataConverter)} or {@link
    * GlobalDataConverter#register(DataConverter)} (less preferred).
    *
-   * <p>This data converter is also always used (regardless of whether or not users have supplied their own converter) to perform serialization of values essential for
-   * functionality of Temporal SDK, Server, tctl or WebUI:
+   * <p>This data converter is also always used (regardless of whether or not users have supplied
+   * their own converter) to perform serialization of values essential for functionality of Temporal
+   * SDK, Server, tctl or WebUI:
    *
    * <ul>
    *   <li>Local Activity, Version, MutableSideEffect Markers metadata like id, time, name
