@@ -35,10 +35,20 @@ import java.util.Optional;
  */
 public interface DataConverter {
 
+  /**
+   * @deprecated use {@link GlobalDataConverter#get()}
+   */
+  @Deprecated
   static DataConverter getDefaultInstance() {
-    return DefaultDataConverter.getDefaultInstance();
+    return GlobalDataConverter.get();
   }
 
+  /**
+   * @param value
+   * @return a {@link Payload} which is a protobuf message containing byte-array serialized
+   *     representation of {@code value}
+   * @param <T>
+   */
   <T> Optional<Payload> toPayload(T value);
 
   <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType);

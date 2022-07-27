@@ -29,7 +29,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
@@ -93,7 +93,8 @@ public class LocalActivityAndQueryTest {
         testWorkflowRule.getHistoryEvent(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
     Optional<Payloads> input =
         Optional.of(marker.getMarkerRecordedEventAttributes().getDetailsMap().get("input"));
-    long arg0 = DataConverter.getDefaultInstance().fromPayloads(0, input, Long.class, Long.class);
+    long arg0 =
+        DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(0, input, Long.class, Long.class);
     assertEquals(1000, arg0);
   }
 

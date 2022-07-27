@@ -72,7 +72,7 @@ public class EncodedValuesTest {
     list.add(new Pair(10, "foo"));
     list.add(new Pair(12, "bar"));
     EncodedValues v = new EncodedValues(list);
-    DataConverter converter = DefaultDataConverter.getDefaultInstance();
+    DataConverter converter = GlobalDataConverter.get();
     v.setDataConverter(converter);
     Optional<Payloads> payloads = v.toPayloads();
     Values v2 = new EncodedValues(payloads, converter);

@@ -27,7 +27,7 @@ import java.util.UUID
 
 class DataConverterExtTest {
 
-  private val dataConverter = DataConverter.getDefaultInstance()
+  private val dataConverter = DefaultDataConverter.STANDARD_INSTANCE
 
   @Test
   fun `fromPayload method should resolve generic parameters`() {

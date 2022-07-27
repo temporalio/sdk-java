@@ -35,7 +35,7 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.Signal;
 import io.temporal.internal.replay.*;
@@ -670,7 +670,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool::submit,
             new SyncWorkflowContext(
-                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null, null),
+                replayWorkflowContext, DefaultDataConverter.STANDARD_INSTANCE, null, null, null),
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -696,7 +696,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool::submit,
             new SyncWorkflowContext(
-                replayWorkflowContext, DataConverter.getDefaultInstance(), null, null, null),
+                replayWorkflowContext, DefaultDataConverter.STANDARD_INSTANCE, null, null, null),
             () -> {
               Promise<Void> thread =
                   Async.procedure(

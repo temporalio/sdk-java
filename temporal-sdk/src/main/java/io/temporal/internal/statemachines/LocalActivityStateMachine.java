@@ -34,7 +34,8 @@ import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -58,8 +59,6 @@ final class LocalActivityStateMachine
   static final String MARKER_TIME_KEY = "time";
   // Deprecated in favor of result. Still present for backwards compatibility.
   static final String MARKER_DATA_KEY = "data";
-
-  private final DataConverter dataConverter = DataConverter.getDefaultInstance();
 
   private final Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink;
   private final Functions.Proc2<Optional<Payloads>, Failure> callback;
@@ -253,16 +252,17 @@ final class LocalActivityStateMachine
     Map<String, Payloads> details = new HashMap<>();
     if (!replaying.apply()) {
       markerAttributes.setMarkerName(LOCAL_ACTIVITY_MARKER_NAME);
-      Payloads id = dataConverter.toPayloads(activityId).get();
+      Payloads id = DefaultDataConverter.STANDARD_INSTANCE.toPayloads(activityId).get();
       details.put(MARKER_ACTIVITY_ID_KEY, id);
-      Payloads type = dataConverter.toPayloads(activityType.getName()).get();
+      Payloads type =
+          DefaultDataConverter.STANDARD_INSTANCE.toPayloads(activityType.getName()).get();
       details.put(MARKER_ACTIVITY_TYPE_KEY, type);
 
       long elapsedNanoseconds = System.nanoTime() - systemNanoTimeWhenStarted;
       long currentTime =
           setCurrentTimeCallback.apply(
               workflowTimeMillisWhenStarted + TimeUnit.NANOSECONDS.toMillis(elapsedNanoseconds));
-      Payloads t = dataConverter.toPayloads(currentTime).get();
+      Payloads t = DefaultDataConverter.STANDARD_INSTANCE.toPayloads(currentTime).get();
       details.put(MARKER_TIME_KEY, t);
 
       if (localActivityParameters != null
@@ -329,7 +329,8 @@ final class LocalActivityStateMachine
     }
     Map<String, Payloads> map = attributes.getDetailsMap();
     Optional<Payloads> timePayloads = Optional.ofNullable(map.get(MARKER_TIME_KEY));
-    long time = dataConverter.fromPayloads(0, timePayloads, Long.class, Long.class);
+    long time =
+        StdConverterBackwardsCompatAdapter.fromPayloads(0, timePayloads, Long.class, Long.class);
     setCurrentTimeCallback.apply(time);
     if (attributes.hasFailure()) {
       callback.apply(null, attributes.getFailure());

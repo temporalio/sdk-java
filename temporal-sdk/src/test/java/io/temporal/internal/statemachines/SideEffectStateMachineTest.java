@@ -35,6 +35,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +44,7 @@ import org.junit.Test;
 
 public class SideEffectStateMachineTest {
 
-  private final DataConverter converter = DataConverter.getDefaultInstance();
+  private final DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
   private WorkflowStateMachines stateMachines;
 
   private static final List<

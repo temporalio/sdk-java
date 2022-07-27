@@ -43,6 +43,7 @@ import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
@@ -53,7 +54,7 @@ import org.junit.Test;
 
 public class ActivityStateMachineTest {
 
-  private final DataConverter converter = DataConverter.getDefaultInstance();
+  private final DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
   private static final List<
           StateMachine<
               ActivityStateMachine.State, ActivityStateMachine.ExplicitEvent, ActivityStateMachine>>

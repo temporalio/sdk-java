@@ -21,13 +21,12 @@ allprojects {
 
 ext {
     // Platforms
-    grpcVersion = '1.47.0' // [1.34.0,)
+    grpcVersion = '1.48.0' // [1.34.0,)
     jacksonVersion = '2.13.1' // [2.9.0,)
     micrometerVersion = '1.9.2' // [1.0.0,)
-    springBootVersion = '2.7.1'// [2.4.0,)
 
     slf4jVersion = '1.7.36' // [1.4.0,)
-    protoVersion = '3.20.1' // [3.10.0,)
+    protoVersion = '3.21.3' // [3.10.0,)
     annotationApiVersion = '1.3.2'
     guavaVersion = '31.1-jre' // [10.0,)
     tallyVersion = '0.11.1' // [0.4.0,)

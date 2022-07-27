@@ -25,9 +25,9 @@ import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.common.converter.DefaultDataConverter;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import javax.annotation.Nullable;
 
 public class VersionMarkerUtils {
@@ -44,10 +44,7 @@ public class VersionMarkerUtils {
     if (!hasVersionMarkerStructure(event)) {
       return null;
     }
-    Map<String, Payloads> detailsMap = event.getMarkerRecordedEventAttributes().getDetailsMap();
-    Optional<Payloads> oid = Optional.ofNullable(detailsMap.get(MARKER_CHANGE_ID_KEY));
-    String changeId = MarkerUtils.DATA_CONVERTER.fromPayloads(0, oid, String.class, String.class);
-    return changeId;
+    return getChangeId(event.getMarkerRecordedEventAttributes());
   }
 
   /**
@@ -72,8 +69,10 @@ public class VersionMarkerUtils {
       String changeId, Integer version) {
     Preconditions.checkNotNull(version, "version");
     Map<String, Payloads> details = new HashMap<>();
-    details.put(MARKER_CHANGE_ID_KEY, MarkerUtils.DATA_CONVERTER.toPayloads(changeId).get());
-    details.put(MARKER_VERSION_KEY, MarkerUtils.DATA_CONVERTER.toPayloads(version).get());
+    details.put(
+        MARKER_CHANGE_ID_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(changeId).get());
+    details.put(
+        MARKER_VERSION_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(version).get());
     return RecordMarkerCommandAttributes.newBuilder()
         .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
         .putAllDetails(details)

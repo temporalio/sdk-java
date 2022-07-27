@@ -31,7 +31,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactory;
@@ -79,8 +79,8 @@ public class CleanWorkerShutdownHeartBeatingActivityTest {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
-            DataConverter.getDefaultInstance()
-                .fromPayloads(0, Optional.of(ar), String.class, String.class);
+            DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(
+                0, Optional.of(ar), String.class, String.class);
         assertEquals(EXPECTED_RESULT, r);
       }
     }

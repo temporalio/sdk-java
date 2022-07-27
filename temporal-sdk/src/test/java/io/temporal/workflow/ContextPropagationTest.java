@@ -29,7 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.testing.WorkflowTestingTest;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -276,7 +276,7 @@ public class ContextPropagationTest {
       String testKey = (String) context;
       if (testKey != null) {
         return Collections.singletonMap(
-            "test", DataConverter.getDefaultInstance().toPayload(testKey).get());
+            "test", DefaultDataConverter.STANDARD_INSTANCE.toPayload(testKey).get());
       } else {
         return Collections.emptyMap();
       }
@@ -285,8 +285,8 @@ public class ContextPropagationTest {
     @Override
     public Object deserializeContext(Map<String, Payload> context) {
       if (context.containsKey("test")) {
-        return DataConverter.getDefaultInstance()
-            .fromPayload(context.get("test"), String.class, String.class);
+        return DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+            context.get("test"), String.class, String.class);
 
       } else {
         return null;

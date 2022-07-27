@@ -66,6 +66,12 @@ public class FailureConverter {
 
   private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
 
+  /**
+   * @param failure TemporalFailure proto to deserialize into an exception
+   * @param dataConverter to be used to convert {@code Failure#failure_info#details} if present
+   *     which contain additional user supplied details.
+   * @return deserialized exception
+   */
   public static RuntimeException failureToException(Failure failure, DataConverter dataConverter) {
     if (failure == null) {
       return null;

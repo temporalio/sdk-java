@@ -25,7 +25,8 @@ import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.temporal.api.common.v1.Payload;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import io.temporal.common.interceptors.Header;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.OpenTracingSpanContextCodec;
@@ -55,7 +56,8 @@ public class ContextAccessor {
 
   public void writeSpanContextToHeader(SpanContext spanContext, Header header, Tracer tracer) {
     Map<String, String> serializedSpanContext = codec.encode(spanContext, tracer);
-    Optional<Payload> payload = DataConverter.getDefaultInstance().toPayload(serializedSpanContext);
+    Optional<Payload> payload =
+        DefaultDataConverter.STANDARD_INSTANCE.toPayload(serializedSpanContext);
     header.getValues().put(TRACER_HEADER_KEY, payload.get());
   }
 
@@ -66,8 +68,8 @@ public class ContextAccessor {
     }
     @SuppressWarnings("unchecked")
     Map<String, String> serializedSpanContext =
-        DataConverter.getDefaultInstance()
-            .fromPayload(payload, HashMap.class, HASH_MAP_STRING_STRING_TYPE);
+        StdConverterBackwardsCompatAdapter.fromPayload(
+            payload, HashMap.class, HASH_MAP_STRING_STRING_TYPE);
     return codec.decode(serializedSpanContext, tracer);
   }
 }

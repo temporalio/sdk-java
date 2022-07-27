@@ -34,6 +34,7 @@ import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.api.history.v1.TimerStartedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
@@ -45,7 +46,7 @@ import org.junit.Test;
 
 public class TimerStateMachineTest {
 
-  private final DataConverter converter = DataConverter.getDefaultInstance();
+  private final DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
   private WorkflowStateMachines stateMachines;
 
   private static final List<

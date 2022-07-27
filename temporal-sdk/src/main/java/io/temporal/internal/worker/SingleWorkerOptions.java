@@ -24,6 +24,7 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import java.time.Duration;
 import java.util.List;
@@ -143,7 +144,7 @@ public final class SingleWorkerOptions {
 
       DataConverter dataConverter = this.dataConverter;
       if (dataConverter == null) {
-        dataConverter = DataConverter.getDefaultInstance();
+        dataConverter = GlobalDataConverter.get();
       }
 
       Scope metricsScope = this.metricsScope;

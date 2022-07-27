@@ -69,7 +69,7 @@ final class SearchAttributePayloadConverter {
       return (Payload) instance;
     }
 
-    Payload payload = DefaultDataConverter.STANDARD_DATA_CONVERTER.toPayload(instance).get();
+    Payload payload = DefaultDataConverter.STANDARD_INSTANCE.toPayload(instance).get();
 
     IndexedValueType type = extractIndexValueTypeName(instance);
 
@@ -133,10 +133,10 @@ final class SearchAttributePayloadConverter {
     try {
       // single-value search attribute
       return Collections.singletonList(
-          DefaultDataConverter.STANDARD_DATA_CONVERTER.fromPayload(payload, type, type));
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(payload, type, type));
     } catch (Exception e) {
       try {
-        return DefaultDataConverter.STANDARD_DATA_CONVERTER.fromPayload(
+        return DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
             payload, List.class, createListType(type));
       } catch (Exception ex) {
         throw new IllegalArgumentException(
@@ -152,7 +152,7 @@ final class SearchAttributePayloadConverter {
   private boolean isUnset(@Nonnull Payload payload) {
     try {
       List<?> o =
-          DefaultDataConverter.STANDARD_DATA_CONVERTER.fromPayload(payload, List.class, List.class);
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(payload, List.class, List.class);
       if (o.size() == 0) {
         // this is an "unset" token, we don't need a type for it
         return true;

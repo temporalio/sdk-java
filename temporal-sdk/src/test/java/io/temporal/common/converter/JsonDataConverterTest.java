@@ -35,7 +35,7 @@ import org.junit.Test;
 
 public class JsonDataConverterTest {
 
-  private final DataConverter converter = DataConverter.getDefaultInstance();
+  private final DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
 
   public static void foo(List<UUID> arg) {}
 
