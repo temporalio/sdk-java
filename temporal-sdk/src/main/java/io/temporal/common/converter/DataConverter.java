@@ -45,7 +45,7 @@ public interface DataConverter {
 
   /**
    * @param value
-   * @return a {@link Payload} that is a byte-array serialized representation of {@code value}
+   * @return a {@link Payload} which is a protobuf message containing byte-array serialized representation of {@code value}
    * @param <T>
    */
   <T> Optional<Payload> toPayload(T value);
