@@ -33,10 +33,7 @@ import io.temporal.workflow.shared.TestActivities.TestActivityImpl;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Map;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
 public class ActivityOptionsTest {
@@ -49,6 +46,11 @@ public class ActivityOptionsTest {
   @Before
   public void setUp() {
     testEnv = TestActivityEnvironment.newInstance();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    testEnv.close();
   }
 
   @MethodRetry(

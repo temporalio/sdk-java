@@ -74,11 +74,10 @@ import org.slf4j.LoggerFactory;
 public final class TestActivityEnvironmentInternal implements TestActivityEnvironment {
   private static final Logger log = LoggerFactory.getLogger(TestActivityEnvironmentInternal.class);
 
-  private static final ScheduledExecutorService heartbeatExecutor =
-      Executors.newScheduledThreadPool(20);
-  private static final ExecutorService activityWorkerExecutor =
+  private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(20);
+  private final ExecutorService activityWorkerExecutor =
       Executors.newSingleThreadExecutor(r -> new Thread(r, "test-service-activity-worker"));
-  private static final ExecutorService deterministicRunnerExecutor =
+  private final ExecutorService deterministicRunnerExecutor =
       new ThreadPoolExecutor(
           1,
           1000,

@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,6 +54,11 @@ public class ActivityTestingTest {
   @Before
   public void setUp() {
     testEnvironment = TestActivityEnvironment.newInstance();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    testEnvironment.close();
   }
 
   @ActivityInterface

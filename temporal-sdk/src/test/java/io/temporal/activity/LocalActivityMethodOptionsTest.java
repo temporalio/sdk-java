@@ -27,10 +27,7 @@ import io.temporal.workflow.shared.TestActivities.TestLocalActivityImpl;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.Timeout;
 
 public class LocalActivityMethodOptionsTest {
@@ -67,6 +64,11 @@ public class LocalActivityMethodOptionsTest {
   @Before
   public void setUp() {
     testEnv = TestActivityEnvironment.newInstance();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    testEnv.close();
   }
 
   @Test
