@@ -1,4 +1,4 @@
-# Temporal [OpenTracing](https://opentracing.io/) support module
+# Temporal [OpenTracing](https://opentracing.io/) module
 
 This module provides a set of Interceptors that adds support for OpenTracing Span Context propagation to Temporal.
 

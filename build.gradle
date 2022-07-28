@@ -21,7 +21,7 @@ allprojects {
 
 ext {
     // Platforms
-    grpcVersion = '1.48.0' // [1.34.0,)
+    grpcVersion = '1.48.1' // [1.34.0,)
     jacksonVersion = '2.13.1' // [2.9.0,)
     micrometerVersion = '1.9.2' // [1.0.0,)
 
@@ -31,7 +31,7 @@ ext {
     guavaVersion = '31.1-jre' // [10.0,)
     tallyVersion = '0.11.1' // [0.4.0,)
 
-    gsonVersion = '2.9.0' // [2.0,)
+    gsonVersion = '2.9.1' // [2.0,)
 
     jsonPathVersion = '2.7.0' // compileOnly
 

@@ -120,24 +120,27 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   @Override
-  public <T> Optional<Payload> toPayload(T value) {
+  public <T> Optional<Payload> toPayload(T value) throws DataConverterException {
     for (PayloadConverter converter : converters) {
       Optional<Payload> result = converter.toData(value);
       if (result.isPresent()) {
         return result;
       }
     }
-    throw new IllegalArgumentException("Failure serializing " + value);
+    throw new DataConverterException(
+        "No PayloadConverter is registered with this DataConverter that accepts value:" + value);
   }
 
   @Override
-  public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType) {
+  public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType)
+      throws DataConverterException {
     try {
       String encoding =
           payload.getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY).toString(UTF_8);
       PayloadConverter converter = converterMap.get(encoding);
       if (converter == null) {
-        throw new IllegalArgumentException("Unknown encoding: " + encoding);
+        throw new DataConverterException(
+            "No PayloadConverter is registered for an encoding: " + encoding);
       }
       return converter.fromData(payload, valueClass, valueType);
     } catch (DataConverterException e) {
@@ -147,13 +150,6 @@ public class DefaultDataConverter implements DataConverter {
     }
   }
 
-  /**
-   * When values is empty or is null then return empty blob. If a single value do not wrap it into
-   * Json array. Exception stack traces are converted to a single string stack trace to save space
-   * and make them more readable.
-   *
-   * @return serialized values
-   */
   @Override
   public Optional<Payloads> toPayloads(Object... values) throws DataConverterException {
     if (values == null || values.length == 0) {
@@ -162,12 +158,7 @@ public class DefaultDataConverter implements DataConverter {
     try {
       Payloads.Builder result = Payloads.newBuilder();
       for (Object value : values) {
-        Optional<Payload> payload = toPayload(value);
-        if (payload.isPresent()) {
-          result.addPayloads(payload.get());
-        } else {
-          result.addPayloads(Payload.getDefaultInstance());
-        }
+        result.addPayloads(toPayload(value).get());
       }
       return Optional.of(result.build());
     } catch (DataConverterException e) {

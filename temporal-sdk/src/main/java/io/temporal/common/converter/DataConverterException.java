@@ -31,14 +31,13 @@ import java.util.Optional;
  * @author fateev
  * @see DataConverter
  */
-@SuppressWarnings("serial")
 public class DataConverterException extends RuntimeException {
 
   /** Maximum size of data to be included into the message. Used to avoid very large payloads. */
   public static final int MESSAGE_TRUNCATION_SIZE = 255;
 
-  public DataConverterException(Payload content, Type[] valueTypes, Throwable cause) {
-    super(toMessage(null, content, valueTypes), cause);
+  public DataConverterException(String message) {
+    super(message);
   }
 
   public DataConverterException(Throwable cause) {
@@ -49,23 +48,28 @@ public class DataConverterException extends RuntimeException {
     super(message, cause);
   }
 
+  public DataConverterException(Payload content, Type[] valueTypes, Throwable cause) {
+    super(toMessageDeserializing(null, content, valueTypes), cause);
+  }
+
   public DataConverterException(String message, Payload content, Type[] valueTypes) {
-    super(toMessage(message, content, valueTypes));
+    super(toMessageDeserializing(message, content, valueTypes));
   }
 
   public DataConverterException(String message, Optional<Payloads> content, Type valueType) {
-    super(toMessage(message, content, valueType));
+    super(toMessageDeserializing(message, content, valueType));
   }
 
   public DataConverterException(String message, Optional<Payloads> content, Type[] valueTypes) {
-    super(toMessage(message, content, valueTypes));
+    super(toMessageDeserializing(message, content, valueTypes));
   }
 
   public <T> DataConverterException(Payload payload, Class<T> valueClass, Throwable e) {
-    super(toMessage(e.getMessage(), payload, new Type[] {valueClass}), e);
+    super(toMessageDeserializing(e.getMessage(), payload, new Type[] {valueClass}), e);
   }
 
-  private static String toMessage(String message, Optional<Payloads> content, Type[] valueTypes) {
+  private static String toMessageDeserializing(
+      String message, Optional<Payloads> content, Type[] valueTypes) {
     if (content == null && valueTypes == null || valueTypes.length == 0) {
       return message;
     }
@@ -81,7 +85,8 @@ public class DataConverterException extends RuntimeException {
     return result.toString();
   }
 
-  private static String toMessage(String message, Optional<Payloads> content, Type valueType) {
+  private static String toMessageDeserializing(
+      String message, Optional<Payloads> content, Type valueType) {
     if (!content.isPresent() && valueType == null) {
       return message;
     }
@@ -97,7 +102,7 @@ public class DataConverterException extends RuntimeException {
     return result.toString();
   }
 
-  private static String toMessage(String message, Payload content, Type[] valueTypes) {
+  private static String toMessageDeserializing(String message, Payload content, Type[] valueTypes) {
     if (content == null && valueTypes == null) {
       return message;
     }
