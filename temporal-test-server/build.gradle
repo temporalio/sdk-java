@@ -16,6 +16,10 @@ apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 
 description = '''Temporal test workflow server'''
 
+ext {
+    cronUtilsVersion = '9.2.0'
+}
+
 dependencies {
     api(platform("io.grpc:grpc-bom:$grpcVersion"))
 
@@ -28,7 +32,7 @@ dependencies {
     }
 
     implementation "com.google.guava:guava:$guavaVersion"
-    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.7'
+    implementation "com.cronutils:cron-utils:${cronUtilsVersion}"
 
     testImplementation project(':temporal-testing')
     testImplementation "junit:junit:${junitVersion}"
@@ -38,7 +42,7 @@ dependencies {
 }
 
 application {
-    mainClassName = 'io.temporal.testserver.TestServer'
+    getMainClass().set('io.temporal.testserver.TestServer')
 }
 
 jar {
@@ -46,7 +50,7 @@ jar {
     includeEmptyDirs false
 
     manifest {
-        attributes("Main-Class": application.mainClassName)
+        attributes("Main-Class": application.getMainClass().get())
     }
 }
 
@@ -107,9 +111,9 @@ idea {
 
 graal {
   outputName "temporal-test-server"
-  mainClass application.mainClassName
+  mainClass application.getMainClass().get()
   javaVersion '17'
-  graalVersion '22.1.0'
+  graalVersion '22.2.0'
 
   // Ignore type resolution errors at build-time
   option "--allow-incomplete-classpath"

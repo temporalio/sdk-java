@@ -28,6 +28,8 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
 import java.util.List;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -87,7 +89,9 @@ public class CommandsGeneratePlantUMLStateDiagrams {
         (projectPath + "/" + fullRelativePath).replace("/", File.separator) + ".puml";
     File file = new File(diagramFile);
     CharSink sink = Files.asCharSink(file, Charsets.UTF_8);
-    File licenseFile = new File(projectPath + File.separator + "license-header.txt");
+    Path licensePath =
+        FileSystems.getDefault().getPath(projectPath).getParent().resolve("LICENSE.header");
+    File licenseFile = licensePath.toFile();
     StringBuilder content = new StringBuilder();
     try {
       List<String> license = Files.readLines(licenseFile, Charsets.UTF_8);

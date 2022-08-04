@@ -35,6 +35,7 @@ import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.worker.NonDeterministicException;
@@ -59,8 +60,7 @@ public class VersionStateMachineTest {
       stateMachineList = new ArrayList<>();
 
   private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
-    return new WorkflowStateMachines(
-        listener, (stateMachine -> stateMachineList.add(stateMachine)));
+    return new WorkflowStateMachines(listener, stateMachineList::add);
   }
 
   @AfterClass
@@ -240,8 +240,10 @@ public class VersionStateMachineTest {
                 })
             .add(
                 (v) -> {
+                  assertNotNull(v.getT2());
                   secondVersionCallException.set(v.getT2());
-                  stateMachines.completeWorkflow(converter.toPayloads(v));
+                  stateMachines.completeWorkflow(
+                      converter.toPayloads(FailureConverter.exceptionToFailure(v.getT2())));
                 });
       }
     }

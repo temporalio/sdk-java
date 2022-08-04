@@ -45,7 +45,7 @@ public class ActivityTimeoutTest {
 
   // TODO This test takes longer than it should to complete because
   //  of the cached heartbeat that prevents a quit shutdown
-  public @Rule Timeout timeout = Timeout.seconds(12);
+  public @Rule Timeout timeout = Timeout.seconds(15);
 
   @Before
   public void setUp() {
