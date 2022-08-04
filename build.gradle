@@ -9,7 +9,7 @@ plugins {
     id 'org.cadixdev.licenser' version '0.6.1'
     id 'com.palantir.git-version' version "${palantirGitVersionVersion}" apply false
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
-    id 'com.diffplug.spotless' version '6.8.0' apply false
+    id 'com.diffplug.spotless' version '6.9.0' apply false
     id 'base'
 }
 
@@ -31,7 +31,7 @@ ext {
     guavaVersion = '31.1-jre' // [10.0,)
     tallyVersion = '0.11.1' // [0.4.0,)
 
-    gsonVersion = '2.9.0' // [2.0,)
+    gsonVersion = '2.9.1' // [2.0,)
 
     jsonPathVersion = '2.7.0' // compileOnly
 
