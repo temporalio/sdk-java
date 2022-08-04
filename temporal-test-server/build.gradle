@@ -115,9 +115,6 @@ graal {
   javaVersion '17'
   graalVersion '22.2.0'
 
-  // Ignore type resolution errors at build-time
-  option "--allow-incomplete-classpath"
-
   // Don't fallback to running a JVM
   option "--no-fallback"
 

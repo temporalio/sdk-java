@@ -10,7 +10,7 @@
   "name":"jdk.internal.loader.ClassLoaders$PlatformClassLoader"
 },
 {
-  "name":"org.graalvm.nativebridge.jni.JNIExceptionWrapperEntryPoints",
+  "name":"org.graalvm.jniutils.JNIExceptionWrapperEntryPoints",
   "methods":[{"name":"getClassName","parameterTypes":["java.lang.Class"] }]
 },
 {
