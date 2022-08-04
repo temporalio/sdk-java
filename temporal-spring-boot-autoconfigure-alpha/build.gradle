@@ -10,8 +10,7 @@ dependencies {
     api project(':temporal-sdk')
     compileOnly project(':temporal-testing')
 
-    implementation "org.springframework.boot:spring-boot"
-    implementation "org.springframework.boot:spring-boot-autoconfigure"
+    api "org.springframework.boot:spring-boot-autoconfigure"
 
     if (JavaVersion.current().isJava9Compatible()) {
         //needed for the generated grpc stubs and is not a part of JDK since java 9

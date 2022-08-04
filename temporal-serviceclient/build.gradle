@@ -127,7 +127,7 @@ classes {
 }
 
 task registerNamespace(type: JavaExec) {
-    main = 'io.temporal.internal.docker.RegisterTestNamespace'
+    getMainClass().set('io.temporal.internal.docker.RegisterTestNamespace')
     classpath = sourceSets.test.runtimeClasspath
 }
 
