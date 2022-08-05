@@ -44,20 +44,22 @@ public interface DataConverter {
   }
 
   /**
-   * @param value
+   * @param value value to convert
    * @return a {@link Payload} which is a protobuf message containing byte-array serialized
-   *     representation of {@code value}
-   * @param <T>
+   *     representation of {@code value}. Optional here is for legacy and backward compatibility
+   *     reasons. This Optional is expected to always be filled.
+   * @throws DataConverterException if conversion fails
    */
-  <T> Optional<Payload> toPayload(T value);
+  <T> Optional<Payload> toPayload(T value) throws DataConverterException;
 
-  <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType);
+  <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType)
+      throws DataConverterException;
 
   /**
    * Implements conversion of a list of values.
    *
    * @param values Java values to convert to String.
-   * @return converted value
+   * @return converted value. Return empty Optional if values are empty.
    * @throws DataConverterException if conversion of the value passed as parameter failed for any
    *     reason.
    */

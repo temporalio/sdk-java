@@ -1,0 +1,33 @@
+description = '''Temporal Workflow Java SDK'''
+
+ext {
+    okhttpVersion = '4.10.0'
+    servletVersion = '4.0.1'
+}
+
+dependencies {
+    api project(':temporal-serviceclient')
+    api project(':temporal-sdk')
+
+    compileOnly "javax.servlet:javax.servlet-api:${servletVersion}"
+    compileOnly "com.squareup.okhttp3:okhttp:${okhttpVersion}"
+
+    testImplementation project(':temporal-testing')
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+    testImplementation "com.squareup.okhttp3:okhttp:${okhttpVersion}"
+
+    // Jetty 10+ brings a non-production ready slf4j that doesn't work with released logback.
+    // It also require Java 11+. That's why we stay on Jetty 9. It's for tests only anyway.
+    testImplementation(platform("org.eclipse.jetty:jetty-bom:9.4.48.v20220622"))
+    testImplementation ("org.eclipse.jetty:jetty-server")
+    testImplementation ("org.eclipse.jetty:jetty-servlet")
+}
+
+task registerNamespace(type: JavaExec) {
+    main = 'io.temporal.internal.docker.RegisterTestNamespace'
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+test.dependsOn 'registerNamespace'
