@@ -52,24 +52,30 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * TODO(maxim): callbacks usage is non consistent. It accepts Optional and Exception which can be
- * null. Either switch both to Optional or both to nullable.
+ * TODO callbacks usage is non consistent. It accepts Optional and Exception which can be null.
+ * Switch both to nullable.
  */
 final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
-  private final WorkflowContext workflowContext;
-  private final Scope metricsScope;
-  private final boolean enableLoggingInReplay;
   private final WorkflowStateMachines workflowStateMachines;
+  private final WorkflowContext workflowContext;
+  private final @Nullable String fullReplayDirectQueryName;
+  private final Scope replayAwareWorkflowMetricsScope;
+  private final SingleWorkerOptions workerOptions;
 
+  /**
+   * @param fullReplayDirectQueryName query name if an execution is a full replay caused by a direct
+   *     query, null otherwise
+   */
   ReplayWorkflowContextImpl(
       WorkflowStateMachines workflowStateMachines,
       String namespace,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       WorkflowExecution workflowExecution,
       long runStartedTimestampMillis,
-      SingleWorkerOptions options,
-      Scope metricsScope) {
+      @Nullable String fullReplayDirectQueryName,
+      SingleWorkerOptions workerOptions,
+      Scope workflowMetricsScope) {
     this.workflowStateMachines = workflowStateMachines;
     this.workflowContext =
         new WorkflowContext(
@@ -77,15 +83,16 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
             workflowExecution,
             startedAttributes,
             runStartedTimestampMillis,
-            options.getContextPropagators());
-    this.enableLoggingInReplay = options.getEnableLoggingInReplay();
-    this.metricsScope =
-        new ReplayAwareScope(metricsScope, this, workflowStateMachines::currentTimeMillis);
+            workerOptions.getContextPropagators());
+    this.fullReplayDirectQueryName = fullReplayDirectQueryName;
+    this.replayAwareWorkflowMetricsScope =
+        new ReplayAwareScope(workflowMetricsScope, this, workflowStateMachines::currentTimeMillis);
+    this.workerOptions = workerOptions;
   }
 
   @Override
   public boolean getEnableLoggingInReplay() {
-    return enableLoggingInReplay;
+    return workerOptions.getEnableLoggingInReplay();
   }
 
   @Override
@@ -100,7 +107,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public Scope getMetricsScope() {
-    return metricsScope;
+    return replayAwareWorkflowMetricsScope;
   }
 
   @Nonnull
@@ -339,5 +346,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public String getCronSchedule() {
     return workflowContext.getCronSchedule();
+  }
+
+  @Nullable
+  @Override
+  public String getFullReplayDirectQueryName() {
+    return fullReplayDirectQueryName;
   }
 }

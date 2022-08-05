@@ -28,12 +28,14 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.common.interceptors.Header;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,22 +77,11 @@ class WorkflowExecuteRunnable implements Runnable {
       Class<? extends Throwable>[] failTypes =
           implementationOptions.getFailWorkflowExceptionTypes();
       if (exception instanceof TemporalFailure) {
-        logWorkflowExecutionException(Workflow.getInfo(), exception);
-        throw new WorkflowExecutionException(
-            FailureConverter.exceptionToFailure(exception, context.getDataConverter()));
+        throwAndFailWorkflowExecution(exception);
       }
       for (Class<? extends Throwable> failType : failTypes) {
         if (failType.isAssignableFrom(exception.getClass())) {
-          // fail workflow
-          if (log.isErrorEnabled()) {
-            boolean cancelRequested =
-                WorkflowInternal.getRootWorkflowContext().getContext().isCancelRequested();
-            if (!cancelRequested || !FailureConverter.isCanceledCause(exception)) {
-              logWorkflowExecutionException(Workflow.getInfo(), exception);
-            }
-          }
-          throw new WorkflowExecutionException(
-              FailureConverter.exceptionToFailure(exception, context.getDataConverter()));
+          throwAndFailWorkflowExecution(exception);
         }
       }
       throw wrap(exception);
@@ -119,15 +110,44 @@ class WorkflowExecuteRunnable implements Runnable {
     return context.handleQuery(type, args);
   }
 
-  private void logWorkflowExecutionException(WorkflowInfo info, Throwable exception) {
-    log.error(
-        "Workflow execution failure "
-            + "WorkflowId="
-            + info.getWorkflowId()
-            + ", RunId="
-            + info.getRunId()
-            + ", WorkflowType="
-            + info.getWorkflowType(),
-        exception);
+  private void throwAndFailWorkflowExecution(Throwable exception) {
+    ReplayWorkflowContext replayWorkflowContext = context.getContext();
+    @Nullable
+    String fullReplayDirectQueryName = replayWorkflowContext.getFullReplayDirectQueryName();
+    WorkflowInfo info = Workflow.getInfo();
+
+    if (fullReplayDirectQueryName != null) {
+      if (log.isDebugEnabled()
+          && !requestedCancellation(replayWorkflowContext.isCancelRequested(), exception)) {
+        log.debug(
+            "Replayed workflow execution failure WorkflowId='{}', RunId={}, WorkflowType='{}' for direct query QueryType='{}'",
+            info.getWorkflowId(),
+            info.getRunId(),
+            info.getWorkflowType(),
+            fullReplayDirectQueryName,
+            exception);
+      }
+    } else {
+      if (log.isWarnEnabled()
+          && !requestedCancellation(replayWorkflowContext.isCancelRequested(), exception)) {
+        log.warn(
+            "Workflow execution failure WorkflowId='{}', RunId={}, WorkflowType='{}'",
+            info.getWorkflowId(),
+            info.getRunId(),
+            info.getWorkflowType(),
+            exception);
+      }
+    }
+
+    throw new WorkflowExecutionException(
+        FailureConverter.exceptionToFailure(exception, context.getDataConverter()));
+  }
+
+  /**
+   * @return true if both workflow cancellation is requested and the exception contains a
+   *     cancellation exception in the chain
+   */
+  private boolean requestedCancellation(boolean cancelRequested, Throwable exception) {
+    return cancelRequested && FailureConverter.isCanceledCause(exception);
   }
 }
