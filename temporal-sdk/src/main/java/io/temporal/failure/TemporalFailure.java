@@ -42,7 +42,7 @@ public abstract class TemporalFailure extends TemporalException {
   private Optional<Failure> failure = Optional.empty();
   private final String originalMessage;
 
-  protected TemporalFailure(String message, String originalMessage, Throwable cause) {
+  TemporalFailure(String message, String originalMessage, Throwable cause) {
     super(message, cause);
     this.originalMessage = originalMessage;
   }

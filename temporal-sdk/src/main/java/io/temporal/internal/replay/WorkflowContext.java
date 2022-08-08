@@ -40,15 +40,16 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 final class WorkflowContext {
-
   private final long runStartedTimestampMillis;
-  private boolean cancelRequested;
-  private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
   private final WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String namespace;
-  private SearchAttributes.Builder searchAttributes;
   private final List<ContextPropagator> contextPropagators;
   @Nonnull private final WorkflowExecution workflowExecution;
+
+  // Mutable, accumulated during execution:
+  private SearchAttributes.Builder searchAttributes;
+  private boolean cancelRequested;
+  private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
 
   WorkflowContext(
       String namespace,

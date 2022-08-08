@@ -95,7 +95,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       String namespace,
       ReplayWorkflow workflow,
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      SingleWorkerOptions options,
+      SingleWorkerOptions workerOptions,
       Scope metricsScope,
       BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller) {
     this.service = service;
@@ -113,6 +113,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     this.workflow = workflow;
 
     this.workflowStateMachines = new WorkflowStateMachines(new StatesMachinesCallbackImpl());
+    String fullReplayDirectQueryType =
+        workflowTask.hasQuery() ? workflowTask.getQuery().getQueryType() : null;
     ReplayWorkflowContextImpl context =
         new ReplayWorkflowContextImpl(
             workflowStateMachines,
@@ -120,7 +122,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
             startedEvent,
             workflowTask.getWorkflowExecution(),
             Timestamps.toMillis(firstEvent.getEventTime()),
-            options,
+            fullReplayDirectQueryType,
+            workerOptions,
             metricsScope);
 
     this.replayWorkflowExecutor =

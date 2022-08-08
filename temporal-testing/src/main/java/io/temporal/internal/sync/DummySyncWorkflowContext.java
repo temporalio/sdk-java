@@ -40,6 +40,7 @@ import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.*;
+import javax.annotation.Nullable;
 
 public class DummySyncWorkflowContext {
   public static SyncWorkflowContext newDummySyncWorkflowContext() {
@@ -279,6 +280,12 @@ public class DummySyncWorkflowContext {
     @Override
     public String getCronSchedule() {
       return "dummy-cron-schedule";
+    }
+
+    @Nullable
+    @Override
+    public String getFullReplayDirectQueryName() {
+      return null;
     }
   }
 }

@@ -56,7 +56,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   WorkflowType getWorkflowType();
 
-  /** Is cancel of the workflow requested. */
+  /**
+   * @return true if cancellation of the workflow is requested.
+   */
   boolean isCancelRequested();
 
   /**
@@ -279,4 +281,12 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @return workflow cron schedule
    */
   String getCronSchedule();
+
+  /**
+   * This method is mostly used to decrease logging verbosity for replay-only scenarios.
+   *
+   * @return query name if an execution is a full replay caused by a direct query, null otherwise
+   */
+  @Nullable
+  String getFullReplayDirectQueryName();
 }
