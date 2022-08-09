@@ -20,7 +20,9 @@
 
 package io.temporal.worker;
 
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -56,11 +58,9 @@ public class LocalActivityWorkerOnlyTest {
   @Test
   public void verifyThatNormalActivitiesAreTimedOut() {
     NoArgsWorkflow activityWorkflow = testWorkflowRule.newWorkflowStub(NoArgsWorkflow.class);
-    try {
-      activityWorkflow.execute();
-    } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause().getCause() instanceof TimeoutFailure);
-    }
+    WorkflowFailedException workflowFailedException =
+        assertThrows(WorkflowFailedException.class, activityWorkflow::execute);
+    assertThat(workflowFailedException.getCause().getCause(), instanceOf(TimeoutFailure.class));
   }
 
   @WorkflowInterface

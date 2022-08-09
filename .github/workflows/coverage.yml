@@ -1,0 +1,35 @@
+name: Code Coverage
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  code-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Run Tests
+        run: ./gradlew test -x checkLicenseMain -x checkLicenses -x spotlessCheck -x spotlessApply -Pjacoco
+        continue-on-error: true
+
+      - name: Run Test Coverage
+        run: ./gradlew testCodeCoverageReport -Pjacoco
+
+      - name: Publish Coverage
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        run: ./gradlew coverallsJacoco -Pjacoco

@@ -53,7 +53,10 @@ subprojects {
             showStandardStreams true
         }
         forkEvery = 1
-        maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+
+        var coresDivider = project.hasProperty("jacoco") ? 4 : 2 // penalize jacoco build to reduce load and random timeouts
+        maxParallelForks = Math.max(Runtime.runtime.availableProcessors().intdiv(coresDivider), 1) ?: 1
+
         // Captures the list of failed tests to log after build is done.
         afterTest { TestDescriptor descriptor, TestResult result ->
             if (result.resultType == org.gradle.api.tasks.testing.TestResult.ResultType.FAILURE) {
