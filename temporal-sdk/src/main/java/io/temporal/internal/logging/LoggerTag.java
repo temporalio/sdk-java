@@ -20,7 +20,9 @@
 
 package io.temporal.internal.logging;
 
-public class LoggerTag {
+public final class LoggerTag {
+  private LoggerTag() {}
+
   public static final String ACTIVITY_ID = "ActivityId";
   public static final String ACTIVITY_TYPE = "ActivityType";
   public static final String NAMESPACE = "Namespace";

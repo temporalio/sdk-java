@@ -26,7 +26,9 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 
 /** Converts history protos into human readable format */
-public class HistoryProtoTextUtils {
+final class HistoryProtoTextUtils {
+
+  private HistoryProtoTextUtils() {}
 
   public static String toProtoText(History history, boolean showWorkflowTasks) {
     TextFormat.Printer printer = TextFormat.printer();

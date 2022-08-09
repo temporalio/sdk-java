@@ -20,7 +20,7 @@
 
 package io.temporal.internal;
 
-public abstract class Config {
+public final class Config {
   private Config() {}
 
   /** Force new workflow task after workflow task timeout multiplied by this coefficient. */
