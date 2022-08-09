@@ -9,13 +9,16 @@ dependencies {
     jacocoAggregation project(':temporal-remote-data-encoder')
     jacocoAggregation project(':temporal-sdk')
     jacocoAggregation project(':temporal-serviceclient')
+    jacocoAggregation project(':temporal-spring-boot-autoconfigure-alpha')
+    jacocoAggregation project(':temporal-spring-boot-starter-alpha')
     jacocoAggregation project(':temporal-test-server')
     jacocoAggregation project(':temporal-testing')
 }
 
 def jacocoExclusions = [
         '**/io/temporal/api/**',
-        '**/gogoproto/**'
+        '**/gogoproto/**',
+        '**/io/temporal/internal/docker/RegisterTestNamespace**'
 ]
 
 reporting {

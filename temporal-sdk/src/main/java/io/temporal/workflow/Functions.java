@@ -22,7 +22,9 @@ package io.temporal.workflow;
 
 import java.io.Serializable;
 
-public class Functions {
+public final class Functions {
+  private Functions() {}
+
   public interface TemporalFunctionalInterfaceMarker {}
 
   @FunctionalInterface

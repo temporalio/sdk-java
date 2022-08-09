@@ -20,7 +20,9 @@
 
 package io.temporal.worker;
 
-public class MetricsType {
+public final class MetricsType {
+  private MetricsType() {}
+
   public static final String TEMPORAL_METRICS_PREFIX = "temporal_";
 
   //
