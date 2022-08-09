@@ -1,0 +1,33 @@
+Highlights:
+
+This release brings PayloadCodec and Remote Data Converter capabilities to the JavaSDK.
+GlobalDataConverter got decoupled from DefaultDataConverter.
+
+Fixes:
+
+- Stacktrace query responses are not encoded using user encoder anymore which makes them always decodable by the WebUI and tctl.
+
+Migration notes:
+
+Users which were specifying a Custom Converter globally will get some deprecation warnings to resolve,
+which should be trivial like replacing ```DefaultDataConverter#setDefaultDataConverter``` with ```GlobalDataConverter#register```
+
+Changeset:
+2022-07-07 - 55ef5b76 - Add tests and javadocs for WorkflowStub#signal (#1292)
+2022-07-07 - ae5065d0 - Cleanup dead state machines code (#1302)
+2022-07-11 - abb3cb1b - Make stacktrace query result to be serialized using standard data converter only (#1304)
+2022-07-14 - 9952b0d6 - Add initial Spring Boot implementation (#1305)
+2022-07-14 - 9d843cd9 - Fix javadoc for WorkflowReusePolicy stating an incorrect default (#1307)
+2022-07-19 - 29176511 - Cleanup worker creation for Spring Boot Auto Configuration and add validation of the explicit worker config (#1308)
+2022-07-20 - 8ce98f5b - Switch from dependency version ranges to specific versions (#1314)
+2022-07-20 - a5737a19 - Implement getSystemCapabilities (#1313)
+2022-07-21 - 883f814a - No retrying on INTERNAL gRPC errors with the new Server versions (#1317)
+2022-07-21 - e41341a0 - Refactor GrpcRetryer to enforce usage of GrpcRetryerOptions (#1316)
+2022-07-22 - ae5fb812 - Fix Test Server erroneously propagating some timeouts from the parent to the child workflow (#1320)
+2022-07-27 - 1a4ec60e - Separate Global DefaultDataConverter and Standard DataConverter notion (#1327)
+2022-07-28 - ec45e20c - Fix TestActivityEnvironmentInternal#close preventing subsequent usages of the class (#1329)
+2022-08-04 - 072f4211 - Upgrade Gradle, deps and cleanup duplicated outdated license files (#1340)
+2022-08-04 - cd33a808 - Upgrade Graal options to fix build warning messages and improve build speed (#1343)
+2022-08-05 - 79b7c5c5 - Remote Data Encoder and PayloadCodec (#1330)
+2022-08-08 - 31f606e7 - Replays of workflow failures caused by queries don't spam worker logs anymore (#1351)
+2022-08-09 - af252f5e - Add Jacoco code-coverage reports generation and aggregation (#1171)
