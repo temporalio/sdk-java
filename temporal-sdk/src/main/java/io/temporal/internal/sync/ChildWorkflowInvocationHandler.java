@@ -44,7 +44,7 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
       Class<?> workflowInterface,
       ChildWorkflowOptions options,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
-    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newStubInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
     if (!workflowMethodMetadata.isPresent()) {

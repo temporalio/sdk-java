@@ -31,7 +31,7 @@ import kotlin.reflect.jvm.javaMethod
  * ```
  */
 fun workflowName(workflowClass: Class<*>): String {
-  val workflowInterfaceMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowClass)
+  val workflowInterfaceMetadata = POJOWorkflowInterfaceMetadata.newStubInstance(workflowClass)
   return workflowInterfaceMetadata.workflowType.orElse(null)
     ?: throw IllegalArgumentException("$workflowClass does not define a workflow method")
 }
@@ -72,7 +72,7 @@ fun workflowQueryType(method: KFunction<*>): String {
 private fun workflowMethodName(method: KFunction<*>, type: WorkflowMethodType): String {
   val javaMethod = method.javaMethod
     ?: throw IllegalArgumentException("Invalid method reference $method")
-  val interfaceMetadata = POJOWorkflowInterfaceMetadata.newInstance(javaMethod.declaringClass)
+  val interfaceMetadata = POJOWorkflowInterfaceMetadata.newStubInstance(javaMethod.declaringClass)
   val methodMetadata = interfaceMetadata.methodsMetadata.find { it.workflowMethod == javaMethod }
     ?: throw IllegalArgumentException("Not a workflow method reference $method")
   if (methodMetadata.type != type) {

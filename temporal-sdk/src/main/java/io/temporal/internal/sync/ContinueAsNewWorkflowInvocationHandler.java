@@ -38,7 +38,7 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
       Class<?> interfaceClass,
       @Nullable ContinueAsNewOptions options,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
-    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(interfaceClass);
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newStubInstance(interfaceClass);
     if (!workflowMetadata.getWorkflowMethod().isPresent()) {
       throw new IllegalArgumentException(
           "Missing method annotated with @WorkflowMethod: " + interfaceClass.getName());

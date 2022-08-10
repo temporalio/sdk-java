@@ -603,7 +603,7 @@ public final class WorkflowInternal {
    */
   public static String getWorkflowType(Class<?> workflowInterfaceClass) {
     POJOWorkflowInterfaceMetadata metadata =
-        POJOWorkflowInterfaceMetadata.newInstance(workflowInterfaceClass);
+        POJOWorkflowInterfaceMetadata.newStubInstance(workflowInterfaceClass);
     return metadata.getWorkflowType().get();
   }
 
