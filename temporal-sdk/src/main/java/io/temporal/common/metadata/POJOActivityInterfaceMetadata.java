@@ -146,11 +146,14 @@ public final class POJOActivityInterfaceMetadata {
     }
 
     Method[] declaredMethods = current.getDeclaredMethods();
-    result.addAll(Arrays.asList(declaredMethods));
+    for (Method declaredMethod : declaredMethods) {
+      if (validateAndQualifiedForActivityMethod(declaredMethod)) {
+        result.add(declaredMethod);
+      }
+    }
 
     if (isCurrentAnActivityInterface) {
       result.stream()
-          .filter(POJOActivityInterfaceMetadata::validateAndQualifiedForActivityMethod)
           .map(method -> new POJOActivityMethodMetadata(method, current, annotation))
           .forEach(
               methodMetadata ->
@@ -217,11 +220,13 @@ public final class POJOActivityInterfaceMetadata {
   /**
    * @return true if the method should be used as an activity method, false if it shouldn't
    * @throws IllegalArgumentException if the method is incorrectly configured (for example, a
-   *     combination of ActivityMethod and a static modifier)
+   *     combination of {@link ActivityMethod} and a {@code static} modifier)
    */
   private static boolean validateAndQualifiedForActivityMethod(Method method) {
+    boolean isAnnotatedActivityMethod = method.getAnnotation(ActivityMethod.class) != null;
+
     if (Modifier.isStatic(method.getModifiers())) {
-      if (method.getAnnotation(ActivityMethod.class) != null) {
+      if (isAnnotatedActivityMethod) {
         throw new IllegalArgumentException(
             "Method with @ActivityMethod annotation can't be static: " + method);
       } else {
@@ -229,16 +234,18 @@ public final class POJOActivityInterfaceMetadata {
       }
     }
 
-    if (method.getAnnotation(ActivityMethod.class) != null) {
+    if (isAnnotatedActivityMethod) {
       // all methods explicitly marked with ActivityMethod qualify
       return true;
     }
+
     if (method.isSynthetic()) {
       // if method is synthetic and not explicitly marked as an ActivityMethod,
       // it's not qualified as an activity method.
       // https://github.com/temporalio/sdk-java/issues/977
       return false;
     }
+
     return true;
   }
 }

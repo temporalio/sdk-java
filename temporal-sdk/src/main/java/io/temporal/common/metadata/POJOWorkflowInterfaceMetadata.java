@@ -21,6 +21,7 @@
 package io.temporal.common.metadata;
 
 import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
@@ -46,7 +47,7 @@ public final class POJOWorkflowInterfaceMetadata {
   /** Used to override equals and hashCode of Method to ensure deduping by method name in a set. */
   private static class EqualsByName {
     private final Method method;
-    private String nameFromAnnotation;
+    private final String nameFromAnnotation;
 
     EqualsByName(Method method, String nameFromAnnotation) {
       this.method = method;
@@ -80,8 +81,8 @@ public final class POJOWorkflowInterfaceMetadata {
    * Returns POJOWorkflowInterfaceMetadata for an interface annotated with {@link
    * WorkflowInterface}.
    */
-  public static POJOWorkflowInterfaceMetadata newInstance(Class<?> anInterface) {
-    return newInstance(anInterface, true);
+  public static POJOWorkflowInterfaceMetadata newStubInstance(Class<?> anInterface) {
+    return newInstance(anInterface, true, true);
   }
 
   /**
@@ -89,13 +90,35 @@ public final class POJOWorkflowInterfaceMetadata {
    * WorkflowInterface}. This to support invoking workflow signal and query methods through a base
    * interface without such annotation.
    */
-  public static POJOWorkflowInterfaceMetadata newInstanceSkipWorkflowAnnotationCheck(
+  public static POJOWorkflowInterfaceMetadata newStubInstanceSkipWorkflowAnnotationCheck(
       Class<?> anInterface) {
-    return newInstance(anInterface, false);
+    return newInstance(anInterface, false, true);
   }
 
+  /**
+   * Returns POJOWorkflowInterfaceMetadata for an interface annotated with {@link WorkflowInterface}
+   * for workflow implementation. The core difference from stub methods that the interfaces passing
+   * here can be not {@link WorkflowInterface} at all.
+   */
+  static POJOWorkflowInterfaceMetadata newImplementationInstance(Class<?> anInterface) {
+    return newInstance(anInterface, false, false);
+  }
+
+  /**
+   * Ensures that the interface that the stub is created with is a {@link WorkflowInterface} with
+   * the right structure.
+   *
+   * @param anInterface interface class
+   * @param checkWorkflowInterfaceAnnotation check if the interface has a {@link WorkflowInterface}
+   *     annotation with methods
+   * @param forceProcessAsWorkflowInterface if true, the {@code current} is processed as a workflow
+   *     interface even if it is not annotated with {@link WorkflowInterface}. true for stub
+   *     interface if it's used to create a stub.
+   */
   private static POJOWorkflowInterfaceMetadata newInstance(
-      Class<?> anInterface, boolean checkWorkflowInterfaceAnnotation) {
+      Class<?> anInterface,
+      boolean checkWorkflowInterfaceAnnotation,
+      boolean forceProcessAsWorkflowInterface) {
     if (!anInterface.isInterface()) {
       throw new IllegalArgumentException("Not an interface: " + anInterface);
     }
@@ -105,9 +128,10 @@ public final class POJOWorkflowInterfaceMetadata {
         throw new IllegalArgumentException(
             "Missing required @WorkflowInterface annotation: " + anInterface);
       }
-      validatePublicModifier(anInterface);
+      validateModifierAccess(anInterface);
     }
-    POJOWorkflowInterfaceMetadata result = new POJOWorkflowInterfaceMetadata(anInterface, false);
+    POJOWorkflowInterfaceMetadata result =
+        new POJOWorkflowInterfaceMetadata(anInterface, forceProcessAsWorkflowInterface);
     if (result.methods.isEmpty()) {
       if (checkWorkflowInterfaceAnnotation) {
         throw new IllegalArgumentException(
@@ -117,24 +141,16 @@ public final class POJOWorkflowInterfaceMetadata {
     return result;
   }
 
-  private static void validatePublicModifier(Class<?> anInterface) {
-    if (!Modifier.isPublic(anInterface.getModifiers())) {
-      throw new IllegalArgumentException(
-          "Interface with @WorkflowInterface annotation must be public: " + anInterface);
-    }
-  }
-
-  static POJOWorkflowInterfaceMetadata newImplementationInterface(Class<?> anInterface) {
-    return new POJOWorkflowInterfaceMetadata(anInterface, true);
-  }
-
   /**
-   * @param implementation if the metadata is for a workflow implementation class vs stub.
+   * @param forceProcessAsWorkflowInterface if true, the {@code current} is processed as a workflow
+   *     interface even if it is not annotated with {@link WorkflowInterface}. true for stub
+   *     interface if it's used to create a stub.
    */
-  private POJOWorkflowInterfaceMetadata(Class<?> anInterface, boolean implementation) {
+  private POJOWorkflowInterfaceMetadata(
+      Class<?> anInterface, boolean forceProcessAsWorkflowInterface) {
     this.interfaceClass = anInterface;
     Map<EqualsByName, Method> dedupeMap = new HashMap<>();
-    getWorkflowInterfaceMethods(anInterface, !implementation, dedupeMap);
+    getWorkflowInterfaceMethods(anInterface, forceProcessAsWorkflowInterface, dedupeMap);
   }
 
   public Optional<POJOWorkflowMethodMetadata> getWorkflowMethod() {
@@ -175,14 +191,21 @@ public final class POJOWorkflowInterfaceMetadata {
   }
 
   /**
+   * @param forceProcessAsWorkflowInterface if true, the {@code current} is processed as a workflow
+   *     interface even if it is not annotated with {@link WorkflowInterface}. true for stub
+   *     interface if it's used to create a stub.
    * @return methods which are not part of an interface annotated with WorkflowInterface
    */
   private Set<POJOWorkflowMethod> getWorkflowInterfaceMethods(
-      Class<?> current, boolean rootClass, Map<EqualsByName, Method> dedupeMap) {
+      Class<?> current,
+      boolean forceProcessAsWorkflowInterface,
+      Map<EqualsByName, Method> dedupeMap) {
     WorkflowInterface annotation = current.getAnnotation(WorkflowInterface.class);
 
-    if (annotation != null) {
-      validatePublicModifier(current);
+    final boolean isCurrentAWorkflowInterface = annotation != null;
+
+    if (isCurrentAWorkflowInterface) {
+      validateModifierAccess(current);
     }
 
     // Set to de-dupe the same method due to diamond inheritance
@@ -191,68 +214,140 @@ public final class POJOWorkflowInterfaceMetadata {
     for (Class<?> anInterface : interfaces) {
       Set<POJOWorkflowMethod> parentMethods =
           getWorkflowInterfaceMethods(anInterface, false, dedupeMap);
-      for (POJOWorkflowMethod parentMethod : parentMethods) {
-        if (parentMethod.getType() == WorkflowMethodType.NONE) {
-          Method method = parentMethod.getMethod();
-          try {
-            current.getMethod(method.getName(), method.getParameterTypes());
-            // Don't add to result as it is redefined by current.
-            // This allows overriding methods without annotation with annotated methods.
-            continue;
-          } catch (NoSuchMethodException e) {
-            if (annotation != null) {
-              throw new IllegalArgumentException(
-                  "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on " + method);
-            }
-          }
-        }
-        result.add(parentMethod);
-      }
+      addParentMethods(parentMethods, current, result);
     }
+
     Method[] declaredMethods = current.getDeclaredMethods();
     for (Method declaredMethod : declaredMethods) {
       POJOWorkflowMethod methodMetadata = new POJOWorkflowMethod(declaredMethod);
-      result.add(methodMetadata);
+      if (validateAndQualifiedForWorkflowMethod(methodMetadata)) {
+        result.add(methodMetadata);
+      }
     }
-    if (annotation == null && !rootClass) {
-      return result; // Not annotated just pass all the methods to the parent
-    }
-    for (POJOWorkflowMethod workflowMethod : result) {
-      Method method = workflowMethod.getMethod();
-      if (workflowMethod.getType() == WorkflowMethodType.NONE && annotation != null) {
-        throw new IllegalArgumentException(
-            "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on " + method);
-      }
-      EqualsByName wrapped =
-          new EqualsByName(method, workflowMethod.getNameFromAnnotation().orElse(null));
-      Method registered = dedupeMap.put(wrapped, method);
-      if (registered != null && !registered.equals(method)) {
-        throw new IllegalArgumentException(
-            "Duplicated methods (overloads are not allowed): \""
-                + registered
-                + "\" and \""
-                + method
-                + "\"");
-      }
 
-      if (workflowMethod.getType() == WorkflowMethodType.NONE) {
-        continue;
-      }
-
-      POJOWorkflowMethodMetadata methodMetadata =
-          new POJOWorkflowMethodMetadata(workflowMethod, current);
-      if (workflowMethod.getType() == WorkflowMethodType.WORKFLOW) {
-        if (this.workflowMethod != null) {
+    if (isCurrentAWorkflowInterface || forceProcessAsWorkflowInterface) {
+      for (POJOWorkflowMethod workflowMethod : result) {
+        if (workflowMethod.getType() == WorkflowMethodType.NONE && isCurrentAWorkflowInterface) {
+          // Workflow methods are different from activity methods.
+          // Method in a hierarchy of activity interfaces that is not annotated is an activity
+          // interface.
+          // Method in a hierarchy of workflow interfaces that is not annotated is a mistake.
           throw new IllegalArgumentException(
-              "Duplicated @WorkflowMethod: "
-                  + workflowMethod.getMethod()
-                  + " and "
-                  + this.workflowMethod.getWorkflowMethod());
+              "Missing @WorkflowMethod, @SignalMethod or @QueryMethod annotation on "
+                  + workflowMethod.getMethod());
         }
-        this.workflowMethod = methodMetadata;
+
+        dedupeAndAdd(workflowMethod, dedupeMap);
+
+        if (workflowMethod.getType() != WorkflowMethodType.NONE) {
+          POJOWorkflowMethodMetadata methodMetadata =
+              new POJOWorkflowMethodMetadata(workflowMethod, current);
+          methods.put(workflowMethod.getMethod(), methodMetadata);
+
+          if (workflowMethod.getType() == WorkflowMethodType.WORKFLOW) {
+            if (this.workflowMethod != null) {
+              throw new IllegalArgumentException(
+                  "Duplicated @WorkflowMethod: "
+                      + workflowMethod.getMethod()
+                      + " and "
+                      + this.workflowMethod.getWorkflowMethod());
+            }
+            this.workflowMethod = methodMetadata;
+          }
+        }
       }
-      methods.put(method, methodMetadata);
+      // the current interface is a WorkflowInterface, or forced to processed like one,
+      // so we process the collected methods and there is nothing to pass down
+      return Collections.emptySet();
+    } else {
+      // Not annotated and forceProcessAsWorkflowInterface is false.
+      // Don't verify the integrity of the interface and don't flush the result into internal state.
+      // Just pass an accumulated result down
+      return result;
     }
-    return Collections.emptySet();
+  }
+
+  private static void dedupeAndAdd(
+      POJOWorkflowMethod workflowMethod, Map<EqualsByName, Method> dedupeMap) {
+    Method method = workflowMethod.getMethod();
+    EqualsByName wrapped =
+        new EqualsByName(method, workflowMethod.getNameFromAnnotation().orElse(null));
+
+    Method registeredBefore = dedupeMap.put(wrapped, method);
+    if (registeredBefore != null && !registeredBefore.equals(method)) {
+      // TODO POJOActivityInterfaceMetadata is having an access to POJOActivityMethodMetadata
+      //  on this stage and it able to provide more data about the conflict, this implementation
+      //  should be updated in the same manner
+      throw new IllegalArgumentException(
+          "Duplicated methods (overloads are not allowed in workflow interfaces): \""
+              + registeredBefore
+              + "\" and \""
+              + method
+              + "\"");
+    }
+  }
+
+  private static void addParentMethods(
+      Set<POJOWorkflowMethod> parentMethods,
+      Class<?> currentInterface,
+      Set<POJOWorkflowMethod> toSet) {
+    for (POJOWorkflowMethod parentMethod : parentMethods) {
+      if (parentMethod.getType() == WorkflowMethodType.NONE) {
+        Method method = parentMethod.getMethod();
+        try {
+          currentInterface.getMethod(method.getName(), method.getParameterTypes());
+          // Don't add to result as it is redefined by current.
+          // This allows overriding methods without annotation with annotated methods.
+        } catch (NoSuchMethodException e) {
+          // current interface doesn't have an override for this method - add it from the parent
+          toSet.add(parentMethod);
+        }
+      } else {
+        // parent interface method is explicitly annotated with one of workflow method annotations -
+        // adding to the
+        // result
+        toSet.add(parentMethod);
+      }
+    }
+  }
+
+  private static void validateModifierAccess(Class<?> workflowInterface) {
+    if (!Modifier.isPublic(workflowInterface.getModifiers())) {
+      throw new IllegalArgumentException(
+          "Interface with @WorkflowInterface annotation must be public: " + workflowInterface);
+    }
+  }
+
+  /**
+   * @return true if the method may be used as a workflow method, false if it can't
+   * @throws IllegalArgumentException if the method is incorrectly configured (for example, a
+   *     combination of {@link WorkflowMethod} and a {@code static} modifier)
+   */
+  private static boolean validateAndQualifiedForWorkflowMethod(POJOWorkflowMethod workflowMethod) {
+    Method method = workflowMethod.getMethod();
+    boolean isAnnotatedWorkflowMethod = !workflowMethod.getType().equals(WorkflowMethodType.NONE);
+
+    if (Modifier.isStatic(method.getModifiers())) {
+      if (isAnnotatedWorkflowMethod) {
+        throw new IllegalArgumentException("Workflow Method can't be static: " + method);
+      } else {
+        return false;
+      }
+    }
+
+    if (isAnnotatedWorkflowMethod) {
+      // all methods explicitly marked with one of workflow method qualifiers
+      return true;
+    }
+
+    if (method.isSynthetic()) {
+      // if method is synthetic and not explicitly marked as a workflow method,
+      // it's not qualified as a workflow method.
+      // https://github.com/temporalio/sdk-java/issues/977
+      // https://github.com/temporalio/sdk-java/issues/1331
+      return false;
+    }
+
+    return true;
   }
 }

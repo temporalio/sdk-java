@@ -125,7 +125,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     }
     workflowImplementationFactories.put(clazz, factory);
     POJOWorkflowInterfaceMetadata workflowMetadata =
-        POJOWorkflowInterfaceMetadata.newInstance(clazz);
+        POJOWorkflowInterfaceMetadata.newStubInstance(clazz);
     if (!workflowMetadata.getWorkflowMethod().isPresent()) {
       throw new IllegalArgumentException(
           "Workflow interface doesn't contain a method annotated with @WorkflowMethod: " + clazz);

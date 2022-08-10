@@ -18,26 +18,36 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-import io.temporal.common.metadata.POJOWorkflowImplMetadata;
-import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
-import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
-import io.temporal.common.metadata.WorkflowMethodType;
+import io.temporal.common.metadata.testclasses.WorkflowInterfaceWithOneWorkflowMethod;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.description.annotation.AnnotationDescription;
+import net.bytebuddy.description.modifier.ModifierContributor;
+import net.bytebuddy.description.modifier.Ownership;
+import net.bytebuddy.description.modifier.SyntheticState;
+import net.bytebuddy.description.modifier.Visibility;
+import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.implementation.FixedValue;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
+import org.junit.runner.RunWith;
 
+@RunWith(JUnitParamsRunner.class)
 public class POJOWorkflowMetadataTest {
 
   public interface A {
@@ -247,12 +257,12 @@ public class POJOWorkflowMetadataTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testNonInterface() {
-    POJOWorkflowInterfaceMetadata.newInstance(DImpl.class);
+    POJOWorkflowInterfaceMetadata.newStubInstance(DImpl.class);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyInterface() {
-    POJOWorkflowInterfaceMetadata.newInstance(Empty.class);
+    POJOWorkflowInterfaceMetadata.newStubInstance(Empty.class);
   }
 
   @Test
@@ -267,7 +277,8 @@ public class POJOWorkflowMetadataTest {
     expected.add("E_a");
     expected.add("E_b");
 
-    POJOWorkflowInterfaceMetadata dMetadata = POJOWorkflowInterfaceMetadata.newInstance(D.class);
+    POJOWorkflowInterfaceMetadata dMetadata =
+        POJOWorkflowInterfaceMetadata.newStubInstance(D.class);
     Method c = C.class.getDeclaredMethod("c");
     POJOWorkflowMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
     assertEquals(c, cMethod.getWorkflowMethod());
@@ -277,5 +288,67 @@ public class POJOWorkflowMetadataTest {
   @Test
   public void testGetWorkflowType() {
     assertEquals("AM_C_bb", Worker.getWorkflowType(F.class));
+  }
+
+  @Test
+  @Parameters({
+    "false, true, false, false, false",
+    "true, false, false, false, false",
+    "false, true, true, false, true",
+    "true, false, true, true, false"
+  })
+  public void testSyntheticAndStaticMethods(
+      boolean synthetic,
+      boolean statik,
+      boolean annotated,
+      boolean shouldBeConsideredAWorkflowMethod,
+      boolean shouldThrow)
+      throws Throwable {
+    Class<?> interfaice = generateWorkflowInterfaceWithQueryMethod(synthetic, statik, annotated);
+
+    ThrowingRunnable r =
+        () -> {
+          POJOWorkflowInterfaceMetadata metadata =
+              POJOWorkflowInterfaceMetadata.newStubInstance(interfaice);
+          assertEquals(
+              shouldBeConsideredAWorkflowMethod,
+              metadata.getMethodsMetadata().stream()
+                  .anyMatch(m -> m.getWorkflowMethod().getName().equals("method")));
+        };
+    if (shouldThrow) {
+      assertThrows(IllegalArgumentException.class, r);
+    } else {
+      r.run();
+    }
+  }
+
+  private Class<?> generateWorkflowInterfaceWithQueryMethod(
+      boolean synthetic, boolean statik, boolean annotated) {
+    DynamicType.Builder<?> builder =
+        new ByteBuddy()
+            .makeInterface(WorkflowInterfaceWithOneWorkflowMethod.class)
+            .name("GeneratedWorkflowInterface")
+            .annotateType(AnnotationDescription.Builder.ofType(WorkflowInterface.class).build());
+    Collection<ModifierContributor.ForMethod> modifiers = new ArrayList<>();
+    modifiers.add(Visibility.PUBLIC);
+    if (synthetic) {
+      modifiers.add(SyntheticState.SYNTHETIC);
+    }
+    if (statik) {
+      modifiers.add(Ownership.STATIC);
+    }
+
+    DynamicType.Builder.MethodDefinition.ParameterDefinition.Initial<?> methodInitial =
+        builder.defineMethod("method", String.class, modifiers);
+    DynamicType.Builder.MethodDefinition<?> methodDefinition =
+        statik ? methodInitial.intercept(FixedValue.value("hi")) : methodInitial.withoutCode();
+
+    if (annotated) {
+      methodDefinition =
+          methodDefinition.annotateMethod(
+              AnnotationDescription.Builder.ofType(QueryMethod.class).build());
+    }
+
+    return methodDefinition.make().load(this.getClass().getClassLoader()).getLoaded();
   }
 }

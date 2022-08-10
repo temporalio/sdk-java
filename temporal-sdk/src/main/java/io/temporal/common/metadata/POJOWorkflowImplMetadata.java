@@ -107,9 +107,9 @@ public final class POJOWorkflowImplMetadata {
       POJOWorkflowInterfaceMetadata interfaceMetadata;
       if (listener) {
         interfaceMetadata =
-            POJOWorkflowInterfaceMetadata.newInstanceSkipWorkflowAnnotationCheck(anInterface);
+            POJOWorkflowInterfaceMetadata.newStubInstanceSkipWorkflowAnnotationCheck(anInterface);
       } else {
-        interfaceMetadata = POJOWorkflowInterfaceMetadata.newImplementationInterface(anInterface);
+        interfaceMetadata = POJOWorkflowInterfaceMetadata.newImplementationInstance(anInterface);
       }
       workflowInterfaces.add(interfaceMetadata);
       List<POJOWorkflowMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
