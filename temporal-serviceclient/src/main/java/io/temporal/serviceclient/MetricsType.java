@@ -20,7 +20,9 @@
 
 package io.temporal.serviceclient;
 
-public class MetricsType {
+public final class MetricsType {
+  private MetricsType() {}
+
   public static final String TEMPORAL_METRICS_PREFIX = "temporal_";
 
   public static final String TEMPORAL_REQUEST = TEMPORAL_METRICS_PREFIX + "request";

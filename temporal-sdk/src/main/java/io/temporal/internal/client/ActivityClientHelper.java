@@ -43,7 +43,9 @@ import javax.annotation.Nullable;
  * ManualActivityCompletionClient}, because they are not intended to be called by our users
  * directly.
  */
-public class ActivityClientHelper {
+public final class ActivityClientHelper {
+  private ActivityClientHelper() {}
+
   public static RecordActivityTaskHeartbeatResponse sendHeartbeatRequest(
       WorkflowServiceStubs service,
       String namespace,

@@ -20,6 +20,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.workflow.Functions;
@@ -71,9 +72,7 @@ class WorkflowThreadContext {
     if (status == Status.DONE) {
       throw new DestroyWorkflowThreadError("done in initialYield");
     }
-    if (status != Status.RUNNING) {
-      throw new IllegalStateException("not in RUNNING but in " + status + " state");
-    }
+    Preconditions.checkState(status == Status.RUNNING, "threadContext not in RUNNING state");
     this.yield("created", () -> true);
   }
 
@@ -143,9 +142,7 @@ class WorkflowThreadContext {
   public void evaluateInCoroutineContext(Functions.Proc1<String> function) {
     lock.lock();
     try {
-      if (function == null) {
-        throw new IllegalArgumentException("null function");
-      }
+      Preconditions.checkArgument(function != null, "null function");
       if (status != Status.YIELDED && status != Status.RUNNING) {
         throw new IllegalStateException("Not in yielded status: " + status);
       }
@@ -160,9 +157,7 @@ class WorkflowThreadContext {
         // A more explicit solution may be implemented using a separate lock for evaluate calls.
         throw new IllegalStateException("Already evaluating");
       }
-      if (inRunUntilBlocked) {
-        throw new IllegalStateException("Running runUntilBlocked");
-      }
+      Preconditions.checkState(!inRunUntilBlocked, "Running runUntilBlocked");
       evaluationFunction = function;
       status = Status.EVALUATING;
       yieldCondition.signal();
@@ -249,9 +244,8 @@ class WorkflowThreadContext {
       if (status == Status.DONE) {
         return false;
       }
-      if (evaluationFunction != null) {
-        throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
-      }
+      Preconditions.checkState(
+          evaluationFunction == null, "Cannot runUntilBlocked while evaluating");
       inRunUntilBlocked = true;
       if (status == Status.YIELDED) {
         // we have to swap it here to allow potentialProgressStatesLocked to start returning true
@@ -279,9 +273,8 @@ class WorkflowThreadContext {
             throw new PotentialDeadlockException("UnknownThread", this, detectionTimestamp);
           }
         }
-        if (evaluationFunction != null) {
-          throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
-        }
+        Preconditions.checkState(
+            evaluationFunction == null, "Cannot runUntilBlocked while evaluating");
       }
       return !remainedBlocked;
     } catch (InterruptedException e) {
@@ -340,17 +333,6 @@ class WorkflowThreadContext {
     } finally {
       lock.unlock();
     }
-  }
-
-  /** To be called only from a workflow thread. */
-  public void exit() {
-    lock.lock();
-    try {
-      destroyRequested = true;
-    } finally {
-      lock.unlock();
-    }
-    throw new DestroyWorkflowThreadError();
   }
 
   public void initializeCurrentThread(Thread currentThread) {

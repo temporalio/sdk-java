@@ -20,6 +20,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.base.Preconditions;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueueConsumer;
@@ -34,9 +35,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   private final int capacity;
 
   public WorkflowQueueImpl(int capacity) {
-    if (capacity < 1) {
-      throw new IllegalArgumentException("Capacity less than 1: " + capacity);
-    }
+    Preconditions.checkState(capacity > 0, "capacity must be > 0");
     this.capacity = capacity;
   }
 

@@ -25,6 +25,7 @@ import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import javax.annotation.Nonnull;
 
 public interface ManualActivityCompletionClientFactory {
 
@@ -33,16 +34,16 @@ public interface ManualActivityCompletionClientFactory {
    * ManualActivityCompletionClientImpl} implementations
    */
   static ManualActivityCompletionClientFactory newFactory(
-      WorkflowServiceStubs service,
-      String namespace,
-      String identity,
-      DataConverter dataConverter) {
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String identity,
+      @Nonnull DataConverter dataConverter) {
     return new ManualActivityCompletionClientFactoryImpl(
         service, namespace, identity, dataConverter);
   }
 
-  ManualActivityCompletionClient getClient(byte[] taskToken, Scope metricsScope);
+  ManualActivityCompletionClient getClient(@Nonnull byte[] taskToken, Scope metricsScope);
 
   ManualActivityCompletionClient getClient(
-      WorkflowExecution execution, String activityId, Scope metricsScope);
+      @Nonnull WorkflowExecution execution, @Nonnull String activityId, Scope metricsScope);
 }

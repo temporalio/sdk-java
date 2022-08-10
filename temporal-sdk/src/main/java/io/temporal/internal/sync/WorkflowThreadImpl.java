@@ -75,9 +75,8 @@ class WorkflowThreadImpl implements WorkflowThread {
       this.replayWorkflowContext = replayWorkflowContext;
       this.name = name;
       this.cancellationScope = new CancellationScopeImpl(detached, runnable, parent);
-      if (context.getStatus() != Status.CREATED) {
-        throw new IllegalStateException("threadContext not in CREATED state");
-      }
+      Preconditions.checkState(
+          context.getStatus() == Status.CREATED, "threadContext not in CREATED state");
       this.contextPropagators = contextPropagators;
       this.propagatedContexts = propagatedContexts;
     }
@@ -226,11 +225,8 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   @Override
   public void start() {
-    if (context.getStatus() != Status.CREATED) {
-      throw new IllegalThreadStateException("already started");
-    }
+    Preconditions.checkState(context.getStatus() == Status.CREATED, "already started");
     context.setStatus(Status.RUNNING);
-
     while (true) {
       try {
         taskFuture = workflowThreadExecutor.submit(task);
@@ -306,16 +302,6 @@ class WorkflowThreadImpl implements WorkflowThread {
   @Override
   public boolean isDone() {
     return context.isDone();
-  }
-
-  public Thread.State getState() {
-    if (context.getStatus() == Status.YIELDED) {
-      return Thread.State.BLOCKED;
-    } else if (context.getStatus() == Status.DONE) {
-      return Thread.State.TERMINATED;
-    } else {
-      return Thread.State.RUNNABLE;
-    }
   }
 
   @Override
