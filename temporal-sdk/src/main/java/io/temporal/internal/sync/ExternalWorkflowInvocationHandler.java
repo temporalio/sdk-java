@@ -38,7 +38,7 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
       Class<?> workflowInterface,
       WorkflowExecution execution,
       WorkflowOutboundCallsInterceptor workflowOutboundCallsInterceptor) {
-    workflowMetadata = POJOWorkflowInterfaceMetadata.newStubInstance(workflowInterface);
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     stub = new ExternalWorkflowStubImpl(execution, workflowOutboundCallsInterceptor);
   }
 

@@ -21,10 +21,7 @@
 package io.temporal.common.metadata;
 
 import com.google.common.collect.ImmutableList;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Rules:
@@ -95,24 +92,23 @@ public final class POJOWorkflowImplMetadata {
         || implClass.isEnum()) {
       throw new IllegalArgumentException("concrete class expected: " + implClass);
     }
+
+    List<POJOWorkflowInterfaceMetadata> workflowInterfaces = new ArrayList<>();
     Map<String, POJOWorkflowMethodMetadata> workflowMethods = new HashMap<>();
     Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
     Map<String, POJOWorkflowMethodMetadata> signalMethods = new HashMap<>();
-    List<POJOWorkflowInterfaceMetadata> workflowInterfaces = new ArrayList<>();
     Map<EqualsByNameType, POJOWorkflowMethodMetadata> byNameType = new HashMap<>();
-    Class<?>[] interfaces = implClass.getInterfaces();
-    for (int i = 0; i < interfaces.length; i++) {
-      Class<?> anInterface = interfaces[i];
 
-      POJOWorkflowInterfaceMetadata interfaceMetadata;
-      if (listener) {
-        interfaceMetadata =
-            POJOWorkflowInterfaceMetadata.newStubInstanceSkipWorkflowAnnotationCheck(anInterface);
-      } else {
-        interfaceMetadata = POJOWorkflowInterfaceMetadata.newImplementationInstance(anInterface);
-      }
-      workflowInterfaces.add(interfaceMetadata);
+    // Getting all the top level interfaces instead of the direct ones that Class.getInterfaces()
+    // returns
+    Set<Class<?>> interfaces = POJOReflectionUtils.getTopLevelInterfaces(implClass);
+    for (Class<?> anInterface : interfaces) {
+      POJOWorkflowInterfaceMetadata interfaceMetadata =
+          POJOWorkflowInterfaceMetadata.newImplementationInstance(anInterface, listener);
       List<POJOWorkflowMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
+      if (!methods.isEmpty()) {
+        workflowInterfaces.add(interfaceMetadata);
+      }
       for (POJOWorkflowMethodMetadata methodMetadata : methods) {
         EqualsByNameType key =
             new EqualsByNameType(methodMetadata.getName(), methodMetadata.getType());

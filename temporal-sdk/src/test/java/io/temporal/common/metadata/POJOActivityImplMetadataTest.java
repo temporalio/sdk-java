@@ -18,70 +18,22 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.metadata;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.common.metadata.POJOActivityImplMetadata;
-import io.temporal.common.metadata.POJOActivityInterfaceMetadata;
-import io.temporal.common.metadata.POJOActivityMethodMetadata;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.Test;
 
-public class POJOActivityMetadataTest {
+public class POJOActivityImplMetadataTest {
 
-  public interface A {
-    void a();
-  }
-
-  public interface B extends A {
-    void b();
-
-    void bb();
-  }
-
-  @ActivityInterface(namePrefix = "C_")
-  public interface C extends B, A {
-    void c();
-
-    @ActivityMethod(name = "AM_C_bb")
-    void bb();
-  }
-
-  @ActivityInterface
-  public interface E extends B {
-    @ActivityMethod(name = "AM_E_bb")
-    void bb();
-  }
-
-  @ActivityInterface
-  public interface D extends C {
-    void d();
-  }
-
-  @ActivityInterface
-  public interface F {
-    @ActivityMethod(name = "AM_C_bb")
-    void f();
-  }
-
-  public interface DE extends D, E {}
-
-  @ActivityInterface
-  interface G {
-    @ActivityMethod(name = "AM_G_bb")
-    void g();
-  }
-
-  static class DImpl implements D, E {
+  static class DImpl
+      implements POJOActivityInterfaceMetadataTest.D, POJOActivityInterfaceMetadataTest.E {
 
     @Override
     public void a() {}
@@ -99,7 +51,7 @@ public class POJOActivityMetadataTest {
     public void d() {}
   }
 
-  static class DEImpl implements DE {
+  static class DEImpl implements POJOActivityInterfaceMetadataTest.DE {
 
     @Override
     public void a() {}
@@ -117,7 +69,8 @@ public class POJOActivityMetadataTest {
     public void d() {}
   }
 
-  static class DuplicatedNameImpl implements F, C {
+  static class DuplicatedNameImpl
+      implements POJOActivityInterfaceMetadataTest.F, POJOActivityInterfaceMetadataTest.C {
 
     @Override
     public void a() {}
@@ -135,19 +88,16 @@ public class POJOActivityMetadataTest {
     public void f() {}
   }
 
-  static class GImpl implements G {
+  static class GImpl implements POJOActivityInterfaceMetadataTest.G {
     @Override
     public void g() {}
   }
 
-  @ActivityInterface
-  public interface Empty {}
-
-  class EmptyImpl implements Empty {
+  class EmptyImpl implements POJOActivityInterfaceMetadataTest.Empty {
     public void foo() {}
   }
 
-  class NoActivityImpl implements A {
+  class NoActivityImpl implements POJOActivityInterfaceMetadataTest.A {
 
     @Override
     public void a() {}
@@ -214,34 +164,5 @@ public class POJOActivityMetadataTest {
           e.getMessage(),
           e.getMessage().contains("Interface with @ActivityInterface annotation must be public"));
     }
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testNonInterface() {
-    POJOActivityInterfaceMetadata.newInstance(DImpl.class);
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testEmptyInterface() {
-    POJOActivityInterfaceMetadata.newInstance(Empty.class);
-  }
-
-  @Test
-  public void testActivityInterface() throws NoSuchMethodException {
-    Set<String> expected = new HashSet<>();
-    expected.add("AM_C_bb");
-    expected.add("AM_E_bb");
-    expected.add("C_a");
-    expected.add("C_b");
-    expected.add("C_c");
-    expected.add("d");
-    expected.add("a");
-    expected.add("b");
-
-    POJOActivityInterfaceMetadata dMetadata = POJOActivityInterfaceMetadata.newInstance(D.class);
-    Method c = C.class.getDeclaredMethod("c");
-    POJOActivityMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
-    assertEquals(c, cMethod.getMethod());
-    assertEquals("C_C", cMethod.getActivityTypeName());
   }
 }

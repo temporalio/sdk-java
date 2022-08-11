@@ -25,8 +25,11 @@ import static org.junit.Assert.*;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.common.metadata.testclasses.ActivityInterfaceWithOneNonAnnotatedMethod;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 import net.bytebuddy.ByteBuddy;
@@ -43,6 +46,35 @@ import org.junit.runner.RunWith;
 
 @RunWith(JUnitParamsRunner.class)
 public class POJOActivityInterfaceMetadataTest {
+  @Test(expected = IllegalArgumentException.class)
+  public void testNonInterface() {
+    POJOActivityInterfaceMetadata.newInstance(AbstractDImpl.class);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testEmptyInterface() {
+    POJOActivityInterfaceMetadata.newInstance(Empty.class);
+  }
+
+  @Test
+  public void testActivityInterface() throws NoSuchMethodException {
+    Set<String> expected = new HashSet<>();
+    expected.add("AM_C_bb");
+    expected.add("AM_E_bb");
+    expected.add("C_a");
+    expected.add("C_b");
+    expected.add("C_c");
+    expected.add("d");
+    expected.add("a");
+    expected.add("b");
+
+    POJOActivityInterfaceMetadata dMetadata = POJOActivityInterfaceMetadata.newInstance(D.class);
+    Method c = C.class.getDeclaredMethod("c");
+    POJOActivityMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
+    assertEquals(c, cMethod.getMethod());
+    assertEquals("C_C", cMethod.getActivityTypeName());
+  }
+
   @Test
   public void unannotatedActivityMethod() {
     POJOActivityInterfaceMetadata metadata =
@@ -113,5 +145,53 @@ public class POJOActivityInterfaceMetadataTest {
     }
 
     return methodDefinition.make().load(this.getClass().getClassLoader()).getLoaded();
+  }
+
+  abstract static class AbstractDImpl implements D {}
+
+  @ActivityInterface
+  public interface Empty {}
+
+  public interface A {
+    void a();
+  }
+
+  public interface B extends A {
+    void b();
+
+    void bb();
+  }
+
+  @ActivityInterface(namePrefix = "C_")
+  public interface C extends B, A {
+    void c();
+
+    @ActivityMethod(name = "AM_C_bb")
+    void bb();
+  }
+
+  @ActivityInterface
+  public interface E extends B {
+    @ActivityMethod(name = "AM_E_bb")
+    void bb();
+  }
+
+  @ActivityInterface
+  public interface D extends C {
+    void d();
+  }
+
+  @ActivityInterface
+  public interface F {
+    @ActivityMethod(name = "AM_C_bb")
+    void f();
+  }
+
+  public interface DE extends D, E {}
+
+  @ActivityInterface
+  interface G {
+    @ActivityMethod(name = "AM_G_bb")
+    void g();
   }
 }

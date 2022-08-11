@@ -111,6 +111,10 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     addWorkflowImplementationFactory(unitTestingOptions, clazz, factory);
   }
 
+  /**
+   * @param clazz has to be a workflow interface class. The only exception is if it's a
+   *     DynamicWorkflow class.
+   */
   @SuppressWarnings("unchecked")
   public <R> void addWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory) {
@@ -125,7 +129,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     }
     workflowImplementationFactories.put(clazz, factory);
     POJOWorkflowInterfaceMetadata workflowMetadata =
-        POJOWorkflowInterfaceMetadata.newStubInstance(clazz);
+        POJOWorkflowInterfaceMetadata.newInstance(clazz);
     if (!workflowMetadata.getWorkflowMethod().isPresent()) {
       throw new IllegalArgumentException(
           "Workflow interface doesn't contain a method annotated with @WorkflowMethod: " + clazz);
@@ -176,34 +180,27 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
           });
       return;
     }
-    boolean hasWorkflowMethod = false;
     POJOWorkflowImplMetadata workflowMetadata =
         POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);
-    for (POJOWorkflowInterfaceMetadata workflowInterface :
-        workflowMetadata.getWorkflowInterfaces()) {
-      Optional<POJOWorkflowMethodMetadata> workflowMethod = workflowInterface.getWorkflowMethod();
-      if (!workflowMethod.isPresent()) {
-        continue;
-      }
-      POJOWorkflowMethodMetadata methodMetadata = workflowMethod.get();
-      String workflowName = methodMetadata.getName();
-      Method method = methodMetadata.getWorkflowMethod();
-      Functions.Func<SyncWorkflowDefinition> factory =
+    List<POJOWorkflowMethodMetadata> workflowMethods = workflowMetadata.getWorkflowMethods();
+    if (workflowMethods.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Workflow implementation doesn't implement any interface "
+              + "with a workflow method annotated with @WorkflowMethod: "
+              + workflowImplementationClass);
+    }
+    for (POJOWorkflowMethodMetadata workflowMethod : workflowMethods) {
+      String workflowName = workflowMethod.getName();
+      Method method = workflowMethod.getWorkflowMethod();
+      Functions.Func<SyncWorkflowDefinition> definition =
           () -> new POJOWorkflowImplementation(workflowImplementationClass, workflowName, method);
 
       if (workflowDefinitions.containsKey(workflowName)) {
         throw new IllegalStateException(
             workflowName + " workflow type is already registered with the worker");
       }
-      workflowDefinitions.put(workflowName, factory);
+      workflowDefinitions.put(workflowName, definition);
       implementationOptions.put(workflowName, options);
-      hasWorkflowMethod = true;
-    }
-    if (!hasWorkflowMethod) {
-      throw new IllegalArgumentException(
-          "Workflow implementation doesn't implement any interface "
-              + "with a workflow method annotated with @WorkflowMethod: "
-              + workflowImplementationClass);
     }
   }
 
@@ -215,7 +212,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         return new DynamicSyncWorkflowDefinition(
             dynamicWorkflowImplementationFactory, workerInterceptors, dataConverter);
       }
-      // throw Error to abort the workflow task task, not fail the workflow
+      // throw Error to abort the workflow task, not fail the workflow
       throw new Error(
           "Unknown workflow type \""
               + workflowType.getName()

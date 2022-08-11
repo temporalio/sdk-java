@@ -115,8 +115,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowClientOptions clientOptions,
       WorkflowClientCallsInterceptor workflowClientCallsInvoker,
       WorkflowExecution execution) {
-    workflowMetadata =
-        POJOWorkflowInterfaceMetadata.newStubInstanceSkipWorkflowAnnotationCheck(workflowInterface);
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface, false);
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
     WorkflowStub stub =
         new WorkflowStubImpl(clientOptions, workflowClientCallsInvoker, workflowType, execution);
@@ -133,7 +132,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowClientCallsInterceptor workflowClientCallsInvoker,
       WorkflowOptions options) {
     Objects.requireNonNull(options, "options");
-    workflowMetadata = POJOWorkflowInterfaceMetadata.newStubInstance(workflowInterface);
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
     if (!workflowMethodMetadata.isPresent()) {

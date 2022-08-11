@@ -169,7 +169,7 @@ public class TestWorkflowExtension
     try {
       // If POJOWorkflowInterfaceMetadata can be instantiated then parameterType is a proper
       // workflow interface and can be injected
-      POJOWorkflowInterfaceMetadata.newStubInstance(parameterType);
+      POJOWorkflowInterfaceMetadata.newInstance(parameterType);
       return true;
     } catch (Exception e) {
       return false;
