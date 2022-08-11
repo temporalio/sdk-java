@@ -23,7 +23,6 @@ package io.temporal.spring.boot.autoconfigure.template;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
-import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.ActivityImpl;
@@ -278,26 +277,20 @@ public class WorkersTemplate implements BeanFactoryAware {
 
   @SuppressWarnings("unchecked")
   private <T> void configureWorkflowImplementation(Worker worker, Class<?> clazz) {
-    // TODO this code is a copy-past of a portion of
-    // POJOWorkflowImplementationFactory#registerWorkflowImplementationType
-    //  we should refactor it to separate the logic into reusable methods
-    boolean hasWorkflowMethod = false;
+
     POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newInstance(clazz);
-    for (POJOWorkflowInterfaceMetadata workflowInterface :
-        workflowMetadata.getWorkflowInterfaces()) {
-      Optional<POJOWorkflowMethodMetadata> workflowMethod = workflowInterface.getWorkflowMethod();
-      if (workflowMethod.isPresent()) {
-        // TODO this is ugly. POJOWorkflowMethodMetadata needs to be generified
-        worker.addWorkflowImplementationFactory(
-            (Class<T>) workflowInterface.getInterfaceClass(),
-            () -> (T) beanFactory.createBean(clazz));
-        hasWorkflowMethod = true;
-        break;
-      }
+    List<POJOWorkflowMethodMetadata> workflowMethods = workflowMetadata.getWorkflowMethods();
+    if (workflowMethods.isEmpty()) {
+      throw new BeanDefinitionValidationException(
+          "Workflow implementation doesn't implement any interface "
+              + "with a workflow method annotated with @WorkflowMethod: "
+              + clazz);
     }
 
-    if (!hasWorkflowMethod) {
-      throw new BeanDefinitionValidationException(clazz + " doesn't have workflowMethod");
+    for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
+      worker.addWorkflowImplementationFactory(
+          (Class<T>) workflowMethod.getWorkflowInterface(),
+          () -> (T) beanFactory.createBean(clazz));
     }
   }
 

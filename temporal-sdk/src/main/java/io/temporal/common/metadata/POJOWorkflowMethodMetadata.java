@@ -29,9 +29,9 @@ public final class POJOWorkflowMethodMetadata {
 
   private final POJOWorkflowMethod workflowMethod;
   private final String name;
-  private final Class<?> interfaceType;
+  private final Class<?> workflowInterface;
 
-  POJOWorkflowMethodMetadata(POJOWorkflowMethod methodMetadata, Class<?> interfaceType) {
+  POJOWorkflowMethodMetadata(POJOWorkflowMethod methodMetadata, Class<?> workflowInterface) {
     this.workflowMethod = Objects.requireNonNull(methodMetadata);
     if (workflowMethod.getType() == WorkflowMethodType.NONE) {
       throw new IllegalArgumentException(
@@ -40,10 +40,10 @@ public final class POJOWorkflowMethodMetadata {
               + "\" is not annotated with @WorkflowMethod, @SignalMethod or @QueryMethod");
     }
 
-    this.interfaceType = Objects.requireNonNull(interfaceType);
+    this.workflowInterface = Objects.requireNonNull(workflowInterface);
     Optional<String> nameFromAnnotation = workflowMethod.getNameFromAnnotation();
     if (workflowMethod.getType() == WorkflowMethodType.WORKFLOW) {
-      this.name = nameFromAnnotation.orElse(interfaceType.getSimpleName());
+      this.name = nameFromAnnotation.orElse(workflowInterface.getSimpleName());
     } else {
       this.name = nameFromAnnotation.orElse(methodMetadata.getMethod().getName());
     }
@@ -66,6 +66,10 @@ public final class POJOWorkflowMethodMetadata {
     return workflowMethod.getMethod();
   }
 
+  public Class<?> getWorkflowInterface() {
+    return workflowInterface;
+  }
+
   /** Compare and hash based on method and the interface type only. */
   @Override
   public boolean equals(Object o) {
@@ -73,12 +77,12 @@ public final class POJOWorkflowMethodMetadata {
     if (o == null || getClass() != o.getClass()) return false;
     POJOWorkflowMethodMetadata that = (POJOWorkflowMethodMetadata) o;
     return com.google.common.base.Objects.equal(workflowMethod, that.workflowMethod)
-        && com.google.common.base.Objects.equal(interfaceType, that.interfaceType);
+        && com.google.common.base.Objects.equal(workflowInterface, that.workflowInterface);
   }
 
   /** Compare and hash based on method and the interface type only. */
   @Override
   public int hashCode() {
-    return com.google.common.base.Objects.hashCode(workflowMethod, interfaceType);
+    return com.google.common.base.Objects.hashCode(workflowMethod, workflowInterface);
   }
 }

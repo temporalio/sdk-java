@@ -21,7 +21,6 @@
 package io.temporal.common.metadata;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.reflect.TypeToken;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.common.MethodRetry;
 import java.lang.reflect.Method;
@@ -79,10 +78,12 @@ public final class POJOActivityImplMetadata {
                 + "\" This annotation can be used only on the interface method it implements.");
       }
     }
-    Set<Class<?>> interfaces =
-        (Set<Class<?>>) TypeToken.of(implClass).getTypes().interfaces().rawTypes();
     List<POJOActivityInterfaceMetadata> activityInterfaces = new ArrayList<>();
     Map<String, POJOActivityMethodMetadata> byName = new HashMap<>();
+
+    // Getting all the top level interfaces instead of the direct ones that Class.getInterfaces()
+    // returns
+    Set<Class<?>> interfaces = POJOReflectionUtils.getTopLevelInterfaces(implClass);
     for (Class<?> anInterface : interfaces) {
       POJOActivityInterfaceMetadata interfaceMetadata =
           POJOActivityInterfaceMetadata.newImplementationInterface(anInterface);
