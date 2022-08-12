@@ -20,6 +20,7 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
+import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
@@ -48,10 +49,10 @@ import org.springframework.context.event.ContextRefreshedEvent;
 
 @Configuration
 @EnableConfigurationProperties(TemporalProperties.class)
-@AutoConfigureAfter(ServiceStubsAutoConfiguration.class)
+@AutoConfigureAfter({ServiceStubsAutoConfiguration.class, OpenTracingAutoConfiguration.class})
 @ConditionalOnBean(ServiceStubsAutoConfiguration.class)
 @ConditionalOnExpression(
-    "${spring.temporal.testServer.enabled:false} || '${spring.temporal.serviceStubs.target:}'.length() > 0")
+    "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class RootNamespaceAutoConfiguration {
   private final ConfigurableListableBeanFactory beanFactory;
 
@@ -64,9 +65,10 @@ public class RootNamespaceAutoConfiguration {
       TemporalProperties properties,
       WorkflowServiceStubs workflowServiceStubs,
       @Qualifier("temporalTestWorkflowEnvironment") @Autowired(required = false) @Nullable
-          TestWorkflowEnvironment testWorkflowEnvironment) {
+          TestWorkflowEnvironment testWorkflowEnvironment,
+      @Autowired(required = false) @Nullable Tracer otTracer) {
     return new NamespaceTemplate(
-        properties, properties, workflowServiceStubs, testWorkflowEnvironment);
+        properties, properties, workflowServiceStubs, otTracer, testWorkflowEnvironment);
   }
 
   /** Client */

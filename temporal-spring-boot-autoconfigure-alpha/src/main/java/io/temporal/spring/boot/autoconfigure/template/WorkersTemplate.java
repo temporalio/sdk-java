@@ -20,10 +20,12 @@
 
 package io.temporal.spring.boot.autoconfigure.template;
 
+import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
+import io.temporal.opentracing.OpenTracingOptions;
+import io.temporal.opentracing.OpenTracingWorkerInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.ActivityImpl;
 import io.temporal.spring.boot.WorkflowImpl;
@@ -34,6 +36,7 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerFactoryOptions;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -60,12 +63,15 @@ public class WorkersTemplate implements BeanFactoryAware {
   private final @Nonnull NamespaceProperties namespaceProperties;
   private final @Nonnull WorkflowServiceStubs workflowServiceStubs;
 
+  private final @Nullable Tracer tracer;
+
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironment testWorkflowEnvironment;
 
+  private final ClientTemplate clientTemplate;
+
   private ConfigurableListableBeanFactory beanFactory;
 
-  private WorkflowClient workflowClient;
   private WorkerFactory workerFactory;
   private Collection<Worker> workers;
 
@@ -73,40 +79,21 @@ public class WorkersTemplate implements BeanFactoryAware {
       @Nonnull TemporalProperties properties,
       @Nonnull NamespaceProperties namespaceProperties,
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
+      @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironment testWorkflowEnvironment) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
+    this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
-  }
-
-  public WorkflowClient getWorkflowClient() {
-    if (workflowClient == null) {
-      this.workflowClient = createWorkflowClient();
-    }
-    return workflowClient;
-  }
-
-  private WorkflowClient createWorkflowClient() {
-    if (testWorkflowEnvironment != null) {
-      // TODO we should still respect the client properties here.
-      // Instead of overriding, we should allow the test environment to configure the client.
-      return testWorkflowEnvironment.getWorkflowClient();
-    }
-
-    WorkflowClientOptions.Builder clientOptionsBuilder = WorkflowClientOptions.newBuilder();
-
-    if (namespaceProperties.getNamespace() != null) {
-      clientOptionsBuilder.setNamespace(namespaceProperties.getNamespace());
-    }
-
-    return WorkflowClient.newInstance(
-        workflowServiceStubs, clientOptionsBuilder.validateAndBuildWithDefaults());
+    this.clientTemplate =
+        new ClientTemplate(
+            namespaceProperties, workflowServiceStubs, tracer, testWorkflowEnvironment);
   }
 
   public WorkerFactory getWorkerFactory() {
     if (workerFactory == null) {
-      this.workerFactory = createWorkerFactory(getWorkflowClient());
+      this.workerFactory = createWorkerFactory(clientTemplate.getWorkerWorkflowClient());
     }
     return workerFactory;
   }
@@ -122,7 +109,14 @@ public class WorkersTemplate implements BeanFactoryAware {
     if (testWorkflowEnvironment != null) {
       return testWorkflowEnvironment.getWorkerFactory();
     } else {
-      return WorkerFactory.newInstance(workflowClient);
+      WorkerFactoryOptions.Builder options = WorkerFactoryOptions.newBuilder();
+      if (tracer != null) {
+        OpenTracingWorkerInterceptor openTracingClientInterceptor =
+            new OpenTracingWorkerInterceptor(
+                OpenTracingOptions.newBuilder().setTracer(tracer).build());
+        options.setWorkerInterceptors(openTracingClientInterceptor);
+      }
+      return WorkerFactory.newInstance(workflowClient, options.validateAndBuildWithDefaults());
     }
   }
 

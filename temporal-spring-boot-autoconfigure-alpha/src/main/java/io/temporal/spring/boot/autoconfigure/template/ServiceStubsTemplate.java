@@ -20,24 +20,44 @@
 
 package io.temporal.spring.boot.autoconfigure.template;
 
+import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.tally.StatsReporter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.temporal.common.reporter.MicrometerClientStatsReporter;
+import io.temporal.serviceclient.SimpleSslContextBuilder;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.spring.boot.autoconfigure.properties.ServiceStubProperties;
+import io.temporal.spring.boot.autoconfigure.properties.ConnectionProperties;
 import io.temporal.testing.TestWorkflowEnvironment;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.net.ssl.SSLException;
+import org.springframework.beans.factory.BeanCreationException;
+import org.springframework.beans.factory.support.BeanDefinitionValidationException;
+import org.springframework.util.ResourceUtils;
 
 public class ServiceStubsTemplate {
-  private final @Nonnull ServiceStubProperties serviceStubProperties;
+  private final @Nonnull ConnectionProperties connectionProperties;
+
+  private final @Nullable MeterRegistry meterRegistry;
+
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironment testWorkflowEnvironment;
 
   private WorkflowServiceStubs workflowServiceStubs;
 
   public ServiceStubsTemplate(
-      @Nonnull ServiceStubProperties serviceStubProperties,
+      @Nonnull ConnectionProperties connectionProperties,
+      @Nullable MeterRegistry meterRegistry,
       @Nullable TestWorkflowEnvironment testWorkflowEnvironment) {
-    this.serviceStubProperties = serviceStubProperties;
+    this.connectionProperties = connectionProperties;
+    this.meterRegistry = meterRegistry;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }
 
@@ -53,16 +73,25 @@ public class ServiceStubsTemplate {
     if (testWorkflowEnvironment != null) {
       workflowServiceStubs = testWorkflowEnvironment.getWorkflowClient().getWorkflowServiceStubs();
     } else {
-      switch (serviceStubProperties.getTarget().toLowerCase()) {
-        case ServiceStubProperties.TARGET_LOCAL_SERVICE:
+      switch (connectionProperties.getTarget().toLowerCase()) {
+        case ConnectionProperties.TARGET_LOCAL_SERVICE:
           workflowServiceStubs = WorkflowServiceStubs.newLocalServiceStubs();
           break;
         default:
           WorkflowServiceStubsOptions.Builder stubsOptionsBuilder =
               WorkflowServiceStubsOptions.newBuilder();
 
-          if (serviceStubProperties.getTarget() != null) {
-            stubsOptionsBuilder.setTarget(serviceStubProperties.getTarget());
+          if (connectionProperties.getTarget() != null) {
+            stubsOptionsBuilder.setTarget(connectionProperties.getTarget());
+          }
+
+          stubsOptionsBuilder.setEnableHttps(
+              Boolean.TRUE.equals(connectionProperties.isEnableHttps()));
+
+          configureMTLS(connectionProperties.getMTLS(), stubsOptionsBuilder);
+
+          if (meterRegistry != null) {
+            stubsOptionsBuilder.setMetricsScope(createScope(meterRegistry));
           }
 
           workflowServiceStubs =
@@ -72,5 +101,93 @@ public class ServiceStubsTemplate {
     }
 
     return workflowServiceStubs;
+  }
+
+  private Scope createScope(@Nonnull MeterRegistry registry) {
+    StatsReporter reporter = new MicrometerClientStatsReporter(registry);
+    Scope scope =
+        new RootScopeBuilder()
+            .reporter(reporter)
+            .reportEvery(com.uber.m3.util.Duration.ofSeconds(10));
+    return scope;
+  }
+
+  private void configureMTLS(
+      @Nullable ConnectionProperties.MTLSProperties mtlsProperties,
+      WorkflowServiceStubsOptions.Builder stubsOptionsBuilder) {
+    if (mtlsProperties == null
+        || (mtlsProperties.getKeyFile() == null && mtlsProperties.getCertChainFile() == null)) {
+      return;
+    }
+
+    Integer pkcs = mtlsProperties.getPKCS();
+    if (pkcs != null && pkcs != 8 && pkcs != 12) {
+      throw new BeanDefinitionValidationException("Invalid PKCS: " + pkcs);
+    }
+
+    String keyFile = mtlsProperties.getKeyFile();
+    String key = mtlsProperties.getKey();
+    if (keyFile == null && key == null) {
+      throw new BeanDefinitionValidationException("key-file or key has to be specified");
+    } else if (keyFile != null && key != null) {
+      throw new BeanDefinitionValidationException(
+          "Both key-file and key can't be specified at the same time");
+    }
+
+    String certChainFile = mtlsProperties.getCertChainFile();
+    String certChain = mtlsProperties.getCertChain();
+
+    if (pkcs == null) {
+      pkcs = certChainFile != null || certChain != null ? 8 : 12;
+    }
+
+    SimpleSslContextBuilder sslBuilder;
+    if (pkcs == 8) {
+      if (certChainFile == null && certChain == null) {
+        throw new BeanDefinitionValidationException(
+            "cert-chain-file or cert-chain has to be specified for PKCS8");
+      }
+      if (certChainFile != null && certChain != null) {
+        throw new BeanDefinitionValidationException(
+            "Both cert-chain-file or cert-chain can't be set at the same time");
+      }
+      try (InputStream certInputStream =
+              certChainFile != null
+                  ? Files.newInputStream(ResourceUtils.getFile(certChainFile).toPath())
+                  : new ByteArrayInputStream(certChain.getBytes(StandardCharsets.UTF_8));
+          InputStream keyInputStream =
+              keyFile != null
+                  ? Files.newInputStream(ResourceUtils.getFile(keyFile).toPath())
+                  : new ByteArrayInputStream(key.getBytes(StandardCharsets.UTF_8)); ) {
+        sslBuilder = SimpleSslContextBuilder.forPKCS8(certInputStream, keyInputStream);
+      } catch (IOException e) {
+        throw new BeanCreationException("Failure reading PKCS8 mTLS key or cert chain file", e);
+      }
+    } else {
+      if (certChainFile != null || certChain != null) {
+        throw new BeanDefinitionValidationException(
+            "cert-chain-file or cert-chain can't be specified for PKCS12, cert chain is coupled with the key file");
+      }
+      if (key != null) {
+        throw new BeanDefinitionValidationException(
+            "key can't be specified for PKCS12, use key-file");
+      }
+      try (InputStream keyInputStream =
+          Files.newInputStream(ResourceUtils.getFile(keyFile).toPath())) {
+        sslBuilder = SimpleSslContextBuilder.forPKCS12(keyInputStream);
+      } catch (IOException e) {
+        throw new BeanCreationException("Failure reading PKCS12 mTLS cert key file", e);
+      }
+    }
+
+    if (Boolean.TRUE.equals(mtlsProperties.getInsecureTrustManager())) {
+      sslBuilder.setUseInsecureTrustManager(true);
+    }
+
+    try {
+      stubsOptionsBuilder.setSslContext(sslBuilder.build());
+    } catch (SSLException e) {
+      throw new BeanCreationException("Failure building SSLContext", e);
+    }
   }
 }

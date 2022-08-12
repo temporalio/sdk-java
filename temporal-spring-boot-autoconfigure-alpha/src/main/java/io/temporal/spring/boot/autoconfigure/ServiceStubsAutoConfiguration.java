@@ -20,6 +20,7 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ServiceStubsTemplate;
@@ -32,21 +33,23 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 
 @Configuration
 @EnableConfigurationProperties(TemporalProperties.class)
 @AutoConfigureAfter(TestServerAutoConfiguration.class)
 @ConditionalOnExpression(
-    "${spring.temporal.testServer.enabled:false} || '${spring.temporal.serviceStubs.target:}'.length() > 0")
-@Order(2)
+    "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class ServiceStubsAutoConfiguration {
   @Bean(name = "temporalServiceStubsTemplate")
   public ServiceStubsTemplate serviceStubsTemplate(
       TemporalProperties properties,
+      // Spring Boot configures and exposes Micrometer MeterRegistry bean in the
+      // spring-boot-starter-actuator dependency
+      @Autowired(required = false) @Nullable MeterRegistry meterRegistry,
       @Qualifier("temporalTestWorkflowEnvironment") @Autowired(required = false) @Nullable
           TestWorkflowEnvironment testWorkflowEnvironment) {
-    return new ServiceStubsTemplate(properties.getServiceStubs(), testWorkflowEnvironment);
+    return new ServiceStubsTemplate(
+        properties.getConnection(), meterRegistry, testWorkflowEnvironment);
   }
 
   @Bean(name = "temporalWorkflowServiceStubs")

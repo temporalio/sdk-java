@@ -30,32 +30,40 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 @ConfigurationProperties(prefix = "spring.temporal")
 @ConstructorBinding
 public class TemporalProperties extends NamespaceProperties {
-  private final @NestedConfigurationProperty @Nonnull ServiceStubProperties serviceStubs;
+  private final @NestedConfigurationProperty @Nonnull ConnectionProperties connection;
   private final @NestedConfigurationProperty @Nullable TestServerProperties testServer;
+  private final @NestedConfigurationProperty @Nullable ObservabilityProperties observability;
   private final @Nullable Boolean startWorkers;
 
   public TemporalProperties(
-      @Nonnull ServiceStubProperties serviceStubs,
       @Nullable String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
       @Nullable ClientProperties client,
       @Nullable List<WorkerProperties> workers,
-      @Nullable Boolean startWorkers,
-      @Nullable TestServerProperties testServer) {
+      @Nonnull ConnectionProperties connection,
+      @Nullable TestServerProperties testServer,
+      @Nullable ObservabilityProperties observability,
+      @Nullable Boolean startWorkers) {
     super(namespace, workersAutoDiscovery, client, workers);
-    this.serviceStubs = serviceStubs;
+    this.connection = connection;
     this.testServer = testServer;
+    this.observability = observability;
     this.startWorkers = startWorkers;
   }
 
   @Nonnull
-  public ServiceStubProperties getServiceStubs() {
-    return serviceStubs;
+  public ConnectionProperties getConnection() {
+    return connection;
   }
 
   @Nullable
   public TestServerProperties getTestServer() {
     return testServer;
+  }
+
+  @Nullable
+  public ObservabilityProperties getObservability() {
+    return observability;
   }
 
   @Nullable

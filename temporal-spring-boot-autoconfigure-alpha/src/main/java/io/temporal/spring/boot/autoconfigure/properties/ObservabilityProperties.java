@@ -20,24 +20,10 @@
 
 package io.temporal.spring.boot.autoconfigure.properties;
 
-import javax.annotation.Nonnull;
 import org.springframework.boot.context.properties.ConstructorBinding;
 
 @ConstructorBinding
-public class ServiceStubProperties {
-  public static final String TARGET_LOCAL_SERVICE = "local";
+public class ObservabilityProperties {
 
-  private final @Nonnull String target;
-
-  public ServiceStubProperties(@Nonnull String target) {
-    this.target = target;
-  }
-
-  /**
-   * @see io.temporal.serviceclient.WorkflowServiceStubsOptions.Builder#setTarget(String)
-   */
-  @Nonnull
-  public String getTarget() {
-    return target;
-  }
+  public ObservabilityProperties() {}
 }

@@ -34,18 +34,33 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 class WorkersPresentCondition extends SpringBootCondition {
   private static final Bindable<List<WorkerProperties>> WORKER_PROPERTIES_LIST =
       Bindable.listOf(WorkerProperties.class);
-  private static final String KEY = "spring.temporal.workers";
+
+  private static final Bindable<List<String>> AUTO_DISCOVERY_PACKAGES_LIST =
+      Bindable.listOf(String.class);
+  private static final String WORKERS_KEY = "spring.temporal.workers";
+  private static final String AUTO_DISCOVERY_KEY =
+      "spring.temporal.workers-auto-discovery.packages";
 
   public WorkersPresentCondition() {}
 
   @Override
   public ConditionOutcome getMatchOutcome(
       ConditionContext context, AnnotatedTypeMetadata metadata) {
-    BindResult<?> property = Binder.get(context.getEnvironment()).bind(KEY, WORKER_PROPERTIES_LIST);
+    BindResult<?> workersProperty =
+        Binder.get(context.getEnvironment()).bind(WORKERS_KEY, WORKER_PROPERTIES_LIST);
     ConditionMessage.Builder messageBuilder = ConditionMessage.forCondition("Present Workers");
-    if (property.isBound()) {
-      return ConditionOutcome.match(messageBuilder.found("property").items(KEY));
+    if (workersProperty.isBound()) {
+      return ConditionOutcome.match(messageBuilder.found("property").items(WORKERS_KEY));
     }
-    return ConditionOutcome.noMatch(messageBuilder.didNotFind("property").items(KEY));
+
+    BindResult<?> autoDiscoveryProperty =
+        Binder.get(context.getEnvironment()).bind(AUTO_DISCOVERY_KEY, AUTO_DISCOVERY_PACKAGES_LIST);
+    messageBuilder = ConditionMessage.forCondition("Auto Discovery Packages Set");
+    if (autoDiscoveryProperty.isBound()) {
+      return ConditionOutcome.match(messageBuilder.found("property").items(AUTO_DISCOVERY_KEY));
+    }
+
+    return ConditionOutcome.noMatch(
+        messageBuilder.didNotFind("property").items(WORKERS_KEY, AUTO_DISCOVERY_KEY));
   }
 }

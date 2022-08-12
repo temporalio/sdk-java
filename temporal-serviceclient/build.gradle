@@ -12,6 +12,7 @@ dependencies {
     api "io.grpc:grpc-api" //Classes like io.grpc.Metadata are used as a part of our API
     api "io.grpc:grpc-stub" //Part of WorkflowServiceStubs API
     api "io.grpc:grpc-netty-shaded" //Part of WorkflowServiceStubs API, specifically SslContext
+    api "io.grpc:grpc-services" //Stardard gRPC HealthCheck Response class
     api "com.google.protobuf:protobuf-java-util:$protoVersion" //proto request and response objects are a part of this module's API
     if (JavaVersion.current().isJava9Compatible()) {
         //needed for the generated grpc stubs and is not a part of JDK since java 9
@@ -21,7 +22,6 @@ dependencies {
     api "com.uber.m3:tally-core:$tallyVersion"
 
     implementation "io.grpc:grpc-core"
-    implementation "io.grpc:grpc-services"
 
     api "org.slf4j:slf4j-api:$slf4jVersion"
 

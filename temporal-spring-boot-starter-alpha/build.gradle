@@ -1,6 +1,6 @@
 description = '''Spring Boot Starter for Temporal Java SDK'''
 
 dependencies {
-    api project(':temporal-sdk')
     api project(':temporal-spring-boot-autoconfigure-alpha')
+    implementation "org.springframework.boot:spring-boot-starter"
 }

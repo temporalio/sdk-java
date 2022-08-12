@@ -20,8 +20,10 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -29,23 +31,20 @@ import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(classes = ExplicitConfigTest.Configuration.class)
-@ActiveProfiles(profiles = "explicit-config")
+@SpringBootTest(classes = ClientOnlyTest.Configuration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class ExplicitConfigTest {
+public class ClientOnlyTest {
   @Autowired TestWorkflowEnvironment testWorkflowEnvironment;
 
   @Autowired WorkflowClient workflowClient;
 
   @Test
   @Timeout(value = 10)
-  public void testExplicitConfig() {
-    TestWorkflow testWorkflow =
-        workflowClient.newWorkflowStub(
-            TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
-    testWorkflow.execute("input");
+  public void testClientWiring() {
+    HealthCheckResponse healthCheckResponse =
+        workflowClient.getWorkflowServiceStubs().healthCheck();
+    assertEquals(HealthCheckResponse.ServingStatus.SERVING, healthCheckResponse.getStatus());
   }
 
   @ComponentScan
