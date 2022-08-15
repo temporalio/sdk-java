@@ -42,6 +42,8 @@ import javax.annotation.Nonnull;
 
 /** This class encapsulates sync long poll logic of {@link RootWorkflowClientInvoker} */
 final class WorkflowClientLongPollHelper {
+  private WorkflowClientLongPollHelper() {}
+
   /**
    * Returns result of a workflow instance execution or throws an exception if workflow did not
    * complete successfully. Will wait for continue-as-new executions of the original workflow
@@ -67,26 +69,6 @@ final class WorkflowClientLongPollHelper {
             genericClient, workflowClientHelper, workflowExecution, timeout, unit);
     return WorkflowExecutionUtils.getResultFromCloseEvent(
         workflowExecution, workflowType, closeEvent, converter);
-  }
-
-  /**
-   * Waits up to specified timeout for workflow instance completion.
-   *
-   * @param workflowExecution workflowId and optional runId
-   * @param timeout maximum time to wait for completion. 0 means wait forever.
-   * @return instance close status
-   */
-  static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
-      GenericWorkflowClient genericClient,
-      WorkflowClientRequestFactory workflowClientHelper,
-      @Nonnull WorkflowExecution workflowExecution,
-      long timeout,
-      TimeUnit unit)
-      throws TimeoutException {
-    HistoryEvent closeEvent =
-        getInstanceCloseEvent(
-            genericClient, workflowClientHelper, workflowExecution, timeout, unit);
-    return WorkflowExecutionUtils.getCloseStatus(closeEvent);
   }
 
   /**

@@ -115,7 +115,7 @@ final class WorkflowInfoImpl implements WorkflowInfo {
 
   @Override
   public String toString() {
-    return "ActivityInfo{"
+    return "WorkflowInfo{"
         + "namespace="
         + getNamespace()
         + ", workflowId="
