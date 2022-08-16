@@ -20,25 +20,23 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
-import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
-import io.temporal.testing.TestWorkflowEnvironment;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.opentracingshim.OpenTracingShim;
+import io.opentracing.Tracer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Provides a client based on `spring.temporal.testServer` section */
 @Configuration
-@EnableConfigurationProperties(TemporalProperties.class)
-@ConditionalOnClass(name = "io.temporal.testing.TestWorkflowEnvironment")
-@ConditionalOnProperty(
-    prefix = "spring.temporal",
-    name = "test-server.enabled",
-    havingValue = "true")
-public class TestServerAutoConfiguration {
-  @Bean(name = "temporalTestWorkflowEnvironment", destroyMethod = "close")
-  public TestWorkflowEnvironment testServer() {
-    return TestWorkflowEnvironment.newInstance();
+@ConditionalOnClass(io.opentelemetry.api.OpenTelemetry.class)
+@ConditionalOnBean(io.opentelemetry.api.OpenTelemetry.class)
+public class OpenTracingAutoConfiguration {
+  @ConditionalOnMissingBean(Tracer.class)
+  @Bean(name = "temporalOtTracer")
+  public Tracer openTracingTracer(@Autowired OpenTelemetry otel) {
+    return OpenTracingShim.createTracerShim(otel);
   }
 }

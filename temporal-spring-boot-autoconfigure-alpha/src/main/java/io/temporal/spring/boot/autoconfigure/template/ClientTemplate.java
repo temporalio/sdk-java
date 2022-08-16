@@ -20,8 +20,11 @@
 
 package io.temporal.spring.boot.autoconfigure.template;
 
+import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.opentracing.OpenTracingClientInterceptor;
+import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.autoconfigure.properties.ClientProperties;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
@@ -32,6 +35,7 @@ import javax.annotation.Nullable;
 public class ClientTemplate {
   private final @Nonnull NamespaceProperties namespaceProperties;
   private final @Nonnull WorkflowServiceStubs workflowServiceStubs;
+  private final @Nullable Tracer tracer;
   private final @Nullable ClientProperties clientProperties;
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironment testWorkflowEnvironment;
@@ -41,9 +45,11 @@ public class ClientTemplate {
   public ClientTemplate(
       @Nonnull NamespaceProperties namespaceProperties,
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
+      @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironment testWorkflowEnvironment) {
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
+    this.tracer = tracer;
     this.clientProperties = namespaceProperties.getClient();
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }
@@ -66,6 +72,13 @@ public class ClientTemplate {
 
     if (namespaceProperties.getNamespace() != null) {
       clientOptionsBuilder.setNamespace(namespaceProperties.getNamespace());
+    }
+
+    if (tracer != null) {
+      OpenTracingClientInterceptor openTracingClientInterceptor =
+          new OpenTracingClientInterceptor(
+              OpenTracingOptions.newBuilder().setTracer(tracer).build());
+      clientOptionsBuilder.setInterceptors(openTracingClientInterceptor);
     }
 
     return WorkflowClient.newInstance(

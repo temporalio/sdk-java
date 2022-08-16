@@ -19,12 +19,13 @@
 #
 
 spring.temporal:
-  serviceStubs:
+  connection:
+    mtls:
+      key-file: /path/to/key.key
+      cert-file: /path/to/cert.pem
     target: local
-  testServer:
+  test-server:
     enabled: true
-  workers:
-    - taskQueue: UnitTest
 
 ---
 spring:
@@ -32,7 +33,7 @@ spring:
     activate:
       on-profile: auto-discovery
   temporal:
-    workersAutoDiscovery:
+    workers-auto-discovery:
       packages:
         - io.temporal
 
@@ -43,8 +44,8 @@ spring:
       on-profile: explicit-config
   temporal:
     workers:
-      - taskQueue: UnitTest
-        workflowClasses:
+      - task-queue: UnitTest
+        workflow-classes:
           - io.temporal.spring.boot.autoconfigure.TestWorkflowImpl
-        activityBeans:
+        activity-beans:
           - TestActivityImpl
