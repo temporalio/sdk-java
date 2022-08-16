@@ -90,16 +90,20 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   }
 
   @Override
-  public WorkflowTaskHandler.Result handleWorkflowTask(PollWorkflowTaskQueueResponse workflowTask)
-      throws Exception {
+  public WorkflowTaskHandler.Result handleWorkflowTask(
+      PollWorkflowTaskQueueResponse workflowTask, long workflowTaskStartTimeNs) throws Exception {
     String workflowType = workflowTask.getWorkflowType().getName();
     Scope metricsScope =
         options.getMetricsScope().tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
-    return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope);
+    return handleWorkflowTaskWithQuery(
+        workflowTask.toBuilder(), metricsScope, workflowTaskStartTimeNs);
   }
 
   private Result handleWorkflowTaskWithQuery(
-      PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
+      PollWorkflowTaskQueueResponse.Builder workflowTask,
+      Scope metricsScope,
+      long workflowTaskStartTimeNs)
+      throws Exception {
     boolean directQuery = workflowTask.hasQuery();
     AtomicBoolean createdNew = new AtomicBoolean();
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
@@ -126,7 +130,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         result = createDirectQueryResult(workflowTask, queryResult, null);
       } else {
         // main code path, handle workflow task that can have an embedded query
-        WorkflowTaskResult wftResult = workflowRunTaskHandler.handleWorkflowTask(workflowTask);
+        WorkflowTaskResult wftResult =
+            workflowRunTaskHandler.handleWorkflowTask(workflowTask, workflowTaskStartTimeNs);
         finalCommand = wftResult.isFinalCommand();
         result =
             createCompletedWFTRequest(

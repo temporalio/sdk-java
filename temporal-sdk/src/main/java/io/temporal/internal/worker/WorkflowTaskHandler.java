@@ -104,12 +104,14 @@ public interface WorkflowTaskHandler {
    * Handles a single workflow task
    *
    * @param workflowTask The workflow task to handle.
+   * @param workflowTaskStartTimeNs
    * @return One of the possible workflow task replies: RespondWorkflowTaskCompletedRequest,
    *     RespondQueryTaskCompletedRequest, RespondWorkflowTaskFailedRequest
    * @throws Exception an original exception or error if the processing should be just abandoned
    *     without replying to the server
    */
-  Result handleWorkflowTask(PollWorkflowTaskQueueResponse workflowTask) throws Exception;
+  Result handleWorkflowTask(
+      PollWorkflowTaskQueueResponse workflowTask, long workflowTaskStartTimeNs) throws Exception;
 
   /** True if this handler handles at least one workflow type. */
   boolean isAnyTypeSupported();

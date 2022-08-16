@@ -65,7 +65,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
 
     // Act
     WorkflowTaskHandler.Result result =
-        taskHandler.handleWorkflowTask(HistoryUtils.generateWorkflowTaskWithInitialHistory());
+        taskHandler.handleWorkflowTask(
+            HistoryUtils.generateWorkflowTaskWithInitialHistory(), System.nanoTime());
 
     // Assert
     assertEquals(0, cache.size());
@@ -93,7 +94,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask);
+    WorkflowTaskHandler.Result result =
+        taskHandler.handleWorkflowTask(workflowTask, System.nanoTime());
 
     assertTrue(result.isCompletionCommand());
     assertEquals(0, cache.size()); // do not cache if completion command

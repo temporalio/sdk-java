@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQueueResponse> {
+public final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   private static final Logger log = LoggerFactory.getLogger(WorkflowPollTask.class);
 
   private final WorkflowServiceStubs service;
@@ -61,7 +61,7 @@ public final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQ
   }
 
   @Override
-  public PollWorkflowTaskQueueResponse poll() {
+  public WorkflowTask poll() {
     PollWorkflowTaskQueueRequest pollRequest =
         PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
@@ -102,6 +102,6 @@ public final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQ
     metricsScope
         .timer(MetricsType.WORKFLOW_TASK_SCHEDULE_TO_START_LATENCY)
         .record(ProtobufTimeUtils.toM3Duration(result.getStartedTime(), result.getScheduledTime()));
-    return result;
+    return new WorkflowTask(result, System.nanoTime());
   }
 }

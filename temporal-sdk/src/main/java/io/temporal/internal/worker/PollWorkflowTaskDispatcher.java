@@ -24,7 +24,6 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 
 import com.uber.m3.tally.Scope;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.failure.FailureConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -39,12 +38,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class PollWorkflowTaskDispatcher
-    implements ShutdownableTaskExecutor<PollWorkflowTaskQueueResponse> {
+final class PollWorkflowTaskDispatcher implements ShutdownableTaskExecutor<WorkflowTask> {
 
   private static final Logger log = LoggerFactory.getLogger(PollWorkflowTaskDispatcher.class);
-  private final Map<String, Functions.Proc1<PollWorkflowTaskQueueResponse>> subscribers =
-      new ConcurrentHashMap<>();
+  private final Map<String, Functions.Proc1<WorkflowTask>> subscribers = new ConcurrentHashMap<>();
   private final String namespace;
   private final Scope metricsScope;
   private final WorkflowServiceStubs service;
@@ -60,11 +57,11 @@ final class PollWorkflowTaskDispatcher
   }
 
   @Override
-  public void process(PollWorkflowTaskQueueResponse task) {
+  public void process(WorkflowTask task) {
     if (isShutdown()) {
       throw new RejectedExecutionException("shutdown");
     }
-    String taskQueueName = task.getWorkflowExecutionTaskQueue().getName();
+    String taskQueueName = task.getResponse().getWorkflowExecutionTaskQueue().getName();
     if (subscribers.containsKey(taskQueueName)) {
       subscribers.get(taskQueueName).apply(task);
     } else {
@@ -76,7 +73,7 @@ final class PollWorkflowTaskDispatcher
       RespondWorkflowTaskFailedRequest request =
           RespondWorkflowTaskFailedRequest.newBuilder()
               .setNamespace(namespace)
-              .setTaskToken(task.getTaskToken())
+              .setTaskToken(task.getResponse().getTaskToken())
               .setCause(WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_RESET_STICKY_TASK_QUEUE)
               .setFailure(FailureConverter.exceptionToFailure(exception))
               .build();
@@ -93,7 +90,7 @@ final class PollWorkflowTaskDispatcher
     }
   }
 
-  public void subscribe(String taskQueue, Functions.Proc1<PollWorkflowTaskQueueResponse> consumer) {
+  public void subscribe(String taskQueue, Functions.Proc1<WorkflowTask> consumer) {
     subscribers.put(taskQueue, consumer);
   }
 
