@@ -20,21 +20,6 @@ spring.temporal:
   # namespace: default # you can specify a custom namespace that you are using
 ```
 
-modify to the needs of your application.
-
-## mTLS
-
-To set up mTLS, you need to add the following to your application.properties file:
-
-```yml
-spring.temporal:
-  connection:
-    mtls:
-      key-file: /path/to/key.key
-      cert-file: /path/to/cert.pem
-      # insecure-trust-manager: true
-```
-
 This will be enough to be able to autowire a `WorkflowClient` in your SpringBoot app:
 
 ```java
@@ -44,6 +29,35 @@ class App {
   private WorkflowClient workflowClient;
 }
 ```
+
+## mTLS
+
+[Generate PKCS8 or PKCS12 files](https://github.com/temporalio/samples-server/blob/main/tls/client-only/mac/end-entity.sh), 
+Add the following to your application.yml file:
+
+```yml
+spring.temporal:
+  connection:
+    mtls:
+      key-file: /path/to/key.key
+      cert-chain-file: /path/to/cert.pem # If you use PKCS12 (.pkcs12, .pfx or .p12), you don't need to set it because certificates chain is bundled into the key file
+      # key-password: <password_for_the_key>
+      # insecure-trust-manager: true # or add ca.pem to java default truststore
+```
+
+Alternatively with PKCS8 you can use
+
+```yml
+spring.temporal:
+  connection:
+    mtls:
+      key: <raw content of the key PEM file>
+      cert-chain: <raw content of the cert chain PEM file>
+      # key-password: <password_for_the_key>
+      # insecure-trust-manager: true # or add ca.pem to java default truststore
+```
+
+to set the key and cert chain directly from the environment variables for example.
 
 # Configure workers
 

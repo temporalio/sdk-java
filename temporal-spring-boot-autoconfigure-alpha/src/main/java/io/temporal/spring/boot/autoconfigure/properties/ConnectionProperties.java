@@ -73,6 +73,7 @@ public class ConnectionProperties {
     private final @Nullable String certChain;
     private final @Nullable String keyFile;
     private final @Nullable String certChainFile;
+    private final @Nullable String keyPassword;
     private final @Nullable Boolean insecureTrustManager;
 
     /**
@@ -84,6 +85,7 @@ public class ConnectionProperties {
      * @param keyFile path to key file in PEM format for PKCS8 (usually .pem or .key) PFX for PKCS12
      *     (usually .p12 or .pfx)
      * @param certChainFile path to certificates chain file in PEM format for PKCS8
+     * @param keyPassword password of the key, or null if it's not password-protected
      * @param insecureTrustManager see {@link
      *     SimpleSslContextBuilder#setUseInsecureTrustManager(boolean)}
      */
@@ -93,12 +95,14 @@ public class ConnectionProperties {
         @Nullable String certChain,
         @Nullable String keyFile,
         @Nullable String certChainFile,
+        @Nullable String keyPassword,
         @Nullable Boolean insecureTrustManager) {
       this.pkcs = pkcs;
       this.key = key;
       this.certChain = certChain;
       this.keyFile = keyFile;
       this.certChainFile = certChainFile;
+      this.keyPassword = keyPassword;
       this.insecureTrustManager = insecureTrustManager;
     }
 
@@ -125,6 +129,11 @@ public class ConnectionProperties {
     @Nullable
     public String getCertChainFile() {
       return certChainFile;
+    }
+
+    @Nullable
+    public String getKeyPassword() {
+      return keyPassword;
     }
 
     @Nullable

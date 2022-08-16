@@ -32,7 +32,6 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 public class TemporalProperties extends NamespaceProperties {
   private final @NestedConfigurationProperty @Nonnull ConnectionProperties connection;
   private final @NestedConfigurationProperty @Nullable TestServerProperties testServer;
-  private final @NestedConfigurationProperty @Nullable ObservabilityProperties observability;
   private final @Nullable Boolean startWorkers;
 
   public TemporalProperties(
@@ -42,12 +41,10 @@ public class TemporalProperties extends NamespaceProperties {
       @Nullable List<WorkerProperties> workers,
       @Nonnull ConnectionProperties connection,
       @Nullable TestServerProperties testServer,
-      @Nullable ObservabilityProperties observability,
       @Nullable Boolean startWorkers) {
     super(namespace, workersAutoDiscovery, client, workers);
     this.connection = connection;
     this.testServer = testServer;
-    this.observability = observability;
     this.startWorkers = startWorkers;
   }
 
@@ -59,11 +56,6 @@ public class TemporalProperties extends NamespaceProperties {
   @Nullable
   public TestServerProperties getTestServer() {
     return testServer;
-  }
-
-  @Nullable
-  public ObservabilityProperties getObservability() {
-    return observability;
   }
 
   @Nullable

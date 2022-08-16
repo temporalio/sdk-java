@@ -105,11 +105,9 @@ public class ServiceStubsTemplate {
 
   private Scope createScope(@Nonnull MeterRegistry registry) {
     StatsReporter reporter = new MicrometerClientStatsReporter(registry);
-    Scope scope =
-        new RootScopeBuilder()
-            .reporter(reporter)
-            .reportEvery(com.uber.m3.util.Duration.ofSeconds(10));
-    return scope;
+    return new RootScopeBuilder()
+        .reporter(reporter)
+        .reportEvery(com.uber.m3.util.Duration.ofSeconds(10));
   }
 
   private void configureMTLS(
@@ -166,7 +164,7 @@ public class ServiceStubsTemplate {
     } else {
       if (certChainFile != null || certChain != null) {
         throw new BeanDefinitionValidationException(
-            "cert-chain-file or cert-chain can't be specified for PKCS12, cert chain is coupled with the key file");
+            "cert-chain-file or cert-chain can't be specified for PKCS12, cert chain is bundled into the key file");
       }
       if (key != null) {
         throw new BeanDefinitionValidationException(
@@ -178,6 +176,10 @@ public class ServiceStubsTemplate {
       } catch (IOException e) {
         throw new BeanCreationException("Failure reading PKCS12 mTLS cert key file", e);
       }
+    }
+
+    if (mtlsProperties.getKeyPassword() != null) {
+      sslBuilder.setKeyPassword(mtlsProperties.getKeyPassword());
     }
 
     if (Boolean.TRUE.equals(mtlsProperties.getInsecureTrustManager())) {

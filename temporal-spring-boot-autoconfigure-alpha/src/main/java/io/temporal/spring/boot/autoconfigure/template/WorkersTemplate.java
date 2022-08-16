@@ -93,7 +93,7 @@ public class WorkersTemplate implements BeanFactoryAware {
 
   public WorkerFactory getWorkerFactory() {
     if (workerFactory == null) {
-      this.workerFactory = createWorkerFactory(clientTemplate.getWorkerWorkflowClient());
+      this.workerFactory = createWorkerFactory(clientTemplate.getWorkflowClient());
     }
     return workerFactory;
   }

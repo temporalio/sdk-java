@@ -42,8 +42,6 @@ public class ClientTemplate {
 
   private WorkflowClient workflowClient;
 
-  private WorkflowClient workerWorkflowClient;
-
   public ClientTemplate(
       @Nonnull NamespaceProperties namespaceProperties,
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
@@ -57,13 +55,6 @@ public class ClientTemplate {
   }
 
   public WorkflowClient getWorkflowClient() {
-    if (workerWorkflowClient == null) {
-      this.workerWorkflowClient = createWorkflowClient();
-    }
-    return workerWorkflowClient;
-  }
-
-  public WorkflowClient getWorkerWorkflowClient() {
     if (workflowClient == null) {
       this.workflowClient = createWorkflowClient();
     }
