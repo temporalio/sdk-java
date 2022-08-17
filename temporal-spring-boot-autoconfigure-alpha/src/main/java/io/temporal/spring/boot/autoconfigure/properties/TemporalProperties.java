@@ -37,12 +37,11 @@ public class TemporalProperties extends NamespaceProperties {
   public TemporalProperties(
       @Nullable String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
-      @Nullable ClientProperties client,
       @Nullable List<WorkerProperties> workers,
       @Nonnull ConnectionProperties connection,
       @Nullable TestServerProperties testServer,
       @Nullable Boolean startWorkers) {
-    super(namespace, workersAutoDiscovery, client, workers);
+    super(namespace, workersAutoDiscovery, workers);
     this.connection = connection;
     this.testServer = testServer;
     this.startWorkers = startWorkers;

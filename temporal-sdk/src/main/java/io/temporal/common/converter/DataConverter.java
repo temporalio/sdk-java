@@ -23,6 +23,7 @@ package io.temporal.common.converter;
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.payload.codec.PayloadCodec;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Optional;
@@ -31,7 +32,33 @@ import java.util.Optional;
  * Used by the framework to serialize/deserialize method parameters that need to be sent over the
  * wire.
  *
- * @author fateev
+ * <h2>Most users should never implement this interface until absolutely needed.</h2>
+ *
+ * Instead, users should implement
+ *
+ * <ul>
+ *   <li>{@link PayloadConverter} to customize Object &lt;-&gt; Payload (bytes) conversion
+ *   <li>{@link PayloadCodec} to perform Payload (bytes) &lt;-&gt; Payload (bytes) encoding (like
+ *       encryption or compression)
+ * </ul>
+ *
+ * A custom {@link PayloadConverter} can be registered on {@link DefaultDataConverter} instance. For
+ * that:
+ *
+ * <ul>
+ *   <li>Obtain {@link DefaultDataConverter} instance from {@link
+ *       DefaultDataConverter#newDefaultInstance()}. Register your custom {@link PayloadConverter}
+ *       using {@link DefaultDataConverter#withPayloadConverterOverrides(PayloadConverter...)}. This
+ *       way will preserve the standard set of {@link PayloadConverter}s supplied by Temporal
+ *       JavaSDK other that the ones that were overridden. See {@link
+ *       DefaultDataConverter#STANDARD_PAYLOAD_CONVERTERS})
+ *   <li>Pass the custom {@link PayloadConverter} directly to {@link
+ *       DefaultDataConverter#DefaultDataConverter(PayloadConverter...)} to discard the standard
+ *       {@link PayloadConverter}s supplied by Temporal JavaSDK out of the box.
+ * </ul>
+ *
+ * A {@link DataConverter} created on previous step may be bundled with {@link PayloadCodec}s using
+ * {@link CodecDataConverter} or used directly if no custom {@link PayloadCodec}s are needed.
  */
 public interface DataConverter {
 

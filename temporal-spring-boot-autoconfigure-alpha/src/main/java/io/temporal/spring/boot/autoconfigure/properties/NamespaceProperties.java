@@ -33,17 +33,14 @@ public class NamespaceProperties {
 
   private final @NestedConfigurationProperty @Nullable WorkersAutoDiscoveryProperties
       workersAutoDiscovery;
-  private final @NestedConfigurationProperty @Nullable ClientProperties client;
   private final @Nullable List<WorkerProperties> workers;
   private final @Nonnull String namespace;
 
   public NamespaceProperties(
       @Nullable String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
-      @Nullable ClientProperties client,
       @Nullable List<WorkerProperties> workers) {
     this.workersAutoDiscovery = workersAutoDiscovery;
-    this.client = client;
     this.workers = workers;
     this.namespace = MoreObjects.firstNonNull(namespace, NAMESPACE_DEFAULT);
   }
@@ -51,11 +48,6 @@ public class NamespaceProperties {
   @Nullable
   public WorkersAutoDiscoveryProperties getWorkersAutoDiscovery() {
     return workersAutoDiscovery;
-  }
-
-  @Nullable
-  public ClientProperties getClient() {
-    return client;
   }
 
   @Nullable

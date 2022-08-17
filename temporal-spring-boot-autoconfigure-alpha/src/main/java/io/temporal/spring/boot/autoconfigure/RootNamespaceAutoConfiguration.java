@@ -22,6 +22,7 @@ package io.temporal.spring.boot.autoconfigure;
 
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
@@ -31,7 +32,11 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import java.util.Collection;
+import java.util.List;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -54,6 +59,8 @@ import org.springframework.context.event.ContextRefreshedEvent;
 @ConditionalOnExpression(
     "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class RootNamespaceAutoConfiguration {
+  private static final Logger log = LoggerFactory.getLogger(RootNamespaceAutoConfiguration.class);
+
   private final ConfigurableListableBeanFactory beanFactory;
 
   public RootNamespaceAutoConfiguration(ConfigurableListableBeanFactory beanFactory) {
@@ -64,11 +71,35 @@ public class RootNamespaceAutoConfiguration {
   public NamespaceTemplate rootNamespaceTemplate(
       TemporalProperties properties,
       WorkflowServiceStubs workflowServiceStubs,
+      @Autowired List<DataConverter> dataConverters,
+      @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
+          DataConverter mainDataConverter,
+      @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironment") @Autowired(required = false) @Nullable
-          TestWorkflowEnvironment testWorkflowEnvironment,
-      @Autowired(required = false) @Nullable Tracer otTracer) {
+          TestWorkflowEnvironment testWorkflowEnvironment) {
+
+    DataConverter chosenDataConverter = null;
+    if (dataConverters.size() == 1) {
+      chosenDataConverter = dataConverters.get(0);
+    } else if (dataConverters.size() > 1) {
+      if (mainDataConverter != null) {
+        chosenDataConverter = mainDataConverter;
+      } else {
+        throw new NoUniqueBeanDefinitionException(
+            DataConverter.class,
+            dataConverters.size(),
+            "Several DataConverter beans found in the Spring context. "
+                + "Explicitly name 'mainDataConverter' the one bean "
+                + "that should be used by Temporal Spring Boot AutoConfiguration.");
+      }
+    }
     return new NamespaceTemplate(
-        properties, properties, workflowServiceStubs, otTracer, testWorkflowEnvironment);
+        properties,
+        properties,
+        workflowServiceStubs,
+        chosenDataConverter,
+        otTracer,
+        testWorkflowEnvironment);
   }
 
   /** Client */
