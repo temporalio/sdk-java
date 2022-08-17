@@ -2,7 +2,7 @@ Temporal Spring Boot
 
 # Getting Started
 
-The following Readme assumes that you use Spring Boot yml configuration files (application.yml).
+The following Readme assumes that you use Spring Boot yml configuration files (`application.yml`).
 It should be trivial to adjust if your application uses .properties configuration.
 Your application should be a `@SpringBootApplication` 
 and have `io.temporal:temporal-spring-boot-starter-alpha:${temporalVersion}` added as a dependency.
@@ -32,8 +32,8 @@ class App {
 
 ## mTLS
 
-[Generate PKCS8 or PKCS12 files](https://github.com/temporalio/samples-server/blob/main/tls/client-only/mac/end-entity.sh), 
-Add the following to your application.yml file:
+[Generate PKCS8 or PKCS12 files](https://github.com/temporalio/samples-server/blob/main/tls/client-only/mac/end-entity.sh).
+Add the following to your `application.yml` file:
 
 ```yml
 spring.temporal:
@@ -45,7 +45,7 @@ spring.temporal:
       # insecure-trust-manager: true # or add ca.pem to java default truststore
 ```
 
-Alternatively with PKCS8 you can use
+Alternatively with PKCS8 you can pass the content of the key and certificates chain as strings, which allows to pass them from the environment variable for example:
 
 ```yml
 spring.temporal:
@@ -57,7 +57,13 @@ spring.temporal:
       # insecure-trust-manager: true # or add ca.pem to java default truststore
 ```
 
-to set the key and cert chain directly from the environment variables for example.
+## Data Converter
+
+Define a bean of type `io.temporal.common.converter.DataConverter` in Spring context to be used as a custom data converter.
+If Spring context has several beans of the `DataConverter` type, they will be ignored except the one named `mainDataConverter`.
+
+```java
+If your application uses a custom data converter, make it available as a bean of type `DataConverter` in Spring context.
 
 # Configure workers
 
@@ -142,7 +148,7 @@ public class Test {
 
   @Test
   @Timeout(value = 10)
-  public void testAutoDiscovery() {
+  public void test() {
     # ...
   }
 

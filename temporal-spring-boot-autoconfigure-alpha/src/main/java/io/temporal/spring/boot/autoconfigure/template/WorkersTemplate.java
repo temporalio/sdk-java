@@ -26,7 +26,6 @@ import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.OpenTracingWorkerInterceptor;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.ActivityImpl;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
@@ -61,7 +60,6 @@ public class WorkersTemplate implements BeanFactoryAware {
 
   private final @Nonnull TemporalProperties properties;
   private final @Nonnull NamespaceProperties namespaceProperties;
-  private final @Nonnull WorkflowServiceStubs workflowServiceStubs;
 
   private final @Nullable Tracer tracer;
 
@@ -78,17 +76,14 @@ public class WorkersTemplate implements BeanFactoryAware {
   public WorkersTemplate(
       @Nonnull TemporalProperties properties,
       @Nonnull NamespaceProperties namespaceProperties,
-      @Nonnull WorkflowServiceStubs workflowServiceStubs,
+      @Nullable ClientTemplate clientTemplate,
       @Nullable Tracer tracer,
       @Nullable TestWorkflowEnvironment testWorkflowEnvironment) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
-    this.workflowServiceStubs = workflowServiceStubs;
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
-    this.clientTemplate =
-        new ClientTemplate(
-            namespaceProperties, workflowServiceStubs, tracer, testWorkflowEnvironment);
+    this.clientTemplate = clientTemplate;
   }
 
   public WorkerFactory getWorkerFactory() {
