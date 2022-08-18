@@ -57,11 +57,11 @@ protobuf {
     // For aarch64 (M1) using oldest version with binary available for this platform
     if (System.getProperty("os.arch") == 'aarch64') {
         protoc {
-            artifact = 'com.google.protobuf:protoc:3.17.3'
+            artifact = 'com.google.protobuf:protoc:3.21.5'
         }
         plugins {
             grpc {
-                artifact = 'io.grpc:protoc-gen-grpc-java:1.42.1'
+                artifact = 'io.grpc:protoc-gen-grpc-java:1.48.1'
             }
         }
     } else {
