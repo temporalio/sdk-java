@@ -23,12 +23,14 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.ProtobufTimeUtils.toJavaDuration;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
+import io.grpc.Deadline;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.QueryResultType;
@@ -42,7 +44,6 @@ import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.statemachines.StatesMachinesCallback;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.*;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -63,11 +64,6 @@ import java.util.function.BiFunction;
  * is created per cached workflow run.
  */
 class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
-
-  private final WorkflowServiceStubs service;
-
-  private final String namespace;
-
   private final Scope metricsScope;
 
   private final WorkflowExecutionStartedEventAttributes startedEvent;
@@ -92,16 +88,12 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   private final ReplayWorkflowExecutor replayWorkflowExecutor;
 
   ReplayWorkflowRunTaskHandler(
-      WorkflowServiceStubs service,
       String namespace,
       ReplayWorkflow workflow,
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       SingleWorkerOptions workerOptions,
       Scope metricsScope,
       BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller) {
-    this.service = service;
-    this.namespace = namespace;
-
     HistoryEvent startedEvent = workflowTask.getHistory().getEvents(0);
     if (!startedEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
@@ -132,16 +124,31 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask)
+  public WorkflowTaskResult handleWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator)
       throws InterruptedException {
     lock.lock();
     try {
       long startTimeNanos = System.nanoTime();
-      handleWorkflowTaskImpl(workflowTask);
+
+      if (workflowTask.getPreviousStartedEventId()
+          < workflowStateMachines.getCurrentStartedEventId()) {
+        // if previousStartedEventId < currentStartedEventId - the last workflow task handled by
+        // these state machines is ahead of the last handled workflow task known by the server.
+        // Something is off, the server lost progress.
+        // If the fact that we error out here becomes undesirable, because we fail the workflow
+        // task,
+        // we always can rework it to graceful invalidation of the cache entity and a full replay
+        // from the server
+        throw new IllegalStateException(
+            "Server history for the workflow is below the progress of the workflow on the worker, the progress needs to be discarded");
+      }
+
+      handleWorkflowTaskImpl(workflowTask, historyIterator);
       processLocalActivityRequests(startTimeNanos);
       List<Command> commands = workflowStateMachines.takeCommands();
       if (replayWorkflowExecutor.isCompleted()) {
-        // it's important for query, otherwise the WorkflowRunTaskHandler is responsible for closing
+        // it's important for query, otherwise the WorkflowTaskHandler is responsible for closing
         // and invalidation
         close();
       }
@@ -158,13 +165,15 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   @Override
-  public QueryResult handleQueryWorkflowTask(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) {
+  public QueryResult handleDirectQueryWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask,
+      WorkflowHistoryIterator historyIterator) {
+    WorkflowQuery query = workflowTask.getQuery();
     lock.lock();
     try {
-      handleWorkflowTaskImpl(workflowTask);
+      handleWorkflowTaskImpl(workflowTask, historyIterator);
       if (replayWorkflowExecutor.isCompleted()) {
-        // it's important for query, otherwise the WorkflowRunTaskHandler is responsible for closing
+        // it's important for query, otherwise the WorkflowTaskHandler is responsible for closing
         // and invalidation
         close();
       }
@@ -175,27 +184,13 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
   }
 
-  private void handleWorkflowTaskImpl(PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
-    Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_REPLAY_LATENCY).start();
-    boolean timerStopped = false;
+  private void handleWorkflowTaskImpl(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask,
+      WorkflowHistoryIterator historyIterator) {
     try {
-      workflowStateMachines.setStartedIds(
-          workflowTask.getPreviousStartedEventId(), workflowTask.getStartedEventId());
-      WorkflowHistoryIterator historyEvents =
-          new WorkflowHistoryIterator(
-              service,
-              namespace,
-              workflowTask,
-              toJavaDuration(startedEvent.getWorkflowTaskTimeout()),
-              metricsScope);
-      while (historyEvents.hasNext()) {
-        HistoryEvent event = historyEvents.next();
-        workflowStateMachines.handleEvent(event, historyEvents.hasNext());
-        if (!timerStopped && !workflowStateMachines.isReplaying()) {
-          sw.stop();
-          timerStopped = true;
-        }
-      }
+      workflowStateMachines.setWorklfowStartedEventId(workflowTask.getStartedEventId());
+      workflowStateMachines.setReplaying(workflowTask.getPreviousStartedEventId() > 0);
+      applyServerHistory(historyIterator);
     } catch (Throwable e) {
       // Fail workflow if exception is of the specified type
       WorkflowImplementationOptions implementationOptions =
@@ -209,6 +204,24 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         }
       }
       throw wrap(e);
+    }
+  }
+
+  private void applyServerHistory(WorkflowHistoryIterator historyIterator) {
+    Duration expiration = toJavaDuration(startedEvent.getWorkflowTaskTimeout());
+    historyIterator.initDeadline(Deadline.after(expiration.toMillis(), TimeUnit.MILLISECONDS));
+
+    boolean timerStopped = false;
+    Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_REPLAY_LATENCY).start();
+    try {
+      while (historyIterator.hasNext()) {
+        HistoryEvent event = historyIterator.next();
+        workflowStateMachines.handleEvent(event, historyIterator.hasNext());
+        if (!timerStopped && !workflowStateMachines.isReplaying()) {
+          sw.stop();
+          timerStopped = true;
+        }
+      }
     } finally {
       if (!timerStopped) {
         sw.stop();
@@ -308,6 +321,11 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         workflowStateMachines.takeLocalActivityRequests().isEmpty(),
         "[BUG] Local activities requests from the last event loop were not drained "
             + "and accounted in the outstanding local activities counter");
+  }
+
+  @VisibleForTesting
+  WorkflowStateMachines getWorkflowStateMachines() {
+    return workflowStateMachines;
   }
 
   private class StatesMachinesCallbackImpl implements StatesMachinesCallback {

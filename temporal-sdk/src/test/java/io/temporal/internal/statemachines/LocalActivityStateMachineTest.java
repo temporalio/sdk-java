@@ -20,10 +20,8 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.internal.statemachines.LocalActivityStateMachine.LOCAL_ACTIVITY_MARKER_NAME;
-import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKER_ACTIVITY_ID_KEY;
-import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKER_ACTIVITY_RESULT_KEY;
-import static io.temporal.internal.statemachines.LocalActivityStateMachine.MARKER_TIME_KEY;
+import static io.temporal.internal.history.LocalActivityMarkerUtils.MARKER_ACTIVITY_RESULT_KEY;
+import static io.temporal.internal.history.LocalActivityMarkerUtils.MARKER_TIME_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -39,6 +37,8 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.internal.history.LocalActivityMarkerUtils;
+import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,15 +59,18 @@ public class LocalActivityStateMachineTest {
       stateMachineList = new ArrayList<>();
 
   private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
-    return new WorkflowStateMachines(
-        listener, (stateMachine -> stateMachineList.add(stateMachine)));
+    return new WorkflowStateMachines(listener, (stateMachineList::add));
   }
 
   @AfterClass
   public static void generateCoverage() {
-    List<Transition> missed =
-        LocalActivityStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
-            stateMachineList);
+    List<
+            Transition<
+                LocalActivityStateMachine.State,
+                TransitionEvent<LocalActivityStateMachine.ExplicitEvent>>>
+        missed =
+            LocalActivityStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
+                stateMachineList);
     if (!missed.isEmpty()) {
       CommandsGeneratePlantUMLStateDiagrams.writeToFile(
           "test",
@@ -137,7 +140,7 @@ public class LocalActivityStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(LOCAL_ACTIVITY_MARKER_NAME)
+            .setMarkerName(MarkerUtils.LOCAL_ACTIVITY_MARKER_NAME)
             .putDetails(MARKER_TIME_KEY, converter.toPayloads(System.currentTimeMillis()).get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -146,18 +149,24 @@ public class LocalActivityStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_ACTIVITY_ID_KEY, converter.toPayloads("id2").get())
+                    .putDetails(
+                        LocalActivityMarkerUtils.MARKER_ACTIVITY_ID_KEY,
+                        converter.toPayloads("id2").get())
                     .build())
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_ACTIVITY_ID_KEY, converter.toPayloads("id3").get())
+                    .putDetails(
+                        LocalActivityMarkerUtils.MARKER_ACTIVITY_ID_KEY,
+                        converter.toPayloads("id3").get())
                     .build())
             .addWorkflowTask()
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 markerBuilder
-                    .putDetails(MARKER_ACTIVITY_ID_KEY, converter.toPayloads("id1").get())
+                    .putDetails(
+                        LocalActivityMarkerUtils.MARKER_ACTIVITY_ID_KEY,
+                        converter.toPayloads("id1").get())
                     .build())
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
     assertEquals(new TestHistoryBuilder.HistoryInfo(0, 3), h.getHistoryInfo(0));
@@ -297,10 +306,6 @@ public class LocalActivityStateMachineTest {
         11: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
         12: EVENT_TYPE_WORKFLOW_TASK_STARTED
     */
-    MarkerRecordedEventAttributes.Builder markerBuilder =
-        MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(LOCAL_ACTIVITY_MARKER_NAME)
-            .putDetails(MARKER_TIME_KEY, converter.toPayloads(System.currentTimeMillis()).get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
             .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)

@@ -92,6 +92,7 @@ public class HistoryUtils {
           String stickyTaskQueueName,
           WorkflowServiceStubs service)
           throws Exception {
+    // we send a signal that leads to creation of the new workflow task
     signalWorkflow(response.getWorkflowExecution(), namespace, service);
     respondWorkflowTaskCompletedWithSticky(response.getTaskToken(), stickyTaskQueueName, service);
     return pollWorkflowTaskQueue(namespace, createStickyTaskQueue(stickyTaskQueueName), service);

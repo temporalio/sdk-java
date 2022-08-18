@@ -37,6 +37,8 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import io.temporal.failure.FailureConverter;
+import io.temporal.internal.history.LocalActivityMarkerUtils;
+import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.workflow.Functions;
 import java.util.HashMap;
@@ -49,15 +51,6 @@ final class LocalActivityStateMachine
         LocalActivityStateMachine.State,
         LocalActivityStateMachine.ExplicitEvent,
         LocalActivityStateMachine> {
-
-  static final String LOCAL_ACTIVITY_MARKER_NAME = "LocalActivity";
-  static final String MARKER_ACTIVITY_ID_KEY = "activityId";
-  static final String MARKER_ACTIVITY_TYPE_KEY = "type";
-  static final String MARKER_ACTIVITY_INPUT_KEY = "input";
-  static final String MARKER_ACTIVITY_RESULT_KEY = "result";
-  static final String MARKER_TIME_KEY = "time";
-  // Deprecated in favor of result. Still present for backwards compatibility.
-  static final String MARKER_DATA_KEY = "data";
 
   private final Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink;
   private final Functions.Proc2<Optional<Payloads>, Failure> callback;
@@ -250,31 +243,32 @@ final class LocalActivityStateMachine
         RecordMarkerCommandAttributes.newBuilder();
     Map<String, Payloads> details = new HashMap<>();
     if (!replaying.apply()) {
-      markerAttributes.setMarkerName(LOCAL_ACTIVITY_MARKER_NAME);
+      markerAttributes.setMarkerName(MarkerUtils.LOCAL_ACTIVITY_MARKER_NAME);
       Payloads id = DefaultDataConverter.STANDARD_INSTANCE.toPayloads(activityId).get();
-      details.put(MARKER_ACTIVITY_ID_KEY, id);
+      details.put(LocalActivityMarkerUtils.MARKER_ACTIVITY_ID_KEY, id);
       Payloads type =
           DefaultDataConverter.STANDARD_INSTANCE.toPayloads(activityType.getName()).get();
-      details.put(MARKER_ACTIVITY_TYPE_KEY, type);
+      details.put(LocalActivityMarkerUtils.MARKER_ACTIVITY_TYPE_KEY, type);
 
       long elapsedNanoseconds = System.nanoTime() - systemNanoTimeWhenStarted;
       long currentTime =
           setCurrentTimeCallback.apply(
               workflowTimeMillisWhenStarted + TimeUnit.NANOSECONDS.toMillis(elapsedNanoseconds));
       Payloads t = DefaultDataConverter.STANDARD_INSTANCE.toPayloads(currentTime).get();
-      details.put(MARKER_TIME_KEY, t);
+      details.put(LocalActivityMarkerUtils.MARKER_TIME_KEY, t);
 
       if (localActivityParameters != null
           && !localActivityParameters.isDoNotIncludeArgumentsIntoMarker()) {
         details.put(
-            MARKER_ACTIVITY_INPUT_KEY, localActivityParameters.getActivityTask().getInput());
+            LocalActivityMarkerUtils.MARKER_ACTIVITY_INPUT_KEY,
+            localActivityParameters.getActivityTask().getInput());
       }
       if (result.getTaskCompleted() != null) {
         RespondActivityTaskCompletedRequest completed = result.getTaskCompleted();
         if (completed.hasResult()) {
           Payloads p = completed.getResult();
           laResult = Optional.of(p);
-          details.put(MARKER_ACTIVITY_RESULT_KEY, p);
+          details.put(LocalActivityMarkerUtils.MARKER_ACTIVITY_RESULT_KEY, p);
         } else {
           laResult = Optional.empty();
         }
@@ -322,12 +316,13 @@ final class LocalActivityStateMachine
 
   private void notifyResultFromEvent() {
     MarkerRecordedEventAttributes attributes = currentEvent.getMarkerRecordedEventAttributes();
-    if (!attributes.getMarkerName().equals(LOCAL_ACTIVITY_MARKER_NAME)) {
+    if (!LocalActivityMarkerUtils.hasLocalActivityStructure(currentEvent)) {
       throw new IllegalStateException(
-          "Expected " + LOCAL_ACTIVITY_MARKER_NAME + ", received: " + attributes);
+          "Expected " + MarkerUtils.LOCAL_ACTIVITY_MARKER_NAME + ", received: " + attributes);
     }
     Map<String, Payloads> map = attributes.getDetailsMap();
-    Optional<Payloads> timePayloads = Optional.ofNullable(map.get(MARKER_TIME_KEY));
+    Optional<Payloads> timePayloads =
+        Optional.ofNullable(map.get(LocalActivityMarkerUtils.MARKER_TIME_KEY));
     long time =
         StdConverterBackwardsCompatAdapter.fromPayloads(0, timePayloads, Long.class, Long.class);
     setCurrentTimeCallback.apply(time);
@@ -335,10 +330,10 @@ final class LocalActivityStateMachine
       callback.apply(null, attributes.getFailure());
       return;
     }
-    Payloads result = map.get(MARKER_ACTIVITY_RESULT_KEY);
+    Payloads result = map.get(LocalActivityMarkerUtils.MARKER_ACTIVITY_RESULT_KEY);
     if (result == null) {
       // Support old histories that used "data" as a key for "result".
-      result = map.get(MARKER_DATA_KEY);
+      result = map.get(LocalActivityMarkerUtils.MARKER_DATA_KEY);
     }
     Optional<Payloads> fromMaker = Optional.ofNullable(result);
     callback.apply(fromMaker, null);

@@ -36,6 +36,10 @@ public interface ReplayWorkflow {
   /** Handle an external signal event. */
   void handleSignal(String signalName, Optional<Payloads> input, long eventId);
 
+  /**
+   * @return true if the execution of the workflow method is finished or an exit was explicitly
+   *     called by it
+   */
   boolean eventLoop();
 
   /**

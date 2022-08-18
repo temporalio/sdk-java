@@ -59,15 +59,18 @@ public class MutableSideEffectStateMachineTest {
       stateMachineList = new ArrayList<>();
 
   private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
-    return new WorkflowStateMachines(
-        listener, (stateMachine -> stateMachineList.add(stateMachine)));
+    return new WorkflowStateMachines(listener, (stateMachineList::add));
   }
 
   @AfterClass
   public static void generateCoverage() {
-    List<Transition> missed =
-        MutableSideEffectStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
-            stateMachineList);
+    List<
+            Transition<
+                MutableSideEffectStateMachine.State,
+                TransitionEvent<MutableSideEffectStateMachine.ExplicitEvent>>>
+        missed =
+            MutableSideEffectStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(
+                stateMachineList);
     if (!missed.isEmpty()) {
       CommandsGeneratePlantUMLStateDiagrams.writeToFile(
           "test",

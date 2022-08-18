@@ -65,8 +65,9 @@ public class VersionStateMachineTest {
 
   @AfterClass
   public static void generateCoverage() {
-    List<Transition> missed =
-        VersionStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(stateMachineList);
+    List<Transition<VersionStateMachine.State, TransitionEvent<VersionStateMachine.ExplicitEvent>>>
+        missed =
+            VersionStateMachine.STATE_MACHINE_DEFINITION.getUnvisitedTransitions(stateMachineList);
     if (!missed.isEmpty()) {
       CommandsGeneratePlantUMLStateDiagrams.writeToFile(
           "test",
@@ -940,7 +941,65 @@ public class VersionStateMachineTest {
    * states machines code because of the way how we process version events.
    */
   @Test
-  public void versionMarkerIsTheLastCommandEventOfWFTWithoutCommand() {
+  public void versionMarkerIsTheLastCommandEventOfWFT() {
+    final int maxSupported = 12654;
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder.<HistoryEvent>add1(
+            (v, c) -> {
+              stateMachines.newTimer(
+                  StartTimerCommandAttributes.newBuilder()
+                      .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
+                      .build(),
+                  c);
+              stateMachines.completeWorkflow(converter.toPayloads(v));
+            });
+      }
+    }
+    /*
+      1: EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
+      2: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+      3: EVENT_TYPE_WORKFLOW_TASK_STARTED
+      4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+      5: EVENT_TYPE_TIMER_STARTED
+      6: EVENT_TYPE_MARKER_RECORDED
+      7: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+    */
+    MarkerRecordedEventAttributes.Builder markerBuilder =
+        MarkerRecordedEventAttributes.newBuilder()
+            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask()
+            .add(EventType.EVENT_TYPE_TIMER_STARTED)
+            .add(
+                EventType.EVENT_TYPE_MARKER_RECORDED,
+                markerBuilder
+                    .putDetails(
+                        VersionMarkerUtils.MARKER_VERSION_KEY,
+                        converter.toPayloads(maxSupported).get())
+                    .build())
+            .addWorkflowTask()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+    {
+      // Full replay
+      TestListener listener = new TestListener();
+      stateMachines = newStateMachines(listener);
+      List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines);
+      assertTrue(commands.isEmpty());
+    }
+  }
+
+  /**
+   * This test simulates a situation when EVENT_TYPE_MARKER_RECORDED is the only event of WFT and
+   * the corresponded getVersion call is removed. This situation requires a special handling in
+   * states machines code because of the way how we process version events.
+   */
+  @Test
+  public void versionMarkerIsTheOnlyCommandEventOfTheWFT() {
     final int maxSupported = 12654;
     class TestListener extends TestEntityManagerListenerBase {
       @Override
@@ -965,8 +1024,12 @@ public class VersionStateMachineTest {
       3: EVENT_TYPE_WORKFLOW_TASK_STARTED
       4: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
       5: EVENT_TYPE_TIMER_STARTED
-      6: EVENT_TYPE_MARKER_RECORDED
-      7: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
+      6: EVENT_TYPE_TIMER_FIRED
+      7: EVENT_TYPE_WORKFLOW_TASK_SCHEDULED
+      8: EVENT_TYPE_WORKFLOW_TASK_STARTED
+      9: EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+      10: EVENT_TYPE_MARKER_RECORDED
+      11: EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
@@ -983,6 +1046,7 @@ public class VersionStateMachineTest {
             TimerFiredEventAttributes.newBuilder()
                 .setStartedEventId(timerStartedEventId1)
                 .setTimerId("timer1"))
+        .addWorkflowTask()
         .add(
             EventType.EVENT_TYPE_MARKER_RECORDED,
             markerBuilder

@@ -129,7 +129,7 @@ final class WorkflowTaskStateMachine
   }
 
   private void handleFailed() {
-    // Reset creates a new run of a workflow. The tricky part is that that the replay
+    // Reset creates a new run of a workflow. The tricky part is that the replay
     // of the reset workflow has to use the original runId up to the reset point to
     // maintain the same results. This code resets the id to the new one after the reset to
     // ensure that the new random and UUID are generated form this point.

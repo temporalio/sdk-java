@@ -26,13 +26,12 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.testUtils.HistoryUtils;
 import java.nio.charset.Charset;
-import java.time.Duration;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class WorkflowHistoryIteratorTest {
+public class ServiceWorkflowHistoryIteratorTest {
 
   public static final ByteString EMPTY_PAGE_TOKEN =
       ByteString.copyFrom("empty page token", Charset.defaultCharset());
@@ -53,8 +52,8 @@ public class WorkflowHistoryIteratorTest {
         PollWorkflowTaskQueueResponse.newBuilder().setNextPageToken(NEXT_PAGE_TOKEN).build();
 
     AtomicInteger timesCalledServer = new AtomicInteger(0);
-    WorkflowHistoryIterator iterator =
-        new WorkflowHistoryIterator(null, "default", workflowTask, Duration.ofSeconds(10), null) {
+    ServiceWorkflowHistoryIterator iterator =
+        new ServiceWorkflowHistoryIterator(null, "default", workflowTask, null) {
           @Override
           GetWorkflowExecutionHistoryResponse queryWorkflowExecutionHistory() {
             timesCalledServer.incrementAndGet();

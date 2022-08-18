@@ -32,13 +32,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.history.v1.HistoryEventOrBuilder;
-import io.temporal.api.history.v1.WorkflowExecutionCanceledEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionCompletedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionFailedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionTerminatedEventAttributes;
-import io.temporal.api.history.v1.WorkflowExecutionTimedOutEventAttributes;
+import io.temporal.api.history.v1.*;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
@@ -47,9 +41,11 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 /**
  * Convenience methods to be used by unit tests and during development. Intended to be a collection
@@ -343,5 +339,25 @@ public class WorkflowExecutionUtils {
     return workflowTask.getHistory() != null
         && workflowTask.getHistory().getEventsCount() > 0
         && workflowTask.getHistory().getEvents(0).getEventId() == 1;
+  }
+
+  @Nullable
+  public static HistoryEvent getEventOfType(History history, EventType eventType) {
+    List<HistoryEvent> events = getEventsOfType(history, eventType);
+    if (events.size() > 1) {
+      throw new IllegalStateException(
+          "More than one event of type " + eventType + " found in the history");
+    }
+    return events.size() > 0 ? events.get(0) : null;
+  }
+
+  public static List<HistoryEvent> getEventsOfType(History history, EventType eventType) {
+    List<HistoryEvent> result = new ArrayList<>();
+    for (HistoryEvent event : history.getEventsList()) {
+      if (eventType == event.getEventType()) {
+        result.add(event);
+      }
+    }
+    return result;
   }
 }

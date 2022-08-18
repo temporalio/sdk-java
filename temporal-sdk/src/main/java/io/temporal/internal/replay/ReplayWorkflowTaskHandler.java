@@ -35,6 +35,7 @@ import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.FailureConverter;
@@ -54,6 +55,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,7 +111,10 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     try {
       workflowRunTaskHandler =
           getOrCreateWorkflowExecutor(useCache, workflowTask, metricsScope, createdNew);
+      logWorkflowTaskToBeProcessed(workflowTask, createdNew);
 
+      ServiceWorkflowHistoryIterator historyIterator =
+          new ServiceWorkflowHistoryIterator(service, namespace, workflowTask, metricsScope);
       boolean finalCommand;
       Result result;
 
@@ -121,12 +126,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         // This WFT has no new events in the history to process
         // and the worker response on such a WFT can't contain any new commands either.
         QueryResult queryResult =
-            workflowRunTaskHandler.handleQueryWorkflowTask(workflowTask, workflowTask.getQuery());
+            workflowRunTaskHandler.handleDirectQueryWorkflowTask(workflowTask, historyIterator);
         finalCommand = queryResult.isWorkflowMethodCompleted();
         result = createDirectQueryResult(workflowTask, queryResult, null);
       } else {
         // main code path, handle workflow task that can have an embedded query
-        WorkflowTaskResult wftResult = workflowRunTaskHandler.handleWorkflowTask(workflowTask);
+        WorkflowTaskResult wftResult =
+            workflowRunTaskHandler.handleWorkflowTask(workflowTask, historyIterator);
         finalCommand = wftResult.isFinalCommand();
         result =
             createCompletedWFTRequest(
@@ -364,7 +370,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     }
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayWorkflowRunTaskHandler(
-        service, namespace, workflow, workflowTask, options, metricsScope, localActivityTaskPoller);
+        namespace, workflow, workflowTask, options, metricsScope, localActivityTaskPoller);
   }
 
   private void resetStickyTaskQueue(WorkflowExecution execution) {
@@ -375,5 +381,38 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                 .setNamespace(namespace)
                 .setExecution(execution)
                 .build());
+  }
+
+  private void logWorkflowTaskToBeProcessed(
+      PollWorkflowTaskQueueResponse.Builder workflowTask, AtomicBoolean createdNew) {
+    if (log.isDebugEnabled()) {
+      boolean directQuery = workflowTask.hasQuery();
+      WorkflowExecution execution = workflowTask.getWorkflowExecution();
+      if (directQuery) {
+        log.debug(
+            "Handle Direct Query {}. WorkflowId='{}', RunId='{}', queryType='{}', startedEventId={}, previousStartedEventId={}",
+            createdNew.get() ? "with new executor" : "with existing executor",
+            execution.getWorkflowId(),
+            execution.getRunId(),
+            workflowTask.getQuery().getQueryType(),
+            workflowTask.getStartedEventId(),
+            workflowTask.getPreviousStartedEventId());
+      } else {
+        log.debug(
+            "Handle Workflow Task {}. {}WorkflowId='{}', RunId='{}', startedEventId='{}', previousStartedEventId:{}",
+            createdNew.get() ? "with new executor" : "with existing executor",
+            workflowTask.getQueriesMap().isEmpty()
+                ? ""
+                : "With queries: "
+                    + workflowTask.getQueriesMap().values().stream()
+                        .map(WorkflowQuery::getQueryType)
+                        .collect(Collectors.toList())
+                    + ". ",
+            execution.getWorkflowId(),
+            execution.getRunId(),
+            workflowTask.getStartedEventId(),
+            workflowTask.getPreviousStartedEventId());
+      }
+    }
   }
 }

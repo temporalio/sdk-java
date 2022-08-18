@@ -24,6 +24,7 @@ import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.internal.Issue;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.CancellationScope;
@@ -36,11 +37,11 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * This test provides a localized reproduction for a state machine issue
- * https://github.com/temporalio/sdk-java/issues/615 This test has a corresponding state machine
- * unit test {@link
+ * This test provides a localized reproduction for a state machine issue #615 This test has a
+ * corresponding state machine unit test {@link
  * io.temporal.internal.statemachines.VersionStateMachineTest#testRecordAfterCommandCancellation}
  */
+@Issue("https://github.com/temporalio/sdk-java/issues/615")
 public class GetVersionAfterScopeCancellationTest {
 
   @Rule

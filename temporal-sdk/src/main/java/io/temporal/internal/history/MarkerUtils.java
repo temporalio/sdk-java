@@ -30,6 +30,8 @@ import java.util.Optional;
 public class MarkerUtils {
   public static final String VERSION_MARKER_NAME = "Version";
 
+  public static final String LOCAL_ACTIVITY_MARKER_NAME = "LocalActivity";
+
   /**
    * @param event {@code HistoryEvent} to inspect
    * @param markerName expected marker name
