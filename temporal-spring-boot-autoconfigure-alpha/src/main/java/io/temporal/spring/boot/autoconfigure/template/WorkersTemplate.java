@@ -31,7 +31,6 @@ import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
-import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
@@ -64,7 +63,7 @@ public class WorkersTemplate implements BeanFactoryAware {
   private final @Nullable Tracer tracer;
 
   // if not null, we work with an environment with defined test server
-  private final @Nullable TestWorkflowEnvironment testWorkflowEnvironment;
+  private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
   private final ClientTemplate clientTemplate;
 
@@ -78,7 +77,7 @@ public class WorkersTemplate implements BeanFactoryAware {
       @Nonnull NamespaceProperties namespaceProperties,
       @Nullable ClientTemplate clientTemplate,
       @Nullable Tracer tracer,
-      @Nullable TestWorkflowEnvironment testWorkflowEnvironment) {
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.tracer = tracer;

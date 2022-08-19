@@ -25,7 +25,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
-import io.temporal.testing.TestWorkflowEnvironment;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -35,7 +34,7 @@ public class NamespaceTemplate {
   private final @Nonnull WorkflowServiceStubs workflowServiceStubs;
   private final @Nullable DataConverter dataConverter;
   private final @Nullable Tracer tracer;
-  private final @Nullable TestWorkflowEnvironment testWorkflowEnvironment;
+  private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
   private ClientTemplate clientTemplate;
   private WorkersTemplate workersTemplate;
@@ -46,7 +45,7 @@ public class NamespaceTemplate {
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
       @Nullable DataConverter dataConverter,
       @Nullable Tracer tracer,
-      @Nullable TestWorkflowEnvironment testWorkflowEnvironment) {
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;

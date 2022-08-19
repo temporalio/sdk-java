@@ -24,7 +24,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ServiceStubsTemplate;
-import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,8 +46,8 @@ public class ServiceStubsAutoConfiguration {
       // Spring Boot configures and exposes Micrometer MeterRegistry bean in the
       // spring-boot-starter-actuator dependency
       @Autowired(required = false) @Nullable MeterRegistry meterRegistry,
-      @Qualifier("temporalTestWorkflowEnvironment") @Autowired(required = false) @Nullable
-          TestWorkflowEnvironment testWorkflowEnvironment) {
+      @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
+          TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
     return new ServiceStubsTemplate(
         properties.getConnection(), meterRegistry, testWorkflowEnvironment);
   }

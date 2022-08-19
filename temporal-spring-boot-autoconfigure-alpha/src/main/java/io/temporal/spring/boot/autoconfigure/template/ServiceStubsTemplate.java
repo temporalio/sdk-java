@@ -29,7 +29,6 @@ import io.temporal.serviceclient.SimpleSslContextBuilder;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.spring.boot.autoconfigure.properties.ConnectionProperties;
-import io.temporal.testing.TestWorkflowEnvironment;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,14 +47,14 @@ public class ServiceStubsTemplate {
   private final @Nullable MeterRegistry meterRegistry;
 
   // if not null, we work with an environment with defined test server
-  private final @Nullable TestWorkflowEnvironment testWorkflowEnvironment;
+  private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
   private WorkflowServiceStubs workflowServiceStubs;
 
   public ServiceStubsTemplate(
       @Nonnull ConnectionProperties connectionProperties,
       @Nullable MeterRegistry meterRegistry,
-      @Nullable TestWorkflowEnvironment testWorkflowEnvironment) {
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
     this.connectionProperties = connectionProperties;
     this.meterRegistry = meterRegistry;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
