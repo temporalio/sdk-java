@@ -173,14 +173,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       WorkflowExecutorCache cache) {
     this.workflowThreadExecutor = workflowThreadExecutor;
     this.workflowContext = Preconditions.checkNotNull(workflowContext, "workflowContext");
+    // TODO this should be refactored, publishing of this in an constructor into external objects is
+    // a bad practice
     this.workflowContext.setRunner(this);
     this.cache = cache;
     this.runnerCancellationScope = new CancellationScopeImpl(true, null, null);
     this.rootRunnable = root;
-  }
-
-  SyncWorkflowContext getWorkflowContext() {
-    return workflowContext;
   }
 
   @Override
@@ -370,7 +368,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
                       + "This problem is usually caused by a workflow implementation swallowing java.lang.Error instead of rethrowing it. "
                       + " Thread dump of the stuck thread:\n{}",
                   workflowThread.getName(),
-                  workflowContext.getContext().getWorkflowId(),
+                  workflowContext.getReplayContext().getWorkflowId(),
                   workflowThread.getStackTrace());
             }
           }
@@ -444,6 +442,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     rootWorkflowThread =
         new WorkflowThreadImpl(
             workflowThreadExecutor,
+            workflowContext,
             this,
             name,
             ROOT_THREAD_PRIORITY,
@@ -461,7 +460,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   public WorkflowThread newWorkflowThread(
       Runnable runnable, boolean detached, @Nullable String name) {
     if (name == null) {
-      name = "workflow[" + workflowContext.getContext().getWorkflowId() + "]-" + addedThreads;
+      name = "workflow[" + workflowContext.getReplayContext().getWorkflowId() + "]-" + addedThreads;
     }
     if (rootWorkflowThread == null) {
       throw new IllegalStateException(
@@ -472,6 +471,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     WorkflowThread result =
         new WorkflowThreadImpl(
             workflowThreadExecutor,
+            workflowContext,
             this,
             name,
             WORKFLOW_THREAD_PRIORITY + (addedThreads++),
@@ -489,11 +489,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   @Override
   public WorkflowThread newCallbackThread(Runnable runnable, @Nullable String name) {
     if (name == null) {
-      name = "workflow[" + workflowContext.getContext().getWorkflowId() + "]-" + addedThreads;
+      name = "workflow[" + workflowContext.getReplayContext().getWorkflowId() + "]-" + addedThreads;
     }
     WorkflowThread result =
         new WorkflowThreadImpl(
             workflowThreadExecutor,
+            workflowContext,
             this,
             name,
             CALLBACK_THREAD_PRIORITY
@@ -599,7 +600,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     if (currentThreadThreadLocal.get() != null) {
       return ContextThreadLocal.getCurrentContextForPropagation();
     } else {
-      return workflowContext.getContext().getPropagatedContexts();
+      return workflowContext.getPropagatedContexts();
     }
   }
 
@@ -607,7 +608,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     if (currentThreadThreadLocal.get() != null) {
       return ContextThreadLocal.getContextPropagators();
     } else {
-      return workflowContext.getContext().getContextPropagators();
+      return workflowContext.getContextPropagators();
     }
   }
 

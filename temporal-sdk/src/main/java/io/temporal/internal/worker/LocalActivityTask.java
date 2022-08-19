@@ -20,7 +20,7 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.internal.replay.ExecuteLocalActivityParameters;
+import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.workflow.Functions;
 
 public class LocalActivityTask {

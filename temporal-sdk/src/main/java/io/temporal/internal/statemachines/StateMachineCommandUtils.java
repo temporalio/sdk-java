@@ -24,10 +24,9 @@ import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
 
-public class StateMachineCommandUtils {
+class StateMachineCommandUtils {
   public static final Command RECORD_MARKER_FAKE_COMMAND =
-      StateMachineCommandUtils.createRecordMarker(
-          RecordMarkerCommandAttributes.getDefaultInstance());
+      createRecordMarker(RecordMarkerCommandAttributes.getDefaultInstance());
 
   public static Command createRecordMarker(RecordMarkerCommandAttributes attributes) {
     return Command.newBuilder()

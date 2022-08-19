@@ -35,6 +35,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +47,7 @@ class WorkflowExecuteRunnable implements Runnable {
   private final SyncWorkflowContext context;
   private final SyncWorkflowDefinition workflow;
   private final WorkflowExecutionStartedEventAttributes attributes;
-  private final WorkflowImplementationOptions implementationOptions;
+  @Nonnull private final WorkflowImplementationOptions implementationOptions;
 
   private Optional<Payloads> output = Optional.empty();
   private boolean done;
@@ -55,7 +56,7 @@ class WorkflowExecuteRunnable implements Runnable {
       SyncWorkflowContext context,
       SyncWorkflowDefinition workflow,
       WorkflowExecutionStartedEventAttributes attributes,
-      WorkflowImplementationOptions options) {
+      @Nonnull WorkflowImplementationOptions options) {
     this.implementationOptions = options;
     this.context = Objects.requireNonNull(context);
     this.workflow = Objects.requireNonNull(workflow);
@@ -111,7 +112,7 @@ class WorkflowExecuteRunnable implements Runnable {
   }
 
   private void throwAndFailWorkflowExecution(Throwable exception) {
-    ReplayWorkflowContext replayWorkflowContext = context.getContext();
+    ReplayWorkflowContext replayWorkflowContext = context.getReplayContext();
     @Nullable
     String fullReplayDirectQueryName = replayWorkflowContext.getFullReplayDirectQueryName();
     WorkflowInfo info = Workflow.getInfo();

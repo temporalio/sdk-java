@@ -18,29 +18,28 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.replay;
+package io.temporal.internal.statemachines;
 
-import io.temporal.activity.ActivityCancellationType;
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
-import java.util.Objects;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
+import io.temporal.workflow.ChildWorkflowCancellationType;
 
-public class ExecuteActivityParameters implements Cloneable {
+public final class StartChildWorkflowExecutionParameters {
 
-  private final ScheduleActivityTaskCommandAttributes.Builder attributes;
-  private final ActivityCancellationType cancellationType;
+  private final StartChildWorkflowExecutionCommandAttributes.Builder request;
+  private final ChildWorkflowCancellationType cancellationType;
 
-  public ExecuteActivityParameters(
-      ScheduleActivityTaskCommandAttributes.Builder attributes,
-      ActivityCancellationType cancellationType) {
-    this.attributes = Objects.requireNonNull(attributes);
-    this.cancellationType = Objects.requireNonNull(cancellationType);
+  public StartChildWorkflowExecutionParameters(
+      StartChildWorkflowExecutionCommandAttributes.Builder request,
+      ChildWorkflowCancellationType cancellationType) {
+    this.request = request;
+    this.cancellationType = cancellationType;
   }
 
-  public ScheduleActivityTaskCommandAttributes.Builder getAttributes() {
-    return attributes;
+  public StartChildWorkflowExecutionCommandAttributes.Builder getRequest() {
+    return request;
   }
 
-  public ActivityCancellationType getCancellationType() {
+  public ChildWorkflowCancellationType getCancellationType() {
     return cancellationType;
   }
 }

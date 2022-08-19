@@ -24,6 +24,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.interceptors.Header;
 import java.util.Optional;
 
+/** Workflow wrapper used by the workflow thread to start a workflow */
 interface SyncWorkflowDefinition {
 
   /** Always called first. */

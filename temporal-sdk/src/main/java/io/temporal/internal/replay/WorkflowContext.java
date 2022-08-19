@@ -20,177 +20,50 @@
 
 package io.temporal.internal.replay;
 
-import com.google.common.base.Preconditions;
-import com.google.protobuf.util.Timestamps;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
-import io.temporal.api.common.v1.Header;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.internal.common.ProtobufTimeUtils;
-import java.time.Duration;
-import java.util.HashMap;
+import io.temporal.worker.WorkflowImplementationOptions;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-final class WorkflowContext {
-  private final long runStartedTimestampMillis;
-  private final WorkflowExecutionStartedEventAttributes startedAttributes;
-  private final String namespace;
-  private final List<ContextPropagator> contextPropagators;
-  @Nonnull private final WorkflowExecution workflowExecution;
-
-  // Mutable, accumulated during execution:
-  private SearchAttributes.Builder searchAttributes;
-  private boolean cancelRequested;
-  private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
-
-  WorkflowContext(
-      String namespace,
-      @Nonnull WorkflowExecution workflowExecution,
-      WorkflowExecutionStartedEventAttributes startedAttributes,
-      long runStartedTimestampMillis,
-      List<ContextPropagator> contextPropagators) {
-    this.namespace = namespace;
-    this.workflowExecution = Preconditions.checkNotNull(workflowExecution);
-    this.startedAttributes = startedAttributes;
-    if (startedAttributes.hasSearchAttributes()) {
-      this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
-    }
-    this.runStartedTimestampMillis = runStartedTimestampMillis;
-    this.contextPropagators = contextPropagators;
-  }
-
-  @Nonnull
-  WorkflowExecution getWorkflowExecution() {
-    return workflowExecution;
-  }
-
-  WorkflowType getWorkflowType() {
-    return startedAttributes.getWorkflowType();
-  }
-
-  boolean isCancelRequested() {
-    return cancelRequested;
-  }
-
-  void setCancelRequested(boolean flag) {
-    cancelRequested = flag;
-  }
-
-  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
-    return continueAsNewOnCompletion;
-  }
-
-  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes parameters) {
-    this.continueAsNewOnCompletion = parameters;
-  }
-
-  Optional<String> getContinuedExecutionRunId() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    String runId = attributes.getContinuedExecutionRunId();
-    return runId.isEmpty() ? Optional.empty() : Optional.of(runId);
-  }
-
-  WorkflowExecution getParentWorkflowExecution() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return attributes.hasParentWorkflowExecution() ? attributes.getParentWorkflowExecution() : null;
-  }
-
-  Duration getWorkflowRunTimeout() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return ProtobufTimeUtils.toJavaDuration(attributes.getWorkflowRunTimeout());
-  }
-
-  Duration getWorkflowExecutionTimeout() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return ProtobufTimeUtils.toJavaDuration(attributes.getWorkflowExecutionTimeout());
-  }
-
-  long getWorkflowExecutionExpirationTimestampMillis() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return Timestamps.toMillis(attributes.getWorkflowExecutionExpirationTime());
-  }
-
-  long getRunStartedTimestampMillis() {
-    return runStartedTimestampMillis;
-  }
-
-  Duration getWorkflowTaskTimeout() {
-    return ProtobufTimeUtils.toJavaDuration(startedAttributes.getWorkflowTaskTimeout());
-  }
-
-  String getTaskQueue() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return attributes.getTaskQueue().getName();
-  }
-
-  String getNamespace() {
-    return namespace;
-  }
-
-  private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
-    return startedAttributes;
-  }
-
-  public Map<String, Payload> getHeader() {
-    return startedAttributes.getHeader().getFieldsMap();
-  }
-
-  public Payload getMemo(String key) {
-    return startedAttributes.getMemo().getFieldsMap().get(key);
-  }
-
-  @Nullable
-  SearchAttributes getSearchAttributes() {
-    return searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0
-        ? null
-        : searchAttributes.build();
-  }
-
-  int getAttempt() {
-    return startedAttributes.getAttempt();
-  }
-
-  public List<ContextPropagator> getContextPropagators() {
-    return contextPropagators;
-  }
+/** Core top level workflow context */
+public interface WorkflowContext {
+  ReplayWorkflowContext getReplayContext();
 
   /**
-   * @return a map of propagated context objects, keyed by propagator name
+   * Convert exception to the serialized Failure that can be reported to the server.<br>
+   * This method is needed when framework code needs to serialize a {@link
+   * io.temporal.failure.TemporalFailure} instance with details object produced by the application
+   * code.<br>
+   * The framework code is not aware of DataConverter so this is working around this layering.
+   *
+   * @param exception throwable to convert
+   * @return Serialized failure
    */
-  Map<String, Object> getPropagatedContexts() {
-    if (contextPropagators == null || contextPropagators.isEmpty()) {
-      return new HashMap<>();
-    }
+  Failure mapExceptionToFailure(Throwable exception);
 
-    Header headers = startedAttributes.getHeader();
-    Map<String, Payload> headerData = new HashMap<>(headers.getFieldsMap());
-    Map<String, Object> contextData = new HashMap<>();
-    for (ContextPropagator propagator : contextPropagators) {
-      contextData.put(propagator.getName(), propagator.deserializeContext(headerData));
-    }
+  @Nonnull
+  WorkflowImplementationOptions getWorkflowImplementationOptions();
 
-    return contextData;
-  }
+  /**
+   * @return Deserialized completion result of the last cron workflow run
+   */
+  @Nullable
+  <R> R getLastCompletionResult(Class<R> resultClass, Type resultType);
 
-  void mergeSearchAttributes(SearchAttributes searchAttributes) {
-    if (searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0) {
-      return;
-    }
-    if (this.searchAttributes == null) {
-      this.searchAttributes = SearchAttributes.newBuilder();
-    }
-    this.searchAttributes.putAllIndexedFields(searchAttributes.getIndexedFieldsMap());
-  }
+  /**
+   * @return the list of configured context propagators
+   */
+  List<ContextPropagator> getContextPropagators();
 
-  public String getCronSchedule() {
-    return startedAttributes.getCronSchedule();
-  }
+  /**
+   * Returns all current contexts being propagated by a {@link
+   * io.temporal.common.context.ContextPropagator}. The key is the {@link
+   * ContextPropagator#getName()} and the value is the object returned by {@link
+   * ContextPropagator#getCurrentContext()}
+   */
+  Map<String, Object> getPropagatedContexts();
 }

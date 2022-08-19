@@ -229,10 +229,11 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   @Override
   public ReplayWorkflow getWorkflow(WorkflowType workflowType) {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
-    WorkflowImplementationOptions options = implementationOptions.get(workflowType.getName());
+    WorkflowImplementationOptions workflowImplementationOptions =
+        implementationOptions.get(workflowType.getName());
     return new SyncWorkflow(
         workflow,
-        options,
+        workflowImplementationOptions,
         dataConverter,
         workflowThreadExecutor,
         cache,

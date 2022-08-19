@@ -153,6 +153,8 @@ class WorkflowThreadImpl implements WorkflowThread {
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final WorkflowThreadContext context;
   private final WorkflowExecutorCache cache;
+  private final SyncWorkflowContext syncWorkflowContext;
+
   private final DeterministicRunnerImpl runner;
   private final RunnableWrapper task;
   private final int priority;
@@ -161,6 +163,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   WorkflowThreadImpl(
       WorkflowThreadExecutor workflowThreadExecutor,
+      SyncWorkflowContext syncWorkflowContext,
       DeterministicRunnerImpl runner,
       @Nonnull String name,
       int priority,
@@ -170,8 +173,8 @@ class WorkflowThreadImpl implements WorkflowThread {
       WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators,
       Map<String, Object> propagatedContexts) {
-    Preconditions.checkNotNull(name, "Thread name shouldn't be null");
     this.workflowThreadExecutor = workflowThreadExecutor;
+    this.syncWorkflowContext = Preconditions.checkNotNull(syncWorkflowContext);
     this.runner = runner;
     this.context = new WorkflowThreadContext(runner.getLock());
     this.cache = cache;
@@ -179,8 +182,8 @@ class WorkflowThreadImpl implements WorkflowThread {
     this.task =
         new RunnableWrapper(
             context,
-            runner.getWorkflowContext().getContext(),
-            name,
+            syncWorkflowContext.getReplayContext(),
+            Preconditions.checkNotNull(name, "Thread name shouldn't be null"),
             detached,
             parentCancellationScope,
             runnable,
@@ -234,7 +237,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       } catch (RejectedExecutionException e) {
         if (cache != null) {
           SyncWorkflowContext workflowContext = getWorkflowContext();
-          ReplayWorkflowContext context = workflowContext.getContext();
+          ReplayWorkflowContext context = workflowContext.getReplayContext();
           boolean evicted =
               cache.evictAnyNotInProcessing(
                   context.getWorkflowExecution(), workflowContext.getMetricsScope());
@@ -268,7 +271,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   @Override
   public SyncWorkflowContext getWorkflowContext() {
-    return runner.getWorkflowContext();
+    return syncWorkflowContext;
   }
 
   @Override

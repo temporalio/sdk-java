@@ -99,7 +99,7 @@ public final class WorkflowInternal {
   }
 
   public static Promise<Void> newTimer(Duration duration) {
-    return getWorkflowInterceptor().newTimer(duration);
+    return getWorkflowOutboundInterceptor().newTimer(duration);
   }
 
   /**
@@ -146,14 +146,14 @@ public final class WorkflowInternal {
    */
   public static void registerListener(Object implementation) {
     if (implementation instanceof DynamicSignalHandler) {
-      getWorkflowInterceptor()
+      getWorkflowOutboundInterceptor()
           .registerDynamicSignalHandler(
               new WorkflowOutboundCallsInterceptor.RegisterDynamicSignalHandlerInput(
                   (DynamicSignalHandler) implementation));
       return;
     }
     if (implementation instanceof DynamicQueryHandler) {
-      getWorkflowInterceptor()
+      getWorkflowOutboundInterceptor()
           .registerDynamicQueryHandler(
               new WorkflowOutboundCallsInterceptor.RegisterDynamicQueryHandlerInput(
                   (DynamicQueryHandler) implementation));
@@ -163,7 +163,7 @@ public final class WorkflowInternal {
     POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newListenerInstance(cls);
     for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getQueryMethods()) {
       Method method = methodMetadata.getWorkflowMethod();
-      getWorkflowInterceptor()
+      getWorkflowOutboundInterceptor()
           .registerQuery(
               new WorkflowOutboundCallsInterceptor.RegisterQueryInput(
                   methodMetadata.getName(),
@@ -194,7 +194,7 @@ public final class WorkflowInternal {
               }));
     }
     if (!requests.isEmpty()) {
-      getWorkflowInterceptor()
+      getWorkflowOutboundInterceptor()
           .registerSignalHandlers(
               new WorkflowOutboundCallsInterceptor.RegisterSignalHandlersInput(requests));
     }
@@ -202,7 +202,7 @@ public final class WorkflowInternal {
 
   /** Should be used to get current time instead of {@link System#currentTimeMillis()} */
   public static long currentTimeMillis() {
-    return getWorkflowInterceptor().currentTimeMillis();
+    return getWorkflowOutboundInterceptor().currentTimeMillis();
   }
 
   public static void setDefaultActivityOptions(ActivityOptions activityOptions) {
@@ -304,16 +304,16 @@ public final class WorkflowInternal {
             activityInterface,
             options,
             mergedLocalActivityOptionsMap,
-            WorkflowInternal.getWorkflowInterceptor());
+            WorkflowInternal.getWorkflowOutboundInterceptor());
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
   public static ActivityStub newUntypedActivityStub(ActivityOptions options) {
-    return ActivityStubImpl.newInstance(options, getWorkflowInterceptor());
+    return ActivityStubImpl.newInstance(options, getWorkflowOutboundInterceptor());
   }
 
   public static ActivityStub newUntypedLocalActivityStub(LocalActivityOptions options) {
-    return LocalActivityStubImpl.newInstance(options, getWorkflowInterceptor());
+    return LocalActivityStubImpl.newInstance(options, getWorkflowOutboundInterceptor());
   }
 
   @SuppressWarnings("unchecked")
@@ -324,7 +324,7 @@ public final class WorkflowInternal {
             workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ChildWorkflowInvocationHandler(
-                workflowInterface, options, getWorkflowInterceptor()));
+                workflowInterface, options, getWorkflowOutboundInterceptor()));
   }
 
   @SuppressWarnings("unchecked")
@@ -335,7 +335,7 @@ public final class WorkflowInternal {
             workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ExternalWorkflowInvocationHandler(
-                workflowInterface, execution, getWorkflowInterceptor()));
+                workflowInterface, execution, getWorkflowOutboundInterceptor()));
   }
 
   public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
@@ -349,11 +349,11 @@ public final class WorkflowInternal {
 
   public static ChildWorkflowStub newUntypedChildWorkflowStub(
       String workflowType, ChildWorkflowOptions options) {
-    return new ChildWorkflowStubImpl(workflowType, options, getWorkflowInterceptor());
+    return new ChildWorkflowStubImpl(workflowType, options, getWorkflowOutboundInterceptor());
   }
 
   public static ExternalWorkflowStub newUntypedExternalWorkflowStub(WorkflowExecution execution) {
-    return new ExternalWorkflowStubImpl(execution, getWorkflowInterceptor());
+    return new ExternalWorkflowStubImpl(execution, getWorkflowOutboundInterceptor());
   }
 
   /**
@@ -369,7 +369,7 @@ public final class WorkflowInternal {
             workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface},
             new ContinueAsNewWorkflowInvocationHandler(
-                workflowInterface, options, getWorkflowInterceptor()));
+                workflowInterface, options, getWorkflowOutboundInterceptor()));
   }
 
   /**
@@ -384,7 +384,7 @@ public final class WorkflowInternal {
   public static <R> R executeActivity(
       String name, ActivityOptions options, Class<R> resultClass, Type resultType, Object... args) {
     Promise<R> result =
-        getWorkflowInterceptor()
+        getWorkflowOutboundInterceptor()
             .executeActivity(
                 new WorkflowOutboundCallsInterceptor.ActivityInput<>(
                     name, resultClass, resultType, args, options, Header.empty()))
@@ -396,10 +396,8 @@ public final class WorkflowInternal {
     return result.get();
   }
 
-  private static WorkflowOutboundCallsInterceptor getWorkflowInterceptor() {
-    return DeterministicRunnerImpl.currentThreadInternal()
-        .getWorkflowContext()
-        .getWorkflowOutboundInterceptor();
+  private static WorkflowOutboundCallsInterceptor getWorkflowOutboundInterceptor() {
+    return getRootWorkflowContext().getWorkflowOutboundInterceptor();
   }
 
   static SyncWorkflowContext getRootWorkflowContext() {
@@ -408,25 +406,26 @@ public final class WorkflowInternal {
 
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
-    getWorkflowInterceptor().await(reason, unblockCondition);
+    getWorkflowOutboundInterceptor().await(reason, unblockCondition);
   }
 
   public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
-    return getWorkflowInterceptor().await(timeout, reason, unblockCondition);
+    return getWorkflowOutboundInterceptor().await(timeout, reason, unblockCondition);
   }
 
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
-    return getWorkflowInterceptor().sideEffect(resultClass, resultType, func);
+    return getWorkflowOutboundInterceptor().sideEffect(resultClass, resultType, func);
   }
 
   public static <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
-    return getWorkflowInterceptor().mutableSideEffect(id, resultClass, resultType, updated, func);
+    return getWorkflowOutboundInterceptor()
+        .mutableSideEffect(id, resultClass, resultType, updated, func);
   }
 
   public static int getVersion(String changeId, int minSupported, int maxSupported) {
-    return getWorkflowInterceptor().getVersion(changeId, minSupported, maxSupported);
+    return getWorkflowOutboundInterceptor().getVersion(changeId, minSupported, maxSupported);
   }
 
   public static <V> Promise<Void> promiseAllOf(Iterable<Promise<V>> promises) {
@@ -476,11 +475,11 @@ public final class WorkflowInternal {
   }
 
   public static WorkflowInfo getWorkflowInfo() {
-    return new WorkflowInfoImpl(getRootWorkflowContext().getContext());
+    return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }
 
   public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
-    Payload memo = getRootWorkflowContext().getContext().getMemo(key);
+    Payload memo = getRootWorkflowContext().getReplayContext().getMemo(key);
     if (memo == null) {
       return null;
     }
@@ -495,7 +494,7 @@ public final class WorkflowInternal {
 
   public static void continueAsNew(
       @Nullable String workflowType, @Nullable ContinueAsNewOptions options, Object[] args) {
-    getWorkflowInterceptor()
+    getWorkflowOutboundInterceptor()
         .continueAsNew(
             new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
                 workflowType, options, args, Header.empty()));
@@ -512,13 +511,13 @@ public final class WorkflowInternal {
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {
-    return getWorkflowInterceptor()
+    return getWorkflowOutboundInterceptor()
         .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution))
         .getResult();
   }
 
   public static void sleep(Duration duration) {
-    getWorkflowInterceptor().sleep(duration);
+    getWorkflowOutboundInterceptor().sleep(duration);
   }
 
   public static Scope getMetricsScope() {
@@ -570,7 +569,8 @@ public final class WorkflowInternal {
 
   @Nullable
   public static <T> List<T> getSearchAttributeValues(String name) {
-    SearchAttributes searchAttributes = getRootWorkflowContext().getContext().getSearchAttributes();
+    SearchAttributes searchAttributes =
+        getRootWorkflowContext().getReplayContext().getSearchAttributes();
     if (searchAttributes == null) {
       return null;
     }
@@ -580,7 +580,8 @@ public final class WorkflowInternal {
 
   @Nonnull
   public static Map<String, List<?>> getSearchAttributes() {
-    SearchAttributes searchAttributes = getRootWorkflowContext().getContext().getSearchAttributes();
+    SearchAttributes searchAttributes =
+        getRootWorkflowContext().getReplayContext().getSearchAttributes();
     if (searchAttributes == null) {
       return Collections.emptyMap();
     }
@@ -588,7 +589,7 @@ public final class WorkflowInternal {
   }
 
   public static void upsertSearchAttributes(Map<String, ?> searchAttributes) {
-    getWorkflowInterceptor().upsertSearchAttributes(searchAttributes);
+    getWorkflowOutboundInterceptor().upsertSearchAttributes(searchAttributes);
   }
 
   public static DataConverter getDataConverter() {
@@ -608,8 +609,7 @@ public final class WorkflowInternal {
   }
 
   public static Optional<Exception> getPreviousRunFailure() {
-    return getRootWorkflowContext()
-        .getPreviousRunFailure()
+    return Optional.ofNullable(getRootWorkflowContext().getReplayContext().getPreviousRunFailure())
         // Temporal Failure Values are additional user payload and serialized using user data
         // converter
         .map(f -> FailureConverter.failureToException(f, getDataConverter()));

@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.replay;
+package io.temporal.internal.statemachines;
 
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import java.time.Duration;

@@ -666,11 +666,14 @@ public class DeterministicRunnerTest {
     when(replayWorkflowContext.getNamespace()).thenReturn("namespace");
     when(replayWorkflowContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
+    SyncWorkflowContext syncWorkflowContext =
+        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+    syncWorkflowContext.setReplayContext(replayWorkflowContext);
+
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool::submit,
-            new SyncWorkflowContext(
-                replayWorkflowContext, DefaultDataConverter.STANDARD_INSTANCE, null, null, null),
+            syncWorkflowContext,
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -692,11 +695,14 @@ public class DeterministicRunnerTest {
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
 
+    syncWorkflowContext =
+        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+    syncWorkflowContext.setReplayContext(replayWorkflowContext);
+
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
             threadPool::submit,
-            new SyncWorkflowContext(
-                replayWorkflowContext, DefaultDataConverter.STANDARD_INSTANCE, null, null, null),
+            syncWorkflowContext,
             () -> {
               Promise<Void> thread =
                   Async.procedure(

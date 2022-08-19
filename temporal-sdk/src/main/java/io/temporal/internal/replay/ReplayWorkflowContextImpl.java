@@ -26,28 +26,22 @@ import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandA
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.statemachines.ExecuteActivityParameters;
+import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
+import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -58,7 +52,7 @@ import javax.annotation.Nullable;
 final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   private final WorkflowStateMachines workflowStateMachines;
-  private final WorkflowContext workflowContext;
+  private final BasicWorkflowContext basicWorkflowContext;
   private final @Nullable String fullReplayDirectQueryName;
   private final Scope replayAwareWorkflowMetricsScope;
   private final SingleWorkerOptions workerOptions;
@@ -77,13 +71,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       SingleWorkerOptions workerOptions,
       Scope workflowMetricsScope) {
     this.workflowStateMachines = workflowStateMachines;
-    this.workflowContext =
-        new WorkflowContext(
-            namespace,
-            workflowExecution,
-            startedAttributes,
-            runStartedTimestampMillis,
-            workerOptions.getContextPropagators());
+    this.basicWorkflowContext =
+        new BasicWorkflowContext(
+            namespace, workflowExecution, startedAttributes, runStartedTimestampMillis);
     this.fullReplayDirectQueryName = fullReplayDirectQueryName;
     this.replayAwareWorkflowMetricsScope =
         new ReplayAwareScope(workflowMetricsScope, this, workflowStateMachines::currentTimeMillis);
@@ -113,61 +103,65 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Nonnull
   @Override
   public WorkflowExecution getWorkflowExecution() {
-    return workflowContext.getWorkflowExecution();
+    return basicWorkflowContext.getWorkflowExecution();
   }
 
   @Override
   public WorkflowExecution getParentWorkflowExecution() {
-    return workflowContext.getParentWorkflowExecution();
+    return basicWorkflowContext.getParentWorkflowExecution();
   }
 
   @Override
   public Optional<String> getContinuedExecutionRunId() {
-    return workflowContext.getContinuedExecutionRunId();
+    return basicWorkflowContext.getContinuedExecutionRunId();
   }
 
   @Override
   public WorkflowType getWorkflowType() {
-    return workflowContext.getWorkflowType();
+    return basicWorkflowContext.getWorkflowType();
   }
 
+  /**
+   * TODO methods and state like this (that tracks effectively an execution result) either doesn't
+   * belong here or should be abstracted into a separate interface with setter methods.
+   */
   @Override
   public boolean isCancelRequested() {
-    return workflowContext.isCancelRequested();
+    return basicWorkflowContext.isCancelRequested();
   }
 
   void setCancelRequested(boolean flag) {
-    workflowContext.setCancelRequested(flag);
+    basicWorkflowContext.setCancelRequested(flag);
   }
 
   @Override
   public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
-    return workflowContext.getContinueAsNewOnCompletion();
+    return basicWorkflowContext.getContinueAsNewOnCompletion();
   }
 
   @Override
   public Duration getWorkflowTaskTimeout() {
-    return workflowContext.getWorkflowTaskTimeout();
+    return basicWorkflowContext.getWorkflowTaskTimeout();
   }
 
   @Override
   public String getTaskQueue() {
-    return workflowContext.getTaskQueue();
+    return basicWorkflowContext.getTaskQueue();
   }
 
   @Override
   public String getNamespace() {
-    return workflowContext.getNamespace();
+    return basicWorkflowContext.getNamespace();
   }
 
   @Override
   public String getWorkflowId() {
-    return workflowContext.getWorkflowExecution().getWorkflowId();
+    return basicWorkflowContext.getWorkflowExecution().getWorkflowId();
   }
 
   @Override
   public String getRunId() {
-    String result = workflowContext.getWorkflowExecution().getRunId();
+    String result = basicWorkflowContext.getWorkflowExecution().getRunId();
     if (result.isEmpty()) {
       return null;
     }
@@ -176,37 +170,28 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public Duration getWorkflowRunTimeout() {
-    return workflowContext.getWorkflowRunTimeout();
+    return basicWorkflowContext.getWorkflowRunTimeout();
   }
 
   @Override
   public Duration getWorkflowExecutionTimeout() {
-    return workflowContext.getWorkflowExecutionTimeout();
+    return basicWorkflowContext.getWorkflowExecutionTimeout();
   }
 
   @Override
   public long getRunStartedTimestampMillis() {
-    return workflowContext.getRunStartedTimestampMillis();
+    return basicWorkflowContext.getRunStartedTimestampMillis();
   }
 
   @Override
   public Payload getMemo(String key) {
-    return workflowContext.getMemo(key);
+    return basicWorkflowContext.getMemo(key);
   }
 
   @Override
   @Nullable
   public SearchAttributes getSearchAttributes() {
-    return workflowContext.getSearchAttributes();
-  }
-
-  public List<ContextPropagator> getContextPropagators() {
-    return workflowContext.getContextPropagators();
-  }
-
-  @Override
-  public Map<String, Object> getPropagatedContexts() {
-    return workflowContext.getPropagatedContexts();
+    return basicWorkflowContext.getSearchAttributes();
   }
 
   @Override
@@ -261,7 +246,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public void continueAsNewOnCompletion(
       ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-    workflowContext.setContinueAsNewOnCompletion(attributes);
+    basicWorkflowContext.setContinueAsNewOnCompletion(attributes);
   }
 
   @Override
@@ -335,22 +320,39 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public void upsertSearchAttributes(SearchAttributes searchAttributes) {
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
-    workflowContext.mergeSearchAttributes(searchAttributes);
+    basicWorkflowContext.mergeSearchAttributes(searchAttributes);
   }
 
   @Override
   public int getAttempt() {
-    return workflowContext.getAttempt();
+    return basicWorkflowContext.getAttempt();
   }
 
   @Override
   public String getCronSchedule() {
-    return workflowContext.getCronSchedule();
+    return basicWorkflowContext.getCronSchedule();
+  }
+
+  @Override
+  @Nullable
+  public Payloads getLastCompletionResult() {
+    return basicWorkflowContext.getLastCompletionResult();
+  }
+
+  @Override
+  @Nullable
+  public Failure getPreviousRunFailure() {
+    return basicWorkflowContext.getPreviousRunFailure();
   }
 
   @Nullable
   @Override
   public String getFullReplayDirectQueryName() {
     return fullReplayDirectQueryName;
+  }
+
+  @Override
+  public Map<String, Payload> getHeader() {
+    return basicWorkflowContext.getHeader();
   }
 }

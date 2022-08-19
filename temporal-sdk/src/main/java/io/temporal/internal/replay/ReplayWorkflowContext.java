@@ -30,12 +30,13 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
-import io.temporal.common.context.ContextPropagator;
+import io.temporal.internal.statemachines.ExecuteActivityParameters;
+import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
+import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -43,8 +44,10 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 /**
- * Represents the context for workflow. Should only be used within the scope of workflow definition
- * code, meaning any code which is not part of activity implementations.
+ * Represents the context of workflow for workflow code. Should only be used within the scope of
+ * workflow code, meaning any code which is not part of activity implementations. Provides access to
+ * state machine operations and information that should be accessible to the workflow code.
+ * Accumulates some state from the workflow execution like search attributes, continue-as-new.
  *
  * <p>TODO(maxim): Get rid of any Exceptions in the callbacks. They should only return Failure.
  */
@@ -98,19 +101,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   @Nullable
   SearchAttributes getSearchAttributes();
-
-  /**
-   * Returns all current contexts being propagated by a {@link
-   * io.temporal.common.context.ContextPropagator}. The key is the {@link
-   * ContextPropagator#getName()} and the value is the object returned by {@link
-   * ContextPropagator#getCurrentContext()}
-   */
-  Map<String, Object> getPropagatedContexts();
-
-  /**
-   * @return the set of configured context propagators
-   */
-  List<ContextPropagator> getContextPropagators();
 
   /**
    * Requests an activity execution.
@@ -283,10 +273,27 @@ public interface ReplayWorkflowContext extends ReplayAware {
   String getCronSchedule();
 
   /**
+   * @return Completion result of the last cron workflow run
+   */
+  @Nullable
+  Payloads getLastCompletionResult();
+
+  /**
+   * @return Failure of the previous run of this workflow
+   */
+  @Nullable
+  Failure getPreviousRunFailure();
+
+  /**
    * This method is mostly used to decrease logging verbosity for replay-only scenarios.
    *
    * @return query name if an execution is a full replay caused by a direct query, null otherwise
    */
   @Nullable
   String getFullReplayDirectQueryName();
+
+  /**
+   * @return workflow header
+   */
+  Map<String, Payload> getHeader();
 }
