@@ -1,6 +1,4 @@
-Temporal Spring Boot
-
-# Getting Started
+# Temporal Spring Boot
 
 The following Readme assumes that you use Spring Boot yml configuration files (`application.yml`).
 It should be trivial to adjust if your application uses .properties configuration.
@@ -60,30 +58,11 @@ spring.temporal:
 ## Data Converter
 
 Define a bean of type `io.temporal.common.converter.DataConverter` in Spring context to be used as a custom data converter.
-If Spring context has several beans of the `DataConverter` type, they will be ignored except the one named `mainDataConverter`.
+If Spring context has several beans of the `DataConverter` type, the context will fail to start. You need to name one of them `mainDataConverter` to resolve ambiguity.
 
-```java
-If your application uses a custom data converter, make it available as a bean of type `DataConverter` in Spring context.
+# Workers configuration
 
-# Configure workers
-
-## Auto-discovery
-
-Add the following to your `application.yml` to auto-discover the workers from your classpath.
-
-```yml
-spring.temporal:
-  workers-auto-discovery:
-    packages:
-      - your.package # enumerate all the packages that contain your workflow and activity implementations
-  # start-workers: false # disable starting WorkersFactory if you want to make any custom changes before the start
-```
-
-What is auto-discovered:
-- Workflows implementation classes annotated with `io.temporal.spring.boot.WorkflowImpl`
-- Activity beans registered in Spring context which implementation classes are annotated with `io.temporal.spring.boot.ActivityImpl`
-
-Auto-discovered workflow implementation classes and activity beans will be registered with workers.
+There are two ways of configuring workers. Auto-discovery and an explicit configuration.
 
 ## Explicit configuration
 
@@ -99,6 +78,27 @@ spring.temporal:
         - activity-bean-name1
   # start-workers: false # disable starting WorkersFactory if you want to make any custom changes before the start
 ```
+
+## Auto-discovery
+
+Allows to skip specifying workflow and activity classes explicitly in the config 
+by providing worker task queue names on Workflow and Activity implementations.
+Add the following to your `application.yml` to auto-discover workflows and activities from your classpath.
+
+```yml
+spring.temporal:
+  workers-auto-discovery:
+    packages:
+      - your.package # enumerate all the packages that contain your workflow and activity implementations
+  # start-workers: false # disable starting WorkersFactory if you want to make any custom changes before the start
+```
+
+What is auto-discovered:
+- Workflows implementation classes annotated with `io.temporal.spring.boot.WorkflowImpl`
+- Activity beans registered in Spring context which implementation classes are annotated with `io.temporal.spring.boot.ActivityImpl`
+
+Auto-discovered workflow implementation classes and activity beans will be registered with workers configured explicitly 
+or workers will be created for them if no explicit configuration is provided for a worker.
 
 ## Note on mixing configuration styles
 

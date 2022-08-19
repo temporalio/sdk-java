@@ -152,7 +152,7 @@ public class WorkersTemplate implements BeanFactoryAware {
                 taskQueue);
           } catch (TypeAlreadyRegisteredException registeredEx) {
             log.info(
-                "Skipping auto-discovered workflow class {} for task queue '{}' "
+                "Skip registering of auto-discovered workflow class {} for task queue '{}' "
                     + "as workflow type '{}' is already registered on the worker",
                 clazz,
                 taskQueue,
