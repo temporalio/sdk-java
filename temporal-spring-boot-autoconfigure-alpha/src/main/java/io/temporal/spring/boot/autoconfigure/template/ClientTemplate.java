@@ -28,7 +28,6 @@ import io.temporal.opentracing.OpenTracingClientInterceptor;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
-import io.temporal.testing.TestWorkflowEnvironment;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -38,7 +37,7 @@ public class ClientTemplate {
   private final @Nullable DataConverter dataConverter;
   private final @Nullable Tracer tracer;
   // if not null, we work with an environment with defined test server
-  private final @Nullable TestWorkflowEnvironment testWorkflowEnvironment;
+  private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
   private WorkflowClient workflowClient;
 
@@ -47,7 +46,7 @@ public class ClientTemplate {
       @Nonnull WorkflowServiceStubs workflowServiceStubs,
       @Nullable DataConverter dataConverter,
       @Nullable Tracer tracer,
-      @Nullable TestWorkflowEnvironment testWorkflowEnvironment) {
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
     this.dataConverter = dataConverter;

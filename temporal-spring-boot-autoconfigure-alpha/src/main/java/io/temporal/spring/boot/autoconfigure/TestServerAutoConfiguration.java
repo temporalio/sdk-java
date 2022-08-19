@@ -21,7 +21,9 @@
 package io.temporal.spring.boot.autoconfigure;
 
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
+import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
 import io.temporal.testing.TestWorkflowEnvironment;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -37,8 +39,15 @@ import org.springframework.context.annotation.Configuration;
     name = "test-server.enabled",
     havingValue = "true")
 public class TestServerAutoConfiguration {
+  @Bean(name = "temporalTestWorkflowEnvironmentAdapter")
+  public TestWorkflowEnvironmentAdapter testTestWorkflowEnvironmentAdapter(
+      @Qualifier("temporalTestWorkflowEnvironment")
+          TestWorkflowEnvironment testWorkflowEnvironment) {
+    return new TestWorkflowEnvironmentAdapterImpl(testWorkflowEnvironment);
+  }
+
   @Bean(name = "temporalTestWorkflowEnvironment", destroyMethod = "close")
-  public TestWorkflowEnvironment testServer() {
+  public TestWorkflowEnvironment testWorkflowEnvironment() {
     return TestWorkflowEnvironment.newInstance();
   }
 }
