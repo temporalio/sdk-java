@@ -33,7 +33,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.replay.ExecuteLocalActivityParameters;
+import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;

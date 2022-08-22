@@ -36,7 +36,6 @@ import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -46,7 +45,6 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
-import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Map;
 import java.util.Optional;
 import junit.framework.TestCase;
@@ -309,13 +307,8 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
           }
 
           @Override
-          public Failure mapExceptionToFailure(Throwable exception) {
+          public WorkflowContext getWorkflowContext() {
             return null;
-          }
-
-          @Override
-          public WorkflowImplementationOptions getWorkflowImplementationOptions() {
-            return WorkflowImplementationOptions.newBuilder().build();
           }
         },
         response,

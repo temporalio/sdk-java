@@ -44,7 +44,6 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.List;

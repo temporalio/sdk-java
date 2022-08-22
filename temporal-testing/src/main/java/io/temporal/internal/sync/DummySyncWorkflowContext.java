@@ -30,13 +30,12 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.internal.replay.ExecuteActivityParameters;
-import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.ReplayWorkflowContext;
-import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.internal.statemachines.ExecuteActivityParameters;
+import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
+import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.*;
@@ -45,12 +44,8 @@ import javax.annotation.Nullable;
 public class DummySyncWorkflowContext {
   public static SyncWorkflowContext newDummySyncWorkflowContext() {
     SyncWorkflowContext context =
-        new SyncWorkflowContext(
-            new DummyReplayWorkflowContext(),
-            DefaultDataConverter.STANDARD_INSTANCE,
-            null,
-            null,
-            null);
+        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+    context.setReplayContext(new DummyReplayWorkflowContext());
     context.initHeadOutboundCallsInterceptor(context);
     context.initHeadInboundCallsInterceptor(
         new BaseRootWorkflowInboundCallsInterceptor(context) {
@@ -145,16 +140,6 @@ public class DummySyncWorkflowContext {
     @Override
     public SearchAttributes getSearchAttributes() {
       throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
-    public Map<String, Object> getPropagatedContexts() {
-      return null;
-    }
-
-    @Override
-    public List<ContextPropagator> getContextPropagators() {
-      return null;
     }
 
     @Override
@@ -284,7 +269,24 @@ public class DummySyncWorkflowContext {
 
     @Nullable
     @Override
+    public Payloads getLastCompletionResult() {
+      return null;
+    }
+
+    @Nullable
+    @Override
+    public Failure getPreviousRunFailure() {
+      return null;
+    }
+
+    @Nullable
+    @Override
     public String getFullReplayDirectQueryName() {
+      return null;
+    }
+
+    @Override
+    public Map<String, Payload> getHeader() {
       return null;
     }
   }

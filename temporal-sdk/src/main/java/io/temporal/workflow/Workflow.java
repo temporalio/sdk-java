@@ -989,7 +989,7 @@ public final class Workflow {
   }
 
   /**
-   * Extract the latest failure from some previous of this workflow. If any previous run of this
+   * Extract the latest failure from a previous run of this workflow. If any previous run of this
    * workflow has failed, this function returns that failure. If no previous runs have failed, an
    * empty optional is returned. The run you are calling this from may have been created as a retry
    * of the previous failed run or as a next cron invocation for cron workflows.

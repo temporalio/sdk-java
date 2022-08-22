@@ -37,7 +37,6 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import io.temporal.failure.FailureConverter;
-import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.workflow.Functions;
 import java.util.HashMap;

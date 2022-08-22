@@ -39,9 +39,8 @@ public class SyncWorkflowContextTest {
 
   @Before
   public void setUp() {
-    this.context =
-        new SyncWorkflowContext(
-            mockReplayWorkflowContext, DefaultDataConverter.STANDARD_INSTANCE, null, null, null);
+    this.context = new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+    this.context.setReplayContext(mockReplayWorkflowContext);
   }
 
   @Test

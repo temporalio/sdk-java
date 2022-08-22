@@ -38,6 +38,7 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.internal.Config;
+import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.statemachines.StatesMachinesCallback;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.*;
@@ -101,13 +102,12 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     this.service = service;
     this.namespace = namespace;
 
-    HistoryEvent firstEvent = workflowTask.getHistory().getEvents(0);
-    if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
+    HistoryEvent startedEvent = workflowTask.getHistory().getEvents(0);
+    if (!startedEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
           "First event in the history is not WorkflowExecutionStarted");
     }
-    this.startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
-
+    this.startedEvent = startedEvent.getWorkflowExecutionStartedEventAttributes();
     this.metricsScope = metricsScope;
     this.localActivityTaskPoller = localActivityTaskPoller;
     this.workflow = workflow;
@@ -119,9 +119,9 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         new ReplayWorkflowContextImpl(
             workflowStateMachines,
             namespace,
-            startedEvent,
+            this.startedEvent,
             workflowTask.getWorkflowExecution(),
-            Timestamps.toMillis(firstEvent.getEventTime()),
+            Timestamps.toMillis(startedEvent.getEventTime()),
             fullReplayDirectQueryType,
             workerOptions,
             metricsScope);
@@ -199,12 +199,13 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     } catch (Throwable e) {
       // Fail workflow if exception is of the specified type
       WorkflowImplementationOptions implementationOptions =
-          this.replayWorkflowExecutor.getWorkflowImplementationOptions();
+          workflow.getWorkflowContext().getWorkflowImplementationOptions();
       Class<? extends Throwable>[] failTypes =
           implementationOptions.getFailWorkflowExceptionTypes();
       for (Class<? extends Throwable> failType : failTypes) {
         if (failType.isAssignableFrom(e.getClass())) {
-          throw new WorkflowExecutionException(workflow.mapExceptionToFailure(e));
+          throw new WorkflowExecutionException(
+              workflow.getWorkflowContext().mapExceptionToFailure(e));
         }
       }
       throw wrap(e);

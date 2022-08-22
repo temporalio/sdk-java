@@ -23,7 +23,6 @@ package io.temporal.internal.sync;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
@@ -31,14 +30,16 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,21 +51,20 @@ class SyncWorkflow implements ReplayWorkflow {
 
   private static final Logger log = LoggerFactory.getLogger(SyncWorkflow.class);
 
-  private final DataConverter dataConverter;
-  private final List<ContextPropagator> contextPropagators;
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final SyncWorkflowDefinition workflow;
-  private final WorkflowImplementationOptions workflowImplementationOptions;
+  @Nonnull private final WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkflowExecutorCache cache;
   private final long defaultDeadlockDetectionTimeout;
   private final WorkflowMethodThreadNameStrategy workflowMethodThreadNameStrategy =
       ExecutionInfoStrategy.INSTANCE;
+  private final SyncWorkflowContext workflowContext;
   private WorkflowExecuteRunnable workflowProc;
   private DeterministicRunner runner;
 
   public SyncWorkflow(
       SyncWorkflowDefinition workflow,
-      WorkflowImplementationOptions workflowImplementationOptions,
+      @Nullable WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       WorkflowThreadExecutor workflowThreadExecutor,
       WorkflowExecutorCache cache,
@@ -73,18 +73,13 @@ class SyncWorkflow implements ReplayWorkflow {
     this.workflow = Objects.requireNonNull(workflow);
     this.workflowImplementationOptions =
         workflowImplementationOptions == null
-            ? WorkflowImplementationOptions.newBuilder().build()
+            ? WorkflowImplementationOptions.getDefaultInstance()
             : workflowImplementationOptions;
-    this.dataConverter = Objects.requireNonNull(dataConverter);
     this.workflowThreadExecutor = Objects.requireNonNull(workflowThreadExecutor);
     this.cache = cache;
-    this.contextPropagators = contextPropagators;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
-  }
-
-  @Override
-  public WorkflowImplementationOptions getWorkflowImplementationOptions() {
-    return workflowImplementationOptions;
+    this.workflowContext =
+        new SyncWorkflowContext(workflowImplementationOptions, dataConverter, contextPropagators);
   }
 
   @Override
@@ -102,26 +97,11 @@ class SyncWorkflow implements ReplayWorkflow {
       throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
     }
 
-    Optional<Payloads> result =
-        startEvent.hasLastCompletionResult()
-            ? Optional.of(startEvent.getLastCompletionResult())
-            : Optional.empty();
-    Optional<Failure> lastFailure =
-        startEvent.hasContinuedFailure()
-            ? Optional.of(startEvent.getContinuedFailure())
-            : Optional.empty();
-    SyncWorkflowContext syncContext =
-        new SyncWorkflowContext(
-            context,
-            workflowImplementationOptions,
-            dataConverter,
-            contextPropagators,
-            result,
-            lastFailure);
+    this.workflowContext.setReplayContext(context);
 
     workflowProc =
         new WorkflowExecuteRunnable(
-            syncContext, workflow, startEvent, workflowImplementationOptions);
+            workflowContext, workflow, startEvent, workflowImplementationOptions);
     // The following order is ensured by this code and DeterministicRunner implementation:
     // 1. workflow.initialize
     // 2. signal handler (if signalWithStart was called)
@@ -129,7 +109,7 @@ class SyncWorkflow implements ReplayWorkflow {
     runner =
         DeterministicRunner.newRunner(
             workflowThreadExecutor,
-            syncContext,
+            workflowContext,
             () -> {
               workflow.initialize();
               WorkflowInternal.newWorkflowMethodThread(
@@ -189,7 +169,7 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public Failure mapExceptionToFailure(Throwable failure) {
-    return FailureConverter.exceptionToFailure(failure, dataConverter);
+  public WorkflowContext getWorkflowContext() {
+    return workflowContext;
   }
 }

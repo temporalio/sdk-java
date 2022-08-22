@@ -33,7 +33,6 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.MetricsType;
-import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Optional;
 
 final class ReplayWorkflowExecutor {
@@ -46,6 +45,7 @@ final class ReplayWorkflowExecutor {
 
   private final Scope metricsScope;
 
+  // TODO mutable state should be accumulated in ReplayWorkflowContext, not in this class
   private boolean completed;
 
   private WorkflowExecutionException failure;
@@ -77,7 +77,8 @@ final class ReplayWorkflowExecutor {
       completed = true;
     } catch (CanceledFailure e) {
       if (!cancelRequested) {
-        failure = new WorkflowExecutionException(workflow.mapExceptionToFailure(e));
+        failure =
+            new WorkflowExecutionException(workflow.getWorkflowContext().mapExceptionToFailure(e));
       }
       completed = true;
     }
@@ -135,10 +136,6 @@ final class ReplayWorkflowExecutor {
 
   public Optional<Payloads> query(WorkflowQuery query) {
     return workflow.query(query);
-  }
-
-  public WorkflowImplementationOptions getWorkflowImplementationOptions() {
-    return workflow.getWorkflowImplementationOptions();
   }
 
   public void close() {

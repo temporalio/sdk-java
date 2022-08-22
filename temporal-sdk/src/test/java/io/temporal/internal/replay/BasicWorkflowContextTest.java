@@ -31,24 +31,23 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
 
-public class WorkflowContextTest {
+public class BasicWorkflowContextTest {
 
   @Test
   public void testMergeSearchAttributes() {
     WorkflowExecutionStartedEventAttributes startAttr =
         WorkflowExecutionStartedEventAttributes.getDefaultInstance();
-    WorkflowContext workflowContext =
-        new WorkflowContext(
-            "namespace", WorkflowExecution.getDefaultInstance(), startAttr, 0, null);
+    BasicWorkflowContext basicWorkflowContext =
+        new BasicWorkflowContext("namespace", WorkflowExecution.getDefaultInstance(), startAttr, 0);
 
     Map<String, Object> indexedFields = new HashMap<>();
     indexedFields.put("CustomKeywordField", "key");
 
     SearchAttributes searchAttributes = SearchAttributesUtil.encode(indexedFields);
 
-    workflowContext.mergeSearchAttributes(searchAttributes);
+    basicWorkflowContext.mergeSearchAttributes(searchAttributes);
 
-    SearchAttributes decodedAttributes = workflowContext.getSearchAttributes();
+    SearchAttributes decodedAttributes = basicWorkflowContext.getSearchAttributes();
     assertNotNull(decodedAttributes);
 
     assertEquals(

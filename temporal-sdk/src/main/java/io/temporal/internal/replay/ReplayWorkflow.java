@@ -21,12 +21,14 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Optional;
 
+/**
+ * Manages event loop, workflow method, an abstraction level over Deterministic Runner to provide a
+ * communication interface for the control thread for Start, Signal, Query, etc.
+ */
 public interface ReplayWorkflow {
 
   void start(HistoryEvent event, ReplayWorkflowContext context);
@@ -54,17 +56,10 @@ public interface ReplayWorkflow {
    */
   Optional<Payloads> query(WorkflowQuery query);
 
+  // TODO we should inverse the control. WorkflowContext should have and expose a reference to
+  //  ReplayWorkflow, not the other way around.
   /**
-   * Convert exception to the serialized Failure that can be reported to the server.<br>
-   * This method is needed when framework code needs to serialize a {@link
-   * io.temporal.failure.TemporalFailure} instance with details object produced by the application
-   * code.<br>
-   * The framework code is not aware of DataConverter so this is working around this layering.
-   *
-   * @param exception throwable to convert
-   * @return Serialized failure
+   * @return the fullest context of the workflow possible
    */
-  Failure mapExceptionToFailure(Throwable exception);
-
-  WorkflowImplementationOptions getWorkflowImplementationOptions();
+  WorkflowContext getWorkflowContext();
 }
