@@ -1,13 +1,15 @@
 description = '''Spring Boot AutoConfigure for Temporal Java SDK'''
 
 ext {
-    springBootVersion = '2.7.2'// [2.4.0,)
+    springBootVersion = '2.7.3'// [2.4.0,)
+
     otelVersion = '1.17.0'
     otShimVersion = '1.17.0-alpha'
 }
 
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+    api(platform("io.opentelemetry:opentelemetry-bom:$otelVersion"))
 
     api project(':temporal-sdk')
     compileOnly project(':temporal-testing')
@@ -15,8 +17,8 @@ dependencies {
     api "org.springframework.boot:spring-boot-autoconfigure"
 
     api project(':temporal-opentracing')
-    compileOnly "io.opentelemetry:opentelemetry-api:$otelVersion"
-    compileOnly "io.opentelemetry:opentelemetry-opentracing-shim:$otShimVersion"
+    implementation "io.opentelemetry:opentelemetry-api"
+    implementation "io.opentelemetry:opentelemetry-opentracing-shim:$otShimVersion"
 
     if (JavaVersion.current().isJava9Compatible()) {
         //needed for the generated grpc stubs and is not a part of JDK since java 9
