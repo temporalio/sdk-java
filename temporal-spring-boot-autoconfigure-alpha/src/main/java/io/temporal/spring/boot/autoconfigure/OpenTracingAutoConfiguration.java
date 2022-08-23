@@ -24,6 +24,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.opentracingshim.OpenTracingShim;
 import io.opentracing.Tracer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -33,6 +34,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConditionalOnClass(io.opentelemetry.api.OpenTelemetry.class)
 @ConditionalOnBean(io.opentelemetry.api.OpenTelemetry.class)
+@AutoConfigureAfter(name = "org.springframework.cloud.sleuth.autoconfig.otel.OtelAutoConfiguration")
 public class OpenTracingAutoConfiguration {
   @ConditionalOnMissingBean(Tracer.class)
   @Bean(name = "temporalOtTracer")
