@@ -117,7 +117,7 @@ Alternatively, you can define a custom `io.micrometer.core.instrument.MeterRegis
 ## Tracing
 
 You can set up Spring Cloud Sleuth with OpenTelemetry export 
-following [one of the manuals](https://reflectoring.io/spring-boot-tracing/).
+following [one of the manuals](https://betterprogramming.pub/distributed-tracing-with-opentelemetry-spring-cloud-sleuth-kafka-and-jaeger-939e35f45821).
 This module will pick up the `OpenTelemetry` bean configured by `spring-cloud-sleuth-otel-autoconfigure` and use it for Temporal Traces.
 
 Alternatively, you can define a custom 

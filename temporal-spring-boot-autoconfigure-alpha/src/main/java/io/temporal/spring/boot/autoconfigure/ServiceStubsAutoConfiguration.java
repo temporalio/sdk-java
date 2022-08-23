@@ -36,7 +36,10 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableConfigurationProperties(TemporalProperties.class)
-@AutoConfigureAfter(TestServerAutoConfiguration.class)
+@AutoConfigureAfter(
+    value = TestServerAutoConfiguration.class,
+    name =
+        "org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration")
 @ConditionalOnExpression(
     "${spring.temporal.test-server.enabled:false} || '${spring.temporal.connection.target:}'.length() > 0")
 public class ServiceStubsAutoConfiguration {
