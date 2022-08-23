@@ -116,6 +116,10 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
   private ReplayWorkflow createReplayWorkflow(WorkflowExecutionHistory workflowExecutionHistory) {
     History history = workflowExecutionHistory.getHistory();
     ReplayWorkflow workflowMock = mock(ReplayWorkflow.class);
+    // this mocks a ReplayWorkflow that does exactly the same as
+    // WorkflowWithLocalActivityInASecondWorkflowTask with the state machines
+    // TODO if we need to write more tests like this, we should consider creating a helper function
+    //  that puts together a full working ReplayWorkflow entity from a workflow class
     Mockito.doAnswer(
             invocation -> {
               stateMachines.newTimer(
