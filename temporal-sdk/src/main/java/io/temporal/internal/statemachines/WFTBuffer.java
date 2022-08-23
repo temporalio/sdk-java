@@ -52,6 +52,9 @@ public class WFTBuffer {
    *     accumulated or events can't be attributed to a completed workflow task
    */
   public boolean addEvent(HistoryEvent event, boolean hasNextEvent) {
+    if (readyToFetch.size() > 0) {
+      throw new IllegalStateException("Can't add more events until the readyToFetch is fetched");
+    }
     handleEvent(event, hasNextEvent);
     return !readyToFetch.isEmpty();
   }
@@ -91,6 +94,8 @@ public class WFTBuffer {
       // If event is WFT_STARTED or any of the Closing events, it's handled by if statements
       // earlier, so it's safe to switch to None here, we are not inside WFT sequence
       wftSequenceState = WFTState.None;
+      // no open WFT sequence, can't add to buffer, it's ok to add directly to readyToFetch, this
+      // event can't be EVENT_TYPE_WORKFLOW_TASK_STARTED because we checked it above.
       readyToFetch.add(event);
       return;
     }

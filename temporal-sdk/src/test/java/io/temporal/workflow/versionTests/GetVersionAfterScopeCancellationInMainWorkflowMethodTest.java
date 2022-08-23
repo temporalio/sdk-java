@@ -24,6 +24,7 @@ import static io.temporal.api.enums.v1.EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.internal.Issue;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -32,11 +33,8 @@ import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * This test reproduces a clash in cancellation scopes with getVersion described here:
- *
- * <p>https://github.com/temporalio/sdk-java/issues/648
- */
+/** This test reproduces a clash in cancellation scopes with getVersion described here: */
+@Issue("https://github.com/temporalio/sdk-java/issues/648")
 public class GetVersionAfterScopeCancellationInMainWorkflowMethodTest {
 
   @Rule

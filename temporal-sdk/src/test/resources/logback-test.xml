@@ -31,6 +31,8 @@
 
     <!--    <logger name="io.temporal.internal.retryer.GrpcRetryer" level="TRACE"/>-->
 
+    <logger name="io.temporal.internal.replay.ReplayWorkflowTaskHandler" level="DEBUG"/>
+
     <!--    <logger name="io.temporal.internal.statemachines.StateMachine" level="TRACE"/>-->
 
     <!-- Modify root log level to get more info -->

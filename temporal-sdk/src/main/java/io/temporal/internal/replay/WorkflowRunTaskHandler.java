@@ -20,7 +20,6 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 
 /**
@@ -32,17 +31,24 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder
 public interface WorkflowRunTaskHandler {
 
   /**
-   * Handles a single workflow task.
+   * Handles a single new workflow task of the workflow.
    *
    * @param workflowTask task to handle
-   * @return true if new workflow task should be force created synchronously as local activities are
-   *     still running.
+   * @return an object that can be used to build workflow task completion or failure response
    */
-  WorkflowTaskResult handleWorkflowTask(PollWorkflowTaskQueueResponseOrBuilder workflowTask)
+  WorkflowTaskResult handleWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator)
       throws InterruptedException;
 
-  QueryResult handleQueryWorkflowTask(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query);
+  /**
+   * Handles a Direct Query (or Legacy Query) scenario. In this case, it's not a real workflow task
+   * and the processing can't generate any new commands.
+   *
+   * @param workflowTask task to handle
+   * @return an object that can be used to build a legacy query response
+   */
+  QueryResult handleDirectQueryWorkflowTask(
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator);
 
   void close();
 }

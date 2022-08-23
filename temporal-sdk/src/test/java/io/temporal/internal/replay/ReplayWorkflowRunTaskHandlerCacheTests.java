@@ -276,7 +276,6 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
   private ReplayWorkflowRunTaskHandler createFakeExecutor(PollWorkflowTaskQueueResponse response) {
     return new ReplayWorkflowRunTaskHandler(
-        null,
         "namespace",
         new ReplayWorkflow() {
           @Override

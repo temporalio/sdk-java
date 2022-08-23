@@ -320,8 +320,9 @@ class TestHistoryBuilder {
         this.events.subList((int) stateMachines.getLastStartedEventId(), this.events.size());
     PeekingIterator<HistoryEvent> history = Iterators.peekingIterator(events.iterator());
     HistoryInfo info = getHistoryInfo(replayToTaskIndex);
-    stateMachines.setStartedIds(
-        info.getPreviousStartedEventId(), info.getWorkflowTaskStartedEventId());
+    stateMachines.setWorklfowStartedEventId(info.getWorkflowTaskStartedEventId());
+    stateMachines.setReplaying(info.getPreviousStartedEventId() > 0);
+
     long wftStartedEventId = -1;
     HistoryEvent event = null;
     int count =

@@ -325,17 +325,15 @@ final class StateMachineDefinition<State, ExplicitEvent, Data> {
    * Given a list of state machines returns transitions these state machines haven't performed. Used
    * to ensure unit test coverage.
    */
-  public List<Transition> getUnvisitedTransitions(
+  public List<Transition<State, TransitionEvent<ExplicitEvent>>> getUnvisitedTransitions(
       List<StateMachine<State, ExplicitEvent, Data>> stateMachines) {
-    Set<Transition> taken = new HashSet<>();
+    Set<Transition<State, TransitionEvent<ExplicitEvent>>> taken = new HashSet<>();
     for (StateMachine<State, ExplicitEvent, Data> stateMachine : stateMachines) {
       List<Transition<State, TransitionEvent<ExplicitEvent>>> history =
           stateMachine.getTransitionHistory();
-      for (Transition<State, TransitionEvent<ExplicitEvent>> transition : history) {
-        taken.add(transition);
-      }
+      taken.addAll(history);
     }
-    List<Transition> result = new ArrayList<>();
+    List<Transition<State, TransitionEvent<ExplicitEvent>>> result = new ArrayList<>();
     for (Transition<State, TransitionEvent<ExplicitEvent>> transition : transitions.keySet()) {
       if (!taken.contains(transition)) {
         result.add(transition);

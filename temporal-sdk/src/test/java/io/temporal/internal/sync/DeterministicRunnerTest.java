@@ -31,7 +31,6 @@ import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.RetryOptions;
@@ -794,13 +793,15 @@ public class DeterministicRunnerTest {
 
     @Override
     public WorkflowTaskResult handleWorkflowTask(
-        PollWorkflowTaskQueueResponseOrBuilder workflowTask) {
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask,
+        WorkflowHistoryIterator historyIterator) {
       return WorkflowTaskResult.newBuilder().build();
     }
 
     @Override
-    public QueryResult handleQueryWorkflowTask(
-        PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowQuery query) {
+    public QueryResult handleDirectQueryWorkflowTask(
+        PollWorkflowTaskQueueResponseOrBuilder workflowTask,
+        WorkflowHistoryIterator historyIterator) {
       return new QueryResult(Optional.empty(), true);
     }
 
