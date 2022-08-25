@@ -1,0 +1,22 @@
+Highlights:
+
+This release brings an experimental Spring Boot module. This is an alpha for a preview and feedback and there are no compatibility guarantees.
+
+Fixes:
+
+- A rare case if a Query arrives to a Worker with an outdated meta-information handles gracefully now (#1371)
+
+Changeset:
+
+2022-08-10 - 38559eb0 - Port static and jacoco synthetic methods fix from Activity interfaces to Workflows interfaces (#1356)
+2022-08-11 - 6fae1a5d - Rework POJOWorkflowMetadata classes, add test coverage, use in Spring Boot (#1362)
+2022-08-15 - 1ad46086 - Upgrade dependencies & code cleanup (#1355)
+2022-08-16 - ab43a4ac - Additional Spring Boot wiring (#1363)
+2022-08-17 - b8031885 - Add an ability to register custom DataConverter in Spring Boot Autoconfiguration (#1372)
+2022-08-18 - 776d7d6a - Upgrade protoc for Apple Silicone builds (#1376)
+2022-08-19 - a927dd45 - Spring Boot Autoconfiguration doesn't require temporal-testing module to be in classpath anymore (#1380)
+2022-08-19 - fb977877 - Revisit Sprint Boot Readme (#1379)
+2022-08-21 - 0ab17d8d - Move state machine input parameter classes to state machine package (#1381)
+2022-08-23 - 0a327b5d - Switch to using opentelemetry bom and Spring Boot upgrade (#1385)
+2022-08-23 - 8f093115 - Fix situation when direct query comes outdated (inconsistent) and applied to a more advanced cached workflow instance (#1375)
+2022-08-23 - d87ca7d6 - Specify some standard Spring AutoConfiguration before Temporal ones explicitly (#1384)
