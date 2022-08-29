@@ -39,8 +39,14 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
 
   private final ObjectMapper mapper;
 
-  public JacksonJsonPayloadConverter() {
-    mapper = new ObjectMapper();
+  /**
+   * Can be used as a starting point for custom user configurations of ObjectMapper.
+   *
+   * @return a default configuration of {@link ObjectMapper} used by {@link
+   *     JacksonJsonPayloadConverter}.
+   */
+  public static ObjectMapper newDefaultObjectMapper() {
+    ObjectMapper mapper = new ObjectMapper();
     // preserve the original value of timezone coming from the server in Payload
     // without adjusting to the host timezone
     // may be important if the replay is happening on a host in another timezone
@@ -49,6 +55,11 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
     mapper.registerModule(new JavaTimeModule());
     mapper.registerModule(new Jdk8Module());
     mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
+    return mapper;
+  }
+
+  public JacksonJsonPayloadConverter() {
+    this(newDefaultObjectMapper());
   }
 
   public JacksonJsonPayloadConverter(ObjectMapper mapper) {
