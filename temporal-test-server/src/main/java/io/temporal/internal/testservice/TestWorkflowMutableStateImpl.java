@@ -99,6 +99,7 @@ import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.ServerFailure;
+import io.temporal.internal.common.ProtoEnumNameUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
@@ -130,6 +131,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -438,6 +440,30 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                         + ","
                         + " actualHistorySize="
                         + ctx.getInitialEventId())
+                .asRuntimeException();
+          }
+
+          // Workflow completion Command has to be the last in the Workflow Task completion request
+          int indexOfCompletionEvent =
+              IntStream.range(0, commands.size())
+                  .filter(
+                      index ->
+                          WorkflowExecutionUtils.isWorkflowExecutionCompleteCommand(
+                              commands.get(index)))
+                  .findFirst()
+                  .orElse(-1);
+          if (indexOfCompletionEvent >= 0 && indexOfCompletionEvent < commands.size() - 1) {
+            throw Status.INVALID_ARGUMENT
+                .withDescription(
+                    "invalid command sequence: "
+                        + commands.stream()
+                            .map(Command::getCommandType)
+                            .map(ProtoEnumNameUtils::uniqueToSimplifiedName)
+                            .collect(Collectors.toList())
+                        + ", command "
+                        + ProtoEnumNameUtils.uniqueToSimplifiedName(
+                            commands.get(indexOfCompletionEvent).getCommandType())
+                        + " must be the last command.")
                 .asRuntimeException();
           }
 
