@@ -1060,6 +1060,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   // TODO: insert a single  workflow task timeout into the history
   private void timeoutWorkflowTask(long scheduledEventId) {
+    StickyExecutionAttributes previousStickySettings = this.stickyExecutionAttributes;
     try {
       completeWorkflowTaskUpdate(
           ctx -> {
@@ -1067,6 +1068,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 || workflowTaskStateMachine.getData().scheduledEventId != scheduledEventId
                 || workflowTaskStateMachine.getState() == State.NONE) {
               // timeout for a previous workflow task
+              stickyExecutionAttributes = previousStickySettings; // rollout sticky options
               return;
             }
             workflowTaskStateMachine

@@ -399,7 +399,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
             workflowTask.getPreviousStartedEventId());
       } else {
         log.debug(
-            "Handle Workflow Task {}. {}WorkflowId='{}', RunId='{}', startedEventId='{}', previousStartedEventId:{}",
+            "Handle Workflow Task {}. {}WorkflowId='{}', RunId='{}', TaskQueue='{}', startedEventId='{}', previousStartedEventId:{}",
             createdNew.get() ? "with new executor" : "with existing executor",
             workflowTask.getQueriesMap().isEmpty()
                 ? ""
@@ -410,6 +410,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
                     + ". ",
             execution.getWorkflowId(),
             execution.getRunId(),
+            workflowTask.getWorkflowExecutionTaskQueue().getName(),
             workflowTask.getStartedEventId(),
             workflowTask.getPreviousStartedEventId());
       }
