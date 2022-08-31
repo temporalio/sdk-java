@@ -51,7 +51,16 @@ final class ChannelManager {
    * Frontend from Java SDK. The Server Frontend limit on incoming gRPC message value is currently
    * 4Mb.
    */
-  private static final int MAX_INBOUND_MESSAGE_SIZE = 128 * 1024 * 1024;
+  private static final int MAX_INBOUND_MESSAGE_SIZE = 128 * 1024 * 1024; // 128Mb
+
+  /**
+   * This value sets the limit on the metadata (HTTP/2 headers) of the incoming from Temporal Server
+   * to Java SDK. The default HTTP/2 and gRPC is 8Kb. Larger limit is set to accommodate longer
+   * Temporal Server error messages that may contain segments of unbounded variable length depending
+   * on the situation. See <a href="https://github.com/temporalio/temporal/issues/3284">Issue
+   * 3284</a>
+   */
+  private static final int MAX_INBOUND_METADATA_SIZE = 4 * 1024 * 1024; // 4Mb
 
   /** refers to the name of the gRPC header that contains the client library version */
   private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
@@ -175,7 +184,8 @@ final class ChannelManager {
     NettyChannelBuilder builder =
         NettyChannelBuilder.forTarget(options.getTarget())
             .defaultLoadBalancingPolicy("round_robin")
-            .maxInboundMessageSize(MAX_INBOUND_MESSAGE_SIZE);
+            .maxInboundMessageSize(MAX_INBOUND_MESSAGE_SIZE)
+            .maxInboundMetadataSize(MAX_INBOUND_METADATA_SIZE);
     if (options.getEnableKeepAlive()) {
       builder
           .keepAliveTime(options.getKeepAliveTime().toMillis(), TimeUnit.MILLISECONDS)
