@@ -22,6 +22,7 @@ package io.temporal.internal.common;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableMap;
+import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import java.util.Map;
@@ -49,11 +50,13 @@ import javax.annotation.Nonnull;
 public class ProtoEnumNameUtils {
   public static final String WORKFLOW_TASK_FAILED_CAUSE_PREFIX = "WORKFLOW_TASK_FAILED_CAUSE_";
   public static final String INDEXED_VALUE_TYPE_PREFIX = "INDEXED_VALUE_TYPE_";
+  public static final String COMMAND_TYPE_PREFIX = "COMMAND_TYPE_";
 
   public static final Map<Class<?>, String> ENUM_CLASS_TO_PREFIX =
       ImmutableMap.of(
           WorkflowTaskFailedCause.class, WORKFLOW_TASK_FAILED_CAUSE_PREFIX,
-          IndexedValueType.class, INDEXED_VALUE_TYPE_PREFIX);
+          IndexedValueType.class, INDEXED_VALUE_TYPE_PREFIX,
+          CommandType.class, COMMAND_TYPE_PREFIX);
 
   @Nonnull
   public static String uniqueToSimplifiedName(@Nonnull Enum<?> enumm) {
