@@ -131,12 +131,10 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
         throw Status.DEADLINE_EXCEEDED
             .withDescription(
                 "getWorkflowExecutionHistory pagination took longer than workflow task timeout")
+            .withCause(ex)
             .asRuntimeException();
       }
       throw ex;
-    } catch (Exception e) {
-      // TODO Error? Why?
-      throw new Error(e);
     }
   }
 }

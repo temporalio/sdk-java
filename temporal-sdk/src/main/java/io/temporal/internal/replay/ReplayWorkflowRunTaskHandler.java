@@ -187,24 +187,9 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   private void handleWorkflowTaskImpl(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       WorkflowHistoryIterator historyIterator) {
-    try {
-      workflowStateMachines.setWorklfowStartedEventId(workflowTask.getStartedEventId());
-      workflowStateMachines.setReplaying(workflowTask.getPreviousStartedEventId() > 0);
-      applyServerHistory(historyIterator);
-    } catch (Throwable e) {
-      // Fail workflow if exception is of the specified type
-      WorkflowImplementationOptions implementationOptions =
-          workflow.getWorkflowContext().getWorkflowImplementationOptions();
-      Class<? extends Throwable>[] failTypes =
-          implementationOptions.getFailWorkflowExceptionTypes();
-      for (Class<? extends Throwable> failType : failTypes) {
-        if (failType.isAssignableFrom(e.getClass())) {
-          throw new WorkflowExecutionException(
-              workflow.getWorkflowContext().mapExceptionToFailure(e));
-        }
-      }
-      throw wrap(e);
-    }
+    workflowStateMachines.setWorklfowStartedEventId(workflowTask.getStartedEventId());
+    workflowStateMachines.setReplaying(workflowTask.getPreviousStartedEventId() > 0);
+    applyServerHistory(historyIterator);
   }
 
   private void applyServerHistory(WorkflowHistoryIterator historyIterator) {
@@ -215,8 +200,26 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_TASK_REPLAY_LATENCY).start();
     try {
       while (historyIterator.hasNext()) {
+        // iteration itself is intentionally left outside the try-catch below,
+        // as gRPC exception happened during history iteration should never ever fail the workflow
         HistoryEvent event = historyIterator.next();
-        workflowStateMachines.handleEvent(event, historyIterator.hasNext());
+        boolean hasNext = historyIterator.hasNext();
+        try {
+          workflowStateMachines.handleEvent(event, hasNext);
+        } catch (Throwable e) {
+          // Fail workflow if exception is of the specified type
+          WorkflowImplementationOptions implementationOptions =
+              workflow.getWorkflowContext().getWorkflowImplementationOptions();
+          Class<? extends Throwable>[] failTypes =
+              implementationOptions.getFailWorkflowExceptionTypes();
+          for (Class<? extends Throwable> failType : failTypes) {
+            if (failType.isAssignableFrom(e.getClass())) {
+              throw new WorkflowExecutionException(
+                  workflow.getWorkflowContext().mapExceptionToFailure(e));
+            }
+          }
+          throw wrap(e);
+        }
         if (!timerStopped && !workflowStateMachines.isReplaying()) {
           sw.stop();
           timerStopped = true;
