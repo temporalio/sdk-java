@@ -44,7 +44,7 @@ ext {
     jsonPathVersion = '2.7.0' // compileOnly
 
     // test scoped
-    logbackVersion = '1.2.11'
+    logbackVersion = '1.4.0'
     mockitoVersion = '4.7.0'
     junitVersion = '4.13.2'
 }
