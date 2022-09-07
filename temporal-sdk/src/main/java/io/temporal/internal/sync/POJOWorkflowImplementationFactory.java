@@ -103,14 +103,6 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     }
   }
 
-  public <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
-    WorkflowImplementationOptions unitTestingOptions =
-        WorkflowImplementationOptions.newBuilder()
-            .setFailWorkflowExceptionTypes(Throwable.class)
-            .build();
-    addWorkflowImplementationFactory(unitTestingOptions, clazz, factory);
-  }
-
   /**
    * @param clazz has to be a workflow interface class. The only exception is if it's a
    *     DynamicWorkflow class.

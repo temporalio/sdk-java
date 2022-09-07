@@ -146,13 +146,9 @@ public class SyncWorkflowWorker
     factory.registerWorkflowImplementationTypes(options, workflowImplementationTypes);
   }
 
-  public <R> void addWorkflowImplementationFactory(
+  public <R> void registerWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> clazz, Func<R> factory) {
     this.factory.addWorkflowImplementationFactory(options, clazz, factory);
-  }
-
-  public <R> void addWorkflowImplementationFactory(Class<R> clazz, Func<R> factory) {
-    this.factory.addWorkflowImplementationFactory(clazz, factory);
   }
 
   public void registerLocalActivityImplementations(Object... activitiesImplementation) {

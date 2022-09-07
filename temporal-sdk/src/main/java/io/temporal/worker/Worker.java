@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.sync.WorkflowInternal;
@@ -192,16 +193,55 @@ public final class Worker {
    *     object.
    * @param <R> type of the workflow object to create
    * @throws TypeAlreadyRegisteredException if one of the workflow types is already registered
+   * @deprecated use {@link #registerWorkflowImplementationFactory(Class, Func,
+   *     WorkflowImplementationOptions)} instead
    */
+  @VisibleForTesting
+  @Deprecated
   public <R> void addWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> workflowInterface, Func<R> factory) {
-    workflowWorker.addWorkflowImplementationFactory(options, workflowInterface, factory);
+    registerWorkflowImplementationFactory(workflowInterface, factory, options);
   }
 
   /**
-   * Configures a factory to use when an instance of a workflow implementation is created. The only
-   * valid use for this method is unit testing, specifically to instantiate mocks that implement
-   * child workflows. An example of mocking a child workflow:
+   * <font color="red"> This method may behave differently from your expectations! This method makes
+   * any {@link Throwable} thrown from a Workflow code to fail the Workflow Execution.
+   *
+   * <p>By default, only throwing {@link TemporalFailure} or an exception of class explicitly
+   * specified on {@link WorkflowImplementationOptions.Builder#setFailWorkflowExceptionTypes} fails
+   * Workflow Execution. Other exceptions fail Workflow Task instead of the whole Workflow
+   * Execution. It is designed so that an exception which is not expected by the user, doesn't fail
+   * the Workflow Execution. Which allows the user to fix Workflow implementation and then continue
+   * the execution from the point it got stuck.
+   *
+   * <p>This method is misaligned with other workflow implementation registration methods in this
+   * aspect.
+   *
+   * <p></font>
+   *
+   * @deprecated Use {@link #registerWorkflowImplementationFactory(Class, Func,
+   *     WorkflowImplementationOptions)} with {@code
+   *     WorkflowImplementationOptions.newBuilder().setFailWorkflowExceptionTypes(Throwable.class).build()}
+   *     as a 3rd parameter to preserve the unexpected behavior of this method. <br>
+   *     Or use {@link #registerWorkflowImplementationFactory(Class, Func)} with an expected
+   *     behavior - Workflow Execution is failed only when a {@link TemporalFailure} subtype is
+   *     thrown.
+   */
+  @VisibleForTesting
+  @Deprecated
+  public <R> void addWorkflowImplementationFactory(Class<R> workflowInterface, Func<R> factory) {
+    WorkflowImplementationOptions unitTestingOptions =
+        WorkflowImplementationOptions.newBuilder()
+            .setFailWorkflowExceptionTypes(Throwable.class)
+            .build();
+    registerWorkflowImplementationFactory(workflowInterface, factory, unitTestingOptions);
+  }
+
+  /**
+   * Configures a factory to use when an instance of a workflow implementation is created.
+   *
+   * <p>The only valid use for this method is unit testing and mocking. <br>
+   * An example of mocking a child workflow:
    *
    * <pre><code>
    *   worker.addWorkflowImplementationFactory(ChildWorkflow.class, () -&gt; {
@@ -214,15 +254,75 @@ public final class Worker {
    * <p>Unless mocking a workflow execution use {@link
    * #registerWorkflowImplementationTypes(Class[])}.
    *
+   * <h1><font color="red">Workflow instantiation and Dependency Injection</font></h1>
+   *
+   * <font color="red"> This method may look convenient to integrate with dependency injection
+   * frameworks and inject into workflow instances. Please note that Dependency Injection into
+   * Workflow instances is strongly discouraged. Dependency Injection into Workflow Instances is a
+   * direct way to cause changes that are incompatible with the persisted histories and cause
+   * NonDeterministicException.
+   *
+   * <p>To provide an external configuration to a workflow in a deterministic way, use a Local
+   * Activity that returns configuration to the workflow. Dependency Injection into Activity
+   * instances is allowed. This way, the configuration is persisted into the history and maintained
+   * same during replay.
+   *
+   * <p></font>
+   *
    * @param workflowInterface Workflow interface that this factory implements
-   * @param factory factory that when called creates a new instance of the workflow implementation
-   *     object.
+   * @param factory should create a new instance of the workflow implementation object every time
+   *     it's called
+   * @param options custom workflow implementation options for a worker
    * @param <R> type of the workflow object to create
    * @throws TypeAlreadyRegisteredException if one of the workflow types is already registered
    */
   @VisibleForTesting
-  public <R> void addWorkflowImplementationFactory(Class<R> workflowInterface, Func<R> factory) {
-    workflowWorker.addWorkflowImplementationFactory(workflowInterface, factory);
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface, Func<R> factory, WorkflowImplementationOptions options) {
+    workflowWorker.registerWorkflowImplementationFactory(options, workflowInterface, factory);
+  }
+
+  /**
+   * Configures a factory to use when an instance of a workflow implementation is created.
+   *
+   * <p>The only valid use for this method is unit testing and mocking. <br>
+   * An example of mocking a child workflow:
+   *
+   * <pre><code>
+   *   worker.addWorkflowImplementationFactory(ChildWorkflow.class, () -&gt; {
+   *     ChildWorkflow child = mock(ChildWorkflow.class);
+   *     when(child.workflow(anyString(), anyString())).thenReturn("result1");
+   *     return child;
+   *   });
+   * </code></pre>
+   *
+   * <p>Unless mocking a workflow execution use {@link
+   * #registerWorkflowImplementationTypes(Class[])}.
+   *
+   * <h1><font color="red">Workflow instantiation and Dependency Injection</font></h1>
+   *
+   * <font color="red"> This method may look convenient to integrate with dependency injection
+   * frameworks and inject into workflow instances. Please note that Dependency Injection into
+   * Workflow instances is strongly discouraged. Dependency Injection into Workflow Instances is a
+   * direct way to cause changes that are incompatible with the persisted histories and cause
+   * NonDeterministicException.
+   *
+   * <p>To provide an external configuration to a workflow in a deterministic way, use a Local
+   * Activity that returns configuration to the workflow. Dependency Injection into Activity
+   * instances is allowed. This way, the configuration is persisted into the history and maintained
+   * same during replay. </font>
+   *
+   * @param workflowInterface Workflow interface that this factory implements
+   * @param factory should create a new instance of the workflow implementation object every time
+   *     it's called
+   * @param <R> type of the workflow object to create
+   * @throws TypeAlreadyRegisteredException if one of the workflow types is already registered
+   */
+  @VisibleForTesting
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface, Func<R> factory) {
+    workflowWorker.registerWorkflowImplementationFactory(
+        WorkflowImplementationOptions.getDefaultInstance(), workflowInterface, factory);
   }
 
   /**

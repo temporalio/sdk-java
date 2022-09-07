@@ -376,7 +376,7 @@ public class WorkflowTestingTest {
     String details = "timeout Details";
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(SimulatedTimeoutParentWorkflow.class);
-    worker.addWorkflowImplementationFactory(
+    worker.registerWorkflowImplementationFactory(
         TestWorkflow2.class,
         () -> {
           TestWorkflow2 child = mock(TestWorkflow2.class);

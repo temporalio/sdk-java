@@ -66,7 +66,12 @@ inline fun <reified T : Any> Worker.registerWorkflowImplementationType(
  * @param factory factory that when called creates a new instance of the workflow implementation
  * object.
  * @see Worker.addWorkflowImplementationFactory
+ * @deprecated See deprecation notes on [Worker.addWorkflowImplementationFactory]
  */
+@Deprecated(
+  "Use Worker.registerWorkflowImplementationFactory instead",
+  ReplaceWith("Worker.registerWorkflowImplementationTypes(factory, options)")
+)
 inline fun <reified T : Any> Worker.addWorkflowImplementationFactory(
   options: WorkflowImplementationOptions,
   noinline factory: () -> T
@@ -75,6 +80,26 @@ inline fun <reified T : Any> Worker.addWorkflowImplementationFactory(
 }
 
 /**
+ * Configures a factory to use when an instance of a workflow implementation is created.
+ * Please read an original [Worker.registerWorkflowImplementationFactory] method doc because
+ * this method has a limited usage.
+ *
+ * @param T Workflow interface that this factory implements
+ * @param factory factory that when called creates a new instance of the workflow implementation
+ * object.
+ * @param options custom workflow implementation options for a worker
+ * @see Worker.registerWorkflowImplementationFactory
+ */
+inline fun <reified T : Any> Worker.registerWorkflowImplementationFactory(
+  noinline factory: () -> T,
+  options: WorkflowImplementationOptions
+) {
+  registerWorkflowImplementationFactory(T::class.java, factory, options)
+}
+
+/**
+ * This method may behave differently from your expectations!
+ * Read deprecation and migration notes on [Worker.addWorkflowImplementationFactory].
  * Configures a factory to use when an instance of a workflow implementation is created.
  *
  * ```kotlin
@@ -90,8 +115,24 @@ inline fun <reified T : Any> Worker.addWorkflowImplementationFactory(
  * object.
  * @see Worker.addWorkflowImplementationFactory
  */
+@Deprecated("Use Worker.registerWorkflowImplementationFactory instead", ReplaceWith("Worker.registerWorkflowImplementationTypes(factory)"))
 inline fun <reified T : Any> Worker.addWorkflowImplementationFactory(
   noinline factory: () -> T
 ) {
   addWorkflowImplementationFactory(T::class.java, factory)
+}
+
+/**
+ * Configures a factory to use when an instance of a workflow implementation is created. <br>
+ * Please read an original [Worker.registerWorkflowImplementationFactory] method doc because this method has a limited usage
+ *
+ * @param T Workflow interface that this factory implements
+ * @param factory factory that when called creates a new instance of the workflow implementation
+ * object.
+ * @see Worker.registerWorkflowImplementationFactory
+ */
+inline fun <reified T : Any> Worker.registerWorkflowImplementationFactory(
+  noinline factory: () -> T
+) {
+  registerWorkflowImplementationFactory(T::class.java, factory)
 }

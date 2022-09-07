@@ -400,7 +400,7 @@ public class SDKTestWorkflowRule implements TestRule {
     this.getTestEnvironment()
         .getWorkerFactory()
         .getWorker(this.getTaskQueue())
-        .addWorkflowImplementationFactory(factoryImpl, factoryFunc);
+        .registerWorkflowImplementationFactory(factoryImpl, factoryFunc);
   }
 
   public void regenerateHistoryForReplay(WorkflowExecution execution, String fileName) {
