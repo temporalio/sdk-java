@@ -38,7 +38,7 @@ import javax.annotation.Nonnull;
  *
  * <p>The underlying {@link DataConverter} is expected to be responsible for conversion between user
  * objects and bytes represented as {@link Payloads}, while the underlying chain of codecs is
- * responsible for a subsequent byte <-> byte manipulation such as encryption or compression
+ * responsible for a subsequent byte &lt;-&gt; byte manipulation such as encryption or compression
  */
 public class CodecDataConverter implements DataConverter, PayloadCodec {
   private final DataConverter dataConverter;

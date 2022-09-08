@@ -36,7 +36,7 @@ import javax.annotation.Nonnull;
  * <p>Please note that this is by no means the best solution for lots of small payloads which is
  * typical for a lot of applications. You can use this implementation as an example and base for
  * your own implementation using the compressor of your choice, for example <a
- * link="https://github.com/xerial/snappy-java">Google Snappy</>
+ * href="https://github.com/xerial/snappy-java">Google Snappy</a>
  */
 public class ZlibPayloadCodec implements PayloadCodec {
   static final ByteString METADATA_ENCODING_ZLIB = ByteString.copyFromUtf8("binary/zlib");

@@ -276,7 +276,7 @@ public class WorkersTemplate implements BeanFactoryAware {
     }
 
     for (POJOWorkflowMethodMetadata workflowMethod : workflowMetadata.getWorkflowMethods()) {
-      worker.addWorkflowImplementationFactory(
+      worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
           () -> (T) beanFactory.createBean(clazz));
     }
