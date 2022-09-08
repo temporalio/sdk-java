@@ -115,7 +115,7 @@ inline fun <reified T : Any> Worker.registerWorkflowImplementationFactory(
  * object.
  * @see Worker.addWorkflowImplementationFactory
  */
-@Deprecated("Use Worker.registerWorkflowImplementationFactory instead", ReplaceWith("Worker.registerWorkflowImplementationTypes(factory)"))
+@Deprecated("Use Worker.registerWorkflowImplementationFactory instead", ReplaceWith("this.registerWorkflowImplementationFactory(factory)"))
 inline fun <reified T : Any> Worker.addWorkflowImplementationFactory(
   noinline factory: () -> T
 ) {
