@@ -113,7 +113,10 @@ public class ServiceStubsTemplate {
       @Nullable ConnectionProperties.MTLSProperties mtlsProperties,
       WorkflowServiceStubsOptions.Builder stubsOptionsBuilder) {
     if (mtlsProperties == null
-        || (mtlsProperties.getKeyFile() == null && mtlsProperties.getCertChainFile() == null)) {
+        || (mtlsProperties.getKeyFile() == null
+            && mtlsProperties.getCertChainFile() == null
+            && mtlsProperties.getKey() == null
+            && mtlsProperties.getCertChain() == null)) {
       return;
     }
 
