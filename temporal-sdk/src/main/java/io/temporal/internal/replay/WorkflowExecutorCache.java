@@ -85,12 +85,16 @@ public final class WorkflowExecutorCache {
 
   public WorkflowRunTaskHandler getOrCreate(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      Scope metricsScope,
+      Scope workflowTypeScope,
       Callable<WorkflowRunTaskHandler> workflowExecutorFn)
       throws Exception {
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
     if (isFullHistory(workflowTask)) {
-      invalidate(execution, metricsScope, "full history", null);
+      // no need to call a full-blown #invalidate, because we don't need to unmark from processing
+      // yet
+      cache.invalidate(execution.getRunId());
+      metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
+
       log.trace(
           "New Workflow Executor {}-{} has been created for a full history run",
           execution.getWorkflowId(),
@@ -98,7 +102,7 @@ public final class WorkflowExecutorCache {
       return workflowExecutorFn.call();
     }
 
-    WorkflowRunTaskHandler workflowRunTaskHandler = getForProcessing(execution, metricsScope);
+    WorkflowRunTaskHandler workflowRunTaskHandler = getForProcessing(execution, workflowTypeScope);
     if (workflowRunTaskHandler != null) {
       return workflowRunTaskHandler;
     }
@@ -168,6 +172,7 @@ public final class WorkflowExecutorCache {
               key);
           cache.invalidate(key);
           metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
+          metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
           return true;
         }
       }
@@ -188,13 +193,15 @@ public final class WorkflowExecutorCache {
     cacheLock.lock();
     try {
       String runId = execution.getRunId();
-      log.trace(
-          "Invalidating {}-{} because of '{}', value is present in the cache: {}",
-          execution.getWorkflowId(),
-          runId,
-          reason,
-          cache.getIfPresent(runId),
-          cause);
+      if (log.isTraceEnabled()) {
+        log.trace(
+            "Invalidating {}-{} because of '{}', value is present in the cache: {}",
+            execution.getWorkflowId(),
+            runId,
+            reason,
+            cache.getIfPresent(runId),
+            cause);
+      }
       cache.invalidate(runId);
       inProcessing.remove(runId);
       workflowTypeScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);

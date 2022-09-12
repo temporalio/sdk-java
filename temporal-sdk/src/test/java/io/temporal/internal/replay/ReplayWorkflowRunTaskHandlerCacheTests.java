@@ -24,9 +24,7 @@ import static io.temporal.testUtils.HistoryUtils.HOST_TASK_QUEUE;
 import static io.temporal.testUtils.HistoryUtils.NAMESPACE;
 import static io.temporal.testUtils.HistoryUtils.WORKFLOW_TYPE;
 import static junit.framework.TestCase.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.junit.Assume.assumeFalse;
 
 import com.uber.m3.tally.NoopScope;
@@ -223,14 +221,14 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
 
     assertEquals(3, cache.size());
 
-    cache.evictAnyNotInProcessing(execution, scope);
+    assertTrue(cache.evictAnyNotInProcessing(execution, scope));
 
     // Assert
     assertEquals(2, cache.size());
 
     // Wait for reporter
     Thread.sleep(100);
-    reporter.assertCounter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION, tags, 3);
+    reporter.assertCounter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION, tags, 1);
   }
 
   @Test
