@@ -45,7 +45,7 @@ ext {
 
     // test scoped
     logbackVersion = '1.2.11'
-    mockitoVersion = '4.7.0'
+    mockitoVersion = '4.8.0'
     junitVersion = '4.13.2'
 }
 
