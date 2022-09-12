@@ -4,7 +4,7 @@ ext {
     springBootVersion = '2.7.3'// [2.4.0,)
 
     otelVersion = '1.17.0'
-    otShimVersion = '1.17.0-alpha'
+    otShimVersion = '1.18.0-alpha'
 }
 
 dependencies {
