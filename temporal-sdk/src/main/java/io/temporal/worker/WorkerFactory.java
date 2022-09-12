@@ -103,7 +103,7 @@ public final class WorkerFactory {
             0,
             this.factoryOptions.getMaxWorkflowThreadCount(),
             1,
-            TimeUnit.SECONDS,
+            TimeUnit.MINUTES,
             new SynchronousQueue<>());
     this.workflowThreadPool.setThreadFactory(
         r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));

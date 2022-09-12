@@ -67,7 +67,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     this.metricsScope = Objects.requireNonNull(metricsScope);
 
     this.taskExecutor =
-        new ThreadPoolExecutor(0, workerTaskSlots, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+        new ThreadPoolExecutor(0, workerTaskSlots, 1, TimeUnit.MINUTES, new SynchronousQueue<>());
     this.availableTaskSlots = new AtomicInteger(workerTaskSlots);
     publishSlotsMetric();
 
