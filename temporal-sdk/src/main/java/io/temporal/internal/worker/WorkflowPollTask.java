@@ -23,6 +23,7 @@ package io.temporal.internal.worker;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
@@ -41,6 +42,7 @@ public final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQ
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String taskQueue;
+  private final TaskQueueKind taskQueueKind;
   private final String identity;
   private final String binaryChecksum;
   private final Scope metricsScope;
@@ -49,12 +51,14 @@ public final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQ
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
+      @Nonnull TaskQueueKind taskQueueKind,
       @Nonnull String identity,
       @Nullable String binaryChecksum,
       @Nonnull Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
+    this.taskQueueKind = Objects.requireNonNull(taskQueueKind);
     this.identity = Objects.requireNonNull(identity);
     this.binaryChecksum = binaryChecksum;
     this.metricsScope = Objects.requireNonNull(metricsScope);
@@ -67,7 +71,14 @@ public final class WorkflowPollTask implements Poller.PollTask<PollWorkflowTaskQ
             .setNamespace(namespace)
             .setBinaryChecksum(binaryChecksum)
             .setIdentity(identity)
-            .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build())
+            .setTaskQueue(
+                TaskQueue.newBuilder()
+                    .setName(taskQueue)
+                    // For matching performance optimizations of Temporal Server it's important to
+                    // know if the poll comes for a sticky or a normal queue. Because sticky queues
+                    // have only 1 partition, no forwarding is needed.
+                    .setKind(taskQueueKind)
+                    .build())
             .build();
 
     if (log.isTraceEnabled()) {

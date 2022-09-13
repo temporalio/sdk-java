@@ -22,6 +22,7 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.MetricsTag;
@@ -54,6 +55,7 @@ public class StickyPoller implements SuspendableWorker {
                 workflowServiceStubs,
                 namespace,
                 stickyTaskQueueName,
+                TaskQueueKind.TASK_QUEUE_KIND_STICKY,
                 workflowClientOptions.getIdentity(),
                 workflowClientOptions.getBinaryChecksum(),
                 stickyScope),
