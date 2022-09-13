@@ -108,7 +108,7 @@ public final class WorkerFactory {
     this.workflowThreadPool.setThreadFactory(
         r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
     this.workflowThreadExecutor =
-        newWorkflowThreadExecutor(this.workflowThreadPool, this.metricsScope);
+        new ActiveThreadReportingExecutor(this.workflowThreadPool, this.metricsScope);
 
     this.cache =
         new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
@@ -389,24 +389,6 @@ public final class WorkerFactory {
   public String toString() {
     return String.format(
         "WorkerFactory{identity=%s, uniqueId=%s}", workflowClient.getOptions().getIdentity(), id);
-  }
-
-  private static WorkflowThreadExecutor newWorkflowThreadExecutor(
-      ThreadPoolExecutor workflowThreadPool, Scope metricsScope) {
-    return r ->
-        workflowThreadPool.submit(
-            () -> {
-              metricsScope
-                  .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
-                  .update(workflowThreadPool.getActiveCount());
-              try {
-                r.run();
-              } finally {
-                metricsScope
-                    .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
-                    .update(workflowThreadPool.getActiveCount() - 1);
-              }
-            });
   }
 
   enum State {
