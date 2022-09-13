@@ -28,6 +28,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.WorkflowExecutorCache;
@@ -109,6 +110,7 @@ final class WorkflowWorker
                   service,
                   namespace,
                   taskQueue,
+                  TaskQueueKind.TASK_QUEUE_KIND_NORMAL,
                   options.getIdentity(),
                   options.getBinaryChecksum(),
                   workerMetricsScope),
