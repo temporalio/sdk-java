@@ -41,9 +41,11 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -68,7 +70,7 @@ public final class Worker {
    * @param taskQueue task queue name worker uses to poll. It uses this name for both workflow and
    *     activity task queue polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
-   * @param stickyTaskQueueName
+   * @param useStickyTaskQueue if sticky task queue should be used
    * @param workflowThreadExecutor workflow methods thread executor
    */
   Worker(
@@ -78,7 +80,7 @@ public final class Worker {
       WorkerOptions options,
       Scope metricsScope,
       @Nonnull WorkflowExecutorCache cache,
-      String stickyTaskQueueName,
+      boolean useStickyTaskQueue,
       WorkflowThreadExecutor workflowThreadExecutor,
       List<ContextPropagator> contextPropagators) {
 
@@ -128,15 +130,14 @@ public final class Worker {
             singleWorkerOptions,
             localActivityOptions,
             cache,
-            stickyTaskQueueName,
-            factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeout(),
+            useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
             workflowThreadExecutor);
   }
 
   /**
    * Registers workflow implementation classes with a worker. Can be called multiple times to add
    * more types. A workflow implementation class must implement at least one interface with a method
-   * annotated with {@link WorkflowMethod}. By default the short name of the interface is used as a
+   * annotated with {@link WorkflowMethod}. By default, the short name of the interface is used as a
    * workflow type that this worker supports.
    *
    * <p>Implementations that share a worker must implement different interfaces as a workflow type
@@ -457,6 +458,15 @@ public final class Worker {
     return workflowWorker.isSuspended() && (activityWorker == null || activityWorker.isSuspended());
   }
 
+  private static String getStickyTaskQueueName(String workerIdentity) {
+    // Unique id is needed to avoid collisions with other workers that may be created for the same
+    // task queue and with the same identity.
+    // We don't include normal task queue name here because it's typically clear which task queue a
+    // sticky queue is for from the workflow execution histories.
+    UUID uniqueId = UUID.randomUUID();
+    return String.format("%s:%s", workerIdentity, uniqueId);
+  }
+
   /**
    * Name of the workflow type the interface defines. It is either the interface short name or value
    * of {@link WorkflowMethod#name()} parameter.
@@ -493,12 +503,22 @@ public final class Worker {
       Scope metricsScope) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
+
+    Duration stickyQueueScheduleToStartTimeout = options.getStickyQueueScheduleToStartTimeout();
+    if (WorkerOptions.DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT.equals(
+            stickyQueueScheduleToStartTimeout)
+        && factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeout() != null) {
+      stickyQueueScheduleToStartTimeout =
+          factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeout();
+    }
+
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollThreadCount(options.getMaxConcurrentWorkflowTaskPollers())
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
+        .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
         .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
         .setMetricsScope(metricsScope.tagged(tags))
         .build();

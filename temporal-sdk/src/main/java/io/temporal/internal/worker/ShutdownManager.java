@@ -23,6 +23,7 @@ package io.temporal.internal.worker;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.*;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,7 +179,7 @@ public class ShutdownManager implements Closeable {
     }
   }
 
-  public static long awaitTermination(ExecutorService s, long timeoutMillis) {
+  public static long awaitTermination(@Nullable ExecutorService s, long timeoutMillis) {
     if (s == null) {
       return timeoutMillis;
     }
@@ -205,7 +206,7 @@ public class ShutdownManager implements Closeable {
     return remainingTimeoutMs < 0 ? 0 : remainingTimeoutMs;
   }
 
-  public static long awaitTermination(Shutdownable s, long timeoutMillis) {
+  public static long awaitTermination(@Nullable Shutdownable s, long timeoutMillis) {
     if (s == null) {
       return timeoutMillis;
     }

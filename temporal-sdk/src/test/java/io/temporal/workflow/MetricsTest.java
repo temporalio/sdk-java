@@ -91,7 +91,8 @@ public class MetricsTest {
   private static final Map<String, String> TAGS_STICKY_TASK_QUEUE =
       new ImmutableMap.Builder<String, String>()
           .putAll(MetricsTag.defaultTags(NAMESPACE))
-          .put(MetricsTag.TASK_QUEUE, "sticky")
+          .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.WORKFLOW_WORKER.getValue())
+          .put(MetricsTag.TASK_QUEUE, TASK_QUEUE + ":sticky")
           .build();
 
   private static final Map<String, String> TAGS_LOCAL_ACTIVITY_WORKER =
@@ -176,7 +177,7 @@ public class MetricsTest {
     reporter.assertCounter("temporal_poller_start", TAGS_ACTIVITY_WORKER, 5);
     reporter.assertCounter("temporal_poller_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
     // sticky
-    reporter.assertCounter("temporal_poller_start", TAGS_STICKY_TASK_QUEUE, 5);
+    reporter.assertCounter("temporal_poller_start", TAGS_STICKY_TASK_QUEUE, 10);
   }
 
   @Test

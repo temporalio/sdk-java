@@ -38,7 +38,6 @@ import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
-import io.temporal.workflow.Functions;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -50,8 +49,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-final class WorkflowWorker
-    implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
+final class WorkflowWorker implements SuspendableWorker {
+  private static final double STICKY_TO_NORMAL_RATIO = 5;
+
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
@@ -64,10 +64,14 @@ final class WorkflowWorker
   private final WorkflowTaskHandler handler;
   private final String stickyTaskQueueName;
   private final PollerOptions pollerOptions;
+  private final PollerOptions stickyPollerOptions;
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
+
+  @Nullable private SuspendableWorker stickyPoller = new NoopSuspendableWorker();
+
   private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
 
   public WorkflowWorker(
@@ -84,6 +88,7 @@ final class WorkflowWorker
     this.options = Objects.requireNonNull(options);
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.pollerOptions = getPollerOptions(options);
+    this.stickyPollerOptions = stickyTaskQueueName != null ? getStickyPollerOptions(options) : null;
     this.workerMetricsScope =
         MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.WORKFLOW_WORKER);
     this.cache = Objects.requireNonNull(cache);
@@ -118,6 +123,30 @@ final class WorkflowWorker
               pollerOptions,
               workerMetricsScope);
       poller.start();
+
+      if (stickyPollerOptions != null) {
+        Scope stickyScope =
+            workerMetricsScope.tagged(
+                new ImmutableMap.Builder<String, String>(1)
+                    .put(MetricsTag.TASK_QUEUE, String.format("%s:%s", taskQueue, "sticky"))
+                    .build());
+        stickyPoller =
+            new Poller<>(
+                options.getIdentity(),
+                new WorkflowPollTask(
+                    service,
+                    namespace,
+                    stickyTaskQueueName,
+                    TaskQueueKind.TASK_QUEUE_KIND_STICKY,
+                    options.getIdentity(),
+                    options.getBinaryChecksum(),
+                    stickyScope),
+                pollTaskExecutor,
+                stickyPollerOptions,
+                stickyScope);
+        stickyPoller.start();
+      }
+
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
   }
@@ -139,32 +168,42 @@ final class WorkflowWorker
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    return poller.shutdown(shutdownManager, interruptTasks);
+    CompletableFuture<Void> shutdownFuture = poller.shutdown(shutdownManager, interruptTasks);
+    if (stickyPoller != null) {
+      shutdownFuture =
+          CompletableFuture.allOf(
+              shutdownFuture, stickyPoller.shutdown(shutdownManager, interruptTasks));
+    }
+    return shutdownFuture;
   }
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    poller.awaitTermination(timeout, unit);
+    long timeoutMillis = ShutdownManager.awaitTermination(poller, unit.toMillis(timeout));
+    if (stickyPoller != null) {
+      ShutdownManager.awaitTermination(stickyPoller, timeoutMillis);
+    }
   }
 
   @Override
   public void suspendPolling() {
     poller.suspendPolling();
+    if (stickyPoller != null) {
+      stickyPoller.suspendPolling();
+    }
   }
 
   @Override
   public void resumePolling() {
     poller.resumePolling();
+    if (stickyPoller != null) {
+      stickyPoller.resumePolling();
+    }
   }
 
   @Override
   public boolean isSuspended() {
     return poller.isSuspended();
-  }
-
-  @Override
-  public void apply(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
-    pollTaskExecutor.process(pollWorkflowTaskQueueResponse);
   }
 
   private PollerOptions getPollerOptions(SingleWorkerOptions options) {
@@ -177,6 +216,20 @@ final class WorkflowWorker
               .build();
     }
     return pollerOptions;
+  }
+
+  private PollerOptions getStickyPollerOptions(SingleWorkerOptions options) {
+    PollerOptions stickyPollerOptions = options.getPollerOptions();
+    stickyPollerOptions =
+        PollerOptions.newBuilder(stickyPollerOptions)
+            .setPollThreadNamePrefix(
+                WorkerThreadsNameHelper.getStickyQueueWorkflowPollerThreadPrefix(
+                    namespace, stickyTaskQueueName))
+            .setPollThreadCount(
+                (int) (stickyPollerOptions.getPollThreadCount() * STICKY_TO_NORMAL_RATIO))
+            .build();
+
+    return stickyPollerOptions;
   }
 
   private class TaskHandlerImpl

@@ -25,6 +25,7 @@ import static java.lang.Double.compare;
 import com.google.common.base.Preconditions;
 import java.time.Duration;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class WorkerOptions {
@@ -40,6 +41,8 @@ public final class WorkerOptions {
   public static WorkerOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
+
+  static final Duration DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT = Duration.ofSeconds(5);
 
   private static final WorkerOptions DEFAULT_INSTANCE;
 
@@ -70,6 +73,7 @@ public final class WorkerOptions {
     private long defaultDeadlockDetectionTimeout;
     private Duration maxHeartbeatThrottleInterval;
     private Duration defaultHeartbeatThrottleInterval;
+    private Duration stickyQueueScheduleToStartTimeout;
 
     private Builder() {}
 
@@ -77,17 +81,18 @@ public final class WorkerOptions {
       if (o == null) {
         return;
       }
-      maxWorkerActivitiesPerSecond = o.maxWorkerActivitiesPerSecond;
-      maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
-      maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
-      maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
-      maxTaskQueueActivitiesPerSecond = o.maxTaskQueueActivitiesPerSecond;
-      maxConcurrentWorkflowTaskPollers = o.maxConcurrentWorkflowTaskPollers;
-      maxConcurrentActivityTaskPollers = o.maxConcurrentActivityTaskPollers;
-      localActivityWorkerOnly = o.localActivityWorkerOnly;
-      defaultDeadlockDetectionTimeout = o.defaultDeadlockDetectionTimeout;
-      maxHeartbeatThrottleInterval = o.maxHeartbeatThrottleInterval;
-      defaultHeartbeatThrottleInterval = o.defaultHeartbeatThrottleInterval;
+      this.maxWorkerActivitiesPerSecond = o.maxWorkerActivitiesPerSecond;
+      this.maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
+      this.maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
+      this.maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
+      this.maxTaskQueueActivitiesPerSecond = o.maxTaskQueueActivitiesPerSecond;
+      this.maxConcurrentWorkflowTaskPollers = o.maxConcurrentWorkflowTaskPollers;
+      this.maxConcurrentActivityTaskPollers = o.maxConcurrentActivityTaskPollers;
+      this.localActivityWorkerOnly = o.localActivityWorkerOnly;
+      this.defaultDeadlockDetectionTimeout = o.defaultDeadlockDetectionTimeout;
+      this.maxHeartbeatThrottleInterval = o.maxHeartbeatThrottleInterval;
+      this.defaultHeartbeatThrottleInterval = o.defaultHeartbeatThrottleInterval;
+      this.stickyQueueScheduleToStartTimeout = o.stickyQueueScheduleToStartTimeout;
     }
 
     /**
@@ -190,7 +195,7 @@ public final class WorkerOptions {
      *
      * <p>Default is 2.
      *
-     * @deprecated Use {#setMaxConcurrentWorkflowTaskPollers}
+     * @deprecated Use {@link #setMaxConcurrentWorkflowTaskPollers}
      */
     @Deprecated
     public Builder setWorkflowPollThreadCount(int workflowPollThreadCount) {
@@ -281,6 +286,17 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * Timeout for a workflow task routed to the "sticky worker" - host that has the workflow
+     * instance cached in memory. Once it times out, then it can be picked up by any worker.
+     *
+     * <p>Default value is 5 seconds.
+     */
+    public Builder setStickyQueueScheduleToStartTimeout(Duration timeout) {
+      this.stickyQueueScheduleToStartTimeout = timeout;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -293,7 +309,8 @@ public final class WorkerOptions {
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout,
           maxHeartbeatThrottleInterval,
-          defaultHeartbeatThrottleInterval);
+          defaultHeartbeatThrottleInterval,
+          stickyQueueScheduleToStartTimeout);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -315,6 +332,11 @@ public final class WorkerOptions {
           maxConcurrentActivityTaskPollers >= 0, "negative maxConcurrentActivityTaskPollers");
       Preconditions.checkState(
           defaultDeadlockDetectionTimeout >= 0, "negative defaultDeadlockDetectionTimeout");
+      Preconditions.checkState(
+          stickyQueueScheduleToStartTimeout == null
+              || !stickyQueueScheduleToStartTimeout.isNegative(),
+          "negative stickyQueueScheduleToStartTimeout");
+
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
           maxConcurrentActivityExecutionSize == 0
@@ -342,7 +364,10 @@ public final class WorkerOptions {
               : maxHeartbeatThrottleInterval,
           defaultHeartbeatThrottleInterval == null || defaultHeartbeatThrottleInterval.isZero()
               ? DEFAULT_DEFAULT_HEARTBEAT_THROTTLE_INTERVAL
-              : defaultHeartbeatThrottleInterval);
+              : defaultHeartbeatThrottleInterval,
+          stickyQueueScheduleToStartTimeout == null
+              ? DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT
+              : stickyQueueScheduleToStartTimeout);
     }
   }
 
@@ -357,6 +382,7 @@ public final class WorkerOptions {
   private final long defaultDeadlockDetectionTimeout;
   private final Duration maxHeartbeatThrottleInterval;
   private final Duration defaultHeartbeatThrottleInterval;
+  private final @Nonnull Duration stickyQueueScheduleToStartTimeout;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -369,7 +395,8 @@ public final class WorkerOptions {
       boolean localActivityWorkerOnly,
       long defaultDeadlockDetectionTimeout,
       Duration maxHeartbeatThrottleInterval,
-      Duration defaultHeartbeatThrottleInterval) {
+      Duration defaultHeartbeatThrottleInterval,
+      @Nonnull Duration stickyQueueScheduleToStartTimeout) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -381,6 +408,7 @@ public final class WorkerOptions {
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
+    this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -443,6 +471,11 @@ public final class WorkerOptions {
     return defaultHeartbeatThrottleInterval;
   }
 
+  @Nonnull
+  public Duration getStickyQueueScheduleToStartTimeout() {
+    return stickyQueueScheduleToStartTimeout;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -458,7 +491,9 @@ public final class WorkerOptions {
         && localActivityWorkerOnly == that.localActivityWorkerOnly
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
-        && Objects.equals(defaultHeartbeatThrottleInterval, that.defaultHeartbeatThrottleInterval);
+        && Objects.equals(defaultHeartbeatThrottleInterval, that.defaultHeartbeatThrottleInterval)
+        && Objects.equals(
+            stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout);
   }
 
   @Override
@@ -474,7 +509,8 @@ public final class WorkerOptions {
         localActivityWorkerOnly,
         defaultDeadlockDetectionTimeout,
         maxHeartbeatThrottleInterval,
-        defaultHeartbeatThrottleInterval);
+        defaultHeartbeatThrottleInterval,
+        stickyQueueScheduleToStartTimeout);
   }
 
   @Override
@@ -502,6 +538,8 @@ public final class WorkerOptions {
         + maxHeartbeatThrottleInterval
         + ", defaultHeartbeatThrottleInterval="
         + defaultHeartbeatThrottleInterval
+        + ", stickyQueueScheduleToStartTimeout="
+        + stickyQueueScheduleToStartTimeout
         + '}';
   }
 }

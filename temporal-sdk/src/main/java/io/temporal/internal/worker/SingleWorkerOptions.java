@@ -50,6 +50,8 @@ public final class SingleWorkerOptions {
     private boolean enableLoggingInReplay;
     private List<ContextPropagator> contextPropagators;
     private WorkerInterceptor[] workerInterceptors;
+
+    private Duration stickyQueueScheduleToStartTimeout;
     private long defaultDeadlockDetectionTimeout;
     private Duration maxHeartbeatThrottleInterval;
     private Duration defaultHeartbeatThrottleInterval;
@@ -69,6 +71,7 @@ public final class SingleWorkerOptions {
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
       this.contextPropagators = options.getContextPropagators();
       this.workerInterceptors = options.getWorkerInterceptors();
+      this.stickyQueueScheduleToStartTimeout = options.getStickyQueueScheduleToStartTimeout();
       this.defaultDeadlockDetectionTimeout = options.getDefaultDeadlockDetectionTimeout();
       this.maxHeartbeatThrottleInterval = options.getMaxHeartbeatThrottleInterval();
       this.defaultHeartbeatThrottleInterval = options.getDefaultHeartbeatThrottleInterval();
@@ -121,6 +124,12 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setStickyQueueScheduleToStartTimeout(
+        Duration stickyQueueScheduleToStartTimeout) {
+      this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
+      return this;
+    }
+
     public Builder setDefaultDeadlockDetectionTimeout(long defaultDeadlockDetectionTimeout) {
       this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
       return this;
@@ -162,6 +171,7 @@ public final class SingleWorkerOptions {
           this.enableLoggingInReplay,
           this.contextPropagators,
           this.workerInterceptors,
+          this.stickyQueueScheduleToStartTimeout,
           this.defaultDeadlockDetectionTimeout,
           this.maxHeartbeatThrottleInterval,
           this.defaultHeartbeatThrottleInterval);
@@ -177,6 +187,7 @@ public final class SingleWorkerOptions {
   private final boolean enableLoggingInReplay;
   private final List<ContextPropagator> contextPropagators;
   private final WorkerInterceptor[] workerInterceptors;
+  private final Duration stickyQueueScheduleToStartTimeout;
   private final long defaultDeadlockDetectionTimeout;
   private final Duration maxHeartbeatThrottleInterval;
   private final Duration defaultHeartbeatThrottleInterval;
@@ -191,6 +202,7 @@ public final class SingleWorkerOptions {
       boolean enableLoggingInReplay,
       List<ContextPropagator> contextPropagators,
       WorkerInterceptor[] workerInterceptors,
+      Duration stickyQueueScheduleToStartTimeout,
       long defaultDeadlockDetectionTimeout,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval) {
@@ -203,6 +215,7 @@ public final class SingleWorkerOptions {
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.contextPropagators = contextPropagators;
     this.workerInterceptors = workerInterceptors;
+    this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
@@ -242,6 +255,10 @@ public final class SingleWorkerOptions {
 
   public WorkerInterceptor[] getWorkerInterceptors() {
     return workerInterceptors;
+  }
+
+  public Duration getStickyQueueScheduleToStartTimeout() {
+    return stickyQueueScheduleToStartTimeout;
   }
 
   public long getDefaultDeadlockDetectionTimeout() {

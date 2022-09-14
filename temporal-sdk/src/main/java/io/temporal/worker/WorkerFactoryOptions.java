@@ -23,6 +23,7 @@ package io.temporal.worker;
 import com.google.common.base.Preconditions;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import java.time.Duration;
+import javax.annotation.Nullable;
 
 public class WorkerFactoryOptions {
 
@@ -38,10 +39,8 @@ public class WorkerFactoryOptions {
     return DEFAULT_INSTANCE;
   }
 
-  private static final int DEFAULT_HOST_LOCAL_WORKFLOW_POLL_THREAD_COUNT = 5;
   private static final int DEFAULT_WORKFLOW_CACHE_SIZE = 600;
   private static final int DEFAULT_MAX_WORKFLOW_THREAD_COUNT = 600;
-  private static final Duration DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT = Duration.ofSeconds(5);
 
   private static final WorkerFactoryOptions DEFAULT_INSTANCE;
 
@@ -56,7 +55,6 @@ public class WorkerFactoryOptions {
     private int maxWorkflowThreadCount;
     private WorkerInterceptor[] workerInterceptors;
     private boolean enableLoggingInReplay;
-    private int workflowHostLocalPollThreadCount;
 
     private Builder() {}
 
@@ -70,7 +68,6 @@ public class WorkerFactoryOptions {
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workerInterceptors = options.workerInterceptors;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
-      this.workflowHostLocalPollThreadCount = options.workflowHostLocalPollThreadCount;
     }
 
     /**
@@ -102,7 +99,11 @@ public class WorkerFactoryOptions {
      * instance cached in memory. Once it times out, then it can be picked up by any worker.
      *
      * <p>Default value is 5 seconds.
+     *
+     * @deprecated use {@link WorkerOptions.Builder#setStickyQueueScheduleToStartTimeout(Duration)}
+     *     to specify this value per-worker instead
      */
+    @Deprecated
     public Builder setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration timeout) {
       this.workflowHostLocalTaskQueueScheduleToStartTimeout = timeout;
       return this;
@@ -119,13 +120,10 @@ public class WorkerFactoryOptions {
     }
 
     /**
-     * Number of simultaneous poll requests on the "sticky queue" ("host local task queue") of this
-     * process.
-     *
-     * <p>Default is 5.
+     * @deprecated not used anymore by JavaSDK, this value doesn't have any effect
      */
+    @Deprecated
     public Builder setWorkflowHostLocalPollThreadCount(int workflowHostLocalPollThreadCount) {
-      this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
       return this;
     }
 
@@ -136,7 +134,6 @@ public class WorkerFactoryOptions {
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors,
           enableLoggingInReplay,
-          workflowHostLocalPollThreadCount,
           false);
     }
 
@@ -147,25 +144,22 @@ public class WorkerFactoryOptions {
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors == null ? new WorkerInterceptor[0] : workerInterceptors,
           enableLoggingInReplay,
-          workflowHostLocalPollThreadCount,
           true);
     }
   }
 
   private final int workflowCacheSize;
   private final int maxWorkflowThreadCount;
-  private final Duration workflowHostLocalTaskQueueScheduleToStartTimeout;
+  private final @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout;
   private final WorkerInterceptor[] workerInterceptors;
   private final boolean enableLoggingInReplay;
-  private final int workflowHostLocalPollThreadCount;
 
   private WorkerFactoryOptions(
       int workflowCacheSize,
       int maxWorkflowThreadCount,
-      Duration workflowHostLocalTaskQueueScheduleToStartTimeout,
+      @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout,
       WorkerInterceptor[] workerInterceptors,
       boolean enableLoggingInReplay,
-      int workflowHostLocalPollThreadCount,
       boolean validate) {
     if (validate) {
       Preconditions.checkState(workflowCacheSize >= 0, "negative workflowCacheSize");
@@ -182,17 +176,8 @@ public class WorkerFactoryOptions {
             !workflowHostLocalTaskQueueScheduleToStartTimeout.isNegative(),
             "negative workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds");
       }
-      if (workflowHostLocalTaskQueueScheduleToStartTimeout == null) {
-        workflowHostLocalTaskQueueScheduleToStartTimeout = DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT;
-      }
       if (workerInterceptors == null) {
         workerInterceptors = new WorkerInterceptor[0];
-      }
-
-      Preconditions.checkState(
-          workflowHostLocalPollThreadCount >= 0, "negative workflowHostLocalPollThreadCount");
-      if (workflowHostLocalPollThreadCount == 0) {
-        workflowHostLocalPollThreadCount = DEFAULT_HOST_LOCAL_WORKFLOW_POLL_THREAD_COUNT;
       }
     }
     this.workflowCacheSize = workflowCacheSize;
@@ -201,7 +186,6 @@ public class WorkerFactoryOptions {
         workflowHostLocalTaskQueueScheduleToStartTimeout;
     this.workerInterceptors = workerInterceptors;
     this.enableLoggingInReplay = enableLoggingInReplay;
-    this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
   }
 
   public int getWorkflowCacheSize() {
@@ -212,6 +196,7 @@ public class WorkerFactoryOptions {
     return maxWorkflowThreadCount;
   }
 
+  @Nullable
   public Duration getWorkflowHostLocalTaskQueueScheduleToStartTimeout() {
     return workflowHostLocalTaskQueueScheduleToStartTimeout;
   }
@@ -224,8 +209,12 @@ public class WorkerFactoryOptions {
     return enableLoggingInReplay;
   }
 
+  /**
+   * @deprecated not used anymore by JavaSDK, this value doesn't have any effect
+   */
+  @Deprecated
   public int getWorkflowHostLocalPollThreadCount() {
-    return workflowHostLocalPollThreadCount;
+    return 0;
   }
 
   public Builder toBuilder() {
