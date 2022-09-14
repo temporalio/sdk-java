@@ -41,7 +41,6 @@ public class WorkerPollerThreadCountTest {
   private static final String WORKFLOW_POLLER_THREAD_NAME_PREFIX = "Workflow Poller task";
   private static final String WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX =
       "Sticky Workflow Poll";
-  private static final int HOST_LOCAL_THREAD_COUNT = 22;
   private static final int WORKFLOW_POLL_COUNT = 11;
   private static final int ACTIVITY_POLL_COUNT = 18;
 
@@ -49,13 +48,7 @@ public class WorkerPollerThreadCountTest {
 
   @Before
   public void setUp() throws Exception {
-    TestEnvironmentOptions options =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkerFactoryOptions(
-                WorkerFactoryOptions.newBuilder()
-                    .setWorkflowHostLocalPollThreadCount(HOST_LOCAL_THREAD_COUNT)
-                    .build())
-            .build();
+    TestEnvironmentOptions options = TestEnvironmentOptions.newBuilder().build();
     env = TestWorkflowEnvironment.newInstance(options);
     Worker worker =
         env.newWorker(
@@ -105,7 +98,7 @@ public class WorkerPollerThreadCountTest {
             .map((t) -> t.getName().substring(0, Math.min(20, t.getName().length())))
             .collect(groupingBy(Function.identity(), Collectors.counting()));
     assertEquals(
-        HOST_LOCAL_THREAD_COUNT, (long) threads.get(WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX));
+        WORKFLOW_POLL_COUNT * 5, (long) threads.get(WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX));
     assertEquals(WORKFLOW_POLL_COUNT, (long) threads.get(WORKFLOW_POLLER_THREAD_NAME_PREFIX));
     assertEquals(ACTIVITY_POLL_COUNT, (long) threads.get(ACTIVITY_POLLER_THREAD_NAME_PREFIX));
   }

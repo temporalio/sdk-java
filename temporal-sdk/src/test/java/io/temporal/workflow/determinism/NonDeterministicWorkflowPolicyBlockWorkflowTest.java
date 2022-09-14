@@ -33,7 +33,7 @@ import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.sync.WorkflowMethodThreadNameStrategy;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.NonDeterministicException;
-import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowStringArg;
 import java.lang.management.ManagementFactory;
@@ -49,9 +49,10 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(DeterminismFailingWorkflowImpl.class)
           .setActivityImplementations(new TestActivitiesImpl())
-          .setWorkerFactoryOptions(
-              WorkerFactoryOptions.newBuilder()
-                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+          // Forcing a replay. Full history arrived from a normal queue causing a replay.
+          .setWorkerOptions(
+              WorkerOptions.newBuilder()
+                  .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
 

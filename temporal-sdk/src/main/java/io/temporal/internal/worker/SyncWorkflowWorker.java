@@ -21,7 +21,6 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
@@ -33,7 +32,6 @@ import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -55,8 +53,7 @@ import org.slf4j.LoggerFactory;
  *
  * and exposing additional management helper methods for the assembly.
  */
-public class SyncWorkflowWorker
-    implements SuspendableWorker, Functions.Proc1<PollWorkflowTaskQueueResponse> {
+public class SyncWorkflowWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(SyncWorkflowWorker.class);
 
   private final String identity;
@@ -78,7 +75,6 @@ public class SyncWorkflowWorker
       SingleWorkerOptions localActivityOptions,
       @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
-      Duration stickyWorkflowTaskScheduleToStartTimeout,
       WorkflowThreadExecutor workflowThreadExecutor) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
@@ -111,7 +107,7 @@ public class SyncWorkflowWorker
             cache,
             singleWorkerOptions,
             stickyTaskQueueName,
-            stickyWorkflowTaskScheduleToStartTimeout,
+            singleWorkerOptions.getStickyQueueScheduleToStartTimeout(),
             service,
             laWorker.getLocalActivityTaskPoller());
 
@@ -134,7 +130,7 @@ public class SyncWorkflowWorker
             null,
             singleWorkerOptions,
             null,
-            stickyWorkflowTaskScheduleToStartTimeout,
+            Duration.ZERO,
             service,
             laWorker.getLocalActivityTaskPoller());
 
@@ -225,11 +221,6 @@ public class SyncWorkflowWorker
     Optional<Payloads> result =
         queryReplayHelper.queryWorkflowExecution(history, queryType, serializedArgs);
     return dataConverter.fromPayloads(0, result, resultClass, resultType);
-  }
-
-  @Override
-  public void apply(PollWorkflowTaskQueueResponse pollWorkflowTaskQueueResponse) {
-    workflowWorker.apply(pollWorkflowTaskQueueResponse);
   }
 
   @Override

@@ -34,7 +34,6 @@ import io.temporal.serviceclient.MetricsTag;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -52,14 +51,11 @@ public final class WorkerFactory {
 
   private final Map<String, Worker> workers = new HashMap<>();
   private final WorkflowClient workflowClient;
-  private final UUID id =
-      UUID.randomUUID(); // Guarantee uniqueness for stickyTaskQueueName when multiple factories
   private final ThreadPoolExecutor workflowThreadPool;
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final AtomicInteger workflowThreadCounter = new AtomicInteger();
   private final WorkerFactoryOptions factoryOptions;
 
-  private final StickyPoller stickyPoller;
   private final @Nonnull WorkflowExecutorCache cache;
 
   private State state = State.Initial;
@@ -112,14 +108,6 @@ public final class WorkerFactory {
 
     this.cache =
         new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
-
-    this.stickyPoller =
-        new StickyPoller(
-            workflowClient.getWorkflowServiceStubs(),
-            getStickyTaskQueueName(),
-            this.factoryOptions.getWorkflowHostLocalPollThreadCount(),
-            workflowClientOptions,
-            metricsScope);
   }
 
   /**
@@ -163,7 +151,7 @@ public final class WorkerFactory {
               options,
               metricsScope,
               cache,
-              getStickyTaskQueueName(),
+              true,
               workflowThreadExecutor,
               workflowClient.getOptions().getContextPropagators());
       workers.put(taskQueue, worker);
@@ -219,13 +207,6 @@ public final class WorkerFactory {
 
     for (Worker worker : workers.values()) {
       worker.start();
-      if (worker.workflowWorker.isStarted()) {
-        stickyPoller.subscribe(worker.getTaskQueue(), worker.workflowWorker);
-      }
-    }
-
-    if (stickyPoller != null) {
-      stickyPoller.start();
     }
 
     state = State.Started;
@@ -248,11 +229,6 @@ public final class WorkerFactory {
   public synchronized boolean isTerminated() {
     if (state != State.Shutdown) {
       return false;
-    }
-    if (stickyPoller != null) {
-      if (!stickyPoller.isTerminated()) {
-        return false;
-      }
     }
     for (Worker worker : workers.values()) {
       if (!worker.isTerminated()) {
@@ -304,14 +280,10 @@ public final class WorkerFactory {
   private void shutdownInternal(boolean interruptUserTasks) {
     state = State.Shutdown;
     ShutdownManager shutdownManager = new ShutdownManager();
-    stickyPoller
-        .shutdown(shutdownManager, interruptUserTasks)
-        .thenCompose(
-            ignore ->
-                CompletableFuture.allOf(
-                    workers.values().stream()
-                        .map(worker -> worker.shutdown(shutdownManager, interruptUserTasks))
-                        .toArray(CompletableFuture[]::new)))
+    CompletableFuture.allOf(
+            workers.values().stream()
+                .map(worker -> worker.shutdown(shutdownManager, interruptUserTasks))
+                .toArray(CompletableFuture[]::new))
         .thenApply(
             r -> {
               cache.invalidateAll();
@@ -334,7 +306,6 @@ public final class WorkerFactory {
   public void awaitTermination(long timeout, TimeUnit unit) {
     log.info("awaitTermination begin: {}", this);
     long timeoutMillis = unit.toMillis(timeout);
-    timeoutMillis = ShutdownManager.awaitTermination(stickyPoller, timeoutMillis);
     for (Worker worker : workers.values()) {
       long t = timeoutMillis; // closure needs immutable value
       timeoutMillis =
@@ -351,10 +322,6 @@ public final class WorkerFactory {
     return this.cache;
   }
 
-  private String getStickyTaskQueueName() {
-    return String.format("%s:%s", workflowClient.getOptions().getIdentity(), id);
-  }
-
   public synchronized void suspendPolling() {
     if (state != State.Started) {
       return;
@@ -362,9 +329,6 @@ public final class WorkerFactory {
 
     log.info("suspendPolling: {}", this);
     state = State.Suspended;
-    if (stickyPoller != null) {
-      stickyPoller.suspendPolling();
-    }
     for (Worker worker : workers.values()) {
       worker.suspendPolling();
     }
@@ -377,9 +341,6 @@ public final class WorkerFactory {
 
     log.info("resumePolling: {}", this);
     state = State.Started;
-    if (stickyPoller != null) {
-      stickyPoller.resumePolling();
-    }
     for (Worker worker : workers.values()) {
       worker.resumePolling();
     }
@@ -387,8 +348,7 @@ public final class WorkerFactory {
 
   @Override
   public String toString() {
-    return String.format(
-        "WorkerFactory{identity=%s, uniqueId=%s}", workflowClient.getOptions().getIdentity(), id);
+    return String.format("WorkerFactory{identity=%s}", workflowClient.getOptions().getIdentity());
   }
 
   enum State {

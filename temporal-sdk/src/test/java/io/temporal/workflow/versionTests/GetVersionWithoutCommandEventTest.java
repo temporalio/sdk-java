@@ -23,7 +23,7 @@ package io.temporal.workflow.versionTests;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
@@ -42,9 +42,10 @@ public class GetVersionWithoutCommandEventTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionWithoutCommandEventWorkflowImpl.class)
-          .setWorkerFactoryOptions(
-              WorkerFactoryOptions.newBuilder()
-                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+          // Forcing a replay. Full history arrived from a normal queue causing a replay.
+          .setWorkerOptions(
+              WorkerOptions.newBuilder()
+                  .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
 

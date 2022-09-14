@@ -28,7 +28,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
@@ -51,10 +51,10 @@ public class VersionNotSupportedWithConflictingRangesExecutionTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(WorkflowWithIncompatibleRangesForTheSameChangeId.class)
           .setActivityImplementations(new TestActivitiesImpl())
-          // needed for a quick retry / replay
-          .setWorkerFactoryOptions(
-              WorkerFactoryOptions.newBuilder()
-                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+          // Forcing a replay. Full history arrived from a normal queue causing a replay.
+          .setWorkerOptions(
+              WorkerOptions.newBuilder()
+                  .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
 

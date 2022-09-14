@@ -35,7 +35,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 public class WorkerIsNotGettingStartedTest {
-  private static final int HOST_LOCAL_THREAD_COUNT = 22;
   private static final int WORKFLOW_POLL_COUNT = 11;
   private static final int ACTIVITY_POLL_COUNT = 18;
 
@@ -50,13 +49,7 @@ public class WorkerIsNotGettingStartedTest {
 
   @Before
   public void setUp() throws Exception {
-    TestEnvironmentOptions options =
-        TestEnvironmentOptions.newBuilder()
-            .setWorkerFactoryOptions(
-                WorkerFactoryOptions.newBuilder()
-                    .setWorkflowHostLocalPollThreadCount(HOST_LOCAL_THREAD_COUNT)
-                    .build())
-            .build();
+    TestEnvironmentOptions options = TestEnvironmentOptions.newBuilder().build();
     env = TestWorkflowEnvironment.newInstance(options);
     worker =
         env.newWorker(
@@ -87,7 +80,7 @@ public class WorkerIsNotGettingStartedTest {
             .map((t) -> t.getName().substring(0, Math.min(20, t.getName().length())))
             .collect(groupingBy(Function.identity(), Collectors.counting()));
     assertEquals(
-        HOST_LOCAL_THREAD_COUNT, (long) threads.get(WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX));
+        WORKFLOW_POLL_COUNT * 5, (long) threads.get(WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX));
     assertEquals(WORKFLOW_POLL_COUNT, (long) threads.get(WORKFLOW_POLLER_THREAD_NAME_PREFIX));
     assertFalse(threads.containsKey(ACTIVITY_POLLER_THREAD_NAME_PREFIX));
     assertNull(worker.activityWorker);

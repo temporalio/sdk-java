@@ -26,7 +26,7 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
-import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -46,9 +46,10 @@ public class GetVersionRemovedInReplayTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestGetVersionRemovedInReplay.class)
           .setActivityImplementations(new TestActivitiesImpl())
-          .setWorkerFactoryOptions(
-              WorkerFactoryOptions.newBuilder()
-                  .setWorkflowHostLocalTaskQueueScheduleToStartTimeout(Duration.ZERO)
+          // Forcing a replay. Full history arrived from a normal queue causing a replay.
+          .setWorkerOptions(
+              WorkerOptions.newBuilder()
+                  .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
                   .build())
           .build();
 
