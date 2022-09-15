@@ -286,7 +286,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         Status.ALREADY_EXISTS.withDescription(
             String.format(
                 "WorkflowId: %s, " + "RunId: %s", execution.getWorkflowId(), execution.getRunId())),
-        error);
+        error,
+        WorkflowExecutionAlreadyStartedFailure.getDescriptor());
   }
 
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(

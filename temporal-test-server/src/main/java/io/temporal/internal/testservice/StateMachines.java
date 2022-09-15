@@ -1398,7 +1398,8 @@ class StateMachines {
             result.completeExceptionally(
                 StatusUtils.newException(
                     Status.INTERNAL.withDescription(value.getErrorMessage()),
-                    QueryFailedFailure.getDefaultInstance()));
+                    QueryFailedFailure.getDefaultInstance(),
+                    QueryFailedFailure.getDescriptor()));
             break;
           default:
             throw Status.INVALID_ARGUMENT
