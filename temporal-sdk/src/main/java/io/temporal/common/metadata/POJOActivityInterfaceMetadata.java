@@ -20,11 +20,13 @@
 
 package io.temporal.common.metadata;
 
+import com.uber.m3.util.ImmutableList;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import javax.annotation.Nonnull;
 
 /**
  * Metadata of an activity interface.
@@ -112,9 +114,10 @@ public final class POJOActivityInterfaceMetadata {
   }
 
   public List<POJOActivityMethodMetadata> getMethodsMetadata() {
-    return new ArrayList<>(methods.values());
+    return new ImmutableList<>(methods.values());
   }
 
+  @Nonnull
   public POJOActivityMethodMetadata getMethodMetadata(Method method) {
     POJOActivityMethodMetadata result = methods.get(method);
     if (result == null) {
