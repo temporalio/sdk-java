@@ -228,8 +228,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   @Override
   public void start() {
-    Preconditions.checkState(context.getStatus() == Status.CREATED, "already started");
-    context.setStatus(Status.RUNNING);
+    context.verifyAndStart();
     while (true) {
       try {
         taskFuture = workflowThreadExecutor.submit(task);

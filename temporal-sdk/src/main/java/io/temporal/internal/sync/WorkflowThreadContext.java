@@ -98,7 +98,7 @@ class WorkflowThreadContext {
         maybeEvaluateLocked(reason);
       }
 
-      setStatus(Status.RUNNING);
+      status = Status.RUNNING;
       yieldReason = null;
     } catch (InterruptedException e) {
       // Throwing Error in workflow code aborts workflow task without failing workflow.
@@ -169,6 +169,16 @@ class WorkflowThreadContext {
       throw new Error("Unexpected interrupt", e);
     } finally {
       evaluationFunction = null;
+      lock.unlock();
+    }
+  }
+
+  public void verifyAndStart() {
+    lock.lock();
+    try {
+      Preconditions.checkState(this.status == Status.CREATED, "already started");
+      this.status = Status.RUNNING;
+    } finally {
       lock.unlock();
     }
   }
