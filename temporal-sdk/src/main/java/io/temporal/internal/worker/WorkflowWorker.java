@@ -28,7 +28,6 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.WorkflowExecutorCache;
@@ -65,13 +64,10 @@ final class WorkflowWorker implements SuspendableWorker {
   private final WorkflowTaskHandler handler;
   private final String stickyTaskQueueName;
   private final PollerOptions pollerOptions;
-  private final PollerOptions stickyPollerOptions;
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
-
-  @Nullable private SuspendableWorker stickyPoller = new NoopSuspendableWorker();
 
   private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
 
@@ -89,7 +85,6 @@ final class WorkflowWorker implements SuspendableWorker {
     this.options = Objects.requireNonNull(options);
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.pollerOptions = getPollerOptions(options);
-    this.stickyPollerOptions = stickyTaskQueueName != null ? getStickyPollerOptions(options) : null;
     this.workerMetricsScope =
         MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.WORKFLOW_WORKER);
     this.cache = Objects.requireNonNull(cache);
@@ -111,6 +106,10 @@ final class WorkflowWorker implements SuspendableWorker {
               workerMetricsScope);
       Semaphore workflowTaskExecutorSemaphore =
           new Semaphore(options.getTaskExecutorThreadPoolSize());
+      StickyQueueBalancer stickyQueueBalancer =
+          new StickyQueueBalancer(
+              options.getPollerOptions().getPollThreadCount(), stickyTaskQueueName != null);
+
       poller =
           new Poller<>(
               options.getIdentity(),
@@ -118,39 +117,16 @@ final class WorkflowWorker implements SuspendableWorker {
                   service,
                   namespace,
                   taskQueue,
-                  TaskQueueKind.TASK_QUEUE_KIND_NORMAL,
+                  stickyTaskQueueName,
                   options.getIdentity(),
                   options.getBinaryChecksum(),
                   workflowTaskExecutorSemaphore,
+                  stickyQueueBalancer,
                   workerMetricsScope),
               pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);
       poller.start();
-
-      if (stickyPollerOptions != null) {
-        Scope stickyScope =
-            workerMetricsScope.tagged(
-                new ImmutableMap.Builder<String, String>(1)
-                    .put(MetricsTag.TASK_QUEUE, String.format("%s:%s", taskQueue, "sticky"))
-                    .build());
-        stickyPoller =
-            new Poller<>(
-                options.getIdentity(),
-                new WorkflowPollTask(
-                    service,
-                    namespace,
-                    stickyTaskQueueName,
-                    TaskQueueKind.TASK_QUEUE_KIND_STICKY,
-                    options.getIdentity(),
-                    options.getBinaryChecksum(),
-                    workflowTaskExecutorSemaphore,
-                    stickyScope),
-                pollTaskExecutor,
-                stickyPollerOptions,
-                stickyScope);
-        stickyPoller.start();
-      }
 
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
@@ -173,37 +149,22 @@ final class WorkflowWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    CompletableFuture<Void> shutdownFuture = poller.shutdown(shutdownManager, interruptTasks);
-    if (stickyPoller != null) {
-      shutdownFuture =
-          CompletableFuture.allOf(
-              shutdownFuture, stickyPoller.shutdown(shutdownManager, interruptTasks));
-    }
-    return shutdownFuture;
+    return poller.shutdown(shutdownManager, interruptTasks);
   }
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    long timeoutMillis = ShutdownManager.awaitTermination(poller, unit.toMillis(timeout));
-    if (stickyPoller != null) {
-      ShutdownManager.awaitTermination(stickyPoller, timeoutMillis);
-    }
+    ShutdownManager.awaitTermination(poller, unit.toMillis(timeout));
   }
 
   @Override
   public void suspendPolling() {
     poller.suspendPolling();
-    if (stickyPoller != null) {
-      stickyPoller.suspendPolling();
-    }
   }
 
   @Override
   public void resumePolling() {
     poller.resumePolling();
-    if (stickyPoller != null) {
-      stickyPoller.resumePolling();
-    }
   }
 
   @Override
@@ -221,20 +182,6 @@ final class WorkflowWorker implements SuspendableWorker {
               .build();
     }
     return pollerOptions;
-  }
-
-  private PollerOptions getStickyPollerOptions(SingleWorkerOptions options) {
-    PollerOptions stickyPollerOptions = options.getPollerOptions();
-    stickyPollerOptions =
-        PollerOptions.newBuilder(stickyPollerOptions)
-            .setPollThreadNamePrefix(
-                WorkerThreadsNameHelper.getStickyQueueWorkflowPollerThreadPrefix(
-                    namespace, stickyTaskQueueName))
-            .setPollThreadCount(
-                (int) (stickyPollerOptions.getPollThreadCount() * STICKY_TO_NORMAL_RATIO))
-            .build();
-
-    return stickyPollerOptions;
   }
 
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<WorkflowTask> {
