@@ -30,15 +30,16 @@ import io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 /** Dynamic implementation of a strongly typed activity interface. */
 @VisibleForTesting
 public abstract class ActivityInvocationHandlerBase implements InvocationHandler {
+  private final POJOActivityInterfaceMetadata activityMetadata;
 
-  private final Map<Method, Function<Object[], Object>> methodFunctions = new HashMap<>();
+  protected ActivityInvocationHandlerBase(Class<?> activityInterface) {
+    this.activityMetadata = POJOActivityInterfaceMetadata.newInstance(activityInterface);
+  }
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
@@ -50,24 +51,12 @@ public abstract class ActivityInvocationHandlerBase implements InvocationHandler
             invocationHandler);
   }
 
-  protected void init(Class<?> activityInterface) {
-    POJOActivityInterfaceMetadata activityMetadata =
-        POJOActivityInterfaceMetadata.newInstance(activityInterface);
-    for (POJOActivityMethodMetadata methodMetadata : activityMetadata.getMethodsMetadata()) {
-      Method method = methodMetadata.getMethod();
-      String activityType = methodMetadata.getActivityTypeName();
-      MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);
-      Function<Object[], Object> function = getActivityFunc(method, methodRetry, activityType);
-      methodFunctions.put(method, function);
-    }
-  }
-
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
-    Function<Object[], Object> function = methodFunctions.get(method);
-    if (function == null) {
-      throw new IllegalArgumentException("Unexpected method: " + method);
-    }
+    POJOActivityMethodMetadata methodMetadata = activityMetadata.getMethodMetadata(method);
+    MethodRetry methodRetry = methodMetadata.getMethod().getAnnotation(MethodRetry.class);
+    String activityType = methodMetadata.getActivityTypeName();
+    Function<Object[], Object> function = getActivityFunc(method, methodRetry, activityType);
     return getValueOrDefault(function.apply(args), method.getReturnType());
   }
 

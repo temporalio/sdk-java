@@ -52,10 +52,10 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
       WorkflowOutboundCallsInterceptor activityExecutor,
       ActivityOptions options,
       Map<String, ActivityOptions> methodOptions) {
+    super(activityInterface);
     this.options = options;
     this.activityMethodOptions = (methodOptions == null) ? new HashMap<>() : methodOptions;
     this.activityExecutor = activityExecutor;
-    init(activityInterface);
   }
 
   @Override

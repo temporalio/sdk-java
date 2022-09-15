@@ -52,10 +52,10 @@ public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBas
       WorkflowOutboundCallsInterceptor activityExecutor,
       LocalActivityOptions options,
       Map<String, LocalActivityOptions> methodOptions) {
+    super(activityInterface);
     this.options = options;
     this.activityMethodOptions = (methodOptions == null) ? new HashMap<>() : methodOptions;
     this.activityExecutor = activityExecutor;
-    init(activityInterface);
   }
 
   @VisibleForTesting
