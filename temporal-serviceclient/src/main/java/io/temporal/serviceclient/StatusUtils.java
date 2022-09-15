@@ -90,15 +90,8 @@ public class StatusUtils {
   private static <T extends GeneratedMessageV3> Any packAny(
       T details, Descriptors.Descriptor descriptor) {
     return Any.newBuilder()
-        .setTypeUrl(getTypeUrl("type.googleapis.com", descriptor))
+        .setTypeUrl("type.googleapis.com/" + descriptor.getFullName())
         .setValue(details.toByteString())
         .build();
-  }
-
-  private static String getTypeUrl(
-      java.lang.String typeUrlPrefix, com.google.protobuf.Descriptors.Descriptor descriptor) {
-    return typeUrlPrefix.endsWith("/")
-        ? typeUrlPrefix + descriptor.getFullName()
-        : typeUrlPrefix + "/" + descriptor.getFullName();
   }
 }
