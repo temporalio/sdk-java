@@ -215,8 +215,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
                 callbackThread instanceof WorkflowThread,
                 "[BUG] One of the custom interceptors illegally overrode newCallbackThread result. "
                     + "Check WorkflowInboundCallsInterceptor#newCallbackThread contract. "
-                    + "Illegal object returned from the interceptors chain: "
-                    + callbackThread);
+                    + "Illegal object returned from the interceptors chain: %s",
+                callbackThread);
           }
 
           appendCallbackThreadsLocked();
