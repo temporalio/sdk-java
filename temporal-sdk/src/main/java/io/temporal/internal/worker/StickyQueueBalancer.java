@@ -46,8 +46,7 @@ public class StickyQueueBalancer {
       // If pollersCount >= stickyBacklogSize > 0 we want to go back to a normal ratio to avoid a
       // situation that too many pollers (all of them in the worst case) will open only sticky queue
       // polls observing a stickyBacklogSize == 1 for example (which actually can be 0 already at
-      // that
-      // moment) and get stuck causing dip in worker load.
+      // that moment) and get stuck causing dip in worker load.
       if (stickyBacklogSize > pollersCount || stickyPollers.get() <= normalPollers.get()) {
         stickyPollers.incrementAndGet();
         return TaskQueueKind.TASK_QUEUE_KIND_STICKY;

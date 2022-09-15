@@ -50,8 +50,6 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 final class WorkflowWorker implements SuspendableWorker {
-  private static final double STICKY_TO_NORMAL_RATIO = 5;
-
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();

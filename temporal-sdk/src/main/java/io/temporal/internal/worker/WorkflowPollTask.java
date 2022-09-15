@@ -117,8 +117,8 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
     PollWorkflowTaskQueueRequest request = isSticky ? stickyPollRequest : pollRequest;
     Scope scope = isSticky ? stickyMetricsScope : metricsScope;
 
+    log.trace("poll request begin: {}", request);
     try {
-      log.trace("poll request begin: {}", request);
       PollWorkflowTaskQueueResponse response = doPoll(request, scope);
       if (response == null) {
         return null;
@@ -137,12 +137,12 @@ final class WorkflowPollTask implements Poller.PollTask<WorkflowTask> {
   @Nullable
   private PollWorkflowTaskQueueResponse doPoll(
       PollWorkflowTaskQueueRequest request, Scope metricsScope) {
-    PollWorkflowTaskQueueResponse response = serviceStub.pollWorkflowTaskQueue(pollRequest);
+    PollWorkflowTaskQueueResponse response = serviceStub.pollWorkflowTaskQueue(request);
 
     if (log.isTraceEnabled()) {
       log.trace(
           "poll request returned workflow task: taskQueue={}, workflowType={}, workflowExecution={}, startedEventId={}, previousStartedEventId={}{}",
-          request.getTaskQueue(),
+          request.getTaskQueue().getName(),
           response.getWorkflowType(),
           response.getWorkflowExecution(),
           response.getStartedEventId(),
