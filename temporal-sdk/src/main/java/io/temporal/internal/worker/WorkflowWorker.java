@@ -41,6 +41,7 @@ import io.temporal.worker.WorkerMetricsTag;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
@@ -72,7 +73,7 @@ final class WorkflowWorker implements SuspendableWorker {
 
   @Nullable private SuspendableWorker stickyPoller = new NoopSuspendableWorker();
 
-  private PollTaskExecutor<PollWorkflowTaskQueueResponse> pollTaskExecutor;
+  private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
 
   public WorkflowWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -108,6 +109,8 @@ final class WorkflowWorker implements SuspendableWorker {
               pollerOptions,
               options.getTaskExecutorThreadPoolSize(),
               workerMetricsScope);
+      Semaphore workflowTaskExecutorSemaphore =
+          new Semaphore(options.getTaskExecutorThreadPoolSize());
       poller =
           new Poller<>(
               options.getIdentity(),
@@ -118,6 +121,7 @@ final class WorkflowWorker implements SuspendableWorker {
                   TaskQueueKind.TASK_QUEUE_KIND_NORMAL,
                   options.getIdentity(),
                   options.getBinaryChecksum(),
+                  workflowTaskExecutorSemaphore,
                   workerMetricsScope),
               pollTaskExecutor,
               pollerOptions,
@@ -140,6 +144,7 @@ final class WorkflowWorker implements SuspendableWorker {
                     TaskQueueKind.TASK_QUEUE_KIND_STICKY,
                     options.getIdentity(),
                     options.getBinaryChecksum(),
+                    workflowTaskExecutorSemaphore,
                     stickyScope),
                 pollTaskExecutor,
                 stickyPollerOptions,
@@ -232,8 +237,7 @@ final class WorkflowWorker implements SuspendableWorker {
     return stickyPollerOptions;
   }
 
-  private class TaskHandlerImpl
-      implements PollTaskExecutor.TaskHandler<PollWorkflowTaskQueueResponse> {
+  private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<WorkflowTask> {
 
     final WorkflowTaskHandler handler;
 
@@ -242,10 +246,11 @@ final class WorkflowWorker implements SuspendableWorker {
     }
 
     @Override
-    public void handle(PollWorkflowTaskQueueResponse task) throws Exception {
-      WorkflowExecution workflowExecution = task.getWorkflowExecution();
+    public void handle(WorkflowTask task) throws Exception {
+      PollWorkflowTaskQueueResponse workflowTaskResponse = task.getResponse();
+      WorkflowExecution workflowExecution = workflowTaskResponse.getWorkflowExecution();
       String runId = workflowExecution.getRunId();
-      String workflowType = task.getWorkflowType().getName();
+      String workflowType = workflowTaskResponse.getWorkflowType().getName();
 
       Scope workflowTypeScope =
           workerMetricsScope.tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
@@ -288,14 +293,15 @@ final class WorkflowWorker implements SuspendableWorker {
       Stopwatch swTotal =
           workflowTypeScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY).start();
       try {
-        Optional<PollWorkflowTaskQueueResponse> nextTask = Optional.of(task);
+        Optional<PollWorkflowTaskQueueResponse> nextWFTResponse = Optional.of(workflowTaskResponse);
         do {
-          PollWorkflowTaskQueueResponse currentTask = nextTask.get();
-          WorkflowTaskHandler.Result response = handleTask(currentTask, workflowTypeScope);
+          PollWorkflowTaskQueueResponse currentTask = nextWFTResponse.get();
+          WorkflowTaskHandler.Result result = handleTask(currentTask, workflowTypeScope);
           try {
-            nextTask = sendReply(currentTask.getTaskToken(), service, workflowTypeScope, response);
+            nextWFTResponse =
+                sendReply(currentTask.getTaskToken(), service, workflowTypeScope, result);
           } catch (Exception e) {
-            logExceptionDuringResultReporting(e, currentTask, response);
+            logExceptionDuringResultReporting(e, currentTask, result);
             workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
             // if we failed to report the workflow task completion back to the server,
             // our cached version of the workflow may be more advanced than the server is aware of.
@@ -308,20 +314,22 @@ final class WorkflowWorker implements SuspendableWorker {
 
           // this should be after sendReply, otherwise we may log
           // WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER twice if sendReply throws
-          if (response.getTaskFailed() != null) {
+          if (result.getTaskFailed() != null) {
             // we don't trigger the counter in case of the legacy query
             // (which never has taskFailed set)
             workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
           }
-          if (nextTask.isPresent()) {
+          if (nextWFTResponse.isPresent()) {
             workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
           }
-        } while (nextTask.isPresent());
+        } while (nextWFTResponse.isPresent());
       } finally {
         swTotal.stop();
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
+
+        task.getCompletionCallback().apply();
 
         if (locked) {
           runLocks.unlock(runId);
@@ -330,15 +338,15 @@ final class WorkflowWorker implements SuspendableWorker {
     }
 
     @Override
-    public Throwable wrapFailure(PollWorkflowTaskQueueResponse task, Throwable failure) {
-      WorkflowExecution execution = task.getWorkflowExecution();
+    public Throwable wrapFailure(WorkflowTask task, Throwable failure) {
+      WorkflowExecution execution = task.getResponse().getWorkflowExecution();
       return new RuntimeException(
           "Failure processing workflow task. WorkflowId="
               + execution.getWorkflowId()
               + ", RunId="
               + execution.getRunId()
               + ", Attempt="
-              + task.getAttempt(),
+              + task.getResponse().getAttempt(),
           failure);
     }
 
