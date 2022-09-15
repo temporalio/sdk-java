@@ -536,7 +536,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                         .completeExceptionally(
                             StatusUtils.newException(
                                 Status.INTERNAL.withDescription(result.getErrorMessage()),
-                                QueryFailedFailure.getDefaultInstance()));
+                                QueryFailedFailure.getDefaultInstance(),
+                                QueryFailedFailure.getDescriptor()));
                     break;
                   case UNRECOGNIZED:
                     throw Status.INVALID_ARGUMENT
@@ -2171,7 +2172,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         StatusRuntimeException error =
             StatusUtils.newException(
                 Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()),
-                QueryFailedFailure.getDefaultInstance());
+                QueryFailedFailure.getDefaultInstance(),
+                QueryFailedFailure.getDescriptor());
         result.completeExceptionally(error);
         break;
     }

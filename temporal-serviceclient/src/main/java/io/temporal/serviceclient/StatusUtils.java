@@ -21,9 +21,7 @@
 package io.temporal.serviceclient;
 
 import com.google.common.base.Preconditions;
-import com.google.protobuf.Any;
-import com.google.protobuf.GeneratedMessageV3;
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.*;
 import com.google.rpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.StatusProto;
@@ -74,14 +72,33 @@ public class StatusUtils {
 
   /** Create StatusRuntimeException with given details. */
   public static <T extends GeneratedMessageV3> StatusRuntimeException newException(
-      io.grpc.Status status, T details) {
+      io.grpc.Status status, T details, Descriptors.Descriptor detailsDescriptor) {
     Preconditions.checkNotNull(status, "status cannot be null");
     Status protoStatus =
         Status.newBuilder()
             .setCode(status.getCode().value())
             .setMessage(status.getDescription())
-            .addDetails(Any.pack(details))
+            .addDetails(packAny(details, detailsDescriptor))
             .build();
     return StatusProto.toStatusRuntimeException(protoStatus);
+  }
+
+  /**
+   * This method does exactly what {@link Any#pack(Message)} does. But it doesn't go into reflection
+   * to fetch the {@code descriptor}, which allows us to avoid a bunch of Graal reflection configs.
+   */
+  private static <T extends GeneratedMessageV3> Any packAny(
+      T details, Descriptors.Descriptor descriptor) {
+    return Any.newBuilder()
+        .setTypeUrl(getTypeUrl("type.googleapis.com", descriptor))
+        .setValue(details.toByteString())
+        .build();
+  }
+
+  private static String getTypeUrl(
+      java.lang.String typeUrlPrefix, com.google.protobuf.Descriptors.Descriptor descriptor) {
+    return typeUrlPrefix.endsWith("/")
+        ? typeUrlPrefix + descriptor.getFullName()
+        : typeUrlPrefix + "/" + descriptor.getFullName();
   }
 }
