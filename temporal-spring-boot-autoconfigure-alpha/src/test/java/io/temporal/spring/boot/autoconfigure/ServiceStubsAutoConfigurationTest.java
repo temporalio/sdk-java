@@ -54,12 +54,7 @@ class ServiceStubsAutoConfigurationTest {
             "spring.temporal.connection.target=" + LOCAL_TEMPORAL_HOST,
             "spring.temporal.connection.mtls.key=" + crtKey,
             "spring.temporal.connection.mtls.cert-chain=" + crtChain)
-        .run(
-            context -> {
-              assertThat(context).hasNotFailed().hasBean("temporalWorkflowServiceStubs");
-              WorkflowServiceStubs workflowStub = context.getBean(WorkflowServiceStubs.class);
-              assertThat(workflowStub.getOptions().getTarget()).isEqualTo("127.0.0.1:7233");
-            });
+        .run(context -> assertThatServiceStubsIsLoaded(context));
   }
 
   @Test
