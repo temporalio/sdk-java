@@ -23,6 +23,7 @@ package io.temporal.spring.boot.autoconfigure.template;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.temporal.common.reporter.MicrometerClientStatsReporter;
 import io.temporal.serviceclient.SimpleSslContextBuilder;
@@ -142,6 +143,7 @@ public class ServiceStubsTemplate {
     }
 
     SimpleSslContextBuilder sslBuilder;
+    SslContext sslContext;
     if (pkcs == 8) {
       if (certChainFile == null && certChain == null) {
         throw new BeanDefinitionValidationException(
@@ -160,6 +162,7 @@ public class ServiceStubsTemplate {
                   ? Files.newInputStream(ResourceUtils.getFile(keyFile).toPath())
                   : new ByteArrayInputStream(key.getBytes(StandardCharsets.UTF_8)); ) {
         sslBuilder = SimpleSslContextBuilder.forPKCS8(certInputStream, keyInputStream);
+        sslContext = applyMTLSPropertiesAndBuildSslContext(mtlsProperties, sslBuilder);
       } catch (IOException e) {
         throw new BeanCreationException("Failure reading PKCS8 mTLS key or cert chain file", e);
       }
@@ -175,11 +178,18 @@ public class ServiceStubsTemplate {
       try (InputStream keyInputStream =
           Files.newInputStream(ResourceUtils.getFile(keyFile).toPath())) {
         sslBuilder = SimpleSslContextBuilder.forPKCS12(keyInputStream);
+        sslContext = applyMTLSPropertiesAndBuildSslContext(mtlsProperties, sslBuilder);
+
       } catch (IOException e) {
         throw new BeanCreationException("Failure reading PKCS12 mTLS cert key file", e);
       }
     }
 
+    stubsOptionsBuilder.setSslContext(sslContext);
+  }
+
+  private SslContext applyMTLSPropertiesAndBuildSslContext(
+      ConnectionProperties.MTLSProperties mtlsProperties, SimpleSslContextBuilder sslBuilder) {
     if (mtlsProperties.getKeyPassword() != null) {
       sslBuilder.setKeyPassword(mtlsProperties.getKeyPassword());
     }
@@ -189,7 +199,7 @@ public class ServiceStubsTemplate {
     }
 
     try {
-      stubsOptionsBuilder.setSslContext(sslBuilder.build());
+      return sslBuilder.build();
     } catch (SSLException e) {
       throw new BeanCreationException("Failure building SSLContext", e);
     }
