@@ -41,8 +41,6 @@ public class WorkerIsNotGettingStartedTest {
   private static final String TASK_QUEUE = "test-workflow";
   private static final String ACTIVITY_POLLER_THREAD_NAME_PREFIX = "Activity Poller task";
   private static final String WORKFLOW_POLLER_THREAD_NAME_PREFIX = "Workflow Poller task";
-  private static final String WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX =
-      "Sticky Workflow Poll";
 
   private TestWorkflowEnvironment env;
   private Worker worker;
@@ -79,8 +77,6 @@ public class WorkerIsNotGettingStartedTest {
         Thread.getAllStackTraces().keySet().stream()
             .map((t) -> t.getName().substring(0, Math.min(20, t.getName().length())))
             .collect(groupingBy(Function.identity(), Collectors.counting()));
-    assertEquals(
-        WORKFLOW_POLL_COUNT * 5, (long) threads.get(WORKFLOW_HOST_LOCAL_POLLER_THREAD_NAME_PREFIX));
     assertEquals(WORKFLOW_POLL_COUNT, (long) threads.get(WORKFLOW_POLLER_THREAD_NAME_PREFIX));
     assertFalse(threads.containsKey(ACTIVITY_POLLER_THREAD_NAME_PREFIX));
     assertNull(worker.activityWorker);

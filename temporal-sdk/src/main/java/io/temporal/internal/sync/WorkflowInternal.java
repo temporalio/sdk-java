@@ -93,8 +93,8 @@ public final class WorkflowInternal {
         workflowThread instanceof WorkflowThread,
         "[BUG] One of the custom interceptors illegally overrode newWorkflowMethodThread result. "
             + "Check WorkflowInboundCallsInterceptor#newWorkflowMethodThread contract. "
-            + "Illegal object returned from the interceptors chain: "
-            + workflowThread);
+            + "Illegal object returned from the interceptors chain: %s",
+        workflowThread);
     return (WorkflowThread) workflowThread;
   }
 

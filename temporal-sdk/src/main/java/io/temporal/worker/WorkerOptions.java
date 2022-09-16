@@ -52,7 +52,7 @@ public final class WorkerOptions {
 
   public static final class Builder {
 
-    private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS = 2;
+    private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS = 5;
     private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS = 5;
     private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 200;
     private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 200;
@@ -181,7 +181,7 @@ public final class WorkerOptions {
      * workflow tasks will be using host local task queue due to caching. So try incrementing {@link
      * WorkerFactoryOptions.Builder#setWorkflowHostLocalPollThreadCount(int)} before this one.
      *
-     * <p>Default is 2.
+     * <p>Default is 5.
      */
     public Builder setMaxConcurrentWorkflowTaskPollers(int maxConcurrentWorkflowTaskPollers) {
       this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
