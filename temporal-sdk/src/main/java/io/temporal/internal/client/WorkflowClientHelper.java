@@ -27,13 +27,11 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Iterator;
+import javax.annotation.Nullable;
 
 /**
  * Contains different methods that could but didn't become a part of the main {@link
@@ -99,17 +97,18 @@ public final class WorkflowClientHelper {
       WorkflowServiceStubs service,
       String namespace,
       WorkflowExecution workflowExecution,
-      Scope metricsScope) {
+      @Nullable Scope metricsScope) {
     DescribeWorkflowExecutionRequest describeRequest =
         DescribeWorkflowExecutionRequest.newBuilder()
             .setNamespace(namespace)
             .setExecution(workflowExecution)
             .build();
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub stub = service.blockingStub();
+    if (metricsScope != null) {
+      stub = stub.withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope);
+    }
     DescribeWorkflowExecutionResponse executionDetail =
-        service
-            .blockingStub()
-            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-            .describeWorkflowExecution(describeRequest);
+        stub.describeWorkflowExecution(describeRequest);
     WorkflowExecutionInfo instanceMetadata = executionDetail.getWorkflowExecutionInfo();
     return instanceMetadata;
   }
