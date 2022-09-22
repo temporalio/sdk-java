@@ -21,14 +21,16 @@
 package io.temporal.workflow.activityTests;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.*;
 
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.common.WorkflowExecutionHistory;
-import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
@@ -38,14 +40,13 @@ import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.*;
 
 public class TestEagerActivityExecution {
 
-  private final String taskQueue = "tests-eageractivities-" + UUID.randomUUID();
+  private final String taskQueue = "test-eageractivities";
   private TestWorkflowEnvironment env;
   private ArrayList<WorkerFactory> workerFactories;
 
@@ -53,9 +54,7 @@ public class TestEagerActivityExecution {
 
   @Before
   public void setUp() throws Exception {
-    this.env =
-        TestWorkflowEnvironment.newInstance(
-            TestEnvironmentOptions.newBuilder().setUseExternalService(true).build());
+    this.env = TestWorkflowEnvironment.newInstance();
     this.workerFactories = new ArrayList<>();
   }
 
@@ -88,6 +87,10 @@ public class TestEagerActivityExecution {
 
   @Test
   public void testEagerActivities() {
+    assumeTrue(
+        "Test Server doesn't support eager activity dispatch",
+        SDKTestWorkflowRule.useExternalService);
+
     setupWorker(
         "worker1",
         WorkerOptions.newBuilder()
@@ -112,7 +115,7 @@ public class TestEagerActivityExecution {
         env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
     Set<String> activityTaskStartedEventIdentity =
         history.getEvents().stream()
-            .filter(x -> x.hasActivityTaskStartedEventAttributes())
+            .filter(HistoryEvent::hasActivityTaskStartedEventAttributes)
             .map(x -> x.getActivityTaskStartedEventAttributes().getIdentity())
             .collect(Collectors.toSet());
 
@@ -123,6 +126,10 @@ public class TestEagerActivityExecution {
 
   @Test
   public void testNoEagerActivitiesIfDisabledOnWorker() {
+    assumeTrue(
+        "Test Server doesn't support eager activity dispatch",
+        SDKTestWorkflowRule.useExternalService);
+
     setupWorker(
         "worker1",
         WorkerOptions.newBuilder()
@@ -147,7 +154,7 @@ public class TestEagerActivityExecution {
         env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
     Set<String> activityTaskStartedEventIdentity =
         history.getEvents().stream()
-            .filter(x -> x.hasActivityTaskStartedEventAttributes())
+            .filter(HistoryEvent::hasActivityTaskStartedEventAttributes)
             .map(x -> x.getActivityTaskStartedEventAttributes().getIdentity())
             .collect(Collectors.toSet());
 
@@ -158,6 +165,10 @@ public class TestEagerActivityExecution {
 
   @Test
   public void testNoEagerActivitiesIfDisabledOnActivity() {
+    assumeTrue(
+        "Test Server doesn't support eager activity dispatch",
+        SDKTestWorkflowRule.useExternalService);
+
     setupWorker(
         "worker1",
         WorkerOptions.newBuilder()
@@ -182,7 +193,7 @@ public class TestEagerActivityExecution {
         env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
     Set<String> activityTaskStartedEventIdentity =
         history.getEvents().stream()
-            .filter(x -> x.hasActivityTaskStartedEventAttributes())
+            .filter(HistoryEvent::hasActivityTaskStartedEventAttributes)
             .map(x -> x.getActivityTaskStartedEventAttributes().getIdentity())
             .collect(Collectors.toSet());
 
@@ -194,7 +205,7 @@ public class TestEagerActivityExecution {
   @WorkflowInterface
   public interface EagerActivityTestWorkflow {
     @WorkflowMethod
-    public void execute(boolean enableEagerActivityDispatch);
+    void execute(boolean enableEagerActivityDispatch);
   }
 
   public static class EagerActivityTestWorkflowImpl implements EagerActivityTestWorkflow {
