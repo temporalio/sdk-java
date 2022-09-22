@@ -100,7 +100,7 @@ public class TestEagerActivityExecution {
     setupWorker(
         "worker1",
         WorkerOptions.newBuilder()
-            .setMaxConcurrentWorkflowTaskPollers(1)
+            .setMaxConcurrentWorkflowTaskPollers(2)
             .setMaxConcurrentActivityTaskPollers(1)
             .setDisableEagerExecution(false)
             .build(),
@@ -139,7 +139,7 @@ public class TestEagerActivityExecution {
     setupWorker(
         "worker1",
         WorkerOptions.newBuilder()
-            .setMaxConcurrentWorkflowTaskPollers(1)
+            .setMaxConcurrentWorkflowTaskPollers(2)
             .setMaxConcurrentActivityTaskPollers(1)
             .setDisableEagerExecution(true)
             .build(),
@@ -178,7 +178,7 @@ public class TestEagerActivityExecution {
     setupWorker(
         "worker1",
         WorkerOptions.newBuilder()
-            .setMaxConcurrentWorkflowTaskPollers(1)
+            .setMaxConcurrentWorkflowTaskPollers(2)
             .setMaxConcurrentActivityTaskPollers(1)
             .setDisableEagerExecution(false)
             .build(),
