@@ -23,14 +23,12 @@ package io.temporal.workflow.activityTests;
 import static org.junit.Assert.*;
 
 import io.temporal.activity.ActivityOptions;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.common.WorkflowExecutionHistory;
-import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.TestEnvironmentOptions;
+import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
@@ -41,212 +39,177 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.*;
 
 public class TestEagerActivityExecution {
 
+  private final String taskQueue = "tests-eageractivities-" + UUID.randomUUID();
+  private TestWorkflowEnvironment env;
+  private ArrayList<WorkerFactory> workerFactories;
+
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
-
-  //  private TestWorkflowEnvironment env;
-  private String taskQueue;
-
-  private WorkflowClient workflowClient1;
-  private WorkerFactory workerFactory1;
-  private Worker worker1;
-
-  private WorkflowClient workflowClient2;
-  private WorkerFactory workerFactory2;
-  private Worker worker2;
-
-  private WorkflowClient workflowClient3;
 
   @Before
   public void setUp() throws Exception {
-    //    TestEnvironmentOptions options =
-    //        TestEnvironmentOptions.newBuilder().setUseExternalService(true).build();
-    //    env = TestWorkflowEnvironment.newInstance(options);
-
-    taskQueue = "tests-eageractivities-" + UUID.randomUUID();
-
-    WorkflowServiceStubs wfServiceStub1 = WorkflowServiceStubs.newLocalServiceStubs();
-    workflowClient1 =
-        WorkflowClient.newInstance(
-            wfServiceStub1,
-            WorkflowClientOptions.newBuilder()
-                .setIdentity("worker1")
-                .setNamespace("default")
-                .build());
-    workerFactory1 = WorkerFactory.newInstance(workflowClient1);
-    worker1 =
-        workerFactory1.newWorker(
-            taskQueue,
-            WorkerOptions.newBuilder()
-                .setMaxConcurrentWorkflowTaskPollers(1)
-                .setMaxConcurrentActivityTaskPollers(1)
-                //                .setDisableEagerExecution(true)
-                .build());
-    worker1.registerActivitiesImplementations(activitiesImpl);
-    worker1.registerWorkflowImplementationTypes(EagerActivityTestWorkflowImpl.class);
-
-    WorkflowServiceStubs wfServiceStub2 = WorkflowServiceStubs.newLocalServiceStubs();
-    workflowClient2 =
-        WorkflowClient.newInstance(
-            wfServiceStub2,
-            WorkflowClientOptions.newBuilder()
-                .setIdentity("worker2")
-                .setNamespace("default")
-                .build());
-    workerFactory2 = WorkerFactory.newInstance(workflowClient2);
-    worker2 =
-        workerFactory2.newWorker(
-            taskQueue,
-            WorkerOptions.newBuilder()
-                //                .setMaxConcurrentWorkflowTaskPollers(1)
-                .setMaxConcurrentActivityTaskPollers(10)
-                .build());
-    worker2.registerActivitiesImplementations(activitiesImpl);
-    //    worker2.registerWorkflowImplementationTypes(EagerActivityTestWorkflowImpl.class);
-
-    workerFactory1.start();
-    workerFactory2.start();
-
-    //    env.start();
-    WorkflowServiceStubs wfServiceStub3 = WorkflowServiceStubs.newLocalServiceStubs();
-    workflowClient3 =
-        WorkflowClient.newInstance(
-            wfServiceStub3,
-            WorkflowClientOptions.newBuilder()
-                .setIdentity("client")
-                .setNamespace("default")
-                .build());
+    this.env =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder().setUseExternalService(true).build());
+    this.workerFactories = new ArrayList<>();
   }
 
   @After
   public void tearDown() throws Exception {
-    //    env.close();
+    for (WorkerFactory workerFactory : this.workerFactories) workerFactory.shutdownNow();
+    for (WorkerFactory workerFactory : this.workerFactories)
+      workerFactory.awaitTermination(10, TimeUnit.SECONDS);
+    this.workerFactories = null;
 
-    if (this.worker1 != null) {
-      this.worker1.suspendPolling();
-      this.worker1 = null;
-      this.workerFactory1.shutdownNow();
-      this.workerFactory1 = null;
-      this.workflowClient1.getWorkflowServiceStubs().shutdown();
-      this.workflowClient1 = null;
-    }
+    env.close();
+  }
 
-    if (this.worker2 != null) {
-      this.worker2.suspendPolling();
-      this.worker2 = null;
-      this.workerFactory2.shutdownNow();
-      this.workerFactory2 = null;
-      this.workflowClient2.getWorkflowServiceStubs().shutdown();
-      this.workflowClient2 = null;
-    }
+  private void setupWorker(
+      String workerIdentity, WorkerOptions workerOptions, boolean registerWorkflows) {
+    WorkflowClient workflowClient =
+        WorkflowClient.newInstance(
+            env.getWorkflowServiceStubs(),
+            env.getWorkflowClient().getOptions().toBuilder().setIdentity(workerIdentity).build());
+    WorkerFactory workerFactory = WorkerFactory.newInstance(workflowClient);
+    workerFactories.add(workerFactory);
 
-    this.workflowClient3.getWorkflowServiceStubs().shutdown();
+    Worker worker = workerFactory.newWorker(taskQueue, workerOptions);
+    worker.registerActivitiesImplementations(activitiesImpl);
+    if (registerWorkflows)
+      worker.registerWorkflowImplementationTypes(EagerActivityTestWorkflowImpl.class);
+
+    workerFactory.start();
   }
 
   @Test
   public void testEagerActivities() {
+    setupWorker(
+        "worker1",
+        WorkerOptions.newBuilder()
+            .setMaxConcurrentWorkflowTaskPollers(1)
+            .setMaxConcurrentActivityTaskPollers(1)
+            .setDisableEagerExecution(false)
+            .build(),
+        true);
+    setupWorker(
+        "worker2",
+        WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2).build(),
+        false);
+
     EagerActivityTestWorkflow workflowStub =
-        workflowClient3.newWorkflowStub(
-            EagerActivityTestWorkflow.class,
-            WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+        env.getWorkflowClient()
+            .newWorkflowStub(
+                EagerActivityTestWorkflow.class,
+                WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    workflowStub.execute(true);
 
-    workflowStub.execute();
-    WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setExecution(execution)
-            .setNamespace("default")
-            .build();
     WorkflowExecutionHistory history =
-        new WorkflowExecutionHistory(
-            workflowClient3
-                .getWorkflowServiceStubs()
-                .blockingStub()
-                .getWorkflowExecutionHistory(request)
-                .getHistory());
-
-    String workflowTaskStartedEventIdentity =
-        history.getEvents().stream()
-            .filter(x -> x.hasWorkflowTaskStartedEventAttributes())
-            .findFirst()
-            .map(x -> x.getWorkflowTaskStartedEventAttributes().getIdentity())
-            .get();
-
+        env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
     Set<String> activityTaskStartedEventIdentity =
         history.getEvents().stream()
             .filter(x -> x.hasActivityTaskStartedEventAttributes())
             .map(x -> x.getActivityTaskStartedEventAttributes().getIdentity())
             .collect(Collectors.toSet());
 
-    //    assertEquals(workflowTaskStartedEventIdentity, activityTaskStartedEventIdentity);
-    assertEquals(2, activityTaskStartedEventIdentity.size());
+    assertEquals(1, activityTaskStartedEventIdentity.size());
+    assertTrue(activityTaskStartedEventIdentity.contains("worker1"));
+    assertFalse(activityTaskStartedEventIdentity.contains("worker2"));
   }
 
   @Test
-  public void testEagerActivitiesDisabled() {
+  public void testNoEagerActivitiesIfDisabledOnWorker() {
+    setupWorker(
+        "worker1",
+        WorkerOptions.newBuilder()
+            .setMaxConcurrentWorkflowTaskPollers(1)
+            .setMaxConcurrentActivityTaskPollers(1)
+            .setDisableEagerExecution(true)
+            .build(),
+        true);
+    setupWorker(
+        "worker2",
+        WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2).build(),
+        false);
+
     EagerActivityTestWorkflow workflowStub =
-        workflowClient3.newWorkflowStub(
-            EagerActivityTestWorkflow.class,
-            WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+        env.getWorkflowClient()
+            .newWorkflowStub(
+                EagerActivityTestWorkflow.class,
+                WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    workflowStub.execute(true);
 
-    workflowStub.execute();
-    WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setExecution(execution)
-            .setNamespace("default")
-            .build();
     WorkflowExecutionHistory history =
-        new WorkflowExecutionHistory(
-            workflowClient3
-                .getWorkflowServiceStubs()
-                .blockingStub()
-                .getWorkflowExecutionHistory(request)
-                .getHistory());
-
-    String workflowTaskStartedEventIdentity =
-        history.getEvents().stream()
-            .filter(x -> x.hasWorkflowTaskStartedEventAttributes())
-            .findFirst()
-            .map(x -> x.getWorkflowTaskStartedEventAttributes().getIdentity())
-            .get();
-
+        env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
     Set<String> activityTaskStartedEventIdentity =
         history.getEvents().stream()
             .filter(x -> x.hasActivityTaskStartedEventAttributes())
             .map(x -> x.getActivityTaskStartedEventAttributes().getIdentity())
             .collect(Collectors.toSet());
 
-    assertNotEquals(workflowTaskStartedEventIdentity, activityTaskStartedEventIdentity);
+    assertEquals(2, activityTaskStartedEventIdentity.size());
+    assertTrue(activityTaskStartedEventIdentity.contains("worker1"));
+    assertTrue(activityTaskStartedEventIdentity.contains("worker2"));
+  }
+
+  @Test
+  public void testNoEagerActivitiesIfDisabledOnActivity() {
+    setupWorker(
+        "worker1",
+        WorkerOptions.newBuilder()
+            .setMaxConcurrentWorkflowTaskPollers(1)
+            .setMaxConcurrentActivityTaskPollers(1)
+            .setDisableEagerExecution(false)
+            .build(),
+        true);
+    setupWorker(
+        "worker2",
+        WorkerOptions.newBuilder().setMaxConcurrentActivityTaskPollers(2).build(),
+        false);
+
+    EagerActivityTestWorkflow workflowStub =
+        env.getWorkflowClient()
+            .newWorkflowStub(
+                EagerActivityTestWorkflow.class,
+                WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    workflowStub.execute(false);
+
+    WorkflowExecutionHistory history =
+        env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
+    Set<String> activityTaskStartedEventIdentity =
+        history.getEvents().stream()
+            .filter(x -> x.hasActivityTaskStartedEventAttributes())
+            .map(x -> x.getActivityTaskStartedEventAttributes().getIdentity())
+            .collect(Collectors.toSet());
+
+    assertEquals(2, activityTaskStartedEventIdentity.size());
+    assertTrue(activityTaskStartedEventIdentity.contains("worker1"));
+    assertTrue(activityTaskStartedEventIdentity.contains("worker2"));
   }
 
   @WorkflowInterface
   public interface EagerActivityTestWorkflow {
-
     @WorkflowMethod
-    void execute();
+    public void execute(boolean enableEagerActivityDispatch);
   }
 
   public static class EagerActivityTestWorkflowImpl implements EagerActivityTestWorkflow {
     @Override
-    public void execute() {
+    public void execute(boolean enableEagerActivityDispatch) {
       TestActivities.VariousTestActivities testActivities =
           Workflow.newActivityStub(
               TestActivities.VariousTestActivities.class,
               ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofMillis(200))
+                  .setDisableEagerExecution(!enableEagerActivityDispatch)
                   .build());
 
       ArrayList<Promise<String>> promises = new ArrayList<>();
       for (int i = 0; i < 10; i++) promises.add(Async.function(testActivities::activity));
-
-      // Wait for promises to complete
       Promise.allOf(promises).get();
     }
   }
