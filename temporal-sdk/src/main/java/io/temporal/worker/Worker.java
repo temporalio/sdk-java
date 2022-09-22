@@ -111,6 +111,11 @@ public final class Worker {
               activityOptions);
     }
 
+    EagerActivityDispatcher eagerActivityDispatcher =
+        (activityWorker != null && !this.options.isEagerExecutionDisabled())
+            ? activityWorker.getEagerActivityDispatcher()
+            : new EagerActivityDispatcher.NoopEagerActivityDispatcher();
+
     SingleWorkerOptions singleWorkerOptions =
         toWorkflowWorkerOptions(
             factoryOptions,
@@ -131,7 +136,8 @@ public final class Worker {
             localActivityOptions,
             cache,
             useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
-            workflowThreadExecutor);
+            workflowThreadExecutor,
+            eagerActivityDispatcher);
   }
 
   /**

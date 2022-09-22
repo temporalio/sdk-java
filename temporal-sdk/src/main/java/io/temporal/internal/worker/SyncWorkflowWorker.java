@@ -75,7 +75,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       SingleWorkerOptions localActivityOptions,
       @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
-      WorkflowThreadExecutor workflowThreadExecutor) {
+      WorkflowThreadExecutor workflowThreadExecutor,
+      @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -119,7 +120,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             stickyTaskQueueName,
             singleWorkerOptions,
             cache,
-            taskHandler);
+            taskHandler,
+            eagerActivityDispatcher);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache

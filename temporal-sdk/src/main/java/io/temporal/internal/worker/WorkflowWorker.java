@@ -64,6 +64,7 @@ final class WorkflowWorker implements SuspendableWorker {
   private final PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
+  private final EagerActivityDispatcher eagerActivityDispatcher;
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
 
@@ -76,7 +77,8 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nullable String stickyTaskQueueName,
       @Nonnull SingleWorkerOptions options,
       @Nonnull WorkflowExecutorCache cache,
-      @Nonnull WorkflowTaskHandler handler) {
+      @Nonnull WorkflowTaskHandler handler,
+      @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -88,6 +90,7 @@ final class WorkflowWorker implements SuspendableWorker {
     this.cache = Objects.requireNonNull(cache);
     this.handler = Objects.requireNonNull(handler);
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
+    this.eagerActivityDispatcher = eagerActivityDispatcher;
   }
 
   @Override
@@ -317,35 +320,42 @@ final class WorkflowWorker implements SuspendableWorker {
         ByteString taskToken,
         WorkflowServiceStubs service,
         Scope workflowTypeMetricsScope,
-        WorkflowTaskHandler.Result response) {
-      RpcRetryOptions retryOptions = response.getRequestRetryOptions();
-      RespondWorkflowTaskCompletedRequest taskCompleted = response.getTaskCompleted();
+        WorkflowTaskHandler.Result taskResult) {
+      RpcRetryOptions retryOptions = taskResult.getRequestRetryOptions();
+      RespondWorkflowTaskCompletedRequest taskCompleted = taskResult.getTaskCompleted();
       if (taskCompleted != null) {
         GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
             new GrpcRetryer.GrpcRetryerOptions(
                 RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
 
-        RespondWorkflowTaskCompletedRequest request =
+        RespondWorkflowTaskCompletedRequest.Builder request =
             taskCompleted.toBuilder()
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
                 .setBinaryChecksum(options.getBinaryChecksum())
-                .setTaskToken(taskToken)
-                .build();
-        AtomicReference<RespondWorkflowTaskCompletedResponse> nextTask = new AtomicReference<>();
-        grpcRetryer.retry(
-            () ->
-                nextTask.set(
-                    service
-                        .blockingStub()
-                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                        .respondWorkflowTaskCompleted(request)),
-            grpcRetryOptions);
-        if (nextTask.get().hasWorkflowTask()) {
-          return Optional.of(nextTask.get().getWorkflowTask());
+                .setTaskToken(taskToken);
+
+        try (EagerActivitySlotsReservation activitySlotsReservation =
+            new EagerActivitySlotsReservation(eagerActivityDispatcher, request)) {
+          AtomicReference<RespondWorkflowTaskCompletedResponse> serverResponse =
+              new AtomicReference<>();
+          grpcRetryer.retry(
+              () ->
+                  serverResponse.set(
+                      service
+                          .blockingStub()
+                          .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+                          .respondWorkflowTaskCompleted(request.build())),
+              grpcRetryOptions);
+
+          activitySlotsReservation.handleResponse(serverResponse.get());
+
+          if (serverResponse.get().hasWorkflowTask())
+            return Optional.of(serverResponse.get().getWorkflowTask());
         }
+
       } else {
-        RespondWorkflowTaskFailedRequest taskFailed = response.getTaskFailed();
+        RespondWorkflowTaskFailedRequest taskFailed = taskResult.getTaskFailed();
         if (taskFailed != null) {
           GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
               new GrpcRetryer.GrpcRetryerOptions(
@@ -365,7 +375,7 @@ final class WorkflowWorker implements SuspendableWorker {
                       .respondWorkflowTaskFailed(request),
               grpcRetryOptions);
         } else {
-          RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
+          RespondQueryTaskCompletedRequest queryCompleted = taskResult.getQueryCompleted();
           if (queryCompleted != null) {
             queryCompleted =
                 queryCompleted.toBuilder().setTaskToken(taskToken).setNamespace(namespace).build();

@@ -54,7 +54,7 @@ final class LocalActivityPollTask
     try {
       boolean accepted = pendingTasks.offer(task, maxWaitAllowed.toMillis(), TimeUnit.MILLISECONDS);
       if (accepted) {
-        log.trace("LocalActivity queued: {}" + task.getActivityId());
+        log.trace("LocalActivity queued: {}", task.getActivityId());
       } else {
         log.trace(
             "LocalActivity queue submitting timed out for activity {}, maxWaitAllowed: {}",

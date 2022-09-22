@@ -145,6 +145,10 @@ public class SyncActivityWorker implements SuspendableWorker {
     return worker.isSuspended();
   }
 
+  public EagerActivityDispatcher getEagerActivityDispatcher() {
+    return this.worker.getEagerActivityDispatcher();
+  }
+
   @Override
   public String toString() {
     return String.format(
