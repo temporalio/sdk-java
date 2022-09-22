@@ -55,11 +55,12 @@ public class TestEagerActivityExecution {
 
   @Before
   public void setUp() throws Exception {
-    this.env = TestWorkflowEnvironment.newInstance(
-        TestEnvironmentOptions.newBuilder()
-            .setUseExternalService(SDKTestWorkflowRule.useExternalService)
-            .setTarget(SDKTestWorkflowRule.temporalServiceAddress)
-            .build());
+    this.env =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder()
+                .setUseExternalService(SDKTestWorkflowRule.useExternalService)
+                .setTarget(SDKTestWorkflowRule.temporalServiceAddress)
+                .build());
     this.workerFactories = new ArrayList<>();
   }
 
