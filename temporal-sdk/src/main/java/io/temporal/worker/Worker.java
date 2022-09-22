@@ -131,7 +131,8 @@ public final class Worker {
             localActivityOptions,
             cache,
             useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
-            workflowThreadExecutor);
+            workflowThreadExecutor,
+            activityWorker != null ? activityWorker.getEagerActivityInjector() : null);
   }
 
   /**

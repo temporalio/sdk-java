@@ -54,14 +54,14 @@ final class ActivityPollTask implements Poller.PollTask<ActivityTask> {
       @Nonnull String taskQueue,
       @Nonnull String identity,
       double activitiesPerSecond,
-      int workerTaskSlots,
+      Semaphore pollSemaphore,
       @Nonnull Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.identity = Objects.requireNonNull(identity);
     this.activitiesPerSecond = activitiesPerSecond;
-    this.pollSemaphore = new Semaphore(workerTaskSlots);
+    this.pollSemaphore = pollSemaphore;
     this.metricsScope = Objects.requireNonNull(metricsScope);
   }
 

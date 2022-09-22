@@ -27,6 +27,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -40,6 +41,7 @@ import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -50,6 +52,8 @@ final class ActivityWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
+  @Nonnull PollTaskExecutor<ActivityTask> pollTaskExecutor;
+
   private final ActivityTaskHandler handler;
   private final WorkflowServiceStubs service;
   private final String namespace;
@@ -60,6 +64,7 @@ final class ActivityWorker implements SuspendableWorker {
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
+  private final Semaphore pollSemaphore;
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -81,12 +86,13 @@ final class ActivityWorker implements SuspendableWorker {
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
+    this.pollSemaphore = new Semaphore(options.getTaskExecutorThreadPoolSize());
   }
 
   @Override
   public void start() {
     if (handler.isAnyTypeSupported()) {
-      PollTaskExecutor<ActivityTask> pollTaskExecutor =
+      this.pollTaskExecutor =
           new PollTaskExecutor<>(
               namespace,
               taskQueue,
@@ -104,9 +110,9 @@ final class ActivityWorker implements SuspendableWorker {
                   taskQueue,
                   options.getIdentity(),
                   taskQueueActivitiesPerSecond,
-                  options.getTaskExecutorThreadPoolSize(),
+                  pollSemaphore,
                   workerMetricsScope),
-              pollTaskExecutor,
+              this.pollTaskExecutor,
               pollerOptions,
               workerMetricsScope);
       poller.start();
@@ -152,6 +158,10 @@ final class ActivityWorker implements SuspendableWorker {
   @Override
   public boolean isSuspended() {
     return poller.isSuspended();
+  }
+
+  public EagerActivityInjector getEagerActivityInjector() {
+    return new EagerActivityInjectorImpl();
   }
 
   private PollerOptions getPollerOptions(SingleWorkerOptions options) {
@@ -361,6 +371,26 @@ final class ActivityWorker implements SuspendableWorker {
             pollResponse.getWorkflowExecution().getRunId(),
             e);
       }
+    }
+  }
+
+  private final class EagerActivityInjectorImpl implements EagerActivityInjector {
+    //  private final Scope metricsScope;
+
+    public boolean reserveActivitySlot(ScheduleActivityTaskCommandAttributes commandAttributes) {
+      return ActivityWorker.this.isStarted()
+          && Objects.equals(
+              commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)
+          && ActivityWorker.this.pollSemaphore.tryAcquire();
+    }
+
+    public void releaseActivitySlotReservations(int slotCounts) {
+      ActivityWorker.this.pollSemaphore.release(slotCounts);
+    }
+
+    public void injectActivity(PollActivityTaskQueueResponse activity) {
+      ActivityWorker.this.pollTaskExecutor.process(
+          new ActivityTask(activity, ActivityWorker.this.pollSemaphore::release));
     }
   }
 }
