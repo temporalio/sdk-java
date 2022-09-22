@@ -29,6 +29,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
@@ -54,7 +55,11 @@ public class TestEagerActivityExecution {
 
   @Before
   public void setUp() throws Exception {
-    this.env = TestWorkflowEnvironment.newInstance();
+    this.env = TestWorkflowEnvironment.newInstance(
+        TestEnvironmentOptions.newBuilder()
+            .setUseExternalService(SDKTestWorkflowRule.useExternalService)
+            .setTarget(SDKTestWorkflowRule.temporalServiceAddress)
+            .build());
     this.workerFactories = new ArrayList<>();
   }
 
