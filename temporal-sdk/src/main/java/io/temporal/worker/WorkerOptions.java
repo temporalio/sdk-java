@@ -74,6 +74,7 @@ public final class WorkerOptions {
     private Duration maxHeartbeatThrottleInterval;
     private Duration defaultHeartbeatThrottleInterval;
     private Duration stickyQueueScheduleToStartTimeout;
+    private boolean disableEagerExecution;
 
     private Builder() {}
 
@@ -93,6 +94,7 @@ public final class WorkerOptions {
       this.maxHeartbeatThrottleInterval = o.maxHeartbeatThrottleInterval;
       this.defaultHeartbeatThrottleInterval = o.defaultHeartbeatThrottleInterval;
       this.stickyQueueScheduleToStartTimeout = o.stickyQueueScheduleToStartTimeout;
+      this.disableEagerExecution = o.disableEagerExecution;
     }
 
     /**
@@ -297,6 +299,21 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * Disable eager activities. If set to true, eager execution will not be requested for
+     * activities requested from workflows bound to this Worker.
+     *
+     * <p>Eager activity execution means the server returns requested eager activities directly from
+     * the workflow task back to this worker which is faster than non-eager which may be dispatched
+     * to a separate worker.
+     *
+     * <p>Default is false.
+     */
+    public Builder setDisableEagerExecution(boolean disableEagerExecution) {
+      this.disableEagerExecution = disableEagerExecution;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -310,7 +327,8 @@ public final class WorkerOptions {
           defaultDeadlockDetectionTimeout,
           maxHeartbeatThrottleInterval,
           defaultHeartbeatThrottleInterval,
-          stickyQueueScheduleToStartTimeout);
+          stickyQueueScheduleToStartTimeout,
+          disableEagerExecution);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -367,7 +385,8 @@ public final class WorkerOptions {
               : defaultHeartbeatThrottleInterval,
           stickyQueueScheduleToStartTimeout == null
               ? DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT
-              : stickyQueueScheduleToStartTimeout);
+              : stickyQueueScheduleToStartTimeout,
+          disableEagerExecution);
     }
   }
 
@@ -383,6 +402,7 @@ public final class WorkerOptions {
   private final Duration maxHeartbeatThrottleInterval;
   private final Duration defaultHeartbeatThrottleInterval;
   private final @Nonnull Duration stickyQueueScheduleToStartTimeout;
+  private final boolean disableEagerExecution;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -396,7 +416,8 @@ public final class WorkerOptions {
       long defaultDeadlockDetectionTimeout,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
-      @Nonnull Duration stickyQueueScheduleToStartTimeout) {
+      @Nonnull Duration stickyQueueScheduleToStartTimeout,
+      boolean disableEagerExecution) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -409,6 +430,7 @@ public final class WorkerOptions {
     this.maxHeartbeatThrottleInterval = maxHeartbeatThrottleInterval;
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
     this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
+    this.disableEagerExecution = disableEagerExecution;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -476,6 +498,10 @@ public final class WorkerOptions {
     return stickyQueueScheduleToStartTimeout;
   }
 
+  public boolean isEagerExecutionDisabled() {
+    return disableEagerExecution;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -492,8 +518,8 @@ public final class WorkerOptions {
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
         && Objects.equals(defaultHeartbeatThrottleInterval, that.defaultHeartbeatThrottleInterval)
-        && Objects.equals(
-            stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout);
+        && Objects.equals(stickyQueueScheduleToStartTimeout, that.stickyQueueScheduleToStartTimeout)
+        && disableEagerExecution == that.disableEagerExecution;
   }
 
   @Override
@@ -510,7 +536,8 @@ public final class WorkerOptions {
         defaultDeadlockDetectionTimeout,
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
-        stickyQueueScheduleToStartTimeout);
+        stickyQueueScheduleToStartTimeout,
+        disableEagerExecution);
   }
 
   @Override
@@ -540,6 +567,8 @@ public final class WorkerOptions {
         + defaultHeartbeatThrottleInterval
         + ", stickyQueueScheduleToStartTimeout="
         + stickyQueueScheduleToStartTimeout
+        + ", disableEagerExecution="
+        + disableEagerExecution
         + '}';
   }
 }

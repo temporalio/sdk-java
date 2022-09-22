@@ -111,6 +111,12 @@ public final class Worker {
               activityOptions);
     }
 
+    EagerActivityInjector eagerActivityInjector =
+        new EagerActivityInjector.NoopEagerActivityInjector();
+    if (activityWorker != null && !this.options.isEagerExecutionDisabled()) {
+      eagerActivityInjector = activityWorker.getEagerActivityInjector();
+    }
+
     SingleWorkerOptions singleWorkerOptions =
         toWorkflowWorkerOptions(
             factoryOptions,
@@ -132,7 +138,7 @@ public final class Worker {
             cache,
             useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
             workflowThreadExecutor,
-            activityWorker != null ? activityWorker.getEagerActivityInjector() : null);
+            eagerActivityInjector);
   }
 
   /**

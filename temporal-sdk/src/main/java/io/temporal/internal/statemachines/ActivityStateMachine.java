@@ -26,6 +26,7 @@ import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
@@ -243,18 +244,27 @@ final class ActivityStateMachine
       ExecuteActivityParameters parameters,
       Functions.Proc2<Optional<Payloads>, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
-      Functions.Proc1<StateMachine> stateMachineSink) {
-    return new ActivityStateMachine(parameters, completionCallback, commandSink, stateMachineSink);
+      Functions.Proc1<StateMachine> stateMachineSink,
+      Functions.Func1<ScheduleActivityTaskCommandAttributesOrBuilder, Boolean>
+          canRequestEagerExecution) {
+    return new ActivityStateMachine(
+        parameters, completionCallback, commandSink, stateMachineSink, canRequestEagerExecution);
   }
 
   private ActivityStateMachine(
       ExecuteActivityParameters parameters,
       Functions.Proc2<Optional<Payloads>, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
-      Functions.Proc1<StateMachine> stateMachineSink) {
+      Functions.Proc1<StateMachine> stateMachineSink,
+      Functions.Func1<ScheduleActivityTaskCommandAttributesOrBuilder, Boolean>
+          canRequestEagerExecution) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.parameters = parameters;
+
     ScheduleActivityTaskCommandAttributes.Builder scheduleAttr = parameters.getAttributes();
+    if (scheduleAttr.getRequestEagerExecution() && !canRequestEagerExecution.apply(scheduleAttr))
+      scheduleAttr.setRequestEagerExecution(false);
+
     this.activityId = scheduleAttr.getActivityId();
     this.activityType = scheduleAttr.getActivityType();
     this.cancellationType = parameters.getCancellationType();

@@ -41,6 +41,7 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.worker.EagerActivityInjector;
 import io.temporal.internal.worker.LocalActivityTask;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
@@ -56,6 +57,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +73,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private final WorkflowServiceStubs service;
   private final String stickyTaskQueueName;
   private final BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller;
+  private final EagerActivityInjector eagerActivityInjector;
 
   public ReplayWorkflowTaskHandler(
       String namespace,
@@ -80,7 +83,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       String stickyTaskQueueName,
       Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
-      BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller) {
+      BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller,
+      @Nonnull EagerActivityInjector eagerActivityInjector) {
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
@@ -89,6 +93,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     this.stickyTaskQueueScheduleToStartTimeout = stickyTaskQueueScheduleToStartTimeout;
     this.service = Objects.requireNonNull(service);
     this.localActivityTaskPoller = localActivityTaskPoller;
+    this.eagerActivityInjector = eagerActivityInjector;
   }
 
   @Override
@@ -370,7 +375,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     }
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayWorkflowRunTaskHandler(
-        namespace, workflow, workflowTask, options, metricsScope, localActivityTaskPoller);
+        namespace,
+        workflow,
+        workflowTask,
+        options,
+        metricsScope,
+        localActivityTaskPoller,
+        eagerActivityInjector);
   }
 
   private void resetStickyTaskQueue(WorkflowExecution execution) {

@@ -32,6 +32,7 @@ import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
@@ -536,10 +537,15 @@ public final class WorkflowStateMachines {
   /**
    * @param attributes attributes used to schedule an activity
    * @param callback completion callback
+   * @param canRequestEagerExecution a function that determine if eager execution can be requested
+   *     for this activity
    * @return an instance of ActivityCommands
    */
   public Functions.Proc scheduleActivityTask(
-      ExecuteActivityParameters attributes, Functions.Proc2<Optional<Payloads>, Failure> callback) {
+      ExecuteActivityParameters attributes,
+      Functions.Proc2<Optional<Payloads>, Failure> callback,
+      Functions.Func1<ScheduleActivityTaskCommandAttributesOrBuilder, Boolean>
+          canRequestEagerExecution) {
     checkEventLoopExecuting();
     ActivityStateMachine activityStateMachine =
         ActivityStateMachine.newInstance(
@@ -551,7 +557,8 @@ public final class WorkflowStateMachines {
               }
             },
             commandSink,
-            stateMachineSink);
+            stateMachineSink,
+            canRequestEagerExecution);
     return activityStateMachine::cancel;
   }
 

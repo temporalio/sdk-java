@@ -31,14 +31,14 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
   private final EagerActivityInjector eagerActivityInjector;
   private int acquiredReservationCount = 0;
 
-  EagerActivitySlotsReservation(EagerActivityInjector eagerActivityInjector) {
+  EagerActivitySlotsReservation(
+      EagerActivityInjector eagerActivityInjector,
+      RespondWorkflowTaskCompletedRequest.Builder mutableRequest) {
     this.eagerActivityInjector = eagerActivityInjector;
+    applyToRequest(mutableRequest);
   }
 
-  public RespondWorkflowTaskCompletedRequest applyToRequest(
-      RespondWorkflowTaskCompletedRequest request) {
-    RespondWorkflowTaskCompletedRequest.Builder mutableRequest = request.toBuilder();
-
+  public void applyToRequest(RespondWorkflowTaskCompletedRequest.Builder mutableRequest) {
     for (int i = 0; i < mutableRequest.getCommandsCount(); i++) {
       Command command = mutableRequest.getCommands(i);
       if (command.getCommandType() != CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK) continue;
@@ -47,8 +47,7 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
           command.getScheduleActivityTaskCommandAttributes();
       if (!commandAttributes.getRequestEagerExecution()) continue;
 
-      boolean semaphoreAcquired = this.eagerActivityInjector.reserveActivitySlot(commandAttributes);
-      if (semaphoreAcquired) {
+      if (this.eagerActivityInjector.tryReserveActivitySlot(commandAttributes)) {
         this.acquiredReservationCount++;
       } else {
         mutableRequest.setCommands(
@@ -58,8 +57,6 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
                     commandAttributes.toBuilder().setRequestEagerExecution(false)));
       }
     }
-
-    return mutableRequest.build();
   }
 
   public void handleResponse(RespondWorkflowTaskCompletedResponse serverResponse) {

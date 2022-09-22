@@ -61,6 +61,7 @@ public final class ActivityOptions {
     private RetryOptions retryOptions;
     private List<ContextPropagator> contextPropagators;
     private ActivityCancellationType cancellationType;
+    private boolean disableEagerExecution;
 
     private Builder() {}
 
@@ -76,6 +77,7 @@ public final class ActivityOptions {
       this.startToCloseTimeout = options.startToCloseTimeout;
       this.scheduleToStartTimeout = options.scheduleToStartTimeout;
       this.cancellationType = options.cancellationType;
+      this.disableEagerExecution = options.disableEagerExecution;
     }
 
     /**
@@ -202,6 +204,22 @@ public final class ActivityOptions {
       return this;
     }
 
+    /**
+     * If set to true, will not request eager execution regardless of worker settings. If false,
+     * eager execution may still be disabled at the worker level or eager execution may not be
+     * requested due to lack of available slots.
+     *
+     * <p>Eager activity execution means the server returns requested eager activities directly from
+     * the workflow task back to this worker which is faster than non-eager which may be dispatched
+     * to a separate worker.
+     *
+     * <p>Default is false.
+     */
+    public Builder setDisableEagerExecution(boolean disableEagerExecution) {
+      this.disableEagerExecution = disableEagerExecution;
+      return this;
+    }
+
     public Builder mergeActivityOptions(ActivityOptions override) {
       if (override == null) {
         return this;
@@ -250,7 +268,8 @@ public final class ActivityOptions {
           taskQueue,
           retryOptions,
           contextPropagators,
-          cancellationType);
+          cancellationType,
+          disableEagerExecution);
     }
 
     public ActivityOptions validateAndBuildWithDefaults() {
@@ -262,7 +281,8 @@ public final class ActivityOptions {
           taskQueue,
           retryOptions,
           contextPropagators,
-          cancellationType == null ? ActivityCancellationType.TRY_CANCEL : cancellationType);
+          cancellationType == null ? ActivityCancellationType.TRY_CANCEL : cancellationType,
+          disableEagerExecution);
     }
   }
 
@@ -274,6 +294,7 @@ public final class ActivityOptions {
   private final RetryOptions retryOptions;
   private final List<ContextPropagator> contextPropagators;
   private final ActivityCancellationType cancellationType;
+  private final boolean disableEagerExecution;
 
   private ActivityOptions(
       Duration heartbeatTimeout,
@@ -283,7 +304,8 @@ public final class ActivityOptions {
       String taskQueue,
       RetryOptions retryOptions,
       List<ContextPropagator> contextPropagators,
-      ActivityCancellationType cancellationType) {
+      ActivityCancellationType cancellationType,
+      boolean disableEagerExecution) {
     this.heartbeatTimeout = heartbeatTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
@@ -292,6 +314,7 @@ public final class ActivityOptions {
     this.retryOptions = retryOptions;
     this.contextPropagators = contextPropagators;
     this.cancellationType = cancellationType;
+    this.disableEagerExecution = disableEagerExecution;
   }
 
   /**
@@ -350,6 +373,11 @@ public final class ActivityOptions {
     return cancellationType;
   }
 
+  public boolean isEagerExecutionDisabled() {
+    return disableEagerExecution;
+  }
+  ;
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -366,7 +394,8 @@ public final class ActivityOptions {
         && Objects.equal(startToCloseTimeout, that.startToCloseTimeout)
         && Objects.equal(taskQueue, that.taskQueue)
         && Objects.equal(retryOptions, that.retryOptions)
-        && Objects.equal(contextPropagators, that.contextPropagators);
+        && Objects.equal(contextPropagators, that.contextPropagators)
+        && disableEagerExecution == that.disableEagerExecution;
   }
 
   @Override
@@ -379,7 +408,8 @@ public final class ActivityOptions {
         taskQueue,
         retryOptions,
         contextPropagators,
-        cancellationType);
+        cancellationType,
+        disableEagerExecution);
   }
 
   @Override
@@ -402,6 +432,8 @@ public final class ActivityOptions {
         + contextPropagators
         + ", abandonOnCancellation="
         + cancellationType
+        + ", disableEagerExecution="
+        + disableEagerExecution
         + '}';
   }
 }

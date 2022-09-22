@@ -27,7 +27,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -51,8 +51,8 @@ import org.slf4j.MDC;
 final class ActivityWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
-  @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
-  @Nonnull PollTaskExecutor<ActivityTask> pollTaskExecutor;
+  private SuspendableWorker poller = new NoopSuspendableWorker();
+  private PollTaskExecutor<ActivityTask> pollTaskExecutor;
 
   private final ActivityTaskHandler handler;
   private final WorkflowServiceStubs service;
@@ -375,12 +375,16 @@ final class ActivityWorker implements SuspendableWorker {
   }
 
   private final class EagerActivityInjectorImpl implements EagerActivityInjector {
-    //  private final Scope metricsScope;
-
-    public boolean reserveActivitySlot(ScheduleActivityTaskCommandAttributes commandAttributes) {
+    public boolean canRequestEagerExecution(
+        ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
       return ActivityWorker.this.isStarted()
           && Objects.equals(
-              commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)
+              commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue);
+    }
+
+    public boolean tryReserveActivitySlot(
+        ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
+      return this.canRequestEagerExecution(commandAttributes)
           && ActivityWorker.this.pollSemaphore.tryAcquire();
     }
 

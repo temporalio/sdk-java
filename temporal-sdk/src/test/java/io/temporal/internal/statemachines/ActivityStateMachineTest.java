@@ -26,6 +26,7 @@ import static org.junit.Assert.*;
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
@@ -59,6 +60,9 @@ public class ActivityStateMachineTest {
               ActivityStateMachine.State, ActivityStateMachine.ExplicitEvent, ActivityStateMachine>>
       stateMachineList = new ArrayList<>();
   private WorkflowStateMachines stateMachines;
+
+  private final Functions.Func1<ScheduleActivityTaskCommandAttributesOrBuilder, Boolean>
+      NOOP_CAN_REQUEST_EAGER_EXECUTION = (x) -> false;
 
   private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
     return new WorkflowStateMachines(listener, (stateMachineList::add));
@@ -96,7 +100,9 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    stateMachines.scheduleActivityTask(
+                        parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add((pair) -> stateMachines.completeWorkflow(pair.getT1()));
       }
     }
@@ -176,7 +182,9 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    stateMachines.scheduleActivityTask(
+                        parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -257,7 +265,9 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    stateMachines.scheduleActivityTask(
+                        parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -343,7 +353,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -391,7 +404,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -493,7 +509,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -577,7 +596,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -683,7 +705,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -801,7 +826,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -921,7 +949,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -1018,7 +1049,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -1138,7 +1172,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -1247,7 +1284,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add(
                 (pair) -> {
                   assertNotNull(pair.getT2());
@@ -1355,7 +1395,10 @@ public class ActivityStateMachineTest {
                 attributes, ActivityCancellationType.WAIT_CANCELLATION_COMPLETED);
         builder
             .<Optional<Payloads>, Failure>add2(
-                (v, c) -> cancellationHandler = stateMachines.scheduleActivityTask(parameters, c))
+                (v, c) ->
+                    cancellationHandler =
+                        stateMachines.scheduleActivityTask(
+                            parameters, c, NOOP_CAN_REQUEST_EAGER_EXECUTION))
             .add((pair) -> stateMachines.completeWorkflow(pair.getT1()));
       }
 

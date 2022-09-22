@@ -78,7 +78,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull SingleWorkerOptions options,
       @Nonnull WorkflowExecutorCache cache,
       @Nonnull WorkflowTaskHandler handler,
-      @Nullable EagerActivityInjector eagerActivityInjector) {
+      @Nonnull EagerActivityInjector eagerActivityInjector) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -90,10 +90,7 @@ final class WorkflowWorker implements SuspendableWorker {
     this.cache = Objects.requireNonNull(cache);
     this.handler = Objects.requireNonNull(handler);
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
-    this.eagerActivityInjector =
-        eagerActivityInjector != null
-            ? eagerActivityInjector
-            : new EagerActivityInjector.NoopEagerActivityInjector();
+    this.eagerActivityInjector = eagerActivityInjector;
   }
 
   @Override
@@ -327,21 +324,19 @@ final class WorkflowWorker implements SuspendableWorker {
       RpcRetryOptions retryOptions = taskResult.getRequestRetryOptions();
       RespondWorkflowTaskCompletedRequest taskCompleted = taskResult.getTaskCompleted();
       if (taskCompleted != null) {
+        GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
+            new GrpcRetryer.GrpcRetryerOptions(
+                RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
+
+        RespondWorkflowTaskCompletedRequest.Builder request =
+            taskCompleted.toBuilder()
+                .setIdentity(options.getIdentity())
+                .setNamespace(namespace)
+                .setBinaryChecksum(options.getBinaryChecksum())
+                .setTaskToken(taskToken);
+
         try (EagerActivitySlotsReservation activitySlotsReservation =
-            new EagerActivitySlotsReservation(eagerActivityInjector)) {
-          GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
-              new GrpcRetryer.GrpcRetryerOptions(
-                  RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
-
-          RespondWorkflowTaskCompletedRequest request =
-              activitySlotsReservation.applyToRequest(
-                  taskCompleted.toBuilder()
-                      .setIdentity(options.getIdentity())
-                      .setNamespace(namespace)
-                      .setBinaryChecksum(options.getBinaryChecksum())
-                      .setTaskToken(taskToken)
-                      .build());
-
+            new EagerActivitySlotsReservation(eagerActivityInjector, request)) {
           AtomicReference<RespondWorkflowTaskCompletedResponse> serverResponse =
               new AtomicReference<>();
           grpcRetryer.retry(
@@ -350,7 +345,7 @@ final class WorkflowWorker implements SuspendableWorker {
                       service
                           .blockingStub()
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                          .respondWorkflowTaskCompleted(request)),
+                          .respondWorkflowTaskCompleted(request.build())),
               grpcRetryOptions);
 
           activitySlotsReservation.handleResponse(serverResponse.get());

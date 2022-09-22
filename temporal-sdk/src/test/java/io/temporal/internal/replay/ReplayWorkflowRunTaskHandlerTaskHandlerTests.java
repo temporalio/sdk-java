@@ -33,6 +33,7 @@ import com.google.protobuf.util.Durations;
 import com.uber.m3.tally.NoopScope;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.internal.worker.EagerActivityInjector;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.testUtils.HistoryUtils;
@@ -61,7 +62,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             null,
             Duration.ofSeconds(5),
             testWorkflowRule.getWorkflowServiceStubs(),
-            null);
+            null,
+            new EagerActivityInjector.NoopEagerActivityInjector());
 
     // Act
     WorkflowTaskHandler.Result result =
@@ -88,7 +90,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             "sticky",
             Duration.ofSeconds(5),
             testWorkflowRule.getWorkflowServiceStubs(),
-            null);
+            null,
+            new EagerActivityInjector.NoopEagerActivityInjector());
 
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();

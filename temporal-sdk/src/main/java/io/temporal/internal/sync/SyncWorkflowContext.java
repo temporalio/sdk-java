@@ -354,12 +354,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
             .setScheduleToCloseTimeout(
                 ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
-            .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()));
-
-    // FIXME: Make it possible for user to opt out of eager activity execution, eg. based on worker
-    // options
-    attributes.setRequestEagerExecution(
-        Objects.equals(replayContext.getTaskQueue(), attributes.getTaskQueue().getName()));
+            .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()))
+            .setRequestEagerExecution(!options.isEagerExecutionDisabled());
 
     input.ifPresent(attributes::setInput);
     RetryOptions retryOptions = options.getRetryOptions();

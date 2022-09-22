@@ -20,11 +20,19 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 
-interface EagerActivityInjector {
-  public boolean reserveActivitySlot(ScheduleActivityTaskCommandAttributes commandAttributes);
+public interface EagerActivityInjector {
+  // Perform an early check at either there is any possibility that requesting eager execution on
+  // the given activity
+  // command would be accepted. This is an optimisation, to reduce late mutations of
+  // ScheduleActivityTaskCommand.
+  public boolean canRequestEagerExecution(
+      ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes);
+
+  public boolean tryReserveActivitySlot(
+      ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes);
 
   public void releaseActivitySlotReservations(int slotCounts);
 
@@ -32,7 +40,14 @@ interface EagerActivityInjector {
 
   static class NoopEagerActivityInjector implements EagerActivityInjector {
     @Override
-    public boolean reserveActivitySlot(ScheduleActivityTaskCommandAttributes commandAttributes) {
+    public boolean canRequestEagerExecution(
+        ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
+      return false;
+    }
+
+    @Override
+    public boolean tryReserveActivitySlot(
+        ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
       return false;
     }
 
