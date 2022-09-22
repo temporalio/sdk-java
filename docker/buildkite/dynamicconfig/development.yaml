@@ -2,3 +2,4 @@ system.forceSearchAttributesCacheRefreshOnRead:
   - value: true
 system.enableActivityEagerExecution:
   - value: true
+    constraints: {}
