@@ -45,7 +45,6 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
-import io.temporal.internal.worker.EagerActivityInjector;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -102,8 +101,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
             wft,
             SingleWorkerOptions.newBuilder().build(),
             new NoopScope(),
-            mock(BiFunction.class),
-            new EagerActivityInjector.NoopEagerActivityInjector());
+            mock(BiFunction.class));
 
     stateMachines = handler.getWorkflowStateMachines();
     QueryResult queryResult =

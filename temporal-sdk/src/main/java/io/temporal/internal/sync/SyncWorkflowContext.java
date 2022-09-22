@@ -355,7 +355,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             .setScheduleToCloseTimeout(
                 ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
             .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()))
-            .setRequestEagerExecution(!options.isEagerExecutionDisabled());
+            .setRequestEagerExecution(
+                !options.isEagerExecutionDisabled()
+                    && Objects.equals(taskQueue, replayContext.getTaskQueue()));
 
     input.ifPresent(attributes::setInput);
     RetryOptions retryOptions = options.getRetryOptions();

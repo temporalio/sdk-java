@@ -17,3 +17,4 @@ src/main/idls/*
 .project
 .settings
 .vscode/
+*/bin

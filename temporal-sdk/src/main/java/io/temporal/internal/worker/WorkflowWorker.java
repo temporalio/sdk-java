@@ -64,7 +64,7 @@ final class WorkflowWorker implements SuspendableWorker {
   private final PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
-  private final EagerActivityInjector eagerActivityInjector;
+  private final EagerActivityDispatcher eagerActivityDispatcher;
 
   @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
 
@@ -78,7 +78,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull SingleWorkerOptions options,
       @Nonnull WorkflowExecutorCache cache,
       @Nonnull WorkflowTaskHandler handler,
-      @Nonnull EagerActivityInjector eagerActivityInjector) {
+      @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -90,7 +90,7 @@ final class WorkflowWorker implements SuspendableWorker {
     this.cache = Objects.requireNonNull(cache);
     this.handler = Objects.requireNonNull(handler);
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
-    this.eagerActivityInjector = eagerActivityInjector;
+    this.eagerActivityDispatcher = eagerActivityDispatcher;
   }
 
   @Override
@@ -336,7 +336,7 @@ final class WorkflowWorker implements SuspendableWorker {
                 .setTaskToken(taskToken);
 
         try (EagerActivitySlotsReservation activitySlotsReservation =
-            new EagerActivitySlotsReservation(eagerActivityInjector, request)) {
+            new EagerActivitySlotsReservation(eagerActivityDispatcher, request)) {
           AtomicReference<RespondWorkflowTaskCompletedResponse> serverResponse =
               new AtomicReference<>();
           grpcRetryer.retry(

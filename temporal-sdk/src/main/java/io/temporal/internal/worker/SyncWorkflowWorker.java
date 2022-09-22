@@ -76,7 +76,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
       WorkflowThreadExecutor workflowThreadExecutor,
-      @Nonnull EagerActivityInjector eagerActivityInjector) {
+      @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -110,8 +110,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             stickyTaskQueueName,
             singleWorkerOptions.getStickyQueueScheduleToStartTimeout(),
             service,
-            laWorker.getLocalActivityTaskPoller(),
-            eagerActivityInjector);
+            laWorker.getLocalActivityTaskPoller());
 
     workflowWorker =
         new WorkflowWorker(
@@ -122,7 +121,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             singleWorkerOptions,
             cache,
             taskHandler,
-            eagerActivityInjector);
+            eagerActivityDispatcher);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache
@@ -135,8 +134,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             null,
             Duration.ZERO,
             service,
-            laWorker.getLocalActivityTaskPoller(),
-            new EagerActivityInjector.NoopEagerActivityInjector());
+            laWorker.getLocalActivityTaskPoller());
 
     queryReplayHelper = new QueryReplayHelper(nonStickyReplayTaskHandler);
   }

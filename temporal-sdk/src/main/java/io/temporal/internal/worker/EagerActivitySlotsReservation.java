@@ -28,13 +28,13 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
 
 public class EagerActivitySlotsReservation implements AutoCloseable {
-  private final EagerActivityInjector eagerActivityInjector;
+  private final EagerActivityDispatcher eagerActivityDispatcher;
   private int acquiredReservationCount = 0;
 
   EagerActivitySlotsReservation(
-      EagerActivityInjector eagerActivityInjector,
+      EagerActivityDispatcher eagerActivityDispatcher,
       RespondWorkflowTaskCompletedRequest.Builder mutableRequest) {
-    this.eagerActivityInjector = eagerActivityInjector;
+    this.eagerActivityDispatcher = eagerActivityDispatcher;
     applyToRequest(mutableRequest);
   }
 
@@ -47,7 +47,7 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
           command.getScheduleActivityTaskCommandAttributes();
       if (!commandAttributes.getRequestEagerExecution()) continue;
 
-      if (this.eagerActivityInjector.tryReserveActivitySlot(commandAttributes)) {
+      if (this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes)) {
         this.acquiredReservationCount++;
       } else {
         mutableRequest.setCommands(
@@ -69,9 +69,9 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
     if (this.acquiredReservationCount == 0) return;
 
     for (PollActivityTaskQueueResponse act : serverResponse.getActivityTasksList())
-      this.eagerActivityInjector.injectActivity(act);
+      this.eagerActivityDispatcher.dispatchActivity(act);
 
-    this.eagerActivityInjector.releaseActivitySlotReservations(
+    this.eagerActivityDispatcher.releaseActivitySlotReservations(
         this.acquiredReservationCount - serverResponse.getActivityTasksCount());
 
     // At this point, all reservations have been either freed or transferred to actual activities
@@ -81,7 +81,7 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
   @Override
   public void close() {
     if (this.acquiredReservationCount > 0) {
-      this.eagerActivityInjector.releaseActivitySlotReservations(this.acquiredReservationCount);
+      this.eagerActivityDispatcher.releaseActivitySlotReservations(this.acquiredReservationCount);
       this.acquiredReservationCount = 0;
     }
   }

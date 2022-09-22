@@ -23,28 +23,14 @@ package io.temporal.internal.worker;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 
-public interface EagerActivityInjector {
-  // Perform an early check at either there is any possibility that requesting eager execution on
-  // the given activity
-  // command would be accepted. This is an optimisation, to reduce late mutations of
-  // ScheduleActivityTaskCommand.
-  public boolean canRequestEagerExecution(
-      ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes);
+public interface EagerActivityDispatcher {
+  boolean tryReserveActivitySlot(ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes);
 
-  public boolean tryReserveActivitySlot(
-      ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes);
+  void releaseActivitySlotReservations(int slotCounts);
 
-  public void releaseActivitySlotReservations(int slotCounts);
+  void dispatchActivity(PollActivityTaskQueueResponse activity);
 
-  public void injectActivity(PollActivityTaskQueueResponse activity);
-
-  static class NoopEagerActivityInjector implements EagerActivityInjector {
-    @Override
-    public boolean canRequestEagerExecution(
-        ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
-      return false;
-    }
-
+  static class NoopEagerActivityDispatcher implements EagerActivityDispatcher {
     @Override
     public boolean tryReserveActivitySlot(
         ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
@@ -55,12 +41,13 @@ public interface EagerActivityInjector {
     public void releaseActivitySlotReservations(int slotCounts) {
       if (slotCounts > 0)
         throw new IllegalStateException(
-            "Trying to release activity slots on a NoopEagerActivityInjector");
+            "Trying to release activity slots on a NoopEagerActivityDispatcher");
     }
 
     @Override
-    public void injectActivity(PollActivityTaskQueueResponse activity) {
-      throw new IllegalStateException("Trying to inject activity on a NoopEagerActivityInjector");
+    public void dispatchActivity(PollActivityTaskQueueResponse activity) {
+      throw new IllegalStateException(
+          "Trying to dispatch activity on a NoopEagerActivityDispatcher");
     }
   }
 }

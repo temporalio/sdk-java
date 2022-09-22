@@ -38,7 +38,6 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.internal.worker.EagerActivityInjector;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.HistoryUtils;
@@ -312,7 +311,6 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
         response,
         SingleWorkerOptions.newBuilder().build(),
         metricsScope,
-        (a, b) -> true,
-        new EagerActivityInjector.NoopEagerActivityInjector());
+        (a, b) -> true);
   }
 }

@@ -213,7 +213,7 @@ public final class ActivityOptions {
      * the workflow task back to this worker which is faster than non-eager which may be dispatched
      * to a separate worker.
      *
-     * <p>Default is false.
+     * <p>Defaults to false, meaning that eager activity execution will be requested if possible.
      */
     public Builder setDisableEagerExecution(boolean disableEagerExecution) {
       this.disableEagerExecution = disableEagerExecution;
@@ -376,7 +376,6 @@ public final class ActivityOptions {
   public boolean isEagerExecutionDisabled() {
     return disableEagerExecution;
   }
-  ;
 
   public Builder toBuilder() {
     return new Builder(this);

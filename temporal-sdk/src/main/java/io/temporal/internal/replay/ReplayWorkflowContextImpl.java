@@ -36,7 +36,6 @@ import io.temporal.internal.statemachines.ExecuteActivityParameters;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
-import io.temporal.internal.worker.EagerActivityInjector;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -57,7 +56,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   private final @Nullable String fullReplayDirectQueryName;
   private final Scope replayAwareWorkflowMetricsScope;
   private final SingleWorkerOptions workerOptions;
-  private final EagerActivityInjector eagerActivityInjector;
 
   /**
    * @param fullReplayDirectQueryName query name if an execution is a full replay caused by a direct
@@ -71,7 +69,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       long runStartedTimestampMillis,
       @Nullable String fullReplayDirectQueryName,
       SingleWorkerOptions workerOptions,
-      EagerActivityInjector eagerActivityInjector,
       Scope workflowMetricsScope) {
     this.workflowStateMachines = workflowStateMachines;
     this.basicWorkflowContext =
@@ -81,7 +78,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     this.replayAwareWorkflowMetricsScope =
         new ReplayAwareScope(workflowMetricsScope, this, workflowStateMachines::currentTimeMillis);
     this.workerOptions = workerOptions;
-    this.eagerActivityInjector = eagerActivityInjector;
   }
 
   @Override
@@ -206,8 +202,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       attributes.setActivityId(workflowStateMachines.randomUUID().toString());
     }
     Functions.Proc cancellationHandler =
-        workflowStateMachines.scheduleActivityTask(
-            parameters, callback, eagerActivityInjector::canRequestEagerExecution);
+        workflowStateMachines.scheduleActivityTask(parameters, callback);
     return (exception) -> cancellationHandler.apply();
   }
 

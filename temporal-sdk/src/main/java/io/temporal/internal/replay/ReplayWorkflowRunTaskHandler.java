@@ -93,8 +93,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       SingleWorkerOptions workerOptions,
       Scope metricsScope,
-      BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller,
-      EagerActivityInjector eagerActivityInjector) {
+      BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller) {
     HistoryEvent startedEvent = workflowTask.getHistory().getEvents(0);
     if (!startedEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
@@ -117,7 +116,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
             Timestamps.toMillis(startedEvent.getEventTime()),
             fullReplayDirectQueryType,
             workerOptions,
-            eagerActivityInjector,
             metricsScope);
 
     this.replayWorkflowExecutor =

@@ -160,8 +160,8 @@ final class ActivityWorker implements SuspendableWorker {
     return poller.isSuspended();
   }
 
-  public EagerActivityInjector getEagerActivityInjector() {
-    return new EagerActivityInjectorImpl();
+  public EagerActivityDispatcher getEagerActivityDispatcher() {
+    return new EagerActivityDispatcherImpl();
   }
 
   private PollerOptions getPollerOptions(SingleWorkerOptions options) {
@@ -374,25 +374,23 @@ final class ActivityWorker implements SuspendableWorker {
     }
   }
 
-  private final class EagerActivityInjectorImpl implements EagerActivityInjector {
-    public boolean canRequestEagerExecution(
+  private final class EagerActivityDispatcherImpl implements EagerActivityDispatcher {
+    @Override
+    public boolean tryReserveActivitySlot(
         ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
       return ActivityWorker.this.isStarted()
           && Objects.equals(
-              commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue);
-    }
-
-    public boolean tryReserveActivitySlot(
-        ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
-      return this.canRequestEagerExecution(commandAttributes)
+              commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)
           && ActivityWorker.this.pollSemaphore.tryAcquire();
     }
 
+    @Override
     public void releaseActivitySlotReservations(int slotCounts) {
       ActivityWorker.this.pollSemaphore.release(slotCounts);
     }
 
-    public void injectActivity(PollActivityTaskQueueResponse activity) {
+    @Override
+    public void dispatchActivity(PollActivityTaskQueueResponse activity) {
       ActivityWorker.this.pollTaskExecutor.process(
           new ActivityTask(activity, ActivityWorker.this.pollSemaphore::release));
     }
