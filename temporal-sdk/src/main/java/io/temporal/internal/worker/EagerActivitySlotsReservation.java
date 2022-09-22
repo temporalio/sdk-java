@@ -29,7 +29,7 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
 
 public class EagerActivitySlotsReservation implements AutoCloseable {
   private final EagerActivityDispatcher eagerActivityDispatcher;
-  private int acquiredReservationCount = 0;
+  private int outstandingReservationSlotsCount = 0;
 
   EagerActivitySlotsReservation(
       EagerActivityDispatcher eagerActivityDispatcher,
@@ -48,7 +48,7 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
       if (!commandAttributes.getRequestEagerExecution()) continue;
 
       if (this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes)) {
-        this.acquiredReservationCount++;
+        this.outstandingReservationSlotsCount++;
       } else {
         mutableRequest.setCommands(
             i,
@@ -60,29 +60,34 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
   }
 
   public void handleResponse(RespondWorkflowTaskCompletedResponse serverResponse) {
-    if (serverResponse.getActivityTasksCount() > this.acquiredReservationCount)
+    if (serverResponse.getActivityTasksCount() > this.outstandingReservationSlotsCount)
       throw new IllegalStateException(
           String.format(
               "Unexpectedly received %d eager activities though we only requested %d",
-              serverResponse.getActivityTasksCount(), this.acquiredReservationCount));
+              serverResponse.getActivityTasksCount(), this.outstandingReservationSlotsCount));
 
-    if (this.acquiredReservationCount == 0) return;
+    if (this.outstandingReservationSlotsCount == 0) return;
 
-    for (PollActivityTaskQueueResponse act : serverResponse.getActivityTasksList())
+    releaseSlots(this.outstandingReservationSlotsCount - serverResponse.getActivityTasksCount());
+
+    for (PollActivityTaskQueueResponse act : serverResponse.getActivityTasksList()) {
       this.eagerActivityDispatcher.dispatchActivity(act);
-
-    this.eagerActivityDispatcher.releaseActivitySlotReservations(
-        this.acquiredReservationCount - serverResponse.getActivityTasksCount());
-
-    // At this point, all reservations have been either freed or transferred to actual activities
-    this.acquiredReservationCount = 0;
+      releaseSlots(1);
+    }
   }
 
   @Override
   public void close() {
-    if (this.acquiredReservationCount > 0) {
-      this.eagerActivityDispatcher.releaseActivitySlotReservations(this.acquiredReservationCount);
-      this.acquiredReservationCount = 0;
-    }
+    if (this.outstandingReservationSlotsCount > 0)
+      releaseSlots(this.outstandingReservationSlotsCount);
+  }
+
+  private void releaseSlots(int slotsToRelease) {
+    if (slotsToRelease > this.outstandingReservationSlotsCount)
+      throw new IllegalStateException(
+          "Trying to release more activity slots than outstanding reservations");
+
+    this.eagerActivityDispatcher.releaseActivitySlotReservations(slotsToRelease);
+    this.outstandingReservationSlotsCount -= slotsToRelease;
   }
 }
