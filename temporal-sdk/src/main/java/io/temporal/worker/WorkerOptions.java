@@ -179,9 +179,12 @@ public final class WorkerOptions {
     }
 
     /**
-     * Number of simultaneous poll requests on workflow task queue. Note that the majority of the
-     * workflow tasks will be using host local task queue due to caching. So try incrementing {@link
-     * WorkerFactoryOptions.Builder#setWorkflowHostLocalPollThreadCount(int)} before this one.
+     * Sets the maximum number of simultaneous long poll requests to the Temporal Server to retrieve
+     * workflow tasks. Changing this value will affect the rate at which the worker is able to
+     * consume tasks from a task queue.
+     *
+     * <p>Due to internal logic where pollers alternate between sticky and non-sticky queues, this
+     * value cannot be 1 and will be adjusted to 2 if set to that value.
      *
      * <p>Default is 5.
      */

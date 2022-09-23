@@ -50,12 +50,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Hosts activity and workflow implementations. Uses long poll to receive activity and workflow
  * tasks and processes them in a correspondent thread pool.
  */
 public final class Worker {
+  private static final Logger log = LoggerFactory.getLogger(Worker.class);
   private final WorkerOptions options;
   private final String taskQueue;
   final SyncWorkflowWorker workflowWorker;
@@ -518,11 +521,16 @@ public final class Worker {
           factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeout();
     }
 
+    int maxConcurrentWorkflowTaskPollers = options.getMaxConcurrentWorkflowTaskPollers();
+    if (maxConcurrentWorkflowTaskPollers == 1) {
+      log.warn(
+          "WorkerOptions.Builder#setMaxConcurrentWorkflowTaskPollers was set to 1. This is an illegal value. The number of Workflow Task Pollers is forced to 2. See documentation on WorkerOptions.Builder#setMaxConcurrentWorkflowTaskPollers");
+      maxConcurrentWorkflowTaskPollers = 2;
+    }
+
     return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
         .setPollerOptions(
-            PollerOptions.newBuilder()
-                .setPollThreadCount(options.getMaxConcurrentWorkflowTaskPollers())
-                .build())
+            PollerOptions.newBuilder().setPollThreadCount(maxConcurrentWorkflowTaskPollers).build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
         .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
         .setDefaultDeadlockDetectionTimeout(options.getDefaultDeadlockDetectionTimeout())
