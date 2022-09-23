@@ -181,7 +181,7 @@ public final class WorkerOptions {
      * workflow tasks. Changing this value will affect the rate at which the worker is able to
      * consume tasks from a task queue.
      *
-     * <p>Due to internal logic where pollers alternate between stick and non-sticky queues, this
+     * <p>Due to internal logic where pollers alternate between sticky and non-sticky queues, this
      * value cannot be 1 and will be adjusted to 2 if set to that value.
      *
      * <p>Default is 5.
