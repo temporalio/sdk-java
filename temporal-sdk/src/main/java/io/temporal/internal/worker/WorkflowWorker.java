@@ -42,7 +42,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -337,23 +336,19 @@ final class WorkflowWorker implements SuspendableWorker {
 
         try (EagerActivitySlotsReservation activitySlotsReservation =
             new EagerActivitySlotsReservation(eagerActivityDispatcher, request)) {
-          AtomicReference<RespondWorkflowTaskCompletedResponse> serverResponse =
-              new AtomicReference<>();
-          grpcRetryer.retry(
-              () ->
-                  serverResponse.set(
+          RespondWorkflowTaskCompletedResponse response =
+              grpcRetryer.retryWithResult(
+                  () ->
                       service
                           .blockingStub()
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                          .respondWorkflowTaskCompleted(request.build())),
-              grpcRetryOptions);
-
-          activitySlotsReservation.handleResponse(serverResponse.get());
-
-          if (serverResponse.get().hasWorkflowTask())
-            return Optional.of(serverResponse.get().getWorkflowTask());
+                          .respondWorkflowTaskCompleted(request.build()),
+                  grpcRetryOptions);
+          activitySlotsReservation.handleResponse(response);
+          if (response.hasWorkflowTask()) {
+            return Optional.of(response.getWorkflowTask());
+          }
         }
-
       } else {
         RespondWorkflowTaskFailedRequest taskFailed = taskResult.getTaskFailed();
         if (taskFailed != null) {

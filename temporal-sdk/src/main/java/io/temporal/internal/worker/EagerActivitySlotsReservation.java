@@ -20,14 +20,19 @@
 
 package io.temporal.internal.worker;
 
+import com.google.common.base.Preconditions;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
+import java.io.Closeable;
+import javax.annotation.concurrent.NotThreadSafe;
 
-public class EagerActivitySlotsReservation implements AutoCloseable {
+/** This class is not thread safe and shouldn't leave the boundaries of one activity executor */
+@NotThreadSafe
+class EagerActivitySlotsReservation implements Closeable {
   private final EagerActivityDispatcher eagerActivityDispatcher;
   private int outstandingReservationSlotsCount = 0;
 
@@ -60,20 +65,21 @@ public class EagerActivitySlotsReservation implements AutoCloseable {
   }
 
   public void handleResponse(RespondWorkflowTaskCompletedResponse serverResponse) {
-    if (serverResponse.getActivityTasksCount() > this.outstandingReservationSlotsCount)
-      throw new IllegalStateException(
-          String.format(
-              "Unexpectedly received %d eager activities though we only requested %d",
-              serverResponse.getActivityTasksCount(), this.outstandingReservationSlotsCount));
-
-    if (this.outstandingReservationSlotsCount == 0) return;
+    Preconditions.checkArgument(
+        serverResponse.getActivityTasksCount() <= this.outstandingReservationSlotsCount,
+        "Unexpectedly received %s eager activities though we only requested %s",
+        serverResponse.getActivityTasksCount(),
+        this.outstandingReservationSlotsCount);
 
     releaseSlots(this.outstandingReservationSlotsCount - serverResponse.getActivityTasksCount());
 
     for (PollActivityTaskQueueResponse act : serverResponse.getActivityTasksList()) {
+      // don't release slots here, instead the semaphore release reference is passed to the activity
+      // worker to release when the activity is done
       this.eagerActivityDispatcher.dispatchActivity(act);
-      releaseSlots(1);
     }
+
+    this.outstandingReservationSlotsCount = 0;
   }
 
   @Override
