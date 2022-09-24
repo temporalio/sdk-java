@@ -30,7 +30,7 @@ public interface EagerActivityDispatcher {
 
   void dispatchActivity(PollActivityTaskQueueResponse activity);
 
-  static class NoopEagerActivityDispatcher implements EagerActivityDispatcher {
+  class NoopEagerActivityDispatcher implements EagerActivityDispatcher {
     @Override
     public boolean tryReserveActivitySlot(
         ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
