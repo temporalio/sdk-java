@@ -52,6 +52,10 @@ public final class WorkflowExecutorCache {
     this.cache =
         CacheBuilder.newBuilder()
             .maximumSize(workflowCacheSize)
+            // TODO this number is taken out of the blue.
+            //  This number should be calculated based on the number of all workers workflow task
+            //  processors.
+            .concurrencyLevel(128)
             .removalListener(
                 e -> {
                   WorkflowRunTaskHandler entry = (WorkflowRunTaskHandler) e.getValue();

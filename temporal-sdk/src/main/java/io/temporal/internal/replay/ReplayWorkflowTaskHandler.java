@@ -172,7 +172,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         return failureToWFTResult(workflowTask, e);
       }
     } finally {
-      if (workflowRunTaskHandler != null) {
+      if (!useCache && workflowRunTaskHandler != null) {
         // we close the execution in finally only if we don't use cache, otherwise it stays open
         workflowRunTaskHandler.close();
       }
