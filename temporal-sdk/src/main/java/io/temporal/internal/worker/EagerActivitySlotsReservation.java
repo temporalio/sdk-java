@@ -27,6 +27,7 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
+import io.temporal.internal.Config;
 import java.io.Closeable;
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -52,7 +53,8 @@ class EagerActivitySlotsReservation implements Closeable {
           command.getScheduleActivityTaskCommandAttributes();
       if (!commandAttributes.getRequestEagerExecution()) continue;
 
-      if (this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes)) {
+      if (this.outstandingReservationSlotsCount < Config.EAGER_ACTIVITIES_LIMIT
+          && this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes)) {
         this.outstandingReservationSlotsCount++;
       } else {
         mutableRequest.setCommands(

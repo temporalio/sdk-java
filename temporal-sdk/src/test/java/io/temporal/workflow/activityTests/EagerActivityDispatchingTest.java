@@ -28,6 +28,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.internal.Config;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -45,7 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.*;
 
-public class TestEagerActivityExecution {
+public class EagerActivityDispatchingTest {
 
   private final String taskQueue = "test-eageractivities";
   private TestWorkflowEnvironment env;
@@ -226,7 +227,8 @@ public class TestEagerActivityExecution {
                   .build());
 
       ArrayList<Promise<String>> promises = new ArrayList<>();
-      for (int i = 0; i < 10; i++) promises.add(Async.function(testActivities::activity));
+      for (int i = 0; i < Config.EAGER_ACTIVITIES_LIMIT; i++)
+        promises.add(Async.function(testActivities::activity));
       Promise.allOf(promises).get();
     }
   }
