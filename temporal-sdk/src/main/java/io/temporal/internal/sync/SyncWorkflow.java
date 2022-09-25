@@ -33,7 +33,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
-import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import java.util.Objects;

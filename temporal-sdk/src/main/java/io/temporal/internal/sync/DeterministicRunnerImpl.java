@@ -25,7 +25,7 @@ import com.google.common.primitives.Ints;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.context.ContextThreadLocal;
-import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.Promise;
 import java.util.ArrayList;

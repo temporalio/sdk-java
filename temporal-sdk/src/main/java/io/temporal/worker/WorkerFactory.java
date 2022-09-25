@@ -27,9 +27,9 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
+import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,6 +46,8 @@ import org.slf4j.LoggerFactory;
 /** Maintains worker creation and lifecycle. */
 public final class WorkerFactory {
   private static final Logger log = LoggerFactory.getLogger(WorkerFactory.class);
+
+  private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
 
   private final Scope metricsScope;
 
@@ -107,7 +109,8 @@ public final class WorkerFactory {
         new ActiveThreadReportingExecutor(this.workflowThreadPool, this.metricsScope);
 
     this.cache =
-        new WorkflowExecutorCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
+        new WorkflowExecutorCache(
+            this.factoryOptions.getWorkflowCacheSize(), runLocks, metricsScope);
   }
 
   /**
@@ -150,6 +153,7 @@ public final class WorkerFactory {
               factoryOptions,
               options,
               metricsScope,
+              runLocks,
               cache,
               true,
               workflowThreadExecutor,

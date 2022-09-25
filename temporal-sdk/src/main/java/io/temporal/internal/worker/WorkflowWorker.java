@@ -30,7 +30,6 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
@@ -51,7 +50,7 @@ import org.slf4j.MDC;
 final class WorkflowWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
-  private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
+  private final WorkflowRunLockManager runLocks;
 
   private final WorkflowServiceStubs service;
   private final String namespace;
@@ -75,6 +74,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueueName,
       @Nonnull SingleWorkerOptions options,
+      @Nonnull WorkflowRunLockManager runLocks,
       @Nonnull WorkflowExecutorCache cache,
       @Nonnull WorkflowTaskHandler handler,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
@@ -86,6 +86,7 @@ final class WorkflowWorker implements SuspendableWorker {
     this.pollerOptions = getPollerOptions(options);
     this.workerMetricsScope =
         MetricsTag.tagged(options.getMetricsScope(), WorkerMetricsTag.WorkerType.WORKFLOW_WORKER);
+    this.runLocks = Objects.requireNonNull(runLocks);
     this.cache = Objects.requireNonNull(cache);
     this.handler = Objects.requireNonNull(handler);
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
@@ -217,10 +218,8 @@ final class WorkflowWorker implements SuspendableWorker {
         //
         // Throws interrupted exception which is propagated. It's a correct way to handle it here.
         //
-        // TODO 1: "1 second" timeout looks potentially too strict, especially if we are talking
-        //   about workflow tasks with local activities.
-        //   This could lead to unexpected fail of queries and reset of sticky queue.
-        //   Should it be connected to a workflow task timeout / query timeout?
+        // TODO 1: 5 seconds is chosen as a half of normal workflow task timeout.
+        //   This value should be dynamically configured.
         // TODO 2: Does "consider increasing workflow task timeout" advice in this exception makes
         //   any sense?
         //   This MAYBE makes sense only if a previous workflow task timed out, it's still in
@@ -228,7 +227,7 @@ final class WorkflowWorker implements SuspendableWorker {
         //   worker from the general non-sticky task queue.
         //   Even in this case, this advice looks misleading, something else is going on
         //   (like an extreme network latency).
-        locked = runLocks.tryLock(runId, 1, TimeUnit.SECONDS);
+        locked = runLocks.tryLock(runId, 5, TimeUnit.SECONDS);
 
         if (!locked) {
           throw new UnableToAcquireLockException(

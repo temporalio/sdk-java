@@ -40,7 +40,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
-import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;

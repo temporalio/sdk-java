@@ -34,6 +34,8 @@ import com.uber.m3.tally.NoopScope;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -51,7 +53,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
+    WorkflowExecutorCache cache =
+        new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope());
     WorkflowTaskHandler taskHandler =
         new ReplayWorkflowTaskHandler(
             "namespace",
@@ -78,7 +81,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
 
     // Arrange
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, new NoopScope());
+    WorkflowExecutorCache cache =
+        new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope());
     WorkflowTaskHandler taskHandler =
         new ReplayWorkflowTaskHandler(
             "namespace",
