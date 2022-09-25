@@ -36,11 +36,8 @@ class EagerActivitySlotsReservation implements Closeable {
   private final EagerActivityDispatcher eagerActivityDispatcher;
   private int outstandingReservationSlotsCount = 0;
 
-  EagerActivitySlotsReservation(
-      EagerActivityDispatcher eagerActivityDispatcher,
-      RespondWorkflowTaskCompletedRequest.Builder mutableRequest) {
+  EagerActivitySlotsReservation(EagerActivityDispatcher eagerActivityDispatcher) {
     this.eagerActivityDispatcher = eagerActivityDispatcher;
-    applyToRequest(mutableRequest);
   }
 
   public void applyToRequest(RespondWorkflowTaskCompletedRequest.Builder mutableRequest) {
@@ -65,13 +62,14 @@ class EagerActivitySlotsReservation implements Closeable {
   }
 
   public void handleResponse(RespondWorkflowTaskCompletedResponse serverResponse) {
+    int activityTasksCount = serverResponse.getActivityTasksCount();
     Preconditions.checkArgument(
-        serverResponse.getActivityTasksCount() <= this.outstandingReservationSlotsCount,
+        activityTasksCount <= this.outstandingReservationSlotsCount,
         "Unexpectedly received %s eager activities though we only requested %s",
-        serverResponse.getActivityTasksCount(),
+        activityTasksCount,
         this.outstandingReservationSlotsCount);
 
-    releaseSlots(this.outstandingReservationSlotsCount - serverResponse.getActivityTasksCount());
+    releaseSlots(this.outstandingReservationSlotsCount - activityTasksCount);
 
     for (PollActivityTaskQueueResponse act : serverResponse.getActivityTasksList()) {
       // don't release slots here, instead the semaphore release reference is passed to the activity

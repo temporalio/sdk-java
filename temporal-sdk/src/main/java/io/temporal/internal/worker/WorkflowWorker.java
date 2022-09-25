@@ -243,10 +243,42 @@ final class WorkflowWorker implements SuspendableWorker {
         Optional<PollWorkflowTaskQueueResponse> nextWFTResponse = Optional.of(workflowTaskResponse);
         do {
           PollWorkflowTaskQueueResponse currentTask = nextWFTResponse.get();
+          nextWFTResponse = Optional.empty();
           WorkflowTaskHandler.Result result = handleTask(currentTask, workflowTypeScope);
           try {
-            nextWFTResponse =
-                sendReply(currentTask.getTaskToken(), service, workflowTypeScope, result);
+            RespondWorkflowTaskCompletedRequest taskCompleted = result.getTaskCompleted();
+            RespondWorkflowTaskFailedRequest taskFailed = result.getTaskFailed();
+            RespondQueryTaskCompletedRequest queryCompleted = result.getQueryCompleted();
+
+            if (taskCompleted != null) {
+              RespondWorkflowTaskCompletedRequest.Builder requestBuilder =
+                  taskCompleted.toBuilder();
+              try (EagerActivitySlotsReservation activitySlotsReservation =
+                  new EagerActivitySlotsReservation(eagerActivityDispatcher)) {
+                activitySlotsReservation.applyToRequest(requestBuilder);
+                RespondWorkflowTaskCompletedResponse response =
+                    sendTaskCompleted(
+                        currentTask.getTaskToken(),
+                        requestBuilder,
+                        result.getRequestRetryOptions(),
+                        workflowTypeScope);
+                nextWFTResponse =
+                    response.hasWorkflowTask()
+                        ? Optional.of(response.getWorkflowTask())
+                        : Optional.empty();
+                // TODO we don't have to do this under the runId lock
+                activitySlotsReservation.handleResponse(response);
+              }
+            } else if (taskFailed != null) {
+              sendTaskFailed(
+                  currentTask.getTaskToken(),
+                  taskFailed.toBuilder(),
+                  result.getRequestRetryOptions(),
+                  workflowTypeScope);
+            } else if (queryCompleted != null) {
+              sendDirectQueryCompletedResponse(
+                  currentTask.getTaskToken(), queryCompleted.toBuilder(), workflowTypeScope);
+            }
           } catch (Exception e) {
             logExceptionDuringResultReporting(e, currentTask, result);
             workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER).inc(1);
@@ -315,74 +347,60 @@ final class WorkflowWorker implements SuspendableWorker {
       }
     }
 
-    private Optional<PollWorkflowTaskQueueResponse> sendReply(
+    private RespondWorkflowTaskCompletedResponse sendTaskCompleted(
         ByteString taskToken,
-        WorkflowServiceStubs service,
-        Scope workflowTypeMetricsScope,
-        WorkflowTaskHandler.Result taskResult) {
-      RpcRetryOptions retryOptions = taskResult.getRequestRetryOptions();
-      RespondWorkflowTaskCompletedRequest taskCompleted = taskResult.getTaskCompleted();
-      if (taskCompleted != null) {
-        GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
-            new GrpcRetryer.GrpcRetryerOptions(
-                RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
+        RespondWorkflowTaskCompletedRequest.Builder taskCompleted,
+        RpcRetryOptions retryOptions,
+        Scope workflowTypeMetricsScope) {
+      GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
+          new GrpcRetryer.GrpcRetryerOptions(
+              RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
 
-        RespondWorkflowTaskCompletedRequest.Builder request =
-            taskCompleted.toBuilder()
-                .setIdentity(options.getIdentity())
-                .setNamespace(namespace)
-                .setBinaryChecksum(options.getBinaryChecksum())
-                .setTaskToken(taskToken);
+      taskCompleted
+          .setIdentity(options.getIdentity())
+          .setNamespace(namespace)
+          .setBinaryChecksum(options.getBinaryChecksum())
+          .setTaskToken(taskToken);
 
-        try (EagerActivitySlotsReservation activitySlotsReservation =
-            new EagerActivitySlotsReservation(eagerActivityDispatcher, request)) {
-          RespondWorkflowTaskCompletedResponse response =
-              grpcRetryer.retryWithResult(
-                  () ->
-                      service
-                          .blockingStub()
-                          .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                          .respondWorkflowTaskCompleted(request.build()),
-                  grpcRetryOptions);
-          activitySlotsReservation.handleResponse(response);
-          if (response.hasWorkflowTask()) {
-            return Optional.of(response.getWorkflowTask());
-          }
-        }
-      } else {
-        RespondWorkflowTaskFailedRequest taskFailed = taskResult.getTaskFailed();
-        if (taskFailed != null) {
-          GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
-              new GrpcRetryer.GrpcRetryerOptions(
-                  RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
+      return grpcRetryer.retryWithResult(
+          () ->
+              service
+                  .blockingStub()
+                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+                  .respondWorkflowTaskCompleted(taskCompleted.build()),
+          grpcRetryOptions);
+    }
 
-          RespondWorkflowTaskFailedRequest request =
-              taskFailed.toBuilder()
-                  .setIdentity(options.getIdentity())
-                  .setNamespace(namespace)
-                  .setTaskToken(taskToken)
-                  .build();
-          grpcRetryer.retry(
-              () ->
-                  service
-                      .blockingStub()
-                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                      .respondWorkflowTaskFailed(request),
-              grpcRetryOptions);
-        } else {
-          RespondQueryTaskCompletedRequest queryCompleted = taskResult.getQueryCompleted();
-          if (queryCompleted != null) {
-            queryCompleted =
-                queryCompleted.toBuilder().setTaskToken(taskToken).setNamespace(namespace).build();
-            // Do not retry query response.
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                .respondQueryTaskCompleted(queryCompleted);
-          }
-        }
-      }
-      return Optional.empty();
+    private void sendTaskFailed(
+        ByteString taskToken,
+        RespondWorkflowTaskFailedRequest.Builder taskFailed,
+        RpcRetryOptions retryOptions,
+        Scope workflowTypeMetricsScope) {
+      GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
+          new GrpcRetryer.GrpcRetryerOptions(
+              RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
+
+      taskFailed.setIdentity(options.getIdentity()).setNamespace(namespace).setTaskToken(taskToken);
+
+      grpcRetryer.retry(
+          () ->
+              service
+                  .blockingStub()
+                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+                  .respondWorkflowTaskFailed(taskFailed.build()),
+          grpcRetryOptions);
+    }
+
+    private void sendDirectQueryCompletedResponse(
+        ByteString taskToken,
+        RespondQueryTaskCompletedRequest.Builder queryCompleted,
+        Scope workflowTypeMetricsScope) {
+      queryCompleted.setTaskToken(taskToken).setNamespace(namespace);
+      // Do not retry query response
+      service
+          .blockingStub()
+          .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+          .respondQueryTaskCompleted(queryCompleted.build());
     }
 
     private void logExceptionDuringResultReporting(
