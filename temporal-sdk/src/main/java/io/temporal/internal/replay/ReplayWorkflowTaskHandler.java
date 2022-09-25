@@ -41,10 +41,7 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.worker.LocalActivityTask;
-import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.internal.worker.WorkflowTaskHandler;
+import io.temporal.internal.worker.*;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.NonDeterministicException;
@@ -175,9 +172,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         return failureToWFTResult(workflowTask, e);
       }
     } finally {
-      if (useCache) {
-        cache.markProcessingDone(execution);
-      } else if (workflowRunTaskHandler != null) {
+      if (workflowRunTaskHandler != null) {
         // we close the execution in finally only if we don't use cache, otherwise it stays open
         workflowRunTaskHandler.close();
       }

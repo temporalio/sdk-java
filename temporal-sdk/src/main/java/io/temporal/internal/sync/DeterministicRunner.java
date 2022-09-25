@@ -20,7 +20,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.workflow.CancellationScope;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

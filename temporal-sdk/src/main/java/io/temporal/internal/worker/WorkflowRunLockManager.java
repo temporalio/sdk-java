@@ -27,20 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-final class WorkflowRunLockManager {
+public final class WorkflowRunLockManager {
   private final Map<String, RefCountedLock> runIdLock = new ConcurrentHashMap<>();
 
   public boolean tryLock(String runId, long timeout, TimeUnit unit) throws InterruptedException {
-    RefCountedLock runLock =
-        runIdLock.compute(
-            runId,
-            (id, lock) -> {
-              if (lock == null) {
-                lock = new RefCountedLock();
-              }
-              lock.refCount++;
-              return lock;
-            });
+    RefCountedLock runLock = obtainLock(runId);
 
     boolean obtained = false;
     try {
@@ -53,8 +44,34 @@ final class WorkflowRunLockManager {
     }
   }
 
+  public boolean tryLock(String runId) {
+    RefCountedLock runLock = obtainLock(runId);
+
+    boolean obtained = false;
+    try {
+      obtained = runLock.lock.tryLock();
+      return obtained;
+    } finally {
+      if (!obtained) {
+        derefAndUnlock(runId, false);
+      }
+    }
+  }
+
   public void unlock(String runId) {
     derefAndUnlock(runId, true);
+  }
+
+  private RefCountedLock obtainLock(String runId) {
+    return runIdLock.compute(
+        runId,
+        (id, lock) -> {
+          if (lock == null) {
+            lock = new RefCountedLock();
+          }
+          lock.refCount++;
+          return lock;
+        });
   }
 
   private void derefAndUnlock(String runId, boolean unlock) {

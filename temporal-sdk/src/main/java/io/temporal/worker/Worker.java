@@ -31,12 +31,12 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.WorkflowExecutionHistory;
-import io.temporal.internal.replay.WorkflowExecutorCache;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.internal.worker.SyncActivityWorker;
 import io.temporal.internal.worker.SyncWorkflowWorker;
+import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions.Func;
@@ -82,6 +82,7 @@ public final class Worker {
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       Scope metricsScope,
+      @Nonnull WorkflowRunLockManager runLocks,
       @Nonnull WorkflowExecutorCache cache,
       boolean useStickyTaskQueue,
       WorkflowThreadExecutor workflowThreadExecutor,
@@ -137,6 +138,7 @@ public final class Worker {
             taskQueue,
             singleWorkerOptions,
             localActivityOptions,
+            runLocks,
             cache,
             useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
             workflowThreadExecutor,

@@ -37,7 +37,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.internal.replay.WorkflowExecutorCache;
+import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
