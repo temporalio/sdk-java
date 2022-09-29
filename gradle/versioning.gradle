@@ -8,42 +8,26 @@ ext.getTag = { ->
     return stdout.toString().trim().substring(1)
 }
 
-// 0.20.1 -> 0.21.0
-ext.getNextVersion = { String versionString ->
-    def split = versionString.split('\\.')
-    if (split.length != 3) {
-        throw new IllegalArgumentException("Expect a version to be semver (major.minor.patch), but got: " + versionString)
-    }
-    return split[0] + '.' + (Integer.parseInt(split[1]) + 1) + '.0'
-}
-
-// 0.20.1-2-g000a42a -> 0.21.0-SNAPSHOT
+// 0.20.1-g000a42a -> 0.21.0-SNAPSHOT
+// 0.20.0-RC1-1-g000a42a -> 0.20.0-RC2-1-SNAPSHOT
 // 0.20.1-some-postfix-2-g000a42a -> 0.21.0-some-postfix-SNAPSHOT
 // 0.20.0 -> 0.20.0
 // Used to name jar files
 ext.getVersionName = { ->
     String tag = getTag()
-    def split = tag.split('-')
-    if (split.length > 2) {
-        if (split[split.length - 1].startsWith('g')) {
-            // we are not on tag, create a snapshot version
-            String result = getNextVersion(split[0])
 
-            //if the version/tag has any postfixes after -, we preserve the,
-            for (int i = 1; i < split.length - 2; i++) {
-                result += split[i]
-            }
-            return result + '-SNAPSHOT'
+    // The last element of describe should start with g according to git describe format
+    // if we are not exactly on a tag. If it doesn't - we are on a tag
+    def (_, major, minor, patch, rc, extra, git) = (tag =~ /^(\d+)[.](\d+)[.](\d+)(?:-RC(\d+))?(-.*?)?(-g[0-9a-f]+)?$/)[0];
 
+    if (git) {
+        if (rc) {
+            return "${major}.${minor}.${patch}-RC${(rc as int) + 1}${extra}-SNAPSHOT";
         } else {
-            // the last element of describe should start with g according to git describe format
-            // if we are not exactly on a tag. If it doesn't - we are on a tag
-            return tag
+            return "${major}.${(minor as int) + 1}.0${extra}-SNAPSHOT";
         }
 
-
     } else {
-        //we are exactly on the tag, return the tag instead of SNAPSHOT
         return tag
     }
 }
