@@ -24,7 +24,7 @@ import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
-import io.temporal.internal.AsyncBackoffThrottler;
+import io.temporal.internal.BackoffThrottler;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -46,8 +46,8 @@ class GrpcAsyncRetryer {
     @Nullable
     Deadline retriesExpirationDeadline =
         GrpcRetryerUtils.mergeDurationWithAnAbsoluteDeadline(rpcOptions.getExpiration(), deadline);
-    AsyncBackoffThrottler throttler =
-        new AsyncBackoffThrottler(
+    BackoffThrottler throttler =
+        new BackoffThrottler(
             rpcOptions.getInitialInterval(),
             rpcOptions.getMaximumInterval(),
             rpcOptions.getBackoffCoefficient());
@@ -72,11 +72,11 @@ class GrpcAsyncRetryer {
       Supplier<CompletableFuture<R>> function,
       int attempt,
       @Nullable Deadline retriesExpirationDeadline,
-      AsyncBackoffThrottler throttler,
+      BackoffThrottler throttler,
       StatusRuntimeException previousException,
       CompletableFuture<R> resultCF) {
     throttler
-        .throttle()
+        .throttleAsync()
         .thenAccept(
             (ignore) -> {
               if (previousException != null) {
@@ -140,7 +140,7 @@ class GrpcAsyncRetryer {
       Supplier<CompletableFuture<R>> function,
       int attempt,
       @Nullable Deadline retriesExpirationDeadline,
-      AsyncBackoffThrottler throttler,
+      BackoffThrottler throttler,
       StatusRuntimeException previousException,
       Throwable currentException,
       CompletableFuture<R> resultCF) {

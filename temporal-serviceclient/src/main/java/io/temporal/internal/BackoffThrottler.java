@@ -20,9 +20,11 @@
 
 package io.temporal.internal;
 
+import io.grpc.Context;
+
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.*;
 import javax.annotation.Nullable;
 
 /**
@@ -54,9 +56,30 @@ import javax.annotation.Nullable;
  * }
  * </pre>
  *
+ * <p>or using async semantic
+ *
+ * <pre>
+ * BackoffThrottler throttler = new BackoffThrottler(1000, 60000, 2);
+ * while(!stopped) {
+ *     try {
+ *         Future&lt;Void&gt; t = throttler.throttleAsync();
+ *         t.get();
+ *         // some code that can fail and should be throttled
+ *         ...
+ *         throttler.success();
+ *     }
+ *     catch (Exception e) {
+ *         throttler.failure();
+ *     }
+ * }
+ * </pre>
+ *
  * @author fateev
  */
 public final class BackoffThrottler {
+
+  private static final ScheduledExecutorService executor =
+      new ScheduledThreadPoolExecutor(1, r -> new Thread(r, "async-backoff-throttler"));
 
   private final Duration initialSleep;
 
@@ -64,7 +87,7 @@ public final class BackoffThrottler {
 
   private final double backoffCoefficient;
 
-  private final AtomicLong failureCount = new AtomicLong();
+  private int failureCount = 0;
 
   /**
    * Construct an instance of the throttler.
@@ -83,7 +106,7 @@ public final class BackoffThrottler {
 
   private long calculateSleepTime() {
     double sleepMillis =
-        Math.pow(backoffCoefficient, failureCount.get() - 1) * initialSleep.toMillis();
+        Math.pow(backoffCoefficient, failureCount - 1) * initialSleep.toMillis();
     if (maxSleep != null) {
       return Math.min((long) sleepMillis, maxSleep.toMillis());
     }
@@ -96,18 +119,33 @@ public final class BackoffThrottler {
    * @throws InterruptedException
    */
   public void throttle() throws InterruptedException {
-    if (failureCount.get() > 0) {
+    if (failureCount > 0) {
       Thread.sleep(calculateSleepTime());
     }
   }
 
-  /** Resent failure count to 0. */
+  /** Result future is done after a delay if there were failures since the last success call. */
+  public CompletableFuture<Void> throttleAsync() {
+    if (failureCount == 0) {
+      return CompletableFuture.completedFuture(null);
+    }
+    CompletableFuture<Void> result = new CompletableFuture<>();
+    long delay = calculateSleepTime();
+    @SuppressWarnings({"FutureReturnValueIgnored", "unused"})
+    ScheduledFuture<?> ignored =
+        executor.schedule(
+            // preserving gRPC context between threads
+            Context.current().wrap(() -> result.complete(null)), delay, TimeUnit.MILLISECONDS);
+    return result;
+  }
+
+  /** Reset failure count to 0. */
   public void success() {
-    failureCount.set(0);
+    failureCount = 0;
   }
 
   /** Increment failure count. */
   public void failure() {
-    failureCount.incrementAndGet();
+    failureCount++;
   }
 }
