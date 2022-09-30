@@ -21,7 +21,6 @@
 package io.temporal.internal;
 
 import io.grpc.Context;
-
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -105,8 +104,7 @@ public final class BackoffThrottler {
   }
 
   private long calculateSleepTime() {
-    double sleepMillis =
-        Math.pow(backoffCoefficient, failureCount - 1) * initialSleep.toMillis();
+    double sleepMillis = Math.pow(backoffCoefficient, failureCount - 1) * initialSleep.toMillis();
     if (maxSleep != null) {
       return Math.min((long) sleepMillis, maxSleep.toMillis());
     }
