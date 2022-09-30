@@ -25,7 +25,7 @@ ext.getVersionName = { ->
 
     if (git) {
         if (rc) {
-            return "${major}.${minor}.${patch}-RC${(rc as int) + 1}-SNAPSHOT";
+            return "${major}.${minor}.${patch}-SNAPSHOT";
         } else {
             return "${major}.${(minor as int) + 1}.0-SNAPSHOT";
         }
