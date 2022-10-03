@@ -29,7 +29,7 @@ allprojects {
 
 ext {
     // Platforms
-    grpcVersion = '1.49.1' // [1.34.0,)
+    grpcVersion = '1.49.2' // [1.34.0,)
     jacksonVersion = '2.13.4' // [2.9.0,)
     micrometerVersion = '1.9.4' // [1.0.0,)
 
