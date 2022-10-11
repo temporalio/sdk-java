@@ -29,9 +29,9 @@ import static org.junit.Assert.assertTrue;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.testservice.v1.SleepRequest;
-import io.temporal.api.testservice.v1.UnlockTimeSkippingRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.TestServiceStubs;
 import io.temporal.serviceclient.TestServiceStubsOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -155,9 +155,7 @@ public class WorkflowCachingTest {
         response.getWorkflowExecution(), NAMESPACE, workflowServiceStubs);
     TestServiceUtils.pollWorkflowTaskQueue(
         NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), workflowServiceStubs);
-    testServiceStubs
-        .blockingStub()
-        .unlockTimeSkipping(UnlockTimeSkippingRequest.newBuilder().build());
+
     testServiceStubs
         .blockingStub()
         .unlockTimeSkippingWithSleep(
@@ -173,6 +171,9 @@ public class WorkflowCachingTest {
     // Make sure first is workflow execution started
     assertNotNull(response.getHistory().getEvents(0).getWorkflowExecutionStartedEventAttributes());
     // 10 is the expected number of events for the full history.
-    assertEquals(10, response.getHistory().getEventsCount());
+    assertEquals(
+        "Expected 10 events, but got: " + new WorkflowExecutionHistory(response.getHistory()),
+        10,
+        response.getHistory().getEventsCount());
   }
 }
