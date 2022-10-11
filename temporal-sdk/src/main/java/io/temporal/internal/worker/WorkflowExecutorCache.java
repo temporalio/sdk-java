@@ -23,9 +23,8 @@ package io.temporal.internal.worker;
 import static io.temporal.internal.common.WorkflowExecutionUtils.isFullHistory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
@@ -33,7 +32,7 @@ import io.temporal.internal.replay.WorkflowRunTaskHandler;
 import io.temporal.worker.MetricsType;
 import java.util.Objects;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +41,7 @@ import org.slf4j.LoggerFactory;
 public final class WorkflowExecutorCache {
   private final Logger log = LoggerFactory.getLogger(WorkflowExecutorCache.class);
   private final WorkflowRunLockManager runLockManager;
-  private final LoadingCache<String, WorkflowRunTaskHandler> cache;
+  private final Cache<String, WorkflowRunTaskHandler> cache;
   private final Scope metricsScope;
 
   public WorkflowExecutorCache(
@@ -73,13 +72,7 @@ public final class WorkflowExecutorCache {
                     }
                   }
                 })
-            .build(
-                new CacheLoader<String, WorkflowRunTaskHandler>() {
-                  @Override
-                  public WorkflowRunTaskHandler load(String key) {
-                    return null;
-                  }
-                });
+            .build();
     this.metricsScope = Objects.requireNonNull(scope);
     this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
   }
@@ -90,47 +83,30 @@ public final class WorkflowExecutorCache {
       Callable<WorkflowRunTaskHandler> workflowExecutorFn)
       throws Exception {
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
+    String runId = execution.getRunId();
     if (isFullHistory(workflowTask)) {
-      // no need to call a full-blown #invalidate, because we don't need to unmark from processing
-      // yet
-      cache.invalidate(execution.getRunId());
-      metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
-
+      invalidate(execution, metricsScope, "full history", null);
       log.trace(
           "New Workflow Executor {}-{} has been created for a full history run",
           execution.getWorkflowId(),
-          execution.getRunId());
+          runId);
       return workflowExecutorFn.call();
     }
 
-    WorkflowRunTaskHandler workflowRunTaskHandler = getForProcessing(execution, workflowTypeScope);
+    @Nullable WorkflowRunTaskHandler workflowRunTaskHandler = cache.getIfPresent(runId);
+
     if (workflowRunTaskHandler != null) {
+      workflowTypeScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
       return workflowRunTaskHandler;
     }
 
     log.trace(
         "Workflow Executor {}-{} wasn't found in cache and a new executor has been created",
         execution.getWorkflowId(),
-        execution.getRunId());
-    return workflowExecutorFn.call();
-  }
+        runId);
+    workflowTypeScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
 
-  public WorkflowRunTaskHandler getForProcessing(
-      WorkflowExecution workflowExecution, Scope metricsScope) throws ExecutionException {
-    String runId = workflowExecution.getRunId();
-    try {
-      WorkflowRunTaskHandler workflowRunTaskHandler = cache.get(runId);
-      log.trace(
-          "Workflow Execution {}-{} has been marked as in-progress",
-          workflowExecution.getWorkflowId(),
-          workflowExecution.getRunId());
-      metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
-      return workflowRunTaskHandler;
-    } catch (CacheLoader.InvalidCacheLoadException e) {
-      // We don't have a default loader and don't want to have one. So it's ok to get null value.
-      metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
-      return null;
-    }
+    return workflowExecutorFn.call();
   }
 
   public void addToCache(
@@ -143,7 +119,13 @@ public final class WorkflowExecutorCache {
     this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
   }
 
-  public boolean evictAnyNotInProcessing(WorkflowExecution inFavorOfExecution, Scope metricsScope) {
+  /**
+   * @param workflowTypeScope accepts workflow metric scope (tagged with task queue and workflow
+   *     type)
+   */
+  @SuppressWarnings("deprecation")
+  public boolean evictAnyNotInProcessing(
+      WorkflowExecution inFavorOfExecution, Scope workflowTypeScope) {
     try {
       String inFavorOfRunId = inFavorOfExecution.getRunId();
       for (String key : cache.asMap().keySet()) {
@@ -159,8 +141,8 @@ public final class WorkflowExecutorCache {
                 inFavorOfRunId,
                 key);
             cache.invalidate(key);
-            metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
-            metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
+            workflowTypeScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
+            workflowTypeScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
             return true;
           } finally {
             runLockManager.unlock(key);
@@ -175,22 +157,23 @@ public final class WorkflowExecutorCache {
     }
   }
 
+  @SuppressWarnings("deprecation")
   public void invalidate(
       WorkflowExecution execution, Scope workflowTypeScope, String reason, Throwable cause) {
-    try {
-      String runId = execution.getRunId();
-      if (log.isTraceEnabled()) {
-        log.trace(
-            "Invalidating {}-{} because of '{}', value is present in the cache: {}",
-            execution.getWorkflowId(),
-            runId,
-            reason,
-            cache.getIfPresent(runId),
-            cause);
-      }
-      cache.invalidate(runId);
+    String runId = execution.getRunId();
+    @Nullable WorkflowRunTaskHandler present = cache.getIfPresent(runId);
+    if (log.isTraceEnabled()) {
+      log.trace(
+          "Invalidating {}-{} because of '{}', value is present in the cache: {}",
+          execution.getWorkflowId(),
+          runId,
+          reason,
+          present,
+          cause);
+    }
+    cache.invalidate(runId);
+    if (present != null) {
       workflowTypeScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
-    } finally {
       this.metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
     }
   }

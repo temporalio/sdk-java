@@ -29,16 +29,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class MetricsTag {
-  public static final String ACTIVITY_TYPE = "activity_type";
   public static final String NAMESPACE = "namespace";
   public static final String TASK_QUEUE = "task_queue";
+  public static final String WORKER_TYPE = "worker_type";
+
+  public static final String ACTIVITY_TYPE = "activity_type";
   public static final String WORKFLOW_TYPE = "workflow_type";
   public static final String SIGNAL_NAME = "signal_name";
   public static final String QUERY_TYPE = "query_type";
   public static final String STATUS_CODE = "status_code";
   public static final String EXCEPTION = "exception";
   public static final String OPERATION_NAME = "operation";
-  public static final String WORKER_TYPE = "worker_type";
 
   /** Used to pass metrics scope to the interceptor */
   public static final CallOptions.Key<Scope> METRICS_TAGS_CALL_OPTIONS_KEY =

@@ -129,7 +129,7 @@ public final class MetricsType {
   public static final String LOCAL_ACTIVITY_FAILED_COUNTER =
       TEMPORAL_METRICS_PREFIX + "local_activity_failed";
 
-  // Worker internals, tagged with worker_type
+  // Worker internals, tagged with namespace, task_queue, worker_type
   public static final String WORKER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "worker_start";
   public static final String POLLER_START_COUNTER = TEMPORAL_METRICS_PREFIX + "poller_start";
   // gauge
@@ -140,13 +140,31 @@ public final class MetricsType {
   // Worker Factory
   //
 
+  // tagged with namespace, task_queue, worker_type, workflow_type
   public static final String STICKY_CACHE_HIT = TEMPORAL_METRICS_PREFIX + "sticky_cache_hit";
+  // tagged with namespace, task_queue, worker_type, workflow_type
   public static final String STICKY_CACHE_MISS = TEMPORAL_METRICS_PREFIX + "sticky_cache_miss";
+  // tagged with namespace, task_queue, worker_type, workflow_type
+  @Deprecated
+  // This metric in its current form is useless, it's not possible for users to interpret it for any
+  // meaningful purpose.
+  // We count in workflows that are getting evicted because we are out of threads in workflow thread
+  // pool. (makes sense)
+  // We count in workflows that are getting "evicted" because a full history from the server is
+  // received. (kinda makes sense)
+  // We count in workflows that are getting "evicted" because they are done. But only if they were
+  // added to the cache. (doesn't make sense)
+  // We DON'T count in workflows that are getting "evicted" because the cache is overflown. (doesn't
+  // make sense)
+  // TODO revisit implementation of this metric in Go and if it make sense there, fix the Java
+  // version.
+  //  Otherwise deprecate it everywhere and remove from docs.
   public static final String STICKY_CACHE_TOTAL_FORCED_EVICTION =
       TEMPORAL_METRICS_PREFIX + "sticky_cache_total_forced_eviction";
+  // tagged with namespace, task_queue, worker_type, workflow_type
   public static final String STICKY_CACHE_THREAD_FORCED_EVICTION =
       TEMPORAL_METRICS_PREFIX + "sticky_cache_thread_forced_eviction";
-  // gauge
+  // gauge, tagged with namespace
   public static final String STICKY_CACHE_SIZE = TEMPORAL_METRICS_PREFIX + "sticky_cache_size";
   // gauge
   public static final String WORKFLOW_ACTIVE_THREAD_COUNT =

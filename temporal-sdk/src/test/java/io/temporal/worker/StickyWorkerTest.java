@@ -259,6 +259,7 @@ public class StickyWorkerTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation")
   public void whenStickyIsEnabledThenTheWorkflowIsCachedChildWorkflows() throws Exception {
     // Arrange
     String taskQueueName = "cachedStickyTest_ChildWorkflows";
@@ -291,8 +292,21 @@ public class StickyWorkerTest {
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow1")
             .build();
     metricsScope.close(); // Flush metrics
-    reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, 2);
+
+    // making sure none workflow tasks came with a full history (after timeout from the sticky
+    // queue) which caused a forced eviction from the cache. 1 eviction comes from the finishing of
+    // the parent workflow and eviction of it from the cache.
+    // TODO feel free to remove this assertion if refactoring out STICKY_CACHE_TOTAL_FORCED_EVICTION
+    // metric. It has been added just as an additional verification to investigate a flaky test
+    reporter.assertCounter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION, tags, 1);
+
     reporter.assertNoMetric(MetricsType.STICKY_CACHE_MISS, tags);
+    // It's valid for the server to schedule a workflow task
+    //  - after the child is started and before the child is completed
+    //  - or after it was completed
+    // Depending on that, there will be one or two additional workflow tasks.
+    // So both 1 or 2 here is a valid scenario. The main thing that matters is 0 cache miss.
+    reporter.assertCounter(MetricsType.STICKY_CACHE_HIT, tags, a -> a == 1 || a == 2);
     // Finish Workflow
     wrapper.close();
   }
