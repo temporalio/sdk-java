@@ -28,122 +28,99 @@ import io.temporal.internal.BackoffThrottler;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class GrpcAsyncRetryer {
+class GrpcAsyncRetryer<R> {
   private static final Logger log = LoggerFactory.getLogger(GrpcRetryer.class);
 
-  public <R> CompletableFuture<R> retry(
+  private final ScheduledExecutorService executor;
+  private final GrpcRetryer.GrpcRetryerOptions options;
+  private final GetSystemInfoResponse.Capabilities serverCapabilities;
+  private final Supplier<CompletableFuture<R>> function;
+  private final BackoffThrottler throttler;
+  private final Deadline retriesExpirationDeadline;
+  private StatusRuntimeException lastMeaningfulException = null;
+
+  public GrpcAsyncRetryer(
+      ScheduledExecutorService executor,
       Supplier<CompletableFuture<R>> function,
       GrpcRetryer.GrpcRetryerOptions options,
       GetSystemInfoResponse.Capabilities serverCapabilities) {
+
     options.validate();
+
+    this.executor = executor;
+    this.options = options;
+    this.serverCapabilities = serverCapabilities;
+    this.function = function;
+
     RpcRetryOptions rpcOptions = options.getOptions();
-    @Nullable Deadline deadline = options.getDeadline();
-    @Nullable
-    Deadline retriesExpirationDeadline =
-        GrpcRetryerUtils.mergeDurationWithAnAbsoluteDeadline(rpcOptions.getExpiration(), deadline);
-    BackoffThrottler throttler =
+    this.retriesExpirationDeadline =
+        GrpcRetryerUtils.mergeDurationWithAnAbsoluteDeadline(
+            rpcOptions.getExpiration(), options.getDeadline());
+    this.throttler =
         new BackoffThrottler(
             rpcOptions.getInitialInterval(),
             rpcOptions.getMaximumInterval(),
             rpcOptions.getBackoffCoefficient());
+  }
 
-    int attempt = 1;
+  public CompletableFuture<R> retry() {
     CompletableFuture<R> resultCF = new CompletableFuture<>();
-    retry(
-        options,
-        serverCapabilities,
-        function,
-        attempt,
-        retriesExpirationDeadline,
-        throttler,
-        null,
-        resultCF);
+    retry(resultCF);
     return resultCF;
   }
 
-  private <R> void retry(
-      GrpcRetryer.GrpcRetryerOptions options,
-      GetSystemInfoResponse.Capabilities serverCapabilities,
-      Supplier<CompletableFuture<R>> function,
-      int attempt,
-      @Nullable Deadline retriesExpirationDeadline,
-      BackoffThrottler throttler,
-      StatusRuntimeException previousException,
-      CompletableFuture<R> resultCF) {
-    throttler
-        .throttleAsync()
-        .thenAccept(
-            (ignore) -> {
-              if (previousException != null) {
-                log.debug("Retrying after failure", previousException);
-              }
+  private void retry(CompletableFuture<R> resultCF) {
+    CompletableFuture<Void> throttleFuture = new CompletableFuture<>();
+    @SuppressWarnings({"FutureReturnValueIgnored", "unused"})
+    ScheduledFuture<?> ignored =
+        executor.schedule(
+            // preserving gRPC context between threads
+            Context.current().wrap(() -> throttleFuture.complete(null)),
+            throttler.getSleepTime(),
+            TimeUnit.MILLISECONDS);
 
-              // try-catch is because get() call might throw.
-              CompletableFuture<R> result;
+    throttleFuture.thenAccept(
+        (ignore) -> {
+          if (lastMeaningfulException != null) {
+            log.debug("Retrying after failure", lastMeaningfulException);
+          }
 
-              try {
-                result = function.get();
-              } catch (Throwable e) {
-                throttler.failure();
-                // function isn't supposed to throw exceptions, it should always return a
-                // CompletableFuture even if it's a failed one.
-                // But if this happens - process the same way as it would be an exception from
-                // completable future
-                // Do not retry if it's not StatusRuntimeException
-                failOrRetry(
-                    options,
-                    serverCapabilities,
-                    function,
-                    attempt,
-                    retriesExpirationDeadline,
-                    throttler,
-                    previousException,
-                    e,
-                    resultCF);
-                return;
-              }
-              if (result == null) {
-                resultCF.complete(null);
-                return;
-              }
+          // try-catch is because get() call might throw.
+          try {
+            CompletableFuture<R> result = function.get();
+            if (result == null) result = CompletableFuture.completedFuture(null);
 
-              result.whenComplete(
-                  (r, e) -> {
-                    if (e == null) {
-                      throttler.success();
-                      resultCF.complete(r);
-                    } else {
-                      throttler.failure();
-                      failOrRetry(
-                          options,
-                          serverCapabilities,
-                          function,
-                          attempt,
-                          retriesExpirationDeadline,
-                          throttler,
-                          previousException,
-                          e,
-                          resultCF);
-                    }
-                  });
-            });
+            result.whenComplete(
+                (r, e) -> {
+                  if (e == null) {
+                    throttler.success();
+                    resultCF.complete(r);
+                  } else {
+                    throttler.failure();
+                    failOrRetry(e, resultCF);
+                  }
+                });
+
+          } catch (Throwable e) {
+            throttler.failure();
+            // function isn't supposed to throw exceptions, it should always return a
+            // CompletableFuture even if it's a failed one.
+            // But if this happens - process the same way as it would be an exception from
+            // completable future
+            // Do not retry if it's not StatusRuntimeException
+            failOrRetry(e, resultCF);
+          }
+        });
   }
 
-  private <R> void failOrRetry(
-      GrpcRetryer.GrpcRetryerOptions options,
-      GetSystemInfoResponse.Capabilities serverCapabilities,
-      Supplier<CompletableFuture<R>> function,
-      int attempt,
-      @Nullable Deadline retriesExpirationDeadline,
-      BackoffThrottler throttler,
-      StatusRuntimeException previousException,
-      Throwable currentException,
-      CompletableFuture<R> resultCF) {
+  private void failOrRetry(Throwable currentException, CompletableFuture<R> resultCF) {
 
     // If exception is thrown from CompletionStage/CompletableFuture methods like compose or handle
     // - it gets wrapped into CompletionException, so here we need to unwrap it. We can get not
@@ -168,25 +145,17 @@ class GrpcAsyncRetryer {
       return;
     }
 
-    StatusRuntimeException lastMeaningfulException =
-        GrpcRetryerUtils.lastMeaningfulException(statusRuntimeException, previousException);
+    this.lastMeaningfulException =
+        GrpcRetryerUtils.lastMeaningfulException(statusRuntimeException, lastMeaningfulException);
     if (GrpcRetryerUtils.ranOutOfRetries(
         options.getOptions(),
-        attempt,
-        retriesExpirationDeadline,
+        this.throttler.getAttemptCount(),
+        this.retriesExpirationDeadline,
         Context.current().getDeadline())) {
       log.debug("Out of retries, throwing", lastMeaningfulException);
       resultCF.completeExceptionally(lastMeaningfulException);
     } else {
-      retry(
-          options,
-          serverCapabilities,
-          function,
-          attempt + 1,
-          retriesExpirationDeadline,
-          throttler,
-          lastMeaningfulException,
-          resultCF);
+      retry(resultCF);
     }
   }
 

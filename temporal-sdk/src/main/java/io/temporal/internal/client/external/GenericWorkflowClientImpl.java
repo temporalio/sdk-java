@@ -40,6 +40,9 @@ import javax.annotation.Nonnull;
 
 public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
+  private static final ScheduledExecutorService executor =
+      new ScheduledThreadPoolExecutor(1, r -> new Thread(r, "generic-wf-client-async-throttler"));
+
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
   private final GrpcRetryer grpcRetryer;
@@ -160,6 +163,7 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   public CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
     return grpcRetryer.retryWithResultAsync(
+        executor,
         () -> {
           CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
           ListenableFuture<GetWorkflowExecutionHistoryResponse> resultFuture =

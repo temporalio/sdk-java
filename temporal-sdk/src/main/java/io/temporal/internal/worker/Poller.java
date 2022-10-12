@@ -214,7 +214,10 @@ final class Poller<T> implements SuspendableWorker {
     @Override
     public void run() {
       try {
-        pollBackoffThrottler.throttle();
+        long throttleMs = pollBackoffThrottler.getSleepTime();
+        if (throttleMs > 0) {
+          Thread.sleep(throttleMs);
+        }
         if (pollRateThrottler != null) {
           pollRateThrottler.throttle();
         }

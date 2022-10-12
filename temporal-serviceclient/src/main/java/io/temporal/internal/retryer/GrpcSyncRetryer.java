@@ -57,7 +57,10 @@ class GrpcSyncRetryer {
       attempt++;
 
       try {
-        throttler.throttle();
+        long throttleMs = throttler.getSleepTime();
+        if (throttleMs > 0) {
+          Thread.sleep(throttleMs);
+        }
         if (lastMeaningfulException != null) {
           log.debug("Retrying after failure", lastMeaningfulException);
         }
@@ -76,11 +79,10 @@ class GrpcSyncRetryer {
         }
         lastMeaningfulException =
             GrpcRetryerUtils.lastMeaningfulException(e, lastMeaningfulException);
+        throttler.failure();
       }
       // No catch block for any other exceptions because we don't retry them, we pass them through.
       // It's designed this way because it's GrpcRetryer, not general purpose retryer.
-
-      throttler.failure();
     } while (!GrpcRetryerUtils.ranOutOfRetries(
         rpcOptions, attempt, retriesExpirationDeadline, Context.current().getDeadline()));
 
