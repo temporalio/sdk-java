@@ -1,4 +1,4 @@
 [*.{kt,kts}]
 indent_size = 2
 # reenable filename rule after https://github.com/pinterest/ktlint/issues/1521
-disabled_rules = filename
+ktlint_disabled_rules = filename

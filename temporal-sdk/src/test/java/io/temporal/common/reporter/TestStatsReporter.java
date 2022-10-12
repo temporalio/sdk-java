@@ -55,12 +55,18 @@ public final class TestStatsReporter implements StatsReporter {
       fail(
           "Metric '"
               + metricName
-              + "', all reported metrics: \n "
-              + String.join("\n ", counters.keySet()));
+              + "' was reported, with value: '"
+              + counters.get(metricName).get()
+              + "'");
     }
   }
 
   public synchronized void assertCounter(String name, Map<String, String> tags, long expected) {
+    assertCounter(name, tags, actual -> actual == expected);
+  }
+
+  public synchronized void assertCounter(
+      String name, Map<String, String> tags, Predicate<Long> expected) {
     String metricName = getMetricName(name, tags);
     AtomicLong accumulator = counters.get(metricName);
     if (accumulator == null) {
@@ -70,7 +76,8 @@ public final class TestStatsReporter implements StatsReporter {
               + "', reported metrics: \n "
               + String.join("\n ", counters.keySet()));
     }
-    assertEquals(String.valueOf(accumulator.get()), expected, accumulator.get());
+    long actual = accumulator.get();
+    assertTrue("" + actual, expected.test(actual));
   }
 
   public synchronized void assertGauge(String name, Map<String, String> tags, double expected) {

@@ -15,7 +15,7 @@ subprojects {
                     // needs to be aligned with .editorconfig
                     // https://github.com/diffplug/spotless/tree/main/plugin-gradle#ktlint
                     // reenable filename rule after https://github.com/pinterest/ktlint/issues/1521
-                    .editorConfigOverride(['indent_size': '2', 'disabled_rules': 'filename'])
+                    .editorConfigOverride(['indent_size': '2', 'ktlint_disabled_rules': 'filename'])
         }
     }
 
