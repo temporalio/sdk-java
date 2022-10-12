@@ -23,6 +23,7 @@ package io.temporal.internal;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * Used to throttle code execution in presence of failures using exponential backoff logic. The
@@ -58,6 +59,7 @@ import javax.annotation.Nullable;
  *
  * @author fateev
  */
+@NotThreadSafe
 public final class BackoffThrottler {
 
   private final Duration initialSleep;
