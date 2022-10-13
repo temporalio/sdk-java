@@ -20,6 +20,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.common.collect.ImmutableMap;
 import io.grpc.Status;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
@@ -43,17 +44,16 @@ class TestVisibilityStoreImpl implements TestVisibilityStore {
   private static final String DEFAULT_KEY_BOOL = "CustomBoolField";
 
   private final Map<String, IndexedValueType> searchAttributes =
-      new ConcurrentHashMap<String, IndexedValueType>() {
-        {
-          put(DEFAULT_KEY_STRING, IndexedValueType.INDEXED_VALUE_TYPE_TEXT);
-          put(DEFAULT_KEY_TEXT, IndexedValueType.INDEXED_VALUE_TYPE_TEXT);
-          put(DEFAULT_KEY_KEYWORD, IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD);
-          put(DEFAULT_KEY_INTEGER, IndexedValueType.INDEXED_VALUE_TYPE_INT);
-          put(DEFAULT_KEY_DOUBLE, IndexedValueType.INDEXED_VALUE_TYPE_DOUBLE);
-          put(DEFAULT_KEY_BOOL, IndexedValueType.INDEXED_VALUE_TYPE_BOOL);
-          put(DEFAULT_KEY_DATE_TIME, IndexedValueType.INDEXED_VALUE_TYPE_DATETIME);
-        }
-      };
+      new ConcurrentHashMap<>(
+          ImmutableMap.<String, IndexedValueType>builder()
+              .put(DEFAULT_KEY_STRING, IndexedValueType.INDEXED_VALUE_TYPE_TEXT)
+              .put(DEFAULT_KEY_TEXT, IndexedValueType.INDEXED_VALUE_TYPE_TEXT)
+              .put(DEFAULT_KEY_KEYWORD, IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD)
+              .put(DEFAULT_KEY_INTEGER, IndexedValueType.INDEXED_VALUE_TYPE_INT)
+              .put(DEFAULT_KEY_DOUBLE, IndexedValueType.INDEXED_VALUE_TYPE_DOUBLE)
+              .put(DEFAULT_KEY_BOOL, IndexedValueType.INDEXED_VALUE_TYPE_BOOL)
+              .put(DEFAULT_KEY_DATE_TIME, IndexedValueType.INDEXED_VALUE_TYPE_DATETIME)
+              .build());
 
   private final Map<ExecutionId, SearchAttributes> executionSearchAttributes = new HashMap<>();
 

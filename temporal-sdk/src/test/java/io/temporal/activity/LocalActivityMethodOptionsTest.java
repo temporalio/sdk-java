@@ -25,7 +25,7 @@ import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.shared.TestActivities.TestLocalActivity;
 import io.temporal.workflow.shared.TestActivities.TestLocalActivityImpl;
 import java.time.Duration;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import org.junit.*;
 import org.junit.rules.Timeout;
@@ -54,11 +54,7 @@ public class LocalActivityMethodOptionsTest {
   private static final LocalActivityOptions methodOps2 =
       LocalActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(4)).build();
   private static final Map<String, LocalActivityOptions> perMethodOptionsMap =
-      new HashMap<String, LocalActivityOptions>() {
-        {
-          put("LocalActivity1", methodOps2);
-        }
-      };
+      Collections.singletonMap("LocalActivity1", methodOps2);
   private TestActivityEnvironment testEnv;
 
   @Before

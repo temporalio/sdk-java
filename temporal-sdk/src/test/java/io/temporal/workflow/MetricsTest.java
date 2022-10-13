@@ -61,6 +61,7 @@ import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.ReceiveSignalObjectWorkflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnString;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -273,14 +274,10 @@ public class MetricsTest {
     // Wait for reporter
     Thread.sleep(REPORTING_FLUSH_TIME);
 
-    Map<String, String> tags =
-        new LinkedHashMap<String, String>() {
-          {
-            putAll(MetricsTag.defaultTags(NAMESPACE));
-            put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
-            put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectWorkflow");
-          }
-        };
+    Map<String, String> tags = new HashMap<>(MetricsTag.defaultTags(NAMESPACE));
+    tags.put(MetricsTag.TASK_QUEUE, TASK_QUEUE);
+    tags.put(MetricsTag.WORKFLOW_TYPE, "ReceiveSignalObjectWorkflow");
+
     reporter.assertCounter(CORRUPTED_SIGNALS_COUNTER, tags, 1);
   }
 
@@ -304,13 +301,8 @@ public class MetricsTest {
     // Wait for reporter
     Thread.sleep(REPORTING_FLUSH_TIME);
 
-    Map<String, String> tags =
-        new LinkedHashMap<String, String>() {
-          {
-            putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
-            put(MetricsTag.OPERATION_NAME, "DescribeNamespace");
-          }
-        };
+    Map<String, String> tags = new HashMap<>(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
+    tags.put(MetricsTag.OPERATION_NAME, "DescribeNamespace");
     reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
     tags.put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT");
     reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
@@ -379,15 +371,9 @@ public class MetricsTest {
     // Wait for reporter
     Thread.sleep(REPORTING_FLUSH_TIME);
 
-    Map<String, String> tags =
-        new LinkedHashMap<String, String>() {
-          {
-            putAll(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
-            put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution");
-          }
-        };
+    Map<String, String> tags = new HashMap<>(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
+    tags.put(MetricsTag.OPERATION_NAME, "StartWorkflowExecution");
     reporter.assertCounter(TEMPORAL_REQUEST, tags, 1);
-
     tags.put(MetricsTag.STATUS_CODE, "INVALID_ARGUMENT");
     reporter.assertCounter(TEMPORAL_REQUEST_FAILURE, tags, 1);
   }

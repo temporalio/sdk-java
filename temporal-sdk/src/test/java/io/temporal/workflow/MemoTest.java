@@ -40,6 +40,7 @@ import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Rule;
@@ -54,14 +55,7 @@ public class MemoTest {
   private static final String MEMO_KEY_MISSING = "testKey3";
   private static final Map<String, Object> MEMO =
       ImmutableMap.of(
-          MEMO_KEY,
-          MEMO_VALUE,
-          MEMO_KEY_2,
-          new HashMap<String, Integer>() {
-            {
-              put(MEMO_KEY_2, MEMO_VALUE_2);
-            }
-          });
+          MEMO_KEY, MEMO_VALUE, MEMO_KEY_2, Collections.singletonMap(MEMO_KEY_2, MEMO_VALUE_2));
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

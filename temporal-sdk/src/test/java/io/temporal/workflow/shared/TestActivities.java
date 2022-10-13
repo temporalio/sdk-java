@@ -25,6 +25,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
@@ -171,25 +172,25 @@ public class TestActivities {
     @Override
     public Map<String, Duration> activity1() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      return new HashMap<String, Duration>() {
-        {
-          put("HeartbeatTimeout", info.getHeartbeatTimeout());
-          put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-          put("StartToCloseTimeout", info.getStartToCloseTimeout());
-        }
-      };
+      return ImmutableMap.of(
+          "HeartbeatTimeout",
+          info.getHeartbeatTimeout(),
+          "ScheduleToCloseTimeout",
+          info.getScheduleToCloseTimeout(),
+          "StartToCloseTimeout",
+          info.getStartToCloseTimeout());
     }
 
     @Override
     public Map<String, Duration> activity2() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      return new HashMap<String, Duration>() {
-        {
-          put("HeartbeatTimeout", info.getHeartbeatTimeout());
-          put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-          put("StartToCloseTimeout", info.getStartToCloseTimeout());
-        }
-      };
+      return ImmutableMap.of(
+          "HeartbeatTimeout",
+          info.getHeartbeatTimeout(),
+          "ScheduleToCloseTimeout",
+          info.getScheduleToCloseTimeout(),
+          "StartToCloseTimeout",
+          info.getStartToCloseTimeout());
     }
   }
 
@@ -198,23 +199,21 @@ public class TestActivities {
     @Override
     public Map<String, Duration> localActivity1() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      return new HashMap<String, Duration>() {
-        {
-          put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-          put("StartToCloseTimeout", info.getStartToCloseTimeout());
-        }
-      };
+      return ImmutableMap.of(
+          "ScheduleToCloseTimeout",
+          info.getScheduleToCloseTimeout(),
+          "StartToCloseTimeout",
+          info.getStartToCloseTimeout());
     }
 
     @Override
     public Map<String, Duration> localActivity2() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      return new HashMap<String, Duration>() {
-        {
-          put("ScheduleToCloseTimeout", info.getScheduleToCloseTimeout());
-          put("StartToCloseTimeout", info.getStartToCloseTimeout());
-        }
-      };
+      return ImmutableMap.of(
+          "ScheduleToCloseTimeout",
+          info.getScheduleToCloseTimeout(),
+          "StartToCloseTimeout",
+          info.getStartToCloseTimeout());
     }
   }
 

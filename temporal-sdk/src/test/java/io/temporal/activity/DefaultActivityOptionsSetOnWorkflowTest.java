@@ -33,6 +33,7 @@ import io.temporal.workflow.shared.TestActivities.TestLocalActivity;
 import io.temporal.workflow.shared.TestActivities.TestLocalActivityImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflowReturnMap;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Rule;
@@ -45,19 +46,11 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
   private static final ActivityOptions activity2Ops =
       SDKTestOptions.newActivityOptions20sScheduleToClose();
   private static final Map<String, ActivityOptions> activity2options =
-      new HashMap<String, ActivityOptions>() {
-        {
-          put("Activity2", activity2Ops);
-        }
-      };
+      Collections.singletonMap("Activity2", activity2Ops);
   private static final Map<String, ActivityOptions> defaultActivity2options =
-      new HashMap<String, ActivityOptions>() {
-        {
-          put(
-              "Activity2",
-              ActivityOptions.newBuilder().setHeartbeatTimeout(Duration.ofSeconds(2)).build());
-        }
-      };
+      Collections.singletonMap(
+          "Activity2",
+          ActivityOptions.newBuilder().setHeartbeatTimeout(Duration.ofSeconds(2)).build());
 
   // local activity options
   private static final LocalActivityOptions localActivityWorkflowOps =
@@ -67,19 +60,11 @@ public class DefaultActivityOptionsSetOnWorkflowTest {
   private static final LocalActivityOptions localActivity2Ops =
       SDKTestOptions.newLocalActivityOptions20sScheduleToClose();
   private static final Map<String, LocalActivityOptions> localActivity2options =
-      new HashMap<String, LocalActivityOptions>() {
-        {
-          put("LocalActivity2", localActivity2Ops);
-        }
-      };
+      Collections.singletonMap("LocalActivity2", localActivity2Ops);
   private static final Map<String, LocalActivityOptions> defaultLocalActivity2options =
-      new HashMap<String, LocalActivityOptions>() {
-        {
-          put(
-              "LocalActivity2",
-              LocalActivityOptions.newBuilder().setDoNotIncludeArgumentsIntoMarker(false).build());
-        }
-      };
+      Collections.singletonMap(
+          "LocalActivity2",
+          LocalActivityOptions.newBuilder().setDoNotIncludeArgumentsIntoMarker(false).build());
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

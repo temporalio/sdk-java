@@ -5,7 +5,7 @@ subprojects {
     dependencies {
         errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
         if (JavaVersion.current().isJava11Compatible()) {
-            errorprone('com.google.errorprone:error_prone_core:2.11.0')
+            errorprone('com.google.errorprone:error_prone_core:2.16')
         } else {
             errorprone('com.google.errorprone:error_prone_core:2.10.0')
         }
@@ -13,5 +13,6 @@ subprojects {
 
     tasks.withType(JavaCompile).configureEach {
         options.errorprone.disableWarningsInGeneratedCode = true
+        options.errorprone.excludedPaths = '.*/build/generated/.*'
     }
 }

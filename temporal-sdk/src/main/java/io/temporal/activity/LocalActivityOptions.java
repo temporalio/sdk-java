@@ -228,7 +228,7 @@ public final class LocalActivityOptions {
     if (this == o) return true;
     if (!(o instanceof LocalActivityOptions)) return false;
     LocalActivityOptions that = (LocalActivityOptions) o;
-    return doNotIncludeArgumentsIntoMarker == that.doNotIncludeArgumentsIntoMarker
+    return Objects.equal(doNotIncludeArgumentsIntoMarker, that.doNotIncludeArgumentsIntoMarker)
         && Objects.equal(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
         && Objects.equal(localRetryThreshold, that.localRetryThreshold)
         && Objects.equal(startToCloseTimeout, that.startToCloseTimeout)
