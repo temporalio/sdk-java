@@ -22,6 +22,7 @@ package io.temporal.internal.retryer;
 
 import io.grpc.Context;
 import io.grpc.Deadline;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.internal.BackoffThrottler;
@@ -66,8 +67,10 @@ class GrpcAsyncRetryer<R> {
     this.throttler =
         new BackoffThrottler(
             rpcOptions.getInitialInterval(),
+            rpcOptions.getCongestionInitialInterval(),
             rpcOptions.getMaximumInterval(),
-            rpcOptions.getBackoffCoefficient());
+            rpcOptions.getBackoffCoefficient(),
+            rpcOptions.getMaximumJitter());
   }
 
   public CompletableFuture<R> retry() {
@@ -103,13 +106,19 @@ class GrpcAsyncRetryer<R> {
                     throttler.success();
                     resultCF.complete(r);
                   } else {
-                    throttler.failure();
+                    throttler.failure(
+                        (e instanceof StatusRuntimeException)
+                            ? ((StatusRuntimeException) e).getStatus().getCode()
+                            : Status.Code.UNKNOWN);
                     failOrRetry(e, resultCF);
                   }
                 });
 
           } catch (Throwable e) {
-            throttler.failure();
+            throttler.failure(
+                (e instanceof StatusRuntimeException)
+                    ? ((StatusRuntimeException) e).getStatus().getCode()
+                    : Status.Code.UNKNOWN);
             // function isn't supposed to throw exceptions, it should always return a
             // CompletableFuture even if it's a failed one.
             // But if this happens - process the same way as it would be an exception from

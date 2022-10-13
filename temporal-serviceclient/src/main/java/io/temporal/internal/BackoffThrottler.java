@@ -20,6 +20,8 @@
 
 package io.temporal.internal;
 
+import io.grpc.Status;
+import io.grpc.Status.Code;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -32,7 +34,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>
  *
  * <pre>
- * min(pow(backoffCoefficient, failureCount - 1) * initialSleep, maxSleep);
+ * min(pow(backoffCoefficient, failureCount - 1) * initialSleep * (1 + jitter), maxSleep);
  * </pre>
  *
  * <p>Example usage:
@@ -40,7 +42,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>
  *
  * <pre>
- * BackoffThrottler throttler = new BackoffThrottler(1000, 60000, 2);
+ * BackoffThrottler throttler = new BackoffThrottler(50, 1000, 60000, 2, 0.1);
  * while(!stopped) {
  *     try {
  *         long throttleMs = throttler.getSleepTime();
@@ -52,7 +54,10 @@ import javax.annotation.concurrent.NotThreadSafe;
  *         throttler.success();
  *     }
  *     catch (Exception e) {
- *         throttler.failure();
+ *         throttler.failure(
+ *             (e instanceof StatusRuntimeException)
+ *                 ? ((StatusRuntimeException) e).getStatus().getCode()
+ *                 : Status.Code.UNKNOWN);
  *     }
  * }
  * </pre>
@@ -62,32 +67,58 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public final class BackoffThrottler {
 
-  private final Duration initialSleep;
+  private final Duration regularInitialSleep;
+
+  private final Duration congestionInitialSleep;
 
   private final Duration maxSleep;
 
   private final double backoffCoefficient;
 
+  private final double maxJitter;
+
   private int failureCount = 0;
+
+  private Status.Code lastFailureCode = Code.OK;
 
   /**
    * Construct an instance of the throttler.
    *
-   * @param initialSleep time to sleep on the first failure
+   * @param regularInitialSleep time to sleep on the first failure (assuming regular failures)
+   * @param congestionInitialSleep time to sleep on the first failure (for congestion failures)
    * @param maxSleep maximum time to sleep independently of number of failures
-   * @param backoffCoefficient coefficient used to calculate the next time to sleep.
+   * @param backoffCoefficient coefficient used to calculate the next time to sleep
+   * @param maxJitter maximum jitter to add or subtract
    */
   public BackoffThrottler(
-      Duration initialSleep, @Nullable Duration maxSleep, double backoffCoefficient) {
-    Objects.requireNonNull(initialSleep, "initialSleep");
-    this.initialSleep = initialSleep;
+      Duration regularInitialSleep,
+      Duration congestionInitialSleep,
+      @Nullable Duration maxSleep,
+      double backoffCoefficient,
+      double maxJitter) {
+    Objects.requireNonNull(regularInitialSleep, "regularInitialSleep");
+    Objects.requireNonNull(congestionInitialSleep, "congestionInitialSleep");
+    if (backoffCoefficient < 1.0) {
+      throw new IllegalArgumentException(
+          "backoff coefficient less than 1.0: " + backoffCoefficient);
+    }
+    if (maxJitter < 0 || maxJitter >= 1.0) {
+      throw new IllegalArgumentException("maximumJitter has to be >= 0 and < 1.0: " + maxJitter);
+    }
+    this.regularInitialSleep = regularInitialSleep;
+    this.congestionInitialSleep = congestionInitialSleep;
     this.maxSleep = maxSleep;
     this.backoffCoefficient = backoffCoefficient;
+    this.maxJitter = maxJitter;
   }
 
   public long getSleepTime() {
     if (failureCount == 0) return 0;
-    double sleepMillis = Math.pow(backoffCoefficient, failureCount - 1) * initialSleep.toMillis();
+    Duration initial =
+        (lastFailureCode == Code.RESOURCE_EXHAUSTED) ? congestionInitialSleep : regularInitialSleep;
+    double jitter = Math.random() * maxJitter * 2 - maxJitter;
+    double sleepMillis =
+        Math.pow(backoffCoefficient, failureCount - 1) * initial.toMillis() * (1 + jitter);
     if (maxSleep != null) {
       return Math.min((long) sleepMillis, maxSleep.toMillis());
     }
@@ -98,13 +129,15 @@ public final class BackoffThrottler {
     return failureCount;
   }
 
-  /** Reset failure count to 0. */
+  /** Reset failure count to 0 and clear last failure code. */
   public void success() {
     failureCount = 0;
+    lastFailureCode = Code.OK;
   }
 
-  /** Increment failure count. */
-  public void failure() {
+  /** Increment failure count and set last failure code. */
+  public void failure(Status.Code failureCode) {
     failureCount++;
+    lastFailureCode = failureCode;
   }
 }

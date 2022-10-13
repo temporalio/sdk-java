@@ -30,9 +30,11 @@ import java.time.Duration;
  */
 public class DefaultStubServiceOperationRpcRetryOptions {
   public static final Duration INITIAL_INTERVAL = Duration.ofMillis(50);
+  public static final Duration CONGESTION_INITIAL_INTERVAL = Duration.ofMillis(1000);
   public static final Duration EXPIRATION_INTERVAL = Duration.ofMinutes(1);
   public static final Duration MAXIMUM_INTERVAL;
   public static final double BACKOFF = 2;
+  public static final double MAXIMUM_JITTER = 0.1;
 
   public static final RpcRetryOptions INSTANCE;
 
@@ -49,8 +51,10 @@ public class DefaultStubServiceOperationRpcRetryOptions {
   public static RpcRetryOptions.Builder getBuilder() {
     return RpcRetryOptions.newBuilder()
         .setInitialInterval(INITIAL_INTERVAL)
+        .setCongestionInitialInterval(CONGESTION_INITIAL_INTERVAL)
         .setExpiration(EXPIRATION_INTERVAL)
         .setBackoffCoefficient(BACKOFF)
-        .setMaximumInterval(MAXIMUM_INTERVAL);
+        .setMaximumInterval(MAXIMUM_INTERVAL)
+        .setMaximumJitter(MAXIMUM_JITTER);
   }
 }

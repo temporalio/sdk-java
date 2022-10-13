@@ -206,9 +206,11 @@ final class Poller<T> implements SuspendableWorker {
       this.task = task;
       this.pollBackoffThrottler =
           new BackoffThrottler(
-              pollerOptions.getPollBackoffInitialInterval(),
-              pollerOptions.getPollBackoffMaximumInterval(),
-              pollerOptions.getPollBackoffCoefficient());
+              pollerOptions.getBackoffInitialInterval(),
+              pollerOptions.getBackoffCongestionInitialInterval(),
+              pollerOptions.getBackoffMaximumInterval(),
+              pollerOptions.getBackoffCoefficient(),
+              pollerOptions.getBackoffMaximumJitter());
     }
 
     @Override
@@ -242,7 +244,10 @@ final class Poller<T> implements SuspendableWorker {
           Thread.currentThread().interrupt();
         } else {
           // Don't increase throttle on InterruptedException
-          pollBackoffThrottler.failure();
+          pollBackoffThrottler.failure(
+              (e instanceof StatusRuntimeException)
+                  ? ((StatusRuntimeException) e).getStatus().getCode()
+                  : Status.Code.UNKNOWN);
         }
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
       } finally {
