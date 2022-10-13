@@ -25,13 +25,12 @@ import io.grpc.Deadline;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.serviceclient.RpcRetryOptions;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class GrpcRetryer {
-  private static final GrpcSyncRetryer SYNC = new GrpcSyncRetryer();
-  private static final GrpcAsyncRetryer ASYNC = new GrpcAsyncRetryer();
 
   private final Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities;
 
@@ -58,12 +57,14 @@ public final class GrpcRetryer {
 
   public <R, T extends Throwable> R retryWithResult(
       RetryableFunc<R, T> r, GrpcRetryerOptions options) throws T {
-    return SYNC.retry(r, options, serverCapabilities.get());
+    return new GrpcSyncRetryer().retry(r, options, serverCapabilities.get());
   }
 
   public <R> CompletableFuture<R> retryWithResultAsync(
-      Supplier<CompletableFuture<R>> function, GrpcRetryerOptions options) {
-    return ASYNC.retry(function, options, serverCapabilities.get());
+      ScheduledExecutorService executor,
+      Supplier<CompletableFuture<R>> function,
+      GrpcRetryerOptions options) {
+    return new GrpcAsyncRetryer<R>(executor, function, options, serverCapabilities.get()).retry();
   }
 
   public static class GrpcRetryerOptions {

@@ -22,8 +22,8 @@ package io.temporal.internal;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * Used to throttle code execution in presence of failures using exponential backoff logic. The
@@ -43,7 +43,10 @@ import javax.annotation.Nullable;
  * BackoffThrottler throttler = new BackoffThrottler(1000, 60000, 2);
  * while(!stopped) {
  *     try {
- *         throttler.throttle();
+ *         long throttleMs = throttler.getSleepTime();
+ *         if (throttleMs > 0) {
+ *             Thread.sleep(throttleMs);
+ *         }
  *         // some code that can fail and should be throttled
  *         ...
  *         throttler.success();
@@ -56,6 +59,7 @@ import javax.annotation.Nullable;
  *
  * @author fateev
  */
+@NotThreadSafe
 public final class BackoffThrottler {
 
   private final Duration initialSleep;
@@ -64,7 +68,7 @@ public final class BackoffThrottler {
 
   private final double backoffCoefficient;
 
-  private final AtomicLong failureCount = new AtomicLong();
+  private int failureCount = 0;
 
   /**
    * Construct an instance of the throttler.
@@ -81,33 +85,26 @@ public final class BackoffThrottler {
     this.backoffCoefficient = backoffCoefficient;
   }
 
-  private long calculateSleepTime() {
-    double sleepMillis =
-        Math.pow(backoffCoefficient, failureCount.get() - 1) * initialSleep.toMillis();
+  public long getSleepTime() {
+    if (failureCount == 0) return 0;
+    double sleepMillis = Math.pow(backoffCoefficient, failureCount - 1) * initialSleep.toMillis();
     if (maxSleep != null) {
       return Math.min((long) sleepMillis, maxSleep.toMillis());
     }
     return (long) sleepMillis;
   }
 
-  /**
-   * Sleep if there were failures since the last success call.
-   *
-   * @throws InterruptedException
-   */
-  public void throttle() throws InterruptedException {
-    if (failureCount.get() > 0) {
-      Thread.sleep(calculateSleepTime());
-    }
+  public int getAttemptCount() {
+    return failureCount;
   }
 
-  /** Resent failure count to 0. */
+  /** Reset failure count to 0. */
   public void success() {
-    failureCount.set(0);
+    failureCount = 0;
   }
 
   /** Increment failure count. */
   public void failure() {
-    failureCount.incrementAndGet();
+    failureCount++;
   }
 }

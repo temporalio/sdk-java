@@ -62,7 +62,6 @@ final class Poller<T> implements SuspendableWorker {
 
   private final AtomicReference<CountDownLatch> suspendLatch = new AtomicReference<>();
 
-  private BackoffThrottler pollBackoffThrottler;
   private Throttler pollRateThrottler;
 
   private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
@@ -113,11 +112,6 @@ final class Poller<T> implements SuspendableWorker {
         new ExecutorThreadFactory(
             pollerOptions.getPollThreadNamePrefix(), pollerOptions.getUncaughtExceptionHandler()));
 
-    pollBackoffThrottler =
-        new BackoffThrottler(
-            pollerOptions.getPollBackoffInitialInterval(),
-            pollerOptions.getPollBackoffMaximumInterval(),
-            pollerOptions.getPollBackoffCoefficient());
     for (int i = 0; i < pollerOptions.getPollThreadCount(); i++) {
       pollExecutor.execute(new PollLoopTask(new PollExecutionTask()));
       workerMetricsScope.counter(MetricsType.POLLER_START_COUNTER).inc(1);
@@ -206,15 +200,24 @@ final class Poller<T> implements SuspendableWorker {
   private class PollLoopTask implements Runnable {
 
     private final Poller.ThrowingRunnable task;
+    private final BackoffThrottler pollBackoffThrottler;
 
     PollLoopTask(Poller.ThrowingRunnable task) {
       this.task = task;
+      this.pollBackoffThrottler =
+          new BackoffThrottler(
+              pollerOptions.getPollBackoffInitialInterval(),
+              pollerOptions.getPollBackoffMaximumInterval(),
+              pollerOptions.getPollBackoffCoefficient());
     }
 
     @Override
     public void run() {
       try {
-        pollBackoffThrottler.throttle();
+        long throttleMs = pollBackoffThrottler.getSleepTime();
+        if (throttleMs > 0) {
+          Thread.sleep(throttleMs);
+        }
         if (pollRateThrottler != null) {
           pollRateThrottler.throttle();
         }
@@ -237,8 +240,10 @@ final class Poller<T> implements SuspendableWorker {
         if (e instanceof InterruptedException) {
           // we restore the flag here, so it can be checked and processed (with exit) in finally.
           Thread.currentThread().interrupt();
+        } else {
+          // Don't increase throttle on InterruptedException
+          pollBackoffThrottler.failure();
         }
-        pollBackoffThrottler.failure();
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
       } finally {
         if (!shouldTerminate()) {

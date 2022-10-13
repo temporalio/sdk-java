@@ -65,9 +65,11 @@ public class GrpcSyncRetryerTest {
             .setExpiration(Duration.ofMillis(500))
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
     try {
       DEFAULT_SYNC_RETRYER.retry(
           () -> {
+            attempts.incrementAndGet();
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
           },
           new GrpcRetryer.GrpcRetryerOptions(options, null),
@@ -78,7 +80,8 @@ public class GrpcSyncRetryerTest {
       assertEquals(STATUS_CODE, ((StatusRuntimeException) e).getStatus().getCode());
     }
 
-    assertTrue(System.currentTimeMillis() - start > 400);
+    assertTrue("Should retry on DATA_LOSS failures.", attempts.get() > 1);
+    assertTrue(System.currentTimeMillis() - start > 500);
   }
 
   @Test
@@ -87,14 +90,17 @@ public class GrpcSyncRetryerTest {
 
     RpcRetryOptions options =
         RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
-            .setMaximumInterval(Duration.ofMillis(100))
+            .setInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
             .addDoNotRetry(STATUS_CODE, null)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
     try {
       DEFAULT_SYNC_RETRYER.retry(
           () -> {
+            if (attempts.incrementAndGet() > 1)
+              fail("We should not retry on exception that we specified to don't retry");
             throw new StatusRuntimeException(Status.fromCode(STATUS_CODE));
           },
           new GrpcRetryer.GrpcRetryerOptions(options, null),
@@ -106,20 +112,22 @@ public class GrpcSyncRetryerTest {
     }
     assertTrue(
         "We should fail fast on exception that we specified to don't retry",
-        System.currentTimeMillis() - start < 10_000);
+        System.currentTimeMillis() - start < 1000);
   }
 
   @Test
   public void testInterruptedException() {
     RpcRetryOptions options =
         RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
-            .setMaximumInterval(Duration.ofMillis(100))
+            .setInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
     try {
       DEFAULT_SYNC_RETRYER.retry(
           () -> {
+            if (attempts.incrementAndGet() > 1) fail("We should not retry on InterruptedException");
             throw new InterruptedException();
           },
           new GrpcRetryer.GrpcRetryerOptions(options, null),
@@ -129,20 +137,23 @@ public class GrpcSyncRetryerTest {
       assertTrue(e instanceof CancellationException);
     }
     assertTrue(
-        "We should fail fast on InterruptedException", System.currentTimeMillis() - start < 10_000);
+        "We should fail fast on InterruptedException", System.currentTimeMillis() - start < 1000);
   }
 
   @Test
   public void testNotStatusRuntimeException() {
     RpcRetryOptions options =
         RpcRetryOptions.newBuilder()
-            .setInitialInterval(Duration.ofMillis(10))
-            .setMaximumInterval(Duration.ofMillis(100))
+            .setInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
     try {
       DEFAULT_SYNC_RETRYER.retry(
           () -> {
+            if (attempts.incrementAndGet() > 1)
+              fail("We should not retry if the exception is not StatusRuntimeException");
             throw new IllegalArgumentException("simulated");
           },
           new GrpcRetryer.GrpcRetryerOptions(options, null),
@@ -153,8 +164,8 @@ public class GrpcSyncRetryerTest {
       assertEquals("simulated", e.getMessage());
     }
     assertTrue(
-        "If the exception is not StatusRuntimeException - we shouldn't retry",
-        System.currentTimeMillis() - start < 10_000);
+        "Should fail fast if the exception is not StatusRuntimeException",
+        System.currentTimeMillis() - start < 1000);
   }
 
   @Test
@@ -184,7 +195,7 @@ public class GrpcSyncRetryerTest {
     assertEquals(Status.Code.DEADLINE_EXCEEDED, e.getStatus().getCode());
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
-        System.currentTimeMillis() - start > 400);
+        System.currentTimeMillis() - start > 500);
 
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
