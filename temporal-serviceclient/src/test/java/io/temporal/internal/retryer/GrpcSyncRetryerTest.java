@@ -317,4 +317,25 @@ public class GrpcSyncRetryerTest {
         "We should retry RESOURCE_EXHAUSTED failures using longInitialInterval.",
         elapsedTime > 2000);
   }
+
+  @Test
+  public void testCongestionAndJitterAreNotMandatory() {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder(
+                RpcRetryOptions.newBuilder()
+                    .setInitialInterval(Duration.ofMillis(1))
+                    .setMaximumInterval(Duration.ofMillis(1000))
+                    .setMaximumAttempts(3)
+                    .build())
+            .validateBuildWithDefaults();
+
+    // The following options matches the values above
+    assertEquals(Duration.ofMillis(1), options.getInitialInterval());
+    assertEquals(Duration.ofMillis(1000), options.getMaximumInterval());
+    assertEquals(3, options.getMaximumAttempts());
+
+    // The following were added latter; they must silently use default values if unspecified
+    assertEquals(Duration.ofMillis(1000), options.getCongestionInitialInterval());
+    assertEquals(0.1, options.getMaximumJitter(), 0.01);
+  }
 }

@@ -96,7 +96,7 @@ public final class RpcRetryOptions {
     private Duration maximumInterval;
 
     // 0 is a valid value for maximumJitter, and yet, it is not the default value for maximumJitter.
-    // Use NaN instead as a marker for unconfigured jitter
+    // Use NaN instead as a marker for not configured jitter
     private double maximumJitter = Double.NaN;
 
     private List<DoNotRetryItem> doNotRetry = new ArrayList<>();
