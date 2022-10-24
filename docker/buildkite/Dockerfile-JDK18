@@ -1,4 +1,4 @@
-FROM openjdk:18-slim
+FROM eclipse-temurin:11-focal
 
 # Git is needed in order to update the dls submodule
 RUN apt-get update && apt-get install -y protobuf-compiler git
