@@ -45,14 +45,12 @@ import javax.annotation.concurrent.NotThreadSafe;
  *
  * <p>Example usage:
  *
- * <p>
- *
- * <pre>
+ * <pre><code>
  * BackoffThrottler throttler = new BackoffThrottler(50, 1000, 60000, 2, 0.1);
  * while(!stopped) {
  *     try {
  *         long throttleMs = throttler.getSleepTime();
- *         if (throttleMs > 0) {
+ *         if (throttleMs &gt; 0) {
  *             Thread.sleep(throttleMs);
  *         }
  *         // some code that can fail and should be throttled
@@ -66,7 +64,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  *                 : Status.Code.UNKNOWN);
  *     }
  * }
- * </pre>
+ * </code></pre>
  *
  * @author fateev
  */

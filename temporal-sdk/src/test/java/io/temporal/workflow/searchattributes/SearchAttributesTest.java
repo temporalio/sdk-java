@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
@@ -71,16 +72,17 @@ public class SearchAttributesTest {
   private static final String TEST_UNKNOWN_KEY = "UnknownKey";
 
   private static final Map<String, Object> DEFAULT_SEARCH_ATTRIBUTES =
-      Collections.unmodifiableMap(
-          new HashMap<String, Object>() {
-            {
-              put(TEST_KEY_STRING, TEST_VALUE_STRING);
-              put(TEST_KEY_INTEGER, TEST_VALUE_LONG);
-              put(TEST_KEY_DOUBLE, TEST_VALUE_DOUBLE);
-              put(TEST_KEY_BOOL, TEST_VALUE_BOOL);
-              put(TEST_KEY_DATE_TIME, TEST_VALUE_DATE_TIME);
-            }
-          });
+      ImmutableMap.of(
+          TEST_KEY_STRING,
+          TEST_VALUE_STRING,
+          TEST_KEY_INTEGER,
+          TEST_VALUE_LONG,
+          TEST_KEY_DOUBLE,
+          TEST_VALUE_DOUBLE,
+          TEST_KEY_BOOL,
+          TEST_VALUE_BOOL,
+          TEST_KEY_DATE_TIME,
+          TEST_VALUE_DATE_TIME);
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

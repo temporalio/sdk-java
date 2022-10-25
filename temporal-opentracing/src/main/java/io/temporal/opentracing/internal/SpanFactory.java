@@ -151,15 +151,11 @@ public class SpanFactory {
     toSpan.setTag(StandardTagNames.FAILED, true);
     toSpan.setTag(Tags.ERROR, options.getIsErrorPredicate().test(failReason));
 
-    Map<String, Object> logPayload =
-        new HashMap<String, Object>() {
-          {
-            put(Fields.EVENT, "error");
-            put(Fields.ERROR_KIND, failReason.getClass().getName());
-            put(Fields.ERROR_OBJECT, failReason);
-            put(Fields.STACK, Throwables.getStackTraceAsString(failReason));
-          }
-        };
+    Map<String, Object> logPayload = new HashMap<>();
+    logPayload.put(Fields.EVENT, "error");
+    logPayload.put(Fields.ERROR_KIND, failReason.getClass().getName());
+    logPayload.put(Fields.ERROR_OBJECT, failReason);
+    logPayload.put(Fields.STACK, Throwables.getStackTraceAsString(failReason));
 
     String message = failReason.getMessage();
     if (message != null) {
