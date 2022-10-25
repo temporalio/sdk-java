@@ -113,7 +113,7 @@ graal {
   outputName "temporal-test-server"
   mainClass application.getMainClass().get()
   javaVersion '17'
-  graalVersion '22.2.0'
+  graalVersion '22.3.0'
 
   // Don't fallback to running a JVM
   option "--no-fallback"
