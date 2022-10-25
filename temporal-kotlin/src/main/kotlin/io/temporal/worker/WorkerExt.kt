@@ -72,6 +72,7 @@ inline fun <reified T : Any> Worker.registerWorkflowImplementationType(
   "Use registerWorkflowImplementationFactory instead",
   ReplaceWith("this.registerWorkflowImplementationFactory(options, factory)")
 )
+@Suppress("Deprecation")
 inline fun <reified T : Any> Worker.addWorkflowImplementationFactory(
   options: WorkflowImplementationOptions,
   noinline factory: () -> T
@@ -116,6 +117,7 @@ inline fun <reified T : Any> Worker.registerWorkflowImplementationFactory(
  * @see Worker.addWorkflowImplementationFactory
  */
 @Deprecated("Use registerWorkflowImplementationFactory instead", ReplaceWith("this.registerWorkflowImplementationFactory(factory)"))
+@Suppress("Deprecation")
 inline fun <reified T : Any> Worker.addWorkflowImplementationFactory(
   noinline factory: () -> T
 ) {
