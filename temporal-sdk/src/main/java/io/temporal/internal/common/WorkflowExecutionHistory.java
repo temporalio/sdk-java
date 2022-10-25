@@ -48,7 +48,7 @@ public final class WorkflowExecutionHistory {
   private final String workflowId;
 
   public WorkflowExecutionHistory(History history) {
-    this(history, "unknown-workflow-id");
+    this(history, "workflow_id_in_replay");
   }
 
   public WorkflowExecutionHistory(History history, String workflowId) {
@@ -119,7 +119,7 @@ public final class WorkflowExecutionHistory {
 
   public WorkflowExecution getWorkflowExecution() {
     return WorkflowExecution.newBuilder()
-        .setWorkflowId("workflow_id_in_replay")
+        .setWorkflowId(workflowId)
         .setRunId("run_id_in_replay")
         .build();
   }
@@ -135,16 +135,6 @@ public final class WorkflowExecutionHistory {
 
   public History getHistory() {
     return history;
-  }
-
-  public String getWorkflowId() {
-    return workflowId;
-  }
-
-  public String getRunId() {
-    // constructor guarantees first event is WES, so this is safe
-    HistoryEvent startedEvent = history.getEventsList().get(0);
-    return startedEvent.getWorkflowExecutionStartedEventAttributes().getFirstExecutionRunId();
   }
 
   @Override

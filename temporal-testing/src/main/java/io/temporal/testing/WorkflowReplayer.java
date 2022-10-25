@@ -213,7 +213,7 @@ public final class WorkflowReplayer {
         replayWorkflowExecution(history, worker);
       } catch (Exception e) {
         if (!failFast) {
-          results.addError(history.getWorkflowId(), history.getRunId(), e);
+          results.addError(history.getWorkflowExecution().getWorkflowId(), e);
         } else {
           throw e;
         }

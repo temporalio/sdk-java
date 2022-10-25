@@ -28,12 +28,10 @@ public class ReplayResults {
 
   public class ReplayError {
     public final String workflowId;
-    public final String runId;
     public final Exception exception;
 
-    public ReplayError(String workflowId, String runId, Exception exception) {
+    public ReplayError(String workflowId, Exception exception) {
       this.workflowId = workflowId;
-      this.runId = runId;
       this.exception = exception;
     }
   }
@@ -52,7 +50,7 @@ public class ReplayResults {
     return !allErrors().isEmpty();
   }
 
-  void addError(String workflowId, String runId, Exception err) {
-    replayErrors.add(new ReplayError(workflowId, runId, err));
+  void addError(String workflowId, Exception err) {
+    replayErrors.add(new ReplayError(workflowId, err));
   }
 }
