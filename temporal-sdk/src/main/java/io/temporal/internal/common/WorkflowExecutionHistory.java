@@ -45,10 +45,16 @@ public final class WorkflowExecutionHistory {
   private static final JsonParser GSON_PARSER = new JsonParser();
 
   private final History history;
+  private final String workflowId;
 
   public WorkflowExecutionHistory(History history) {
+    this(history, "unknown-workflow-id");
+  }
+
+  public WorkflowExecutionHistory(History history, String workflowId) {
     checkHistory(history);
     this.history = history;
+    this.workflowId = workflowId;
   }
 
   public static WorkflowExecutionHistory fromJson(String serialized) {
@@ -62,7 +68,6 @@ public final class WorkflowExecutionHistory {
       throw new DataConverterException(e);
     }
     History history = historyBuilder.build();
-    checkHistory(history);
     return new WorkflowExecutionHistory(history);
   }
 
@@ -130,6 +135,16 @@ public final class WorkflowExecutionHistory {
 
   public History getHistory() {
     return history;
+  }
+
+  public String getWorkflowId() {
+    return workflowId;
+  }
+
+  public String getRunId() {
+    // constructor guarantees first event is WES, so this is safe
+    HistoryEvent startedEvent = history.getEventsList().get(0);
+    return startedEvent.getWorkflowExecutionStartedEventAttributes().getFirstExecutionRunId();
   }
 
   @Override

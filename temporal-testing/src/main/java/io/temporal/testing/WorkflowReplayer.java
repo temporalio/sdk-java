@@ -172,6 +172,56 @@ public final class WorkflowReplayer {
     worker.replayWorkflowExecution(history);
   }
 
+  /**
+   * Replays workflows provided by an iterable.
+   *
+   * @param histories The histories to be replayed
+   * @param failFast If true, throws upon the first error encountered (if any) during replay. If
+   *     false, all histories will be replayed and the returned object contains information about
+   *     any failures.
+   * @return If `failFast` is false, contains any replay failures encountered.
+   * @throws Exception If replay failed and `failFast` is true.
+   */
+  public static ReplayResults replayWorkflowExecutions(
+      Iterable<WorkflowExecutionHistory> histories, boolean failFast, Class<?>... workflowClasses)
+      throws Exception {
+    try (TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance()) {
+      Worker worker = testEnv.newWorker("replay-task-queue-name");
+      worker.registerWorkflowImplementationTypes(workflowClasses);
+      return replayWorkflowExecutions(histories, failFast, worker);
+    }
+  }
+
+  /**
+   * Replays workflows provided by an iterable using an already-initialized worker.
+   *
+   * @param histories The histories to be replayed
+   * @param failFast If true, throws upon the first error encountered (if any) during replay. If
+   *     false, all histories will be replayed and the returned object contains information about
+   *     any failures.
+   * @param worker A worker which should have registered all the workflow implementations which were
+   *     used to produce (or are expected to be compatible with) the provided histories.
+   * @return If `failFast` is false, contains any replay failures encountered.
+   * @throws Exception If replay failed and `failFast` is true.
+   */
+  public static ReplayResults replayWorkflowExecutions(
+      Iterable<WorkflowExecutionHistory> histories, boolean failFast, Worker worker)
+      throws Exception {
+    ReplayResults results = new ReplayResults();
+    for (WorkflowExecutionHistory history : histories) {
+      try {
+        replayWorkflowExecution(history, worker);
+      } catch (Exception e) {
+        if (!failFast) {
+          results.addError(history.getWorkflowId(), history.getRunId(), e);
+        } else {
+          throw e;
+        }
+      }
+    }
+    return results;
+  }
+
   private static String getQueueName(WorkflowExecutionHistory history) {
     WorkflowExecutionStartedEventAttributes attr =
         history.getEvents().get(0).getWorkflowExecutionStartedEventAttributes();
