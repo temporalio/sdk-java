@@ -30,8 +30,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 /**
  * Used to throttle code execution in presence of failures using exponential backoff logic.
  *
- * <p>
- * The formula used to calculate the next sleep interval is:
+ * <p>The formula used to calculate the next sleep interval is:
  *
  * <p>
  *
@@ -39,9 +38,10 @@ import javax.annotation.concurrent.NotThreadSafe;
  * min(pow(backoffCoefficient, failureCount - 1) * initialSleep * (1 + jitter), maxSleep);
  * </pre>
  *
- * where <code>initialSleep</code> is either set to <code>regularInitialSleep</code> or <code>congestionInitialSleep</code>
- * based on the <i>most recent</i> failure. Note that it means that attempt X can possibly get a shorter throttle than
- * attempt X-1, if a non-congestion failure occurs after a congestion failure. This is the expected bahaviour for all SDK.
+ * where <code>initialSleep</code> is either set to <code>regularInitialSleep</code> or <code>
+ * congestionInitialSleep</code> based on the <i>most recent</i> failure. Note that it means that
+ * attempt X can possibly get a shorter throttle than attempt X-1, if a non-congestion failure
+ * occurs after a congestion failure. This is the expected bahaviour for all SDK.
  *
  * <p>Example usage:
  *

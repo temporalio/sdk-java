@@ -82,7 +82,7 @@ public class GrpcSyncRetryerTest {
     }
 
     assertTrue("Should retry on DATA_LOSS failures.", attempts.get() > 1);
-    assertTrue(System.currentTimeMillis() - start > 500);
+    assertTrue(System.currentTimeMillis() - start >= 500);
   }
 
   @Test
@@ -200,7 +200,7 @@ public class GrpcSyncRetryerTest {
     assertEquals(Status.Code.DEADLINE_EXCEEDED, e.getStatus().getCode());
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
-        System.currentTimeMillis() - start > 500);
+        System.currentTimeMillis() - start >= 500);
 
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
@@ -314,8 +314,8 @@ public class GrpcSyncRetryerTest {
     long elapsedTime = System.currentTimeMillis() - start;
     assertTrue("We should retry RESOURCE_EXHAUSTED failures.", attempts.get() > 2);
     assertTrue(
-        "We should retry RESOURCE_EXHAUSTED failures using longInitialInterval.",
-        elapsedTime > 2000);
+        "We should retry RESOURCE_EXHAUSTED failures using congestionInitialInterval.",
+        elapsedTime >= 2000);
   }
 
   @Test

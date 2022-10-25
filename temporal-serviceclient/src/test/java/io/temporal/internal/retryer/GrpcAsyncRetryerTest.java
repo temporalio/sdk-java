@@ -80,7 +80,7 @@ public class GrpcAsyncRetryerTest {
     }
 
     assertTrue("Should retry on DATA_LOSS failures.", attempts.get() > 1);
-    assertTrue(System.currentTimeMillis() - start > 500);
+    assertTrue(System.currentTimeMillis() - start >= 500);
   }
 
   @Test
@@ -117,7 +117,7 @@ public class GrpcAsyncRetryerTest {
     }
 
     assertTrue("Should retry on DATA_LOSS failures.", attempts.get() > 1);
-    assertTrue(System.currentTimeMillis() - start > 500);
+    assertTrue(System.currentTimeMillis() - start >= 500);
   }
 
   @Test
@@ -265,7 +265,7 @@ public class GrpcAsyncRetryerTest {
 
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
-        System.currentTimeMillis() - start > 500);
+        System.currentTimeMillis() - start >= 500);
 
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
@@ -407,6 +407,6 @@ public class GrpcAsyncRetryerTest {
     assertTrue("We should retry RESOURCE_EXHAUSTED failures.", attempts.get() > 2);
     assertTrue(
         "We should retry RESOURCE_EXHAUSTED failures using longInitialInterval.",
-        elapsedTime > 2000);
+        elapsedTime >= 2000);
   }
 }
