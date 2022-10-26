@@ -70,7 +70,7 @@ class GrpcAsyncRetryer<R> {
             rpcOptions.getCongestionInitialInterval(),
             rpcOptions.getMaximumInterval(),
             rpcOptions.getBackoffCoefficient(),
-            rpcOptions.getMaximumJitter());
+            rpcOptions.getMaximumJitterCoefficient());
   }
 
   public CompletableFuture<R> retry() {

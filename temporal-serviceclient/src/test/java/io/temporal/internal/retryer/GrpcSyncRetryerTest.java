@@ -63,7 +63,7 @@ public class GrpcSyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -93,7 +93,7 @@ public class GrpcSyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .addDoNotRetry(STATUS_CODE, null)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
@@ -123,7 +123,7 @@ public class GrpcSyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -149,7 +149,7 @@ public class GrpcSyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -179,7 +179,7 @@ public class GrpcSyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -214,7 +214,7 @@ public class GrpcSyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(50000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -252,7 +252,7 @@ public class GrpcSyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
 
     final AtomicReference<StatusRuntimeException> exception = new AtomicReference<>();
@@ -291,7 +291,7 @@ public class GrpcSyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(1))
             .setCongestionInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .setMaximumAttempts(3)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
@@ -336,6 +336,6 @@ public class GrpcSyncRetryerTest {
 
     // The following were added latter; they must silently use default values if unspecified
     assertEquals(Duration.ofMillis(1000), options.getCongestionInitialInterval());
-    assertEquals(0.1, options.getMaximumJitter(), 0.01);
+    assertEquals(0.1, options.getMaximumJitterCoefficient(), 0.01);
   }
 }

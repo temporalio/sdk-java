@@ -35,13 +35,14 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>
  *
  * <pre>
- * min(pow(backoffCoefficient, failureCount - 1) * initialSleep * (1 + jitter), maxSleep);
+ * jitter = random number in the range [-maxJitterCoefficient, +maxJitterCoefficient];
+ * sleepTime = min(pow(backoffCoefficient, failureCount - 1) * initialSleep * (1 + jitter), maxSleep);
  * </pre>
  *
  * where <code>initialSleep</code> is either set to <code>regularInitialSleep</code> or <code>
  * congestionInitialSleep</code> based on the <i>most recent</i> failure. Note that it means that
  * attempt X can possibly get a shorter throttle than attempt X-1, if a non-congestion failure
- * occurs after a congestion failure. This is the expected bahaviour for all SDK.
+ * occurs after a congestion failure. This is the expected behaviour for all SDK.
  *
  * <p>Example usage:
  *
@@ -79,7 +80,7 @@ public final class BackoffThrottler {
 
   private final double backoffCoefficient;
 
-  private final double maxJitter;
+  private final double maxJitterCoefficient;
 
   private int failureCount = 0;
 
@@ -92,37 +93,42 @@ public final class BackoffThrottler {
    * @param congestionInitialSleep time to sleep on the first failure (for congestion failures)
    * @param maxSleep maximum time to sleep independently of number of failures
    * @param backoffCoefficient coefficient used to calculate the next time to sleep
-   * @param maxJitter maximum jitter to add or subtract
+   * @param maxJitterCoefficient maximum jitter coefficient (in the range [0.0, 1.0[) to randomly
+   *     add or subtract to sleep time
    */
   public BackoffThrottler(
       Duration regularInitialSleep,
       Duration congestionInitialSleep,
       @Nullable Duration maxSleep,
       double backoffCoefficient,
-      double maxJitter) {
+      double maxJitterCoefficient) {
     Objects.requireNonNull(regularInitialSleep, "regularInitialSleep");
     Objects.requireNonNull(congestionInitialSleep, "congestionInitialSleep");
     if (backoffCoefficient < 1.0) {
       throw new IllegalArgumentException(
           "backoff coefficient less than 1.0: " + backoffCoefficient);
     }
-    if (maxJitter < 0 || maxJitter >= 1.0) {
-      throw new IllegalArgumentException("maximumJitter has to be >= 0 and < 1.0: " + maxJitter);
+    if (maxJitterCoefficient < 0 || maxJitterCoefficient >= 1.0) {
+      throw new IllegalArgumentException(
+          "maxJitterCoefficient has to be >= 0 and < 1.0: " + maxJitterCoefficient);
     }
     this.regularInitialSleep = regularInitialSleep;
     this.congestionInitialSleep = congestionInitialSleep;
     this.maxSleep = maxSleep;
     this.backoffCoefficient = backoffCoefficient;
-    this.maxJitter = maxJitter;
+    this.maxJitterCoefficient = maxJitterCoefficient;
   }
 
   public long getSleepTime() {
     if (failureCount == 0) return 0;
     Duration initial =
         (lastFailureCode == Code.RESOURCE_EXHAUSTED) ? congestionInitialSleep : regularInitialSleep;
-    double jitter = Math.random() * maxJitter * 2 - maxJitter;
+
+    // Choose a random number in the range [-maxJitterCoefficient, +maxJitterCoefficient];
+    double jitter = Math.random() * maxJitterCoefficient * 2 - maxJitterCoefficient;
     double sleepMillis =
         Math.pow(backoffCoefficient, failureCount - 1) * initial.toMillis() * (1 + jitter);
+
     if (maxSleep != null) {
       return Math.min((long) sleepMillis, maxSleep.toMillis());
     }

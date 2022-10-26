@@ -58,7 +58,7 @@ public final class PollerOptions {
     private Duration backoffInitialInterval = Duration.ofMillis(100);
     private Duration backoffCongestionInitialInterval = Duration.ofMillis(1000);
     private Duration backoffMaximumInterval = Duration.ofMinutes(1);
-    private double backoffMaximumJitter = 0.1;
+    private double backoffMaximumJitterCoefficient = 0.1;
     private int pollThreadCount = 1;
     private String pollThreadNamePrefix;
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
@@ -75,7 +75,7 @@ public final class PollerOptions {
       this.backoffInitialInterval = options.getBackoffInitialInterval();
       this.backoffCongestionInitialInterval = options.getBackoffCongestionInitialInterval();
       this.backoffMaximumInterval = options.getBackoffMaximumInterval();
-      this.backoffMaximumJitter = options.getBackoffMaximumJitter();
+      this.backoffMaximumJitterCoefficient = options.getBackoffMaximumJitterCoefficient();
       this.pollThreadCount = options.getPollThreadCount();
       this.pollThreadNamePrefix = options.getPollThreadNamePrefix();
       this.uncaughtExceptionHandler = options.getUncaughtExceptionHandler();
@@ -130,8 +130,8 @@ public final class PollerOptions {
      * Maximum amount of jitter to apply. 0.2 means that actual retry time can be +/- 20% of the
      * calculated time. Set to 0 to disable jitter. Must be lower than 1. Default is 0.1.
      */
-    public Builder setBackoffMaximumJitter(double backoffMaximumJitter) {
-      this.backoffMaximumJitter = backoffMaximumJitter;
+    public Builder setBackoffMaximumJitterCoefficient(double backoffMaximumJitterCoefficient) {
+      this.backoffMaximumJitterCoefficient = backoffMaximumJitterCoefficient;
       return this;
     }
 
@@ -177,7 +177,7 @@ public final class PollerOptions {
           backoffInitialInterval,
           backoffCongestionInitialInterval,
           backoffMaximumInterval,
-          backoffMaximumJitter,
+          backoffMaximumJitterCoefficient,
           pollThreadCount,
           uncaughtExceptionHandler,
           pollThreadNamePrefix);
@@ -189,7 +189,7 @@ public final class PollerOptions {
   private final int maximumPollRateIntervalMilliseconds;
   private final double maximumPollRatePerSecond;
   private final double backoffCoefficient;
-  private final double backoffMaximumJitter;
+  private final double backoffMaximumJitterCoefficient;
   private final Duration backoffInitialInterval;
   private final Duration backoffCongestionInitialInterval;
   private final Duration backoffMaximumInterval;
@@ -204,7 +204,7 @@ public final class PollerOptions {
       Duration backoffInitialInterval,
       Duration backoffCongestionInitialInterval,
       Duration backoffMaximumInterval,
-      double backoffMaximumJitter,
+      double backoffMaximumJitterCoefficient,
       int pollThreadCount,
       Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
       String pollThreadNamePrefix) {
@@ -214,7 +214,7 @@ public final class PollerOptions {
     this.backoffInitialInterval = backoffInitialInterval;
     this.backoffCongestionInitialInterval = backoffCongestionInitialInterval;
     this.backoffMaximumInterval = backoffMaximumInterval;
-    this.backoffMaximumJitter = backoffMaximumJitter;
+    this.backoffMaximumJitterCoefficient = backoffMaximumJitterCoefficient;
     this.pollThreadCount = pollThreadCount;
     this.uncaughtExceptionHandler = uncaughtExceptionHandler;
     this.pollThreadNamePrefix = pollThreadNamePrefix;
@@ -244,8 +244,8 @@ public final class PollerOptions {
     return backoffMaximumInterval;
   }
 
-  public double getBackoffMaximumJitter() {
-    return backoffMaximumJitter;
+  public double getBackoffMaximumJitterCoefficient() {
+    return backoffMaximumJitterCoefficient;
   }
 
   public int getPollThreadCount() {
@@ -275,8 +275,8 @@ public final class PollerOptions {
         + backoffCongestionInitialInterval
         + ", backoffMaximumInterval="
         + backoffMaximumInterval
-        + ", backoffMaximumJitter="
-        + backoffMaximumJitter
+        + ", backoffMaximumJitterCoefficient="
+        + backoffMaximumJitterCoefficient
         + ", pollThreadCount="
         + pollThreadCount
         + ", pollThreadNamePrefix='"

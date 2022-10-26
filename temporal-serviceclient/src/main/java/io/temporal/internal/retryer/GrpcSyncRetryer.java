@@ -51,7 +51,7 @@ class GrpcSyncRetryer {
             rpcOptions.getCongestionInitialInterval(),
             rpcOptions.getMaximumInterval(),
             rpcOptions.getBackoffCoefficient(),
-            rpcOptions.getMaximumJitter());
+            rpcOptions.getMaximumJitterCoefficient());
 
     int attempt = 0;
     StatusRuntimeException lastMeaningfulException = null;

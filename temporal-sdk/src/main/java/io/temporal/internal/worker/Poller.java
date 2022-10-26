@@ -210,7 +210,7 @@ final class Poller<T> implements SuspendableWorker {
               pollerOptions.getBackoffCongestionInitialInterval(),
               pollerOptions.getBackoffMaximumInterval(),
               pollerOptions.getBackoffCoefficient(),
-              pollerOptions.getBackoffMaximumJitter());
+              pollerOptions.getBackoffMaximumJitterCoefficient());
     }
 
     @Override

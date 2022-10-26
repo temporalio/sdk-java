@@ -34,7 +34,7 @@ public class DefaultStubServiceOperationRpcRetryOptions {
   public static final Duration EXPIRATION_INTERVAL = Duration.ofMinutes(1);
   public static final Duration MAXIMUM_INTERVAL;
   public static final double BACKOFF = 2;
-  public static final double MAXIMUM_JITTER = 0.1;
+  public static final double MAXIMUM_JITTER_COEFFICIENT = 0.1;
 
   public static final RpcRetryOptions INSTANCE;
 
@@ -55,6 +55,6 @@ public class DefaultStubServiceOperationRpcRetryOptions {
         .setExpiration(EXPIRATION_INTERVAL)
         .setBackoffCoefficient(BACKOFF)
         .setMaximumInterval(MAXIMUM_INTERVAL)
-        .setMaximumJitter(MAXIMUM_JITTER);
+        .setMaximumJitterCoefficient(MAXIMUM_JITTER_COEFFICIENT);
   }
 }

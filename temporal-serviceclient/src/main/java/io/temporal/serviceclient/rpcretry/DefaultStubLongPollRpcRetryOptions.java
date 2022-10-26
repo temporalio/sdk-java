@@ -29,7 +29,7 @@ public class DefaultStubLongPollRpcRetryOptions {
   public static final Duration CONGESTION_INITIAL_INTERVAL = Duration.ofMillis(1000);
   public static final Duration MAXIMUM_INTERVAL = Duration.ofMinutes(1);
   public static final double BACKOFF = 1.2;
-  public static final double MAXIMUM_JITTER = 0.1;
+  public static final double MAXIMUM_JITTER_COEFFICIENT = 0.1;
 
   // partial build because expiration is not set, long polls work with absolute deadlines instead
   public static final RpcRetryOptions INSTANCE = getBuilder().build();
@@ -47,7 +47,7 @@ public class DefaultStubLongPollRpcRetryOptions {
             .setCongestionInitialInterval(CONGESTION_INITIAL_INTERVAL)
             .setBackoffCoefficient(BACKOFF)
             .setMaximumInterval(MAXIMUM_INTERVAL)
-            .setMaximumJitter(MAXIMUM_JITTER);
+            .setMaximumJitterCoefficient(MAXIMUM_JITTER_COEFFICIENT);
 
     return roBuilder;
   }

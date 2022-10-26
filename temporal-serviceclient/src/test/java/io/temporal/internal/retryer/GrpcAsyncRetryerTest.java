@@ -58,7 +58,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -92,7 +92,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -128,7 +128,7 @@ public class GrpcAsyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .addDoNotRetry(STATUS_CODE, null)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
@@ -164,7 +164,7 @@ public class GrpcAsyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -197,7 +197,7 @@ public class GrpcAsyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -232,7 +232,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -279,7 +279,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(50000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -328,7 +328,7 @@ public class GrpcAsyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
 
     final AtomicReference<StatusRuntimeException> exception = new AtomicReference<>();
@@ -375,7 +375,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(1))
             .setCongestionInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
-            .setMaximumJitter(0)
+            .setMaximumJitterCoefficient(0)
             .setMaximumAttempts(3)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
@@ -406,7 +406,7 @@ public class GrpcAsyncRetryerTest {
     long elapsedTime = System.currentTimeMillis() - start;
     assertTrue("We should retry RESOURCE_EXHAUSTED failures.", attempts.get() > 2);
     assertTrue(
-        "We should retry RESOURCE_EXHAUSTED failures using longInitialInterval.",
+        "We should retry RESOURCE_EXHAUSTED failures using congestionInitialInterval.",
         elapsedTime >= 2000);
   }
 }
