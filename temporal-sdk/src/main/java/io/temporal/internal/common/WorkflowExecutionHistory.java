@@ -45,10 +45,16 @@ public final class WorkflowExecutionHistory {
   private static final JsonParser GSON_PARSER = new JsonParser();
 
   private final History history;
+  private final String workflowId;
 
   public WorkflowExecutionHistory(History history) {
+    this(history, "workflow_id_in_replay");
+  }
+
+  public WorkflowExecutionHistory(History history, String workflowId) {
     checkHistory(history);
     this.history = history;
+    this.workflowId = workflowId;
   }
 
   public static WorkflowExecutionHistory fromJson(String serialized) {
@@ -62,7 +68,6 @@ public final class WorkflowExecutionHistory {
       throw new DataConverterException(e);
     }
     History history = historyBuilder.build();
-    checkHistory(history);
     return new WorkflowExecutionHistory(history);
   }
 
@@ -114,7 +119,7 @@ public final class WorkflowExecutionHistory {
 
   public WorkflowExecution getWorkflowExecution() {
     return WorkflowExecution.newBuilder()
-        .setWorkflowId("workflow_id_in_replay")
+        .setWorkflowId(workflowId)
         .setRunId("run_id_in_replay")
         .build();
   }
