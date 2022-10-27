@@ -119,35 +119,50 @@ public final class RpcRetryOptions {
 
     /**
      * Interval of the first retry, on regular failures. If coefficient is 1.0 then it is used for
-     * all retries. Required.
+     * all retries. Defaults to 50ms.
+     *
+     * @param initialInterval Interval to wait on first retry. Default will be used if set to {@code
+     *     null}.
      */
     public Builder setInitialInterval(Duration initialInterval) {
-      Objects.requireNonNull(initialInterval);
-      if (initialInterval.isNegative() || initialInterval.isZero()) {
-        throw new IllegalArgumentException("Invalid interval: " + initialInterval);
+      if (initialInterval != null) {
+        if (initialInterval.isNegative() || initialInterval.isZero()) {
+          throw new IllegalArgumentException("Invalid interval: " + initialInterval);
+        }
+        this.initialInterval = initialInterval;
+      } else {
+        this.initialInterval = null;
       }
-      this.initialInterval = initialInterval;
       return this;
     }
 
     /**
      * Interval of the first retry, on congestion related failures (i.e. RESOURCE_EXHAUSTED errors).
      * If coefficient is 1.0 then it is used for all retries. Defaults to 1000ms.
+     *
+     * @param congestionInitialInterval Interval to wait on first retry, on congestion failures.
+     *     Defaults to 1000ms, which is used if set to {@code null}.
      */
     public Builder setCongestionInitialInterval(Duration congestionInitialInterval) {
-      Objects.requireNonNull(congestionInitialInterval);
-      if (congestionInitialInterval.isNegative() || congestionInitialInterval.isZero()) {
-        throw new IllegalArgumentException("Invalid interval: " + congestionInitialInterval);
+      if (initialInterval != null) {
+        if (congestionInitialInterval.isNegative() || congestionInitialInterval.isZero()) {
+          throw new IllegalArgumentException("Invalid interval: " + congestionInitialInterval);
+        }
+        this.congestionInitialInterval = congestionInitialInterval;
+      } else {
+        this.congestionInitialInterval = null;
       }
-      this.congestionInitialInterval = congestionInitialInterval;
       return this;
     }
 
     /**
      * Maximum time to retry. When exceeded the retries stop even if maximum retries is not reached
-     * yet.
+     * yet. Defaults to 1 minute.
      *
-     * <p>At least one of the expiration or {@link #setMaximumAttempts(int)} is required to be set.
+     * <p>At least one of expiration or {@link #setMaximumAttempts(int)} is required to be set.
+     *
+     * @param expiration Maximum time to retry. Defaults to 1 minute, which is used if set to {@code
+     *     null}.
      */
     public Builder setExpiration(Duration expiration) {
       if (expiration != null) {
@@ -164,12 +179,19 @@ public final class RpcRetryOptions {
     /**
      * Coefficient used to calculate the next retry interval. The next retry interval is previous
      * interval multiplied by this coefficient. Must be 1 or larger. Default is 2.0.
+     *
+     * @param backoffCoefficient Coefficient used to calculate the next retry interval. Defaults to
+     *     2.0, which is used if set to {@code 0}.
      */
     public Builder setBackoffCoefficient(double backoffCoefficient) {
-      if (backoffCoefficient < 1d) {
-        throw new IllegalArgumentException("coefficient less than 1.0: " + backoffCoefficient);
+      if (backoffCoefficient != 0.0) {
+        if (!Double.isFinite(backoffCoefficient) || (backoffCoefficient < 1.0)) {
+          throw new IllegalArgumentException("coefficient has to be >= 1.0: " + backoffCoefficient);
+        }
+        this.backoffCoefficient = backoffCoefficient;
+      } else {
+        this.backoffCoefficient = 0.0;
       }
-      this.backoffCoefficient = backoffCoefficient;
       return this;
     }
 
@@ -177,10 +199,11 @@ public final class RpcRetryOptions {
      * When exceeded the amount of attempts, stop. Even if expiration time is not reached. <br>
      * Default is unlimited.
      *
-     * <p>At least one of the maximum attempts or {@link #setExpiration(Duration)} is required to be
+     * <p>At least one of maximum attempts or {@link #setExpiration(Duration)} is required to be
      * set.
      *
-     * @param maximumAttempts Maximum number of attempts. Default will be used if set to {@code 0}.
+     * @param maximumAttempts Maximum number of attempts. Defaults to unlimited, which is used if
+     *     set to {@code 0}.
      */
     public Builder setMaximumAttempts(int maximumAttempts) {
       if (maximumAttempts < 0) {
@@ -195,30 +218,39 @@ public final class RpcRetryOptions {
      * is the cap of the increase. <br>
      * Default is 100x of initial interval. Can't be less than {@link #setInitialInterval(Duration)}
      *
-     * @param maximumInterval the maximum interval value. Default will be used if set to {@code
-     *     null}.
+     * @param maximumInterval the maximum interval value. Defaults to 100x initial interval, which
+     *     is used if set to {@code null}.
      */
     public Builder setMaximumInterval(Duration maximumInterval) {
-      if (maximumInterval != null && (maximumInterval.isNegative() || maximumInterval.isZero())) {
-        throw new IllegalArgumentException("Invalid interval: " + maximumInterval);
+      if (maximumInterval != null) {
+        if ((maximumInterval.isNegative() || maximumInterval.isZero())) {
+          throw new IllegalArgumentException("Invalid interval: " + maximumInterval);
+        }
+        this.maximumInterval = maximumInterval;
+      } else {
+        this.maximumInterval = null;
       }
-      this.maximumInterval = maximumInterval;
       return this;
     }
 
     /**
      * Maximum amount of jitter to apply. 0.2 means that actual retry time can be +/- 20% of the
      * calculated time. Set to 0 to disable jitter. Must be lower than 1. Default is 0.1.
+     *
+     * @param maximumJitterCoefficient Maximum amount of jitter. Default will be used if set to -1.
      */
     public Builder setMaximumJitterCoefficient(double maximumJitterCoefficient) {
-      if ((!Double.isFinite(maximumJitterCoefficient)
-              || maximumJitterCoefficient < 0
-              || maximumJitterCoefficient >= 1.0)
-          && maximumJitterCoefficient != -1.0) {
-        throw new IllegalArgumentException(
-            "maximumJitterCoefficient has to be >= 0 and < 1.0: " + maximumJitterCoefficient);
+      if (maximumJitterCoefficient != -1.0) {
+        if (!Double.isFinite(maximumJitterCoefficient)
+            || maximumJitterCoefficient < 0
+            || maximumJitterCoefficient >= 1.0) {
+          throw new IllegalArgumentException(
+              "maximumJitterCoefficient has to be >= 0 and < 1.0: " + maximumJitterCoefficient);
+        }
+        this.maximumJitterCoefficient = maximumJitterCoefficient;
+      } else {
+        this.maximumJitterCoefficient = -1.0;
       }
-      this.maximumJitterCoefficient = maximumJitterCoefficient;
       return this;
     }
 
