@@ -289,5 +289,10 @@ public class DummySyncWorkflowContext {
     public Map<String, Payload> getHeader() {
       return null;
     }
+
+    @Override
+    public long getCurrentWorkflowTaskStartedEventId() {
+      return 0;
+    }
   }
 }

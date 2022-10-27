@@ -69,4 +69,11 @@ public interface WorkflowInfo {
   int getAttempt();
 
   String getCronSchedule();
+
+  /**
+   * @return length of Workflow history up until the current moment of execution. This value changes
+   *     during the lifetime of a Workflow Execution. You may use this information to decide when to
+   *     call {@link Workflow#continueAsNew(Object...)}.
+   */
+  long getHistoryLength();
 }
