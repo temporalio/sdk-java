@@ -26,8 +26,10 @@ import java.time.Duration;
 /** Default rpc retry options for long polls like waiting for the workflow finishing and result. */
 public class DefaultStubLongPollRpcRetryOptions {
   public static final Duration INITIAL_INTERVAL = Duration.ofMillis(50);
+  public static final Duration CONGESTION_INITIAL_INTERVAL = Duration.ofMillis(1000);
   public static final Duration MAXIMUM_INTERVAL = Duration.ofMinutes(1);
   public static final double BACKOFF = 1.2;
+  public static final double MAXIMUM_JITTER_COEFFICIENT = 0.1;
 
   // partial build because expiration is not set, long polls work with absolute deadlines instead
   public static final RpcRetryOptions INSTANCE = getBuilder().build();
@@ -42,8 +44,10 @@ public class DefaultStubLongPollRpcRetryOptions {
     RpcRetryOptions.Builder roBuilder =
         RpcRetryOptions.newBuilder()
             .setInitialInterval(INITIAL_INTERVAL)
+            .setCongestionInitialInterval(CONGESTION_INITIAL_INTERVAL)
             .setBackoffCoefficient(BACKOFF)
-            .setMaximumInterval(MAXIMUM_INTERVAL);
+            .setMaximumInterval(MAXIMUM_INTERVAL)
+            .setMaximumJitterCoefficient(MAXIMUM_JITTER_COEFFICIENT);
 
     return roBuilder;
   }

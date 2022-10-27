@@ -20,25 +20,34 @@
 
 package io.temporal.internal;
 
+import io.grpc.Status;
+import io.grpc.Status.Code;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * Used to throttle code execution in presence of failures using exponential backoff logic. The
- * formula used to calculate the next sleep interval is:
+ * Used to throttle code execution in presence of failures using exponential backoff logic.
+ *
+ * <p>The formula used to calculate the next sleep interval is:
  *
  * <p>
  *
  * <pre>
- * min(pow(backoffCoefficient, failureCount - 1) * initialSleep, maxSleep);
+ * jitter = random number in the range [-maxJitterCoefficient, +maxJitterCoefficient];
+ * sleepTime = min(pow(backoffCoefficient, failureCount - 1) * initialSleep * (1 + jitter), maxSleep);
  * </pre>
+ *
+ * where <code>initialSleep</code> is either set to <code>regularInitialSleep</code> or <code>
+ * congestionInitialSleep</code> based on the <i>most recent</i> failure. Note that it means that
+ * attempt X can possibly get a shorter throttle than attempt X-1, if a non-congestion failure
+ * occurs after a congestion failure. This is the expected behaviour for all SDK.
  *
  * <p>Example usage:
  *
  * <pre><code>
- * BackoffThrottler throttler = new BackoffThrottler(1000, 60000, 2);
+ * BackoffThrottler throttler = new BackoffThrottler(50, 1000, 60000, 2, 0.1);
  * while(!stopped) {
  *     try {
  *         long throttleMs = throttler.getSleepTime();
@@ -50,7 +59,10 @@ import javax.annotation.concurrent.NotThreadSafe;
  *         throttler.success();
  *     }
  *     catch (Exception e) {
- *         throttler.failure();
+ *         throttler.failure(
+ *             (e instanceof StatusRuntimeException)
+ *                 ? ((StatusRuntimeException) e).getStatus().getCode()
+ *                 : Status.Code.UNKNOWN);
  *     }
  * }
  * </code></pre>
@@ -60,32 +72,63 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public final class BackoffThrottler {
 
-  private final Duration initialSleep;
+  private final Duration regularInitialSleep;
+
+  private final Duration congestionInitialSleep;
 
   private final Duration maxSleep;
 
   private final double backoffCoefficient;
 
+  private final double maxJitterCoefficient;
+
   private int failureCount = 0;
+
+  private Status.Code lastFailureCode = Code.OK;
 
   /**
    * Construct an instance of the throttler.
    *
-   * @param initialSleep time to sleep on the first failure
+   * @param regularInitialSleep time to sleep on the first failure (assuming regular failures)
+   * @param congestionInitialSleep time to sleep on the first failure (for congestion failures)
    * @param maxSleep maximum time to sleep independently of number of failures
-   * @param backoffCoefficient coefficient used to calculate the next time to sleep.
+   * @param backoffCoefficient coefficient used to calculate the next time to sleep
+   * @param maxJitterCoefficient maximum jitter coefficient (in the range [0.0, 1.0[) to randomly
+   *     add or subtract to sleep time
    */
   public BackoffThrottler(
-      Duration initialSleep, @Nullable Duration maxSleep, double backoffCoefficient) {
-    Objects.requireNonNull(initialSleep, "initialSleep");
-    this.initialSleep = initialSleep;
+      Duration regularInitialSleep,
+      Duration congestionInitialSleep,
+      @Nullable Duration maxSleep,
+      double backoffCoefficient,
+      double maxJitterCoefficient) {
+    Objects.requireNonNull(regularInitialSleep, "regularInitialSleep");
+    Objects.requireNonNull(congestionInitialSleep, "congestionInitialSleep");
+    if (backoffCoefficient < 1.0) {
+      throw new IllegalArgumentException(
+          "backoff coefficient less than 1.0: " + backoffCoefficient);
+    }
+    if (maxJitterCoefficient < 0 || maxJitterCoefficient >= 1.0) {
+      throw new IllegalArgumentException(
+          "maxJitterCoefficient has to be >= 0 and < 1.0: " + maxJitterCoefficient);
+    }
+    this.regularInitialSleep = regularInitialSleep;
+    this.congestionInitialSleep = congestionInitialSleep;
     this.maxSleep = maxSleep;
     this.backoffCoefficient = backoffCoefficient;
+    this.maxJitterCoefficient = maxJitterCoefficient;
   }
 
   public long getSleepTime() {
     if (failureCount == 0) return 0;
-    double sleepMillis = Math.pow(backoffCoefficient, failureCount - 1) * initialSleep.toMillis();
+    Duration initial =
+        (lastFailureCode == Code.RESOURCE_EXHAUSTED) ? congestionInitialSleep : regularInitialSleep;
+
+    // Choose a random number in the range [-maxJitterCoefficient, +maxJitterCoefficient];
+    double jitter = Math.random() * maxJitterCoefficient * 2 - maxJitterCoefficient;
+    double sleepMillis =
+        Math.pow(backoffCoefficient, failureCount - 1) * initial.toMillis() * (1 + jitter);
+
     if (maxSleep != null) {
       return Math.min((long) sleepMillis, maxSleep.toMillis());
     }
@@ -96,13 +139,15 @@ public final class BackoffThrottler {
     return failureCount;
   }
 
-  /** Reset failure count to 0. */
+  /** Reset failure count to 0 and clear last failure code. */
   public void success() {
     failureCount = 0;
+    lastFailureCode = Code.OK;
   }
 
-  /** Increment failure count. */
-  public void failure() {
+  /** Increment failure count and set last failure code. */
+  public void failure(Status.Code failureCode) {
     failureCount++;
+    lastFailureCode = failureCode;
   }
 }

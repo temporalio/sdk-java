@@ -58,6 +58,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -79,7 +80,7 @@ public class GrpcAsyncRetryerTest {
     }
 
     assertTrue("Should retry on DATA_LOSS failures.", attempts.get() > 1);
-    assertTrue(System.currentTimeMillis() - start > 500);
+    assertTrue(System.currentTimeMillis() - start >= 500);
   }
 
   @Test
@@ -91,6 +92,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -115,7 +117,7 @@ public class GrpcAsyncRetryerTest {
     }
 
     assertTrue("Should retry on DATA_LOSS failures.", attempts.get() > 1);
-    assertTrue(System.currentTimeMillis() - start > 500);
+    assertTrue(System.currentTimeMillis() - start >= 500);
   }
 
   @Test
@@ -126,6 +128,7 @@ public class GrpcAsyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
             .addDoNotRetry(STATUS_CODE, null)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
@@ -161,6 +164,7 @@ public class GrpcAsyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -193,6 +197,7 @@ public class GrpcAsyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -227,6 +232,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -259,7 +265,7 @@ public class GrpcAsyncRetryerTest {
 
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
-        System.currentTimeMillis() - start > 500);
+        System.currentTimeMillis() - start >= 500);
 
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
@@ -273,6 +279,7 @@ public class GrpcAsyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(50000))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -321,6 +328,7 @@ public class GrpcAsyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
 
     final AtomicReference<StatusRuntimeException> exception = new AtomicReference<>();
@@ -358,5 +366,47 @@ public class GrpcAsyncRetryerTest {
         "We should get a previous exception in case of DEADLINE_EXCEEDED",
         Status.Code.DATA_LOSS,
         exception.get().getStatus().getCode());
+  }
+
+  @Test
+  public void testResourceExhaustedFailure() throws InterruptedException {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(1))
+            .setCongestionInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
+            .setMaximumAttempts(3)
+            .validateBuildWithDefaults();
+    long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
+
+    try {
+      new GrpcAsyncRetryer<>(
+              scheduledExecutor,
+              () -> {
+                attempts.incrementAndGet();
+                CompletableFuture<?> future = new CompletableFuture<>();
+                future.completeExceptionally(
+                    new StatusRuntimeException(Status.fromCode(Status.Code.RESOURCE_EXHAUSTED)));
+                return future;
+              },
+              new GrpcRetryer.GrpcRetryerOptions(options, null),
+              GetSystemInfoResponse.Capabilities.getDefaultInstance())
+          .retry()
+          .get();
+      fail("unreachable");
+    } catch (ExecutionException e) {
+      assertTrue(e.getCause() instanceof StatusRuntimeException);
+      assertEquals(
+          Status.Code.RESOURCE_EXHAUSTED,
+          ((StatusRuntimeException) e.getCause()).getStatus().getCode());
+    }
+
+    long elapsedTime = System.currentTimeMillis() - start;
+    assertTrue("We should retry RESOURCE_EXHAUSTED failures.", attempts.get() > 2);
+    assertTrue(
+        "We should retry RESOURCE_EXHAUSTED failures using congestionInitialInterval.",
+        elapsedTime >= 2000);
   }
 }

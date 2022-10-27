@@ -63,6 +63,7 @@ public class GrpcSyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -81,7 +82,7 @@ public class GrpcSyncRetryerTest {
     }
 
     assertTrue("Should retry on DATA_LOSS failures.", attempts.get() > 1);
-    assertTrue(System.currentTimeMillis() - start > 500);
+    assertTrue(System.currentTimeMillis() - start >= 500);
   }
 
   @Test
@@ -92,6 +93,7 @@ public class GrpcSyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
             .addDoNotRetry(STATUS_CODE, null)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
@@ -121,6 +123,7 @@ public class GrpcSyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -146,6 +149,7 @@ public class GrpcSyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(1000))
             .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -175,6 +179,7 @@ public class GrpcSyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -195,7 +200,7 @@ public class GrpcSyncRetryerTest {
     assertEquals(Status.Code.DEADLINE_EXCEEDED, e.getStatus().getCode());
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
-        System.currentTimeMillis() - start > 500);
+        System.currentTimeMillis() - start >= 500);
 
     assertTrue(
         "We should retry DEADLINE_EXCEEDED if global Grpc Deadline, attempts, time are not exhausted.",
@@ -209,6 +214,7 @@ public class GrpcSyncRetryerTest {
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(50000))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     final AtomicInteger attempts = new AtomicInteger();
@@ -246,6 +252,7 @@ public class GrpcSyncRetryerTest {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(100))
             .setMaximumInterval(Duration.ofMillis(100))
+            .setMaximumJitterCoefficient(0)
             .validateBuildWithDefaults();
 
     final AtomicReference<StatusRuntimeException> exception = new AtomicReference<>();
@@ -275,5 +282,60 @@ public class GrpcSyncRetryerTest {
         "We should get a previous exception in case of DEADLINE_EXCEEDED",
         Status.Code.DATA_LOSS,
         exception.get().getStatus().getCode());
+  }
+
+  @Test
+  public void testResourceExhaustedFailure() {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(1))
+            .setCongestionInitialInterval(Duration.ofMillis(1000))
+            .setMaximumInterval(Duration.ofMillis(1000))
+            .setMaximumJitterCoefficient(0)
+            .setMaximumAttempts(3)
+            .validateBuildWithDefaults();
+    long start = System.currentTimeMillis();
+    final AtomicInteger attempts = new AtomicInteger();
+
+    StatusRuntimeException e =
+        assertThrows(
+            StatusRuntimeException.class,
+            () ->
+                DEFAULT_SYNC_RETRYER.retry(
+                    () -> {
+                      attempts.incrementAndGet();
+                      throw new StatusRuntimeException(
+                          Status.fromCode(Status.Code.RESOURCE_EXHAUSTED));
+                    },
+                    new GrpcRetryer.GrpcRetryerOptions(options, null),
+                    GetSystemInfoResponse.Capabilities.getDefaultInstance()));
+
+    assertEquals(Status.Code.RESOURCE_EXHAUSTED, e.getStatus().getCode());
+    long elapsedTime = System.currentTimeMillis() - start;
+    assertTrue("We should retry RESOURCE_EXHAUSTED failures.", attempts.get() > 2);
+    assertTrue(
+        "We should retry RESOURCE_EXHAUSTED failures using congestionInitialInterval.",
+        elapsedTime >= 2000);
+  }
+
+  @Test
+  public void testCongestionAndJitterAreNotMandatory() {
+    RpcRetryOptions options =
+        RpcRetryOptions.newBuilder(
+                RpcRetryOptions.newBuilder()
+                    .setInitialInterval(Duration.ofMillis(1))
+                    .setMaximumInterval(Duration.ofMillis(1000))
+                    .setMaximumAttempts(3)
+                    .build())
+            .validateBuildWithDefaults();
+
+    // The following options matches the values above
+    assertEquals(Duration.ofMillis(1), options.getInitialInterval());
+    assertEquals(Duration.ofMillis(1000), options.getMaximumInterval());
+    assertEquals(3, options.getMaximumAttempts());
+
+    // The following were added latter; they must silently use default values if unspecified
+    assertEquals(Duration.ofMillis(1000), options.getCongestionInitialInterval());
+    assertEquals(0.1, options.getMaximumJitterCoefficient(), 0.01);
   }
 }

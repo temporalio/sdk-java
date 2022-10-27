@@ -48,8 +48,10 @@ class GrpcSyncRetryer {
     BackoffThrottler throttler =
         new BackoffThrottler(
             rpcOptions.getInitialInterval(),
+            rpcOptions.getCongestionInitialInterval(),
             rpcOptions.getMaximumInterval(),
-            rpcOptions.getBackoffCoefficient());
+            rpcOptions.getBackoffCoefficient(),
+            rpcOptions.getMaximumJitterCoefficient());
 
     int attempt = 0;
     StatusRuntimeException lastMeaningfulException = null;
@@ -79,7 +81,7 @@ class GrpcSyncRetryer {
         }
         lastMeaningfulException =
             GrpcRetryerUtils.lastMeaningfulException(e, lastMeaningfulException);
-        throttler.failure();
+        throttler.failure(e.getStatus().getCode());
       }
       // No catch block for any other exceptions because we don't retry them, we pass them through.
       // It's designed this way because it's GrpcRetryer, not general purpose retryer.
