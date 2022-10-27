@@ -355,4 +355,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   public Map<String, Payload> getHeader() {
     return basicWorkflowContext.getHeader();
   }
+
+  @Override
+  public long getCurrentWorkflowTaskStartedEventId() {
+    return workflowStateMachines.getCurrentStartedEventId();
+  }
 }

@@ -296,4 +296,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @return workflow header
    */
   Map<String, Payload> getHeader();
+
+  /**
+   * @return eventId of the last / currently active workflow task of this workflow
+   */
+  long getCurrentWorkflowTaskStartedEventId();
 }

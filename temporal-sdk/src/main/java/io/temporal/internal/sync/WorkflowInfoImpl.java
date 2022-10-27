@@ -114,6 +114,11 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
+  public long getHistoryLength() {
+    return context.getCurrentWorkflowTaskStartedEventId();
+  }
+
+  @Override
   public String toString() {
     return "WorkflowInfo{"
         + "namespace="
@@ -145,6 +150,8 @@ final class WorkflowInfoImpl implements WorkflowInfo {
         + getAttempt()
         + ", cronSchedule="
         + getCronSchedule()
+        + ", historyLength="
+        + getHistoryLength()
         + '}';
   }
 }
