@@ -51,7 +51,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +66,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private final Duration stickyTaskQueueScheduleToStartTimeout;
   private final WorkflowServiceStubs service;
   private final String stickyTaskQueueName;
-  private final BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller;
+  private final LocalActivityDispatcher localActivityDispatcher;
 
   public ReplayWorkflowTaskHandler(
       String namespace,
@@ -77,7 +76,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       String stickyTaskQueueName,
       Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
-      BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller) {
+      LocalActivityDispatcher localActivityDispatcher) {
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
@@ -85,7 +84,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     this.stickyTaskQueueName = stickyTaskQueueName;
     this.stickyTaskQueueScheduleToStartTimeout = stickyTaskQueueScheduleToStartTimeout;
     this.service = Objects.requireNonNull(service);
-    this.localActivityTaskPoller = localActivityTaskPoller;
+    this.localActivityDispatcher = localActivityDispatcher;
   }
 
   @Override
@@ -365,7 +364,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     }
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayWorkflowRunTaskHandler(
-        namespace, workflow, workflowTask, options, metricsScope, localActivityTaskPoller);
+        namespace, workflow, workflowTask, options, metricsScope, localActivityDispatcher);
   }
 
   private void resetStickyTaskQueue(WorkflowExecution execution) {

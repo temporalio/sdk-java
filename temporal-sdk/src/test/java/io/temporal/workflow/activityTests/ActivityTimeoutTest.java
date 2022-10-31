@@ -100,7 +100,7 @@ public class ActivityTimeoutTest {
    * go into the cause chain.
    */
   @Test
-  @Parameters({"false"})
+  @Parameters({"false", "true"})
   public void maximumAttemptsReached_startToCloseTimingOutActivity(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 1, 100);
@@ -143,7 +143,7 @@ public class ActivityTimeoutTest {
    * {@link TimeoutFailure}({@link TimeoutType#TIMEOUT_TYPE_START_TO_CLOSE})
    */
   @Test
-  @Parameters({"false"})
+  @Parameters({"false", "true"})
   public void maximumAttemptsReached_twiceStartToCloseTimingOutActivity(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 2, 100);
@@ -193,7 +193,7 @@ public class ActivityTimeoutTest {
    * ActivityFailure is limited by 2
    */
   @Test
-  @Parameters({"false"})
+  @Parameters({"false", "true"})
   public void maximumAttemptsReached_threeStartToCloseTimingOutActivity(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 3, 100);
@@ -245,8 +245,8 @@ public class ActivityTimeoutTest {
    * {@link ApplicationFailure}
    */
   @Test
-  @Parameters({"false"})
-  public void maximumAttemptsReached_onceFailing_onceStartToCloseTimingOutActivity(boolean local) {
+  @Parameters({"false", "true"})
+  public void maximumAttemptsReached_failing_startToCloseTimingOutActivity(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Arrays.asList(Outcome.FAIL, Outcome.SLEEP), 2, 5);
 
@@ -285,8 +285,8 @@ public class ActivityTimeoutTest {
   }
 
   // TODO Parametrize when scheduleToStart support is added for local activities
-  @Parameters({"false"})
   @Test
+  @Parameters({"false"})
   public void scheduleToStartTimeout(boolean local) {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
@@ -327,7 +327,7 @@ public class ActivityTimeoutTest {
    * go into the cause chain.
    */
   @Test
-  @Parameters({"false"})
+  @Parameters({"false", "true"})
   public void scheduleToCloseTimeout_startToCloseTimingOutActivity(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 1, 100);
@@ -372,7 +372,7 @@ public class ActivityTimeoutTest {
    * {@link TimeoutFailure}({@link TimeoutType#TIMEOUT_TYPE_START_TO_CLOSE})
    */
   @Test
-  @Parameters({"false"})
+  @Parameters({"false", "true"})
   public void scheduleToCloseTimeout_twiceStartToCloseTimingOutActivity(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 2, 100);
@@ -426,8 +426,8 @@ public class ActivityTimeoutTest {
    * an original first failure is not preserved in the chain
    */
   @Test
-  @Parameters({"false"})
-  public void scheduleToCloseTimeout_onceFailing_twiceStartToCloseTimingOut(boolean local) {
+  @Parameters({"false", "true"})
+  public void scheduleToCloseTimeout_failing_twiceStartToCloseTimingOut(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Arrays.asList(Outcome.FAIL, Outcome.SLEEP, Outcome.SLEEP), 3, 5);
 
@@ -478,7 +478,7 @@ public class ActivityTimeoutTest {
    * {@link ApplicationFailure}[from the second attempt]
    */
   @Test
-  @Parameters({"false"})
+  @Parameters({"false", "true"})
   public void scheduleToCloseTimeout_startToClose_failing_startToCloseTimingOut(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Arrays.asList(Outcome.SLEEP, Outcome.FAIL, Outcome.SLEEP), 3, 5);
@@ -524,7 +524,7 @@ public class ActivityTimeoutTest {
    * {@link ApplicationFailure}
    */
   @Test
-  @Parameters({"false"})
+  @Parameters({"false", "true"})
   public void scheduleToCloseTimeout_failingActivity(boolean local) {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.FAIL), 3, -1);
@@ -550,7 +550,116 @@ public class ActivityTimeoutTest {
 
     assertTrue(activityFailure.getCause() instanceof ApplicationFailure);
     ApplicationFailure applicationFailure = (ApplicationFailure) activityFailure.getCause();
+    assertEquals("intentional failure", applicationFailure.getOriginalMessage());
 
+    assertNull(applicationFailure.getCause());
+
+    activity.verifyAttempts();
+  }
+
+  /**
+   * This test verifies the behavior and observed result of a present scheduleToClose timeout ond an
+   * activity that doesn't fit into scheduleToClose on the first attempt.
+   *
+   * <p>The expected structure is <br>
+   * {@link ActivityFailure}({@link RetryState#RETRY_STATE_TIMEOUT}) -> <br>
+   * {@link TimeoutFailure}({@link TimeoutType#TIMEOUT_TYPE_SCHEDULE_TO_CLOSE})
+   */
+  @Test
+  @Parameters({"false", "true"})
+  public void scheduleToCloseTimeout_timingOutActivity(boolean local) {
+    ControlledActivityImpl activity =
+        new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 1, 100);
+
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
+    worker.registerActivitiesImplementations(activity);
+    testEnvironment.start();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+    TestActivityTimeoutWorkflow workflow =
+        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+
+    WorkflowException e =
+        assertThrows(WorkflowException.class, () -> workflow.workflow(5, -1, -1, -1, local));
+
+    assertTrue(e.getCause() instanceof ActivityFailure);
+    ActivityFailure activityFailure = (ActivityFailure) e.getCause();
+
+    if (ExternalServiceTestConfigurator.isUseExternalService() && !local) {
+      // Real temporal server return this specific case of scheduleToClose as non-retryable failure.
+      // It's inconsistent with other situations and conflicts with non-retryable application
+      // failures.
+      // TODO This comment should be updated with an issue when filed.
+      assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
+    } else {
+      assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
+    }
+
+    MatcherAssert.assertThat(
+        activityFailure.getMessage(), CoreMatchers.containsString("Activity task timed out"));
+
+    assertTrue(activityFailure.getCause() instanceof TimeoutFailure);
+    TimeoutFailure scheduleToClose = (TimeoutFailure) activityFailure.getCause();
+    assertEquals(TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, scheduleToClose.getTimeoutType());
+
+    assertNull(scheduleToClose.getCause());
+
+    activity.verifyAttempts();
+  }
+
+  /**
+   * This test hits a scenario when an activity
+   *
+   * <ul>
+   *   <li>fails on the first attempt
+   *   <li>reaches scheduleToClose on the second attempt
+   * </ul>
+   *
+   * <p>The expected structure is <br>
+   * {@link ActivityFailure}({@link RetryState#RETRY_STATE_TIMEOUT}) -> <br>
+   * {@link TimeoutFailure}({@link TimeoutType#TIMEOUT_TYPE_SCHEDULE_TO_CLOSE}) -> <br>
+   * {@link ApplicationFailure}
+   */
+  @Test
+  @Parameters({"false", "true"})
+  public void scheduleToCloseTimeout_failing_timingOutActivity(boolean local) {
+    ControlledActivityImpl activity =
+        new ControlledActivityImpl(Arrays.asList(Outcome.FAIL, Outcome.SLEEP), 2, 100);
+
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
+    worker.registerActivitiesImplementations(activity);
+    testEnvironment.start();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+    TestActivityTimeoutWorkflow workflow =
+        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+
+    WorkflowException e =
+        assertThrows(WorkflowException.class, () -> workflow.workflow(5, -1, -1, -1, local));
+
+    assertTrue(e.getCause() instanceof ActivityFailure);
+    ActivityFailure activityFailure = (ActivityFailure) e.getCause();
+
+    if (ExternalServiceTestConfigurator.isUseExternalService() && !local) {
+      // Real temporal server return this specific case of scheduleToClose as non-retryable failure.
+      // It's inconsistent with other situations and conflicts with non-retryable application
+      // failures.
+      // TODO This comment should be updated with an issue when filed.
+      assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
+    } else {
+      assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
+    }
+
+    MatcherAssert.assertThat(
+        activityFailure.getMessage(), CoreMatchers.containsString("Activity task timed out"));
+
+    assertTrue(activityFailure.getCause() instanceof TimeoutFailure);
+    TimeoutFailure scheduleToClose = (TimeoutFailure) activityFailure.getCause();
+    assertEquals(TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, scheduleToClose.getTimeoutType());
+
+    ApplicationFailure applicationFailure = (ApplicationFailure) scheduleToClose.getCause();
     assertEquals("intentional failure", applicationFailure.getOriginalMessage());
 
     assertNull(applicationFailure.getCause());

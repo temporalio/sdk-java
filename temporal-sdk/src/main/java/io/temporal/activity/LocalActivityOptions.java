@@ -126,8 +126,22 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * {@link RetryOptions} that define how an Activity is retried in case of failure. Activities
-     * use a default RetryPolicy if not provided.
+     * {@link RetryOptions} that define how an Activity is retried in case of failure.
+     *
+     * <p>If not provided, the default activity retry policy is:
+     *
+     * <pre><code>
+     *   InitialInterval:         1 second
+     *   BackoffCoefficient:      2
+     *   MaximumInterval:         100 seconds   // 100 * InitialInterval
+     *   MaximumAttempts:         0             // Unlimited
+     *   NonRetryableErrorTypes:  []
+     * </pre></code>
+     *
+     * <p>If both {@link #setScheduleToCloseTimeout(Duration)} and {@link
+     * RetryOptions.Builder#setMaximumAttempts(int)} are not set, the Activity will not be retried.
+     *
+     * <p>To ensure zero retries, set {@link RetryOptions.Builder#setMaximumAttempts(int)} to 1.
      */
     public Builder setRetryOptions(RetryOptions retryOptions) {
       this.retryOptions = retryOptions;

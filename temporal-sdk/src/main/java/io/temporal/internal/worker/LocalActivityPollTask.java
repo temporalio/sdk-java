@@ -20,51 +20,28 @@
 
 package io.temporal.internal.worker;
 
-import java.time.Duration;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class LocalActivityPollTask
-    implements Poller.PollTask<LocalActivityTask>,
-        BiFunction<LocalActivityTask, Duration, Boolean> {
+final class LocalActivityPollTask implements Poller.PollTask<LocalActivityAttemptTask> {
   private static final Logger log = LoggerFactory.getLogger(LocalActivityPollTask.class);
 
-  private static final int QUEUE_SIZE = 1000;
-  private final BlockingQueue<LocalActivityTask> pendingTasks =
-      new ArrayBlockingQueue<>(QUEUE_SIZE);
+  private final BlockingQueue<LocalActivityAttemptTask> pendingTasks;
+
+  public LocalActivityPollTask(BlockingQueue<LocalActivityAttemptTask> pendingTasks) {
+    this.pendingTasks = pendingTasks;
+  }
 
   @Override
-  public LocalActivityTask poll() {
+  public LocalActivityAttemptTask poll() {
     try {
-      LocalActivityTask task = pendingTasks.take();
+      LocalActivityAttemptTask task = pendingTasks.take();
       log.trace("LocalActivity Task poll returned: {}", task.getActivityId());
       return task;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return null;
-    }
-  }
-
-  @Override
-  public Boolean apply(LocalActivityTask task, Duration maxWaitAllowed) {
-    try {
-      boolean accepted = pendingTasks.offer(task, maxWaitAllowed.toMillis(), TimeUnit.MILLISECONDS);
-      if (accepted) {
-        log.trace("LocalActivity queued: {}", task.getActivityId());
-      } else {
-        log.trace(
-            "LocalActivity queue submitting timed out for activity {}, maxWaitAllowed: {}",
-            task.getActivityId(),
-            maxWaitAllowed);
-      }
-      return accepted;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return false;
     }
   }
 }

@@ -46,7 +46,7 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.sync.WorkflowThread;
-import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
@@ -448,9 +448,9 @@ public final class WorkflowStateMachines {
    * Local activity is different from all other entities. It doesn't schedule a marker command when
    * the {@link #scheduleLocalActivityTask(ExecuteLocalActivityParameters, Functions.Proc2)} is
    * called. The marker is scheduled only when activity completes through ({@link
-   * #handleLocalActivityCompletion(ActivityTaskHandler.Result)}). That's why the normal logic of
-   * {@link #handleCommandEvent(HistoryEvent)}, which assumes that each event has a correspondent
-   * command during replay, doesn't work. Instead, local activities are matched by their id using
+   * #handleLocalActivityCompletion(LocalActivityResult)}). That's why the normal logic of {@link
+   * #handleCommandEvent(HistoryEvent)}, which assumes that each event has a correspondent command
+   * during replay, doesn't work. Instead, local activities are matched by their id using
    * localActivityMap.
    *
    * @return true if matched and false if normal event handling should continue.
@@ -781,14 +781,13 @@ public final class WorkflowStateMachines {
     List<ExecuteLocalActivityParameters> result = localActivityRequests;
     localActivityRequests = new ArrayList<>();
     for (ExecuteLocalActivityParameters parameters : result) {
-      LocalActivityStateMachine stateMachine =
-          localActivityMap.get(parameters.getActivityTask().getActivityId());
+      LocalActivityStateMachine stateMachine = localActivityMap.get(parameters.getActivityId());
       stateMachine.markAsSent();
     }
     return result;
   }
 
-  public void handleLocalActivityCompletion(ActivityTaskHandler.Result laCompletion) {
+  public void handleLocalActivityCompletion(LocalActivityResult laCompletion) {
     String activityId = laCompletion.getActivityId();
     LocalActivityStateMachine laStateMachine = localActivityMap.get(activityId);
     if (laStateMachine == null) {
@@ -802,7 +801,7 @@ public final class WorkflowStateMachines {
       ExecuteLocalActivityParameters parameters,
       Functions.Proc2<Optional<Payloads>, Failure> callback) {
     checkEventLoopExecuting();
-    String activityId = parameters.getActivityTask().getActivityId();
+    String activityId = parameters.getActivityId();
     if (Strings.isNullOrEmpty(activityId)) {
       throw new IllegalArgumentException("Missing activityId: " + activityId);
     }

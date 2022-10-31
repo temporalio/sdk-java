@@ -271,7 +271,8 @@ public final class WorkerOptions {
     public Builder setMaxHeartbeatThrottleInterval(@Nullable Duration interval) {
       Preconditions.checkArgument(
           interval == null || !interval.isNegative(),
-          "Negative maxHeartbeatThrottleInterval value: " + interval);
+          "Negative maxHeartbeatThrottleInterval value: %s",
+          interval);
       this.maxHeartbeatThrottleInterval = interval;
       return this;
     }
@@ -286,7 +287,8 @@ public final class WorkerOptions {
     public Builder setDefaultHeartbeatThrottleInterval(@Nullable Duration interval) {
       Preconditions.checkArgument(
           interval == null || !interval.isNegative(),
-          "Negative defaultHeartbeatThrottleInterval value: " + interval);
+          "Negative defaultHeartbeatThrottleInterval value: %s",
+          interval);
       this.defaultHeartbeatThrottleInterval = interval;
       return this;
     }

@@ -26,20 +26,17 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.failure.v1.ActivityFailureInfo;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.history.MarkerUtils;
-import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.workflow.Functions;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,6 +48,14 @@ final class LocalActivityStateMachine
         LocalActivityStateMachine.State,
         LocalActivityStateMachine.ExplicitEvent,
         LocalActivityStateMachine> {
+  static final String LOCAL_ACTIVITY_FAILED_MESSAGE =
+      "Local " + ActivityStateMachine.ACTIVITY_FAILED_MESSAGE;
+
+  static final String LOCAL_ACTIVITY_TIMED_OUT_MESSAGE =
+      "Local " + ActivityStateMachine.ACTIVITY_TIMED_OUT_MESSAGE;
+
+  static final String LOCAL_ACTIVITY_CANCELED_MESSAGE =
+      "Local " + ActivityStateMachine.ACTIVITY_CANCELED_MESSAGE;
 
   private final Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink;
   private final Functions.Proc2<Optional<Payloads>, Failure> callback;
@@ -60,7 +65,6 @@ final class LocalActivityStateMachine
   /** Accepts proposed current time. Returns accepted current time. */
   private final Functions.Func1<Long, Long> setCurrentTimeCallback;
 
-  private final boolean hasRetryPolicy;
   private final String activityId;
   private final ActivityType activityType;
 
@@ -73,62 +77,8 @@ final class LocalActivityStateMachine
   private final long systemNanoTimeWhenStarted;
 
   private Failure failure;
-  private ActivityTaskHandler.Result result;
+  private LocalActivityResult result;
   private Optional<Payloads> laResult;
-
-  /**
-   * Creates new local activity marker
-   *
-   * @param localActivityParameters used to produce side effect value. null if replaying.
-   * @param callback returns side effect value or failure
-   * @param commandSink callback to send commands to
-   */
-  public static LocalActivityStateMachine newInstance(
-      Functions.Func<Boolean> replaying,
-      Functions.Func1<Long, Long> setCurrentTimeCallback,
-      ExecuteLocalActivityParameters localActivityParameters,
-      Functions.Proc2<Optional<Payloads>, Failure> callback,
-      Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
-      Functions.Proc1<CancellableCommand> commandSink,
-      Functions.Proc1<StateMachine> stateMachineSink,
-      long workflowTimeMillisWhenStarted) {
-    return new LocalActivityStateMachine(
-        replaying,
-        setCurrentTimeCallback,
-        localActivityParameters,
-        callback,
-        localActivityRequestSink,
-        commandSink,
-        stateMachineSink,
-        workflowTimeMillisWhenStarted,
-        System.nanoTime());
-  }
-
-  private LocalActivityStateMachine(
-      Functions.Func<Boolean> replaying,
-      Functions.Func1<Long, Long> setCurrentTimeCallback,
-      ExecuteLocalActivityParameters localActivityParameters,
-      Functions.Proc2<Optional<Payloads>, Failure> callback,
-      Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
-      Functions.Proc1<CancellableCommand> commandSink,
-      Functions.Proc1<StateMachine> stateMachineSink,
-      long workflowTimeMillisWhenStarted,
-      long systemNanoTimeWhenStarted) {
-    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
-    this.replaying = replaying;
-    this.setCurrentTimeCallback = setCurrentTimeCallback;
-    this.localActivityParameters = localActivityParameters;
-    PollActivityTaskQueueResponse.Builder activityTask = localActivityParameters.getActivityTask();
-    this.hasRetryPolicy = activityTask.hasRetryPolicy();
-    this.activityId = activityTask.getActivityId();
-    this.activityType = activityTask.getActivityType();
-    this.localActivityRequestSink = localActivityRequestSink;
-    this.callback = callback;
-    this.workflowTimeMillisWhenStarted = workflowTimeMillisWhenStarted;
-    this.systemNanoTimeWhenStarted = systemNanoTimeWhenStarted;
-    explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
-    explicitEvent(ExplicitEvent.SCHEDULE);
-  }
 
   enum ExplicitEvent {
     CHECK_EXECUTION_STATE,
@@ -205,6 +155,58 @@ final class LocalActivityStateMachine
                   State.REQUEST_PREPARED,
                   LocalActivityStateMachine::sendRequest);
 
+  /**
+   * Creates new local activity marker
+   *
+   * @param localActivityParameters used to produce side effect value. null if replaying.
+   * @param callback returns side effect value or failure
+   * @param commandSink callback to send commands to
+   */
+  public static LocalActivityStateMachine newInstance(
+      Functions.Func<Boolean> replaying,
+      Functions.Func1<Long, Long> setCurrentTimeCallback,
+      ExecuteLocalActivityParameters localActivityParameters,
+      Functions.Proc2<Optional<Payloads>, Failure> callback,
+      Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink,
+      long workflowTimeMillisWhenStarted) {
+    return new LocalActivityStateMachine(
+        replaying,
+        setCurrentTimeCallback,
+        localActivityParameters,
+        callback,
+        localActivityRequestSink,
+        commandSink,
+        stateMachineSink,
+        workflowTimeMillisWhenStarted,
+        System.nanoTime());
+  }
+
+  private LocalActivityStateMachine(
+      Functions.Func<Boolean> replaying,
+      Functions.Func1<Long, Long> setCurrentTimeCallback,
+      ExecuteLocalActivityParameters localActivityParameters,
+      Functions.Proc2<Optional<Payloads>, Failure> callback,
+      Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
+      Functions.Proc1<CancellableCommand> commandSink,
+      Functions.Proc1<StateMachine> stateMachineSink,
+      long workflowTimeMillisWhenStarted,
+      long systemNanoTimeWhenStarted) {
+    super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
+    this.replaying = replaying;
+    this.setCurrentTimeCallback = setCurrentTimeCallback;
+    this.localActivityParameters = localActivityParameters;
+    this.activityId = localActivityParameters.getActivityId();
+    this.activityType = localActivityParameters.getActivityType();
+    this.localActivityRequestSink = localActivityRequestSink;
+    this.callback = callback;
+    this.workflowTimeMillisWhenStarted = workflowTimeMillisWhenStarted;
+    this.systemNanoTimeWhenStarted = systemNanoTimeWhenStarted;
+    explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
+    explicitEvent(ExplicitEvent.SCHEDULE);
+  }
+
   State getExecutionState() {
     return replaying.apply() ? State.REPLAYING : State.EXECUTING;
   }
@@ -228,7 +230,7 @@ final class LocalActivityStateMachine
     explicitEvent(ExplicitEvent.MARK_AS_SENT);
   }
 
-  public void handleCompletion(ActivityTaskHandler.Result result) {
+  public void handleCompletion(LocalActivityResult result) {
     this.result = result;
     explicitEvent(ExplicitEvent.HANDLE_RESULT);
   }
@@ -260,11 +262,10 @@ final class LocalActivityStateMachine
       if (localActivityParameters != null
           && !localActivityParameters.isDoNotIncludeArgumentsIntoMarker()) {
         details.put(
-            LocalActivityMarkerUtils.MARKER_ACTIVITY_INPUT_KEY,
-            localActivityParameters.getActivityTask().getInput());
+            LocalActivityMarkerUtils.MARKER_ACTIVITY_INPUT_KEY, localActivityParameters.getInput());
       }
-      if (result.getTaskCompleted() != null) {
-        RespondActivityTaskCompletedRequest completed = result.getTaskCompleted();
+      if (result.getExecutionCompleted() != null) {
+        RespondActivityTaskCompletedRequest completed = result.getExecutionCompleted();
         if (completed.hasResult()) {
           Payloads p = completed.getResult();
           laResult = Optional.of(p);
@@ -272,28 +273,28 @@ final class LocalActivityStateMachine
         } else {
           laResult = Optional.empty();
         }
-      } else if (result.getTaskFailed() != null) {
-        // TODO(maxim): Result should contain Failure, not an exception
-        ActivityTaskHandler.Result.TaskFailedResult failed = result.getTaskFailed();
-        // TODO(maxim): Return RetryState in the result
-        RetryState retryState =
-            hasRetryPolicy
-                ? RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED
-                : RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET;
+      } else if (result.getExecutionFailed() != null) {
+        LocalActivityResult.ExecutionFailedResult failedResult = result.getExecutionFailed();
+        String message =
+            failedResult.isTimeout()
+                ? LOCAL_ACTIVITY_TIMED_OUT_MESSAGE
+                : LOCAL_ACTIVITY_FAILED_MESSAGE;
         failure =
             Failure.newBuilder()
+                .setMessage(message)
                 .setActivityFailureInfo(
                     ActivityFailureInfo.newBuilder()
-                        .setRetryState(retryState)
+                        .setRetryState(failedResult.getRetryState())
                         .setActivityId(activityId)
                         .setActivityType(activityType))
-                .setCause(FailureConverter.exceptionToFailure(failed.getFailure()))
+                .setCause(failedResult.getFailure())
                 .build();
         markerAttributes.setFailure(failure);
-      } else if (result.getTaskCanceled() != null) {
-        RespondActivityTaskCanceledRequest failed = result.getTaskCanceled();
+      } else if (result.getExecutionCanceled() != null) {
+        RespondActivityTaskCanceledRequest failed = result.getExecutionCanceled();
         markerAttributes.setFailure(
             Failure.newBuilder()
+                .setMessage(LOCAL_ACTIVITY_CANCELED_MESSAGE)
                 .setCanceledFailureInfo(
                     CanceledFailureInfo.newBuilder().setDetails(failed.getDetails())));
       }

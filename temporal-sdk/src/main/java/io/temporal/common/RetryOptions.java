@@ -20,6 +20,7 @@
 
 package io.temporal.common;
 
+import com.google.common.base.Preconditions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
@@ -33,6 +34,7 @@ import java.util.Optional;
 public final class RetryOptions {
 
   private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
+  private static final Duration DEFAULT_INITIAL_INTERVAL = Duration.ofSeconds(1);
   private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
   public static Builder newBuilder() {
@@ -130,8 +132,6 @@ public final class RetryOptions {
 
   public static final class Builder {
 
-    private static final Duration DEFAULT_INITIAL_INTERVAL = Duration.ofSeconds(1);
-
     private Duration initialInterval;
 
     private double backoffCoefficient;
@@ -168,11 +168,12 @@ public final class RetryOptions {
     /**
      * Coefficient used to calculate the next retry interval. The next retry interval is previous
      * interval multiplied by this coefficient. Must be 1 or larger. Default is 2.0.
+     *
+     * @throws IllegalArgumentException if {@code backoffCoefficient} is less than 1.0
      */
     public Builder setBackoffCoefficient(double backoffCoefficient) {
-      if (backoffCoefficient < 1d) {
-        throw new IllegalArgumentException("coefficient less than 1.0: " + backoffCoefficient);
-      }
+      Preconditions.checkArgument(
+          backoffCoefficient >= 1, "backoffCoefficient must be >= 1, was %s", backoffCoefficient);
       this.backoffCoefficient = backoffCoefficient;
       return this;
     }
@@ -182,11 +183,11 @@ public final class RetryOptions {
      * Default is unlimited.
      *
      * @param maximumAttempts Maximum number of attempts. Default will be used if set to {@code 0}.
+     * @throws IllegalArgumentException if {@code maximumAttempts} is less than 0
      */
     public Builder setMaximumAttempts(int maximumAttempts) {
-      if (maximumAttempts < 0) {
-        throw new IllegalArgumentException("Invalid maximumAttempts: " + maximumAttempts);
-      }
+      Preconditions.checkArgument(
+          maximumAttempts >= 0, "maximumAttempts must be >= 0, was %s", maximumAttempts);
       this.maximumAttempts = maximumAttempts;
       return this;
     }
@@ -198,11 +199,13 @@ public final class RetryOptions {
      *
      * @param maximumInterval the maximum interval value. Default will be used if set to {@code
      *     null}.
+     * @throws IllegalArgumentException if {@code maximumInterval} is not null and not positive
      */
     public Builder setMaximumInterval(Duration maximumInterval) {
-      if (maximumInterval != null && (maximumInterval.isNegative() || maximumInterval.isZero())) {
-        throw new IllegalArgumentException("Invalid maximum interval: " + maximumInterval);
-      }
+      Preconditions.checkArgument(
+          maximumInterval == null || maximumInterval.compareTo(Duration.ZERO) > 0,
+          "Invalid maximum interval: %s",
+          maximumInterval);
       this.maximumInterval = maximumInterval;
       return this;
     }

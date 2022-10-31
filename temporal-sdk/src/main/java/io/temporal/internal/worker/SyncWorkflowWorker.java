@@ -110,7 +110,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             stickyTaskQueueName,
             singleWorkerOptions.getStickyQueueScheduleToStartTimeout(),
             service,
-            laWorker.getLocalActivityTaskPoller());
+            laWorker.getLocalActivityScheduler());
 
     workflowWorker =
         new WorkflowWorker(
@@ -135,7 +135,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             null,
             Duration.ZERO,
             service,
-            laWorker.getLocalActivityTaskPoller());
+            laWorker.getLocalActivityScheduler());
 
     queryReplayHelper = new QueryReplayHelper(nonStickyReplayTaskHandler);
   }

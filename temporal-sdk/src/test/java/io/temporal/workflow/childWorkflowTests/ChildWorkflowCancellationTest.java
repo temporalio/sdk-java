@@ -164,7 +164,8 @@ public class ChildWorkflowCancellationTest {
     public void execute() {
       TestActivities.VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              TestActivities.VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
+              TestActivities.VariousTestActivities.class,
+              SDKTestOptions.newLocalActivityOptions20sScheduleToClose());
       try {
         Workflow.sleep(Duration.ofHours(1));
       } catch (CanceledFailure e) {

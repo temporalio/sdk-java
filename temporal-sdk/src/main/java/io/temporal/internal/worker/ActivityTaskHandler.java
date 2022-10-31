@@ -24,7 +24,6 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
-import java.time.Duration;
 
 /**
  * Interface of an activity task handler.
@@ -40,8 +39,6 @@ public interface ActivityTaskHandler {
     private final TaskFailedResult taskFailed;
     private final RespondActivityTaskCanceledRequest taskCanceled;
     private final boolean manualCompletion;
-    private int attempt;
-    private Duration backoff;
 
     @Override
     public String toString() {
@@ -55,10 +52,6 @@ public interface ActivityTaskHandler {
           + taskFailed
           + ", taskCanceled="
           + taskCanceled
-          + ", attempt="
-          + attempt
-          + ", backoff="
-          + backoff
           + '}';
     }
 
@@ -115,22 +108,6 @@ public interface ActivityTaskHandler {
       return taskCanceled;
     }
 
-    public void setAttempt(int attempt) {
-      this.attempt = attempt;
-    }
-
-    public int getAttempt() {
-      return attempt;
-    }
-
-    public void setBackoff(Duration backoff) {
-      this.backoff = backoff;
-    }
-
-    public Duration getBackoff() {
-      return backoff;
-    }
-
     public boolean isManualCompletion() {
       return manualCompletion;
     }
@@ -138,7 +115,7 @@ public interface ActivityTaskHandler {
 
   /**
    * The implementation should be called when a polling activity worker receives a new activity
-   * task. This method shouldn't throw any exception unless there is a need to not reply to the
+   * task. This method shouldn't throw any Throwables unless there is a need to not reply to the
    * task.
    *
    * @param activityTask activity task which is response to PollActivityTaskQueue call.

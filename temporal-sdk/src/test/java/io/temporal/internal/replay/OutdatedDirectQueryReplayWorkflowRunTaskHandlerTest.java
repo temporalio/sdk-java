@@ -45,6 +45,7 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
+import io.temporal.internal.worker.LocalActivityDispatcher;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -52,7 +53,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
-import java.util.function.BiFunction;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -101,7 +101,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
             wft,
             SingleWorkerOptions.newBuilder().build(),
             new NoopScope(),
-            mock(BiFunction.class));
+            mock(LocalActivityDispatcher.class));
 
     stateMachines = handler.getWorkflowStateMachines();
     QueryResult queryResult =
@@ -152,7 +152,8 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
                                               .getMarkerRecordedEventAttributes()))
                                   .build()),
                       null,
-                      false),
+                      false,
+                      null),
                   (r, e) -> {});
               return false;
             })
