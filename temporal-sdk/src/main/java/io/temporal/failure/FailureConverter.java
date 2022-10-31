@@ -153,6 +153,7 @@ public class FailureConverter {
         {
           ActivityFailureInfo info = failure.getActivityFailureInfo();
           return new ActivityFailure(
+              failure.getMessage(),
               info.getScheduledEventId(),
               info.getStartedEventId(),
               info.getActivityType().getName(),

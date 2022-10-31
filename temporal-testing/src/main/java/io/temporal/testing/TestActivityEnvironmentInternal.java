@@ -466,6 +466,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                   taskFailed.getFailure(),
                   testEnvironmentOptions.getWorkflowClientOptions().getDataConverter());
           throw new ActivityFailure(
+              taskFailed.getFailure().getMessage(),
               0,
               0,
               task.getActivityType().getName(),

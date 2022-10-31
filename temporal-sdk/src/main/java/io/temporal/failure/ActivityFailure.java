@@ -38,6 +38,7 @@ public final class ActivityFailure extends TemporalFailure {
   private final RetryState retryState;
 
   public ActivityFailure(
+      String message,
       long scheduledEventId,
       long startedEventId,
       String activityType,
@@ -47,8 +48,14 @@ public final class ActivityFailure extends TemporalFailure {
       Throwable cause) {
     super(
         getMessage(
-            scheduledEventId, startedEventId, activityType, activityId, retryState, identity),
-        null,
+            message,
+            scheduledEventId,
+            startedEventId,
+            activityType,
+            activityId,
+            retryState,
+            identity),
+        message,
         cause);
     this.scheduledEventId = scheduledEventId;
     this.startedEventId = startedEventId;
@@ -83,24 +90,25 @@ public final class ActivityFailure extends TemporalFailure {
   }
 
   public static String getMessage(
+      String originalMessage,
       long scheduledEventId,
       long startedEventId,
       String activityType,
       String activityId,
       RetryState retryState,
       String identity) {
-    return "scheduledEventId="
-        + scheduledEventId
-        + ", startedEventId="
-        + startedEventId
-        + ", activityType='"
+    return "Activity with activityType='"
         + activityType
-        + '\''
-        + (activityId == null ? "" : ", activityId='" + activityId + '\'')
+        + "' failed: '"
+        + originalMessage
+        + "'. "
+        + "scheduledEventId="
+        + scheduledEventId
+        + (startedEventId == -1 ? "" : ", startedEventId=" + startedEventId)
+        + (activityId == null ? "" : ", activityId=" + activityId)
         + ", identity='"
         + identity
-        + '\''
-        + ", retryState="
+        + "', retryState="
         + retryState;
   }
 }

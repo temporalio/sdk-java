@@ -20,7 +20,7 @@
 
 package io.temporal.internal.common.env;
 
-public class SystemEnvironmentVariablesProvider implements EnvironmentVariablesProvider {
+class SystemEnvironmentVariablesProvider implements EnvironmentVariablesProvider {
   public static final EnvironmentVariablesProvider INSTANCE =
       new SystemEnvironmentVariablesProvider();
 

@@ -922,9 +922,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         result.setHeartbeatTimeout(workflowRunTimeout);
       }
     }
-    if (Durations.compare(a.getHeartbeatTimeout(), a.getScheduleToCloseTimeout()) > 0) {
-      result.setHeartbeatTimeout(a.getScheduleToCloseTimeout());
+
+    // if scheduleToClose is set, heartbeat timeout should not be larger than scheduleToClose
+    if (validScheduleToClose) {
+      if (Durations.compare(a.getHeartbeatTimeout(), a.getScheduleToCloseTimeout()) > 0) {
+        result.setHeartbeatTimeout(a.getScheduleToCloseTimeout());
+      }
     }
+
     return result.build();
   }
 

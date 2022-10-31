@@ -33,5 +33,7 @@ public final class EnvironmentVariableNames {
   public static final String DISABLE_NON_WORKFLOW_CODE_ENFORCEMENTS =
       "TEMPORAL_DISABLE_NON_WORKFLOW_CODE_ENFORCEMENTS";
 
+  public static final String TEMPORAL_DEBUG = "TEMPORAL_DEBUG";
+
   private EnvironmentVariableNames() {}
 }

@@ -33,7 +33,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
-import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
@@ -56,14 +56,11 @@ import org.slf4j.LoggerFactory;
 @RunWith(Parameterized.class)
 public class WorkerStressTests {
 
-  private static final boolean useDockerService = SDKTestWorkflowRule.useExternalService;
-  private static final String serviceAddress = SDKTestWorkflowRule.temporalServiceAddress;
-
   @Parameterized.Parameter public boolean useExternalService;
 
   @Parameterized.Parameters(name = "{1}")
   public static Object[] data() {
-    if (!useDockerService) {
+    if (!ExternalServiceTestConfigurator.isUseExternalService()) {
       return new Object[][] {{false, "TestService"}};
     } else {
       return new Object[][] {{true, "Docker"}};
@@ -172,10 +169,12 @@ public class WorkerStressTests {
       options = WorkerFactoryOptions.newBuilder(options).validateAndBuildWithDefaults();
       WorkflowClientOptions clientOptions =
           WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
-      if (useDockerService) {
+      if (ExternalServiceTestConfigurator.isUseExternalService()) {
         service =
             WorkflowServiceStubs.newServiceStubs(
-                WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+                WorkflowServiceStubsOptions.newBuilder()
+                    .setTarget(ExternalServiceTestConfigurator.getTemporalServiceAddress())
+                    .build());
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
       } else {
