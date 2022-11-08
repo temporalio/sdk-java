@@ -2324,7 +2324,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       builder.setScheduledTime(task.getScheduledTime());
     } else {
       builder.setLastStartedTime(task.getStartedTime());
-      builder.setLastHeartbeatTime(task.getStartedTime());
     }
   }
 
