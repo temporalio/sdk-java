@@ -2,7 +2,7 @@ description = '''Spring Boot AutoConfigure for Temporal Java SDK'''
 
 ext {
     otelVersion = '1.19.0'
-    otShimVersion = '1.19.0-alpha'
+    otShimVersion = '1.20.0-alpha'
 }
 
 dependencies {
