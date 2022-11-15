@@ -20,15 +20,16 @@
 
 package io.temporal.workflow.signalTests;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
+
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -41,22 +42,21 @@ import org.junit.Test;
 public class SignalDuringLastWorkflowTaskTest {
 
   private static final AtomicInteger workflowTaskCount = new AtomicInteger();
-  private static CompletableFuture<Boolean> sendSignal;
+  private static final CompletableFuture<Boolean> sendSignal = new CompletableFuture<>();
+  private static final CompletableFuture<Boolean> assertCompleted = new CompletableFuture<>();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalDuringLastWorkflowTaskWorkflowImpl.class)
+          .setWorkerOptions(
+              WorkerOptions.newBuilder().setDefaultDeadlockDetectionTimeout(5000).build())
           .build();
 
   @Test
-  public void testSignalDuringLastWorkflowTask() {
-    WorkflowOptions options =
-        SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
-            .setWorkflowId("testSignalDuringLastWorkflowTask-" + UUID.randomUUID().toString())
-            .build();
-    TestSignaledWorkflow client =
-        testWorkflowRule.getWorkflowClient().newWorkflowStub(TestSignaledWorkflow.class, options);
+  public void testSignalDuringLastWorkflowTask() throws ExecutionException, InterruptedException {
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+    TestSignaledWorkflow client = testWorkflowRule.newWorkflowStub(TestSignaledWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(client::execute);
     testWorkflowRule.registerDelayedCallback(
         Duration.ofSeconds(1),
@@ -78,11 +78,13 @@ public class SignalDuringLastWorkflowTaskTest {
                   .getWorkflowClient()
                   .newUntypedWorkflowStub(execution, Optional.empty())
                   .getResult(String.class));
+          assertCompleted.complete(true);
         });
     testWorkflowRule.sleep(Duration.ofSeconds(2));
+    assertTrue(assertCompleted.get());
   }
 
-  static class TestSignalDuringLastWorkflowTaskWorkflowImpl implements TestSignaledWorkflow {
+  public static class TestSignalDuringLastWorkflowTaskWorkflowImpl implements TestSignaledWorkflow {
 
     private String signal;
 
