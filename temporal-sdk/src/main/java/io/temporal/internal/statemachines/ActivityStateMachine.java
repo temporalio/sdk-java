@@ -362,7 +362,7 @@ final class ActivityStateMachine
         Failure.newBuilder()
             .setActivityFailureInfo(failureInfo)
             .setCause(timedOut.getFailure())
-            .setMessage("Activity task timedOut")
+            .setMessage("Activity task timed out")
             .build();
     completionCallback.apply(Optional.empty(), failure);
   }

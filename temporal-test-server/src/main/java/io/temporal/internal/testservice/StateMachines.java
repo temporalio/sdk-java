@@ -1573,19 +1573,29 @@ class StateMachines {
     } else {
       retryState = RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
     }
+
     Failure failure;
-    if (timeoutType == TimeoutType.TIMEOUT_TYPE_HEARTBEAT
-        || timeoutType == TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE) {
+    if (retryState == RetryState.RETRY_STATE_TIMEOUT) {
+      // retryState = RETRY_STATE_TIMEOUT is possible here only if it's schedule to close timeout
+      // that is fired.
+      // start to close timeout will return as "max attempts reached".
+      Optional<Failure> cause =
+          TimeoutType.TIMEOUT_TYPE_HEARTBEAT.equals(timeoutType)
+              ? Optional.of(
+                  newTimeoutFailure(
+                      TimeoutType.TIMEOUT_TYPE_HEARTBEAT, Optional.empty(), Optional.empty()))
+              : Optional.empty();
       failure =
           newTimeoutFailure(
               TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
               Optional.ofNullable(data.heartbeatDetails),
-              Optional.of(newTimeoutFailure(timeoutType, Optional.empty(), Optional.empty())));
+              cause);
     } else {
       failure =
           newTimeoutFailure(
               timeoutType, Optional.ofNullable(data.heartbeatDetails), Optional.empty());
     }
+
     ActivityTaskTimedOutEventAttributes.Builder a =
         ActivityTaskTimedOutEventAttributes.newBuilder()
             .setScheduledEventId(data.scheduledEventId)

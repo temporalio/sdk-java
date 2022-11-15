@@ -22,7 +22,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import io.temporal.internal.common.DebugModeUtils;
+import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.workflow.Functions;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;

@@ -133,6 +133,8 @@ public class TestActivities {
 
     void heartbeatAndThrowIO();
 
+    String heartbeatAndWait(long waitMs, boolean heartbeatMoreThanOnce);
+
     void throwIO();
 
     void throwApplicationFailureThreeTimes();
@@ -340,6 +342,27 @@ public class TestActivities {
       } catch (IOException e) {
         throw Activity.wrap(e);
       }
+    }
+
+    @Override
+    public String heartbeatAndWait(long waitMs, boolean heartbeatMoreThanOnce) {
+      invocations.add("heartbeatAndWait");
+
+      long startNs = System.nanoTime();
+      try {
+        int count = 0;
+        while (System.nanoTime() - startNs < TimeUnit.MILLISECONDS.toNanos(waitMs)) {
+          if (heartbeatMoreThanOnce || count == 0) {
+            Activity.getExecutionContext().heartbeat("heartbeatValue");
+          }
+          count++;
+          Thread.sleep(100);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+      return "heartbeatAndWait";
     }
 
     @Override

@@ -38,8 +38,8 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.internal.common.DebugModeUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -87,8 +87,7 @@ public class SDKTestWorkflowRule implements TestRule {
   public static final boolean REGENERATE_JSON_FILES = false;
   // Only enable when USE_DOCKER_SERVICE is true
   public static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-  public static final String temporalServiceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+      ExternalServiceTestConfigurator.isUseExternalService();
   private static final List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
   private static final ScheduledExecutorService scheduledExecutor =
       new ScheduledThreadPoolExecutor(1);
@@ -98,13 +97,6 @@ public class SDKTestWorkflowRule implements TestRule {
   private final TestWorkflowRule testWorkflowRule;
 
   private SDKTestWorkflowRule(SDKTestWorkflowRule.Builder builder) {
-    if (useExternalService) {
-      builder.testWorkflowRuleBuilder.setUseExternalService(true);
-      if (temporalServiceAddress != null) {
-        builder.testWorkflowRuleBuilder.setTarget(temporalServiceAddress);
-      }
-    }
-
     globalTimeout =
         !DebugModeUtils.isTemporalDebugModeOn()
             ? Timeout.seconds(
@@ -113,7 +105,8 @@ public class SDKTestWorkflowRule implements TestRule {
                     : builder.testTimeoutSeconds)
             : null;
 
-    testWorkflowRule = builder.testWorkflowRuleBuilder.build();
+    testWorkflowRule =
+        ExternalServiceTestConfigurator.configure(builder.testWorkflowRuleBuilder).build();
   }
 
   public static Builder newBuilder() {

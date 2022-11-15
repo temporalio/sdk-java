@@ -18,28 +18,19 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.common;
+package io.temporal.internal.common.env;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.temporal.internal.common.env.EnvironmentVariablesProvider;
-import io.temporal.internal.common.env.SystemEnvironmentVariablesProvider;
+import io.temporal.conf.EnvironmentVariableNames;
 
-public class DebugModeUtils {
+public final class DebugModeUtils {
   private static boolean TEMPORAL_DEBUG_MODE =
-      readTemporalDebugMode(SystemEnvironmentVariablesProvider.INSTANCE);
+      EnvironmentVariableUtils.readBooleanFlag(EnvironmentVariableNames.TEMPORAL_DEBUG);
+
+  private DebugModeUtils() {}
 
   public static boolean isTemporalDebugModeOn() {
     return TEMPORAL_DEBUG_MODE;
-  }
-
-  private static boolean readTemporalDebugMode(EnvironmentVariablesProvider envProvider) {
-    String temporalDebugValue = envProvider.getenv("TEMPORAL_DEBUG");
-    if (temporalDebugValue == null) {
-      return false;
-    }
-    temporalDebugValue = temporalDebugValue.trim();
-    return (!Boolean.FALSE.toString().equalsIgnoreCase(temporalDebugValue)
-        && !"0".equals(temporalDebugValue));
   }
 
   @VisibleForTesting
@@ -49,6 +40,7 @@ public class DebugModeUtils {
 
   @VisibleForTesting
   public static void reset() {
-    TEMPORAL_DEBUG_MODE = readTemporalDebugMode(SystemEnvironmentVariablesProvider.INSTANCE);
+    TEMPORAL_DEBUG_MODE =
+        EnvironmentVariableUtils.readBooleanFlag(EnvironmentVariableNames.TEMPORAL_DEBUG);
   }
 }

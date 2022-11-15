@@ -47,12 +47,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
+import org.junit.rules.Timeout;
 
 public class WorkflowReplayerTest {
+  @Rule public Timeout testTimeout = Timeout.seconds(10);
+
   private TestWorkflowEnvironment testEnvironment;
   private static final String TASK_QUEUE = "workflow-replay-test";
   private List<WorkflowExecutionHistory> histories;

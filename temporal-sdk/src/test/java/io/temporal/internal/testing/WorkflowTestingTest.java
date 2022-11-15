@@ -28,7 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
@@ -39,7 +38,6 @@ import io.temporal.api.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -400,27 +398,12 @@ public class WorkflowTestingTest {
   }
 
   @WorkflowInterface
-  public interface TestActivityTimeoutWorkflow {
-    @WorkflowMethod
-    void workflow(
-        long scheduleToCloseTimeoutSeconds,
-        long scheduleToStartTimeoutSeconds,
-        long startToCloseTimeoutSeconds,
-        boolean disableRetries);
-  }
-
-  @WorkflowInterface
   public interface SignaledWorkflow {
     @WorkflowMethod
     String workflow1(String input);
 
     @SignalMethod
     void ProcessSignal(String input);
-  }
-
-  @ActivityInterface
-  public interface TestCancellationActivity {
-    String activity1(String input);
   }
 
   @WorkflowInterface
@@ -544,45 +527,6 @@ public class WorkflowTestingTest {
         return "interrupt";
       }
       return "done";
-    }
-  }
-
-  public static class TestActivityTimeoutWorkflowImpl implements TestActivityTimeoutWorkflow {
-
-    @Override
-    public void workflow(
-        long scheduleToCloseTimeoutSeconds,
-        long scheduleToStartTimeoutSeconds,
-        long startToCloseTimeoutSeconds,
-        boolean disableRetries) {
-      ActivityOptions.Builder options =
-          ActivityOptions.newBuilder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(scheduleToCloseTimeoutSeconds))
-              .setStartToCloseTimeout(Duration.ofSeconds(startToCloseTimeoutSeconds))
-              .setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds));
-      if (disableRetries) {
-        options.setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build());
-      }
-      TestActivity1 activity = Workflow.newActivityStub(TestActivity1.class, options.build());
-      Workflow.sleep(Duration.ofHours(1)); // test time skipping
-      activity.execute("foo");
-    }
-  }
-
-  public static class TimingOutActivityImpl implements TestActivity1 {
-
-    @Override
-    public String execute(String input) {
-      long start = System.currentTimeMillis();
-      while (true) {
-        try {
-          Thread.sleep(500);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          e.printStackTrace();
-        }
-        Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
-      }
     }
   }
 
