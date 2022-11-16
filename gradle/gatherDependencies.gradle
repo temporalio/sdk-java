@@ -1,0 +1,8 @@
+subprojects {
+    // Creates build/runtimeDeps folder in each module that contains all the dependencies
+    // that need to be in the runtime classpath of the module
+    task gatherRuntimeDeps(type: Copy) {
+        from configurations.runtimeClasspath
+        into "${buildDir}/runtimeDeps"
+    }
+}

@@ -60,6 +60,7 @@ apply from: "$rootDir/gradle/errorprone.gradle"
 apply from: "$rootDir/gradle/licensing.gradle"
 apply from: "$rootDir/gradle/publishing.gradle"
 apply from: "$rootDir/gradle/dependencyManagement.gradle"
+apply from: "$rootDir/gradle/gatherDependencies.gradle"
 if (project.hasProperty("jacoco")) {
     apply from: "$rootDir/gradle/jacoco.gradle"
 }
