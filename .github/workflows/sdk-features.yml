@@ -1,0 +1,10 @@
+name: "SDK Features Integration Tests"
+on: [push, pull_request]
+
+jobs:
+  sdk-features-test:
+    uses: temporalio/sdk-features/.github/workflows/java.yaml@main
+    with:
+      java-repo-path: ${{github.event.pull_request.head.repo.full_name}}
+      version: ${{github.event.pull_request.head.ref}}
+      version-is-repo-ref: true
