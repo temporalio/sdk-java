@@ -22,6 +22,8 @@ package io.temporal.testing;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
+import com.uber.m3.tally.NoopScope;
+import com.uber.m3.tally.Scope;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.temporal.activity.ActivityOptions;
@@ -68,6 +70,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,20 +96,27 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final WorkflowServiceStubs workflowServiceStubs;
   private ClassConsumerPair<Object> activityHeartbeatListener;
 
-  public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
-    this.testEnvironmentOptions =
-        TestEnvironmentOptions.newBuilder(options).validateAndBuildWithDefaults();
-
+  public TestActivityEnvironmentInternal(@Nullable TestEnvironmentOptions options) {
     // Initialize an in-memory mock service.
-    mockServer =
+    this.mockServer =
         new InProcessGRPCServer(Collections.singletonList(new HeartbeatInterceptingService()));
-    workflowServiceStubs =
-        WorkflowServiceStubs.newServiceStubs(
-            WorkflowServiceStubsOptions.newBuilder()
-                .setChannel(mockServer.getChannel())
-                .setMetricsScope(options.getMetricsScope())
-                .setRpcQueryTimeout(Duration.ofSeconds(60))
-                .build());
+    this.testEnvironmentOptions =
+        options != null
+            ? TestEnvironmentOptions.newBuilder(options).validateAndBuildWithDefaults()
+            : TestEnvironmentOptions.newBuilder().validateAndBuildWithDefaults();
+    WorkflowServiceStubsOptions.Builder serviceStubsOptionsBuilder =
+        WorkflowServiceStubsOptions.newBuilder(
+                testEnvironmentOptions.getWorkflowServiceStubsOptions())
+            .setTarget(null)
+            .setChannel(this.mockServer.getChannel())
+            .setRpcQueryTimeout(Duration.ofSeconds(60));
+    Scope metricsScope = this.testEnvironmentOptions.getMetricsScope();
+    if (metricsScope != null && !(NoopScope.class.equals(metricsScope.getClass()))) {
+      serviceStubsOptionsBuilder.setMetricsScope(metricsScope);
+    }
+    this.workflowServiceStubs =
+        WorkflowServiceStubs.newServiceStubs(serviceStubsOptionsBuilder.build());
+
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
             workflowServiceStubs,

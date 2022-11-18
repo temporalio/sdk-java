@@ -76,11 +76,15 @@ public final class TestEnvironmentOptions {
     private Builder() {}
 
     private Builder(TestEnvironmentOptions o) {
-      workerFactoryOptions = o.workerFactoryOptions;
-      workflowClientOptions = o.workflowClientOptions;
-      useExternalService = o.useExternalService;
-      target = o.target;
-      useTimeskipping = o.useTimeskipping;
+      this.workerFactoryOptions = o.workerFactoryOptions;
+      this.workflowClientOptions = o.workflowClientOptions;
+      this.workflowServiceStubsOptions = o.workflowServiceStubsOptions;
+      this.metricsScope = o.metricsScope;
+      this.useExternalService = o.useExternalService;
+      this.target = o.target;
+      this.initialTimeMillis = o.initialTimeMillis;
+      this.useTimeskipping = o.useTimeskipping;
+      this.searchAttributes = o.searchAttributes;
     }
 
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {

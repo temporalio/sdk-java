@@ -23,6 +23,8 @@ package io.temporal.testing;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ObjectArrays;
 import com.google.protobuf.Empty;
+import com.uber.m3.tally.NoopScope;
+import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -57,7 +59,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final @Nullable TimeLockingInterceptor timeLockingInterceptor;
   private final IdempotentTimeLocker constructorTimeLock;
 
-  public TestWorkflowEnvironmentInternal(TestEnvironmentOptions testEnvironmentOptions) {
+  public TestWorkflowEnvironmentInternal(@Nullable TestEnvironmentOptions testEnvironmentOptions) {
     if (testEnvironmentOptions == null) {
       testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
     }
@@ -71,8 +73,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
                 testEnvironmentOptions.getWorkflowServiceStubsOptions())
             : WorkflowServiceStubsOptions.newBuilder();
 
-    stubsOptionsBuilder =
-        stubsOptionsBuilder.setMetricsScope(testEnvironmentOptions.getMetricsScope());
+    Scope metricsScope = testEnvironmentOptions.getMetricsScope();
+    if (metricsScope != null && !(NoopScope.class.equals(metricsScope.getClass()))) {
+      stubsOptionsBuilder = stubsOptionsBuilder.setMetricsScope(metricsScope);
+    }
 
     if (testEnvironmentOptions.isUseExternalService()) {
       this.inProcessServer = null;
