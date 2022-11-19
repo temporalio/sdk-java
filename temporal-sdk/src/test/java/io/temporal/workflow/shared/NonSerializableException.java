@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 
 public class NonSerializableException extends RuntimeException {
   @SuppressWarnings("unused")
@@ -32,7 +33,7 @@ public class NonSerializableException extends RuntimeException {
 
   public NonSerializableException() {
     try {
-      file = new FileInputStream(File.createTempFile("foo", "bar"));
+      file = new FileInputStream(Files.createTempFile("foo", "bar").toFile());
     } catch (IOException e) {
       throw Activity.wrap(e);
     }
