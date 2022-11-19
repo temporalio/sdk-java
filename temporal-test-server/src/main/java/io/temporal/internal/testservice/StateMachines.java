@@ -1348,7 +1348,9 @@ class StateMachines {
           data.startedEventId = startedEventId;
           data.startedEvent = event;
           PollActivityTaskQueueResponse.Builder task = data.activityTask.getTask();
-          task.setTaskToken(new ActivityId(ctx.getExecutionId(), data.scheduledEventId).toBytes());
+          task.setTaskToken(
+              new ActivityTaskToken(ctx.getExecutionId(), data.scheduledEventId, task.getAttempt())
+                  .toBytes());
           task.setStartedTime(timestamp);
         });
   }

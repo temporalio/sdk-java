@@ -30,6 +30,7 @@ import static io.temporal.internal.testservice.TestServiceRetryState.validateAnd
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
@@ -1652,7 +1653,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long scheduledEventId, RespondActivityTaskCompletedRequest request) {
     update(
         ctx -> {
-          StateMachine<?> activity = getPendingActivityByScheduledEventId(scheduledEventId);
+          StateMachine<ActivityTaskData> activity =
+              getPendingActivityByScheduledEventId(scheduledEventId);
+          throwIfTaskTokenDoesntMatch(request.getTaskToken(), activity.getData());
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           removeActivity(scheduledEventId);
           scheduleWorkflowTask(ctx);
@@ -1679,6 +1682,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           StateMachine<ActivityTaskData> activity =
               getPendingActivityByScheduledEventId(scheduledEventId);
+          throwIfTaskTokenDoesntMatch(request.getTaskToken(), activity.getData());
           activity.action(StateMachines.Action.FAIL, ctx, request, 0);
           if (isTerminalState(activity.getState())) {
             removeActivity(scheduledEventId);
@@ -1753,7 +1757,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long scheduledEventId, RespondActivityTaskCanceledRequest request) {
     update(
         ctx -> {
-          StateMachine<?> activity = getPendingActivityByScheduledEventId(scheduledEventId);
+          StateMachine<ActivityTaskData> activity =
+              getPendingActivityByScheduledEventId(scheduledEventId);
+          throwIfTaskTokenDoesntMatch(request.getTaskToken(), activity.getData());
           throwIfActivityNotInFlightState(activity.getState());
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(scheduledEventId);
@@ -2504,6 +2510,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         throw Status.NOT_FOUND
             .withDescription("Activity is in " + activityState + "  state")
             .asRuntimeException();
+    }
+  }
+
+  private void throwIfTaskTokenDoesntMatch(ByteString taskToken, ActivityTaskData data) {
+    if (!taskToken.isEmpty()) {
+      ActivityTaskToken activityTaskToken = ActivityTaskToken.fromBytes(taskToken);
+      if (activityTaskToken.getAttempt() != data.getAttempt()
+          || activityTaskToken.getScheduledEventId() != data.scheduledEventId) {
+        throw Status.NOT_FOUND
+            .withDescription(
+                "invalid activityID or activity already timed out or invoking workflow is completed")
+            .asRuntimeException();
+      }
     }
   }
 
