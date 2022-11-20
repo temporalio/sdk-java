@@ -1614,9 +1614,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             int attempt = data.getAttempt();
             ctx.addTimer(
                 startToCloseTimeout,
-                () ->
-                    timeoutActivity(
-                        scheduledEventId, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, attempt),
+                () -> {
+                  timeoutActivity(
+                      scheduledEventId, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, attempt);
+                },
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(

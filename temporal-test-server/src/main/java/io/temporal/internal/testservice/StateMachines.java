@@ -1564,38 +1564,66 @@ class StateMachines {
 
   private static State timeoutActivityTask(
       RequestContext ctx, ActivityTaskData data, TimeoutType timeoutType, long notUsed) {
-    // ScheduleToStart (queue timeout) is not retryable. Instead of the retry, a customer should set
-    // a larger ScheduleToStart timeout.
-    RetryState retryState;
-    if (timeoutType != TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START) {
-      retryState = attemptActivityRetry(ctx, Optional.empty(), data);
-      if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
-        return INITIATED;
-      }
-    } else {
-      retryState = RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
-    }
+    Optional<Failure> previousFailure = data.retryState.getPreviousRunFailure();
 
-    Failure failure;
-    if (retryState == RetryState.RETRY_STATE_TIMEOUT) {
-      // retryState = RETRY_STATE_TIMEOUT is possible here only if it's schedule to close timeout
-      // that is fired.
-      // start to close timeout will return as "max attempts reached".
-      Optional<Failure> cause =
-          TimeoutType.TIMEOUT_TYPE_HEARTBEAT.equals(timeoutType)
-              ? Optional.of(
-                  newTimeoutFailure(
-                      TimeoutType.TIMEOUT_TYPE_HEARTBEAT, Optional.empty(), Optional.empty()))
-              : Optional.empty();
-      failure =
-          newTimeoutFailure(
-              TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
-              Optional.ofNullable(data.heartbeatDetails),
-              cause);
-    } else {
-      failure =
-          newTimeoutFailure(
-              timeoutType, Optional.ofNullable(data.heartbeatDetails), Optional.empty());
+    // chaining with the previous run failure if we are preparing the final failure
+    Failure failure =
+        newTimeoutFailure(timeoutType, Optional.ofNullable(data.heartbeatDetails), previousFailure);
+
+    RetryState retryState;
+    switch (timeoutType) {
+      case TIMEOUT_TYPE_SCHEDULE_TO_START:
+        // ScheduleToStart (queue timeout) is not retryable. Instead of the retry, a customer should
+        // set a larger ScheduleToStart timeout.
+        retryState = RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
+        break;
+      case TIMEOUT_TYPE_SCHEDULE_TO_CLOSE:
+        // ScheduleToClose timeout is final and failure is created with TIMEOUT retry state
+        retryState = RetryState.RETRY_STATE_TIMEOUT;
+        break;
+      case TIMEOUT_TYPE_START_TO_CLOSE:
+      case TIMEOUT_TYPE_HEARTBEAT:
+        // not chaining with the previous run failure if we are preparing the failure to be stored
+        // for the next iteration
+        Optional<Failure> lastFailure =
+            Optional.of(
+                newTimeoutFailure(
+                    timeoutType,
+                    // we move heartbeatDetails to the new top level (this cause is used for
+                    // scheduleToClose only)
+                    Optional.empty(),
+                    // prune to don't have too deep nesting of failures
+                    Optional.empty()));
+
+        retryState = attemptActivityRetry(ctx, lastFailure, data);
+        if (retryState == RetryState.RETRY_STATE_IN_PROGRESS) {
+          return INITIATED;
+        } else if (retryState == RetryState.RETRY_STATE_TIMEOUT) {
+          // if retryState = RETRY_STATE_TIMEOUT, it means scheduleToClose timeout happened inside
+          // attemptActivityRetry();
+          // start to close timeout would return as "max attempts reached".
+
+          Preconditions.checkState(
+              timeoutType == TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE
+                  || timeoutType == TimeoutType.TIMEOUT_TYPE_HEARTBEAT,
+              "Unexpected timeout type: %s. We should end up here only in case of HEARTBEAT_TIMEOUT or START_TO_CLOSE_TIMEOUT",
+              timeoutType);
+
+          // heartbeat is preserved as the cause for the scheduleToClose timeout
+          // But we effectively omit startToClose timeout with scheduleToClose timeout
+          Optional<Failure> cause =
+              timeoutType == TimeoutType.TIMEOUT_TYPE_HEARTBEAT ? lastFailure : previousFailure;
+
+          failure =
+              newTimeoutFailure(
+                  TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
+                  Optional.ofNullable(data.heartbeatDetails),
+                  cause);
+        }
+        break;
+      default:
+        throw new IllegalStateException(
+            "Not implemented behavior for timeout type: " + timeoutType);
     }
 
     ActivityTaskTimedOutEventAttributes.Builder a =

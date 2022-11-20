@@ -44,9 +44,21 @@ final class ActivityStateMachine
     extends EntityStateMachineInitialCommand<
         ActivityStateMachine.State, ActivityStateMachine.ExplicitEvent, ActivityStateMachine> {
 
-  private String activityId;
-  private ActivityType activityType;
-  private ActivityCancellationType cancellationType;
+  static final String ACTIVITY_FAILED_MESSAGE = "Activity task failed";
+
+  static final String ACTIVITY_TIMED_OUT_MESSAGE = "Activity task timed out";
+
+  static final String ACTIVITY_CANCELED_MESSAGE = "Activity canceled";
+
+  private final String activityId;
+  private final ActivityType activityType;
+  private final ActivityCancellationType cancellationType;
+
+  private final Functions.Proc2<Optional<Payloads>, Failure> completionCallback;
+
+  private ExecuteActivityParameters parameters;
+
+  private long startedCommandEventId;
 
   enum ExplicitEvent {
     SCHEDULE,
@@ -226,12 +238,6 @@ final class ActivityStateMachine
                   State.CANCELED,
                   ActivityStateMachine::notifyCancellationFromEvent);
 
-  private ExecuteActivityParameters parameters;
-
-  private final Functions.Proc2<Optional<Payloads>, Failure> completionCallback;
-
-  private long startedCommandEventId;
-
   /**
    * @param parameters attributes used to schedule an activity
    * @param completionCallback one of ActivityTaskCompletedEvent, ActivityTaskFailedEvent,
@@ -313,7 +319,7 @@ final class ActivityStateMachine
         Failure.newBuilder()
             .setActivityFailureInfo(activityFailureInfo)
             .setCause(canceledFailure)
-            .setMessage("Activity canceled")
+            .setMessage(ACTIVITY_CANCELED_MESSAGE)
             .build();
     completionCallback.apply(Optional.empty(), failure);
   }
@@ -341,7 +347,7 @@ final class ActivityStateMachine
         Failure.newBuilder()
             .setActivityFailureInfo(failureInfo)
             .setCause(failed.getFailure())
-            .setMessage("Activity task failed")
+            .setMessage(ACTIVITY_FAILED_MESSAGE)
             .build();
     completionCallback.apply(Optional.empty(), failure);
   }
@@ -362,7 +368,7 @@ final class ActivityStateMachine
         Failure.newBuilder()
             .setActivityFailureInfo(failureInfo)
             .setCause(timedOut.getFailure())
-            .setMessage("Activity task timed out")
+            .setMessage(ACTIVITY_TIMED_OUT_MESSAGE)
             .build();
     completionCallback.apply(Optional.empty(), failure);
   }
@@ -389,7 +395,7 @@ final class ActivityStateMachine
           Failure.newBuilder()
               .setActivityFailureInfo(failureInfo)
               .setCause(canceledFailure)
-              .setMessage("Activity canceled")
+              .setMessage(ACTIVITY_CANCELED_MESSAGE)
               .build();
 
       completionCallback.apply(Optional.empty(), failure);
