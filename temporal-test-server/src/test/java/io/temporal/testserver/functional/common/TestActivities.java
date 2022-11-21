@@ -20,25 +20,13 @@
 
 package io.temporal.testserver.functional.common;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
 
-public class TestWorkflows {
-  @WorkflowInterface
-  public interface PrimitiveWorkflow {
-    @WorkflowMethod
-    void execute();
-  }
-
-  @WorkflowInterface
-  public interface WorkflowReturnsString {
-    @WorkflowMethod
+public class TestActivities {
+  @ActivityInterface
+  public interface ActivityReturnsString {
+    @ActivityMethod
     String execute();
-  }
-
-  @WorkflowInterface
-  public interface PrimitiveChildWorkflow {
-    @WorkflowMethod
-    void execute();
   }
 }
