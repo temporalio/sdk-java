@@ -29,7 +29,7 @@ allprojects {
 
 ext {
     // Platforms
-    grpcVersion = '1.50.2' // [1.34.0,)
+    grpcVersion = '1.51.0' // [1.34.0,)
     jacksonVersion = '2.14.0' // [2.9.0,)
     micrometerVersion = '1.9.5' // [1.0.0,)
 
@@ -47,7 +47,7 @@ ext {
 
     // test scoped
     logbackVersion = '1.2.11'
-    mockitoVersion = '4.8.1'
+    mockitoVersion = '4.9.0'
     junitVersion = '4.13.2'
 }
 
