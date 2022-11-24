@@ -18,17 +18,16 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.worker;
+package io.temporal.internal.common;
 
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.common.RetryOptions;
-import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
 import org.junit.Test;
 
-public class LocalActivityWorkerTest {
+public class RetryOptionsUtilsTest {
   @Test
   public void buildRetryOptions() {
     Duration initialInterval = Duration.ofSeconds(2);
@@ -42,7 +41,7 @@ public class LocalActivityWorkerTest {
             .addNonRetryableErrorTypes(IllegalStateException.class.getName())
             .build();
 
-    RetryOptions retryOptions = LocalActivityWorker.buildRetryOptions(retryPolicy);
+    RetryOptions retryOptions = RetryOptionsUtils.toRetryOptions(retryPolicy);
     assertEquals(initialInterval, retryOptions.getInitialInterval());
     assertEquals(maxInterval, retryOptions.getMaximumInterval());
     assertEquals(5, retryOptions.getMaximumAttempts());

@@ -23,26 +23,12 @@ package io.temporal.internal.worker;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.workflow.Functions;
 
-public class LocalActivityTask {
-  private final ExecuteLocalActivityParameters params;
-  private final Functions.Proc1<ActivityTaskHandler.Result> resultCallback;
-
-  public LocalActivityTask(
-      ExecuteLocalActivityParameters params,
-      Functions.Proc1<ActivityTaskHandler.Result> resultCallback) {
-    this.params = params;
-    this.resultCallback = resultCallback;
-  }
-
-  public String getActivityId() {
-    return params.getActivityTask().getActivityId();
-  }
-
-  public ExecuteLocalActivityParameters getParams() {
-    return params;
-  }
-
-  public Functions.Proc1<ActivityTaskHandler.Result> getResultCallback() {
-    return resultCallback;
-  }
+public interface LocalActivityDispatcher {
+  /**
+   * Synchronously dispatches the local activity to the local activity worker.
+   *
+   * @return true if the local activity was accepted, false if it was rejected
+   */
+  boolean dispatch(
+      ExecuteLocalActivityParameters params, Functions.Proc1<LocalActivityResult> resultCallback);
 }

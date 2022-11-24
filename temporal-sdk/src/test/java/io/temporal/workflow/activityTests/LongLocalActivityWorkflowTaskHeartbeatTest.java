@@ -73,7 +73,8 @@ public class LongLocalActivityWorkflowTaskHeartbeatTest {
     public String execute(String taskQueue) {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
+              VariousTestActivities.class,
+              SDKTestOptions.newLocalActivityOptions20sScheduleToClose());
       return localActivities.sleepActivity(5000, 123);
     }
   }

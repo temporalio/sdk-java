@@ -91,7 +91,8 @@ public class LongLocalActivityWorkflowTaskHeartbeatBufferedEventTest {
     public String execute(String taskQueue) {
       VariousTestActivities localActivities =
           Workflow.newLocalActivityStub(
-              VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
+              VariousTestActivities.class,
+              SDKTestOptions.newLocalActivityOptions20sScheduleToClose());
       Async.function(localActivities::sleepActivity, 10 * 1000L, 123);
       signaled.get();
       return "foo";

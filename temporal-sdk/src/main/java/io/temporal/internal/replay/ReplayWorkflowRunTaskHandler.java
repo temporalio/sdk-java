@@ -57,7 +57,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.BiFunction;
 
 /**
  * Implements workflow executor that relies on replay of a workflow code. An instance of this class
@@ -70,12 +69,12 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
   private final Lock lock = new ReentrantLock();
 
-  private final Functions.Proc1<ActivityTaskHandler.Result> localActivityCompletionSink;
+  private final Functions.Proc1<LocalActivityResult> localActivityCompletionSink;
 
-  private final BlockingQueue<ActivityTaskHandler.Result> localActivityCompletionQueue =
+  private final BlockingQueue<LocalActivityResult> localActivityCompletionQueue =
       new LinkedBlockingDeque<>();
 
-  private final BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller;
+  private final LocalActivityDispatcher localActivityDispatcher;
 
   private final ReplayWorkflow workflow;
 
@@ -93,7 +92,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       PollWorkflowTaskQueueResponseOrBuilder workflowTask,
       SingleWorkerOptions workerOptions,
       Scope metricsScope,
-      BiFunction<LocalActivityTask, Duration, Boolean> localActivityTaskPoller) {
+      LocalActivityDispatcher localActivityDispatcher) {
     HistoryEvent startedEvent = workflowTask.getHistory().getEvents(0);
     if (!startedEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
@@ -101,7 +100,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
     this.startedEvent = startedEvent.getWorkflowExecutionStartedEventAttributes();
     this.metricsScope = metricsScope;
-    this.localActivityTaskPoller = localActivityTaskPoller;
+    this.localActivityDispatcher = localActivityDispatcher;
     this.workflow = workflow;
 
     this.workflowStateMachines = new WorkflowStateMachines(new StatesMachinesCallbackImpl());
@@ -286,10 +285,10 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         // much sense. I believe we should add ScheduleToStart timeout for the local activities
         // as well.
         long maxWaitTimeNs = Math.max(nextWFTHeartbeatTimeNs - System.nanoTime(), 0);
-        boolean accepted =
-            localActivityTaskPoller.apply(
-                new LocalActivityTask(laRequest, localActivityCompletionSink),
-                Duration.ofNanos(maxWaitTimeNs));
+        laRequest.setScheduleToStartTimeout(Duration.ofNanos(maxWaitTimeNs));
+        boolean accepted = localActivityDispatcher.dispatch(laRequest, localActivityCompletionSink);
+        // TODO this needs to be reworked when we implement a proper scheduleToStart to report a
+        //  Failure in the callback. A proper test is also needed for this scenario.
         Preconditions.checkState(
             accepted,
             "Unable to schedule local activity for execution, "
@@ -302,7 +301,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       }
 
       long maxWaitTimeTillHeartbeatNs = Math.max(nextWFTHeartbeatTimeNs - System.nanoTime(), 0);
-      ActivityTaskHandler.Result laCompletion =
+      LocalActivityResult laCompletion =
           localActivityCompletionQueue.poll(maxWaitTimeTillHeartbeatNs, TimeUnit.NANOSECONDS);
       if (laCompletion == null) {
         // Need to force a new task as we are out of time

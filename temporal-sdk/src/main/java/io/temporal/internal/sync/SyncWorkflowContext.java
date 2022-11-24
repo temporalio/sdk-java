@@ -392,13 +392,21 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             .setWorkflowType(this.replayContext.getWorkflowType())
             .setWorkflowExecution(this.replayContext.getWorkflowExecution())
             .setScheduledTime(ProtobufTimeUtils.getCurrentProtoTime())
-            .setStartToCloseTimeout(
-                ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()))
-            .setScheduleToCloseTimeout(
-                ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()))
             .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
+
+    Duration scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
+    if (scheduleToCloseTimeout != null) {
+      activityTask.setScheduleToCloseTimeout(
+          ProtobufTimeUtils.toProtoDuration(scheduleToCloseTimeout));
+    }
+
+    Duration startToCloseTimeout = options.getStartToCloseTimeout();
+    if (startToCloseTimeout != null) {
+      activityTask.setStartToCloseTimeout(ProtobufTimeUtils.toProtoDuration(startToCloseTimeout));
+    }
+
     io.temporal.api.common.v1.Header grpcHeader =
         toHeaderGrpc(header, extractContextsAndConvertToBytes(contextPropagators));
     activityTask.setHeader(grpcHeader);
@@ -411,7 +419,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       localRetryThreshold = replayContext.getWorkflowTaskTimeout().multipliedBy(6);
     }
     return new ExecuteLocalActivityParameters(
-        activityTask, localRetryThreshold, options.isDoNotIncludeArgumentsIntoMarker());
+        activityTask, null, options.isDoNotIncludeArgumentsIntoMarker(), localRetryThreshold);
   }
 
   @Override
