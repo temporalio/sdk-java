@@ -99,6 +99,11 @@ sourcesJar {
     from(file("$buildDir/generated/main/java"))
 }
 
+javadocJar {
+    dependsOn 'generateProto'
+    from(file("$buildDir/generated/main/java"))
+}
+
 idea {
     module {
         sourceDirs += file("$buildDir/generated/main/java")
