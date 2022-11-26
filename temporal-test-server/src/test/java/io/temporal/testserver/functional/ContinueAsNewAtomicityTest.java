@@ -36,10 +36,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * We check that the child workflow that we don't specify explicit timeouts for can be abandoned by
- * the parent workflow with a short timeout and successfully finish much later than the timeout of
- * the parent. Cover a bug in test server when test server was propagating a timeout from the parent
- * to the child if the child timeout is not explicitly specified.
+ * This test demonstrates that a child that signals a parent that calls continue-as-new
+ * can receive NOT_FOUND as test server doesn't enforce atomicity of continue-as-new.
+ *
+ * This is reported as https://github.com/temporalio/sdk-java/issues/1538
  */
 public class ContinueAsNewAtomicityTest {
   private static final int SIGNAL_COUNT = 500;
