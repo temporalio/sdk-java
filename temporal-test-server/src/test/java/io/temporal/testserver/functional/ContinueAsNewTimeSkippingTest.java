@@ -31,12 +31,12 @@ import org.slf4j.Logger;
 import static org.junit.Assert.assertEquals;
 
 /**
- * This test demonstrates that if a parent calls continue as new NOT_FOUND as test server doesn't
- * enforce atomicity of continue-as-new.
- *
- * <p>This is reported as https://github.com/temporalio/sdk-java/issues/1538
+ * This test demonstrates that if a parent calls continue as new, then Workflow.sleep in a child
+ * doesn't time skip. Note the 5-second delay (coming 5-second sleep in a child) during the test
+ * execution.
  */
 public class ContinueAsNewTimeSkippingTest {
+  private static final int SIGNAL_COUNT = 20;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -44,11 +44,11 @@ public class ContinueAsNewTimeSkippingTest {
           .setWorkflowTypes(ParentThatContinuesAsNew.class, SignalingChild.class)
           .build();
 
-  @Test(timeout = 3000)
+  @Test(timeout = 10000)
   public void test() {
     ListenerParent parent = testWorkflowRule.newWorkflowStub(ListenerParent.class);
     int count = parent.execute(0);
-    assertEquals(2, count);
+    assertEquals(SIGNAL_COUNT, count);
   }
 
   @WorkflowInterface
@@ -74,17 +74,19 @@ public class ContinueAsNewTimeSkippingTest {
     @Override
     public int execute(int count) {
       this.count += count; // signal can be called before execute.
-      ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder()
-              .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
-              .build();
-      TestWorkflows.PrimitiveChildWorkflow child =
-          Workflow.newChildWorkflowStub(TestWorkflows.PrimitiveChildWorkflow.class, options);
-      Async.procedure(child::execute);
-      // wait for a start, but not wait for a completion
-      Workflow.getWorkflowExecution(child).get();
-      Workflow.await(() -> this.count - count > 0 || this.count == 2);
-      if (this.count == 2) {
+      for (int i = 0; i < 5; i++) {
+        ChildWorkflowOptions options =
+            ChildWorkflowOptions.newBuilder()
+                .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
+                .build();
+        TestWorkflows.PrimitiveChildWorkflow child =
+            Workflow.newChildWorkflowStub(TestWorkflows.PrimitiveChildWorkflow.class, options);
+        Async.procedure(child::execute);
+        // wait for a start, but not wait for a completion
+        Workflow.getWorkflowExecution(child).get();
+      }
+      Workflow.await(() -> this.count - count > 3 || this.count == SIGNAL_COUNT);
+      if (this.count == SIGNAL_COUNT) {
         return this.count;
       }
       log.info("continue-as-new");
