@@ -42,6 +42,13 @@ public class RetryOptionsUtils {
         e instanceof ApplicationFailure
             ? ((ApplicationFailure) e).getType()
             : e.getClass().getName();
+    return isNotRetryable(o, type);
+  }
+
+  public static boolean isNotRetryable(RetryOptions o, @Nullable String type) {
+    if (type == null) {
+      return false;
+    }
     if (o.getDoNotRetry() != null) {
       for (String doNotRetry : o.getDoNotRetry()) {
         if (doNotRetry.equals(type)) {

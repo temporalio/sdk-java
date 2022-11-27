@@ -20,11 +20,15 @@
 
 package io.temporal.workflow.activityTests;
 
+import static org.junit.Assert.assertThrows;
+
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.WorkflowException;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -36,7 +40,7 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class LocalActivityRetryTest {
+public class LocalActivityRetriesAndFailsTest {
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
   @Rule
@@ -47,26 +51,36 @@ public class LocalActivityRetryTest {
           .build();
 
   @Test
-  public void testLocalActivityRetry() {
+  public void testLocalActivityRetriesAndFails() {
     TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
-    try {
-      workflowStub.execute(testWorkflowRule.getTaskQueue());
-      Assert.fail("unreachable");
-    } catch (WorkflowException e) {
-      Assert.assertTrue(e.getCause() instanceof ActivityFailure);
-      Assert.assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
-      Assert.assertEquals(
-          IOException.class.getName(), ((ApplicationFailure) e.getCause().getCause()).getType());
-    }
+
+    WorkflowException e =
+        assertThrows(
+            WorkflowException.class, () -> workflowStub.execute(testWorkflowRule.getTaskQueue()));
+
+    Assert.assertTrue(e.getCause() instanceof ActivityFailure);
+    Assert.assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+    Assert.assertEquals(
+        IOException.class.getName(), ((ApplicationFailure) e.getCause().getCause()).getType());
+
     Assert.assertEquals(activitiesImpl.toString(), 5, activitiesImpl.invocations.size());
     Assert.assertEquals("last attempt", 5, activitiesImpl.getLastAttempt());
+
+    testWorkflowRule.regenerateHistoryForReplay(
+        WorkflowStub.fromTyped(workflowStub).getExecution(), "laRetriesAndFails_1_xx");
+  }
+
+  /** History from 1.17 before we changed LA marker structure in 1.18 */
+  @Test
+  public void testSuccessfulCompletion_replay117() throws Exception {
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "laRetriesAndFails_1_17.json", TestLocalActivityRetry.class);
   }
 
   public static class TestLocalActivityRetry implements TestWorkflow1 {
 
     @Override
-    @SuppressWarnings("Finally")
     public String execute(String taskQueue) {
       LocalActivityOptions options =
           LocalActivityOptions.newBuilder()

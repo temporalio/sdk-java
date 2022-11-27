@@ -81,8 +81,9 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * Maximum time to retry locally, while keeping the Workflow Task open via a Heartbeat. Default
-     * value is Workflow Task timeout multiplied by 6.
+     * Maximum time to wait between retries locally, while keeping the Workflow Task open via a
+     * Heartbeat. If the delay between the attempts becomes larger that this threshold, a Workflow
+     * Timer will be scheduled. Default value is Workflow Task Timeout multiplied by 3.
      */
     public Builder setLocalRetryThreshold(Duration localRetryThreshold) {
       if (localRetryThreshold.isZero() || localRetryThreshold.isNegative()) {

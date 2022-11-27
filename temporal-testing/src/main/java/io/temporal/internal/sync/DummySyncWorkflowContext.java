@@ -35,10 +35,12 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.statemachines.ExecuteActivityParameters;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
+import io.temporal.internal.statemachines.LocalActivityCallback;
 import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.*;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class DummySyncWorkflowContext {
@@ -127,6 +129,7 @@ public class DummySyncWorkflowContext {
       return 0;
     }
 
+    @Nonnull
     @Override
     public Duration getWorkflowTaskTimeout() {
       throw new UnsupportedOperationException("not implemented");
@@ -151,8 +154,7 @@ public class DummySyncWorkflowContext {
 
     @Override
     public Functions.Proc scheduleLocalActivityTask(
-        ExecuteLocalActivityParameters parameters,
-        Functions.Proc2<Optional<Payloads>, Failure> callback) {
+        ExecuteLocalActivityParameters parameters, LocalActivityCallback callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 

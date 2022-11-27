@@ -489,7 +489,8 @@ public final class WorkflowInternal {
 
   public static <R> R retry(
       RetryOptions options, Optional<Duration> expiration, Functions.Func<R> fn) {
-    return WorkflowRetryerInternal.validateOptionsAndRetry(options, expiration, fn);
+    return WorkflowRetryerInternal.retry(
+        options.toBuilder().validateBuildWithDefaults(), expiration, fn);
   }
 
   public static void continueAsNew(

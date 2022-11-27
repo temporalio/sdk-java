@@ -23,22 +23,23 @@ package io.temporal.internal.activity;
 import com.google.protobuf.util.Timestamps;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 final class ActivityInfoImpl implements ActivityInfoInternal {
-  private final PollActivityTaskQueueResponse response;
+  private final PollActivityTaskQueueResponseOrBuilder response;
   private final String activityNamespace;
   private final boolean local;
   private final Functions.Proc completionHandle;
 
   ActivityInfoImpl(
-      PollActivityTaskQueueResponse response,
+      PollActivityTaskQueueResponseOrBuilder response,
       String activityNamespace,
       boolean local,
       Functions.Proc completionHandle) {
@@ -93,6 +94,7 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
     return ProtobufTimeUtils.toJavaDuration(response.getStartToCloseTimeout());
   }
 
+  @Nonnull
   @Override
   public Duration getHeartbeatTimeout() {
     return ProtobufTimeUtils.toJavaDuration(response.getHeartbeatTimeout());

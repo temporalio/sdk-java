@@ -186,7 +186,7 @@ final class ActivityWorker implements SuspendableWorker {
 
     @Override
     public void handle(ActivityTask task) throws Exception {
-      PollActivityTaskQueueResponse pollResponse = task.getResponse();
+      PollActivityTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       Scope metricsScope =
           workerMetricsScope.tagged(
               ImmutableMap.of(
@@ -226,7 +226,7 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTaskHandler.Result handleActivity(ActivityTask task, Scope metricsScope) {
-      PollActivityTaskQueueResponse pollResponse = task.getResponse();
+      PollActivityTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       ByteString taskToken = pollResponse.getTaskToken();
       metricsScope
           .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
@@ -270,7 +270,7 @@ final class ActivityWorker implements SuspendableWorker {
 
     @Override
     public Throwable wrapFailure(ActivityTask t, Throwable failure) {
-      PollActivityTaskQueueResponse response = t.getResponse();
+      PollActivityTaskQueueResponseOrBuilder response = t.getResponse();
       WorkflowExecution execution = response.getWorkflowExecution();
       return new RuntimeException(
           "Failure processing activity response. WorkflowId="
@@ -344,7 +344,7 @@ final class ActivityWorker implements SuspendableWorker {
 
     private void logExceptionDuringResultReporting(
         Exception e,
-        PollActivityTaskQueueResponse pollResponse,
+        PollActivityTaskQueueResponseOrBuilder pollResponse,
         ActivityTaskHandler.Result result) {
       MDC.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
       MDC.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());

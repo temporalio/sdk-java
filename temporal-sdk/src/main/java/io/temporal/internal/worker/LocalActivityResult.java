@@ -30,29 +30,30 @@ import javax.annotation.Nullable;
 
 public final class LocalActivityResult {
   private final @Nonnull String activityId;
+  private final int lastAttempt;
   private final @Nullable RespondActivityTaskCompletedRequest executionCompleted;
   private final @Nullable ExecutionFailedResult executionFailed;
   private final @Nullable RespondActivityTaskCanceledRequest executionCanceled;
 
-  static LocalActivityResult completed(ActivityTaskHandler.Result ahResult) {
+  static LocalActivityResult completed(ActivityTaskHandler.Result ahResult, int attempt) {
     return new LocalActivityResult(
-        ahResult.getActivityId(), ahResult.getTaskCompleted(), null, null);
+        ahResult.getActivityId(), attempt, ahResult.getTaskCompleted(), null, null);
   }
 
   static LocalActivityResult failed(
       String activityId,
+      int attempt,
       RetryState retryState,
       Failure timeoutFailure,
-      int attempt,
       @Nullable Duration backoff) {
     ExecutionFailedResult failedResult =
-        new ExecutionFailedResult(retryState, timeoutFailure, attempt, backoff);
-    return new LocalActivityResult(activityId, null, failedResult, null);
+        new ExecutionFailedResult(retryState, timeoutFailure, backoff);
+    return new LocalActivityResult(activityId, attempt, null, failedResult, null);
   }
 
-  static LocalActivityResult cancelled(ActivityTaskHandler.Result ahResult) {
+  static LocalActivityResult cancelled(ActivityTaskHandler.Result ahResult, int attempt) {
     return new LocalActivityResult(
-        ahResult.getActivityId(), null, null, ahResult.getTaskCanceled());
+        ahResult.getActivityId(), attempt, null, null, ahResult.getTaskCanceled());
   }
 
   /**
@@ -62,10 +63,12 @@ public final class LocalActivityResult {
    */
   public LocalActivityResult(
       @Nonnull String activityId,
+      int lastAttempt,
       @Nullable RespondActivityTaskCompletedRequest executionCompleted,
       @Nullable ExecutionFailedResult executionFailed,
       @Nullable RespondActivityTaskCanceledRequest executionCanceled) {
     this.activityId = activityId;
+    this.lastAttempt = lastAttempt;
     this.executionCompleted = executionCompleted;
     this.executionFailed = executionFailed;
     this.executionCanceled = executionCanceled;
@@ -74,6 +77,10 @@ public final class LocalActivityResult {
   @Nonnull
   public String getActivityId() {
     return activityId;
+  }
+
+  public int getLastAttempt() {
+    return lastAttempt;
   }
 
   @Nullable
@@ -97,6 +104,8 @@ public final class LocalActivityResult {
         + "activityId='"
         + activityId
         + '\''
+        + ", lastAttempt="
+        + lastAttempt
         + ", executionCompleted="
         + executionCompleted
         + ", executionFailed="
@@ -109,17 +118,12 @@ public final class LocalActivityResult {
   public static class ExecutionFailedResult {
     @Nonnull private final RetryState retryState;
     @Nonnull private final Failure failure;
-    private final int lastAttempt;
     @Nullable private final Duration backoff;
 
     public ExecutionFailedResult(
-        @Nonnull RetryState retryState,
-        @Nonnull Failure failure,
-        int lastAttempt,
-        @Nullable Duration backoff) {
+        @Nonnull RetryState retryState, @Nonnull Failure failure, @Nullable Duration backoff) {
       this.retryState = retryState;
       this.failure = failure;
-      this.lastAttempt = lastAttempt;
       this.backoff = backoff;
     }
 
@@ -131,10 +135,6 @@ public final class LocalActivityResult {
     @Nonnull
     public Failure getFailure() {
       return failure;
-    }
-
-    public int getLastAttempt() {
-      return lastAttempt;
     }
 
     @Nullable
@@ -153,8 +153,6 @@ public final class LocalActivityResult {
           + retryState
           + ", failure="
           + failure
-          + ", lastAttempt="
-          + lastAttempt
           + ", backoff="
           + backoff
           + '}';

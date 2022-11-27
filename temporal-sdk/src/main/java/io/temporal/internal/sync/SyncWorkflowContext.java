@@ -40,6 +40,7 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
+import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.TaskQueue;
@@ -51,10 +52,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.failure.FailureConverter;
-import io.temporal.failure.TemporalFailure;
+import io.temporal.failure.*;
 import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -62,10 +60,7 @@ import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
-import io.temporal.internal.statemachines.ExecuteActivityParameters;
-import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
-import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
-import io.temporal.internal.statemachines.UnsupportedVersion;
+import io.temporal.internal.statemachines.*;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -77,6 +72,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,6 +80,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // TODO separate WorkflowOutboundCallsInterceptor functionality from this class into
 // RootWorkflowOutboundInterceptor
@@ -94,6 +92,8 @@ import javax.annotation.Nullable;
  * WorkflowTask
  */
 final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCallsInterceptor {
+  private static final Logger log = LoggerFactory.getLogger(SyncWorkflowContext.class);
+
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final DataConverter dataConverter;
   private final List<ContextPropagator> contextPropagators;
@@ -297,37 +297,105 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     }
   }
 
+  private class LocalActivityCallbackImpl implements LocalActivityCallback {
+    private final CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
+
+    @Override
+    public void apply(Optional<Payloads> successOutput, LocalActivityFailedException exception) {
+      if (exception != null) {
+        runner.executeInWorkflowThread(
+            "local activity failure callback", () -> result.completeExceptionally(exception));
+      } else {
+        runner.executeInWorkflowThread(
+            "local activity completion callback", () -> result.complete(successOutput));
+      }
+    }
+  }
+
   @Override
   public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
-    long startTime = WorkflowInternal.currentTimeMillis();
-    return new LocalActivityOutput<>(
-        WorkflowRetryerInternal.retryAsync(
-            (attempt, currentStart) -> executeLocalActivityOnce(input, attempt), 1, startTime));
+    long originalScheduledTime = System.currentTimeMillis();
+    CompletablePromise<R> result = WorkflowInternal.newCompletablePromise();
+    executeLocalActivityOverLocalRetryThreshold(input, originalScheduledTime, 1, null, result);
+    return new LocalActivityOutput<>(result);
   }
 
-  private <T> Promise<T> executeLocalActivityOnce(LocalActivityInput<T> input, int attempt) {
+  public <R> void executeLocalActivityOverLocalRetryThreshold(
+      LocalActivityInput<R> input,
+      long originalScheduledTime,
+      int attempt,
+      @Nullable Failure previousExecutionFailure,
+      CompletablePromise<R> result) {
+    Promise<R> localExecutionResult =
+        executeLocalActivityLocally(
+            input, originalScheduledTime, attempt, previousExecutionFailure);
+
+    localExecutionResult.handle(
+        (r, e) -> {
+          if (e == null) {
+            result.complete(r);
+          } else {
+            if ((e instanceof LocalActivityCallback.LocalActivityFailedException)) {
+              LocalActivityCallback.LocalActivityFailedException laException =
+                  (LocalActivityCallback.LocalActivityFailedException) e;
+              if (laException.getBackoff() != null) {
+                WorkflowInternal.newTimer(laException.getBackoff())
+                    .thenApply(
+                        unused -> {
+                          executeLocalActivityOverLocalRetryThreshold(
+                              input,
+                              originalScheduledTime,
+                              laException.getLastAttempt() + 1,
+                              laException.getFailure(),
+                              result);
+                          return null;
+                        });
+              } else {
+                // final failure, report back
+                RuntimeException temporalFailure =
+                    FailureConverter.failureToException(
+                        laException.getFailure(), getDataConverter());
+                result.completeExceptionally(temporalFailure);
+              }
+            } else {
+              // TODO fail workflow task instead of failing an activity execution
+              log.warn(
+                  "[BUG] executeLocalActivity() returned an exception other than LocalActivityFailedException",
+                  e);
+              result.completeExceptionally(
+                  new ActivityFailure(
+                      "Local activity processing failed with an unexpected exception",
+                      0,
+                      0,
+                      input.getActivityName(),
+                      "",
+                      RetryState.RETRY_STATE_INTERNAL_SERVER_ERROR,
+                      "",
+                      e));
+            }
+          }
+          return null;
+        });
+  }
+
+  private <T> Promise<T> executeLocalActivityLocally(
+      LocalActivityInput<T> input,
+      long originalScheduledTime,
+      int attempt,
+      @Nullable Failure previousExecutionFailure) {
     Optional<Payloads> payloads = dataConverter.toPayloads(input.getArgs());
-    Promise<Optional<Payloads>> binaryResult =
-        executeLocalActivityOnce(
-            input.getActivityName(), input.getOptions(), input.getHeader(), payloads, attempt);
-    if (input.getResultClass() == Void.TYPE) {
-      return binaryResult.thenApply((r) -> null);
-    }
-    return binaryResult.thenApply(
-        (r) -> dataConverter.fromPayloads(0, r, input.getResultClass(), input.getResultType()));
-  }
 
-  private Promise<Optional<Payloads>> executeLocalActivityOnce(
-      String name,
-      LocalActivityOptions options,
-      Header header,
-      Optional<Payloads> input,
-      int attempt) {
-    ActivityCallback callback = new ActivityCallback();
+    LocalActivityCallbackImpl callback = new LocalActivityCallbackImpl();
     ExecuteLocalActivityParameters params =
-        constructExecuteLocalActivityParameters(name, options, header, input, attempt);
-    Functions.Proc cancellationCallback =
-        replayContext.scheduleLocalActivityTask(params, callback::invoke);
+        constructExecuteLocalActivityParameters(
+            input.getActivityName(),
+            input.getOptions(),
+            input.getHeader(),
+            payloads,
+            attempt,
+            originalScheduledTime,
+            previousExecutionFailure);
+    Functions.Proc cancellationCallback = replayContext.scheduleLocalActivityTask(params, callback);
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
@@ -335,7 +403,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               cancellationCallback.apply();
               return null;
             });
-    return callback.result;
+    Promise<Optional<Payloads>> binaryResult = callback.result;
+
+    if (input.getResultClass() == Void.TYPE) {
+      return binaryResult.thenApply((r) -> null);
+    }
+    return binaryResult.thenApply(
+        (r) -> dataConverter.fromPayloads(0, r, input.getResultClass(), input.getResultType()));
   }
 
   private ExecuteActivityParameters constructExecuteActivityParameters(
@@ -382,7 +456,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
-      int attempt) {
+      int attempt,
+      long originalScheduledTime,
+      @Nullable Failure previousExecutionFailure) {
     options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
 
     PollActivityTaskQueueResponse.Builder activityTask =
@@ -391,8 +467,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             .setWorkflowNamespace(this.replayContext.getNamespace())
             .setWorkflowType(this.replayContext.getWorkflowType())
             .setWorkflowExecution(this.replayContext.getWorkflowExecution())
-            .setScheduledTime(ProtobufTimeUtils.getCurrentProtoTime())
-            .setStartedTime(ProtobufTimeUtils.getCurrentProtoTime())
+            // used to pass scheduled time to the local activity code inside
+            // ActivityExecutionContext#getInfo
+            // setCurrentAttemptScheduledTime is called inside LocalActivityWorker before submitting
+            // into the LA queue
+            .setScheduledTime(
+                ProtobufTimeUtils.toProtoTimestamp(Instant.ofEpochMilli(originalScheduledTime)))
             .setActivityType(ActivityType.newBuilder().setName(name))
             .setAttempt(attempt);
 
@@ -416,10 +496,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         toRetryPolicy(RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults()));
     Duration localRetryThreshold = options.getLocalRetryThreshold();
     if (localRetryThreshold == null) {
-      localRetryThreshold = replayContext.getWorkflowTaskTimeout().multipliedBy(6);
+      localRetryThreshold = replayContext.getWorkflowTaskTimeout().multipliedBy(3);
     }
+
     return new ExecuteLocalActivityParameters(
-        activityTask, null, options.isDoNotIncludeArgumentsIntoMarker(), localRetryThreshold);
+        activityTask,
+        null,
+        originalScheduledTime,
+        previousExecutionFailure,
+        options.isDoNotIncludeArgumentsIntoMarker(),
+        localRetryThreshold);
   }
 
   @Override

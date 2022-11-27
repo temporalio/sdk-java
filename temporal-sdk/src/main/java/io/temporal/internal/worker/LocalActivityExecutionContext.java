@@ -27,6 +27,7 @@ import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.workflow.Functions;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
@@ -37,7 +38,6 @@ import javax.annotation.Nullable;
 
 class LocalActivityExecutionContext {
   private final @Nonnull ExecuteLocalActivityParameters executionParams;
-  private final @Nonnull Deadline localRetryDeadline;
   private final @Nonnull CompletableFuture<LocalActivityResult> executionResult =
       new CompletableFuture<>();
 
@@ -45,35 +45,39 @@ class LocalActivityExecutionContext {
 
   private final @Nonnull AtomicInteger currentAttempt;
 
-  private final @Nonnull AtomicReference<Failure> lastFailure = new AtomicReference<>();
+  private final @Nonnull AtomicReference<Failure> lastAttemptFailure = new AtomicReference<>();
 
   private @Nullable ScheduledFuture<?> scheduleToCloseFuture;
 
   public LocalActivityExecutionContext(
       @Nonnull ExecuteLocalActivityParameters executionParams,
       @Nonnull Functions.Proc1<LocalActivityResult> resultCallback,
-      @Nonnull Deadline localRetryDeadline,
       @Nullable Deadline scheduleToCloseDeadline) {
     this.executionParams = Objects.requireNonNull(executionParams, "executionParams");
     this.executionResult.thenAccept(
         Objects.requireNonNull(resultCallback, "resultCallback")::apply);
-    this.localRetryDeadline = localRetryDeadline;
     this.scheduleToCloseDeadline = scheduleToCloseDeadline;
     this.currentAttempt = new AtomicInteger(executionParams.getInitialAttempt());
+    Failure previousExecutionFailure = executionParams.getPreviousLocalExecutionFailure();
+    if (previousExecutionFailure != null) {
+      if (previousExecutionFailure.hasTimeoutFailureInfo() && previousExecutionFailure.hasCause()) {
+        // It can be only startToClose timeout (others would be fatal).
+        // Structure TIMEOUT_TYPE_START_TO_CLOSE -> TIMEOUT_TYPE_START_TO_CLOSE or
+        // TIMEOUT_TYPE_START_TO_CLOSE -> ApplicationFailure is possible here - chaining of
+        // startToClose timeout with a previous failure.
+        // We reconstruct the last attempt failure (that would typically be preserved in a mutable
+        // state) from local activity execution failure.
+        // See a similar logic in
+        // io.temporal.internal.testservice.StateMachines#timeoutActivityTask.
+        lastAttemptFailure.set(Failure.newBuilder(previousExecutionFailure).clearCause().build());
+      } else {
+        lastAttemptFailure.set(previousExecutionFailure);
+      }
+    }
   }
 
   public String getActivityId() {
     return executionParams.getActivityId();
-  }
-
-  @Nonnull
-  public ExecuteLocalActivityParameters getExecutionParams() {
-    return executionParams;
-  }
-
-  @Nonnull
-  public Deadline getLocalRetryDeadline() {
-    return localRetryDeadline;
   }
 
   public int getCurrentAttempt() {
@@ -87,25 +91,41 @@ class LocalActivityExecutionContext {
    * io.temporal.api.workflowservice.v1.WorkflowServiceGrpc.WorkflowServiceBlockingStub#describeWorkflowExecution(DescribeWorkflowExecutionRequest)}
    */
   @Nullable
-  public Failure getLastFailure() {
-    return lastFailure.get();
+  public Failure getLastAttemptFailure() {
+    return lastAttemptFailure.get();
+  }
+
+  @Nullable
+  public Failure getPreviousExecutionFailure() {
+    return executionParams.getPreviousLocalExecutionFailure();
   }
 
   @Nonnull
-  public PollActivityTaskQueueResponse getNextAttemptActivityTask(@Nullable Failure lastFailure) {
+  public PollActivityTaskQueueResponse.Builder getInitialTask() {
+    return executionParams.cloneActivityTaskBuilder();
+  }
+
+  @Nonnull
+  public PollActivityTaskQueueResponse.Builder getNextAttemptActivityTask(
+      @Nullable Failure lastFailure) {
     // synchronization here is not absolutely needed as LocalActivityWorker#scheduleNextAttempt
     // shouldn't be executed concurrently. But to make sure this code is safe for future changes,
     // let's make this method atomic and protect thread-unsafe protobuf builder modification.
 
     // executionResult here is used just as an internal monitor object that is final and never
     // escapes the class
+    int nextAttempt;
     synchronized (executionResult) {
-      int nextAttempt = currentAttempt.incrementAndGet();
+      nextAttempt = currentAttempt.incrementAndGet();
       if (lastFailure != null) {
-        this.lastFailure.set(lastFailure);
+        this.lastAttemptFailure.set(lastFailure);
       }
-      return executionParams.getActivityTaskBuilder().setAttempt(nextAttempt).build();
     }
+    // doesn't need to be synchronized as we clone instead of modifying the original task builder
+    return executionParams
+        .cloneActivityTaskBuilder()
+        .setAttempt(nextAttempt)
+        .clearCurrentAttemptScheduledTime();
   }
 
   @Nullable
@@ -122,5 +142,19 @@ class LocalActivityExecutionContext {
       scheduleToCloseFuture.cancel(false);
     }
     return executionResult.complete(result);
+  }
+
+  @Nullable
+  public Duration getScheduleToStartTimeout() {
+    return executionParams.getScheduleToStartTimeout();
+  }
+
+  public long getOriginalScheduledTimestamp() {
+    return executionParams.getOriginalScheduledTimestamp();
+  }
+
+  @Nonnull
+  public Duration getLocalRetryThreshold() {
+    return executionParams.getLocalRetryThreshold();
   }
 }

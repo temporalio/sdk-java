@@ -1,0 +1,141 @@
+{
+  "events": [
+    {
+      "eventId": "1",
+      "eventTime": "2022-12-05T23:15:57.982Z",
+      "eventType": "WorkflowExecutionStarted",
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "TestWorkflowReturnString"
+        },
+        "taskQueue": {
+          "name": "WorkflowTest-testSuccessfulCompletion-4aaade89-17d4-44c2-933d-7859e1ab58f5"
+        },
+        "input": {},
+        "workflowExecutionTimeout": "315360000s",
+        "workflowRunTimeout": "315360000s",
+        "workflowTaskTimeout": "10s",
+        "originalExecutionRunId": "286fef70-b0d5-4ebd-95d7-fa3df7ec3162",
+        "identity": "7790@dmitrys-mini.lan",
+        "firstExecutionRunId": "286fef70-b0d5-4ebd-95d7-fa3df7ec3162",
+        "attempt": 1,
+        "header": {}
+      }
+    },
+    {
+      "eventId": "2",
+      "eventTime": "2022-12-05T23:15:57.982Z",
+      "eventType": "WorkflowTaskScheduled",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "WorkflowTest-testSuccessfulCompletion-4aaade89-17d4-44c2-933d-7859e1ab58f5"
+        },
+        "startToCloseTimeout": "10s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "3",
+      "eventTime": "2022-12-05T23:15:57.997Z",
+      "eventType": "WorkflowTaskStarted",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "7790@dmitrys-mini.lan"
+      }
+    },
+    {
+      "eventId": "4",
+      "eventTime": "2022-12-05T23:15:58.205Z",
+      "eventType": "WorkflowTaskCompleted",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "7790@dmitrys-mini.lan"
+      }
+    },
+    {
+      "eventId": "5",
+      "eventTime": "2022-12-05T23:15:58.205Z",
+      "eventType": "MarkerRecorded",
+      "markerRecordedEventAttributes": {
+        "markerName": "LocalActivity",
+        "details": {
+          "result": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "ImlucHV0MSI\u003d"
+              }
+            ]
+          },
+          "activityId": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "Ijc4OWRmYjEwLTgxMWYtM2NmMy1hY2IzLTBlMmVjZGE5YTRmNyI\u003d"
+              }
+            ]
+          },
+          "input": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "ImlucHV0Ig\u003d\u003d"
+              },
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "MQ\u003d\u003d"
+              }
+            ]
+          },
+          "time": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "MTY3MDI4MjE1ODAyNA\u003d\u003d"
+              }
+            ]
+          },
+          "type": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "IkFjdGl2aXR5MiI\u003d"
+              }
+            ]
+          }
+        },
+        "workflowTaskCompletedEventId": "3"
+      }
+    },
+    {
+      "eventId": "6",
+      "eventTime": "2022-12-05T23:15:58.205Z",
+      "eventType": "WorkflowExecutionCompleted",
+      "workflowExecutionCompletedEventAttributes": {
+        "result": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+              },
+              "data": "ImlucHV0MSI\u003d"
+            }
+          ]
+        },
+        "workflowTaskCompletedEventId": "3"
+      }
+    }
+  ]
+}

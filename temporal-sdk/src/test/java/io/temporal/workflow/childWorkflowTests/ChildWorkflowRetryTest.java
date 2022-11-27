@@ -22,7 +22,6 @@ package io.temporal.workflow.childWorkflowTests;
 
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.*;
-import static org.junit.Assume.assumeFalse;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClientOptions;
@@ -124,9 +123,7 @@ public class ChildWorkflowRetryTest {
    * compatible with the client that supports the server side retry.
    */
   @Test
-  public void testChildWorkflowRetryReplay() throws Exception {
-    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
-
+  public void testChildWorkflowRetry_replay() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
   }

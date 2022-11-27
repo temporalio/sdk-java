@@ -32,6 +32,7 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.statemachines.ExecuteActivityParameters;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
+import io.temporal.internal.statemachines.LocalActivityCallback;
 import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -41,6 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -92,6 +94,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   long getRunStartedTimestampMillis();
 
+  @Nonnull
   Duration getWorkflowTaskTimeout();
 
   Payload getMemo(String key);
@@ -115,8 +118,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
       ExecuteActivityParameters parameters, Functions.Proc2<Optional<Payloads>, Failure> callback);
 
   Functions.Proc scheduleLocalActivityTask(
-      ExecuteLocalActivityParameters parameters,
-      Functions.Proc2<Optional<Payloads>, Failure> callback);
+      ExecuteLocalActivityParameters parameters, LocalActivityCallback callback);
 
   /**
    * Start child workflow.
@@ -181,8 +183,8 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * getting random number or new UUID. The only way to fail SideEffect is to throw {@link Error}
    * which causes workflow task failure. The workflow task after timeout is rescheduled and
    * re-executed giving SideEffect another chance to succeed. Use {@link
-   * #scheduleLocalActivityTask(ExecuteLocalActivityParameters, Functions.Proc2)} for executing
-   * operations that rely on non-global dependencies and can fail.
+   * #scheduleLocalActivityTask(ExecuteLocalActivityParameters, LocalActivityCallback)} for
+   * executing operations that rely on non-global dependencies and can fail.
    *
    * @param func function that is called once to return a value.
    * @param callback function that accepts the result of the side effect.

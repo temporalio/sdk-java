@@ -32,10 +32,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.statemachines.ExecuteActivityParameters;
-import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
-import io.temporal.internal.statemachines.StartChildWorkflowExecutionParameters;
-import io.temporal.internal.statemachines.WorkflowStateMachines;
+import io.temporal.internal.statemachines.*;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -139,6 +136,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     return basicWorkflowContext.getContinueAsNewOnCompletion();
   }
 
+  @Nonnull
   @Override
   public Duration getWorkflowTaskTimeout() {
     return basicWorkflowContext.getWorkflowTaskTimeout();
@@ -208,8 +206,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public Functions.Proc scheduleLocalActivityTask(
-      ExecuteLocalActivityParameters parameters,
-      Functions.Proc2<Optional<Payloads>, Failure> callback) {
+      ExecuteLocalActivityParameters parameters, LocalActivityCallback callback) {
     return workflowStateMachines.scheduleLocalActivityTask(parameters, callback);
   }
 

@@ -20,103 +20,86 @@
 
 package io.temporal.workflow.activityTests;
 
-import static io.temporal.workflow.activityTests.ActivityThrowingErrorTest.FAILURE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.activity.LocalActivityOptions;
-import io.temporal.client.WorkflowClient;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.ApplicationFailureActivity;
 import io.temporal.workflow.shared.TestActivities.TestActivity4;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow4;
 import java.time.Duration;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-public class LocalActivityThrowingErrorTest {
+public class ActivityThrowingApplicationFailureTest {
 
-  private static WorkflowOptions options;
+  public static final String FAILURE_TYPE = "fail";
 
   @Rule public TestName testName = new TestName();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(LocalActivityThrowsErrorWorkflow.class)
-          .setActivityImplementations(new ActivityThrowingErrorTest.ApplicationFailureActivity())
+          .setWorkflowTypes(ActivityThrowsErrorWorkflow.class)
+          .setActivityImplementations(new ApplicationFailureActivity())
           .build();
 
-  @Before
-  public void setUp() {
-    options =
-        WorkflowOptions.newBuilder()
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setMaximumAttempts(1)
-                    .setInitialInterval(Duration.ofMinutes(2))
-                    .build())
-            .build();
-  }
-
   @Test
-  public void localActivityThrowsError() {
+  public void activityThrowsError() {
     String name = testName.getMethodName();
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
+    TestWorkflow4 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow4.class);
+
     try {
       workflow.execute(name, true);
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
       assertEquals(FAILURE_TYPE, ((ApplicationFailure) e.getCause().getCause()).getType());
-      assertEquals(
-          3, ActivityThrowingErrorTest.ApplicationFailureActivity.invocations.get(name).get());
+      assertEquals(3, ApplicationFailureActivity.invocations.get(name).get());
     }
   }
 
   @Test
-  public void localActivityNonRetryableThrowsError() {
+  public void activityThrowsNonRetryableError() {
     String name = testName.getMethodName();
-    WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
+    TestWorkflow4 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow4.class);
+
     try {
       workflow.execute(name, false);
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
       assertEquals(FAILURE_TYPE, ((ApplicationFailure) e.getCause().getCause()).getType());
-      assertEquals(
-          1, ActivityThrowingErrorTest.ApplicationFailureActivity.invocations.get(name).get());
+      assertEquals(1, ApplicationFailureActivity.invocations.get(name).get());
     }
   }
 
-  public static class LocalActivityThrowsErrorWorkflow implements TestWorkflow4 {
+  public static class ActivityThrowsErrorWorkflow implements TestWorkflow4 {
 
-    private final TestActivity4 activity1 =
-        Workflow.newLocalActivityStub(
+    private final TestActivity4 activity =
+        Workflow.newActivityStub(
             TestActivity4.class,
-            LocalActivityOptions.newBuilder()
+            ActivityOptions.newBuilder()
                 .setRetryOptions(
                     RetryOptions.newBuilder()
                         .setMaximumAttempts(3)
-                        .setInitialInterval(Duration.ofSeconds(1))
-                        .setMaximumInterval(Duration.ofMinutes(2))
+                        .setInitialInterval(Duration.ofMillis(100))
+                        .setMaximumInterval(Duration.ofMillis(100))
+                        .setBackoffCoefficient(1.0)
                         .build())
                 .setStartToCloseTimeout(Duration.ofMinutes(2))
                 .build());
 
     @Override
     public String execute(String testName, boolean retryable) {
-      activity1.execute(testName, retryable);
+      activity.execute(testName, retryable);
       return testName;
     }
   }

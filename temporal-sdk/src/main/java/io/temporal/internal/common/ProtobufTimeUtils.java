@@ -25,9 +25,11 @@ import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.time.Duration;
 import java.time.Instant;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ProtobufTimeUtils {
+  @Nonnull
   public static Duration toJavaDuration(com.google.protobuf.Duration d) {
     // TODO we should refactor an implicit conversion of empty values into ZERO and rename the
     // current method into toJavaDurationSafe, toJavaDurationOrDefault or something like that
