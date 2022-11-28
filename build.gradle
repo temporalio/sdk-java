@@ -46,7 +46,7 @@ ext {
     springBootVersion = '2.7.5'// [2.4.0,)
 
     // test scoped
-    logbackVersion = '1.2.11' // we don't upgrade to 1.3 and 1.4 because they require slf4j 2.x
+    logbackVersion = '1.4.5' // we don't upgrade to 1.3 and 1.4 because they require slf4j 2.x
     mockitoVersion = '4.9.0'
     junitVersion = '4.13.2'
 }
