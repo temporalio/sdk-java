@@ -43,7 +43,7 @@ ext {
 
     jsonPathVersion = '2.7.0' // compileOnly
 
-    springBootVersion = '2.7.5'// [2.4.0,)
+    springBootVersion = '3.0.0'// [2.4.0,)
 
     // test scoped
     logbackVersion = '1.2.11' // we don't upgrade to 1.3 and 1.4 because they require slf4j 2.x
