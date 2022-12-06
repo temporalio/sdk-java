@@ -20,6 +20,7 @@
 
 package io.temporal.internal.statemachines;
 
+import com.google.common.base.Preconditions;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
@@ -33,15 +34,16 @@ import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
+import io.temporal.internal.history.LocalActivityMarkerMetadata;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
-import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.workflow.Functions;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 final class LocalActivityStateMachine
     extends EntityStateMachineInitialCommand<
@@ -58,7 +60,7 @@ final class LocalActivityStateMachine
       "Local " + ActivityStateMachine.ACTIVITY_CANCELED_MESSAGE;
 
   private final Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink;
-  private final Functions.Proc2<Optional<Payloads>, Failure> callback;
+  private final LocalActivityCallback callback;
 
   private ExecuteLocalActivityParameters localActivityParameters;
   private final Functions.Func<Boolean> replaying;
@@ -67,6 +69,8 @@ final class LocalActivityStateMachine
 
   private final String activityId;
   private final ActivityType activityType;
+  // The value from the marker is taking over this value in case of replay
+  private final long originalScheduledTimestamp;
 
   /** Workflow timestamp when the LA state machine is initialized */
   private final long workflowTimeMillisWhenStarted;
@@ -76,9 +80,11 @@ final class LocalActivityStateMachine
    */
   private final long systemNanoTimeWhenStarted;
 
-  private Failure failure;
-  private LocalActivityResult result;
-  private Optional<Payloads> laResult;
+  // These three fields are set when an actual execution was performed instead of a replay from the
+  // LA marker
+  private @Nullable LocalActivityResult executionResult;
+  private @Nullable Optional<Payloads> executionSuccess;
+  private @Nullable LocalActivityCallback.LocalActivityFailedException executionFailure;
 
   enum ExplicitEvent {
     CHECK_EXECUTION_STATE,
@@ -92,13 +98,12 @@ final class LocalActivityStateMachine
     CREATED,
     REPLAYING,
     EXECUTING,
+    WAITING_MARKER_EVENT,
     REQUEST_PREPARED,
     REQUEST_SENT,
-    RESULT_NOTIFIED,
     MARKER_COMMAND_CREATED,
-    MARKER_COMMAND_RECORDED,
-    WAITING_MARKER_EVENT,
-    RESULT_NOTIFIED_REPLAYING
+    RESULT_NOTIFIED,
+    MARKER_COMMAND_RECORDED
   }
 
   public static final StateMachineDefinition<State, ExplicitEvent, LocalActivityStateMachine>
@@ -166,7 +171,7 @@ final class LocalActivityStateMachine
       Functions.Func<Boolean> replaying,
       Functions.Func1<Long, Long> setCurrentTimeCallback,
       ExecuteLocalActivityParameters localActivityParameters,
-      Functions.Proc2<Optional<Payloads>, Failure> callback,
+      LocalActivityCallback callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink,
@@ -187,7 +192,7 @@ final class LocalActivityStateMachine
       Functions.Func<Boolean> replaying,
       Functions.Func1<Long, Long> setCurrentTimeCallback,
       ExecuteLocalActivityParameters localActivityParameters,
-      Functions.Proc2<Optional<Payloads>, Failure> callback,
+      LocalActivityCallback callback,
       Functions.Proc1<ExecuteLocalActivityParameters> localActivityRequestSink,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink,
@@ -199,6 +204,7 @@ final class LocalActivityStateMachine
     this.localActivityParameters = localActivityParameters;
     this.activityId = localActivityParameters.getActivityId();
     this.activityType = localActivityParameters.getActivityType();
+    this.originalScheduledTimestamp = localActivityParameters.getOriginalScheduledTimestamp();
     this.localActivityRequestSink = localActivityRequestSink;
     this.callback = callback;
     this.workflowTimeMillisWhenStarted = workflowTimeMillisWhenStarted;
@@ -231,7 +237,7 @@ final class LocalActivityStateMachine
   }
 
   public void handleCompletion(LocalActivityResult result) {
-    this.result = result;
+    this.executionResult = result;
     explicitEvent(ExplicitEvent.HANDLE_RESULT);
   }
 
@@ -245,7 +251,7 @@ final class LocalActivityStateMachine
         RecordMarkerCommandAttributes.newBuilder();
     Map<String, Payloads> details = new HashMap<>();
     if (!replaying.apply()) {
-      markerAttributes.setMarkerName(MarkerUtils.LOCAL_ACTIVITY_MARKER_NAME);
+      markerAttributes.setMarkerName(LocalActivityMarkerUtils.MARKER_NAME);
       Payloads id = DefaultDataConverter.STANDARD_INSTANCE.toPayloads(activityId).get();
       details.put(LocalActivityMarkerUtils.MARKER_ACTIVITY_ID_KEY, id);
       Payloads type =
@@ -264,22 +270,29 @@ final class LocalActivityStateMachine
         details.put(
             LocalActivityMarkerUtils.MARKER_ACTIVITY_INPUT_KEY, localActivityParameters.getInput());
       }
-      if (result.getExecutionCompleted() != null) {
-        RespondActivityTaskCompletedRequest completed = result.getExecutionCompleted();
+      Preconditions.checkState(
+          executionResult != null,
+          "Local activity execution result should be populated before triggering createMarker()");
+      final LocalActivityMarkerMetadata localActivityMarkerMetadata =
+          new LocalActivityMarkerMetadata(
+              executionResult.getLastAttempt(), originalScheduledTimestamp);
+      if (executionResult.getExecutionCompleted() != null) {
+        RespondActivityTaskCompletedRequest completed = executionResult.getExecutionCompleted();
         if (completed.hasResult()) {
           Payloads p = completed.getResult();
-          laResult = Optional.of(p);
+          executionSuccess = Optional.of(p);
           details.put(LocalActivityMarkerUtils.MARKER_ACTIVITY_RESULT_KEY, p);
         } else {
-          laResult = Optional.empty();
+          executionSuccess = Optional.empty();
         }
-      } else if (result.getExecutionFailed() != null) {
-        LocalActivityResult.ExecutionFailedResult failedResult = result.getExecutionFailed();
+      } else if (executionResult.getExecutionFailed() != null) {
+        LocalActivityResult.ExecutionFailedResult failedResult =
+            executionResult.getExecutionFailed();
         String message =
             failedResult.isTimeout()
                 ? LOCAL_ACTIVITY_TIMED_OUT_MESSAGE
                 : LOCAL_ACTIVITY_FAILED_MESSAGE;
-        failure =
+        Failure failure =
             Failure.newBuilder()
                 .setMessage(message)
                 .setActivityFailureInfo(
@@ -290,14 +303,34 @@ final class LocalActivityStateMachine
                 .setCause(failedResult.getFailure())
                 .build();
         markerAttributes.setFailure(failure);
-      } else if (result.getExecutionCanceled() != null) {
-        RespondActivityTaskCanceledRequest failed = result.getExecutionCanceled();
-        markerAttributes.setFailure(
+
+        localActivityMarkerMetadata.setBackoff(failedResult.getBackoff());
+        executionFailure =
+            new LocalActivityCallback.LocalActivityFailedException(
+                failure,
+                originalScheduledTimestamp,
+                localActivityMarkerMetadata.getAttempt(),
+                failedResult.getBackoff());
+      } else if (executionResult.getExecutionCanceled() != null) {
+        RespondActivityTaskCanceledRequest failed = executionResult.getExecutionCanceled();
+        Failure failure =
             Failure.newBuilder()
                 .setMessage(LOCAL_ACTIVITY_CANCELED_MESSAGE)
                 .setCanceledFailureInfo(
-                    CanceledFailureInfo.newBuilder().setDetails(failed.getDetails())));
+                    CanceledFailureInfo.newBuilder().setDetails(failed.getDetails()))
+                .build();
+        markerAttributes.setFailure(failure);
+        executionFailure =
+            new LocalActivityCallback.LocalActivityFailedException(
+                failure,
+                originalScheduledTimestamp,
+                localActivityMarkerMetadata.getAttempt(),
+                null);
       }
+
+      details.put(
+          LocalActivityMarkerUtils.MARKER_METADATA_KEY,
+          DefaultDataConverter.STANDARD_INSTANCE.toPayloads(localActivityMarkerMetadata).get());
       markerAttributes.putAllDetails(details);
     }
     addCommand(
@@ -307,40 +340,37 @@ final class LocalActivityStateMachine
             .build());
   }
 
-  private void createFakeCommand() {
-    addCommand(
-        Command.newBuilder()
-            .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-            .setRecordMarkerCommandAttributes(RecordMarkerCommandAttributes.getDefaultInstance())
-            .build());
-  }
-
   private void notifyResultFromEvent() {
     MarkerRecordedEventAttributes attributes = currentEvent.getMarkerRecordedEventAttributes();
-    if (!LocalActivityMarkerUtils.hasLocalActivityStructure(currentEvent)) {
-      throw new IllegalStateException(
-          "Expected " + MarkerUtils.LOCAL_ACTIVITY_MARKER_NAME + ", received: " + attributes);
-    }
-    Map<String, Payloads> map = attributes.getDetailsMap();
-    Optional<Payloads> timePayloads =
-        Optional.ofNullable(map.get(LocalActivityMarkerUtils.MARKER_TIME_KEY));
+    Preconditions.checkState(
+        LocalActivityMarkerUtils.hasLocalActivityStructure(currentEvent),
+        "Expected " + LocalActivityMarkerUtils.MARKER_NAME + ", received: %s",
+        attributes);
     long time =
-        StdConverterBackwardsCompatAdapter.fromPayloads(0, timePayloads, Long.class, Long.class);
+        Preconditions.checkNotNull(
+            LocalActivityMarkerUtils.getTime(attributes),
+            "'time' payload of a LocalActivity marker can't be empty");
     setCurrentTimeCallback.apply(time);
     if (attributes.hasFailure()) {
-      callback.apply(null, attributes.getFailure());
-      return;
+      // In older markers metadata is missing
+      @Nullable
+      LocalActivityMarkerMetadata metadata = LocalActivityMarkerUtils.getMetadata(attributes);
+      long originalScheduledTimestamp =
+          metadata != null ? metadata.getOriginalScheduledTimestamp() : -1;
+      int lastAttempt = metadata != null ? metadata.getAttempt() : 0;
+      Duration backoff = metadata != null ? metadata.getBackoff() : null;
+      LocalActivityCallback.LocalActivityFailedException localActivityFailedException =
+          new LocalActivityCallback.LocalActivityFailedException(
+              attributes.getFailure(), originalScheduledTimestamp, lastAttempt, backoff);
+      callback.apply(null, localActivityFailedException);
+    } else {
+      Optional<Payloads> result =
+          Optional.ofNullable(LocalActivityMarkerUtils.getResult(attributes));
+      callback.apply(result, null);
     }
-    Payloads result = map.get(LocalActivityMarkerUtils.MARKER_ACTIVITY_RESULT_KEY);
-    if (result == null) {
-      // Support old histories that used "data" as a key for "result".
-      result = map.get(LocalActivityMarkerUtils.MARKER_DATA_KEY);
-    }
-    Optional<Payloads> fromMaker = Optional.ofNullable(result);
-    callback.apply(fromMaker, null);
   }
 
   private void notifyResultFromResponse() {
-    callback.apply(laResult, failure);
+    callback.apply(executionSuccess, executionFailure);
   }
 }

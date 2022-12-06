@@ -36,7 +36,6 @@ import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.FailureConverter;
-import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.workflow.Functions;
@@ -101,7 +100,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -175,7 +174,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -258,7 +257,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -542,7 +541,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -677,7 +676,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -771,7 +770,7 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 MarkerRecordedEventAttributes.newBuilder()
-                    .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+                    .setMarkerName(VersionMarkerUtils.MARKER_NAME)
                     .putDetails(
                         VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get())
                     .putDetails(
@@ -781,7 +780,7 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 MarkerRecordedEventAttributes.newBuilder()
-                    .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+                    .setMarkerName(VersionMarkerUtils.MARKER_NAME)
                     .putDetails(
                         VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id2").get())
                     .putDetails(
@@ -791,7 +790,7 @@ public class VersionStateMachineTest {
             .add(
                 EventType.EVENT_TYPE_MARKER_RECORDED,
                 MarkerRecordedEventAttributes.newBuilder()
-                    .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+                    .setMarkerName(VersionMarkerUtils.MARKER_NAME)
                     .putDetails(
                         VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id3").get())
                     .putDetails(
@@ -883,7 +882,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -968,7 +967,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -1033,7 +1032,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -1114,7 +1113,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -1210,7 +1209,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -1290,7 +1289,7 @@ public class VersionStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
             .putDetails(VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads("id1").get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()

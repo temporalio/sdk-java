@@ -21,7 +21,6 @@
 package io.temporal.workflow.childWorkflowTests;
 
 import static org.junit.Assert.*;
-import static org.junit.Assume.assumeFalse;
 
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
@@ -79,8 +78,6 @@ public class ChildWorkflowAsyncRetryTest {
   /** Tests that WorkflowReplayer fails if replay does not match workflow run. */
   @Test(expected = RuntimeException.class)
   public void testAlteredWorkflowReplayFailure() throws Exception {
-    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
-
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", AlteredTestChildWorkflowRetryWorkflow.class);
   }

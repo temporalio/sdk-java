@@ -31,6 +31,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public class VersionMarkerUtils {
+  public static final String MARKER_NAME = "Version";
   public static final String MARKER_CHANGE_ID_KEY = "changeId";
   public static final String MARKER_VERSION_KEY = "version";
 
@@ -52,7 +53,7 @@ public class VersionMarkerUtils {
    * @return true if the event has a correct structure for a version marker
    */
   public static boolean hasVersionMarkerStructure(HistoryEvent event) {
-    return MarkerUtils.verifyMarkerName(event, MarkerUtils.VERSION_MARKER_NAME);
+    return MarkerUtils.verifyMarkerName(event, MARKER_NAME);
   }
 
   @Nullable
@@ -74,7 +75,7 @@ public class VersionMarkerUtils {
     details.put(
         MARKER_VERSION_KEY, DefaultDataConverter.STANDARD_INSTANCE.toPayloads(version).get());
     return RecordMarkerCommandAttributes.newBuilder()
-        .setMarkerName(MarkerUtils.VERSION_MARKER_NAME)
+        .setMarkerName(MARKER_NAME)
         .putAllDetails(details)
         .build();
   }

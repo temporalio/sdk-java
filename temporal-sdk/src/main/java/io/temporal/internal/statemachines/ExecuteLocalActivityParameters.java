@@ -22,44 +22,45 @@ package io.temporal.internal.statemachines;
 
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ExecuteLocalActivityParameters {
-  public static final long NOT_SCHEDULED = -1;
 
   // This builder doesn't have all the fields published yet (a specific attempt for example)
   // It contains only the fields known at the moment of scheduling from the workflow.
   // This template gets adjusted for each attempt.
   private final @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder;
-  private final @Nonnull PollActivityTaskQueueResponse initialActivityTask;
-
-  private final Duration localRetryThreshold;
-  private final boolean doNotIncludeArgumentsIntoMarker;
-
-  private @Nullable Duration scheduleToStartTimeout;
 
   /**
-   * Timestamp of the moment when the first attempt of this local activity was scheduled. Comes into
-   * play when localRetryThreshold is reached. If {@link #NOT_SCHEDULED} then the first attempt was
-   * not scheduled yet, and we are going to do it now locally. This timestamp is registered by the
-   * worker performing the first attempt, so this mechanic needs reasonably synchronized worker
-   * clocks.
+   * This timestamp is a Workflow Time ({@link Workflow#currentTimeMillis()}) at the moment of
+   * scheduling of the first attempt. Comes into play when localRetryThreshold is reached. This
+   * mechanic requires reasonably synchronized worker clocks to work properly.
    */
-  private long originalScheduledTimestamp = NOT_SCHEDULED;
+  private final long originalScheduledTimestamp;
+
+  private final @Nullable Failure previousLocalExecutionFailure;
+  private final @Nonnull Duration localRetryThreshold;
+  private final boolean doNotIncludeArgumentsIntoMarker;
+  private @Nullable Duration scheduleToStartTimeout;
 
   public ExecuteLocalActivityParameters(
       @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
       @Nullable Duration scheduleToStartTimeout,
+      long originalScheduledTimestamp,
+      @Nullable Failure previousLocalExecutionFailure,
       boolean doNotIncludeArgumentsIntoMarker,
-      Duration localRetryThreshold) {
+      @Nonnull Duration localRetryThreshold) {
     this.activityTaskBuilder = Objects.requireNonNull(activityTaskBuilder, "activityTaskBuilder");
-    this.initialActivityTask = activityTaskBuilder.build();
     this.scheduleToStartTimeout = scheduleToStartTimeout;
+    this.originalScheduledTimestamp = originalScheduledTimestamp;
+    this.previousLocalExecutionFailure = previousLocalExecutionFailure;
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
     this.localRetryThreshold = localRetryThreshold;
   }
@@ -77,7 +78,43 @@ public class ExecuteLocalActivityParameters {
   }
 
   public int getInitialAttempt() {
-    return initialActivityTask.getAttempt();
+    return activityTaskBuilder.getAttempt();
+  }
+
+  /**
+   * @return cloned version of the original activity task builder supplied to these parameters to be
+   *     used as an attempt base
+   */
+  @Nonnull
+  public PollActivityTaskQueueResponse.Builder cloneActivityTaskBuilder() {
+    return activityTaskBuilder.clone();
+  }
+
+  @Nullable
+  public Duration getScheduleToCloseTimeout() {
+    if (activityTaskBuilder.hasScheduleToCloseTimeout()) {
+      return ProtobufTimeUtils.toJavaDuration(activityTaskBuilder.getScheduleToCloseTimeout());
+    } else {
+      return null;
+    }
+  }
+
+  public long getOriginalScheduledTimestamp() {
+    return originalScheduledTimestamp;
+  }
+
+  @Nullable
+  public Failure getPreviousLocalExecutionFailure() {
+    return previousLocalExecutionFailure;
+  }
+
+  public boolean isDoNotIncludeArgumentsIntoMarker() {
+    return doNotIncludeArgumentsIntoMarker;
+  }
+
+  @Nonnull
+  public Duration getLocalRetryThreshold() {
+    return localRetryThreshold;
   }
 
   /*
@@ -92,41 +129,5 @@ public class ExecuteLocalActivityParameters {
   @Nullable
   public Duration getScheduleToStartTimeout() {
     return scheduleToStartTimeout;
-  }
-
-  @Nullable
-  public Duration getScheduleToCloseTimeout() {
-    if (activityTaskBuilder.hasScheduleToCloseTimeout()) {
-      return ProtobufTimeUtils.toJavaDuration(activityTaskBuilder.getScheduleToCloseTimeout());
-    } else {
-      return null;
-    }
-  }
-
-  public boolean isDoNotIncludeArgumentsIntoMarker() {
-    return doNotIncludeArgumentsIntoMarker;
-  }
-
-  public Duration getLocalRetryThreshold() {
-    return localRetryThreshold;
-  }
-
-  public void setOriginalScheduledTimestamp(long scheduledTimestamp) {
-    this.originalScheduledTimestamp = scheduledTimestamp;
-  }
-
-  public long getOriginalScheduledTimestamp() {
-    return originalScheduledTimestamp;
-  }
-
-  @Nonnull
-  public PollActivityTaskQueueResponse getInitialActivityTask() {
-    return initialActivityTask;
-  }
-
-  // Keep usage of this method limited as modifying the protobuf builder is not thread safe
-  @Nonnull
-  public PollActivityTaskQueueResponse.Builder getActivityTaskBuilder() {
-    return activityTaskBuilder;
   }
 }

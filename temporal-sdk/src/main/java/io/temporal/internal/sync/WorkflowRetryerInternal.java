@@ -100,11 +100,6 @@ final class WorkflowRetryerInternal {
         });
   }
 
-  public static <R> R validateOptionsAndRetry(
-      RetryOptions options, Optional<Duration> expiration, Functions.Func<R> func) {
-    return retry(options.toBuilder().validateBuildWithDefaults(), expiration, func);
-  }
-
   /**
    * Retry function synchronously.
    *
@@ -223,27 +218,6 @@ final class WorkflowRetryerInternal {
       result.setMaximumAttempts(sRetryOptions.getMaximumAttempts());
     }
     return result.build();
-  }
-
-  static <R> Promise<R> retryAsync(
-      Functions.Func2<Integer, Long, Promise<R>> func, int attempt, long startTime) {
-
-    CompletablePromise<R> funcResult = WorkflowInternal.newCompletablePromise();
-    try {
-      funcResult.completeFrom(func.apply(attempt, startTime));
-    } catch (RuntimeException e) {
-      funcResult.completeExceptionally(e);
-    }
-
-    return funcResult
-        .handle(
-            (r, e) -> {
-              if (e == null) {
-                return WorkflowInternal.newPromise(r);
-              }
-              throw e;
-            })
-        .thenCompose((r) -> r);
   }
 
   private WorkflowRetryerInternal() {}

@@ -20,22 +20,23 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nonnull;
 
 public final class ActivityTask {
-  private final @Nonnull PollActivityTaskQueueResponse response;
+  private final @Nonnull PollActivityTaskQueueResponseOrBuilder response;
   private final @Nonnull Functions.Proc completionCallback;
 
   public ActivityTask(
-      @Nonnull PollActivityTaskQueueResponse response, @Nonnull Functions.Proc completionCallback) {
+      @Nonnull PollActivityTaskQueueResponseOrBuilder response,
+      @Nonnull Functions.Proc completionCallback) {
     this.response = response;
     this.completionCallback = completionCallback;
   }
 
   @Nonnull
-  public PollActivityTaskQueueResponse getResponse() {
+  public PollActivityTaskQueueResponseOrBuilder getResponse() {
     return response;
   }
 

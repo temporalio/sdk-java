@@ -25,7 +25,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.DynamicActivity;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.client.ActivityCanceledException;
@@ -82,7 +82,7 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
 
   @Override
   public Result handle(ActivityTask activityTask, Scope metricsScope, boolean localActivity) {
-    PollActivityTaskQueueResponse pollResponse = activityTask.getResponse();
+    PollActivityTaskQueueResponseOrBuilder pollResponse = activityTask.getResponse();
     String activityType = pollResponse.getActivityType().getName();
     ActivityInfoInternal activityInfo =
         new ActivityInfoImpl(

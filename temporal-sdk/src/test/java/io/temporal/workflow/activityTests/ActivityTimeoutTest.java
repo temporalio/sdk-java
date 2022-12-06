@@ -23,7 +23,6 @@ package io.temporal.workflow.activityTests;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
-import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.enums.v1.RetryState;
@@ -41,15 +40,14 @@ import io.temporal.worker.Worker;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.activityTests.ActivityTimeoutTest.ControlledActivityImpl.Outcome;
+import io.temporal.workflow.shared.ControlledActivityImpl;
+import io.temporal.workflow.shared.ControlledActivityImpl.Outcome;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 import org.hamcrest.CoreMatchers;
@@ -777,7 +775,7 @@ public class ActivityTimeoutTest {
         long startToCloseTimeoutSeconds,
         int attemptsAllowed,
         boolean local) {
-      TestActivities.TestActivity1 activity;
+      TestActivities.NoArgsReturnsStringActivity activity;
       if (local) {
         LocalActivityOptions.Builder options = LocalActivityOptions.newBuilder();
         if (scheduleToCloseTimeoutSeconds >= 0) {
@@ -793,7 +791,8 @@ public class ActivityTimeoutTest {
               RetryOptions.newBuilder().setMaximumAttempts(attemptsAllowed).build());
         }
         activity =
-            Workflow.newLocalActivityStub(TestActivities.TestActivity1.class, options.build());
+            Workflow.newLocalActivityStub(
+                TestActivities.NoArgsReturnsStringActivity.class, options.build());
       } else {
         ActivityOptions.Builder options = ActivityOptions.newBuilder();
         if (scheduleToCloseTimeoutSeconds >= 0) {
@@ -809,69 +808,12 @@ public class ActivityTimeoutTest {
           options.setRetryOptions(
               RetryOptions.newBuilder().setMaximumAttempts(attemptsAllowed).build());
         }
-        activity = Workflow.newActivityStub(TestActivities.TestActivity1.class, options.build());
+        activity =
+            Workflow.newActivityStub(
+                TestActivities.NoArgsReturnsStringActivity.class, options.build());
       }
 
-      activity.execute("foo");
-    }
-  }
-
-  public static class ControlledActivityImpl implements TestActivities.TestActivity1 {
-
-    enum Outcome {
-      FAIL,
-      SLEEP
-    }
-
-    private final List<Outcome> outcomes;
-    private final int expectedAttempts;
-    private final long secondsToSleep;
-
-    private int lastAttempt = 0;
-
-    public ControlledActivityImpl(
-        List<Outcome> outcomes, int expectedAttempts, long secondsToSleep) {
-      this.outcomes = outcomes;
-      this.expectedAttempts = expectedAttempts;
-      this.secondsToSleep = secondsToSleep;
-    }
-
-    @Override
-    public String execute(String input) {
-      lastAttempt = Activity.getExecutionContext().getInfo().getAttempt();
-      if (lastAttempt > expectedAttempts) {
-        fail(
-            "Unexpected attempt '"
-                + lastAttempt
-                + "', over the expected '"
-                + expectedAttempts
-                + "'");
-      }
-
-      Outcome outcome =
-          outcomes.get(
-              (Activity.getExecutionContext().getInfo().getAttempt() - 1) % outcomes.size());
-      switch (outcome) {
-        case FAIL:
-          throw new RuntimeException("intentional failure");
-        case SLEEP:
-          try {
-            Thread.sleep(TimeUnit.SECONDS.toMillis(secondsToSleep));
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-          }
-          return "done";
-        default:
-          throw new IllegalArgumentException("Unexpected outcome: " + outcome);
-      }
-    }
-
-    public void verifyAttempts() {
-      assertEquals(
-          "Amount of attempts performed is different from the expected",
-          expectedAttempts,
-          lastAttempt);
+      activity.execute();
     }
   }
 

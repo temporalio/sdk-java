@@ -20,8 +20,6 @@
 
 package io.temporal.workflow.activityTests;
 
-import static org.junit.Assume.assumeFalse;
-
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowException;
@@ -71,9 +69,7 @@ public class AsyncActivityRetryTest {
   }
 
   @Test
-  public void testAsyncActivityRetryReplay() throws Exception {
-    // Avoid executing 4 times
-    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+  public void testAsyncActivityRetry_replay() throws Exception {
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
   }

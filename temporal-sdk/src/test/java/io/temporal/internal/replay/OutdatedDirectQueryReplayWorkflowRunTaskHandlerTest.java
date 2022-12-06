@@ -152,6 +152,8 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
                                               .getMarkerRecordedEventAttributes()))
                                   .build()),
                       null,
+                      System.currentTimeMillis(),
+                      null,
                       false,
                       null),
                   (r, e) -> {});

@@ -31,14 +31,12 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
-import io.temporal.internal.history.MarkerUtils;
 import io.temporal.internal.worker.LocalActivityResult;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,6 +94,8 @@ public class LocalActivityStateMachineTest {
                     .setActivityId("id1")
                     .setActivityType(ActivityType.newBuilder().setName("activity1")),
                 null,
+                System.currentTimeMillis(),
+                null,
                 true,
                 null);
         ExecuteLocalActivityParameters parameters2 =
@@ -103,6 +103,8 @@ public class LocalActivityStateMachineTest {
                 PollActivityTaskQueueResponse.newBuilder()
                     .setActivityId("id2")
                     .setActivityType(ActivityType.newBuilder().setName("activity2")),
+                null,
+                System.currentTimeMillis(),
                 null,
                 false,
                 null);
@@ -112,18 +114,20 @@ public class LocalActivityStateMachineTest {
                     .setActivityId("id3")
                     .setActivityType(ActivityType.newBuilder().setName("activity3")),
                 null,
+                System.currentTimeMillis(),
+                null,
                 true,
                 null);
 
         builder
-            .<Optional<Payloads>, Failure>add2(
+            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
             .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
 
         builder
-            .<Optional<Payloads>, Failure>add2(
+            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters2, c))
-            .<Optional<Payloads>, Failure>add2(
+            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters3, c))
             .add((r) -> result = r.getT1());
       }
@@ -143,7 +147,7 @@ public class LocalActivityStateMachineTest {
     */
     MarkerRecordedEventAttributes.Builder markerBuilder =
         MarkerRecordedEventAttributes.newBuilder()
-            .setMarkerName(MarkerUtils.LOCAL_ACTIVITY_MARKER_NAME)
+            .setMarkerName(LocalActivityMarkerUtils.MARKER_NAME)
             .putDetails(MARKER_TIME_KEY, converter.toPayloads(System.currentTimeMillis()).get());
     TestHistoryBuilder h =
         new TestHistoryBuilder()
@@ -190,6 +194,7 @@ public class LocalActivityStateMachineTest {
       LocalActivityResult completionActivity2 =
           new LocalActivityResult(
               "id2",
+              1,
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result2).build(),
               null,
               null);
@@ -202,6 +207,7 @@ public class LocalActivityStateMachineTest {
       LocalActivityResult completionActivity3 =
           new LocalActivityResult(
               "id3",
+              1,
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result3).build(),
               null,
               null);
@@ -239,6 +245,7 @@ public class LocalActivityStateMachineTest {
       LocalActivityResult completionActivity1 =
           new LocalActivityResult(
               "id1",
+              1,
               RespondActivityTaskCompletedRequest.newBuilder().setResult(result).build(),
               null,
               null);
@@ -285,10 +292,12 @@ public class LocalActivityStateMachineTest {
                     .setActivityId("id1")
                     .setActivityType(ActivityType.newBuilder().setName("activity1")),
                 null,
+                System.currentTimeMillis(),
+                null,
                 false,
                 null);
         builder
-            .<Optional<Payloads>, Failure>add2(
+            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
             .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
       }

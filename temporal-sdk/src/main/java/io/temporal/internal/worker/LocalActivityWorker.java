@@ -135,7 +135,8 @@ final class LocalActivityWorker implements SuspendableWorker {
   private boolean submitAnAttempt(LocalActivityAttemptTask task) {
     try {
       @Nullable
-      Duration scheduleToStartTimeout = task.getExecutionParams().getScheduleToStartTimeout();
+      Duration scheduleToStartTimeout = task.getExecutionContext().getScheduleToStartTimeout();
+      task.getAttemptTask().setCurrentAttemptScheduledTime(ProtobufTimeUtils.getCurrentProtoTime());
       boolean accepted =
           scheduleToStartTimeout != null
               ? pendingTasks.offer(task, scheduleToStartTimeout.toMillis(), TimeUnit.MILLISECONDS)
@@ -158,29 +159,28 @@ final class LocalActivityWorker implements SuspendableWorker {
   /**
    * @param executionContext execution context of the activity
    * @param activityTask activity task
-   * @param executionThrowable exception happened during the activity execution. Can be null (for
-   *     startToClose timeout)
+   * @param attemptThrowable exception happened during the activity attempt. Can be null.
    * @return decision to retry or not with a retry state, backoff or delay to the next attempt if
    *     applicable
    */
   @Nonnull
   private RetryDecision shouldRetry(
       LocalActivityExecutionContext executionContext,
-      PollActivityTaskQueueResponse activityTask,
-      @Nullable Throwable executionThrowable) {
+      PollActivityTaskQueueResponseOrBuilder activityTask,
+      @Nullable Throwable attemptThrowable) {
     int currentAttempt = activityTask.getAttempt();
 
-    if (isNonRetryableApplicationFailure(executionThrowable)) {
+    if (isNonRetryableApplicationFailure(attemptThrowable)) {
       return new RetryDecision(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, null);
     }
 
-    if (executionThrowable instanceof Error) {
+    if (attemptThrowable instanceof Error) {
       // TODO Error inside Local Activity shouldn't be failing the local activity call.
       //  Instead we should fail Workflow Task. Implement a special flag for that in the result.
       //          task.callback(executionFailed(activityHandlerResult,
       // RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED, currentAttempt));
       // don't just swallow Error from activities, propagate it to the top
-      throw (Error) executionThrowable;
+      throw (Error) attemptThrowable;
     }
 
     if (isRetryPolicyNotSet(activityTask)) {
@@ -189,7 +189,7 @@ final class LocalActivityWorker implements SuspendableWorker {
 
     RetryOptions retryOptions = RetryOptionsUtils.toRetryOptions(activityTask.getRetryPolicy());
 
-    if (RetryOptionsUtils.isNotRetryable(retryOptions, executionThrowable)) {
+    if (RetryOptionsUtils.isNotRetryable(retryOptions, attemptThrowable)) {
       return new RetryDecision(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, null);
     }
 
@@ -198,30 +198,30 @@ final class LocalActivityWorker implements SuspendableWorker {
     }
 
     long sleepMillis = retryOptions.calculateSleepTime(currentAttempt);
+    Duration sleep = Duration.ofMillis(sleepMillis);
     if (RetryOptionsUtils.isDeadlineReached(
         executionContext.getScheduleToCloseDeadline(), sleepMillis)) {
       return new RetryDecision(RetryState.RETRY_STATE_TIMEOUT, null);
     }
 
-    if (executionContext.getLocalRetryDeadline().timeRemaining(TimeUnit.MILLISECONDS)
-        <= sleepMillis) {
-      return new RetryDecision(LOCAL_RETRY_LIMIT_RETRY_STATE, Duration.ofMillis(sleepMillis));
+    if (sleep.compareTo(executionContext.getLocalRetryThreshold()) > 0) {
+      return new RetryDecision(LOCAL_RETRY_LIMIT_RETRY_STATE, sleep);
     }
 
-    return new RetryDecision(Duration.ofMillis(sleepMillis));
+    return new RetryDecision(sleep);
   }
 
   /**
    * @param executionContext execution context of the activity
    * @param backoff delay time in milliseconds to the next attempt
    * @param failure if supplied, it will be used to override {@link
-   *     LocalActivityExecutionContext#getLastFailure()}
+   *     LocalActivityExecutionContext#getLastAttemptFailure()}
    */
   private void scheduleNextAttempt(
       LocalActivityExecutionContext executionContext,
       @Nonnull Duration backoff,
       @Nullable Failure failure) {
-    PollActivityTaskQueueResponse nextActivityTask =
+    PollActivityTaskQueueResponse.Builder nextActivityTask =
         executionContext.getNextAttemptActivityTask(failure);
     LocalActivityAttemptTask task =
         new LocalActivityAttemptTask(executionContext, nextActivityTask);
@@ -234,19 +234,8 @@ final class LocalActivityWorker implements SuspendableWorker {
     public boolean dispatch(
         ExecuteLocalActivityParameters params,
         Functions.Proc1<LocalActivityResult> resultCallback) {
-
-      long localRetryThresholdMs = params.getLocalRetryThreshold().toMillis();
-      Preconditions.checkState(localRetryThresholdMs > 0, "localRetryThresholdMs must be > 0");
-      Deadline localRetryDeadline = Deadline.after(localRetryThresholdMs, TimeUnit.MILLISECONDS);
-
-      long passedFromOriginalSchedulingMs = 0;
-      if (params.getOriginalScheduledTimestamp() != ExecuteLocalActivityParameters.NOT_SCHEDULED) {
-        passedFromOriginalSchedulingMs =
-            System.currentTimeMillis() - params.getOriginalScheduledTimestamp();
-      } else {
-        params.setOriginalScheduledTimestamp(System.currentTimeMillis());
-      }
-
+      long passedFromOriginalSchedulingMs =
+          System.currentTimeMillis() - params.getOriginalScheduledTimestamp();
       Duration scheduleToCloseTimeout = params.getScheduleToCloseTimeout();
       Deadline scheduleToCloseDeadline = null;
       if (scheduleToCloseTimeout != null) {
@@ -257,13 +246,17 @@ final class LocalActivityWorker implements SuspendableWorker {
       }
 
       LocalActivityExecutionContext executionContext =
-          new LocalActivityExecutionContext(
-              params, resultCallback, localRetryDeadline, scheduleToCloseDeadline);
+          new LocalActivityExecutionContext(params, resultCallback, scheduleToCloseDeadline);
 
-      LocalActivityAttemptTask task =
-          new LocalActivityAttemptTask(executionContext, params.getInitialActivityTask());
+      PollActivityTaskQueueResponse.Builder activityTask = executionContext.getInitialTask();
+      LocalActivityAttemptTask task = new LocalActivityAttemptTask(executionContext, activityTask);
+
+      boolean retryIsNotAllowed = failIfRetryIsNotAllowedByNewPolicy(task);
+      if (retryIsNotAllowed) {
+        return true;
+      }
+
       boolean accepted = submitAnAttempt(task);
-
       if (accepted) {
         if (scheduleToCloseDeadline != null) {
           ScheduledFuture<?> scheduledScheduleToClose =
@@ -276,6 +269,104 @@ final class LocalActivityWorker implements SuspendableWorker {
       }
 
       return accepted;
+    }
+
+    /**
+     * @param task local activity retry attempt task specifying the retry we are about to schedule
+     * @return true if the retry attempt specified by {@code task} is not allowed by the current
+     *     retry policy and the error was submitted in the callback, false otherwise
+     */
+    private boolean failIfRetryIsNotAllowedByNewPolicy(LocalActivityAttemptTask task) {
+      LocalActivityExecutionContext executionContext = task.getExecutionContext();
+      final Failure previousExecutionFailure = executionContext.getPreviousExecutionFailure();
+      if (previousExecutionFailure != null) {
+        // This is not an original local execution, it's a continuation using a workflow timer.
+        // We should verify if the RetryOptions currently supplied in the workflow still allow the
+        // retry.
+        // If not, we need to recreate the same structure of an error like it would happen before we
+        // started to sleep on the timer, at the end of the previous local execution.
+        RetryState retryState =
+            shouldStillRetry(executionContext, task.getAttemptTask(), previousExecutionFailure);
+        if (!RetryState.RETRY_STATE_IN_PROGRESS.equals(retryState)) {
+          Failure failure;
+          if (RetryState.RETRY_STATE_TIMEOUT.equals(retryState)) {
+            if (previousExecutionFailure.hasTimeoutFailureInfo()
+                && TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE.equals(
+                    previousExecutionFailure.getTimeoutFailureInfo().getTimeoutType())) {
+              // This scenario should behave the same way as a startToClose timeout happening and
+              // encountering
+              // RetryState#TIMEOUT during calculation of the next attempt (which is effectively a
+              // scheduleToClose
+              // timeout).
+              // See how StartToCloseTimeoutHandler or
+              // io.temporal.internal.testservice.StateMachines#timeoutActivityTask
+              // discard startToClose in this case and replaces it with scheduleToClose
+              failure =
+                  newTimeoutFailure(
+                      TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
+                      previousExecutionFailure.getCause());
+            } else {
+              failure =
+                  newTimeoutFailure(
+                      TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, previousExecutionFailure);
+            }
+          } else {
+            failure = previousExecutionFailure;
+          }
+
+          executionContext.callback(
+              failed(
+                  task.getActivityId(),
+                  task.getAttemptTask().getAttempt(),
+                  retryState,
+                  failure,
+                  null));
+          return true;
+        }
+      }
+      return false;
+    }
+
+    /**
+     * @param executionContext execution context of the activity
+     * @param activityTask activity task
+     * @param previousLocalExecutionFailure failure happened during previous local activity
+     *     execution. Can be null.
+     * @return decision to retry or not with a retry state, backoff or delay to the next attempt if
+     *     applicable
+     */
+    @Nonnull
+    private RetryState shouldStillRetry(
+        LocalActivityExecutionContext executionContext,
+        PollActivityTaskQueueResponseOrBuilder activityTask,
+        @Nullable Failure previousLocalExecutionFailure) {
+      int currentAttempt = activityTask.getAttempt();
+
+      if (isRetryPolicyNotSet(activityTask)) {
+        return RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET;
+      }
+
+      RetryOptions retryOptions = RetryOptionsUtils.toRetryOptions(activityTask.getRetryPolicy());
+
+      if (previousLocalExecutionFailure != null
+          && previousLocalExecutionFailure.hasApplicationFailureInfo()
+          && RetryOptionsUtils.isNotRetryable(
+              retryOptions, previousLocalExecutionFailure.getApplicationFailureInfo().getType())) {
+        return RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
+      }
+
+      // The current attempt didn't happen yet in this check, that's why -1
+      if (RetryOptionsUtils.areAttemptsReached(retryOptions, currentAttempt - 1)) {
+        return RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED;
+      }
+
+      long sleepMillis = retryOptions.calculateSleepTime(currentAttempt);
+      if (RetryOptionsUtils.isDeadlineReached(
+          executionContext.getScheduleToCloseDeadline(), sleepMillis)) {
+        return RetryState.RETRY_STATE_TIMEOUT;
+      }
+
+      return RetryState.RETRY_STATE_IN_PROGRESS;
     }
   }
 
@@ -290,7 +381,7 @@ final class LocalActivityWorker implements SuspendableWorker {
     @Override
     public void handle(LocalActivityAttemptTask attemptTask) throws Exception {
       LocalActivityExecutionContext executionContext = attemptTask.getExecutionContext();
-      PollActivityTaskQueueResponse activityTask = attemptTask.getAttemptTask();
+      PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
       String activityId = activityTask.getActivityId();
 
       Scope metricsScope =
@@ -346,14 +437,17 @@ final class LocalActivityWorker implements SuspendableWorker {
 
         if (activityHandlerResult.getTaskCompleted() != null) {
           com.uber.m3.util.Duration e2eDuration =
-              ProtobufTimeUtils.toM3DurationSinceNow(activityTask.getScheduledTime());
+              com.uber.m3.util.Duration.ofMillis(
+                  System.currentTimeMillis() - executionContext.getOriginalScheduledTimestamp());
           metricsScope.timer(MetricsType.LOCAL_ACTIVITY_SUCCEED_E2E_LATENCY).record(e2eDuration);
-          executionContext.callback(LocalActivityResult.completed(activityHandlerResult));
+          executionContext.callback(
+              LocalActivityResult.completed(activityHandlerResult, currentAttempt));
           return;
         }
 
         if (activityHandlerResult.getTaskCanceled() != null) {
-          executionContext.callback(LocalActivityResult.cancelled(activityHandlerResult));
+          executionContext.callback(
+              LocalActivityResult.cancelled(activityHandlerResult, currentAttempt));
           return;
         }
 
@@ -378,9 +472,9 @@ final class LocalActivityWorker implements SuspendableWorker {
           executionContext.callback(
               failed(
                   activityId,
+                  currentAttempt,
                   retryDecision.retryState,
                   executionFailure,
-                  currentAttempt,
                   retryDecision.nextAttemptBackoff));
         }
 
@@ -392,9 +486,9 @@ final class LocalActivityWorker implements SuspendableWorker {
         executionContext.callback(
             failed(
                 activityId,
+                currentAttempt,
                 RetryState.RETRY_STATE_INTERNAL_SERVER_ERROR,
                 failure,
-                currentAttempt,
                 null));
         throw ex;
       } finally {
@@ -437,10 +531,11 @@ final class LocalActivityWorker implements SuspendableWorker {
       executionContext.callback(
           failed(
               executionContext.getActivityId(),
+              executionContext.getCurrentAttempt(),
               RetryState.RETRY_STATE_TIMEOUT,
               newTimeoutFailure(
-                  TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, executionContext.getLastFailure()),
-              executionContext.getCurrentAttempt(),
+                  TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
+                  executionContext.getLastAttemptFailure()),
               null));
     }
   }
@@ -455,7 +550,7 @@ final class LocalActivityWorker implements SuspendableWorker {
     @Override
     public void run() {
       LocalActivityExecutionContext executionContext = attemptTask.getExecutionContext();
-      PollActivityTaskQueueResponse activityTask = attemptTask.getAttemptTask();
+      PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
       String activityId = activityTask.getActivityId();
 
       int timingOutAttempt = activityTask.getAttempt();
@@ -466,7 +561,6 @@ final class LocalActivityWorker implements SuspendableWorker {
             executionContext,
             Objects.requireNonNull(
                 retryDecision.nextAttemptBackoff, "nextAttemptBackoff is expected to not be null"),
-            // null because schedule to start / close is not meaningful
             newTimeoutFailure(TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, null));
       } else {
         // RetryState.RETRY_STATE_TIMEOUT happens only when scheduleToClose is fired
@@ -478,9 +572,9 @@ final class LocalActivityWorker implements SuspendableWorker {
         executionContext.callback(
             failed(
                 activityId,
-                retryDecision.retryState,
-                newTimeoutFailure(timeoutType, executionContext.getLastFailure()),
                 timingOutAttempt,
+                retryDecision.retryState,
+                newTimeoutFailure(timeoutType, executionContext.getLastAttemptFailure()),
                 retryDecision.nextAttemptBackoff));
       }
     }

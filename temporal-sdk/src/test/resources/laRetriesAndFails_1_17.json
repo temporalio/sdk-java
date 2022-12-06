@@ -1,0 +1,197 @@
+{
+  "events": [
+    {
+      "eventId": "1",
+      "eventTime": "2022-12-05T23:33:20.915Z",
+      "eventType": "WorkflowExecutionStarted",
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "TestWorkflow1"
+        },
+        "taskQueue": {
+          "name": "WorkflowTest-testLocalActivityRetriesAndFails-3ce18680-be42-43d0-98e8-f6ae7da9056c"
+        },
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+              },
+              "data": "IldvcmtmbG93VGVzdC10ZXN0TG9jYWxBY3Rpdml0eVJldHJpZXNBbmRGYWlscy0zY2UxODY4MC1iZTQyLTQzZDAtOThlOC1mNmFlN2RhOTA1NmMi"
+            }
+          ]
+        },
+        "workflowExecutionTimeout": "315360000s",
+        "workflowRunTimeout": "200s",
+        "workflowTaskTimeout": "5s",
+        "originalExecutionRunId": "36dbe72d-1f3a-4280-a2a1-3d42a70e67a4",
+        "identity": "9600@dmitrys-mini.lan",
+        "firstExecutionRunId": "36dbe72d-1f3a-4280-a2a1-3d42a70e67a4",
+        "attempt": 1,
+        "header": {}
+      }
+    },
+    {
+      "eventId": "2",
+      "eventTime": "2022-12-05T23:33:20.915Z",
+      "eventType": "WorkflowTaskScheduled",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "WorkflowTest-testLocalActivityRetriesAndFails-3ce18680-be42-43d0-98e8-f6ae7da9056c"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 1
+      }
+    },
+    {
+      "eventId": "3",
+      "eventTime": "2022-12-05T23:33:20.930Z",
+      "eventType": "WorkflowTaskStarted",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "9600@dmitrys-mini.lan"
+      }
+    },
+    {
+      "eventId": "4",
+      "eventTime": "2022-12-05T23:33:25.035Z",
+      "eventType": "WorkflowTaskCompleted",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "2",
+        "identity": "9600@dmitrys-mini.lan"
+      }
+    },
+    {
+      "eventId": "5",
+      "eventTime": "2022-12-05T23:33:25.035Z",
+      "eventType": "WorkflowTaskScheduled",
+      "workflowTaskScheduledEventAttributes": {
+        "taskQueue": {
+          "name": "WorkflowTest-testLocalActivityRetriesAndFails-3ce18680-be42-43d0-98e8-f6ae7da9056c"
+        },
+        "startToCloseTimeout": "5s",
+        "attempt": 2
+      }
+    },
+    {
+      "eventId": "6",
+      "eventTime": "2022-12-05T23:33:25.035Z",
+      "eventType": "WorkflowTaskStarted",
+      "workflowTaskStartedEventAttributes": {
+        "scheduledEventId": "5",
+        "identity": "9600@dmitrys-mini.lan"
+      }
+    },
+    {
+      "eventId": "7",
+      "eventTime": "2022-12-05T23:33:25.136Z",
+      "eventType": "WorkflowTaskCompleted",
+      "workflowTaskCompletedEventAttributes": {
+        "scheduledEventId": "5",
+        "identity": "9600@dmitrys-mini.lan"
+      }
+    },
+    {
+      "eventId": "8",
+      "eventTime": "2022-12-05T23:33:25.136Z",
+      "eventType": "MarkerRecorded",
+      "markerRecordedEventAttributes": {
+        "markerName": "LocalActivity",
+        "details": {
+          "activityId": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "ImY0NzBiODExLThkNTYtMzNkMC04ZGExLWY3ODY3NTAwMzZkYyI\u003d"
+              }
+            ]
+          },
+          "input": {},
+          "time": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "MTY3MDI4MzIwNTAzNQ\u003d\u003d"
+              }
+            ]
+          },
+          "type": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg\u003d\u003d"
+                },
+                "data": "IlRocm93SU8i"
+              }
+            ]
+          }
+        },
+        "workflowTaskCompletedEventId": "6",
+        "failure": {
+          "message": "Local Activity task failed",
+          "cause": {
+            "message": "simulated IO problem",
+            "source": "JavaSDK",
+            "stackTrace": "io.temporal.workflow.shared.TestActivities$TestActivitiesImpl.throwIO(TestActivities.java:379)\njava.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)\njava.base/java.lang.reflect.Method.invoke(Method.java:577)\nio.temporal.internal.activity.RootActivityInboundCallsInterceptor$POJOActivityInboundCallsInterceptor.executeActivity(RootActivityInboundCallsInterceptor.java:64)\nio.temporal.internal.activity.RootActivityInboundCallsInterceptor.execute(RootActivityInboundCallsInterceptor.java:43)\nio.temporal.testing.internal.TracingWorkerInterceptor$TracingActivityInboundCallsInterceptor.execute(TracingWorkerInterceptor.java:404)\nio.temporal.internal.activity.ActivityTaskExecutors$BaseActivityTaskExecutor.execute(ActivityTaskExecutors.java:95)\nio.temporal.internal.activity.ActivityTaskHandlerImpl.handle(ActivityTaskHandlerImpl.java:92)\nio.temporal.internal.worker.LocalActivityWorker$TaskHandlerImpl.handle(LocalActivityWorker.java:330)\nio.temporal.internal.worker.LocalActivityWorker$TaskHandlerImpl.handle(LocalActivityWorker.java:282)\nio.temporal.internal.worker.PollTaskExecutor.lambda$process$0(PollTaskExecutor.java:93)\njava.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)\njava.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)\njava.base/java.lang.Thread.run(Thread.java:833)\n",
+            "cause": {
+              "message": "test throwable wrapping",
+              "source": "JavaSDK",
+              "stackTrace": "io.temporal.workflow.shared.TestActivities$TestActivitiesImpl.throwIO(TestActivities.java:379)\njava.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)\njava.base/java.lang.reflect.Method.invoke(Method.java:577)\nio.temporal.internal.activity.RootActivityInboundCallsInterceptor$POJOActivityInboundCallsInterceptor.executeActivity(RootActivityInboundCallsInterceptor.java:64)\nio.temporal.internal.activity.RootActivityInboundCallsInterceptor.execute(RootActivityInboundCallsInterceptor.java:43)\nio.temporal.testing.internal.TracingWorkerInterceptor$TracingActivityInboundCallsInterceptor.execute(TracingWorkerInterceptor.java:404)\nio.temporal.internal.activity.ActivityTaskExecutors$BaseActivityTaskExecutor.execute(ActivityTaskExecutors.java:95)\nio.temporal.internal.activity.ActivityTaskHandlerImpl.handle(ActivityTaskHandlerImpl.java:92)\nio.temporal.internal.worker.LocalActivityWorker$TaskHandlerImpl.handle(LocalActivityWorker.java:330)\nio.temporal.internal.worker.LocalActivityWorker$TaskHandlerImpl.handle(LocalActivityWorker.java:282)\nio.temporal.internal.worker.PollTaskExecutor.lambda$process$0(PollTaskExecutor.java:93)\njava.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)\njava.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)\njava.base/java.lang.Thread.run(Thread.java:833)\n",
+              "applicationFailureInfo": {
+                "type": "java.lang.Throwable"
+              }
+            },
+            "applicationFailureInfo": {
+              "type": "java.io.IOException"
+            }
+          },
+          "activityFailureInfo": {
+            "activityType": {
+              "name": "ThrowIO"
+            },
+            "activityId": "f470b811-8d56-33d0-8da1-f786750036dc",
+            "retryState": "RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "9",
+      "eventTime": "2022-12-05T23:33:25.136Z",
+      "eventType": "WorkflowExecutionFailed",
+      "workflowExecutionFailedEventAttributes": {
+        "failure": {
+          "message": "Local Activity task failed",
+          "cause": {
+            "message": "simulated IO problem",
+            "source": "JavaSDK",
+            "stackTrace": "io.temporal.workflow.shared.TestActivities$TestActivitiesImpl.throwIO(TestActivities.java:379)\njava.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)\njava.base/java.lang.reflect.Method.invoke(Method.java:577)\nio.temporal.internal.activity.RootActivityInboundCallsInterceptor$POJOActivityInboundCallsInterceptor.executeActivity(RootActivityInboundCallsInterceptor.java:64)\nio.temporal.internal.activity.RootActivityInboundCallsInterceptor.execute(RootActivityInboundCallsInterceptor.java:43)\nio.temporal.testing.internal.TracingWorkerInterceptor$TracingActivityInboundCallsInterceptor.execute(TracingWorkerInterceptor.java:404)\nio.temporal.internal.activity.ActivityTaskExecutors$BaseActivityTaskExecutor.execute(ActivityTaskExecutors.java:95)\nio.temporal.internal.activity.ActivityTaskHandlerImpl.handle(ActivityTaskHandlerImpl.java:92)\nio.temporal.internal.worker.LocalActivityWorker$TaskHandlerImpl.handle(LocalActivityWorker.java:330)\nio.temporal.internal.worker.LocalActivityWorker$TaskHandlerImpl.handle(LocalActivityWorker.java:282)\nio.temporal.internal.worker.PollTaskExecutor.lambda$process$0(PollTaskExecutor.java:93)\njava.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)\njava.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)\njava.base/java.lang.Thread.run(Thread.java:833)\n",
+            "cause": {
+              "message": "test throwable wrapping",
+              "source": "JavaSDK",
+              "stackTrace": "io.temporal.workflow.shared.TestActivities$TestActivitiesImpl.throwIO(TestActivities.java:379)\njava.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)\njava.base/java.lang.reflect.Method.invoke(Method.java:577)\nio.temporal.internal.activity.RootActivityInboundCallsInterceptor$POJOActivityInboundCallsInterceptor.executeActivity(RootActivityInboundCallsInterceptor.java:64)\nio.temporal.internal.activity.RootActivityInboundCallsInterceptor.execute(RootActivityInboundCallsInterceptor.java:43)\nio.temporal.testing.internal.TracingWorkerInterceptor$TracingActivityInboundCallsInterceptor.execute(TracingWorkerInterceptor.java:404)\nio.temporal.internal.activity.ActivityTaskExecutors$BaseActivityTaskExecutor.execute(ActivityTaskExecutors.java:95)\nio.temporal.internal.activity.ActivityTaskHandlerImpl.handle(ActivityTaskHandlerImpl.java:92)\nio.temporal.internal.worker.LocalActivityWorker$TaskHandlerImpl.handle(LocalActivityWorker.java:330)\nio.temporal.internal.worker.LocalActivityWorker$TaskHandlerImpl.handle(LocalActivityWorker.java:282)\nio.temporal.internal.worker.PollTaskExecutor.lambda$process$0(PollTaskExecutor.java:93)\njava.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)\njava.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)\njava.base/java.lang.Thread.run(Thread.java:833)\n",
+              "applicationFailureInfo": {
+                "type": "java.lang.Throwable"
+              }
+            },
+            "applicationFailureInfo": {
+              "type": "java.io.IOException"
+            }
+          },
+          "activityFailureInfo": {
+            "activityType": {
+              "name": "ThrowIO"
+            },
+            "activityId": "f470b811-8d56-33d0-8da1-f786750036dc",
+            "retryState": "RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED"
+          }
+        },
+        "workflowTaskCompletedEventId": "6"
+      }
+    }
+  ]
+}

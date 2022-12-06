@@ -21,18 +21,17 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import javax.annotation.Nonnull;
 
 // TODO This class is an absolutely trivial wrapper and may go away with reworking of local activity
 //  scheduling from the generic poller classes.
 class LocalActivityAttemptTask {
   private final @Nonnull LocalActivityExecutionContext executionContext;
-  private final @Nonnull PollActivityTaskQueueResponse attemptTask;
+  private final @Nonnull PollActivityTaskQueueResponse.Builder attemptTask;
 
   public LocalActivityAttemptTask(
       @Nonnull LocalActivityExecutionContext executionContext,
-      @Nonnull PollActivityTaskQueueResponse attemptTask) {
+      @Nonnull PollActivityTaskQueueResponse.Builder attemptTask) {
     this.executionContext = executionContext;
     this.attemptTask = attemptTask;
   }
@@ -47,12 +46,7 @@ class LocalActivityAttemptTask {
   }
 
   @Nonnull
-  public ExecuteLocalActivityParameters getExecutionParams() {
-    return executionContext.getExecutionParams();
-  }
-
-  @Nonnull
-  public PollActivityTaskQueueResponse getAttemptTask() {
+  public PollActivityTaskQueueResponse.Builder getAttemptTask() {
     return attemptTask;
   }
 }

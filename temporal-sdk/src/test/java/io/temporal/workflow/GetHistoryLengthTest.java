@@ -21,7 +21,6 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeFalse;
 
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -59,8 +58,6 @@ public class GetHistoryLengthTest {
 
   @Test
   public void replay() throws Exception {
-    // Avoid executing 4 times
-    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testGetHistoryLength.json", TestWorkflowImpl.class);
   }
