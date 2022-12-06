@@ -169,7 +169,6 @@ public class MetricsTest {
 
     reporter.assertCounter("temporal_poller_start", TAGS_WORKFLOW_WORKER, 5);
     reporter.assertCounter("temporal_poller_start", TAGS_ACTIVITY_WORKER, 5);
-    reporter.assertCounter("temporal_poller_start", TAGS_LOCAL_ACTIVITY_WORKER, 1);
   }
 
   @Test

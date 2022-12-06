@@ -104,7 +104,8 @@ final class WorkflowWorker implements SuspendableWorker {
               new TaskHandlerImpl(handler),
               pollerOptions,
               options.getTaskExecutorThreadPoolSize(),
-              workerMetricsScope);
+              workerMetricsScope,
+              true);
       Semaphore workflowTaskExecutorSemaphore =
           new Semaphore(options.getTaskExecutorThreadPoolSize());
       StickyQueueBalancer stickyQueueBalancer =

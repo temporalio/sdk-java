@@ -51,8 +51,9 @@ public final class LocalActivityOptions {
 
   public static final class Builder {
     private Duration scheduleToCloseTimeout;
-    private Duration localRetryThreshold;
     private Duration startToCloseTimeout;
+    private Duration scheduleToStartTimeout;
+    private Duration localRetryThreshold;
     private RetryOptions retryOptions;
     private Boolean doNotIncludeArgumentsIntoMarker;
 
@@ -62,21 +63,59 @@ public final class LocalActivityOptions {
         return;
       }
       this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
-      this.localRetryThreshold = options.getLocalRetryThreshold();
       this.startToCloseTimeout = options.getStartToCloseTimeout();
+      this.scheduleToStartTimeout = options.getScheduleToStartTimeout();
+      this.localRetryThreshold = options.getLocalRetryThreshold();
       this.retryOptions = options.getRetryOptions();
       this.doNotIncludeArgumentsIntoMarker = options.isDoNotIncludeArgumentsIntoMarker();
     }
 
     /**
-     * Overall time a Workflow is willing to wait for an Activity's completion. This includes all
-     * retries.
+     * Total time that a workflow is willing to wait for an Activity to complete.
+     *
+     * <p>ScheduleToCloseTimeout limits the total time of an Activity's execution including retries
+     * (use {@link #setStartToCloseTimeout(Duration)} to limit the time of a single attempt).
+     *
+     * <p>Either this option or {@link #setStartToCloseTimeout(Duration) is required.
+     *
+     * <p>Defaults to unlimited.
      */
     public Builder setScheduleToCloseTimeout(Duration timeout) {
       if (timeout.isZero() || timeout.isNegative()) {
         throw new IllegalArgumentException("Illegal timeout: " + timeout);
       }
       this.scheduleToCloseTimeout = timeout;
+      return this;
+    }
+
+    /**
+     * Time that the Activity Task can stay in the Worker's internal Task Queue of Local Activities
+     * until it's picked up by the Local Activity Executor.
+     *
+     * <p>ScheduleToStartTimeout is always non-retryable. Retrying after this timeout doesn't make
+     * sense as it would just put the Activity Task back into the same Task Queue.
+     *
+     * <p>Defaults to unlimited.
+     */
+    public Builder setScheduleToStartTimeout(Duration timeout) {
+      if (timeout.isZero() || timeout.isNegative()) {
+        throw new IllegalArgumentException("Illegal timeout: " + timeout);
+      }
+      this.scheduleToStartTimeout = timeout;
+      return this;
+    }
+
+    /**
+     * Maximum time of a single Activity attempt.
+     *
+     * <p>If {@link #setScheduleToCloseTimeout(Duration)} is not provided, then this timeout is
+     * required.
+     */
+    public Builder setStartToCloseTimeout(Duration timeout) {
+      if (timeout.isZero() || timeout.isNegative()) {
+        throw new IllegalArgumentException("Illegal timeout: " + timeout);
+      }
+      this.startToCloseTimeout = timeout;
       return this;
     }
 
@@ -90,39 +129,6 @@ public final class LocalActivityOptions {
         throw new IllegalArgumentException("Illegal threshold: " + localRetryThreshold);
       }
       this.localRetryThreshold = localRetryThreshold;
-      return this;
-    }
-
-    public Builder setStartToCloseTimeout(Duration timeout) {
-      if (timeout.isZero() || timeout.isNegative()) {
-        throw new IllegalArgumentException("Illegal timeout: " + timeout);
-      }
-      this.startToCloseTimeout = timeout;
-      return this;
-    }
-
-    public Builder mergeActivityOptions(LocalActivityOptions override) {
-      if (override == null) {
-        return this;
-      }
-      this.scheduleToCloseTimeout =
-          (override.scheduleToCloseTimeout == null)
-              ? this.scheduleToCloseTimeout
-              : override.scheduleToCloseTimeout;
-      this.localRetryThreshold =
-          (override.localRetryThreshold == null)
-              ? this.localRetryThreshold
-              : override.localRetryThreshold;
-      this.startToCloseTimeout =
-          (override.startToCloseTimeout == null)
-              ? this.startToCloseTimeout
-              : override.startToCloseTimeout;
-      this.retryOptions =
-          (override.retryOptions == null) ? this.retryOptions : override.retryOptions;
-      this.doNotIncludeArgumentsIntoMarker =
-          (override.doNotIncludeArgumentsIntoMarker != null)
-              ? override.doNotIncludeArgumentsIntoMarker
-              : this.doNotIncludeArgumentsIntoMarker;
       return this;
     }
 
@@ -172,11 +178,41 @@ public final class LocalActivityOptions {
       return this;
     }
 
+    public Builder mergeActivityOptions(LocalActivityOptions override) {
+      if (override == null) {
+        return this;
+      }
+      this.scheduleToCloseTimeout =
+          (override.scheduleToCloseTimeout == null)
+              ? this.scheduleToCloseTimeout
+              : override.scheduleToCloseTimeout;
+      this.startToCloseTimeout =
+          (override.startToCloseTimeout == null)
+              ? this.startToCloseTimeout
+              : override.startToCloseTimeout;
+      this.scheduleToStartTimeout =
+          (override.scheduleToStartTimeout == null)
+              ? this.scheduleToStartTimeout
+              : override.scheduleToStartTimeout;
+      this.localRetryThreshold =
+          (override.localRetryThreshold == null)
+              ? this.localRetryThreshold
+              : override.localRetryThreshold;
+      this.retryOptions =
+          (override.retryOptions == null) ? this.retryOptions : override.retryOptions;
+      this.doNotIncludeArgumentsIntoMarker =
+          (override.doNotIncludeArgumentsIntoMarker != null)
+              ? override.doNotIncludeArgumentsIntoMarker
+              : this.doNotIncludeArgumentsIntoMarker;
+      return this;
+    }
+
     public LocalActivityOptions build() {
       return new LocalActivityOptions(
           startToCloseTimeout,
-          localRetryThreshold,
           scheduleToCloseTimeout,
+          scheduleToStartTimeout,
+          localRetryThreshold,
           retryOptions,
           doNotIncludeArgumentsIntoMarker);
     }
@@ -188,8 +224,9 @@ public final class LocalActivityOptions {
       }
       return new LocalActivityOptions(
           startToCloseTimeout,
-          localRetryThreshold,
           scheduleToCloseTimeout,
+          scheduleToStartTimeout,
+          localRetryThreshold,
           RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
           doNotIncludeArgumentsIntoMarker);
     }
@@ -198,18 +235,21 @@ public final class LocalActivityOptions {
   private final Duration scheduleToCloseTimeout;
   private final Duration localRetryThreshold;
   private final Duration startToCloseTimeout;
+  private final Duration scheduleToStartTimeout;
   private final RetryOptions retryOptions;
   private final Boolean doNotIncludeArgumentsIntoMarker;
 
   private LocalActivityOptions(
       Duration startToCloseTimeout,
-      Duration localRetryThreshold,
       Duration scheduleToCloseTimeout,
+      Duration scheduleToStartTimeout,
+      Duration localRetryThreshold,
       RetryOptions retryOptions,
       Boolean doNotIncludeArgumentsIntoMarker) {
-    this.localRetryThreshold = localRetryThreshold;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     this.startToCloseTimeout = startToCloseTimeout;
+    this.scheduleToStartTimeout = scheduleToStartTimeout;
+    this.localRetryThreshold = localRetryThreshold;
     this.retryOptions = retryOptions;
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
   }
@@ -218,12 +258,16 @@ public final class LocalActivityOptions {
     return scheduleToCloseTimeout;
   }
 
-  public Duration getLocalRetryThreshold() {
-    return localRetryThreshold;
-  }
-
   public Duration getStartToCloseTimeout() {
     return startToCloseTimeout;
+  }
+
+  public Duration getScheduleToStartTimeout() {
+    return scheduleToStartTimeout;
+  }
+
+  public Duration getLocalRetryThreshold() {
+    return localRetryThreshold;
   }
 
   public RetryOptions getRetryOptions() {
@@ -245,8 +289,9 @@ public final class LocalActivityOptions {
     LocalActivityOptions that = (LocalActivityOptions) o;
     return Objects.equal(doNotIncludeArgumentsIntoMarker, that.doNotIncludeArgumentsIntoMarker)
         && Objects.equal(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
-        && Objects.equal(localRetryThreshold, that.localRetryThreshold)
         && Objects.equal(startToCloseTimeout, that.startToCloseTimeout)
+        && Objects.equal(scheduleToStartTimeout, that.scheduleToStartTimeout)
+        && Objects.equal(localRetryThreshold, that.localRetryThreshold)
         && Objects.equal(retryOptions, that.retryOptions);
   }
 
@@ -254,8 +299,9 @@ public final class LocalActivityOptions {
   public int hashCode() {
     return Objects.hashCode(
         scheduleToCloseTimeout,
-        localRetryThreshold,
         startToCloseTimeout,
+        scheduleToStartTimeout,
+        localRetryThreshold,
         retryOptions,
         doNotIncludeArgumentsIntoMarker);
   }

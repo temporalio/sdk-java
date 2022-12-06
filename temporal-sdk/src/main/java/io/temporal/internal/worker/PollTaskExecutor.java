@@ -24,10 +24,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.worker.MetricsType;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.slf4j.MDC;
@@ -58,7 +55,8 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
       @Nonnull TaskHandler<T> handler,
       @Nonnull PollerOptions pollerOptions,
       int workerTaskSlots,
-      @Nonnull Scope metricsScope) {
+      @Nonnull Scope metricsScope,
+      boolean synchronousQueue) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.identity = Objects.requireNonNull(identity);
@@ -67,7 +65,19 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     this.metricsScope = Objects.requireNonNull(metricsScope);
 
     this.taskExecutor =
-        new ThreadPoolExecutor(0, workerTaskSlots, 1, TimeUnit.MINUTES, new SynchronousQueue<>());
+        new ThreadPoolExecutor(
+            // for SynchronousQueue we can afford to set it to 0, because the queue is always full
+            // or empty
+            // for LinkedBlockingQueue we have to set slots to workerTaskSlots to avoid situation
+            // when the queue grows, but the amount of threads is not, because the queue is not (and
+            // never) full
+            synchronousQueue ? 0 : workerTaskSlots,
+            workerTaskSlots,
+            10,
+            TimeUnit.SECONDS,
+            synchronousQueue ? new SynchronousQueue<>() : new LinkedBlockingQueue<>());
+    this.taskExecutor.allowCoreThreadTimeOut(true);
+
     this.availableTaskSlots = new AtomicInteger(workerTaskSlots);
     publishSlotsMetric();
 

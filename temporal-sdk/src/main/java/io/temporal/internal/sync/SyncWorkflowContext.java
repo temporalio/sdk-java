@@ -501,7 +501,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     return new ExecuteLocalActivityParameters(
         activityTask,
-        null,
+        options.getScheduleToStartTimeout(),
         originalScheduledTime,
         previousExecutionFailure,
         options.isDoNotIncludeArgumentsIntoMarker(),

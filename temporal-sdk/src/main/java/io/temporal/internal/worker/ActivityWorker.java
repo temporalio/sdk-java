@@ -100,7 +100,8 @@ final class ActivityWorker implements SuspendableWorker {
               new TaskHandlerImpl(handler),
               pollerOptions,
               options.getTaskExecutorThreadPoolSize(),
-              workerMetricsScope);
+              workerMetricsScope,
+              true);
       poller =
           new Poller<>(
               options.getIdentity(),

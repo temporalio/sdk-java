@@ -128,7 +128,12 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       throws InterruptedException {
     lock.lock();
     try {
-      long startTimeNanos = System.nanoTime();
+      Deadline wftHearbeatDeadline =
+          Deadline.after(
+              (long)
+                  (Durations.toNanos(startedEvent.getWorkflowTaskTimeout())
+                      * Config.WORKFLOW_TAK_HEARTBEAT_COEFFICIENT),
+              TimeUnit.NANOSECONDS);
 
       if (workflowTask.getPreviousStartedEventId()
           < workflowStateMachines.getCurrentStartedEventId()) {
@@ -144,7 +149,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       }
 
       handleWorkflowTaskImpl(workflowTask, historyIterator);
-      processLocalActivityRequests(startTimeNanos);
+      processLocalActivityRequests(wftHearbeatDeadline);
       List<Command> commands = workflowStateMachines.takeCommands();
       if (replayWorkflowExecutor.isCompleted()) {
         // it's important for query, otherwise the WorkflowTaskHandler is responsible for closing
@@ -267,13 +272,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
   }
 
-  private void processLocalActivityRequests(long startTimeNs) throws InterruptedException {
-    long durationUntilWFTHeartbeatNs =
-        (long)
-            (Durations.toNanos(startedEvent.getWorkflowTaskTimeout())
-                * Config.WORKFLOW_TAK_HEARTBEAT_COEFFICIENT);
-
-    long nextWFTHeartbeatTimeNs = startTimeNs + durationUntilWFTHeartbeatNs;
+  private void processLocalActivityRequests(Deadline wftHeartbeatDeadline)
+      throws InterruptedException {
 
     while (true) {
       List<ExecuteLocalActivityParameters> laRequests =
@@ -281,14 +281,12 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       localActivityTaskCount += laRequests.size();
 
       for (ExecuteLocalActivityParameters laRequest : laRequests) {
-        // TODO(maxim): In the presence of workflow task heartbeat this timeout doesn't make
-        // much sense. I believe we should add ScheduleToStart timeout for the local activities
-        // as well.
-        long maxWaitTimeNs = Math.max(nextWFTHeartbeatTimeNs - System.nanoTime(), 0);
-        laRequest.setScheduleToStartTimeout(Duration.ofNanos(maxWaitTimeNs));
-        boolean accepted = localActivityDispatcher.dispatch(laRequest, localActivityCompletionSink);
-        // TODO this needs to be reworked when we implement a proper scheduleToStart to report a
-        //  Failure in the callback. A proper test is also needed for this scenario.
+        boolean accepted =
+            localActivityDispatcher.dispatch(
+                laRequest, localActivityCompletionSink, wftHeartbeatDeadline);
+        // TODO do we have to fail? if we didn't fit in a potentially tight timeout left until
+        // wftHeartbeatDeadline,
+        //  maybe we can return control, heartbeat and try again with fresh timeout one more time?
         Preconditions.checkState(
             accepted,
             "Unable to schedule local activity for execution, "
@@ -300,7 +298,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
         break;
       }
 
-      long maxWaitTimeTillHeartbeatNs = Math.max(nextWFTHeartbeatTimeNs - System.nanoTime(), 0);
+      long maxWaitTimeTillHeartbeatNs = wftHeartbeatDeadline.timeRemaining(TimeUnit.NANOSECONDS);
       LocalActivityResult laCompletion =
           localActivityCompletionQueue.poll(maxWaitTimeTillHeartbeatNs, TimeUnit.NANOSECONDS);
       if (laCompletion == null) {

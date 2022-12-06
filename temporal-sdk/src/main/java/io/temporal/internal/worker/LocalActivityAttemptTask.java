@@ -21,19 +21,26 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.workflow.Functions;
+import java.util.concurrent.ScheduledFuture;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-// TODO This class is an absolutely trivial wrapper and may go away with reworking of local activity
-//  scheduling from the generic poller classes.
 class LocalActivityAttemptTask {
   private final @Nonnull LocalActivityExecutionContext executionContext;
   private final @Nonnull PollActivityTaskQueueResponse.Builder attemptTask;
+  private final @Nullable Functions.Proc takenFromQueueCallback;
+  private final @Nullable ScheduledFuture<?> scheduleToStartFuture;
 
   public LocalActivityAttemptTask(
       @Nonnull LocalActivityExecutionContext executionContext,
-      @Nonnull PollActivityTaskQueueResponse.Builder attemptTask) {
+      @Nonnull PollActivityTaskQueueResponse.Builder attemptTask,
+      @Nullable Functions.Proc takenFromQueueCallback,
+      @Nullable ScheduledFuture<?> scheduleToStartFuture) {
     this.executionContext = executionContext;
     this.attemptTask = attemptTask;
+    this.takenFromQueueCallback = takenFromQueueCallback;
+    this.scheduleToStartFuture = scheduleToStartFuture;
   }
 
   @Nonnull
@@ -48,5 +55,16 @@ class LocalActivityAttemptTask {
   @Nonnull
   public PollActivityTaskQueueResponse.Builder getAttemptTask() {
     return attemptTask;
+  }
+
+  public void markAsTakenFromQueue() {
+    if (takenFromQueueCallback != null) {
+      takenFromQueueCallback.apply();
+    }
+  }
+
+  @Nullable
+  public ScheduledFuture<?> getScheduleToStartFuture() {
+    return scheduleToStartFuture;
   }
 }

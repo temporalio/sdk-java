@@ -48,7 +48,7 @@ public class ExecuteLocalActivityParameters {
   private final @Nullable Failure previousLocalExecutionFailure;
   private final @Nonnull Duration localRetryThreshold;
   private final boolean doNotIncludeArgumentsIntoMarker;
-  private @Nullable Duration scheduleToStartTimeout;
+  private final @Nullable Duration scheduleToStartTimeout;
 
   public ExecuteLocalActivityParameters(
       @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
@@ -115,15 +115,6 @@ public class ExecuteLocalActivityParameters {
   @Nonnull
   public Duration getLocalRetryThreshold() {
     return localRetryThreshold;
-  }
-
-  /*
-   * TODO This setter is exposed and the field is made non-final to support the legacy calculation of this timeout.
-   *  This legacy logic doesn't make much sense anymore in presence of workflow task heartbeat and should be replaced
-   *  with an explicit schedule to start timeout coming from the local activity options.
-   */
-  public void setScheduleToStartTimeout(@Nullable Duration scheduleToStartTimeout) {
-    this.scheduleToStartTimeout = scheduleToStartTimeout;
   }
 
   @Nullable
