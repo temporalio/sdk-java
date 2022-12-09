@@ -38,11 +38,12 @@ public class NoQueryThreadLeakTest {
 
   @Test
   public void testNoQueryThreadLeak() throws InterruptedException {
-    int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
     QueryableWorkflow client =
         testWorkflowRule.newWorkflowStubTimeoutOptions(QueryableWorkflow.class);
     WorkflowClient.start(client::execute);
     testWorkflowRule.sleep(Duration.ofSeconds(1));
+    int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
+
     // Calls query multiple times to check at the end of the method that if it doesn't leak threads
     int queryCount = 100;
     for (int i = 0; i < queryCount; i++) {

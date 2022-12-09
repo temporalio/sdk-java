@@ -199,18 +199,16 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   @Override
   public void suspendPolling() {
     workflowWorker.suspendPolling();
-    laWorker.suspendPolling();
   }
 
   @Override
   public void resumePolling() {
     workflowWorker.resumePolling();
-    laWorker.resumePolling();
   }
 
   @Override
   public boolean isSuspended() {
-    return workflowWorker.isSuspended() && laWorker.isSuspended();
+    return workflowWorker.isSuspended();
   }
 
   public <R> R queryWorkflowExecution(

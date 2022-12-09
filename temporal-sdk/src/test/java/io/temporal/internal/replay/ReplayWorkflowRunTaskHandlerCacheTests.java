@@ -319,6 +319,6 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
         response,
         SingleWorkerOptions.newBuilder().build(),
         metricsScope,
-        (a, b) -> true);
+        (a, b, c) -> true);
   }
 }

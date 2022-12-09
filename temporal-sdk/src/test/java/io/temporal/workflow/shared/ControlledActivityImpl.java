@@ -38,7 +38,7 @@ public class ControlledActivityImpl implements TestActivities.NoArgsReturnsStrin
   private final int expectedAttempts;
   private final long secondsToSleep;
 
-  private int lastAttempt = 0;
+  private volatile int lastAttempt = 0;
 
   public ControlledActivityImpl(List<Outcome> outcomes, int expectedAttempts, long secondsToSleep) {
     this.outcomes = outcomes;
@@ -73,5 +73,9 @@ public class ControlledActivityImpl implements TestActivities.NoArgsReturnsStrin
         "Amount of attempts performed is different from the expected",
         expectedAttempts,
         lastAttempt);
+  }
+
+  public int getLastAttempt() {
+    return lastAttempt;
   }
 }

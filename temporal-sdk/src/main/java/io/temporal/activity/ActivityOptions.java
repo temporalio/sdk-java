@@ -81,14 +81,14 @@ public final class ActivityOptions {
     }
 
     /**
-     * Total time that a workflow is willing to wait for Activity to complete.
+     * Total time that a workflow is willing to wait for an Activity to complete.
      *
      * <p>ScheduleToCloseTimeout limits the total time of an Activity's execution including retries
-     * (use StartToCloseTimeout to limit the time of a single attempt).
+     * (use {@link #setStartToCloseTimeout(Duration)} to limit the time of a single attempt).
      *
-     * <p>Either this option or StartToClose is required.
+     * <p>Either this option or {@link #setStartToCloseTimeout(Duration) is required.
      *
-     * <p>Defaults to unlimited.
+     * <p>Defaults to unlimited, which is chosen if set to null.
      */
     public Builder setScheduleToCloseTimeout(Duration scheduleToCloseTimeout) {
       this.scheduleToCloseTimeout = scheduleToCloseTimeout;
@@ -96,9 +96,7 @@ public final class ActivityOptions {
     }
 
     /**
-     * Time that the Activity Task can stay in the Task Queue before it is picked up by a Worker. Do
-     * not specify this timeout unless using host specific Task Queues for Activity Tasks are being
-     * used for routing.
+     * Time that the Activity Task can stay in the Task Queue before it is picked up by a Worker.
      *
      * <p>ScheduleToStartTimeout is always non-retryable. Retrying after this timeout doesn't make
      * sense as it would just put the Activity Task back into the same Task Queue.
@@ -111,7 +109,7 @@ public final class ActivityOptions {
     }
 
     /**
-     * Maximum time of a single Activity execution attempt.
+     * Maximum time of a single Activity attempt.
      *
      * <p>Note that the Temporal Server doesn't detect Worker process failures directly. It relies
      * on this timeout to detect that an Activity that didn't complete on time. So this timeout
@@ -119,9 +117,8 @@ public final class ActivityOptions {
      * long-running Activities must specify HeartbeatTimeout and call {@link
      * ActivityExecutionContext#heartbeat(Object)} periodically for timely failure detection.
      *
-     * <p>If ScheduleToClose is not provided then this timeout is required.
-     *
-     * <p>Defaults to the ScheduleToCloseTimeout value.
+     * <p>If {@link #setScheduleToCloseTimeout(Duration)} is not provided, then this timeout is
+     * required.
      */
     public Builder setStartToCloseTimeout(Duration startToCloseTimeout) {
       this.startToCloseTimeout = startToCloseTimeout;

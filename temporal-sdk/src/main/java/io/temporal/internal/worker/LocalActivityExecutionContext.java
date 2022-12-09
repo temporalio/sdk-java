@@ -38,16 +38,12 @@ import javax.annotation.Nullable;
 
 class LocalActivityExecutionContext {
   private final @Nonnull ExecuteLocalActivityParameters executionParams;
+  private final @Nonnull AtomicInteger currentAttempt;
+  private final @Nonnull AtomicReference<Failure> lastAttemptFailure = new AtomicReference<>();
+  private final @Nullable Deadline scheduleToCloseDeadline;
+  private @Nullable ScheduledFuture<?> scheduleToCloseFuture;
   private final @Nonnull CompletableFuture<LocalActivityResult> executionResult =
       new CompletableFuture<>();
-
-  private final @Nullable Deadline scheduleToCloseDeadline;
-
-  private final @Nonnull AtomicInteger currentAttempt;
-
-  private final @Nonnull AtomicReference<Failure> lastAttemptFailure = new AtomicReference<>();
-
-  private @Nullable ScheduledFuture<?> scheduleToCloseFuture;
 
   public LocalActivityExecutionContext(
       @Nonnull ExecuteLocalActivityParameters executionParams,
@@ -137,13 +133,6 @@ class LocalActivityExecutionContext {
     this.scheduleToCloseFuture = scheduleToCloseFuture;
   }
 
-  public boolean callback(LocalActivityResult result) {
-    if (scheduleToCloseFuture != null) {
-      scheduleToCloseFuture.cancel(false);
-    }
-    return executionResult.complete(result);
-  }
-
   @Nullable
   public Duration getScheduleToStartTimeout() {
     return executionParams.getScheduleToStartTimeout();
@@ -156,5 +145,19 @@ class LocalActivityExecutionContext {
   @Nonnull
   public Duration getLocalRetryThreshold() {
     return executionParams.getLocalRetryThreshold();
+  }
+
+  /**
+   * @return true if the execution was completed by this invocation
+   */
+  public boolean callback(LocalActivityResult result) {
+    if (scheduleToCloseFuture != null) {
+      scheduleToCloseFuture.cancel(false);
+    }
+    return executionResult.complete(result);
+  }
+
+  public boolean isCompleted() {
+    return executionResult.isDone();
   }
 }

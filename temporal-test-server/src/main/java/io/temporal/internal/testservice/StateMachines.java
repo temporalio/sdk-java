@@ -1573,11 +1573,9 @@ class StateMachines {
     RetryState retryState;
     switch (timeoutType) {
       case TIMEOUT_TYPE_SCHEDULE_TO_START:
+      case TIMEOUT_TYPE_SCHEDULE_TO_CLOSE:
         // ScheduleToStart (queue timeout) is not retryable. Instead of the retry, a customer should
         // set a larger ScheduleToStart timeout.
-        retryState = RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE;
-        break;
-      case TIMEOUT_TYPE_SCHEDULE_TO_CLOSE:
         // ScheduleToClose timeout is final and failure is created with TIMEOUT retry state
         retryState = RetryState.RETRY_STATE_TIMEOUT;
         break;

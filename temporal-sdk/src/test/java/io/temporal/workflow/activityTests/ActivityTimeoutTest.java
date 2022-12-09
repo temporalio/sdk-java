@@ -30,13 +30,15 @@ import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TimeoutFailure;
-import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
+import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
@@ -48,6 +50,7 @@ import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.UUID;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 import org.hamcrest.CoreMatchers;
@@ -67,24 +70,13 @@ import org.junit.runner.RunWith;
  */
 @RunWith(JUnitParamsRunner.class)
 public class ActivityTimeoutTest {
-  private TestWorkflowEnvironment testEnvironment;
-  private static final String TASK_QUEUE = "test-activities";
+  @Rule
+  public SDKTestWorkflowRule testWorkflowRule =
+      SDKTestWorkflowRule.newBuilder().setDoNotStart(true).build();
 
   // TODO This test takes longer than it should to complete because
   //  of the cached heartbeat that prevents a quick shutdown
   public @Rule Timeout timeout = Timeout.seconds(15);
-
-  @Before
-  public void setUp() {
-    testEnvironment =
-        TestWorkflowEnvironment.newInstance(
-            ExternalServiceTestConfigurator.configuredTestEnvironmentOptions().build());
-  }
-
-  @After
-  public void tearDown() {
-    testEnvironment.close();
-  }
 
   /**
    * An activity reaches startToClose timeout once, max retries are set to 1.
@@ -103,15 +95,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 1, 100);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(-1, -1, 1, 1, local));
 
@@ -146,15 +136,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 2, 100);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(-1, -1, 1, 2, local));
 
@@ -196,15 +184,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 3, 100);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(-1, -1, 1, 3, local));
 
@@ -248,16 +234,14 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Arrays.asList(Outcome.FAIL, Outcome.SLEEP), 2, 5);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
     final int ATTEMPTS_COUNT = 2;
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(
             WorkflowException.class, () -> workflow.workflow(10, -1, 1, ATTEMPTS_COUNT, local));
@@ -282,18 +266,51 @@ public class ActivityTimeoutTest {
     activity.verifyAttempts();
   }
 
-  // TODO Parametrize when scheduleToStart support is added for local activities
+  /**
+   * This test covers a scenario with a simple scheduleToStart timeout
+   *
+   * <p>The expected structure is <br>
+   * {@link ActivityFailure}({@link RetryState#RETRY_STATE_TIMEOUT}) -> <br>
+   * {@link TimeoutFailure}({@link TimeoutType#TIMEOUT_TYPE_SCHEDULE_TO_START})
+   *
+   * <p>Note {@link TimeoutType#TIMEOUT_TYPE_START_TO_CLOSE} of the last attempt is getting
+   * effectively replaced in-place by {@link TimeoutType#TIMEOUT_TYPE_SCHEDULE_TO_CLOSE}, it doesn't
+   * go into the cause chain.
+   */
   @Test
-  @Parameters({"false"})
-  public void scheduleToStartTimeout(boolean local) {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+  @Parameters({"false", "true"})
+  public void scheduleToStartTimeout(boolean local) throws InterruptedException {
+    ControlledActivityImpl activity =
+        new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 2, 100);
+
+    String taskQueue = "ActivityTimeoutTest-scheduleToStartTimeout-" + UUID.randomUUID();
+
+    Worker worker =
+        testWorkflowRule
+            .getTestEnvironment()
+            .newWorker(
+                taskQueue,
+                WorkerOptions.newBuilder()
+                    .setMaxConcurrentActivityExecutionSize(1)
+                    .setMaxConcurrentLocalActivityExecutionSize(1)
+                    .build());
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+    worker.registerActivitiesImplementations(activity);
+    testWorkflowRule.getTestEnvironment().start();
+
+    WorkflowClient client = testWorkflowRule.getTestEnvironment().getWorkflowClient();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
+
+    TestActivityTimeoutWorkflow throwawayWorkflowThatOccupiesActivityWorker =
+        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    WorkflowStub.fromTyped(throwawayWorkflowThatOccupiesActivityWorker).start(10, -1, 10, 1, local);
+    // allow workflow and an activity to start executing
+    while (activity.getLastAttempt() < 1) {
+      Thread.sleep(100);
+    }
+
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
-
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(10, 1, 10, 1, local));
 
@@ -302,7 +319,12 @@ public class ActivityTimeoutTest {
 
     MatcherAssert.assertThat(
         activityFailure.getMessage(), CoreMatchers.containsString("Activity task timed out"));
-    assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
+    if (ExternalServiceTestConfigurator.isUseExternalService() && !local) {
+      // https://github.com/temporalio/temporal/issues/3667
+      assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
+    } else {
+      assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
+    }
 
     assertTrue(activityFailure.getCause() instanceof TimeoutFailure);
     assertEquals(
@@ -330,16 +352,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 1, 100);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
+    testWorkflowRule.getTestEnvironment().start();
 
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
     TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
-
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(2, -1, 1, -1, local));
 
@@ -375,16 +394,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 2, 100);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
+    testWorkflowRule.getTestEnvironment().start();
 
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
     TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
-
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(4, -1, 1, -1, local));
 
@@ -429,15 +445,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Arrays.asList(Outcome.FAIL, Outcome.SLEEP, Outcome.SLEEP), 3, 5);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(10, -1, 3, -1, local));
 
@@ -481,15 +495,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Arrays.asList(Outcome.SLEEP, Outcome.FAIL, Outcome.SLEEP), 3, 5);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(10, -1, 3, -1, local));
 
@@ -527,15 +539,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.FAIL), 3, -1);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(5, -1, 1, -1, local));
 
@@ -569,15 +579,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Collections.singletonList(Outcome.SLEEP), 1, 100);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(5, -1, -1, -1, local));
 
@@ -585,10 +593,7 @@ public class ActivityTimeoutTest {
     ActivityFailure activityFailure = (ActivityFailure) e.getCause();
 
     if (ExternalServiceTestConfigurator.isUseExternalService() && !local) {
-      // Real temporal server return this specific case of scheduleToClose as non-retryable failure.
-      // It's inconsistent with other situations and conflicts with non-retryable application
-      // failures.
-      // TODO This comment should be updated with an issue when filed.
+      // https://github.com/temporalio/temporal/issues/3667
       assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
     } else {
       assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
@@ -625,15 +630,13 @@ public class ActivityTimeoutTest {
     ControlledActivityImpl activity =
         new ControlledActivityImpl(Arrays.asList(Outcome.FAIL, Outcome.SLEEP), 2, 100);
 
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(activity);
-    testEnvironment.start();
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestActivityTimeoutWorkflow workflow =
-        client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
+    testWorkflowRule.getTestEnvironment().start();
 
+    TestActivityTimeoutWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     WorkflowException e =
         assertThrows(WorkflowException.class, () -> workflow.workflow(5, -1, -1, -1, local));
 
@@ -641,10 +644,7 @@ public class ActivityTimeoutTest {
     ActivityFailure activityFailure = (ActivityFailure) e.getCause();
 
     if (ExternalServiceTestConfigurator.isUseExternalService() && !local) {
-      // Real temporal server return this specific case of scheduleToClose as non-retryable failure.
-      // It's inconsistent with other situations and conflicts with non-retryable application
-      // failures.
-      // TODO This comment should be updated with an issue when filed.
+      // https://github.com/temporalio/temporal/issues/3667
       assertEquals(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE, activityFailure.getRetryState());
     } else {
       assertEquals(RetryState.RETRY_STATE_TIMEOUT, activityFailure.getRetryState());
@@ -679,16 +679,13 @@ public class ActivityTimeoutTest {
    */
   @Test
   public void scheduleToClose_heartbeatTimeoutDetails() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestHeartbeatTimeoutScheduleToClose.class);
     worker.registerActivitiesImplementations(new TestActivitiesImpl());
-    testEnvironment.start();
-
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+    testWorkflowRule.getTestEnvironment().start();
 
     TestWorkflows.TestWorkflowReturnString workflowStub =
-        client.newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class, options);
+        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class);
     WorkflowException e = assertThrows(WorkflowException.class, workflowStub::execute);
 
     assertTrue(e.getCause() instanceof ActivityFailure);
@@ -720,16 +717,13 @@ public class ActivityTimeoutTest {
    */
   @Test
   public void maxRetries_heartbeatTimeoutDetails() {
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    Worker worker = testWorkflowRule.getWorker();
     worker.registerWorkflowImplementationTypes(TestHeartbeatTimeoutMaxAttempts.class);
     worker.registerActivitiesImplementations(new TestActivitiesImpl());
-    testEnvironment.start();
-
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+    testWorkflowRule.getTestEnvironment().start();
 
     TestWorkflows.TestWorkflowReturnString workflowStub =
-        client.newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class, options);
+        testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflowReturnString.class);
     WorkflowException e = assertThrows(WorkflowException.class, workflowStub::execute);
 
     assertTrue(e.getCause() instanceof ActivityFailure);
@@ -784,8 +778,9 @@ public class ActivityTimeoutTest {
         if (startToCloseTimeoutSeconds >= 0) {
           options.setStartToCloseTimeout(Duration.ofSeconds(startToCloseTimeoutSeconds));
         }
-        // TODO add scheduleToStart for local activities
-        // .setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds));
+        if (scheduleToStartTimeoutSeconds >= 0) {
+          options.setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds));
+        }
         if (attemptsAllowed > 0) {
           options.setRetryOptions(
               RetryOptions.newBuilder().setMaximumAttempts(attemptsAllowed).build());
