@@ -27,10 +27,10 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
@@ -424,7 +424,9 @@ public final class Worker {
    * @throws Exception if replay failed for any reason
    */
   @VisibleForTesting
-  public void replayWorkflowExecution(WorkflowExecutionHistory history) throws Exception {
+  @SuppressWarnings("deprecation")
+  public void replayWorkflowExecution(io.temporal.internal.common.WorkflowExecutionHistory history)
+      throws Exception {
     workflowWorker.queryWorkflowExecution(
         history,
         WorkflowClient.QUERY_TYPE_REPLAY_ONLY,

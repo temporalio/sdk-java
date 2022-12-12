@@ -33,11 +33,16 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.common.converter.DataConverterException;
 import java.util.List;
 
+// This class by mistake leaked into a public interface and is used by users, so it can't be deleted
+// right away.
+// To fix the mistake, it was republished in a public package as
+// io.temporal.common.WorkflowExecutionHistory class
+// that extends this class.
 /**
- * Provides a wrapper with convenience methods over raw protobuf {@link History} object representing
- * workflow history
+ * @deprecated use {@link io.temporal.common.WorkflowExecutionHistory} instead.
  */
-public final class WorkflowExecutionHistory {
+@Deprecated
+public class WorkflowExecutionHistory {
   private static final Gson GSON_PRETTY_PRINTER = new GsonBuilder().setPrettyPrinting().create();
   // we stay on using the old API that uses a JsonParser instance instead of static methods
   // to give users a larger range of supported version
@@ -57,7 +62,7 @@ public final class WorkflowExecutionHistory {
     this.workflowId = workflowId;
   }
 
-  public static WorkflowExecutionHistory fromJson(String serialized) {
+  public static io.temporal.common.WorkflowExecutionHistory fromJson(String serialized) {
     String protoJson = HistoryJsonUtils.historyFormatJsonToProtoJson(serialized);
 
     JsonFormat.Parser parser = JsonFormat.parser().ignoringUnknownFields();
@@ -68,7 +73,7 @@ public final class WorkflowExecutionHistory {
       throw new DataConverterException(e);
     }
     History history = historyBuilder.build();
-    return new WorkflowExecutionHistory(history);
+    return new io.temporal.common.WorkflowExecutionHistory(history);
   }
 
   private static void checkHistory(History history) {

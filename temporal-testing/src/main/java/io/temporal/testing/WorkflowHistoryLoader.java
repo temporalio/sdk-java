@@ -25,7 +25,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.base.Preconditions;
 import com.google.common.io.CharStreams;
 import io.temporal.common.Experimental;
-import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import java.io.File;
 import java.io.IOException;

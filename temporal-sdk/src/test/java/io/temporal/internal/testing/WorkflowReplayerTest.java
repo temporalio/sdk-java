@@ -30,7 +30,7 @@ import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.testing.ReplayResults;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;

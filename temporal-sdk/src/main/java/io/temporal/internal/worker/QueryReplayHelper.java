@@ -29,7 +29,7 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
-import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.common.WorkflowExecutionHistory;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,16 +57,20 @@ public class QueryReplayHelper {
     return queryWorkflowExecution(queryType, args, history, ByteString.EMPTY);
   }
 
+  @SuppressWarnings("deprecation")
   public Optional<Payloads> queryWorkflowExecution(
-      WorkflowExecutionHistory history, String queryType, Optional<Payloads> args)
+      io.temporal.internal.common.WorkflowExecutionHistory history,
+      String queryType,
+      Optional<Payloads> args)
       throws Exception {
     return queryWorkflowExecution(queryType, args, history, ByteString.EMPTY);
   }
 
+  @SuppressWarnings("deprecation")
   private Optional<Payloads> queryWorkflowExecution(
       String queryType,
       Optional<Payloads> args,
-      WorkflowExecutionHistory history,
+      io.temporal.internal.common.WorkflowExecutionHistory history,
       ByteString nextPageToken)
       throws Exception {
     WorkflowQuery.Builder query = WorkflowQuery.newBuilder().setQueryType(queryType);

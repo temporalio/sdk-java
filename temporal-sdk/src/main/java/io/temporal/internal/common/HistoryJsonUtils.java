@@ -31,7 +31,7 @@ import java.util.function.BiFunction;
  * supported by {@link com.google.protobuf.util.JsonFormat} to the format of Temporal history
  * supported by tctl and back.
  */
-class HistoryJsonUtils {
+public final class HistoryJsonUtils {
   private static final Configuration JSON_PATH_CONFIGURATION =
       Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS).build();
 
@@ -57,6 +57,8 @@ class HistoryJsonUtils {
       this.protobufEnumPrefix = protobufEnumPrefix;
     }
   }
+
+  private HistoryJsonUtils() {}
 
   public static String protoJsonToHistoryFormatJson(String protoJson) {
     return convertEnumValues(protoJson, ProtoEnumNameUtils::uniqueToSimplifiedName);
