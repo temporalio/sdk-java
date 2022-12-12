@@ -23,7 +23,7 @@ package io.temporal.testing;
 import com.google.common.collect.ObjectArrays;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.worker.Worker;
 import java.io.File;
 
@@ -128,8 +128,11 @@ public final class WorkflowReplayer {
    * @param moreWorkflowClasses optional additional workflow implementation classes
    * @throws Exception if replay failed for any reason.
    */
+  @SuppressWarnings("deprecation")
   public static void replayWorkflowExecution(
-      WorkflowExecutionHistory history, Class<?> workflowClass, Class<?>... moreWorkflowClasses)
+      io.temporal.internal.common.WorkflowExecutionHistory history,
+      Class<?> workflowClass,
+      Class<?>... moreWorkflowClasses)
       throws Exception {
     TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
     try {
@@ -148,8 +151,9 @@ public final class WorkflowReplayer {
    * @param moreWorkflowClasses optional additional workflow implementation classes
    * @throws Exception if replay failed for any reason.
    */
+  @SuppressWarnings("deprecation")
   public static void replayWorkflowExecution(
-      WorkflowExecutionHistory history,
+      io.temporal.internal.common.WorkflowExecutionHistory history,
       TestWorkflowEnvironment testWorkflowEnvironment,
       Class<?> workflowClass,
       Class<?>... moreWorkflowClasses)
@@ -167,7 +171,9 @@ public final class WorkflowReplayer {
    * @param worker existing worker with registered workflow implementations.
    * @throws Exception if replay failed for any reason.
    */
-  public static void replayWorkflowExecution(WorkflowExecutionHistory history, Worker worker)
+  @SuppressWarnings("deprecation")
+  public static void replayWorkflowExecution(
+      io.temporal.internal.common.WorkflowExecutionHistory history, Worker worker)
       throws Exception {
     worker.replayWorkflowExecution(history);
   }
@@ -182,8 +188,11 @@ public final class WorkflowReplayer {
    * @return If `failFast` is false, contains any replay failures encountered.
    * @throws Exception If replay failed and `failFast` is true.
    */
+  @SuppressWarnings("deprecation")
   public static ReplayResults replayWorkflowExecutions(
-      Iterable<WorkflowExecutionHistory> histories, boolean failFast, Class<?>... workflowClasses)
+      Iterable<? extends io.temporal.internal.common.WorkflowExecutionHistory> histories,
+      boolean failFast,
+      Class<?>... workflowClasses)
       throws Exception {
     try (TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance()) {
       Worker worker = testEnv.newWorker("replay-task-queue-name");
@@ -204,11 +213,14 @@ public final class WorkflowReplayer {
    * @return If `failFast` is false, contains any replay failures encountered.
    * @throws Exception If replay failed and `failFast` is true.
    */
+  @SuppressWarnings("deprecation")
   public static ReplayResults replayWorkflowExecutions(
-      Iterable<WorkflowExecutionHistory> histories, boolean failFast, Worker worker)
+      Iterable<? extends io.temporal.internal.common.WorkflowExecutionHistory> histories,
+      boolean failFast,
+      Worker worker)
       throws Exception {
     ReplayResults results = new ReplayResults();
-    for (WorkflowExecutionHistory history : histories) {
+    for (io.temporal.internal.common.WorkflowExecutionHistory history : histories) {
       try {
         replayWorkflowExecution(history, worker);
       } catch (Exception e) {
@@ -222,7 +234,8 @@ public final class WorkflowReplayer {
     return results;
   }
 
-  private static String getQueueName(WorkflowExecutionHistory history) {
+  @SuppressWarnings("deprecation")
+  private static String getQueueName(io.temporal.internal.common.WorkflowExecutionHistory history) {
     WorkflowExecutionStartedEventAttributes attr =
         history.getEvents().get(0).getWorkflowExecutionStartedEventAttributes();
     TaskQueue taskQueue = attr.getTaskQueue();

@@ -23,7 +23,7 @@ package io.temporal.testing;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.client.WorkflowClient;
-import io.temporal.internal.common.WorkflowExecutionHistory;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;

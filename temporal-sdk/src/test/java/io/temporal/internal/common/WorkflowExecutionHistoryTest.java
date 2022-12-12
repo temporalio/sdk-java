@@ -24,6 +24,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.io.CharStreams;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.testing.WorkflowHistoryLoader;
 import java.io.File;
 import java.io.IOException;

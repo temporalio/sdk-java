@@ -25,7 +25,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
-import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
@@ -213,8 +212,9 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     return workflowWorker.isSuspended() && laWorker.isSuspended();
   }
 
+  @SuppressWarnings("deprecation")
   public <R> R queryWorkflowExecution(
-      WorkflowExecutionHistory history,
+      io.temporal.internal.common.WorkflowExecutionHistory history,
       String queryType,
       Class<R> resultClass,
       Type resultType,

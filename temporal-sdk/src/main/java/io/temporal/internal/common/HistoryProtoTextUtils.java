@@ -26,7 +26,7 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 
 /** Converts history protos into human readable format */
-final class HistoryProtoTextUtils {
+public final class HistoryProtoTextUtils {
 
   private HistoryProtoTextUtils() {}
 
