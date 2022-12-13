@@ -20,9 +20,13 @@
 
 package io.temporal.common;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.common.converter.DataConverterException;
+import io.temporal.internal.common.HistoryJsonUtils;
 import java.util.List;
 
 /**
@@ -55,9 +59,18 @@ public final class WorkflowExecutionHistory
    * @param serialized history json (tctl format) to import and deserialize into {@link History}
    * @return WorkflowExecutionHistory
    */
-  @SuppressWarnings("deprecation")
   public static WorkflowExecutionHistory fromJson(String serialized) {
-    return io.temporal.internal.common.WorkflowExecutionHistory.fromJson(serialized);
+    String protoJson = HistoryJsonUtils.historyFormatJsonToProtoJson(serialized);
+
+    JsonFormat.Parser parser = JsonFormat.parser().ignoringUnknownFields();
+    History.Builder historyBuilder = History.newBuilder();
+    try {
+      parser.merge(protoJson, historyBuilder);
+    } catch (InvalidProtocolBufferException e) {
+      throw new DataConverterException(e);
+    }
+    History history = historyBuilder.build();
+    return new WorkflowExecutionHistory(history);
   }
 
   /**

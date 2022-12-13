@@ -62,18 +62,9 @@ public class WorkflowExecutionHistory {
     this.workflowId = workflowId;
   }
 
-  public static io.temporal.common.WorkflowExecutionHistory fromJson(String serialized) {
-    String protoJson = HistoryJsonUtils.historyFormatJsonToProtoJson(serialized);
-
-    JsonFormat.Parser parser = JsonFormat.parser().ignoringUnknownFields();
-    History.Builder historyBuilder = History.newBuilder();
-    try {
-      parser.merge(protoJson, historyBuilder);
-    } catch (InvalidProtocolBufferException e) {
-      throw new DataConverterException(e);
-    }
-    History history = historyBuilder.build();
-    return new io.temporal.common.WorkflowExecutionHistory(history);
+  public static WorkflowExecutionHistory fromJson(String serialized) {
+    return new WorkflowExecutionHistory(
+        io.temporal.common.WorkflowExecutionHistory.fromJson(serialized).getHistory());
   }
 
   private static void checkHistory(History history) {
