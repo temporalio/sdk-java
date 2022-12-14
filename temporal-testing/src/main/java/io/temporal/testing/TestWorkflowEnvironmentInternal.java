@@ -36,7 +36,6 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.sync.WorkflowClientInternal;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.*;
 import io.temporal.testserver.TestServer;
@@ -158,7 +157,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     } else {
       options = workflowClientOptions;
     }
-    return WorkflowClientInternal.newInstance(workflowServiceStubs, options);
+    return WorkflowClient.newInstance(workflowServiceStubs, options);
   }
 
   @Override

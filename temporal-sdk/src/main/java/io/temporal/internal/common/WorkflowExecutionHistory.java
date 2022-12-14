@@ -43,6 +43,7 @@ import java.util.List;
  */
 @Deprecated
 public class WorkflowExecutionHistory {
+  protected static final String DEFAULT_WORKFLOW_ID = "workflow_id_in_replay";
   private static final Gson GSON_PRETTY_PRINTER = new GsonBuilder().setPrettyPrinting().create();
   // we stay on using the old API that uses a JsonParser instance instead of static methods
   // to give users a larger range of supported version
@@ -53,7 +54,7 @@ public class WorkflowExecutionHistory {
   private final String workflowId;
 
   public WorkflowExecutionHistory(History history) {
-    this(history, "workflow_id_in_replay");
+    this(history, DEFAULT_WORKFLOW_ID);
   }
 
   public WorkflowExecutionHistory(History history, String workflowId) {
@@ -104,7 +105,7 @@ public class WorkflowExecutionHistory {
   }
 
   /**
-   * Returns workflow instance history in a human readable format.
+   * Returns workflow instance history in a human-readable format.
    *
    * @param showWorkflowTasks when set to false workflow task events (command events) are not
    *     included

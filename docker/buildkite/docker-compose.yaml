@@ -1,12 +1,27 @@
 version: '3.5'
 
 services:
+  elasticsearch:
+    image: elasticsearch:7.16.2
+    logging:
+      driver: none
+    expose:
+      - 9200
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+
   cassandra:
     image: cassandra:3.11.9
     logging:
       driver: none
-    ports:
-      - "9042:9042"
+    expose:
+      - 9042
 
   temporal:
     image: temporaliotest/auto-setup:sha-cc2e0c0
@@ -21,11 +36,15 @@ services:
       - "6939:6939"
     environment:
       - "CASSANDRA_SEEDS=cassandra"
+      - "ENABLE_ES=true"
+      - "ES_SEEDS=elasticsearch"
       - "DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml"
     depends_on:
       - cassandra
+      - elasticsearch
     volumes:
       - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+
 
   unit-test-docker-jdk8:
     build:

@@ -45,4 +45,9 @@ public interface GenericWorkflowClient {
 
   CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline);
+
+  ListWorkflowExecutionsResponse listWorkflowExecutions(ListWorkflowExecutionsRequest listRequest);
+
+  CompletableFuture<ListWorkflowExecutionsResponse> listWorkflowExecutionsAsync(
+      ListWorkflowExecutionsRequest listRequest);
 }

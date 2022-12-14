@@ -18,12 +18,10 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.client;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.ActivityCompletionClient;
-import io.temporal.client.ActivityCompletionException;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.workflow.Functions;
 import java.util.Optional;

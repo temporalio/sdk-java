@@ -49,7 +49,7 @@ public final class WorkflowExecutionHistory
    * set (workflow replay may rely on it if WorkflowExecutionHistory is used for a history replay)
    *
    * @param history raw history object to enrich
-   * @param workflowId workflow id to use in {@link #getWorkflowExecution()}
+   * @param workflowId workflow id to be used in {@link #getWorkflowExecution()}
    */
   public WorkflowExecutionHistory(History history, String workflowId) {
     super(history, workflowId);
@@ -60,6 +60,15 @@ public final class WorkflowExecutionHistory
    * @return WorkflowExecutionHistory
    */
   public static WorkflowExecutionHistory fromJson(String serialized) {
+    return fromJson(serialized, DEFAULT_WORKFLOW_ID);
+  }
+
+  /**
+   * @param serialized history json (tctl format) to import and deserialize into {@link History}
+   * @param workflowId workflow id to be used in {@link #getWorkflowExecution()}
+   * @return WorkflowExecutionHistory
+   */
+  public static WorkflowExecutionHistory fromJson(String serialized, String workflowId) {
     String protoJson = HistoryJsonUtils.historyFormatJsonToProtoJson(serialized);
 
     JsonFormat.Parser parser = JsonFormat.parser().ignoringUnknownFields();
@@ -70,7 +79,7 @@ public final class WorkflowExecutionHistory
       throw new DataConverterException(e);
     }
     History history = historyBuilder.build();
-    return new WorkflowExecutionHistory(history);
+    return new WorkflowExecutionHistory(history, workflowId);
   }
 
   /**
@@ -81,7 +90,7 @@ public final class WorkflowExecutionHistory
   }
 
   /**
-   * Returns workflow instance history in a human readable format.
+   * Returns workflow instance history in a human-readable format.
    *
    * @param showWorkflowTasks when set to false workflow task events (command events) are not
    *     included

@@ -40,7 +40,8 @@ import javax.annotation.Nonnull;
 
 public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
-  private static final ScheduledExecutorService executor =
+  // TODO we need to shutdown this executor
+  private static final ScheduledExecutorService asyncThrottlerExecutor =
       new ScheduledThreadPoolExecutor(1, r -> new Thread(r, "generic-wf-client-async-throttler"));
 
   private final WorkflowServiceStubs service;
@@ -163,30 +164,15 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   public CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
     return grpcRetryer.retryWithResultAsync(
-        executor,
-        () -> {
-          CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
-          ListenableFuture<GetWorkflowExecutionHistoryResponse> resultFuture =
-              service
-                  .futureStub()
-                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                  .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
-                  .withDeadline(deadline)
-                  .getWorkflowExecutionHistory(request);
-
-          resultFuture.addListener(
-              () -> {
-                try {
-                  result.complete(resultFuture.get());
-                } catch (ExecutionException e) {
-                  result.completeExceptionally(e.getCause());
-                } catch (Exception e) {
-                  result.completeExceptionally(e);
-                }
-              },
-              ForkJoinPool.commonPool());
-          return result;
-        },
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
+                    .withDeadline(deadline)
+                    .getWorkflowExecutionHistory(request)),
         new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
   }
 
@@ -205,5 +191,48 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                 .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .queryWorkflow(queryParameters),
         grpcRetryerOptions);
+  }
+
+  @Override
+  public ListWorkflowExecutionsResponse listWorkflowExecutions(
+      ListWorkflowExecutionsRequest listRequest) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .listWorkflowExecutions(listRequest),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<ListWorkflowExecutionsResponse> listWorkflowExecutionsAsync(
+      ListWorkflowExecutionsRequest listRequest) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .listWorkflowExecutions(listRequest)),
+        grpcRetryerOptions);
+  }
+
+  private static <T> CompletableFuture<T> toCompletableFuture(
+      ListenableFuture<T> listenableFuture) {
+    CompletableFuture<T> result = new CompletableFuture<>();
+    listenableFuture.addListener(
+        () -> {
+          try {
+            result.complete(listenableFuture.get());
+          } catch (ExecutionException e) {
+            result.completeExceptionally(e.getCause());
+          } catch (Exception e) {
+            result.completeExceptionally(e);
+          }
+        },
+        ForkJoinPool.commonPool());
+    return result;
   }
 }
