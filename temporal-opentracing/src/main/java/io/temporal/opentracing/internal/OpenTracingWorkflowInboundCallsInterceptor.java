@@ -65,7 +65,6 @@ public class OpenTracingWorkflowInboundCallsInterceptor
             .createWorkflowRunSpan(
                 tracer,
                 Workflow.getInfo().getWorkflowType(),
-                Workflow.currentTimeMillis(),
                 Workflow.getInfo().getWorkflowId(),
                 Workflow.getInfo().getRunId(),
                 rootSpanContext)

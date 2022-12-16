@@ -70,7 +70,6 @@ public class OpenTracingActivityInboundCallsInterceptor
             .createActivityRunSpan(
                 tracer,
                 activityInfo.getActivityType(),
-                System.currentTimeMillis(),
                 activityInfo.getWorkflowId(),
                 activityInfo.getRunId(),
                 rootSpanContext)
