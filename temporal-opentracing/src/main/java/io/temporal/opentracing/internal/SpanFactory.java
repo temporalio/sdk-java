@@ -35,7 +35,6 @@ import io.temporal.opentracing.SpanOperationType;
 import io.temporal.opentracing.StandardTagNames;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 public class SpanFactory {
@@ -48,11 +47,7 @@ public class SpanFactory {
   }
 
   public Tracer.SpanBuilder createWorkflowStartSpan(
-      Tracer tracer,
-      SpanOperationType operationType,
-      String workflowType,
-      long startTimeMs,
-      String workflowId) {
+      Tracer tracer, SpanOperationType operationType, String workflowType, String workflowId) {
 
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
@@ -61,7 +56,7 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .build();
 
-    return createSpan(context, tracer, startTimeMs, null, References.FOLLOWS_FROM);
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createChildWorkflowStartSpan(
@@ -79,15 +74,11 @@ public class SpanFactory {
             .setParentWorkflowId(parentWorkflowId)
             .setParentRunId(parentRunId)
             .build();
-    return createSpan(context, tracer, startTimeMs, null, References.CHILD_OF);
+    return createSpan(context, tracer, null, References.CHILD_OF);
   }
 
   public Tracer.SpanBuilder createContinueAsNewWorkflowStartSpan(
-      Tracer tracer,
-      String continueAsNewWorkflowType,
-      String workflowId,
-      long startTimeMs,
-      String parentRunId) {
+      Tracer tracer, String continueAsNewWorkflowType, String workflowId, String parentRunId) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.START_CONTINUE_AS_NEW_WORKFLOW)
@@ -95,13 +86,12 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setParentRunId(parentRunId)
             .build();
-    return createSpan(context, tracer, startTimeMs, null, References.FOLLOWS_FROM);
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createWorkflowRunSpan(
       Tracer tracer,
       String workflowType,
-      long startTimeMs,
       String workflowId,
       String runId,
       SpanContext workflowStartSpanContext) {
@@ -112,12 +102,11 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(
-        context, tracer, startTimeMs, workflowStartSpanContext, References.FOLLOWS_FROM);
+    return createSpan(context, tracer, workflowStartSpanContext, References.FOLLOWS_FROM);
   }
 
   public Tracer.SpanBuilder createActivityStartSpan(
-      Tracer tracer, String activityType, long startTimeMs, String workflowId, String runId) {
+      Tracer tracer, String activityType, String workflowId, String runId) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.START_ACTIVITY)
@@ -125,13 +114,12 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(context, tracer, startTimeMs, null, References.CHILD_OF);
+    return createSpan(context, tracer, null, References.CHILD_OF);
   }
 
   public Tracer.SpanBuilder createActivityRunSpan(
       Tracer tracer,
       String activityType,
-      long startTimeMs,
       String workflowId,
       String runId,
       SpanContext activityStartSpanContext) {
@@ -142,8 +130,7 @@ public class SpanFactory {
             .setWorkflowId(workflowId)
             .setRunId(runId)
             .build();
-    return createSpan(
-        context, tracer, startTimeMs, activityStartSpanContext, References.FOLLOWS_FROM);
+    return createSpan(context, tracer, activityStartSpanContext, References.FOLLOWS_FROM);
   }
 
   @SuppressWarnings("deprecation")
@@ -172,7 +159,6 @@ public class SpanFactory {
   private Tracer.SpanBuilder createSpan(
       SpanCreationContext context,
       Tracer tracer,
-      long startTimeMs,
       @Nullable SpanContext parentSpanContext,
       @Nullable String parentReferenceType) {
     SpanContext parent;
@@ -187,9 +173,6 @@ public class SpanFactory {
     }
 
     SpanBuilder builder = options.getSpanBuilderProvider().createSpanBuilder(tracer, context);
-
-    long startTimeMc = TimeUnit.MILLISECONDS.toMicros(startTimeMs);
-    builder.withStartTimestamp(startTimeMc);
 
     if (parent != null) {
       builder.addReference(

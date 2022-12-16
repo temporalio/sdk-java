@@ -79,10 +79,6 @@ public class OpenTracingWorkflowClientCallsInterceptor extends WorkflowClientCal
   private Tracer.SpanBuilder createWorkflowStartSpanBuilder(
       WorkflowStartInput input, SpanOperationType operationType) {
     return spanFactory.createWorkflowStartSpan(
-        tracer,
-        operationType,
-        input.getWorkflowType(),
-        System.currentTimeMillis(),
-        input.getWorkflowId());
+        tracer, operationType, input.getWorkflowType(), input.getWorkflowId());
   }
 }
