@@ -29,7 +29,7 @@ allprojects {
 
 ext {
     // Platforms
-    grpcVersion = '1.51.0' // [1.34.0,)
+    grpcVersion = '1.51.1' // [1.34.0,)
     jacksonVersion = '2.14.1' // [2.9.0,)
     micrometerVersion = '1.9.6' // [1.0.0,) // we don't upgrade to 1.10.x because it requires kotlin 1.6. Users may use 1.10.x in their environments though.
 
