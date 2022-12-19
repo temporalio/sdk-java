@@ -33,7 +33,7 @@ ext {
     jacksonVersion = '2.14.1' // [2.9.0,)
     micrometerVersion = '1.9.6' // [1.0.0,) // we don't upgrade to 1.10.x because it requires kotlin 1.6. Users may use 1.10.x in their environments though.
 
-    slf4jVersion = '1.7.36' // [1.4.0,) // stay on 1.x for a while to don't use any APIs from 2.x which may break our users which stay on 1.x
+    slf4jVersion = '2.0.6' // [1.4.0,) // stay on 1.x for a while to don't use any APIs from 2.x which may break our users which stay on 1.x
     protoVersion = '3.21.11' // [3.10.0,)
     annotationApiVersion = '1.3.2'
     guavaVersion = '31.1-jre' // [10.0,)
