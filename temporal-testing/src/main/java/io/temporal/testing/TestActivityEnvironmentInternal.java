@@ -95,6 +95,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
   private ClassConsumerPair<Object> activityHeartbeatListener;
+  private Object heartbeatDetails;
 
   public TestActivityEnvironmentInternal(@Nullable TestEnvironmentOptions options) {
     // Initialize an in-memory mock service.
@@ -246,6 +247,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   @Override
+  public <T> void setHeartbeatDetails(T details) {
+    heartbeatDetails = details;
+  }
+
+  @Override
   public void close() {
     heartbeatExecutor.shutdownNow();
     activityWorkerExecutor.shutdownNow();
@@ -264,6 +270,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .getWorkflowClientOptions()
               .getDataConverter()
               .toPayloads(i.getArgs());
+      Optional<Payloads> heartbeatPayload =
+          Optional.ofNullable(heartbeatDetails)
+                .flatMap(obj -> testEnvironmentOptions
+                    .getWorkflowClientOptions()
+                    .getDataConverter()
+                    .toPayloads(obj));
+      heartbeatDetails = null;
+
       ActivityOptions options = i.getOptions();
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
@@ -283,6 +297,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       .build())
               .setActivityType(ActivityType.newBuilder().setName(i.getActivityName()).build());
       payloads.ifPresent(taskBuilder::setInput);
+      heartbeatPayload.ifPresent(taskBuilder::setHeartbeatDetails);
       PollActivityTaskQueueResponse task = taskBuilder.build();
       return new ActivityOutput<>(
           Workflow.newPromise(

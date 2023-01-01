@@ -141,6 +141,16 @@ public interface TestActivityEnvironment {
       Class<T> detailsClass, Type detailsType, Functions.Proc1<T> listener);
 
   /**
+   * Sets heartbeat details for the next activity execution. The next activity
+   * called from this TestActivityEnvironment will be able to access this value
+   * using {@link io.temporal.activity.ActivityExecutionContext#getHeartbeatDetails(Class)}.
+   * This value is cleared upon execution.
+   * @param details The details object to make available to the next activity call.
+   * @param <T> Type of the heartbeat details.
+   */
+  <T> void setHeartbeatDetails(T details);
+
+  /**
    * Requests activity cancellation. The cancellation is going to be delivered to the activity on
    * the next heartbeat.
    */
