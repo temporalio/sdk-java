@@ -272,10 +272,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .toPayloads(i.getArgs());
       Optional<Payloads> heartbeatPayload =
           Optional.ofNullable(heartbeatDetails)
-                .flatMap(obj -> testEnvironmentOptions
-                    .getWorkflowClientOptions()
-                    .getDataConverter()
-                    .toPayloads(obj));
+              .flatMap(
+                  obj ->
+                      testEnvironmentOptions
+                          .getWorkflowClientOptions()
+                          .getDataConverter()
+                          .toPayloads(obj));
       heartbeatDetails = null;
 
       ActivityOptions options = i.getOptions();
