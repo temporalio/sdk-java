@@ -68,6 +68,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -94,8 +95,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final ActivityTaskHandlerImpl activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
+  private final AtomicReference<Object> heartbeatDetails = new AtomicReference<>();
   private ClassConsumerPair<Object> activityHeartbeatListener;
-  private Object heartbeatDetails;
 
   public TestActivityEnvironmentInternal(@Nullable TestEnvironmentOptions options) {
     // Initialize an in-memory mock service.
@@ -248,7 +249,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
   @Override
   public <T> void setHeartbeatDetails(T details) {
-    heartbeatDetails = details;
+    heartbeatDetails.set(details);
   }
 
   @Override
@@ -271,14 +272,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .getDataConverter()
               .toPayloads(i.getArgs());
       Optional<Payloads> heartbeatPayload =
-          Optional.ofNullable(heartbeatDetails)
+          Optional.ofNullable(heartbeatDetails.getAndSet(null))
               .flatMap(
                   obj ->
                       testEnvironmentOptions
                           .getWorkflowClientOptions()
                           .getDataConverter()
                           .toPayloads(obj));
-      heartbeatDetails = null;
 
       ActivityOptions options = i.getOptions();
       PollActivityTaskQueueResponse.Builder taskBuilder =
