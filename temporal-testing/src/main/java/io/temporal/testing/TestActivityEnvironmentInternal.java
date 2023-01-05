@@ -68,6 +68,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -94,6 +95,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final ActivityTaskHandlerImpl activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
+  private final AtomicReference<Object> heartbeatDetails = new AtomicReference<>();
   private ClassConsumerPair<Object> activityHeartbeatListener;
 
   public TestActivityEnvironmentInternal(@Nullable TestEnvironmentOptions options) {
@@ -246,6 +248,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   @Override
+  public <T> void setHeartbeatDetails(T details) {
+    heartbeatDetails.set(details);
+  }
+
+  @Override
   public void close() {
     heartbeatExecutor.shutdownNow();
     activityWorkerExecutor.shutdownNow();
@@ -264,6 +271,15 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .getWorkflowClientOptions()
               .getDataConverter()
               .toPayloads(i.getArgs());
+      Optional<Payloads> heartbeatPayload =
+          Optional.ofNullable(heartbeatDetails.getAndSet(null))
+              .flatMap(
+                  obj ->
+                      testEnvironmentOptions
+                          .getWorkflowClientOptions()
+                          .getDataConverter()
+                          .toPayloads(obj));
+
       ActivityOptions options = i.getOptions();
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
@@ -283,6 +299,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       .build())
               .setActivityType(ActivityType.newBuilder().setName(i.getActivityName()).build());
       payloads.ifPresent(taskBuilder::setInput);
+      heartbeatPayload.ifPresent(taskBuilder::setHeartbeatDetails);
       PollActivityTaskQueueResponse task = taskBuilder.build();
       return new ActivityOutput<>(
           Workflow.newPromise(
