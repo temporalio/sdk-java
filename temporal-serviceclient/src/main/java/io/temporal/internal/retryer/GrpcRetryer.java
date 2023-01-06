@@ -61,10 +61,12 @@ public final class GrpcRetryer {
   }
 
   public <R> CompletableFuture<R> retryWithResultAsync(
-      ScheduledExecutorService executor,
+      ScheduledExecutorService asyncThrottlerExecutor,
       Supplier<CompletableFuture<R>> function,
       GrpcRetryerOptions options) {
-    return new GrpcAsyncRetryer<R>(executor, function, options, serverCapabilities.get()).retry();
+    return new GrpcAsyncRetryer<>(
+            asyncThrottlerExecutor, function, options, serverCapabilities.get())
+        .retry();
   }
 
   public static class GrpcRetryerOptions {

@@ -48,14 +48,14 @@ class GrpcAsyncRetryer<R> {
   private StatusRuntimeException lastMeaningfulException = null;
 
   public GrpcAsyncRetryer(
-      ScheduledExecutorService executor,
+      ScheduledExecutorService asyncThrottlerExecutor,
       Supplier<CompletableFuture<R>> function,
       GrpcRetryer.GrpcRetryerOptions options,
       GetSystemInfoResponse.Capabilities serverCapabilities) {
 
     options.validate();
 
-    this.executor = executor;
+    this.executor = asyncThrottlerExecutor;
     this.options = options;
     this.serverCapabilities = serverCapabilities;
     this.function = function;

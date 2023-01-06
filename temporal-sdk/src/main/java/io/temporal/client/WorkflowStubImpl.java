@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.client;
 
 import com.google.common.base.Strings;
 import io.grpc.Status;
@@ -27,7 +27,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.errordetails.v1.QueryFailedFailure;
 import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.api.errordetails.v1.WorkflowNotReadyFailure;
-import io.temporal.client.*;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.failure.CanceledFailure;

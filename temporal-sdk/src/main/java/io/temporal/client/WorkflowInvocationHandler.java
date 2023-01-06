@@ -18,15 +18,11 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.client;
 
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
@@ -34,6 +30,7 @@ import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
+import io.temporal.internal.sync.StubMarker;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;

@@ -478,13 +478,13 @@ public final class WorkflowInternal {
     return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }
 
-  public static <T> T getMemo(String key, Class<T> valueClass, Type valueType) {
+  public static <T> T getMemo(String key, Class<T> valueClass, Type genericType) {
     Payload memo = getRootWorkflowContext().getReplayContext().getMemo(key);
     if (memo == null) {
       return null;
     }
 
-    return getDataConverter().fromPayload(memo, valueClass, valueType);
+    return getDataConverter().fromPayload(memo, valueClass, genericType);
   }
 
   public static <R> R retry(

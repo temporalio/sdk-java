@@ -20,7 +20,6 @@
 
 package io.temporal.internal.client;
 
-import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
@@ -36,16 +35,12 @@ import java.util.concurrent.TimeoutException;
 public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions clientOptions;
-  private final Scope metricsScope;
   private final WorkflowClientRequestFactory requestsHelper;
 
   public RootWorkflowClientInvoker(
-      GenericWorkflowClient genericClient,
-      WorkflowClientOptions clientOptions,
-      Scope metricsScope) {
+      GenericWorkflowClient genericClient, WorkflowClientOptions clientOptions) {
     this.genericClient = genericClient;
     this.clientOptions = clientOptions;
-    this.metricsScope = metricsScope;
     this.requestsHelper = new WorkflowClientRequestFactory(clientOptions);
   }
 

@@ -18,11 +18,9 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.BatchRequest;
-import io.temporal.client.WorkflowStub;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.List;

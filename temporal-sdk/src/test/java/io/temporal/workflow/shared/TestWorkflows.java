@@ -174,6 +174,11 @@ public class TestWorkflows {
   }
 
   /** IMPLEMENTATIONS * */
+  public static class DoNothingWorkflow implements NoArgsWorkflow {
+    @Override
+    public void execute() {}
+  }
+
   public static class TestChild implements ITestChild {
 
     @Override

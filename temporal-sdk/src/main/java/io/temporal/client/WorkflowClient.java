@@ -23,7 +23,6 @@ package io.temporal.client;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.internal.sync.WorkflowClientInternal;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -38,6 +37,7 @@ import io.temporal.workflow.Functions.Proc6;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 /**
  * Client to the Temporal service used to start and query workflows by external processes. Also, it
@@ -133,6 +133,8 @@ public interface WorkflowClient {
 
   WorkflowClientOptions getOptions();
 
+  WorkflowServiceStubs getWorkflowServiceStubs();
+
   /**
    * Creates workflow client stub that can be used to start a single workflow execution. The first
    * call must be to a method annotated with @WorkflowMethod. After workflow is started it can be
@@ -140,9 +142,10 @@ public interface WorkflowClient {
    * stub should be created for each new one.
    *
    * @param workflowInterface interface that given workflow implements
-   * @param options options used to start a workflow through returned stub
-   * @return Stub that implements workflowInterface and can be used to start workflow and later to
-   *     signal or query it.
+   * @param options options that will be used to configure and start a new workflow. At least {@link
+   *     WorkflowOptions.Builder#setTaskQueue(String)} needs to be specified.
+   * @return Stub that implements workflowInterface and can be used to start workflow and signal or
+   *     query it after the start.
    */
   <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options);
 
@@ -237,7 +240,29 @@ public interface WorkflowClient {
    */
   WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch);
 
-  WorkflowServiceStubs getWorkflowServiceStubs();
+  /**
+   * A wrapper around {WorkflowServiceStub#listWorkflowExecutions(ListWorkflowExecutionsRequest)}
+   *
+   * <p>Note: This method uses 1000 as the underlying page size. To customize the page size, use
+   * {@link #listExecutions(String, int)}
+   *
+   * @param query Temporal Visibility Query, for syntax see <a
+   *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
+   * @return sequential stream that performs remote pagination under the hood
+   */
+  default Stream<WorkflowExecutionMetadata> listExecutions(String query) {
+    return listExecutions(query, 1000);
+  }
+
+  /**
+   * A wrapper around {WorkflowServiceStub#listWorkflowExecutions(ListWorkflowExecutionsRequest)}
+   *
+   * @param query Temporal Visibility Query, for syntax see <a
+   *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
+   * @param pageSize a page size to use for the underlying remote pagination
+   * @return sequential stream that performs remote pagination under the hood
+   */
+  Stream<WorkflowExecutionMetadata> listExecutions(String query, int pageSize);
 
   /**
    * Executes zero argument workflow with void return type

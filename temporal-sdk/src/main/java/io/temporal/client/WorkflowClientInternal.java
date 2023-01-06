@@ -18,20 +18,16 @@
  * limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.client;
 
 import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterators;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.ActivityCompletionClient;
-import io.temporal.client.BatchRequest;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
@@ -39,7 +35,7 @@ import io.temporal.internal.client.RootWorkflowClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
+import io.temporal.internal.sync.StubMarker;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
@@ -49,11 +45,12 @@ import io.temporal.workflow.WorkflowMethod;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.Arrays;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-public final class WorkflowClientInternal implements WorkflowClient {
+final class WorkflowClientInternal implements WorkflowClient {
 
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions options;
@@ -101,7 +98,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   private WorkflowClientCallsInterceptor initializeClientInvoker() {
     WorkflowClientCallsInterceptor workflowClientInvoker =
-        new RootWorkflowClientInvoker(genericClient, options, metricsScope);
+        new RootWorkflowClientInvoker(genericClient, options);
     for (WorkflowClientInterceptor clientInterceptor : interceptors) {
       workflowClientInvoker =
           clientInterceptor.workflowClientCallsInterceptor(workflowClientInvoker);
@@ -242,6 +239,26 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch) {
     return ((SignalWithStartBatchRequest) signalWithStartBatch).invoke();
+  }
+
+  @Override
+  public Stream<WorkflowExecutionMetadata> listExecutions(String query, int pageSize) {
+    ListWorkflowExecutionIterator iterator =
+        new ListWorkflowExecutionIterator(query, options.getNamespace(), pageSize, genericClient);
+    iterator.init();
+    Iterator<WorkflowExecutionMetadata> wrappedIterator =
+        Iterators.transform(
+            iterator, info -> new WorkflowExecutionMetadata(info, options.getDataConverter()));
+
+    // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
+    // impossible
+    // TODO We don't add DISTINCT to be safe. It's not explicitly stated if Temporal Server list API
+    // guarantees absence of duplicates
+    final int CHARACTERISTICS =
+        Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.DISTINCT | Spliterator.IMMUTABLE;
+
+    return StreamSupport.stream(
+        Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false);
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {
