@@ -40,7 +40,6 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
-import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.TaskQueue;
@@ -358,20 +357,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                 result.completeExceptionally(temporalFailure);
               }
             } else {
-              // TODO fail workflow task instead of failing an activity execution
-              log.warn(
-                  "[BUG] executeLocalActivity() returned an exception other than LocalActivityFailedException",
-                  e);
-              result.completeExceptionally(
-                  new ActivityFailure(
-                      "Local activity processing failed with an unexpected exception",
-                      0,
-                      0,
-                      input.getActivityName(),
-                      "",
-                      RetryState.RETRY_STATE_INTERNAL_SERVER_ERROR,
-                      "",
-                      e));
+              // Only LocalActivityFailedException is expected
+              String exceptionMessage =
+                  String.format(
+                      "[BUG] Local Activity State Machine callback for activityType %s returned unexpected exception",
+                      input.getActivityName());
+              log.warn(exceptionMessage, e);
+              replayContext.failWorkflowTask(new IllegalStateException(exceptionMessage, e));
             }
           }
           return null;

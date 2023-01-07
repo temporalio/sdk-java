@@ -34,6 +34,7 @@ import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.MetricsType;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 final class ReplayWorkflowExecutor {
 
@@ -45,13 +46,6 @@ final class ReplayWorkflowExecutor {
 
   private final Scope metricsScope;
 
-  // TODO mutable state should be accumulated in ReplayWorkflowContext, not in this class
-  private boolean completed;
-
-  private WorkflowExecutionException failure;
-
-  private boolean cancelRequested;
-
   public ReplayWorkflowExecutor(
       ReplayWorkflow workflow,
       WorkflowStateMachines workflowStateMachines,
@@ -62,33 +56,33 @@ final class ReplayWorkflowExecutor {
     this.metricsScope = context.getMetricsScope();
   }
 
-  public boolean isCompleted() {
-    return completed;
-  }
-
   public void eventLoop() {
+    boolean completed = context.isWorkflowMethodCompleted();
     if (completed) {
       return;
     }
+    WorkflowExecutionException failure = null;
+
     try {
       completed = workflow.eventLoop();
     } catch (WorkflowExecutionException e) {
       failure = e;
       completed = true;
     } catch (CanceledFailure e) {
-      if (!cancelRequested) {
+      if (!context.isCancelRequested()) {
         failure =
             new WorkflowExecutionException(workflow.getWorkflowContext().mapExceptionToFailure(e));
       }
       completed = true;
     }
     if (completed) {
-      completeWorkflow();
+      context.setWorkflowMethodCompleted();
+      completeWorkflow(failure);
     }
   }
 
-  private void completeWorkflow() {
-    if (cancelRequested) {
+  private void completeWorkflow(@Nullable WorkflowExecutionException failure) {
+    if (context.isCancelRequested()) {
       workflowStateMachines.cancelWorkflow();
       metricsScope.counter(MetricsType.WORKFLOW_CANCELED_COUNTER).inc(1);
     } else if (failure != null) {
@@ -98,11 +92,25 @@ final class ReplayWorkflowExecutor {
       ContinueAsNewWorkflowExecutionCommandAttributes attributes =
           context.getContinueAsNewOnCompletion();
       if (attributes != null) {
+        // TODO Refactoring idea
+        //  Instead of carrying attributes over like this, SyncWorkflowContext should call
+        //  workflowStateMachines.continueAsNewWorkflow directly.
+        //  It's safe to do and be sure that ContinueAsNew will be the last command because
+        //  WorkflowThread.exit() that it called and it's underlying implementation
+        //  DeterministicRunner#exit()
+        //  guarantee that no other workflow threads will get unblocked,
+        //  so no new commands are generated after the call.
+        //  This way attributes will need to be carried over in the mutable state and the flow
+        //  generally will be aligned with the flow of other commands.
         workflowStateMachines.continueAsNewWorkflow(attributes);
+
+        // TODO Issue #1590
         metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
         workflowStateMachines.completeWorkflow(workflowOutput);
+
+        // TODO Issue #1590
         metricsScope.counter(MetricsType.WORKFLOW_COMPLETED_COUNTER).inc(1);
       }
     }
@@ -117,16 +125,15 @@ final class ReplayWorkflowExecutor {
   public void handleWorkflowExecutionCancelRequested(HistoryEvent event) {
     WorkflowExecutionCancelRequestedEventAttributes attributes =
         event.getWorkflowExecutionCancelRequestedEventAttributes();
-    context.setCancelRequested(true);
+    context.setCancelRequested();
     String cause = attributes.getCause();
     workflow.cancel(cause);
-    cancelRequested = true;
   }
 
   public void handleWorkflowExecutionSignaled(HistoryEvent event) {
     WorkflowExecutionSignaledEventAttributes signalAttributes =
         event.getWorkflowExecutionSignaledEventAttributes();
-    if (completed) {
+    if (context.isWorkflowMethodCompleted()) {
       throw new IllegalStateException("Signal received after workflow is closed.");
     }
     Optional<Payloads> input =

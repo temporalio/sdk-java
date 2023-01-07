@@ -47,9 +47,9 @@ import javax.annotation.Nullable;
  * Switch both to nullable.
  */
 final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
-
-  private final WorkflowStateMachines workflowStateMachines;
   private final BasicWorkflowContext basicWorkflowContext;
+  private final WorkflowStateMachines workflowStateMachines;
+  private final WorkflowMutableState mutableState;
   private final @Nullable String fullReplayDirectQueryName;
   private final Scope replayAwareWorkflowMetricsScope;
   private final SingleWorkerOptions workerOptions;
@@ -71,6 +71,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     this.basicWorkflowContext =
         new BasicWorkflowContext(
             namespace, workflowExecution, startedAttributes, runStartedTimestampMillis);
+    this.mutableState = new WorkflowMutableState(startedAttributes);
     this.fullReplayDirectQueryName = fullReplayDirectQueryName;
     this.replayAwareWorkflowMetricsScope =
         new ReplayAwareScope(workflowMetricsScope, this, workflowStateMachines::currentTimeMillis);
@@ -116,24 +117,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public WorkflowType getWorkflowType() {
     return basicWorkflowContext.getWorkflowType();
-  }
-
-  /**
-   * TODO methods and state like this (that tracks effectively an execution result) either doesn't
-   * belong here or should be abstracted into a separate interface with setter methods.
-   */
-  @Override
-  public boolean isCancelRequested() {
-    return basicWorkflowContext.isCancelRequested();
-  }
-
-  void setCancelRequested(boolean flag) {
-    basicWorkflowContext.setCancelRequested(flag);
-  }
-
-  @Override
-  public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
-    return basicWorkflowContext.getContinueAsNewOnCompletion();
   }
 
   @Nonnull
@@ -189,7 +172,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   @Nullable
   public SearchAttributes getSearchAttributes() {
-    return basicWorkflowContext.getSearchAttributes();
+    return mutableState.getSearchAttributes();
   }
 
   @Override
@@ -238,12 +221,6 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
             .setRunId(execution.getRunId())
             .build();
     workflowStateMachines.requestCancelExternalWorkflowExecution(attributes, callback);
-  }
-
-  @Override
-  public void continueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-    basicWorkflowContext.setContinueAsNewOnCompletion(attributes);
   }
 
   @Override
@@ -315,9 +292,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public void upsertSearchAttributes(SearchAttributes searchAttributes) {
+  public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
     workflowStateMachines.upsertSearchAttributes(searchAttributes);
-    basicWorkflowContext.mergeSearchAttributes(searchAttributes);
+    mutableState.upsertSearchAttributes(searchAttributes);
   }
 
   @Override
@@ -356,5 +333,49 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public long getCurrentWorkflowTaskStartedEventId() {
     return workflowStateMachines.getCurrentStartedEventId();
+  }
+
+  /*
+   * MUTABLE STATE OPERATIONS
+   */
+
+  @Override
+  public boolean isCancelRequested() {
+    return mutableState.isCancelRequested();
+  }
+
+  @Override
+  public void setCancelRequested() {
+    mutableState.setCancelRequested();
+  }
+
+  public boolean isWorkflowMethodCompleted() {
+    return mutableState.isWorkflowMethodCompleted();
+  }
+
+  @Override
+  public void setWorkflowMethodCompleted() {
+    this.mutableState.setWorkflowMethodCompleted();
+  }
+
+  @Override
+  public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
+    return mutableState.getContinueAsNewOnCompletion();
+  }
+
+  @Override
+  public void continueAsNewOnCompletion(
+      ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
+    mutableState.continueAsNewOnCompletion(attributes);
+  }
+
+  @Override
+  public Throwable getWorkflowTaskFailure() {
+    return mutableState.getWorkflowTaskFailure();
+  }
+
+  @Override
+  public void failWorkflowTask(Throwable failure) {
+    mutableState.failWorkflowTask(failure);
   }
 }

@@ -84,6 +84,8 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   // TODO move and maintain this counter inside workflowStateMachines
   private int localActivityTaskCount;
 
+  private final ReplayWorkflowContextImpl context;
+
   private final ReplayWorkflowExecutor replayWorkflowExecutor;
 
   ReplayWorkflowRunTaskHandler(
@@ -106,7 +108,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     this.workflowStateMachines = new WorkflowStateMachines(new StatesMachinesCallbackImpl());
     String fullReplayDirectQueryType =
         workflowTask.hasQuery() ? workflowTask.getQuery().getQueryType() : null;
-    ReplayWorkflowContextImpl context =
+    this.context =
         new ReplayWorkflowContextImpl(
             workflowStateMachines,
             namespace,
@@ -125,7 +127,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   @Override
   public WorkflowTaskResult handleWorkflowTask(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator)
-      throws InterruptedException, Throwable {
+      throws Throwable {
     lock.lock();
     try {
       Deadline wftHearbeatDeadline =
@@ -151,17 +153,20 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       handleWorkflowTaskImpl(workflowTask, historyIterator);
       processLocalActivityRequests(wftHearbeatDeadline);
       List<Command> commands = workflowStateMachines.takeCommands();
-      if (replayWorkflowExecutor.isCompleted()) {
+      if (context.isWorkflowMethodCompleted()) {
         // it's important for query, otherwise the WorkflowTaskHandler is responsible for closing
         // and invalidation
         close();
+      }
+      if (context.getWorkflowTaskFailure() != null) {
+        throw context.getWorkflowTaskFailure();
       }
       Map<String, WorkflowQueryResult> queryResults = executeQueries(workflowTask.getQueriesMap());
       return WorkflowTaskResult.newBuilder()
           .setCommands(commands)
           .setQueryResults(queryResults)
-          .setFinalCommand(replayWorkflowExecutor.isCompleted())
-          .setForceWorkflowTask(localActivityTaskCount > 0 && !replayWorkflowExecutor.isCompleted())
+          .setFinalCommand(context.isWorkflowMethodCompleted())
+          .setForceWorkflowTask(localActivityTaskCount > 0 && !context.isWorkflowMethodCompleted())
           .build();
     } finally {
       lock.unlock();
@@ -170,19 +175,22 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
 
   @Override
   public QueryResult handleDirectQueryWorkflowTask(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask,
-      WorkflowHistoryIterator historyIterator) {
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator)
+      throws Throwable {
     WorkflowQuery query = workflowTask.getQuery();
     lock.lock();
     try {
       handleWorkflowTaskImpl(workflowTask, historyIterator);
-      if (replayWorkflowExecutor.isCompleted()) {
+      if (context.isWorkflowMethodCompleted()) {
         // it's important for query, otherwise the WorkflowTaskHandler is responsible for closing
         // and invalidation
         close();
       }
+      if (context.getWorkflowTaskFailure() != null) {
+        throw context.getWorkflowTaskFailure();
+      }
       Optional<Payloads> resultPayloads = replayWorkflowExecutor.query(query);
-      return new QueryResult(resultPayloads, replayWorkflowExecutor.isCompleted());
+      return new QueryResult(resultPayloads, context.isWorkflowMethodCompleted());
     } finally {
       lock.unlock();
     }

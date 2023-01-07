@@ -49,9 +49,12 @@ public interface WorkflowRunTaskHandler {
    *
    * @param workflowTask task to handle
    * @return an object that can be used to build a legacy query response
+   * @throws Throwable if processing experienced issues that are considered unrecoverable inside the
+   *     current workflow task. {@link NonDeterministicException} or {@link Error} are such cases.
    */
   QueryResult handleDirectQueryWorkflowTask(
-      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator);
+      PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator)
+      throws Throwable;
 
   void close();
 }
