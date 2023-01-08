@@ -21,6 +21,7 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import io.temporal.worker.NonDeterministicException;
 
 /**
  * Task handler that encapsulates a cached workflow and can handle multiple calls to
@@ -35,10 +36,12 @@ public interface WorkflowRunTaskHandler {
    *
    * @param workflowTask task to handle
    * @return an object that can be used to build workflow task completion or failure response
+   * @throws Throwable if processing experienced issues that are considered unrecoverable inside the
+   *     current workflow task. {@link NonDeterministicException} or {@link Error} are such cases.
    */
   WorkflowTaskResult handleWorkflowTask(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator)
-      throws InterruptedException;
+      throws Throwable;
 
   /**
    * Handles a Direct Query (or Legacy Query) scenario. In this case, it's not a real workflow task

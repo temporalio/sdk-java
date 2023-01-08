@@ -53,7 +53,6 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -310,16 +309,11 @@ public class SDKTestWorkflowRule implements TestRule {
       // wait for completion of a workflow task in progress
       long startEventId = lastEvent.getEventId();
       while (true) {
-        History history = getHistory(execution);
-        ListIterator<HistoryEvent> historyEventListIterator =
-            history.getEventsList().listIterator(history.getEventsList().size());
-        HistoryEvent previous;
-        for (previous = historyEventListIterator.previous();
-            historyEventListIterator.hasPrevious() && previous.getEventId() > startEventId;
-            previous = historyEventListIterator.previous()) {
-          if (!isWFTInProgress(historyEventListIterator.previous())) {
-            return;
-          }
+        List<HistoryEvent> historyEvents = getHistory(execution).getEventsList();
+        if (historyEvents.stream()
+            .filter(e -> e.getEventId() > startEventId)
+            .anyMatch(e -> !isWFTInProgress(e))) {
+          return;
         }
         busyWaitSleep();
       }

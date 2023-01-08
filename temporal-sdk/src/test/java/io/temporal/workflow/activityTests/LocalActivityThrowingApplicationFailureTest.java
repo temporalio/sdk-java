@@ -42,7 +42,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-public class LocalActivityThrowingpplicationFailureTest {
+public class LocalActivityThrowingApplicationFailureTest {
 
   private static WorkflowOptions options;
 
@@ -69,7 +69,7 @@ public class LocalActivityThrowingpplicationFailureTest {
   }
 
   @Test
-  public void localActivityThrowsError() {
+  public void retryable() {
     String name = testName.getMethodName();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);
@@ -84,7 +84,7 @@ public class LocalActivityThrowingpplicationFailureTest {
   }
 
   @Test
-  public void localActivityNonRetryableThrowsError() {
+  public void nonRetryable() {
     String name = testName.getMethodName();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
     TestWorkflow4 workflow = client.newWorkflowStub(TestWorkflow4.class, options);

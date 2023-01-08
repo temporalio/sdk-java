@@ -34,10 +34,15 @@ public final class LocalActivityResult {
   private final @Nullable RespondActivityTaskCompletedRequest executionCompleted;
   private final @Nullable ExecutionFailedResult executionFailed;
   private final @Nullable RespondActivityTaskCanceledRequest executionCanceled;
+  /**
+   * If present, it will cause an immediate WFT failure instead of providing LA result to the
+   * workflow code.
+   */
+  private final @Nullable ProcessingErrorResult processingError;
 
   static LocalActivityResult completed(ActivityTaskHandler.Result ahResult, int attempt) {
     return new LocalActivityResult(
-        ahResult.getActivityId(), attempt, ahResult.getTaskCompleted(), null, null);
+        ahResult.getActivityId(), attempt, ahResult.getTaskCompleted(), null, null, null);
   }
 
   static LocalActivityResult failed(
@@ -48,12 +53,18 @@ public final class LocalActivityResult {
       @Nullable Duration backoff) {
     ExecutionFailedResult failedResult =
         new ExecutionFailedResult(retryState, timeoutFailure, backoff);
-    return new LocalActivityResult(activityId, attempt, null, failedResult, null);
+    return new LocalActivityResult(activityId, attempt, null, failedResult, null, null);
   }
 
   static LocalActivityResult cancelled(ActivityTaskHandler.Result ahResult, int attempt) {
     return new LocalActivityResult(
-        ahResult.getActivityId(), attempt, null, null, ahResult.getTaskCanceled());
+        ahResult.getActivityId(), attempt, null, null, ahResult.getTaskCanceled(), null);
+  }
+
+  /** result created by this factory method will lead to as immediate WFT failure as possible. */
+  static LocalActivityResult processingFailed(String activityId, int attempt, Throwable ex) {
+    return new LocalActivityResult(
+        activityId, attempt, null, null, null, new ProcessingErrorResult(ex));
   }
 
   /**
@@ -66,12 +77,14 @@ public final class LocalActivityResult {
       int lastAttempt,
       @Nullable RespondActivityTaskCompletedRequest executionCompleted,
       @Nullable ExecutionFailedResult executionFailed,
-      @Nullable RespondActivityTaskCanceledRequest executionCanceled) {
+      @Nullable RespondActivityTaskCanceledRequest executionCanceled,
+      @Nullable ProcessingErrorResult processingError) {
     this.activityId = activityId;
     this.lastAttempt = lastAttempt;
     this.executionCompleted = executionCompleted;
     this.executionFailed = executionFailed;
     this.executionCanceled = executionCanceled;
+    this.processingError = processingError;
   }
 
   @Nonnull
@@ -98,6 +111,11 @@ public final class LocalActivityResult {
     return executionCanceled;
   }
 
+  @Nullable
+  public ProcessingErrorResult getProcessingError() {
+    return processingError;
+  }
+
   @Override
   public String toString() {
     return "LocalActivityResult{"
@@ -112,6 +130,8 @@ public final class LocalActivityResult {
         + executionFailed
         + ", executionCanceled="
         + executionCanceled
+        + ", processingError="
+        + processingError
         + '}';
   }
 
@@ -156,6 +176,24 @@ public final class LocalActivityResult {
           + ", backoff="
           + backoff
           + '}';
+    }
+  }
+
+  public static class ProcessingErrorResult {
+    @Nonnull private final Throwable throwable;
+
+    public ProcessingErrorResult(@Nonnull Throwable throwable) {
+      this.throwable = throwable;
+    }
+
+    @Nonnull
+    public Throwable getThrowable() {
+      return throwable;
+    }
+
+    @Override
+    public String toString() {
+      return "ProcessingErrorResult{" + "throwable=" + throwable + '}';
     }
   }
 }

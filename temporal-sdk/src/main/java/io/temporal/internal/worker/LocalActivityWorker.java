@@ -21,6 +21,7 @@
 package io.temporal.internal.worker;
 
 import static io.temporal.internal.worker.LocalActivityResult.failed;
+import static io.temporal.internal.worker.LocalActivityResult.processingFailed;
 
 import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
@@ -35,7 +36,6 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.logging.LoggerTag;
@@ -481,14 +481,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         // handleLocalActivity is expected to never throw an exception and return a result
         // that can be used for a workflow callback if this method throws, it's a bug.
         log.error("[BUG] Code that expected to never throw an exception threw an exception", ex);
-        Failure failure = FailureConverter.exceptionToFailure(ex);
         executionContext.callback(
-            failed(
-                activityTask.getActivityId(),
-                activityTask.getAttempt(),
-                RetryState.RETRY_STATE_INTERNAL_SERVER_ERROR,
-                failure,
-                null));
+            processingFailed(activityTask.getActivityId(), activityTask.getAttempt(), ex));
         throw ex;
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
@@ -539,6 +533,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
       Failure executionFailure =
           activityHandlerResult.getTaskFailed().getTaskFailedRequest().getFailure();
+      Throwable executionThrowable = activityHandlerResult.getTaskFailed().getFailure();
 
       RetryDecision retryDecision =
           shouldRetry(
@@ -550,6 +545,9 @@ final class LocalActivityWorker implements Startable, Shutdownable {
             Objects.requireNonNull(
                 retryDecision.nextAttemptBackoff, "nextAttemptBackoff is expected to not be null"),
             executionFailure);
+      } else if (retryDecision.failWorkflowTask()) {
+        executionContext.callback(
+            processingFailed(executionContext.getActivityId(), currentAttempt, executionThrowable));
       } else {
         executionContext.callback(
             failed(
@@ -774,6 +772,10 @@ final class LocalActivityWorker implements Startable, Shutdownable {
 
     public boolean doNextAttempt() {
       return retryState == null;
+    }
+
+    public boolean failWorkflowTask() {
+      return RetryState.RETRY_STATE_INTERNAL_SERVER_ERROR.equals(retryState);
     }
   }
 }

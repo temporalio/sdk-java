@@ -125,7 +125,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   @Override
   public WorkflowTaskResult handleWorkflowTask(
       PollWorkflowTaskQueueResponseOrBuilder workflowTask, WorkflowHistoryIterator historyIterator)
-      throws InterruptedException {
+      throws InterruptedException, Throwable {
     lock.lock();
     try {
       Deadline wftHearbeatDeadline =
@@ -273,7 +273,7 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   }
 
   private void processLocalActivityRequests(Deadline wftHeartbeatDeadline)
-      throws InterruptedException {
+      throws InterruptedException, Throwable {
 
     while (true) {
       List<ExecuteLocalActivityParameters> laRequests =
@@ -307,6 +307,11 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
       }
 
       localActivityTaskCount--;
+
+      if (laCompletion.getProcessingError() != null) {
+        throw laCompletion.getProcessingError().getThrowable();
+      }
+
       workflowStateMachines.handleLocalActivityCompletion(laCompletion);
       // handleLocalActivityCompletion triggers eventLoop.
       // After this call, there may be new local activity requests available in

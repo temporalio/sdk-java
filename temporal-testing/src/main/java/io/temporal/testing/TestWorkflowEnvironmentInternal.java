@@ -44,6 +44,7 @@ import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
@@ -241,7 +242,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
-  public WorkflowExecutionHistory getWorkflowExecutionHistory(WorkflowExecution execution) {
+  public WorkflowExecutionHistory getWorkflowExecutionHistory(
+      @Nonnull WorkflowExecution execution) {
+    Preconditions.checkNotNull(execution, "execution is required");
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
             .setNamespace(getNamespace())

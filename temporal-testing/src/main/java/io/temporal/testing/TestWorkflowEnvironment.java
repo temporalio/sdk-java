@@ -31,6 +31,7 @@ import io.temporal.worker.WorkerOptions;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 
 /**
  * TestWorkflowEnvironment provides workflow unit testing capabilities.
@@ -196,7 +197,7 @@ public interface TestWorkflowEnvironment extends Closeable {
    * @param execution identifies the workflowId and runId (optionally) to reach the history for
    * @return history of the execution
    */
-  WorkflowExecutionHistory getWorkflowExecutionHistory(WorkflowExecution execution);
+  WorkflowExecutionHistory getWorkflowExecutionHistory(@Nonnull WorkflowExecution execution);
 
   /** Calls {@link #shutdownNow()} and {@link #awaitTermination(long, TimeUnit)}. */
   @Override
