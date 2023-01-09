@@ -39,7 +39,7 @@ ext {
     guavaVersion = '31.1-jre' // [10.0,)
     tallyVersion = '0.11.1' // [0.4.0,)
 
-    gsonVersion = '2.10' // [2.0,)
+    gsonVersion = '2.10.1' // [2.0,)
 
     jsonPathVersion = '2.7.0' // compileOnly
 
