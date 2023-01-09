@@ -442,7 +442,7 @@ public class TestWorkflowRule implements TestRule {
   /**
    * @return workflow execution history
    */
-  public History getHistory(WorkflowExecution execution) {
+  public History getHistory(@Nonnull WorkflowExecution execution) {
     return testEnvironment.getWorkflowExecutionHistory(execution).getHistory();
   }
 
