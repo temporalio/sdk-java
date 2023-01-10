@@ -1,0 +1,38 @@
+Highlights:
+
+v1.18 release will bring a comprehensive rework of Local Activity Worker implementation
+- Local Activities now respect all the timeouts set on `LocalActivityOptions`.
+- Lower ScheduleToStart latencies for Local Activities and a backpressure that prefers retries over new executions
+- `LocalActivityOptions` got `scheduleToStart` timeout
+
+Migration note:
+Previously Local Activity Workers didn't respect `startToClose` and, in some cases, `scheduleToClose` timeouts.
+Some users may have `LocalActivityOptions` configurations that don't accommodate their actual timings but previously were unenforced.
+The enforcement will kick in after an upgrade on v1.18+ and may lead to Local Activity failures that were not happening before.
+Users may need to test and adjust their `LocalActivityOptions` timeouts before rolling out v1.18+ to production.
+
+Changeset:
+2022-10-26 - af7c2ca1 - Mass replay API (#1497)
+2022-10-27 - e023e046 - Add WorkflowInfo#getHistoryLength (#1498)
+2022-10-27 - efce2f17 - Use longer retry interval on RESOURCE_EXHAUSTED (#1465)
+2022-10-28 - 699aa6f3 - Switch to the latest server in CI/CD (#1499)
+2022-11-07 - bac32774 - Port a server fix for the last heartbeat time being defaulted to the activity started time (#1508)
+2022-11-15 - 2ea4ef76 - Revisit Activity Timeouts (#1514)
+2022-11-15 - 40e28a74 - Add gatherRuntimeDeps task (#1517)
+2022-11-15 - 88baa797 - Fix SignalDuringLastWorkflowTaskTest (#1515)
+2022-11-18 - 4c4cb241 - Test Environments now respect metricsScope passed in TestEnvironmentOptions and ServiceStubOptions (#1521)
+2022-11-18 - a841a7c7 - Add sdk-features ci trigger (#1520)
+2022-11-21 - eda6bdac - Test server now generate a unique taskToken per attempts and doesn't allow old attempts the complete the execution (#1524)
+2022-11-22 - 7b526740 - More work for activity timeout compliance framework (#1525)
+2022-11-23 - c5f0ebbe - Rework Local Activity scheduling (#1507)
+2022-12-06 - 458bbf8e - Add generated proto classes info into javadoc jar (#1534)
+2022-12-06 - ec18bc86 - Implement retry of local activities for over local retry threshold duration (#1542)
+2022-12-08 - f389bd8e - Add scheduleToStart timeout to Local Activities, optimize LA queueing, add more retry guard clauses (#1560)
+2022-12-12 - 47e76c01 - Fix binary compatibility broken by #1566 (#1571)
+2022-12-12 - b079eb27 - Open WorkflowExecutionHistory as a public class (#1566)
+2022-12-16 - 7c167748 - Remove usage of Workflow time from tracing spans (#1573)
+2022-12-16 - f8cc7923 - Update C# and Ruby namespace/package for test server protos (#1572)
+2023-01-05 - 567bdebb - Set heartbeat details for TestActivityEnvironment (#1581)
+2023-01-05 - f1c8454b - List workflow API (#1583)
+2023-01-09 - 8b14ee9c - Fail WFT if Local Activity execution experienced an Error (#1591)
+2023-01-10 - e97ceb87 - Exposing an ability to fail WorkflowTask for any callback in executor code (#1589)
