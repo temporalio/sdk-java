@@ -23,11 +23,7 @@ package io.temporal.internal.replay;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.internal.statemachines.ExecuteActivityParameters;
@@ -62,17 +58,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
   WorkflowType getWorkflowType();
 
   /**
-   * @return true if cancellation of the workflow is requested.
-   */
-  boolean isCancelRequested();
-
-  /**
-   * When these attributes are present upon completion of the workflow code the ContinueAsNew
-   * command is emitted instead of the workflow completion.
-   */
-  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
-
-  /**
    * RunId of the first run in the continue-as-new chain. Empty if this workflow never called
    * continue as new.
    */
@@ -98,12 +83,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
   Duration getWorkflowTaskTimeout();
 
   Payload getMemo(String key);
-
-  /**
-   * @return search attributes as a non-deserialized protobuf, null if empty
-   */
-  @Nullable
-  SearchAttributes getSearchAttributes();
 
   /**
    * Requests an activity execution.
@@ -154,8 +133,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   void requestCancelExternalWorkflowExecution(
       WorkflowExecution execution, Functions.Proc2<Void, RuntimeException> callback);
-
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
 
   /**
    * @return time of the {@link PollWorkflowTaskQueueResponse} start event of the workflow task
@@ -261,9 +238,6 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   UUID randomUUID();
 
-  /** Updates or inserts search attributes used to index workflows. */
-  void upsertSearchAttributes(SearchAttributes searchAttributes);
-
   /**
    * @return workflow retry attempt. default is 1
    */
@@ -303,4 +277,53 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @return eventId of the last / currently active workflow task of this workflow
    */
   long getCurrentWorkflowTaskStartedEventId();
+
+  /**
+   * @return true if cancellation of the workflow is requested.
+   */
+  boolean isCancelRequested();
+
+  void setCancelRequested();
+
+  /**
+   * @return true if the worker's execution or a or replay of the workflow method finished or failed
+   */
+  boolean isWorkflowMethodCompleted();
+
+  void setWorkflowMethodCompleted();
+
+  /**
+   * When these attributes are present upon completion of the workflow code the ContinueAsNew
+   * command is emitted instead of the workflow completion.
+   */
+  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
+
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
+
+  Throwable getWorkflowTaskFailure();
+
+  /**
+   * Can be used by any code (both control and executing in workflow threads) to communicate that
+   * something is off, correct handling of Workflow Task is no possible and the worker should fail
+   * the Workflow Task.
+   *
+   * <p>Note that this method is created to be from callback and other places where it may be tricky
+   * to propagate an exception. If you usecase is in the main synchronous code of WFT processing
+   * worker executor control thread - prefer direct exception throwing or return over using this
+   * indirect way.
+   *
+   * @param failure cause of the workflow task failure, this exception will be propagated by
+   *     rethrowing in Workflow Executor thread
+   */
+  void failWorkflowTask(Throwable failure);
+
+  /**
+   * @return search attributes collected during the workflow execution up to the current moment as a
+   *     non-deserialized protobuf, null if empty
+   */
+  @Nullable
+  SearchAttributes getSearchAttributes();
+
+  /** Updates or inserts search attributes used to index workflows. */
+  void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes);
 }

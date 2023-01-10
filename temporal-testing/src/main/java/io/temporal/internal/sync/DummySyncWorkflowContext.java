@@ -85,6 +85,21 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    public void setCancelRequested() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public boolean isWorkflowMethodCompleted() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void setWorkflowMethodCompleted() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -141,6 +156,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    @Nullable
     public SearchAttributes getSearchAttributes() {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -182,6 +198,16 @@ public class DummySyncWorkflowContext {
     @Override
     public void continueAsNewOnCompletion(
         ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Throwable getWorkflowTaskFailure() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void failWorkflowTask(Throwable failure) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -255,7 +281,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public void upsertSearchAttributes(SearchAttributes searchAttributes) {
+    public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 

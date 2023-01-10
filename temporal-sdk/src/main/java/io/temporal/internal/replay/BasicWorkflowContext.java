@@ -22,7 +22,6 @@ package io.temporal.internal.replay;
 
 import com.google.common.base.Preconditions;
 import com.google.protobuf.util.Timestamps;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
@@ -47,11 +46,6 @@ final class BasicWorkflowContext {
 
   @Nullable private final Failure previousRunFailure;
 
-  // Mutable, accumulated during execution:
-  private SearchAttributes.Builder searchAttributes;
-  private boolean cancelRequested;
-  private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
-
   BasicWorkflowContext(
       String namespace,
       @Nonnull WorkflowExecution workflowExecution,
@@ -60,9 +54,6 @@ final class BasicWorkflowContext {
     this.namespace = namespace;
     this.workflowExecution = Preconditions.checkNotNull(workflowExecution);
     this.startedAttributes = startedAttributes;
-    if (startedAttributes.hasSearchAttributes()) {
-      this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
-    }
     this.runStartedTimestampMillis = runStartedTimestampMillis;
     this.lastCompletionResult =
         startedAttributes.hasLastCompletionResult()
@@ -79,22 +70,6 @@ final class BasicWorkflowContext {
 
   WorkflowType getWorkflowType() {
     return startedAttributes.getWorkflowType();
-  }
-
-  boolean isCancelRequested() {
-    return cancelRequested;
-  }
-
-  void setCancelRequested(boolean flag) {
-    cancelRequested = flag;
-  }
-
-  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
-    return continueAsNewOnCompletion;
-  }
-
-  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes parameters) {
-    this.continueAsNewOnCompletion = parameters;
   }
 
   Optional<String> getContinuedExecutionRunId() {
@@ -152,25 +127,8 @@ final class BasicWorkflowContext {
     return startedAttributes.getMemo().getFieldsMap().get(key);
   }
 
-  @Nullable
-  SearchAttributes getSearchAttributes() {
-    return searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0
-        ? null
-        : searchAttributes.build();
-  }
-
   int getAttempt() {
     return startedAttributes.getAttempt();
-  }
-
-  void mergeSearchAttributes(SearchAttributes searchAttributes) {
-    if (searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0) {
-      return;
-    }
-    if (this.searchAttributes == null) {
-      this.searchAttributes = SearchAttributes.newBuilder();
-    }
-    this.searchAttributes.putAllIndexedFields(searchAttributes.getIndexedFieldsMap());
   }
 
   public String getCronSchedule() {

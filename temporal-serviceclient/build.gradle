@@ -1,5 +1,5 @@
 plugins {
-    id 'com.google.protobuf' version '0.8.19'
+    id 'com.google.protobuf' version '0.9.2'
 }
 
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
@@ -50,6 +50,15 @@ jar {
     includeEmptyDirs false
 }
 
+// Needed to include generated files into the source jar
+sourcesJar {
+    dependsOn 'generateProto'
+    from(file("$buildDir/generated/main/java"))
+        // Solves: "Entry gogoproto/Gogo.java is a duplicate but no duplicate handling strategy has been set.
+        // Please refer to https://docs.gradle.org/7.6/dsl/org.gradle.api.tasks.Copy.html#org.gradle.api.tasks.Copy:duplicatesStrategy for details."
+        .setDuplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+}
+
 protobuf {
     // version/variables substitution is not supported in protobuf section.
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
@@ -91,12 +100,6 @@ clean {
 
 protobuf {
     generatedFilesBaseDir = "$buildDir/generated"
-}
-
-// Needed to include generated files into the source jar
-sourcesJar {
-    dependsOn 'generateProto'
-    from(file("$buildDir/generated/main/java"))
 }
 
 javadocJar {

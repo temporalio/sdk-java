@@ -71,7 +71,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
   private WorkflowStateMachines stateMachines;
 
   @Test
-  public void queryIsOutdated() {
+  public void queryIsOutdated() throws Throwable {
     TestWorkflows.TestWorkflowWithQuery noArgsWorkflow =
         testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflowWithQuery.class);
     noArgsWorkflow.execute();
