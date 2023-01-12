@@ -72,7 +72,11 @@ public class CleanWorkerShutdownHeartBeatingActivityTest {
     started.get();
     testWorkflowRule.getTestEnvironment().shutdown();
     testWorkflowRule.getTestEnvironment().awaitTermination(10, TimeUnit.MINUTES);
-    List<HistoryEvent> events = testWorkflowRule.getHistory(execution).getEventsList();
+    List<HistoryEvent> events =
+        testWorkflowRule
+            .getExecutionHistory(execution.getWorkflowId())
+            .getHistory()
+            .getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
       if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {

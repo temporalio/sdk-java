@@ -51,8 +51,8 @@ public class WorkflowAwaitWithDurationCancellationTest {
     TestWorkflows.TestWorkflow1 workflow =
         testWorkflowRule.newWorkflowStub(TestWorkflows.TestWorkflow1.class);
     WorkflowExecution execution = null;
+    execution = WorkflowClient.start(workflow::execute, "input1");
     try {
-      execution = WorkflowClient.start(workflow::execute, "input1");
       WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
       workflowStarted.waitForSignal();
       untyped.cancel();
@@ -60,7 +60,8 @@ public class WorkflowAwaitWithDurationCancellationTest {
       fail("unreacheable");
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
-      History history = testWorkflowRule.getHistory(execution);
+      History history =
+          testWorkflowRule.getExecutionHistory(execution.getWorkflowId()).getHistory();
 
       HistoryEvent lastEvent = history.getEvents(history.getEventsCount() - 1);
       assertEquals(

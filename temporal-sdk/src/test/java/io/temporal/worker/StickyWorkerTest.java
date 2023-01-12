@@ -484,7 +484,7 @@ public class StickyWorkerTest {
     // Assert
     assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.WAITING_FOR_NAME);
     SDKTestWorkflowRule.assertNoHistoryEvent(
-        wrapper.testEnv.getWorkflowExecutionHistory(execution).getHistory(),
+        wrapper.testEnv.getWorkflowClient().fetchHistory(execution.getWorkflowId()).getHistory(),
         EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
 
     wrapper.close();
@@ -535,7 +535,7 @@ public class StickyWorkerTest {
     // Query after completion
     assertEquals(workflow.getProgress(), GreetingSignalWorkflow.Status.GREETING_GENERATED);
     SDKTestWorkflowRule.assertNoHistoryEvent(
-        wrapper.testEnv.getWorkflowExecutionHistory(execution).getHistory(),
+        wrapper.testEnv.getWorkflowClient().fetchHistory(execution.getWorkflowId()).getHistory(),
         EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
 
     wrapper.close();

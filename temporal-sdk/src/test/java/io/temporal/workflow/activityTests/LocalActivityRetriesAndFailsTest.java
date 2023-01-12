@@ -68,7 +68,8 @@ public class LocalActivityRetriesAndFailsTest {
     Assert.assertEquals("last attempt", 5, activitiesImpl.getLastAttempt());
 
     testWorkflowRule.regenerateHistoryForReplay(
-        WorkflowStub.fromTyped(workflowStub).getExecution(), "laRetriesAndFails_1_xx");
+        WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId(),
+        "laRetriesAndFails_1_xx");
   }
 
   /** History from 1.17 before we changed LA marker structure in 1.18 */

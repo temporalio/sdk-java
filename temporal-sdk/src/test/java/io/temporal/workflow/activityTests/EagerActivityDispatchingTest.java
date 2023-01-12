@@ -116,7 +116,8 @@ public class EagerActivityDispatchingTest {
     workflowStub.execute(true);
 
     WorkflowExecutionHistory history =
-        env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
+        env.getWorkflowClient()
+            .fetchHistory(WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId());
     Set<String> activityTaskStartedEventIdentity =
         history.getEvents().stream()
             .filter(HistoryEvent::hasActivityTaskStartedEventAttributes)
@@ -155,7 +156,8 @@ public class EagerActivityDispatchingTest {
     workflowStub.execute(true);
 
     WorkflowExecutionHistory history =
-        env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
+        env.getWorkflowClient()
+            .fetchHistory(WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId());
     Set<String> activityTaskStartedEventIdentity =
         history.getEvents().stream()
             .filter(HistoryEvent::hasActivityTaskStartedEventAttributes)
@@ -194,7 +196,8 @@ public class EagerActivityDispatchingTest {
     workflowStub.execute(false);
 
     WorkflowExecutionHistory history =
-        env.getWorkflowExecutionHistory(WorkflowStub.fromTyped(workflowStub).getExecution());
+        env.getWorkflowClient()
+            .fetchHistory(WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId());
     Set<String> activityTaskStartedEventIdentity =
         history.getEvents().stream()
             .filter(HistoryEvent::hasActivityTaskStartedEventAttributes)

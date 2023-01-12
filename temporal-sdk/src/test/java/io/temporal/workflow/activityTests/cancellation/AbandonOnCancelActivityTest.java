@@ -83,7 +83,8 @@ public class AbandonOnCancelActivityTest {
     assertTrue(
         "Activity with CancellationType=ABANDON should never have a requested cancellation in history",
         testWorkflowRule
-            .getHistoryEvents(execution, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
+            .getHistoryEvents(
+                execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
             .isEmpty());
   }
 

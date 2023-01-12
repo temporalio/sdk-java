@@ -75,9 +75,10 @@ public class ChildWorkflowCancellationTest {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
     testWorkflowRule.assertHistoryEvent(
-        execution, EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
+        execution.getWorkflowId(),
+        EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
     testWorkflowRule.assertNoHistoryEvent(
-        execution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
+        execution.getWorkflowId(), EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
     assertFalse(
         "We should not have wait till the finish of detached scope in WAIT_CANCELLATION_REQUESTED mode",
         detachedScopeFinished.isSignalled());
@@ -98,7 +99,7 @@ public class ChildWorkflowCancellationTest {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
     testWorkflowRule.assertHistoryEvent(
-        execution, EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
+        execution.getWorkflowId(), EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED);
     assertTrue(
         "We should be here after the full finish of the detached scope in WAIT_CANCELLATION_COMPLETED mode",
         detachedScopeFinished.isSignalled());
@@ -118,7 +119,8 @@ public class ChildWorkflowCancellationTest {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
     testWorkflowRule.assertNoHistoryEvent(
-        execution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
+        execution.getWorkflowId(),
+        EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
     assertFalse(
         "We should not have wait till the finish of detached scope in ABANDON mode",
         detachedScopeFinished.isSignalled());
@@ -138,9 +140,11 @@ public class ChildWorkflowCancellationTest {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
     testWorkflowRule.assertHistoryEvent(
-        execution, EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
+        execution.getWorkflowId(),
+        EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED);
     testWorkflowRule.assertNoHistoryEvent(
-        execution, EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
+        execution.getWorkflowId(),
+        EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED);
     assertFalse(
         "We should not have wait till the finish of detached scope in TRY_CANCEL mode",
         detachedScopeFinished.isSignalled());

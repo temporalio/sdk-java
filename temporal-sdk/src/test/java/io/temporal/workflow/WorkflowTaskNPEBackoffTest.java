@@ -60,7 +60,7 @@ public class WorkflowTaskNPEBackoffTest {
     Assert.assertEquals(
         1,
         testWorkflowRule
-            .getHistoryEvents(execution, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED)
+            .getHistoryEvents(execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED)
             .size());
   }
 

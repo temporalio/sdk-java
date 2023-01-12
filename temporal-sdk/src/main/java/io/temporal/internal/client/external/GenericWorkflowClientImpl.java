@@ -177,6 +177,32 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
+  public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
+      @Nonnull GetWorkflowExecutionHistoryRequest request) {
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .getWorkflowExecutionHistory(request),
+        grpcRetryerOptions);
+  }
+
+  @Override
+  public CompletableFuture<GetWorkflowExecutionHistoryResponse> getWorkflowExecutionHistoryAsync(
+      @Nonnull GetWorkflowExecutionHistoryRequest request) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .getWorkflowExecutionHistory(request)),
+        grpcRetryerOptions);
+  }
+
+  @Override
   public QueryWorkflowResponse query(QueryWorkflowRequest queryParameters) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1)

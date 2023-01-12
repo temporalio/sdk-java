@@ -29,7 +29,6 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.internal.docker.RegisterTestNamespace;
@@ -441,15 +440,18 @@ public class TestWorkflowRule implements TestRule {
 
   /**
    * @return workflow execution history
+   * @deprecated use {@link WorkflowClient#fetchHistory(String, String)}. To obtain a WorkflowClient
+   *     use {@link #getWorkflowClient()}
    */
+  @Deprecated
   public History getHistory(@Nonnull WorkflowExecution execution) {
     return testEnvironment.getWorkflowExecutionHistory(execution).getHistory();
   }
 
   /**
    * @return name of the task queue that test worker is polling.
-   * @deprecated use {@link #getHistory}, this method will be reworked to return {@link
-   *     WorkflowExecutionHistory} in the upcoming releases
+   * @deprecated use {@link WorkflowClient#fetchHistory(String, String)}. To obtain a WorkflowClient
+   *     use {@link #getWorkflowClient()}
    */
   @Deprecated
   public History getWorkflowExecutionHistory(WorkflowExecution execution) {

@@ -82,7 +82,8 @@ public class TestLocalActivity {
             "activity Activity2");
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
     List<HistoryEvent> markers =
-        testWorkflowRule.getHistoryEvents(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
+        testWorkflowRule.getHistoryEvents(
+            execution.getWorkflowId(), EventType.EVENT_TYPE_MARKER_RECORDED);
     for (HistoryEvent marker : markers) {
       String activityType =
           DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(
@@ -125,7 +126,8 @@ public class TestLocalActivity {
             "activity Activity2");
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
     List<HistoryEvent> markers =
-        testWorkflowRule.getHistoryEvents(execution, EventType.EVENT_TYPE_MARKER_RECORDED);
+        testWorkflowRule.getHistoryEvents(
+            execution.getWorkflowId(), EventType.EVENT_TYPE_MARKER_RECORDED);
     for (HistoryEvent marker : markers) {
       String activityType =
           DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(

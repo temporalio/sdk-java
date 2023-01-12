@@ -63,7 +63,7 @@ public class GetVersionAfterScopeCancellationTest {
     untypedWorkflowStub.getResult(Void.TYPE);
 
     testWorkflowRule.assertNoHistoryEvent(
-        untypedWorkflowStub.getExecution(), EVENT_TYPE_WORKFLOW_TASK_FAILED);
+        untypedWorkflowStub.getExecution().getWorkflowId(), EVENT_TYPE_WORKFLOW_TASK_FAILED);
   }
 
   @WorkflowInterface
