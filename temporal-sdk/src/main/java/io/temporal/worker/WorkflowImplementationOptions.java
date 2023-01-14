@@ -76,8 +76,8 @@ public final class WorkflowImplementationOptions {
 
     /**
      * Set individual activity options per activityType. Will be merged with the map from {@link
-     * io.temporal.workflow.Workflow#newActivityStub(Class, ActivityOptions, Map)} which has highest
-     * precedence.
+     * io.temporal.workflow.Workflow#newActivityStub(Class, ActivityOptions, Map)} which has the
+     * highest precedence.
      *
      * @param activityOptions map from activityType to ActivityOptions
      */
@@ -102,7 +102,7 @@ public final class WorkflowImplementationOptions {
     /**
      * Set individual local activity options per activityType. Will be merged with the map from
      * {@link io.temporal.workflow.Workflow#newLocalActivityStub(Class, LocalActivityOptions, Map)}
-     * which has highest precedence.
+     * which has the highest precedence.
      *
      * @param localActivityOptions map from activityType to ActivityOptions
      */

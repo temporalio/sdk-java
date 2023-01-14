@@ -172,7 +172,7 @@ public final class Worker {
   /**
    * Registers workflow implementation classes with a worker. Can be called multiple times to add
    * more types. A workflow implementation class must implement at least one interface with a method
-   * annotated with {@link WorkflowMethod}. By default the short name of the interface is used as a
+   * annotated with {@link WorkflowMethod}. By default, the short name of the interface is used as a
    * workflow type that this worker supports.
    *
    * <p>Implementations that share a worker must implement different interfaces as a workflow type
@@ -436,7 +436,7 @@ public final class Worker {
   }
 
   /**
-   * This is an utility method to replay a workflow execution using this particular instance of a
+   * This is a utility method to replay a workflow execution using this particular instance of a
    * worker. This method is useful to troubleshoot workflows by running them in a debugger. To work
    * the workflow implementation type must be registered with this worker. There is no need to call
    * {@link #start()} to be able to call this method.
