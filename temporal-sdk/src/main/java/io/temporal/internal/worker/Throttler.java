@@ -27,7 +27,7 @@ final class Throttler {
 
   private static final Logger log = LoggerFactory.getLogger(Throttler.class);
 
-  /** Human readable name of the resource being throttled. Used for logging only. */
+  /** Human-readable name of the resource being throttled. Used for logging only. */
   private final String name;
 
   /** Used as a circular buffer */
@@ -46,7 +46,7 @@ final class Throttler {
   /**
    * Construct throttler.
    *
-   * @param name Human readable name of the resource being throttled. Used for logging only.
+   * @param name Human-readable name of the resource being throttled. Used for logging only.
    * @param maxRatePerSecond maximum rate allowed
    * @param rateIntervalMilliseconds rate measurement interval. Interval should be at least 1000 /
    *     maxRatePerSecond.
@@ -95,7 +95,7 @@ final class Throttler {
   }
 
   /**
-   * When called on each request sleeps if called faster then configured average rate.
+   * When called on each request sleeps if called faster than configured average rate.
    *
    * @throws InterruptedException when destroyRequested
    */

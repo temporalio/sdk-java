@@ -245,7 +245,7 @@ public final class WorkerOptions {
     }
 
     /**
-     * @param defaultDeadlockDetectionTimeoutMs time period in ms that will be used the detect
+     * @param defaultDeadlockDetectionTimeoutMs time period in ms that will be used to detect
      *     workflows deadlock. Default is 1000ms, which is chosen if set to zero.
      *     <p>Specifies an amount of time in milliseconds that workflow tasks are allowed to execute
      *     without interruption. If workflow task runs longer than specified interval without
