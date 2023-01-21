@@ -234,32 +234,35 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
     Optional<Payloads> args = dataConverter.toPayloads(input.getArgs());
-    Promise<Optional<Payloads>> binaryResult =
+    ActivityOutput<Optional<Payloads>> output =
         executeActivityOnce(input.getActivityName(), input.getOptions(), input.getHeader(), args);
+
+    Promise<Optional<Payloads>> binaryResult = output.getResult();
     if (input.getResultType() == Void.TYPE) {
-      return new ActivityOutput<>(binaryResult.thenApply((r) -> null));
+      return new ActivityOutput<>(output.getActivityId(), binaryResult.thenApply((r) -> null));
     }
     return new ActivityOutput<>(
+        output.getActivityId(),
         binaryResult.thenApply(
             (r) ->
                 dataConverter.fromPayloads(0, r, input.getResultClass(), input.getResultType())));
   }
 
-  private Promise<Optional<Payloads>> executeActivityOnce(
+  private ActivityOutput<Optional<Payloads>> executeActivityOnce(
       String name, ActivityOptions options, Header header, Optional<Payloads> input) {
     ActivityCallback callback = new ActivityCallback();
     ExecuteActivityParameters params =
         constructExecuteActivityParameters(name, options, header, input);
-    Functions.Proc1<Exception> cancellationCallback =
+    ReplayWorkflowContext.ScheduleActivityTaskOutput activityOutput =
         replayContext.scheduleActivityTask(params, callback::invoke);
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.apply(new CanceledFailure(reason));
+              activityOutput.getCancellationHandle().apply(new CanceledFailure(reason));
               return null;
             });
-    return callback.result;
+    return new ActivityOutput<>(activityOutput.getActivityId(), callback.result);
   }
 
   public void handleInterceptedSignal(WorkflowInboundCallsInterceptor.SignalInput input) {

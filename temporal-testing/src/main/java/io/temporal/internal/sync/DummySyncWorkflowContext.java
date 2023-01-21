@@ -162,7 +162,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public Functions.Proc1<Exception> scheduleActivityTask(
+    public ScheduleActivityTaskOutput scheduleActivityTask(
         ExecuteActivityParameters parameters,
         Functions.Proc2<Optional<Payloads>, Failure> callback) {
       throw new UnsupportedOperationException("not implemented");

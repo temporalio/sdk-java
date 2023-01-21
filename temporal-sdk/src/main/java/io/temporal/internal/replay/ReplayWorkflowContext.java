@@ -51,6 +51,25 @@ import javax.annotation.Nullable;
  */
 public interface ReplayWorkflowContext extends ReplayAware {
 
+  class ScheduleActivityTaskOutput {
+    private final String activityId;
+    private final Functions.Proc1<Exception> cancellationHandle;
+
+    public ScheduleActivityTaskOutput(
+        String activityId, Functions.Proc1<Exception> cancllationHandle) {
+      this.activityId = activityId;
+      this.cancellationHandle = cancllationHandle;
+    }
+
+    public String getActivityId() {
+      return activityId;
+    }
+
+    public Functions.Proc1<Exception> getCancellationHandle() {
+      return cancellationHandle;
+    }
+  }
+
   WorkflowExecution getWorkflowExecution();
 
   WorkflowExecution getParentWorkflowExecution();
@@ -93,7 +112,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @return cancellation handle. Invoke {@link io.temporal.workflow.Functions.Proc1#apply(Object)}
    *     to cancel activity task.
    */
-  Functions.Proc1<Exception> scheduleActivityTask(
+  ScheduleActivityTaskOutput scheduleActivityTask(
       ExecuteActivityParameters parameters, Functions.Proc2<Optional<Payloads>, Failure> callback);
 
   Functions.Proc scheduleLocalActivityTask(

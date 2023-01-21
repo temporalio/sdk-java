@@ -302,6 +302,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       heartbeatPayload.ifPresent(taskBuilder::setHeartbeatDetails);
       PollActivityTaskQueueResponse task = taskBuilder.build();
       return new ActivityOutput<>(
+          task.getActivityId(),
           Workflow.newPromise(
               getReply(task, executeActivity(task, false), i.getResultClass(), i.getResultType())));
     }
