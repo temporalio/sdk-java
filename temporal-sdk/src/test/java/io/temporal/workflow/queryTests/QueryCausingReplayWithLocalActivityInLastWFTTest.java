@@ -58,7 +58,7 @@ public class QueryCausingReplayWithLocalActivityInLastWFTTest {
     WorkflowExecution execution = WorkflowClient.start(workflowStub::execute);
     // Don't do waitForOKQuery wait here, it changes the structure of history events in a way that
     // doesn't reproduce the problem
-    testWorkflowRule.waitForTheEndOfWFT(execution);
+    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
 
     testWorkflowRule.invalidateWorkflowCache();
     assertEquals("updated", workflowStub.query());

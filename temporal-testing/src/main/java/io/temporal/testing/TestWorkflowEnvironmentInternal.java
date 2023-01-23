@@ -31,7 +31,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.operatorservice.v1.AddSearchAttributesRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
-import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.WorkflowExecutionHistory;
@@ -242,16 +241,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
+  @Deprecated
   public WorkflowExecutionHistory getWorkflowExecutionHistory(
       @Nonnull WorkflowExecution execution) {
     Preconditions.checkNotNull(execution, "execution is required");
-    GetWorkflowExecutionHistoryRequest request =
-        GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setNamespace(getNamespace())
-            .setExecution(execution)
-            .build();
-    return new WorkflowExecutionHistory(
-        workflowServiceStubs.blockingStub().getWorkflowExecutionHistory(request).getHistory());
+    return getWorkflowClient().fetchHistory(execution.getWorkflowId(), execution.getRunId());
   }
 
   @Override

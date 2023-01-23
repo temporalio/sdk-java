@@ -57,7 +57,8 @@ public class BinaryChecksumSetWhenTaskCompletedTest {
     SDKTestWorkflowRule.waitForOKQuery(stub);
 
     HistoryEvent completionEvent =
-        testWorkflowRule.getHistoryEvent(execution, EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED);
+        testWorkflowRule.getHistoryEvent(
+            execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED);
     assertNotNull(completionEvent);
     assertEquals(
         BINARY_CHECKSUM,

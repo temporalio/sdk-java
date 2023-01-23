@@ -80,7 +80,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
     WorkflowExecution workflowExecution = WorkflowStub.fromTyped(noArgsWorkflow).getExecution();
 
     WorkflowExecutionHistory workflowExecutionHistory =
-        testWorkflowRule.getExecutionHistory(workflowExecution);
+        testWorkflowRule.getWorkflowClient().fetchHistory(workflowExecution.getWorkflowId());
 
     PollWorkflowTaskQueueResponseOrBuilder wft =
         PollWorkflowTaskQueueResponse.newBuilder()

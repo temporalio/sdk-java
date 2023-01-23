@@ -22,12 +22,16 @@ package io.temporal.client;
 
 import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.History;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowInvocationHandler.InvocationType;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
@@ -47,8 +51,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 final class WorkflowClientInternal implements WorkflowClient {
 
@@ -75,8 +82,7 @@ final class WorkflowClientInternal implements WorkflowClient {
         new WorkflowClientInternal(service, options), WorkflowClient.class);
   }
 
-  private WorkflowClientInternal(
-      WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
+  WorkflowClientInternal(WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
     options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
@@ -242,7 +248,12 @@ final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
-  public Stream<WorkflowExecutionMetadata> listExecutions(String query, int pageSize) {
+  public Stream<WorkflowExecutionMetadata> listExecutions(@Nullable String query) {
+    return listExecutions(query, null);
+  }
+
+  Stream<WorkflowExecutionMetadata> listExecutions(
+      @Nullable String query, @Nullable Integer pageSize) {
     ListWorkflowExecutionIterator iterator =
         new ListWorkflowExecutionIterator(query, options.getNamespace(), pageSize, genericClient);
     iterator.init();
@@ -252,13 +263,48 @@ final class WorkflowClientInternal implements WorkflowClient {
 
     // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
     // impossible
-    // TODO We don't add DISTINCT to be safe. It's not explicitly stated if Temporal Server list API
+    //  TODO We don't add DISTINCT to be safe. It's not explicitly stated if Temporal Server list
+    // API
     // guarantees absence of duplicates
-    final int CHARACTERISTICS =
-        Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.DISTINCT | Spliterator.IMMUTABLE;
+    final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
 
     return StreamSupport.stream(
         Spliterators.spliteratorUnknownSize(wrappedIterator, CHARACTERISTICS), false);
+  }
+
+  @Override
+  public Stream<HistoryEvent> streamHistory(@Nonnull String workflowId) {
+    return streamHistory(workflowId, null);
+  }
+
+  @Override
+  public Stream<HistoryEvent> streamHistory(@Nonnull String workflowId, @Nullable String runId) {
+    Preconditions.checkNotNull(workflowId, "workflowId is required");
+
+    WorkflowExecution.Builder executionBuilder =
+        WorkflowExecution.newBuilder().setWorkflowId(workflowId);
+    if (runId != null) {
+      executionBuilder.setRunId(runId);
+    }
+    WorkflowExecution execution = executionBuilder.build();
+
+    return streamHistory(execution);
+  }
+
+  @Override
+  public WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId) {
+    return fetchHistory(workflowId, null);
+  }
+
+  @Override
+  public WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId, @Nullable String runId) {
+    Preconditions.checkNotNull(workflowId, "execution is required");
+
+    return new WorkflowExecutionHistory(
+        History.newBuilder()
+            .addAllEvents(streamHistory(workflowId, runId).collect(Collectors.toList()))
+            .build(),
+        workflowId);
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {
@@ -441,5 +487,22 @@ final class WorkflowClientInternal implements WorkflowClient {
       A5 arg5,
       A6 arg6) {
     return execute(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
+
+  Stream<HistoryEvent> streamHistory(WorkflowExecution execution) {
+    Preconditions.checkNotNull(execution, "execution is required");
+
+    GetWorkflowExecutionHistoryIterator iterator =
+        new GetWorkflowExecutionHistoryIterator(
+            options.getNamespace(), execution, null, genericClient);
+    iterator.init();
+
+    // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
+    // impossible
+    final int CHARACTERISTICS =
+        Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.DISTINCT | Spliterator.IMMUTABLE;
+
+    return StreamSupport.stream(
+        Spliterators.spliteratorUnknownSize(iterator, CHARACTERISTICS), false);
   }
 }

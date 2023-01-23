@@ -115,7 +115,8 @@ public class ChildWorkflowRetryTest {
     assertEquals("TestWorkflow1", lastStartedWorkflowType.get());
     assertEquals(3, angryChildActivity.getInvocationCount());
     WorkflowExecution execution = WorkflowStub.fromTyped(client).getExecution();
-    testWorkflowRule.regenerateHistoryForReplay(execution, "testChildWorkflowRetryHistory");
+    testWorkflowRule.regenerateHistoryForReplay(
+        execution.getWorkflowId(), "testChildWorkflowRetryHistory");
   }
 
   /**

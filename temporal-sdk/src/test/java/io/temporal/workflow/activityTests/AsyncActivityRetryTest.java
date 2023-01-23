@@ -65,7 +65,8 @@ public class AsyncActivityRetryTest {
     }
     Assert.assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
-    testWorkflowRule.regenerateHistoryForReplay(execution, "testAsyncActivityRetryHistory");
+    testWorkflowRule.regenerateHistoryForReplay(
+        execution.getWorkflowId(), "testAsyncActivityRetryHistory");
   }
 
   @Test

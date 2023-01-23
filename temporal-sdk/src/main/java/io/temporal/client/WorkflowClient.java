@@ -23,6 +23,8 @@ package io.temporal.client;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -38,6 +40,8 @@ import io.temporal.workflow.WorkflowMethod;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Client to the Temporal service used to start and query workflows by external processes. Also, it
@@ -243,26 +247,58 @@ public interface WorkflowClient {
   /**
    * A wrapper around {WorkflowServiceStub#listWorkflowExecutions(ListWorkflowExecutionsRequest)}
    *
-   * <p>Note: This method uses 1000 as the underlying page size. To customize the page size, use
-   * {@link #listExecutions(String, int)}
-   *
    * @param query Temporal Visibility Query, for syntax see <a
    *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
    * @return sequential stream that performs remote pagination under the hood
    */
-  default Stream<WorkflowExecutionMetadata> listExecutions(String query) {
-    return listExecutions(query, 1000);
-  }
+  Stream<WorkflowExecutionMetadata> listExecutions(@Nullable String query);
 
   /**
-   * A wrapper around {WorkflowServiceStub#listWorkflowExecutions(ListWorkflowExecutionsRequest)}
+   * Streams history events for a workflow execution for the provided {@code workflowId}.
    *
-   * @param query Temporal Visibility Query, for syntax see <a
-   *     href="https://docs.temporal.io/visibility#list-filter">Visibility docs</a>
-   * @param pageSize a page size to use for the underlying remote pagination
-   * @return sequential stream that performs remote pagination under the hood
+   * @param workflowId Workflow Id of the workflow to export the history for
+   * @return stream of history events of the workflow with the specified Workflow Id.
+   * @see #streamHistory(String, String) to get a history of a specific run.
+   * @see #fetchHistory(String) for a user-friendly eager version of this method
    */
-  Stream<WorkflowExecutionMetadata> listExecutions(String query, int pageSize);
+  Stream<HistoryEvent> streamHistory(@Nonnull String workflowId);
+
+  /**
+   * Streams history events for a workflow execution for the provided {@code workflowId} and {@code
+   * runId}.
+   *
+   * @param workflowId Workflow Id of the workflow to export the history for
+   * @param runId Fixed Run Id of the workflow to export the history for. If not provided, the
+   *     latest run will be used. Optional, can be null.
+   * @return stream of history events of the specified run of the workflow execution.
+   * @see #streamHistory(String) to get a history of workflow excution by workflowId without
+   *     providing a specific run.
+   * @see #fetchHistory(String, String) for a user-friendly eagert version of this method
+   */
+  Stream<HistoryEvent> streamHistory(@Nonnull String workflowId, @Nullable String runId);
+
+  /**
+   * Downloads workflow execution history for the provided {@code workflowId}.
+   *
+   * @param workflowId Workflow Id of the workflow to export the history for
+   * @return execution history of the workflow with the specified Workflow Id.
+   * @see #fetchHistory(String, String) to get a history of a specific run.
+   * @see #streamHistory(String) for a lazy memory-efficient version of this method
+   */
+  WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId);
+
+  /**
+   * Downloads workflow execution history for the provided {@code workflowId} and {@code runId}.
+   *
+   * @param workflowId Workflow Id of the workflow to export the history for
+   * @param runId Fixed Run Id of the workflow to export the history for. If not provided, the
+   *     latest run will be used. Optional, can be null.
+   * @return execution history of the specified run of the workflow execution.
+   * @see #fetchHistory(String) to get a history of workflow excution by workflowId without
+   *     providing a specific run.
+   * @see #streamHistory(String, String) for a lazy memory-efficient version of this method
+   */
+  WorkflowExecutionHistory fetchHistory(@Nonnull String workflowId, @Nullable String runId);
 
   /**
    * Executes zero argument workflow with void return type

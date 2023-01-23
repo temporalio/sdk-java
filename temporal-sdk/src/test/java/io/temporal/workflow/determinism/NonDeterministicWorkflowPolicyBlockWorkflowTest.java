@@ -78,7 +78,7 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
     // other WFTs after it should end with WORKFLOW_TASK_TIMED_OUT
     HistoryEvent nonDeterministicExceptionHistoryEvent =
         testWorkflowRule.getHistoryEvent(
-            WorkflowStub.fromTyped(workflowStub).getExecution(),
+            WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId(),
             EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
     WorkflowTaskFailedEventAttributes failedWFTEventAttributes =
         nonDeterministicExceptionHistoryEvent.getWorkflowTaskFailedEventAttributes();

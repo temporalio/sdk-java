@@ -28,7 +28,6 @@ import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
 import com.google.common.io.Files;
 import com.uber.m3.tally.Scope;
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
@@ -243,18 +242,14 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getWorker();
   }
 
-  public History getHistory(WorkflowExecution execution) {
-    return testWorkflowRule.getHistory(execution);
-  }
-
-  public WorkflowExecutionHistory getExecutionHistory(WorkflowExecution execution) {
-    return new WorkflowExecutionHistory(testWorkflowRule.getHistory(execution));
+  public WorkflowExecutionHistory getExecutionHistory(String workflowId) {
+    return testWorkflowRule.getWorkflowClient().fetchHistory(workflowId);
   }
 
   /** Returns list of all events of the given EventType found in the history. */
-  public List<HistoryEvent> getHistoryEvents(WorkflowExecution execution, EventType eventType) {
+  public List<HistoryEvent> getHistoryEvents(String workflowId, EventType eventType) {
     List<HistoryEvent> result = new ArrayList<>();
-    History history = getHistory(execution);
+    History history = getExecutionHistory(workflowId).getHistory();
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         result.add(event);
@@ -264,8 +259,8 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /** Returns the first event of the given EventType found in the history. */
-  public HistoryEvent getHistoryEvent(WorkflowExecution execution, EventType eventType) {
-    History history = getHistory(execution);
+  public HistoryEvent getHistoryEvent(String workflowId, EventType eventType) {
+    History history = getExecutionHistory(workflowId).getHistory();
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         return event;
@@ -275,8 +270,8 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /** Asserts that an event of the given EventType is found in the history. */
-  public void assertHistoryEvent(WorkflowExecution execution, EventType eventType) {
-    History history = getHistory(execution);
+  public void assertHistoryEvent(String workflowId, EventType eventType) {
+    History history = getExecutionHistory(workflowId).getHistory();
     for (HistoryEvent event : history.getEventsList()) {
       if (eventType == event.getEventType()) {
         return;
@@ -286,8 +281,8 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /** Asserts that an event of the given EventType is not found in the history. */
-  public void assertNoHistoryEvent(WorkflowExecution execution, EventType eventType) {
-    History history = getHistory(execution);
+  public void assertNoHistoryEvent(String workflowId, EventType eventType) {
+    History history = getExecutionHistory(workflowId).getHistory();
     assertNoHistoryEvent(history, eventType);
   }
 
@@ -301,15 +296,16 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /** Waits till the end of the workflow task if there is a workflow task in progress */
-  public void waitForTheEndOfWFT(WorkflowExecution execution) {
-    WorkflowExecutionHistory initialHistory = getExecutionHistory(execution);
+  public void waitForTheEndOfWFT(String workflowId) {
+    WorkflowExecutionHistory initialHistory = getExecutionHistory(workflowId);
 
     HistoryEvent lastEvent = initialHistory.getLastEvent();
     if (isWFTInProgress(lastEvent)) {
       // wait for completion of a workflow task in progress
       long startEventId = lastEvent.getEventId();
       while (true) {
-        List<HistoryEvent> historyEvents = getHistory(execution).getEventsList();
+        List<HistoryEvent> historyEvents =
+            getExecutionHistory(workflowId).getHistory().getEventsList();
         if (historyEvents.stream()
             .filter(e -> e.getEventId() > startEventId)
             .anyMatch(e -> !isWFTInProgress(e))) {
@@ -390,9 +386,9 @@ public class SDKTestWorkflowRule implements TestRule {
         .registerWorkflowImplementationFactory(factoryImpl, factoryFunc);
   }
 
-  public void regenerateHistoryForReplay(WorkflowExecution execution, String fileName) {
+  public void regenerateHistoryForReplay(String workflowId, String fileName) {
     if (REGENERATE_JSON_FILES) {
-      String json = getExecutionHistory(execution).toJson(true);
+      String json = getExecutionHistory(workflowId).toJson(true);
       String projectPath = System.getProperty("user.dir");
       String resourceFile = projectPath + "/src/test/resources/" + fileName + ".json";
       File file = new File(resourceFile);
