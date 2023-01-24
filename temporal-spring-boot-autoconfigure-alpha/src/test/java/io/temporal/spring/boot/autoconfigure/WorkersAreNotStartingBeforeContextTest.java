@@ -20,10 +20,11 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowOptions;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.temporal.testing.TestWorkflowEnvironment;
-import org.junit.jupiter.api.BeforeEach;
+import io.temporal.worker.WorkerFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
@@ -33,28 +34,24 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(classes = ExplicitConfigTest.Configuration.class)
-@ActiveProfiles(profiles = "explicit-config")
+@SpringBootTest(classes = AutoDiscoveryTest.Configuration.class)
+@ActiveProfiles(profiles = "auto-discovery")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class ExplicitConfigTest {
+public class WorkersAreNotStartingBeforeContextTest {
   @Autowired ConfigurableApplicationContext applicationContext;
 
   @Autowired TestWorkflowEnvironment testWorkflowEnvironment;
 
-  @Autowired WorkflowClient workflowClient;
-
-  @BeforeEach
-  void setUp() {
-    applicationContext.start();
-  }
+  @Autowired WorkerFactory workerFactory;
 
   @Test
   @Timeout(value = 10)
-  public void testExplicitConfig() {
-    TestWorkflow testWorkflow =
-        workflowClient.newWorkflowStub(
-            TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
-    testWorkflow.execute("input");
+  public void testWorkersAreGettingStartedOnlyWhenStartOfSpringContextIsCalled() {
+    assertFalse(
+        workerFactory.isStarted(),
+        "Context refresh or initialization shouldn't cause workers start");
+    applicationContext.start();
+    assertTrue(workerFactory.isStarted());
   }
 
   @ComponentScan

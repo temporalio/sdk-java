@@ -25,19 +25,28 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.testing.TestWorkflowEnvironment;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootTest(classes = ClientOnlyTest.Configuration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ClientOnlyTest {
+  @Autowired ConfigurableApplicationContext applicationContext;
+
   @Autowired TestWorkflowEnvironment testWorkflowEnvironment;
 
   @Autowired WorkflowClient workflowClient;
+
+  @BeforeEach
+  void setUp() {
+    applicationContext.start();
+  }
 
   @Test
   @Timeout(value = 10)

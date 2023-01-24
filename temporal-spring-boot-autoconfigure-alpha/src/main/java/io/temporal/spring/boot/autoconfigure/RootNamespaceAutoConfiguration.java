@@ -33,6 +33,7 @@ import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import java.util.Collection;
 import java.util.List;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +51,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
-import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.ContextStartedEvent;
 
 @Configuration
 @EnableConfigurationProperties(TemporalProperties.class)
@@ -149,7 +150,15 @@ public class RootNamespaceAutoConfiguration {
     return new WorkerFactoryStarter(workerFactory);
   }
 
-  public static class WorkerFactoryStarter implements ApplicationListener<ContextRefreshedEvent> {
+  // It needs to listed on ContextStartedEvent, not ContextRefreshedEvent.
+  // Using ContextRefreshedEvent will cause start of workers early, during the context
+  // initialization
+  // and potentially incorrect order of bean initialization.
+  // Refresh event can also be fired multiple times during the context initialization.
+  // For this listener to ever work, Spring context needs to be actually started.
+  // Note that a lot of online samples for Spring don't start the context at all:
+  // https://stackoverflow.com/questions/48099355/contextstartedevent-not-firing-in-custom-listener
+  public static class WorkerFactoryStarter implements ApplicationListener<ContextStartedEvent> {
     private final WorkerFactory workerFactory;
 
     public WorkerFactoryStarter(WorkerFactory workerFactory) {
@@ -157,7 +166,7 @@ public class RootNamespaceAutoConfiguration {
     }
 
     @Override
-    public void onApplicationEvent(ContextRefreshedEvent event) {
+    public void onApplicationEvent(@Nonnull ContextStartedEvent event) {
       workerFactory.start();
     }
   }
