@@ -59,7 +59,7 @@ class SyncWorkflow implements ReplayWorkflow {
   private final WorkflowMethodThreadNameStrategy workflowMethodThreadNameStrategy =
       ExecutionInfoStrategy.INSTANCE;
   private final SyncWorkflowContext workflowContext;
-  private WorkflowExecuteRunnable workflowProc;
+  private WorkflowExecutionHandler workflowProc;
   private DeterministicRunner runner;
 
   public SyncWorkflow(
@@ -100,7 +100,7 @@ class SyncWorkflow implements ReplayWorkflow {
     this.workflowContext.setReplayContext(context);
 
     workflowProc =
-        new WorkflowExecuteRunnable(
+        new WorkflowExecutionHandler(
             workflowContext, workflow, startEvent, workflowImplementationOptions);
     // The following order is ensured by this code and DeterministicRunner implementation:
     // 1. workflow.initialize
@@ -113,7 +113,7 @@ class SyncWorkflow implements ReplayWorkflow {
             () -> {
               workflow.initialize();
               WorkflowInternal.newWorkflowMethodThread(
-                      () -> workflowProc.run(),
+                      () -> workflowProc.runWorkflowMethod(),
                       workflowMethodThreadNameStrategy.createThreadName(
                           context.getWorkflowExecution()))
                   .start();

@@ -56,7 +56,7 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
     workflowCodeExecutionCount.set(0);
 
     Logger workflowExecuteRunnableLogger =
-        (Logger) LoggerFactory.getLogger("io.temporal.internal.sync.WorkflowExecuteRunnable");
+        (Logger) LoggerFactory.getLogger("io.temporal.internal.sync.WorkflowExecutionHandler");
     workflowExecuteRunnableLoggerAppender.start();
     workflowExecuteRunnableLogger.addAppender(workflowExecuteRunnableLoggerAppender);
   }

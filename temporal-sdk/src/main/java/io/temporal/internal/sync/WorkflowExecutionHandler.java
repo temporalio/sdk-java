@@ -40,9 +40,9 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class WorkflowExecuteRunnable implements Runnable {
+class WorkflowExecutionHandler {
 
-  private static final Logger log = LoggerFactory.getLogger(WorkflowExecuteRunnable.class);
+  private static final Logger log = LoggerFactory.getLogger(WorkflowExecutionHandler.class);
 
   private final SyncWorkflowContext context;
   private final SyncWorkflowDefinition workflow;
@@ -52,7 +52,7 @@ class WorkflowExecuteRunnable implements Runnable {
   private Optional<Payloads> output = Optional.empty();
   private boolean done;
 
-  public WorkflowExecuteRunnable(
+  public WorkflowExecutionHandler(
       SyncWorkflowContext context,
       SyncWorkflowDefinition workflow,
       WorkflowExecutionStartedEventAttributes attributes,
@@ -63,29 +63,13 @@ class WorkflowExecuteRunnable implements Runnable {
     this.attributes = Objects.requireNonNull(attributes);
   }
 
-  @Override
-  public void run() {
+  public void runWorkflowMethod() {
     try {
       Optional<Payloads> input =
           attributes.hasInput() ? Optional.of(attributes.getInput()) : Optional.empty();
       output = workflow.execute(new Header(attributes.getHeader()), input);
     } catch (Throwable e) {
-      if (e instanceof DestroyWorkflowThreadError) {
-        throw (DestroyWorkflowThreadError) e;
-      }
-      Throwable exception = unwrap(e);
-
-      Class<? extends Throwable>[] failTypes =
-          implementationOptions.getFailWorkflowExceptionTypes();
-      if (exception instanceof TemporalFailure) {
-        throwAndFailWorkflowExecution(exception);
-      }
-      for (Class<? extends Throwable> failType : failTypes) {
-        if (failType.isAssignableFrom(exception.getClass())) {
-          throwAndFailWorkflowExecution(exception);
-        }
-      }
-      throw wrap(exception);
+      applyWorkflowFailurePolicyAndRethrow(e);
     } finally {
       done = true;
     }
@@ -104,11 +88,34 @@ class WorkflowExecuteRunnable implements Runnable {
   public void close() {}
 
   public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
-    context.handleSignal(signalName, input, eventId);
+    try {
+      context.handleSignal(signalName, input, eventId);
+    } catch (Throwable e) {
+      applyWorkflowFailurePolicyAndRethrow(e);
+    }
   }
 
   public Optional<Payloads> handleQuery(String type, Optional<Payloads> args) {
     return context.handleQuery(type, args);
+  }
+
+  private void applyWorkflowFailurePolicyAndRethrow(Throwable e) {
+    if (e instanceof DestroyWorkflowThreadError) {
+      throw (DestroyWorkflowThreadError) e;
+    }
+    Throwable exception = unwrap(e);
+
+    Class<? extends Throwable>[] failTypes = implementationOptions.getFailWorkflowExceptionTypes();
+    if (exception instanceof TemporalFailure) {
+      throwAndFailWorkflowExecution(exception);
+    }
+    for (Class<? extends Throwable> failType : failTypes) {
+      if (failType.isAssignableFrom(exception.getClass())) {
+        throwAndFailWorkflowExecution(exception);
+      }
+    }
+
+    throw wrap(exception);
   }
 
   private void throwAndFailWorkflowExecution(Throwable exception) {
