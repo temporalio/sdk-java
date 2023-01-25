@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
 import org.springframework.boot.context.properties.ConstructorBinding;
 
 /** These properties are significantly mirroring {@link WorkflowServiceStubsOptions} */
-@ConstructorBinding
 public class ConnectionProperties {
   public static final String TARGET_LOCAL_SERVICE = "local";
 
@@ -43,6 +42,7 @@ public class ConnectionProperties {
    * @param enableHttps {@link WorkflowServiceStubsOptions.Builder#setEnableHttps(boolean)}
    *     (String)}
    */
+  @ConstructorBinding
   public ConnectionProperties(
       @Nonnull String target, @Nullable Boolean enableHttps, @Nullable MTLSProperties mtls) {
     this.target = target;
@@ -65,7 +65,6 @@ public class ConnectionProperties {
     return mtls;
   }
 
-  @ConstructorBinding
   public static class MTLSProperties {
     private final @Nullable Integer pkcs;
 
@@ -89,6 +88,7 @@ public class ConnectionProperties {
      * @param insecureTrustManager see {@link
      *     SimpleSslContextBuilder#setUseInsecureTrustManager(boolean)}
      */
+    @ConstructorBinding
     public MTLSProperties(
         @Nullable Integer pkcs,
         @Nullable String key,

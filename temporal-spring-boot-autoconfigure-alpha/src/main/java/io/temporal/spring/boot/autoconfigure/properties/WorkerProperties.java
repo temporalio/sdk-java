@@ -25,7 +25,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.springframework.boot.context.properties.ConstructorBinding;
 
-@ConstructorBinding
 public class WorkerProperties {
   private @Nonnull String taskQueue;
 
@@ -33,6 +32,7 @@ public class WorkerProperties {
 
   private @Nullable Collection<String> activityBeans;
 
+  @ConstructorBinding
   public WorkerProperties(
       @Nonnull String taskQueue,
       @Nullable Collection<Class<?>> workflowClasses,

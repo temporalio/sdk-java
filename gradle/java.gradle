@@ -2,8 +2,9 @@ subprojects {
     apply plugin: 'java-library'
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // graal only supports java 8, 11, 16, 17
+        sourceCompatibility = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_17 : JavaVersion.VERSION_1_8
+        targetCompatibility = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_17 : JavaVersion.VERSION_1_8
         withJavadocJar()
         withSourcesJar()
     }
@@ -11,7 +12,7 @@ subprojects {
     compileJava {
         options.encoding = 'UTF-8'
         options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-        if (JavaVersion.current().isJava9Compatible()) {
+        if (JavaVersion.current().isJava9Compatible() && !project.hasProperty("edgeDepsTest")) {
             // https://stackoverflow.com/a/43103115/525203
             options.compilerArgs.addAll(['--release', '8'])
         }
@@ -20,7 +21,7 @@ subprojects {
     compileTestJava {
         options.encoding = 'UTF-8'
         options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
-        if (JavaVersion.current().isJava9Compatible()) {
+        if (JavaVersion.current().isJava9Compatible() && !project.hasProperty("edgeDepsTest")) {
             // https://stackoverflow.com/a/43103115/525203
             options.compilerArgs.addAll(['--release', '8'])
         }

@@ -28,12 +28,12 @@ import org.springframework.boot.context.properties.ConstructorBinding;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 @ConfigurationProperties(prefix = "spring.temporal")
-@ConstructorBinding
 public class TemporalProperties extends NamespaceProperties {
   private final @NestedConfigurationProperty @Nonnull ConnectionProperties connection;
   private final @NestedConfigurationProperty @Nullable TestServerProperties testServer;
   private final @Nullable Boolean startWorkers;
 
+  @ConstructorBinding
   public TemporalProperties(
       @Nullable String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
