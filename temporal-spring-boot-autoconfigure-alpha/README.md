@@ -76,7 +76,7 @@ spring.temporal:
         - your.package.YouWorkflowImpl
       activity-beans:
         - activity-bean-name1
-  # start-workers: false # disable starting WorkersFactory if you want to make any custom changes before the start
+  # start-workers: false # disable auto-start of WorkersFactory and Workers if you want to make any custom changes before the start
 ```
 
 ## Auto-discovery
@@ -143,8 +143,14 @@ This allows to wire `TestWorkflowEnvironment` bean in your unit tests:
 @SpringBootTest(classes = Test.Configuration.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class Test {
+  @Autowired ConfigurableApplicationContext applicationContext;
   @Autowired TestWorkflowEnvironment testWorkflowEnvironment;
   @Autowired WorkflowClient workflowClient;
+
+  @BeforeEach
+  void setUp() {
+    applicationContext.start();
+  }
 
   @Test
   @Timeout(value = 10)
