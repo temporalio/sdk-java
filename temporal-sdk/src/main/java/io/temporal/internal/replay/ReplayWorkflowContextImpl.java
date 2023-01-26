@@ -110,8 +110,18 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public String getFirstExecutionRunId() {
+    return basicWorkflowContext.getFirstExecutionRunId();
+  }
+
+  @Override
   public Optional<String> getContinuedExecutionRunId() {
     return basicWorkflowContext.getContinuedExecutionRunId();
+  }
+
+  @Override
+  public Optional<String> getOriginalExecutionRunId() {
+    return basicWorkflowContext.getOriginalExecutionRunId();
   }
 
   @Override

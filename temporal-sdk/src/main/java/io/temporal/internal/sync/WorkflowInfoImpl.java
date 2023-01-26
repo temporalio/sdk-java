@@ -47,18 +47,28 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
-  public String getRunId() {
-    return context.getRunId();
-  }
-
-  @Override
   public String getWorkflowType() {
     return context.getWorkflowType().getName();
   }
 
   @Override
+  public String getRunId() {
+    return context.getRunId();
+  }
+
+  @Override
+  public String getFirstExecutionRunId() {
+    return context.getFirstExecutionRunId();
+  }
+
+  @Override
   public Optional<String> getContinuedExecutionRunId() {
     return context.getContinuedExecutionRunId();
+  }
+
+  @Override
+  public Optional<String> getOriginalExecutionRunId() {
+    return context.getOriginalExecutionRunId();
   }
 
   @Override

@@ -25,22 +25,76 @@ import java.time.Duration;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
+/**
+ * Provides information about the current Workflow Execution and Run. Also provides access to
+ * immutable information about connected entities like Parent Workflow Execution or a previous Run.
+ */
 public interface WorkflowInfo {
 
+  /**
+   * @return Workflow Namespace
+   */
   String getNamespace();
 
+  /**
+   * @return Workflow ID
+   */
   String getWorkflowId();
 
-  String getRunId();
-
+  /**
+   * @return Workflow Type
+   */
   String getWorkflowType();
 
+  /**
+   * Note: RunId is unique identifier of one workflow code execution. Reset changes RunId.
+   *
+   * @return Workflow Run ID that is handled by the current workflow code execution.
+   * @see #getOriginalExecutionRunId() for RunId variation that is resistant to Resets
+   * @see #getFirstExecutionRunId() for the very first RunId that is preserved along the whole
+   *     Workflow Execution chain, including ContinueAsNew, Retry, Cron and Reset.
+   */
+  String getRunId();
+
+  /**
+   * @return The very first original RunId of the current Workflow Execution preserved along the
+   *     chain of ContinueAsNew, Retry, Cron and Reset. Identifies the whole Runs chain of Workflow
+   *     Execution.
+   */
+  String getFirstExecutionRunId();
+
+  /**
+   * @return Run ID of the previous Workflow Run which continued-as-new or retried or cron-scheduled
+   *     into the current Workflow Run.
+   */
   Optional<String> getContinuedExecutionRunId();
 
+  /**
+   * Note: This value is NOT preserved by continue-as-new, retries or cron Runs. They are separate
+   * Runs of one Workflow Execution Chain.
+   *
+   * @return original RunId of the current Workflow Run. This value is preserved during Reset which
+   *     changes RunID.
+   * @see #getFirstExecutionRunId() for the very first RunId that is preserved along the whole
+   *     Workflow Execution chain, including ContinueAsNew, Retry, Cron and Reset.
+   */
+  Optional<String> getOriginalExecutionRunId();
+
+  /**
+   * @return Workflow Task Queue name
+   */
   String getTaskQueue();
 
+  /**
+   * @return Timeout for a Workflow Run specified during Workflow start in {@link
+   *     io.temporal.client.WorkflowOptions.Builder#setWorkflowRunTimeout(Duration)}
+   */
   Duration getWorkflowRunTimeout();
 
+  /**
+   * @return Timeout for the Workflow Execution specified during Workflow start in {@link
+   *     io.temporal.client.WorkflowOptions.Builder#setWorkflowExecutionTimeout(Duration)}
+   */
   Duration getWorkflowExecutionTimeout();
 
   /**
@@ -62,12 +116,24 @@ public interface WorkflowInfo {
   @Nullable
   SearchAttributes getSearchAttributes();
 
+  /**
+   * @return Workflow ID of the parent Workflow
+   */
   Optional<String> getParentWorkflowId();
 
+  /**
+   * @return Run ID of the parent Workflow
+   */
   Optional<String> getParentRunId();
 
+  /**
+   * @return Workflow retry attempt handled by this Workflow code execution. Starts on "1".
+   */
   int getAttempt();
 
+  /**
+   * @return Workflow cron schedule
+   */
   String getCronSchedule();
 
   /**
