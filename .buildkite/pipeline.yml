@@ -1,5 +1,5 @@
 steps:
-  - label: ":java: JDK18 Unit test with in-memory test service"
+  - label: ":java: [Edge] Unit test with in-memory test service"
     agents:
       queue: "default"
       docker: "*"
@@ -7,7 +7,7 @@ steps:
     timeout_in_minutes: 15
     plugins:
       - docker-compose#v3.8.0:
-          run: unit-test-test-service-jdk18
+          run: unit-test-test-service-edge
           config: docker/buildkite/docker-compose.yaml
 
   - label: ":docker: JDK8 Unit test with docker service"
