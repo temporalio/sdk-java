@@ -20,10 +20,19 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
+import com.uber.m3.tally.Scope;
+import io.opentracing.Tracer;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
+import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -38,6 +47,7 @@ import org.springframework.context.annotation.Configuration;
     prefix = "spring.temporal",
     name = "test-server.enabled",
     havingValue = "true")
+@AutoConfigureAfter({OpenTracingAutoConfiguration.class, MetricsScopeAutoConfiguration.class})
 public class TestServerAutoConfiguration {
   @Bean(name = "temporalTestWorkflowEnvironmentAdapter")
   public TestWorkflowEnvironmentAdapter testTestWorkflowEnvironmentAdapter(
@@ -47,7 +57,25 @@ public class TestServerAutoConfiguration {
   }
 
   @Bean(name = "temporalTestWorkflowEnvironment", destroyMethod = "close")
-  public TestWorkflowEnvironment testWorkflowEnvironment() {
-    return TestWorkflowEnvironment.newInstance();
+  public TestWorkflowEnvironment testWorkflowEnvironment(
+      TemporalProperties properties,
+      @Qualifier("temporalMetricsScope") @Autowired(required = false) @Nullable Scope metricsScope,
+      @Autowired List<DataConverter> dataConverters,
+      @Qualifier("mainDataConverter") @Autowired(required = false) @Nullable
+          DataConverter mainDataConverter,
+      @Autowired(required = false) @Nullable Tracer otTracer) {
+    DataConverter chosenDataConverter =
+        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
+    ClientTemplate clientTemplate =
+        new ClientTemplate(properties.getNamespace(), chosenDataConverter, otTracer, null, null);
+
+    TestEnvironmentOptions.Builder options =
+        TestEnvironmentOptions.newBuilder()
+            .setWorkflowClientOptions(clientTemplate.getWorkflowClientOptions());
+    if (metricsScope != null) {
+      options.setMetricsScope(metricsScope);
+    }
+
+    return TestWorkflowEnvironment.newInstance(options.build());
   }
 }
