@@ -72,6 +72,7 @@ Follow the pattern to explicitly configure the workers:
 spring.temporal:
   workers:
     - task-queue: your-task-queue-name
+      # name: your-worker-name # unique name of the Worker. If not specified, Task Queue is used as a Worker name.
       workflow-classes:
         - your.package.YouWorkflowImpl
       activity-beans:
@@ -81,8 +82,10 @@ spring.temporal:
 
 ## Auto-discovery
 
-Allows to skip specifying workflow and activity classes explicitly in the config 
-by providing worker task queue names on Workflow and Activity implementations.
+Allows to skip specifying Workflow classes and Activity beans explicitly in the config
+by referencing Worker Task Queue names or Worker Names on Workflow and Activity implementations.
+Auto-discovery is applied after and on top of an explicit configuration.
+
 Add the following to your `application.yml` to auto-discover workflows and activities from your classpath.
 
 ```yml
@@ -95,14 +98,23 @@ spring.temporal:
 
 What is auto-discovered:
 - Workflows implementation classes annotated with `io.temporal.spring.boot.WorkflowImpl`
-- Activity beans registered in Spring context which implementation classes are annotated with `io.temporal.spring.boot.ActivityImpl`
+- Activity beans present Spring context whose implementations are annotated with `io.temporal.spring.boot.ActivityImpl`
+- Workers if a Task Queue is referenced by the annotations but not explicitly configured. Default configuration will be used.
 
-Auto-discovered workflow implementation classes and activity beans will be registered with workers configured explicitly 
-or workers will be created for them if no explicit configuration is provided for a worker.
+Auto-discovered workflow implementation classes and activity beans will be registered with the configured workers if not already registered.
 
-## Note on mixing configuration styles
+### Referencing worker names vs task queues
 
-The behavior when both auto-discovery and explicit configuration is mixed is undefined and to be decided later.
+Application that incorporates
+[Task Queue based Versioning strategy](https://community.temporal.io/t/workflow-versioning-strategies/6911)
+may choose to use explicit Worker names to reference because it adds a level of indirection.
+This way Task Queue name is specified only once in the config and can be easily changed when needed,
+while all the auto-discovery annotations reference the Worker by its static name.
+
+An application whose lifecycle doesn't involve changing task queue names may prefer to reference
+Task Queue names directly for simplicity.
+
+Note: Worker whose name is not explicitly specified is named after it's Task Queue.
 
 # Integrations
 

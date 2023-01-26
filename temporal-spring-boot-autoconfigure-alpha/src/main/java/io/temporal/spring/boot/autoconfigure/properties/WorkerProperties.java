@@ -27,6 +27,7 @@ import org.springframework.boot.context.properties.ConstructorBinding;
 
 public class WorkerProperties {
   private @Nonnull String taskQueue;
+  private @Nullable String name;
 
   private @Nullable Collection<Class<?>> workflowClasses;
 
@@ -35,8 +36,10 @@ public class WorkerProperties {
   @ConstructorBinding
   public WorkerProperties(
       @Nonnull String taskQueue,
+      @Nullable String name,
       @Nullable Collection<Class<?>> workflowClasses,
       @Nullable Collection<String> activityBeans) {
+    this.name = name;
     this.taskQueue = taskQueue;
     this.workflowClasses = workflowClasses;
     this.activityBeans = activityBeans;
@@ -47,8 +50,17 @@ public class WorkerProperties {
     return taskQueue;
   }
 
-  public void setTaskQueue(String taskQueue) {
+  public void setTaskQueue(@Nonnull String taskQueue) {
     this.taskQueue = taskQueue;
+  }
+
+  @Nullable
+  public String getName() {
+    return name;
+  }
+
+  public void setName(@Nullable String name) {
+    this.name = name;
   }
 
   @Nullable
@@ -56,7 +68,7 @@ public class WorkerProperties {
     return workflowClasses;
   }
 
-  public void setWorkflowClasses(Collection<Class<?>> workflowClasses) {
+  public void setWorkflowClasses(@Nullable Collection<Class<?>> workflowClasses) {
     this.workflowClasses = workflowClasses;
   }
 
@@ -65,7 +77,7 @@ public class WorkerProperties {
     return activityBeans;
   }
 
-  public void setActivityBeans(Collection<String> activityBeans) {
+  public void setActivityBeans(@Nullable Collection<String> activityBeans) {
     this.activityBeans = activityBeans;
   }
 }

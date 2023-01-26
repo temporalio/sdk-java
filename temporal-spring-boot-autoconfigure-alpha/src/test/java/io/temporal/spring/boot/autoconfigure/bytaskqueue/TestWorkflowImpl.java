@@ -18,16 +18,22 @@
  * limitations under the License.
  */
 
-package io.temporal.spring.boot.autoconfigure;
+package io.temporal.spring.boot.autoconfigure.bytaskqueue;
 
-import io.temporal.spring.boot.ActivityImpl;
-import org.springframework.stereotype.Component;
+import io.temporal.activity.ActivityOptions;
+import io.temporal.spring.boot.WorkflowImpl;
+import io.temporal.workflow.Workflow;
+import java.time.Duration;
 
-@Component("TestActivityImpl")
-@ActivityImpl(taskQueues = "UnitTest")
-public class TestActivityImpl implements TestActivity {
+@WorkflowImpl(taskQueues = "UnitTest")
+public class TestWorkflowImpl implements TestWorkflow {
   @Override
   public String execute(String input) {
-    return input;
+    return Workflow.newActivityStub(
+            TestActivity.class,
+            ActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(1))
+                .validateAndBuildWithDefaults())
+        .execute("done");
   }
 }
