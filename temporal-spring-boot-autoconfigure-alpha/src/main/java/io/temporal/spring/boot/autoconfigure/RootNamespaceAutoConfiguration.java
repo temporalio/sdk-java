@@ -37,7 +37,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -78,22 +77,8 @@ public class RootNamespaceAutoConfiguration {
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
           TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
-
-    DataConverter chosenDataConverter = null;
-    if (dataConverters.size() == 1) {
-      chosenDataConverter = dataConverters.get(0);
-    } else if (dataConverters.size() > 1) {
-      if (mainDataConverter != null) {
-        chosenDataConverter = mainDataConverter;
-      } else {
-        throw new NoUniqueBeanDefinitionException(
-            DataConverter.class,
-            dataConverters.size(),
-            "Several DataConverter beans found in the Spring context. "
-                + "Explicitly name 'mainDataConverter' the one bean "
-                + "that should be used by Temporal Spring Boot AutoConfiguration.");
-      }
-    }
+    DataConverter chosenDataConverter =
+        AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
     return new NamespaceTemplate(
         properties,
         properties,

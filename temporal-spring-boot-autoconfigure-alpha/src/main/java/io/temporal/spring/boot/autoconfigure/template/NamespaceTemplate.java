@@ -58,10 +58,10 @@ public class NamespaceTemplate {
     if (clientTemplate == null) {
       this.clientTemplate =
           new ClientTemplate(
-              namespaceProperties,
-              workflowServiceStubs,
+              namespaceProperties.getNamespace(),
               dataConverter,
               tracer,
+              workflowServiceStubs,
               testWorkflowEnvironment);
     }
     return clientTemplate;

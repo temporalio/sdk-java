@@ -20,12 +20,8 @@
 
 package io.temporal.spring.boot.autoconfigure.template;
 
-import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
-import com.uber.m3.tally.StatsReporter;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.temporal.common.reporter.MicrometerClientStatsReporter;
 import io.temporal.serviceclient.SimpleSslContextBuilder;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -43,9 +39,12 @@ import org.springframework.beans.factory.support.BeanDefinitionValidationExcepti
 import org.springframework.util.ResourceUtils;
 
 public class ServiceStubsTemplate {
+  public static final com.uber.m3.util.Duration DEFAULT_SCOPE_REPORT_INTERVAL =
+      com.uber.m3.util.Duration.ofSeconds(1);
+
   private final @Nonnull ConnectionProperties connectionProperties;
 
-  private final @Nullable MeterRegistry meterRegistry;
+  private final @Nullable Scope metricsScope;
 
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
@@ -54,10 +53,10 @@ public class ServiceStubsTemplate {
 
   public ServiceStubsTemplate(
       @Nonnull ConnectionProperties connectionProperties,
-      @Nullable MeterRegistry meterRegistry,
+      @Nullable Scope metricsScope,
       @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
     this.connectionProperties = connectionProperties;
-    this.meterRegistry = meterRegistry;
+    this.metricsScope = metricsScope;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }
 
@@ -90,8 +89,8 @@ public class ServiceStubsTemplate {
 
           configureMTLS(connectionProperties.getMTLS(), stubsOptionsBuilder);
 
-          if (meterRegistry != null) {
-            stubsOptionsBuilder.setMetricsScope(createScope(meterRegistry));
+          if (metricsScope != null) {
+            stubsOptionsBuilder.setMetricsScope(metricsScope);
           }
 
           workflowServiceStubs =
@@ -101,13 +100,6 @@ public class ServiceStubsTemplate {
     }
 
     return workflowServiceStubs;
-  }
-
-  private Scope createScope(@Nonnull MeterRegistry registry) {
-    StatsReporter reporter = new MicrometerClientStatsReporter(registry);
-    return new RootScopeBuilder()
-        .reporter(reporter)
-        .reportEvery(com.uber.m3.util.Duration.ofSeconds(10));
   }
 
   private void configureMTLS(
