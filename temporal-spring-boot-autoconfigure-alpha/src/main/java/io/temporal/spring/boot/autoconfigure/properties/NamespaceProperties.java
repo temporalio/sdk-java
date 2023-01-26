@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
 import org.springframework.boot.context.properties.ConstructorBinding;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
-@ConstructorBinding
 public class NamespaceProperties {
   public static final String NAMESPACE_DEFAULT = "default";
 
@@ -36,6 +35,7 @@ public class NamespaceProperties {
   private final @Nullable List<WorkerProperties> workers;
   private final @Nonnull String namespace;
 
+  @ConstructorBinding
   public NamespaceProperties(
       @Nullable String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,

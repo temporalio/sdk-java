@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id 'org.jlleitschuh.gradle.ktlint' version '11.0.0'
 }
@@ -6,17 +8,10 @@ apply plugin: 'org.jetbrains.kotlin.jvm'
 
 description = '''Temporal Workflow Java SDK Kotlin'''
 
-compileKotlin {
+tasks.withType(KotlinCompile).all {
     kotlinOptions {
         freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
-        jvmTarget = JavaVersion.VERSION_1_8
-    }
-}
-
-compileTestKotlin {
-    kotlinOptions {
-        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = project.hasProperty("edgeDepsTest") ? JavaVersion.VERSION_17 : JavaVersion.VERSION_1_8
     }
 }
 
