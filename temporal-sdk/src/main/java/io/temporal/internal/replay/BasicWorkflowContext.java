@@ -72,30 +72,36 @@ final class BasicWorkflowContext {
     return startedAttributes.getWorkflowType();
   }
 
+  public String getFirstExecutionRunId() {
+    return startedAttributes.getFirstExecutionRunId();
+  }
+
   Optional<String> getContinuedExecutionRunId() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    String runId = attributes.getContinuedExecutionRunId();
+    String runId = startedAttributes.getContinuedExecutionRunId();
+    return runId.isEmpty() ? Optional.empty() : Optional.of(runId);
+  }
+
+  Optional<String> getOriginalExecutionRunId() {
+    String runId = startedAttributes.getOriginalExecutionRunId();
     return runId.isEmpty() ? Optional.empty() : Optional.of(runId);
   }
 
   WorkflowExecution getParentWorkflowExecution() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return attributes.hasParentWorkflowExecution() ? attributes.getParentWorkflowExecution() : null;
+    return startedAttributes.hasParentWorkflowExecution()
+        ? startedAttributes.getParentWorkflowExecution()
+        : null;
   }
 
   Duration getWorkflowRunTimeout() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return ProtobufTimeUtils.toJavaDuration(attributes.getWorkflowRunTimeout());
+    return ProtobufTimeUtils.toJavaDuration(startedAttributes.getWorkflowRunTimeout());
   }
 
   Duration getWorkflowExecutionTimeout() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return ProtobufTimeUtils.toJavaDuration(attributes.getWorkflowExecutionTimeout());
+    return ProtobufTimeUtils.toJavaDuration(startedAttributes.getWorkflowExecutionTimeout());
   }
 
   long getWorkflowExecutionExpirationTimestampMillis() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return Timestamps.toMillis(attributes.getWorkflowExecutionExpirationTime());
+    return Timestamps.toMillis(startedAttributes.getWorkflowExecutionExpirationTime());
   }
 
   long getRunStartedTimestampMillis() {
@@ -107,16 +113,11 @@ final class BasicWorkflowContext {
   }
 
   String getTaskQueue() {
-    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return attributes.getTaskQueue().getName();
+    return startedAttributes.getTaskQueue().getName();
   }
 
   String getNamespace() {
     return namespace;
-  }
-
-  private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
-    return startedAttributes;
   }
 
   public Map<String, Payload> getHeader() {

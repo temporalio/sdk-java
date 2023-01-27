@@ -105,11 +105,6 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public Optional<String> getContinuedExecutionRunId() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
     public String getTaskQueue() {
       return "dummy-task-queue";
     }
@@ -127,6 +122,21 @@ public class DummySyncWorkflowContext {
     @Override
     public String getRunId() {
       return "dummy-run-id";
+    }
+
+    @Override
+    public String getFirstExecutionRunId() {
+      return null;
+    }
+
+    @Override
+    public Optional<String> getContinuedExecutionRunId() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Optional<String> getOriginalExecutionRunId() {
+      return Optional.empty();
     }
 
     @Override
