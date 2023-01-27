@@ -20,10 +20,9 @@
 
 package io.temporal.spring.boot.autoconfigure;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import io.grpc.health.v1.HealthCheckResponse;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.spring.boot.autoconfigure.bytaskqueue.TestWorkflow;
 import io.temporal.testing.TestWorkflowEnvironment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,10 +33,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(classes = ClientOnlyTest.Configuration.class)
+@SpringBootTest(classes = AutoDiscoveryByWorkerNameTest.Configuration.class)
+@ActiveProfiles(profiles = "auto-discovery-by-worker-name")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class ClientOnlyTest {
+public class AutoDiscoveryByWorkerNameTest {
   @Autowired ConfigurableApplicationContext applicationContext;
 
   @Autowired TestWorkflowEnvironment testWorkflowEnvironment;
@@ -51,16 +52,17 @@ public class ClientOnlyTest {
 
   @Test
   @Timeout(value = 10)
-  public void testClientWiring() {
-    HealthCheckResponse healthCheckResponse =
-        workflowClient.getWorkflowServiceStubs().healthCheck();
-    assertEquals(HealthCheckResponse.ServingStatus.SERVING, healthCheckResponse.getStatus());
+  public void testAutoDiscovery() {
+    TestWorkflow testWorkflow =
+        workflowClient.newWorkflowStub(
+            TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
+    testWorkflow.execute("input");
   }
 
   @ComponentScan(
       excludeFilters =
           @ComponentScan.Filter(
-              pattern = "io\\.temporal\\.spring\\.boot\\.autoconfigure\\.byworkername\\..*",
+              pattern = "io\\.temporal\\.spring\\.boot\\.autoconfigure\\.bytaskqueue\\..*",
               type = FilterType.REGEX))
   public static class Configuration {}
 }

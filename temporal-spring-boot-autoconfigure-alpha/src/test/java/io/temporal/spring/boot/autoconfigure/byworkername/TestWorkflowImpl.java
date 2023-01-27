@@ -18,14 +18,14 @@
  * limitations under the License.
  */
 
-package io.temporal.spring.boot.autoconfigure;
+package io.temporal.spring.boot.autoconfigure.byworkername;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 
-@WorkflowImpl(taskQueues = "UnitTest")
+@WorkflowImpl(workers = "mainWorker")
 public class TestWorkflowImpl implements TestWorkflow {
   @Override
   public String execute(String input) {

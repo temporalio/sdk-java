@@ -18,14 +18,11 @@
  * limitations under the License.
  */
 
-package io.temporal.spring.boot.autoconfigure;
+package io.temporal.spring.boot.autoconfigure.byworkername;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.activity.ActivityInterface;
 
-@WorkflowInterface
-public interface TestWorkflow {
-
-  @WorkflowMethod(name = "testWorkflow1")
+@ActivityInterface
+public interface TestActivity {
   String execute(String input);
 }

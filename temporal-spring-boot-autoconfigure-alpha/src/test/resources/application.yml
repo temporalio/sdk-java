@@ -31,11 +31,24 @@ spring.temporal:
 spring:
   config:
     activate:
-      on-profile: auto-discovery
+      on-profile: auto-discovery-by-task-queue
   temporal:
     workers-auto-discovery:
       packages:
-        - io.temporal
+        - io.temporal.spring.boot.autoconfigure.bytaskqueue
+
+---
+spring:
+  config:
+    activate:
+      on-profile: auto-discovery-by-worker-name
+  temporal:
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+    workers-auto-discovery:
+      packages:
+        - io.temporal.spring.boot.autoconfigure.byworkername
 
 ---
 spring:
@@ -46,6 +59,6 @@ spring:
     workers:
       - task-queue: UnitTest
         workflow-classes:
-          - io.temporal.spring.boot.autoconfigure.TestWorkflowImpl
+          - io.temporal.spring.boot.autoconfigure.bytaskqueue.TestWorkflowImpl
         activity-beans:
           - TestActivityImpl

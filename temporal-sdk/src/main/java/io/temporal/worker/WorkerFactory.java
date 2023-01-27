@@ -40,6 +40,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -188,7 +189,8 @@ public final class WorkerFactory {
    * @return a worker created previously through {@link #newWorker(String)} for the given task queue
    *     or null.
    */
-  public synchronized Worker tryGetWorker(String taskQueue) {
+  @Nullable
+  public synchronized Worker tryGetWorker(@Nonnull String taskQueue) {
     return workers.get(taskQueue);
   }
 

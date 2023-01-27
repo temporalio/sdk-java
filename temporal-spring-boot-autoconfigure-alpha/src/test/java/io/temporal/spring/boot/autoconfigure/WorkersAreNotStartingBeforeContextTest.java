@@ -32,10 +32,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(classes = AutoDiscoveryTest.Configuration.class)
-@ActiveProfiles(profiles = "auto-discovery")
+@SpringBootTest(classes = AutoDiscoveryByTaskQueueTest.Configuration.class)
+@ActiveProfiles(profiles = "auto-discovery-by-task-queue")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class WorkersAreNotStartingBeforeContextTest {
   @Autowired ConfigurableApplicationContext applicationContext;
@@ -54,6 +55,10 @@ public class WorkersAreNotStartingBeforeContextTest {
     assertTrue(workerFactory.isStarted());
   }
 
-  @ComponentScan
+  @ComponentScan(
+      excludeFilters =
+          @ComponentScan.Filter(
+              pattern = "io\\.temporal\\.spring\\.boot\\.autoconfigure\\.byworkername\\..*",
+              type = FilterType.REGEX))
   public static class Configuration {}
 }
