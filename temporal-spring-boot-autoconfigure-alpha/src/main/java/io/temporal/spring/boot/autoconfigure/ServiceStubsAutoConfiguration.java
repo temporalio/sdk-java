@@ -22,6 +22,8 @@ package io.temporal.spring.boot.autoconfigure;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ServiceStubsTemplate;
 import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAdapter;
@@ -46,9 +48,15 @@ public class ServiceStubsAutoConfiguration {
       TemporalProperties properties,
       @Qualifier("temporalMetricsScope") @Autowired(required = false) @Nullable Scope metricsScope,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
-          TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
+          TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<WorkflowServiceStubsOptions.Builder>
+              workflowServiceStubsCustomizer) {
     return new ServiceStubsTemplate(
-        properties.getConnection(), metricsScope, testWorkflowEnvironment);
+        properties.getConnection(),
+        metricsScope,
+        testWorkflowEnvironment,
+        workflowServiceStubsCustomizer);
   }
 
   @Bean(name = "temporalWorkflowServiceStubs")

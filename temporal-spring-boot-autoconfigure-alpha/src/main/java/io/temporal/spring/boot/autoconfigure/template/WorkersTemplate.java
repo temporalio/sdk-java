@@ -20,21 +20,18 @@
 
 package io.temporal.spring.boot.autoconfigure.template;
 
+import com.google.common.base.Preconditions;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
-import io.temporal.opentracing.OpenTracingOptions;
-import io.temporal.opentracing.OpenTracingWorkerInterceptor;
 import io.temporal.spring.boot.ActivityImpl;
+import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
-import io.temporal.worker.TypeAlreadyRegisteredException;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.*;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -58,13 +55,15 @@ public class WorkersTemplate implements BeanFactoryAware {
 
   private final @Nonnull TemporalProperties properties;
   private final @Nonnull NamespaceProperties namespaceProperties;
-
+  private final ClientTemplate clientTemplate;
   private final @Nullable Tracer tracer;
-
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
-  private final ClientTemplate clientTemplate;
+  private final @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder>
+      workerFactoryCustomizer;
+
+  private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer;
 
   private ConfigurableListableBeanFactory beanFactory;
 
@@ -76,12 +75,17 @@ public class WorkersTemplate implements BeanFactoryAware {
       @Nonnull NamespaceProperties namespaceProperties,
       @Nullable ClientTemplate clientTemplate,
       @Nullable Tracer tracer,
-      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+      @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer) {
     this.properties = properties;
     this.namespaceProperties = namespaceProperties;
     this.tracer = tracer;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
     this.clientTemplate = clientTemplate;
+
+    this.workerFactoryCustomizer = workerFactoryCustomizer;
+    this.workerCustomizer = workerCustomizer;
   }
 
   public WorkerFactory getWorkerFactory() {
@@ -102,14 +106,10 @@ public class WorkersTemplate implements BeanFactoryAware {
     if (testWorkflowEnvironment != null) {
       return testWorkflowEnvironment.getWorkerFactory();
     } else {
-      WorkerFactoryOptions.Builder options = WorkerFactoryOptions.newBuilder();
-      if (tracer != null) {
-        OpenTracingWorkerInterceptor openTracingClientInterceptor =
-            new OpenTracingWorkerInterceptor(
-                OpenTracingOptions.newBuilder().setTracer(tracer).build());
-        options.setWorkerInterceptors(openTracingClientInterceptor);
-      }
-      return WorkerFactory.newInstance(workflowClient, options.validateAndBuildWithDefaults());
+      WorkerFactoryOptions workerFactoryOptions =
+          new WorkerFactoryOptionsTemplate(tracer, workerFactoryCustomizer)
+              .createWorkerFactoryOptions();
+      return WorkerFactory.newInstance(workflowClient, workerFactoryOptions);
     }
   }
 
@@ -118,10 +118,11 @@ public class WorkersTemplate implements BeanFactoryAware {
 
     // explicitly configured workflow implementations
     if (properties.getWorkers() != null) {
-      properties.getWorkers().stream()
-          .map(
-              workerProperties -> createWorkerFromAnExplicitConfig(workerFactory, workerProperties))
-          .forEach(workers::addWorker);
+      properties
+          .getWorkers()
+          .forEach(
+              workerProperties ->
+                  createWorkerFromAnExplicitConfig(workerFactory, workerProperties, workers));
     }
 
     if (properties.getWorkersAutoDiscovery() != null
@@ -155,8 +156,8 @@ public class WorkersTemplate implements BeanFactoryAware {
                   + "caused by an auto-discovered workflow class {}",
               taskQueue,
               clazz);
-          worker = workerFactory.newWorker(taskQueue);
-          workers.addWorker(new WorkerDescriptor(worker, null));
+
+          worker = createNewWorker(taskQueue, null, workers);
         }
 
         configureWorkflowImplementationAutoDiscovery(worker, clazz, null);
@@ -181,8 +182,7 @@ public class WorkersTemplate implements BeanFactoryAware {
                         + "caused by an auto-discovered activity class {}",
                     taskQueue,
                     targetClass);
-                worker = workerFactory.newWorker(taskQueue);
-                workers.addWorker(new WorkerDescriptor(worker, null));
+                worker = createNewWorker(taskQueue, null, workers);
               }
 
               configureActivityImplementationAutoDiscovery(
@@ -259,8 +259,8 @@ public class WorkersTemplate implements BeanFactoryAware {
     return beanFactory.getBeansWithAnnotation(ActivityImpl.class);
   }
 
-  private WorkerDescriptor createWorkerFromAnExplicitConfig(
-      WorkerFactory workerFactory, WorkerProperties workerProperties) {
+  private void createWorkerFromAnExplicitConfig(
+      WorkerFactory workerFactory, WorkerProperties workerProperties, Workers workers) {
     String taskQueue = workerProperties.getTaskQueue();
     if (workerFactory.tryGetWorker(taskQueue) != null) {
       throw new BeanDefinitionValidationException(
@@ -269,7 +269,7 @@ public class WorkersTemplate implements BeanFactoryAware {
               + " already exists. Duplicate workers in the config?");
     }
     log.info("Creating configured worker for a task queue {}", taskQueue);
-    Worker worker = workerFactory.newWorker(taskQueue);
+    Worker worker = createNewWorker(taskQueue, workerProperties, workers);
 
     Collection<Class<?>> workflowClasses = workerProperties.getWorkflowClasses();
     if (workflowClasses != null) {
@@ -294,8 +294,6 @@ public class WorkersTemplate implements BeanFactoryAware {
             worker.registerActivitiesImplementations(bean);
           });
     }
-
-    return new WorkerDescriptor(worker, workerProperties);
   }
 
   private void configureActivityImplementationAutoDiscovery(
@@ -373,28 +371,41 @@ public class WorkersTemplate implements BeanFactoryAware {
     this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
   }
 
+  private Worker createNewWorker(String taskQueue, WorkerProperties properties, Workers workers) {
+    Preconditions.checkState(
+        workerFactory.tryGetWorker(taskQueue) == null,
+        "[BUG] This method should never be called twice for the same Task Queue='%s'",
+        taskQueue);
+
+    String workerName =
+        properties != null && properties.getName() != null ? properties.getName() : taskQueue;
+
+    WorkerOptions workerOptions =
+        new WorkerOptionsTemplate(workerName, taskQueue, workerCustomizer).createWorkerOptions();
+    Worker worker = workerFactory.newWorker(taskQueue, workerOptions);
+    workers.addWorker(workerName, worker);
+    return worker;
+  }
+
   private static class Workers {
     private final Map<String, Worker> workersByName = new HashMap<>();
     private final Map<String, Worker> workersByTaskQueue = new HashMap<>();
     private final List<Worker> workers = new ArrayList<>();
 
-    public void addWorker(WorkerDescriptor workerDescriptor) {
-      Worker newWorker = workerDescriptor.getWorker();
-
+    public void addWorker(@Nonnull String workerName, Worker newWorker) {
       Worker existingWorker = workersByTaskQueue.get(newWorker.getTaskQueue());
-      if (existingWorker != null) {
-        // Caller of this method should make sure that it doesn't try to register a worker for a
-        // task queue that
-        // already has a worker.
-        throw new BeanDefinitionValidationException(
-            "[BUG] Worker with Task Queue " + newWorker.getTaskQueue() + " already exists.");
-      }
+      // Caller of this method should make sure that it doesn't try to register a worker for a
+      // task queue that already has a worker.
+      Preconditions.checkState(
+          existingWorker == null,
+          "[BUG] Worker with Task Queue='%s' already exists.",
+          newWorker.getTaskQueue());
 
-      existingWorker = workersByName.get(workerDescriptor.getName());
+      existingWorker = workersByName.get(workerName);
       if (existingWorker != null) {
         throw new BeanDefinitionValidationException(
             "Worker name "
-                + workerDescriptor.getName()
+                + workerName
                 + " is shared between Workers on different Task Queues '"
                 + existingWorker.getTaskQueue()
                 + "' and '"
@@ -403,8 +414,8 @@ public class WorkersTemplate implements BeanFactoryAware {
       }
 
       workers.add(newWorker);
-      workersByTaskQueue.put(workerDescriptor.getTaskQueue(), newWorker);
-      workersByName.put(workerDescriptor.getName(), newWorker);
+      workersByTaskQueue.put(newWorker.getTaskQueue(), newWorker);
+      workersByName.put(workerName, newWorker);
     }
 
     public List<Worker> getWorkers() {
@@ -414,33 +425,6 @@ public class WorkersTemplate implements BeanFactoryAware {
     @Nullable
     public Worker getByName(String workerName) {
       return workersByName.get(workerName);
-    }
-  }
-
-  private static class WorkerDescriptor {
-    private final @Nonnull Worker worker;
-    private final @Nullable WorkerProperties workerProperties;
-
-    private WorkerDescriptor(@Nonnull Worker worker, @Nullable WorkerProperties workerProperties) {
-      this.worker = worker;
-      this.workerProperties = workerProperties;
-    }
-
-    @Nonnull
-    public Worker getWorker() {
-      return worker;
-    }
-
-    @Nonnull
-    public String getName() {
-      return workerProperties != null && workerProperties.getName() != null
-          ? workerProperties.getName()
-          : worker.getTaskQueue();
-    }
-
-    @Nonnull
-    public String getTaskQueue() {
-      return worker.getTaskQueue();
     }
   }
 }

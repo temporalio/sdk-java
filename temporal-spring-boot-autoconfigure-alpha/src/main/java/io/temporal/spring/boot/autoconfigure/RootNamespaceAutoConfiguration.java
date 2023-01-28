@@ -22,8 +22,10 @@ package io.temporal.spring.boot.autoconfigure;
 
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import io.temporal.spring.boot.autoconfigure.template.NamespaceTemplate;
@@ -31,6 +33,8 @@ import io.temporal.spring.boot.autoconfigure.template.TestWorkflowEnvironmentAda
 import io.temporal.spring.boot.autoconfigure.template.WorkersTemplate;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -76,7 +80,13 @@ public class RootNamespaceAutoConfiguration {
           DataConverter mainDataConverter,
       @Autowired(required = false) @Nullable Tracer otTracer,
       @Qualifier("temporalTestWorkflowEnvironmentAdapter") @Autowired(required = false) @Nullable
-          TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
+          TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> workerFactoryCustomizer,
+      @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<WorkerOptions.Builder> workerCustomizer,
+      @Autowired(required = false) @Nullable
+          TemporalOptionsCustomizer<WorkflowClientOptions.Builder> clientCustomizer) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.choseDataConverter(dataConverters, mainDataConverter);
     return new NamespaceTemplate(
@@ -85,7 +95,10 @@ public class RootNamespaceAutoConfiguration {
         workflowServiceStubs,
         chosenDataConverter,
         otTracer,
-        testWorkflowEnvironment);
+        testWorkflowEnvironment,
+        workerFactoryCustomizer,
+        workerCustomizer,
+        clientCustomizer);
   }
 
   /** Client */
