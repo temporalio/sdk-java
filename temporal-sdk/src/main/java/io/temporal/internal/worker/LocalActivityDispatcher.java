@@ -32,6 +32,7 @@ public interface LocalActivityDispatcher {
    *
    * @return true if the local activity was accepted, false if it was rejected
    * @throws IllegalStateException if the local activity worker was not started
+   * @throws IllegalArgumentException if the local activity type is not supported
    */
   boolean dispatch(
       @Nonnull ExecuteLocalActivityParameters params,

@@ -50,6 +50,7 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
   private final DataConverter dataConverter;
   private final String namespace;
   private final ActivityExecutionContextFactory executionContextFactory;
+  // <ActivityType, Implementation>
   private final Map<String, ActivityTaskExecutor> activities =
       Collections.synchronizedMap(new HashMap<>());
   private ActivityTaskExecutor dynamicActivity;
@@ -72,6 +73,11 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
   @Override
   public boolean isAnyTypeSupported() {
     return !activities.isEmpty() || dynamicActivity != null;
+  }
+
+  @Override
+  public boolean isTypeSupported(String type) {
+    return activities.get(type) != null || dynamicActivity != null;
   }
 
   public void registerActivityImplementations(Object[] activitiesImplementation) {
