@@ -125,4 +125,11 @@ public interface ActivityTaskHandler {
 
   /** True if this handler handles at least one activity type. */
   boolean isAnyTypeSupported();
+
+  /**
+   * @param activityType activity type name
+   * @return true if an activity implementation with {@code activityType} name is registered or a
+   *     dynamic activity implementation is registered.
+   */
+  boolean isTypeSupported(String activityType);
 }

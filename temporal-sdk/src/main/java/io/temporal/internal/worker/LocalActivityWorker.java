@@ -216,6 +216,11 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         }
       }
 
+      Preconditions.checkArgument(
+          handler.isTypeSupported(params.getActivityType().getName()),
+          "Activity type %s is not supported by the local activity worker",
+          params.getActivityType().getName());
+
       long passedFromOriginalSchedulingMs =
           System.currentTimeMillis() - params.getOriginalScheduledTimestamp();
       Duration scheduleToCloseTimeout = params.getScheduleToCloseTimeout();
