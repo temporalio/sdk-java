@@ -24,22 +24,38 @@ import io.opentracing.Tracer;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.OpenTracingWorkerInterceptor;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
+import io.temporal.spring.boot.autoconfigure.properties.NamespaceProperties;
 import io.temporal.worker.WorkerFactoryOptions;
+import java.util.Optional;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class WorkerFactoryOptionsTemplate {
+  private final @Nonnull NamespaceProperties namespaceProperties;
   private final @Nullable Tracer tracer;
   private final @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> customizer;
 
   public WorkerFactoryOptionsTemplate(
+      @Nonnull NamespaceProperties namespaceProperties,
       @Nullable Tracer tracer,
       @Nullable TemporalOptionsCustomizer<WorkerFactoryOptions.Builder> customizer) {
+    this.namespaceProperties = namespaceProperties;
     this.tracer = tracer;
     this.customizer = customizer;
   }
 
   public WorkerFactoryOptions createWorkerFactoryOptions() {
     WorkerFactoryOptions.Builder options = WorkerFactoryOptions.newBuilder();
+
+    @Nullable
+    NamespaceProperties.WorkflowCacheProperties workflowCache =
+        namespaceProperties.getWorkflowCache();
+    if (workflowCache != null) {
+      Optional.ofNullable(workflowCache.getMaxInstances()).ifPresent(options::setWorkflowCacheSize);
+      Optional.ofNullable(workflowCache.getMaxThreads())
+          .ifPresent(options::setMaxWorkflowThreadCount);
+    }
+
     if (tracer != null) {
       OpenTracingWorkerInterceptor openTracingClientInterceptor =
           new OpenTracingWorkerInterceptor(

@@ -26,6 +26,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.opentracing.OpenTracingClientInterceptor;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
+import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -48,12 +49,8 @@ public class WorkflowClientOptionsTemplate {
 
   public WorkflowClientOptions createWorkflowClientOptions() {
     WorkflowClientOptions.Builder options = WorkflowClientOptions.newBuilder();
-
     options.setNamespace(namespace);
-
-    if (dataConverter != null) {
-      options.setDataConverter(dataConverter);
-    }
+    Optional.ofNullable(dataConverter).ifPresent(options::setDataConverter);
 
     if (tracer != null) {
       OpenTracingClientInterceptor openTracingClientInterceptor =

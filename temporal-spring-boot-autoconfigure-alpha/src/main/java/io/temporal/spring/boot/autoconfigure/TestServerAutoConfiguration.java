@@ -102,7 +102,7 @@ public class TestServerAutoConfiguration {
     }
 
     options.setWorkerFactoryOptions(
-        new WorkerFactoryOptionsTemplate(otTracer, workerFactoryCustomizer)
+        new WorkerFactoryOptionsTemplate(properties, otTracer, workerFactoryCustomizer)
             .createWorkerFactoryOptions());
 
     if (testEnvOptionsCustomizer != null) {

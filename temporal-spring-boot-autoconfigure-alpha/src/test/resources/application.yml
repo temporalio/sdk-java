@@ -22,7 +22,7 @@ spring.temporal:
   connection:
     mtls:
       key-file: /path/to/key.key
-      cert-file: /path/to/cert.pem
+      cert-chain-file: /path/to/cert.pem
     target: local
   test-server:
     enabled: true
@@ -62,3 +62,25 @@ spring:
           - io.temporal.spring.boot.autoconfigure.bytaskqueue.TestWorkflowImpl
         activity-beans:
           - TestActivityImpl
+
+---
+spring:
+  config:
+    activate:
+      on-profile: optional-workers-options
+  temporal:
+    workers:
+      - task-queue: UnitTest
+        capacity:
+          max-concurrent-workflow-task-executors: 1
+          max-concurrent-activity-executors: 1
+          max-concurrent-local-activity-executors: 1
+          max-concurrent-workflow-task-pollers: 1
+          max-concurrent-activity-task-pollers: 1
+        rate-limits:
+          max-worker-activities-per-second: 1.0
+          max-task-queue-activities-per-second: 1.0
+    workflow-cache:
+      max-instances: 10
+      max-threads: 10
+

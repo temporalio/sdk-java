@@ -34,15 +34,18 @@ public class NamespaceProperties {
       workersAutoDiscovery;
   private final @Nullable List<WorkerProperties> workers;
   private final @Nonnull String namespace;
+  private final @Nullable WorkflowCacheProperties workflowCache;
 
   @ConstructorBinding
   public NamespaceProperties(
       @Nullable String namespace,
       @Nullable WorkersAutoDiscoveryProperties workersAutoDiscovery,
-      @Nullable List<WorkerProperties> workers) {
+      @Nullable List<WorkerProperties> workers,
+      @Nullable WorkflowCacheProperties workflowCache) {
     this.workersAutoDiscovery = workersAutoDiscovery;
     this.workers = workers;
     this.namespace = MoreObjects.firstNonNull(namespace, NAMESPACE_DEFAULT);
+    this.workflowCache = workflowCache;
   }
 
   @Nullable
@@ -61,5 +64,37 @@ public class NamespaceProperties {
   @Nonnull
   public String getNamespace() {
     return namespace;
+  }
+
+  @Nullable
+  public WorkflowCacheProperties getWorkflowCache() {
+    return workflowCache;
+  }
+
+  public static class WorkflowCacheProperties {
+    private final @Nullable Integer maxInstances;
+    private final @Nullable Integer maxThreads;
+
+    /**
+     * @param maxInstances max number of workflow instances in the cache. Defines {@link
+     *     io.temporal.worker.WorkerFactoryOptions.Builder#setWorkflowCacheSize(int)}
+     * @param maxThreads max number of workflow threads in the cache. Defines {@link
+     *     io.temporal.worker.WorkerFactoryOptions.Builder#setMaxWorkflowThreadCount(int)}
+     */
+    @ConstructorBinding
+    public WorkflowCacheProperties(@Nullable Integer maxInstances, @Nullable Integer maxThreads) {
+      this.maxInstances = maxInstances;
+      this.maxThreads = maxThreads;
+    }
+
+    @Nullable
+    public Integer getMaxInstances() {
+      return maxInstances;
+    }
+
+    @Nullable
+    public Integer getMaxThreads() {
+      return maxThreads;
+    }
   }
 }
