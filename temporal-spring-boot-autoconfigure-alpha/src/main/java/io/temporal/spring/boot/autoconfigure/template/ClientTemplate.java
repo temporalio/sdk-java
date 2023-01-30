@@ -25,17 +25,13 @@ import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.opentracing.OpenTracingClientInterceptor;
-import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.util.Objects;
+import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class ClientTemplate {
-  private final @Nonnull String namespace;
-  private final @Nullable DataConverter dataConverter;
-  private final @Nullable Tracer tracer;
+  private final @Nonnull WorkflowClientOptionsTemplate optionsTemplate;
   private final @Nullable WorkflowServiceStubs workflowServiceStubs;
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
@@ -47,10 +43,10 @@ public class ClientTemplate {
       @Nullable DataConverter dataConverter,
       @Nullable Tracer tracer,
       @Nullable WorkflowServiceStubs workflowServiceStubs,
-      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment) {
-    this.namespace = Objects.requireNonNull(namespace);
-    this.dataConverter = dataConverter;
-    this.tracer = tracer;
+      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
+      @Nullable TemporalOptionsCustomizer<WorkflowClientOptions.Builder> customizer) {
+    this.optionsTemplate =
+        new WorkflowClientOptionsTemplate(namespace, dataConverter, tracer, customizer);
     this.workflowServiceStubs = workflowServiceStubs;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
   }
@@ -68,25 +64,8 @@ public class ClientTemplate {
     } else {
       Preconditions.checkState(
           workflowServiceStubs != null, "ClientTemplate was created without workflowServiceStubs");
-      return WorkflowClient.newInstance(workflowServiceStubs, getWorkflowClientOptions());
+      return WorkflowClient.newInstance(
+          workflowServiceStubs, optionsTemplate.createWorkflowClientOptions());
     }
-  }
-
-  public WorkflowClientOptions getWorkflowClientOptions() {
-    WorkflowClientOptions.Builder clientOptionsBuilder = WorkflowClientOptions.newBuilder();
-
-    clientOptionsBuilder.setNamespace(namespace);
-
-    if (dataConverter != null) {
-      clientOptionsBuilder.setDataConverter(dataConverter);
-    }
-
-    if (tracer != null) {
-      OpenTracingClientInterceptor openTracingClientInterceptor =
-          new OpenTracingClientInterceptor(
-              OpenTracingOptions.newBuilder().setTracer(tracer).build());
-      clientOptionsBuilder.setInterceptors(openTracingClientInterceptor);
-    }
-    return clientOptionsBuilder.build();
   }
 }

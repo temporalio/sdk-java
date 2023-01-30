@@ -116,6 +116,22 @@ Task Queue names directly for simplicity.
 
 Note: Worker whose name is not explicitly specified is named after it's Task Queue.
 
+## Customization of `*Options`
+
+To provide freedom in customization of `*Options` instances that are created by this module,
+beans that implement `io.temporal.spring.boot.TemporalOptionsCustomizer<OptionsBuilderType>`
+interface may be added to the Spring context.
+
+Where `OptionsType` may be one of:
+- `WorkflowServiceStubsOptions.Builder`
+- `WorkflowClientOption.Builder`
+- `WorkerFactoryOptions.Builder`
+- `WorkerOptions.Builder`
+- `TestEnvironmentOptions.Builder`
+
+`io.temporal.spring.boot.WorkerOptionsCustomizer` may be used instead of `TemporalOptionsCustomizer<WorkerOptions.Builder>`
+if `WorkerOptions` needs to be modified differently depending on the Task Queue or Worker name.
+
 # Integrations
 
 ## Metrics
