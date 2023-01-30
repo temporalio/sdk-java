@@ -54,7 +54,7 @@ ext {
     // test scoped
     // we don't upgrade to 1.3 and 1.4 because they require slf4j 2.x
     logbackVersion = project.hasProperty("edgeDepsTest") ? '1.3.5' : '1.2.11'
-    mockitoVersion = '5.0.0'
+    mockitoVersion = '5.1.0'
     junitVersion = '4.13.2'
 }
 
