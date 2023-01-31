@@ -20,6 +20,7 @@
 
 package io.temporal.spring.boot.autoconfigure.template;
 
+import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.serviceclient.SimpleSslContextBuilder;
@@ -59,9 +60,8 @@ public class ServiceStubOptionsTemplate {
     WorkflowServiceStubsOptions.Builder stubsOptionsBuilder =
         WorkflowServiceStubsOptions.newBuilder();
 
-    if (connectionProperties.getTarget() != null) {
-      stubsOptionsBuilder.setTarget(connectionProperties.getTarget());
-    }
+    Preconditions.checkNotNull(connectionProperties.getTarget(), "target");
+    stubsOptionsBuilder.setTarget(connectionProperties.getTarget());
 
     stubsOptionsBuilder.setEnableHttps(Boolean.TRUE.equals(connectionProperties.isEnableHttps()));
 

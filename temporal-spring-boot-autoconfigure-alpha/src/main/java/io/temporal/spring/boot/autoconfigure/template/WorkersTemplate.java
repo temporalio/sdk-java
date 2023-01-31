@@ -107,7 +107,7 @@ public class WorkersTemplate implements BeanFactoryAware {
       return testWorkflowEnvironment.getWorkerFactory();
     } else {
       WorkerFactoryOptions workerFactoryOptions =
-          new WorkerFactoryOptionsTemplate(tracer, workerFactoryCustomizer)
+          new WorkerFactoryOptionsTemplate(namespaceProperties, tracer, workerFactoryCustomizer)
               .createWorkerFactoryOptions();
       return WorkerFactory.newInstance(workflowClient, workerFactoryOptions);
     }
@@ -371,7 +371,8 @@ public class WorkersTemplate implements BeanFactoryAware {
     this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
   }
 
-  private Worker createNewWorker(String taskQueue, WorkerProperties properties, Workers workers) {
+  private Worker createNewWorker(
+      @Nonnull String taskQueue, @Nullable WorkerProperties properties, @Nonnull Workers workers) {
     Preconditions.checkState(
         workerFactory.tryGetWorker(taskQueue) == null,
         "[BUG] This method should never be called twice for the same Task Queue='%s'",
@@ -381,7 +382,8 @@ public class WorkersTemplate implements BeanFactoryAware {
         properties != null && properties.getName() != null ? properties.getName() : taskQueue;
 
     WorkerOptions workerOptions =
-        new WorkerOptionsTemplate(workerName, taskQueue, workerCustomizer).createWorkerOptions();
+        new WorkerOptionsTemplate(workerName, taskQueue, properties, workerCustomizer)
+            .createWorkerOptions();
     Worker worker = workerFactory.newWorker(taskQueue, workerOptions);
     workers.addWorker(workerName, worker);
     return worker;

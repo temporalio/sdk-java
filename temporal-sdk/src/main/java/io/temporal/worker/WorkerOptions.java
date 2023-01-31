@@ -198,7 +198,7 @@ public final class WorkerOptions {
      * workflow tasks will be using host local task queue due to caching. So try incrementing {@link
      * WorkerFactoryOptions.Builder#setWorkflowHostLocalPollThreadCount(int)} before this one.
      *
-     * <p>Default is 2.
+     * <p>Default is 5.
      *
      * @deprecated Use {@link #setMaxConcurrentWorkflowTaskPollers}
      */

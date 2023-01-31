@@ -72,13 +72,40 @@ Follow the pattern to explicitly configure the workers:
 spring.temporal:
   workers:
     - task-queue: your-task-queue-name
-      # name: your-worker-name # unique name of the Worker. If not specified, Task Queue is used as a Worker name.
+      name: your-worker-name # unique name of the Worker. If not specified, Task Queue is used as the Worker name.
       workflow-classes:
         - your.package.YouWorkflowImpl
       activity-beans:
         - activity-bean-name1
-  # start-workers: false # disable auto-start of WorkersFactory and Workers if you want to make any custom changes before the start
 ```
+
+<details>
+  <summary>Extended Workers configuration example</summary>
+
+  ```yml
+  spring.temporal:
+    workers:
+      - task-queue: your-task-queue-name
+        # name: your-worker-name # unique name of the Worker. If not specified, Task Queue is used as the Worker name.
+        workflow-classes:
+          - your.package.YouWorkflowImpl
+        activity-beans:
+          - activity-bean-name1
+        # capacity:
+          # max-concurrent-workflow-task-executors: 200
+          # max-concurrent-activity-executors: 200
+          # max-concurrent-local-activity-executors: 200
+          # max-concurrent-workflow-task-pollers: 5
+          # max-concurrent-activity-task-pollers: 5
+        # rate-limits:
+          # max-worker-activities-per-second: 5.0
+          # max-task-queue-activities-per-second: 5.0
+    # workflow-cache:
+      # max-instances: 600
+      # max-threads: 600
+    # start-workers: false # disable auto-start of WorkersFactory and Workers if you want to make any custom changes before the start
+```
+</details>
 
 ## Auto-discovery
 
@@ -93,7 +120,6 @@ spring.temporal:
   workers-auto-discovery:
     packages:
       - your.package # enumerate all the packages that contain your workflow and activity implementations
-  # start-workers: false # disable starting WorkersFactory if you want to make any custom changes before the start
 ```
 
 What is auto-discovered:
@@ -103,7 +129,7 @@ What is auto-discovered:
 
 Auto-discovered workflow implementation classes and activity beans will be registered with the configured workers if not already registered.
 
-### Referencing worker names vs task queues
+### Referencing Worker names vs Task Queues
 
 Application that incorporates
 [Task Queue based Versioning strategy](https://community.temporal.io/t/workflow-versioning-strategies/6911)

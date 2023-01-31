@@ -26,23 +26,27 @@ import javax.annotation.Nullable;
 import org.springframework.boot.context.properties.ConstructorBinding;
 
 public class WorkerProperties {
-  private @Nonnull String taskQueue;
-  private @Nullable String name;
-
-  private @Nullable Collection<Class<?>> workflowClasses;
-
-  private @Nullable Collection<String> activityBeans;
+  private final @Nonnull String taskQueue;
+  private final @Nullable String name;
+  private final @Nullable Collection<Class<?>> workflowClasses;
+  private final @Nullable Collection<String> activityBeans;
+  private final @Nullable CapacityConfigurationProperties capacity;
+  private final @Nullable RateLimitsConfigurationProperties rateLimits;
 
   @ConstructorBinding
   public WorkerProperties(
       @Nonnull String taskQueue,
       @Nullable String name,
       @Nullable Collection<Class<?>> workflowClasses,
-      @Nullable Collection<String> activityBeans) {
+      @Nullable Collection<String> activityBeans,
+      @Nullable CapacityConfigurationProperties capacity,
+      @Nullable RateLimitsConfigurationProperties rateLimits) {
     this.name = name;
     this.taskQueue = taskQueue;
     this.workflowClasses = workflowClasses;
     this.activityBeans = activityBeans;
+    this.capacity = capacity;
+    this.rateLimits = rateLimits;
   }
 
   @Nonnull
@@ -50,17 +54,9 @@ public class WorkerProperties {
     return taskQueue;
   }
 
-  public void setTaskQueue(@Nonnull String taskQueue) {
-    this.taskQueue = taskQueue;
-  }
-
   @Nullable
   public String getName() {
     return name;
-  }
-
-  public void setName(@Nullable String name) {
-    this.name = name;
   }
 
   @Nullable
@@ -68,16 +64,106 @@ public class WorkerProperties {
     return workflowClasses;
   }
 
-  public void setWorkflowClasses(@Nullable Collection<Class<?>> workflowClasses) {
-    this.workflowClasses = workflowClasses;
-  }
-
   @Nullable
   public Collection<String> getActivityBeans() {
     return activityBeans;
   }
 
-  public void setActivityBeans(@Nullable Collection<String> activityBeans) {
-    this.activityBeans = activityBeans;
+  @Nullable
+  public CapacityConfigurationProperties getCapacity() {
+    return capacity;
+  }
+
+  @Nullable
+  public RateLimitsConfigurationProperties getRateLimits() {
+    return rateLimits;
+  }
+
+  public static class CapacityConfigurationProperties {
+    private final @Nullable Integer maxConcurrentWorkflowTaskExecutors;
+    private final @Nullable Integer maxConcurrentActivityExecutors;
+    private final @Nullable Integer maxConcurrentLocalActivityExecutors;
+    private final @Nullable Integer maxConcurrentWorkflowTaskPollers;
+    private final @Nullable Integer maxConcurrentActivityTaskPollers;
+
+    /**
+     * @param maxConcurrentWorkflowTaskExecutors defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentWorkflowTaskPollers(int)}
+     * @param maxConcurrentActivityExecutors defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentActivityExecutionSize(int)}
+     * @param maxConcurrentLocalActivityExecutors defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentLocalActivityExecutionSize(int)}
+     * @param maxConcurrentWorkflowTaskPollers defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentWorkflowTaskPollers(int)}
+     * @param maxConcurrentActivityTaskPollers defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentActivityTaskPollers(int)}
+     */
+    @ConstructorBinding
+    public CapacityConfigurationProperties(
+        @Nullable Integer maxConcurrentWorkflowTaskExecutors,
+        @Nullable Integer maxConcurrentActivityExecutors,
+        @Nullable Integer maxConcurrentLocalActivityExecutors,
+        @Nullable Integer maxConcurrentWorkflowTaskPollers,
+        @Nullable Integer maxConcurrentActivityTaskPollers) {
+      this.maxConcurrentWorkflowTaskExecutors = maxConcurrentWorkflowTaskExecutors;
+      this.maxConcurrentActivityExecutors = maxConcurrentActivityExecutors;
+      this.maxConcurrentLocalActivityExecutors = maxConcurrentLocalActivityExecutors;
+      this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
+      this.maxConcurrentActivityTaskPollers = maxConcurrentActivityTaskPollers;
+    }
+
+    @Nullable
+    public Integer getMaxConcurrentWorkflowTaskExecutors() {
+      return maxConcurrentWorkflowTaskExecutors;
+    }
+
+    @Nullable
+    public Integer getMaxConcurrentActivityExecutors() {
+      return maxConcurrentActivityExecutors;
+    }
+
+    @Nullable
+    public Integer getMaxConcurrentLocalActivityExecutors() {
+      return maxConcurrentLocalActivityExecutors;
+    }
+
+    @Nullable
+    public Integer getMaxConcurrentWorkflowTaskPollers() {
+      return maxConcurrentWorkflowTaskPollers;
+    }
+
+    @Nullable
+    public Integer getMaxConcurrentActivityTaskPollers() {
+      return maxConcurrentActivityTaskPollers;
+    }
+  }
+
+  public static class RateLimitsConfigurationProperties {
+    private final @Nullable Double maxWorkerActivitiesPerSecond;
+    private final @Nullable Double maxTaskQueueActivitiesPerSecond;
+
+    /**
+     * @param maxTaskQueueActivitiesPerSecond defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxTaskQueueActivitiesPerSecond(double)}}
+     * @param maxWorkerActivitiesPerSecond defines {@link
+     *     io.temporal.worker.WorkerOptions.Builder#setMaxConcurrentActivityExecutionSize(int)}
+     */
+    @ConstructorBinding
+    public RateLimitsConfigurationProperties(
+        @Nullable Double maxWorkerActivitiesPerSecond,
+        @Nullable Double maxTaskQueueActivitiesPerSecond) {
+      this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
+      this.maxTaskQueueActivitiesPerSecond = maxTaskQueueActivitiesPerSecond;
+    }
+
+    @Nullable
+    public Double getMaxWorkerActivitiesPerSecond() {
+      return maxWorkerActivitiesPerSecond;
+    }
+
+    @Nullable
+    public Double getMaxTaskQueueActivitiesPerSecond() {
+      return maxTaskQueueActivitiesPerSecond;
+    }
   }
 }

@@ -22,26 +22,57 @@ package io.temporal.spring.boot.autoconfigure.template;
 
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.WorkerOptionsCustomizer;
+import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
 import io.temporal.worker.WorkerOptions;
+import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 class WorkerOptionsTemplate {
-  private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> customizer;
   private final @Nonnull String taskQueue;
   private final @Nonnull String workerName;
+  private final @Nullable WorkerProperties workerProperties;
+  private final @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> customizer;
 
   WorkerOptionsTemplate(
       @Nonnull String workerName,
       @Nonnull String taskQueue,
+      @Nullable WorkerProperties workerProperties,
       @Nullable TemporalOptionsCustomizer<WorkerOptions.Builder> customizer) {
     this.workerName = workerName;
     this.taskQueue = taskQueue;
+    this.workerProperties = workerProperties;
     this.customizer = customizer;
   }
 
   WorkerOptions createWorkerOptions() {
     WorkerOptions.Builder options = WorkerOptions.newBuilder();
+
+    if (workerProperties != null) {
+      WorkerProperties.CapacityConfigurationProperties threadsConfiguration =
+          workerProperties.getCapacity();
+      if (threadsConfiguration != null) {
+        Optional.ofNullable(threadsConfiguration.getMaxConcurrentWorkflowTaskExecutors())
+            .ifPresent(options::setMaxConcurrentWorkflowTaskExecutionSize);
+        Optional.ofNullable(threadsConfiguration.getMaxConcurrentActivityExecutors())
+            .ifPresent(options::setMaxConcurrentActivityExecutionSize);
+        Optional.ofNullable(threadsConfiguration.getMaxConcurrentLocalActivityExecutors())
+            .ifPresent(options::setMaxConcurrentLocalActivityExecutionSize);
+        Optional.ofNullable(threadsConfiguration.getMaxConcurrentWorkflowTaskPollers())
+            .ifPresent(options::setMaxConcurrentWorkflowTaskPollers);
+        Optional.ofNullable(threadsConfiguration.getMaxConcurrentActivityTaskPollers())
+            .ifPresent(options::setMaxConcurrentActivityTaskPollers);
+      }
+
+      WorkerProperties.RateLimitsConfigurationProperties rateLimitConfiguration =
+          workerProperties.getRateLimits();
+      if (rateLimitConfiguration != null) {
+        Optional.ofNullable(rateLimitConfiguration.getMaxWorkerActivitiesPerSecond())
+            .ifPresent(options::setMaxWorkerActivitiesPerSecond);
+        Optional.ofNullable(rateLimitConfiguration.getMaxTaskQueueActivitiesPerSecond())
+            .ifPresent(options::setMaxTaskQueueActivitiesPerSecond);
+      }
+    }
 
     if (customizer != null) {
       options = customizer.customize(options);
