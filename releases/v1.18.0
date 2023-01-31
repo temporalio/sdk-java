@@ -1,0 +1,82 @@
+# Highlights
+
+Comprehensive rework of Local Activity Worker implementation:
+
+- Local Activities now respect all the timeouts set on `LocalActivityOptions`.
+- Lower ScheduleToStart latencies for Local Activities and a backpressure that prefers retries over new executions
+- `LocalActivityOptions` got `scheduleToStart` timeout
+- Bugfix for OpenTelemetry/OpenTracing incorrectly showing exaggerated scheduleToStart latency for Local Activities (#1573)
+
+Spring Boot module got
+
+- Spring Boot 3 support
+- `*Options` Customizer beans for fine grained control over `*Options` instances used by Spring Boot
+- Workers names based configuration to keep Task Queue names contained in the config only
+- More wired `WorkflowFactoryOptions` and `WorkerOptions` properties
+- Bugfixes for beans ordering (#1614) and test environment setup (#1622)
+
+New `WorkflowClient` methods:
+
+- `WorkflowClient#listExecutions` for fetching and iterating through Workflow Executions based on Visibility Queries
+- `WorkflowClient#fetchHistory` and `WorkflowClient#streamHistory` for retrieving Workflow history from the Server to be used in replay or for export.
+
+New metadata methods available for Workflow code:
+
+- `WorkflowInfo#getHistoryLength()`
+- `WorkflowInfo#getFirstExecutionRunId()`
+- `WorkflowInfo#getOriginalExecutionRunId()`
+
+# Bugfixes
+
+- Query on a stub that was was used for start a workflow now follows chain of runIds (#1612)
+- Failures happened in Signal methods are now treated the same way as failures in Workflow methods (#1616)
+
+# Migration note
+
+Previously Local Activity Workers didn't respect `startToClose` and, in some cases, `scheduleToClose` timeouts.
+Some users may have `LocalActivityOptions` configurations that don't accommodate their actual timings but previously were unenforced.
+The enforcement will kick in after an upgrade on v1.18+ and may lead to Local Activity failures that were not happening before.
+Users may need to test and adjust their `LocalActivityOptions` timeouts before rolling out v1.18+ to production.
+
+# Changeset
+
+2022-10-26 - af7c2ca1 - Mass replay API (#1497)
+2022-10-27 - e023e046 - Add WorkflowInfo#getHistoryLength (#1498)
+2022-10-27 - efce2f17 - Use longer retry interval on RESOURCE_EXHAUSTED (#1465)
+2022-10-28 - 699aa6f3 - Switch to the latest server in CI/CD (#1499)
+2022-11-07 - bac32774 - Port a server fix for the last heartbeat time being defaulted to the activity started time (#1508)
+2022-11-15 - 2ea4ef76 - Revisit Activity Timeouts (#1514)
+2022-11-15 - 40e28a74 - Add gatherRuntimeDeps task (#1517)
+2022-11-15 - 88baa797 - Fix SignalDuringLastWorkflowTaskTest (#1515)
+2022-11-18 - 4c4cb241 - Test Environments now respect metricsScope passed in TestEnvironmentOptions and ServiceStubOptions (#1521)
+2022-11-18 - a841a7c7 - Add sdk-features ci trigger (#1520)
+2022-11-21 - eda6bdac - Test server now generate a unique taskToken per attempts and doesn't allow old attempts the complete the execution (#1524)
+2022-11-22 - 7b526740 - More work for activity timeout compliance framework (#1525)
+2022-11-23 - c5f0ebbe - Rework Local Activity scheduling (#1507)
+2022-12-06 - 458bbf8e - Add generated proto classes info into javadoc jar (#1534)
+2022-12-06 - ec18bc86 - Implement retry of local activities for over local retry threshold duration (#1542)
+2022-12-08 - f389bd8e - Add scheduleToStart timeout to Local Activities, optimize LA queueing, add more retry guard clauses (#1560)
+2022-12-12 - 47e76c01 - Fix binary compatibility broken by #1566 (#1571)
+2022-12-12 - b079eb27 - Open WorkflowExecutionHistory as a public class (#1566)
+2022-12-16 - 7c167748 - Remove usage of Workflow time from tracing spans (#1573)
+2022-12-16 - f8cc7923 - Update C# and Ruby namespace/package for test server protos (#1572)
+2023-01-05 - 567bdebb - Set heartbeat details for TestActivityEnvironment (#1581)
+2023-01-05 - f1c8454b - List workflow API (#1583)
+2023-01-09 - 8b14ee9c - Fail WFT if Local Activity execution experienced an Error (#1591)
+2023-01-10 - 508dbfb6 - Rename sdk-features to features (#1599)
+2023-01-10 - a69f674a - Release v1.18.0-RC1 (#1598)
+2023-01-10 - e97ceb87 - Exposing an ability to fail WorkflowTask for any callback in executor code (#1589)
+2023-01-13 - 1a0738c0 - Fix grammar mistake and typo (#1602)
+2023-01-23 - 0acb6ef3 - Add history fetching API (#1600)
+2023-01-23 - a0b31e5f - Query on a stub that was was used for start a workflow now follows chain of runIds (#1612)
+2023-01-23 - a8f4b64d - Added ActivityOutput.activityId (#1608)
+2023-01-24 - c2afb32c - Fix event type that's being used to start Spring Boot workers (#1614)
+2023-01-25 - 301faf77 - TemporalFailure thrown from Signal method now fails Workflow Execution (#1616)
+2023-01-26 - 82b05aa2 - Add OPTIONS call support and CORS headers to the RDE Server sample implementation (#1617)
+2023-01-26 - ae021c5b - Sprint Boot TestWorkflowEnvironment now respects configured MetricsRegistry, Tracer, DataConverter (#1622)
+2023-01-26 - fa1d56f2 - Spring Boot 3 support (#1620)
+2023-01-27 - 6d3e2e9d - Add WorkflowInfo#getFirstExecutionRunId and #getOriginalExecutionRunId (#1624)
+2023-01-27 - fa258732 - Add auto discovery binding strategy by worker name to Spring Boot (#1623)
+2023-01-30 - 16e999f6 - Add TemporalOptionsCustomizer to allow users to modify the options constructed by Spring Boot Auto Configuration (#1627)
+2023-01-30 - 9480628c - Unregistered Local Activity now fails Workflow Task (#1628)
+2023-01-30 - e44bf5e2 - Wire some WorkerFactoryOptions and WorkerOptions properties to Spring Boot Configuration (#1633)
