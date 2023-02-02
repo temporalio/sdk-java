@@ -109,7 +109,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
         RpcRetryOptions.newBuilder()
             .setInitialInterval(retryServiceOperationInitialInterval)
             .setMaximumInterval(retryServiceOperationMaxInterval)
-            .build();
+            .validateBuildWithDefaults();
     GrpcRetryer.GrpcRetryerOptions grpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(retryOptions, deadline);
     GetWorkflowExecutionHistoryRequest request =
