@@ -204,7 +204,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
           "Class " + type + " can't be used as a search attribute type");
     }
     AddSearchAttributesRequest request =
-        AddSearchAttributesRequest.newBuilder().putSearchAttributes(name, type).build();
+        AddSearchAttributesRequest.newBuilder()
+            .setNamespace(getNamespace())
+            .putSearchAttributes(name, type)
+            .build();
     try {
       operatorServiceStubs.blockingStub().addSearchAttributes(request);
       return true;

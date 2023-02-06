@@ -10,12 +10,7 @@ subprojects {
         }
 
         kotlin {
-            ktlint('0.47.1')
-                    .setUseExperimental(true)
-                    // needs to be aligned with .editorconfig
-                    // https://github.com/diffplug/spotless/tree/main/plugin-gradle#ktlint
-                    // reenable filename rule after https://github.com/pinterest/ktlint/issues/1521
-                    .editorConfigOverride(['indent_size': '2', 'ktlint_disabled_rules': 'filename'])
+            ktlint('0.48.2')
         }
     }
 

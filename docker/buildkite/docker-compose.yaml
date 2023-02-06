@@ -24,7 +24,7 @@ services:
       - 9042
 
   temporal:
-    image: temporaliotest/auto-setup:sha-cc2e0c0
+    image: temporaliotest/auto-setup:latest
     ports:
       - "7233:7233"
       - "7234:7234"
@@ -59,10 +59,10 @@ services:
     volumes:
       - "../../:/temporal-java-client"
 
-  unit-test-test-service-jdk18:
+  unit-test-test-service-edge:
     build:
       context: ../../
-      dockerfile: ./docker/buildkite/Dockerfile-JDK18
+      dockerfile: ./docker/buildkite/Dockerfile-JDK19
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
@@ -73,15 +73,6 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile-JDK11
-    environment:
-      - "USER=unittest"
-    volumes:
-      - "../../:/temporal-java-client"
-
-  jdk18:
-    build:
-      context: ../../
-      dockerfile: ./docker/buildkite/Dockerfile-JDK18
     environment:
       - "USER=unittest"
     volumes:
