@@ -91,7 +91,7 @@ abstract class EagerPaginator<Resp, T> implements Iterator<T> {
   }
 
   public void init() {
-    nextResponse = performRequest(ByteString.empty());
+    nextResponse = performRequest(ByteString.EMPTY);
     waitAndGetNextResponse();
     fetch();
   }
