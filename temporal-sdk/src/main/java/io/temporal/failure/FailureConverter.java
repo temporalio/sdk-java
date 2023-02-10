@@ -22,6 +22,7 @@ package io.temporal.failure;
 
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.converter.DataConverter;
+import javax.annotation.Nonnull;
 
 public interface FailureConverter {
 
@@ -32,8 +33,11 @@ public interface FailureConverter {
    * @param dataConverter to be used to convert {@code Failure#encodedAttributes} and {@code
    *     Failure#failure_info#details} (if present).
    * @return deserialized exception
+   * @throws NullPointerException if either failure or dataConverter is null
    */
-  public RuntimeException failureToException(Failure failure, DataConverter dataConverter);
+  @Nonnull
+  RuntimeException failureToException(
+      @Nonnull Failure failure, @Nonnull DataConverter dataConverter);
 
   /**
    * Serialize an existing Java Exception into a Failure object.
@@ -42,6 +46,8 @@ public interface FailureConverter {
    * @param dataConverter to be used to convert {@code Failure#encodedAttributes} and {@code
    *     Failure#failure_info#details} (if present).
    * @return serialized exception
+   * @throws NullPointerException if either e or dataConverter is null
    */
-  public Failure exceptionToFailure(Throwable e, DataConverter dataConverter);
+  @Nonnull
+  Failure exceptionToFailure(@Nonnull Throwable e, @Nonnull DataConverter dataConverter);
 }

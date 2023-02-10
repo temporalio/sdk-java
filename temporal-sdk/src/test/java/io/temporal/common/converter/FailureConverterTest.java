@@ -33,9 +33,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.internal.testing.WorkflowTestingTest;
 import io.temporal.internal.testing.WorkflowTestingTest.FailingWorkflowImpl;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
@@ -51,13 +49,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class FailureConverterTest {
-  private static final Logger log = LoggerFactory.getLogger(WorkflowTestingTest.class);
   private static final String TASK_QUEUE = "test-workflow";
-  private TestWorkflowEnvironment testEnvironment;
 
   public @Rule Timeout timeout = Timeout.seconds(10);
 
@@ -66,11 +60,11 @@ public class FailureConverterTest {
   @Before
   public void setUp() {
     PrefixPayloadCodec prefixPayloadCodec = new PrefixPayloadCodec();
-    DefaultFailureConverter failureConverter = new DefaultFailureConverter(true);
-    DefaultDataConverter defaultDataConverter =
-        DefaultDataConverter.newDefaultInstance().withFailureConverterOverride(failureConverter);
     this.dataConverter =
-        new CodecDataConverter(defaultDataConverter, Collections.singletonList(prefixPayloadCodec));
+        new CodecDataConverter(
+            DefaultDataConverter.newDefaultInstance(),
+            Collections.singletonList(prefixPayloadCodec),
+            true);
   }
 
   @Test
@@ -157,22 +151,27 @@ public class FailureConverterTest {
             .validateAndBuildWithDefaults();
     TestEnvironmentOptions testEnvOptions =
         TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(workflowClientOptions).build();
-    testEnvironment = TestWorkflowEnvironment.newInstance(testEnvOptions);
-    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(FailingWorkflowImpl.class);
-    testEnvironment.start();
 
-    WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions workflowOptions = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
-    TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, workflowOptions);
+    try (TestWorkflowEnvironment testEnvironment =
+        TestWorkflowEnvironment.newInstance(testEnvOptions)) {
 
-    try {
-      workflow.execute("input1");
-      fail("unreacheable");
-    } catch (WorkflowException e) {
-      assertEquals(
-          "message='TestWorkflow1-input1', type='test', nonRetryable=false",
-          e.getCause().getMessage());
+      Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+      worker.registerWorkflowImplementationTypes(FailingWorkflowImpl.class);
+      testEnvironment.start();
+
+      WorkflowClient client = testEnvironment.getWorkflowClient();
+      WorkflowOptions workflowOptions =
+          WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+      TestWorkflow1 workflow = client.newWorkflowStub(TestWorkflow1.class, workflowOptions);
+
+      try {
+        workflow.execute("input1");
+        fail("unreacheable");
+      } catch (WorkflowException e) {
+        assertEquals(
+            "message='TestWorkflow1-input1', type='test', nonRetryable=false",
+            e.getCause().getMessage());
+      }
     }
   }
 

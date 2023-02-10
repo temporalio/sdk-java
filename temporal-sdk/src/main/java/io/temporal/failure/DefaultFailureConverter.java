@@ -20,11 +20,10 @@
 
 package io.temporal.failure;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.reflect.TypeToken;
 import io.temporal.api.common.v1.ActivityType;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.ActivityFailureInfo;
@@ -38,32 +37,22 @@ import io.temporal.api.failure.v1.TerminatedFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DefaultFailureConverter implements FailureConverter {
+public final class DefaultFailureConverter implements FailureConverter {
 
   private static final Logger log = LoggerFactory.getLogger(DefaultFailureConverter.class);
 
   public static final String JAVA_SDK = "JavaSDK";
-
-  private static final String ENCODED_FAILURE_MESSAGE = "Encoded failure";
-  private static final String STACK_TRACE_KEY = "stack_trace";
-  private static final String MESSAGE_KEY = "message";
-
-  private static final Type HASH_MAP_STRING_STRING_TYPE =
-      new TypeToken<HashMap<String, String>>() {}.getType();
 
   /**
    * Stop emitting stack trace after this line. Makes serialized stack traces more readable and
@@ -80,32 +69,12 @@ public class DefaultFailureConverter implements FailureConverter {
 
   private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
 
-  private boolean encodeDefaultAttributes;
-
-  public DefaultFailureConverter() {
-    this(false);
-  }
-
-  public DefaultFailureConverter(boolean encodeDefaultAttributes) {
-    this.encodeDefaultAttributes = encodeDefaultAttributes;
-  }
-
   @Override
-  public RuntimeException failureToException(Failure failure, DataConverter dataConverter) {
-    if (failure == null) {
-      return null;
-    }
-    if (failure.hasEncodedAttributes()) {
-      Payload encodedAttributesPayload = failure.getEncodedAttributes();
-      Map<String, String> encodedAttributes =
-          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-              encodedAttributesPayload, HashMap.class, HASH_MAP_STRING_STRING_TYPE);
-      failure =
-          failure.toBuilder()
-              .setStackTrace(encodedAttributes.get(STACK_TRACE_KEY))
-              .setMessage(encodedAttributes.get(MESSAGE_KEY))
-              .build();
-    }
+  @Nonnull
+  public RuntimeException failureToException(
+      @Nonnull Failure failure, @Nonnull DataConverter dataConverter) {
+    Preconditions.checkNotNull(failure, "failure");
+    Preconditions.checkNotNull(dataConverter, "dataConverter");
     RuntimeException result = failureToExceptionImpl(failure, dataConverter);
     if (result instanceof TemporalFailure) {
       ((TemporalFailure) result).setFailure(failure);
@@ -210,7 +179,10 @@ public class DefaultFailureConverter implements FailureConverter {
   }
 
   @Override
-  public Failure exceptionToFailure(Throwable e, DataConverter dataConverter) {
+  @Nonnull
+  public Failure exceptionToFailure(@Nonnull Throwable e, @Nonnull DataConverter dataConverter) {
+    Preconditions.checkNotNull(dataConverter, "dataConverter");
+    Preconditions.checkNotNull(e, "e");
     Throwable ex = e;
     while (ex != null) {
       if (ex instanceof TemporalFailure) {
@@ -221,6 +193,7 @@ public class DefaultFailureConverter implements FailureConverter {
     return this.exceptionToFailure(e);
   }
 
+  @Nonnull
   private Failure exceptionToFailure(Throwable e) {
     if (e instanceof CheckedExceptionWrapper) {
       return exceptionToFailure(e.getCause());
@@ -237,17 +210,7 @@ public class DefaultFailureConverter implements FailureConverter {
     }
     String stackTrace = serializeStackTrace(e);
     Failure.Builder failure = Failure.newBuilder().setSource(JAVA_SDK);
-    if (encodeDefaultAttributes) {
-      Map<String, String> encodedAttributes = new HashMap<>();
-      encodedAttributes.put(STACK_TRACE_KEY, stackTrace);
-      encodedAttributes.put(MESSAGE_KEY, message);
-      Payload encodedAttributesPayload =
-          DefaultDataConverter.STANDARD_INSTANCE.toPayload(encodedAttributes).get();
-      failure.setEncodedAttributes(encodedAttributesPayload);
-      failure.setMessage(ENCODED_FAILURE_MESSAGE).setStackTrace("");
-    } else {
-      failure.setMessage(message).setStackTrace(stackTrace);
-    }
+    failure.setMessage(message).setStackTrace(stackTrace);
     if (e.getCause() != null) {
       failure.setCause(exceptionToFailure(e.getCause()));
     }

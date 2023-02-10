@@ -28,6 +28,7 @@ import io.temporal.payload.codec.PayloadCodec;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 /**
  * Used by the framework to serialize/deserialize method parameters that need to be sent over the
@@ -115,8 +116,10 @@ public interface DataConverter {
    * io.temporal.failure.FailureConverter}, using this data converter for payload decoding.
    *
    * @param failure Failure protobuf object to deserialize into an exception
+   * @throws NullPointerException if failure is null
    */
-  RuntimeException failureToException(Failure failure);
+  @Nonnull
+  RuntimeException failureToException(@Nonnull Failure failure);
 
   /**
    * Serialize an existing Java Exception into a Failure object. The default implementation
@@ -124,8 +127,10 @@ public interface DataConverter {
    * io.temporal.failure.FailureConverter}, using this data converter for payload encoding.
    *
    * @param e A Java Exception object to serialize into a Failure protobuf object
+   * @throws NullPointerException if e is null
    */
-  Failure exceptionToFailure(Throwable e);
+  @Nonnull
+  Failure exceptionToFailure(@Nonnull Throwable e);
 
   static Object[] arrayFromPayloads(
       DataConverter converter,

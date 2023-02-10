@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nonnull;
 
 /**
  * DataConverter that delegates conversion to type specific PayloadConverter instance.
@@ -87,28 +88,20 @@ public class DefaultDataConverter implements DataConverter {
 
   /**
    * Creates a new instance of {@code DefaultDataConverter} populated with the default list of
-   * payload converters.
-   *
-   * <p>The newly created instance will use the default failure converter, configured to not encode
-   * message and stack trace. Call {@code withFailureConverterOverride} on the instance to set a
-   * different failure converter.
+   * payload converters and a default failure converter.
    */
   public static DefaultDataConverter newDefaultInstance() {
     return new DefaultDataConverter(STANDARD_PAYLOAD_CONVERTERS);
   }
 
   /**
-   * Creates instance from ordered array of converters. When converting an object to payload the
-   * array of converters is iterated from the beginning until one of the converters successfully
-   * converts the value.
-   *
-   * <p>The newly created instance will use the default failure converter, configured to not encode
-   * message and stack trace. Call {@code withFailureConverterOverride} on the instance to set a
-   * different failure converter.
+   * Creates instance from ordered array of converters and a default failure converter. When
+   * converting an object to payload the array of converters is iterated from the beginning until
+   * one of the converters successfully converts the value.
    */
   public DefaultDataConverter(PayloadConverter... converters) {
-    Collections.addAll(this.converters, converters);
     this.failureConverter = new DefaultFailureConverter();
+    Collections.addAll(this.converters, converters);
     updateConverterMap();
   }
 
@@ -134,11 +127,19 @@ public class DefaultDataConverter implements DataConverter {
     return this;
   }
 
-  /** Modifies this {@code DefaultDataConverter} by overriding its {@link FailureConverter}. */
-  public DefaultDataConverter withFailureConverterOverride(
-      FailureConverter overrideFailureConverter) {
-    Preconditions.checkNotNull(overrideFailureConverter, "overrideFailureConverter");
-    this.failureConverter = overrideFailureConverter;
+  /**
+   * Modifies this {@code DefaultDataConverter} by overriding its {@link FailureConverter}.
+   *
+   * <p>WARNING: Most users should _never_ need to override the default failure converter. To
+   * encrypt the content of failures, see {@link CodecDataConverter} instead.
+   *
+   * @param failureConverter The failure converter to use
+   * @throws NullPointerException if failureConverter is null
+   */
+  @Nonnull
+  public DefaultDataConverter withFailureConverter(@Nonnull FailureConverter failureConverter) {
+    Preconditions.checkNotNull(failureConverter, "failureConverter");
+    this.failureConverter = failureConverter;
     return this;
   }
 
@@ -207,12 +208,16 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   @Override
-  public RuntimeException failureToException(Failure failure) {
+  @Nonnull
+  public RuntimeException failureToException(@Nonnull Failure failure) {
+    Preconditions.checkNotNull(failure, "failure");
     return failureConverter.failureToException(failure, this);
   }
 
   @Override
-  public Failure exceptionToFailure(Throwable e) {
+  @Nonnull
+  public Failure exceptionToFailure(@Nonnull Throwable e) {
+    Preconditions.checkNotNull(e, "failure");
     return failureConverter.exceptionToFailure(e, this);
   }
 

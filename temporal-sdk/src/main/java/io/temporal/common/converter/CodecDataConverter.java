@@ -21,12 +21,12 @@
 package io.temporal.common.converter;
 
 import com.google.common.base.Preconditions;
+import com.google.common.reflect.TypeToken;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.failure.v1.Failure.Builder;
 import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.payload.codec.ChainCodec;
@@ -34,7 +34,9 @@ import io.temporal.payload.codec.PayloadCodec;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 
@@ -47,8 +49,16 @@ import javax.annotation.Nonnull;
  * responsible for a subsequent byte &lt;-&gt; byte manipulation such as encryption or compression
  */
 public class CodecDataConverter implements DataConverter, PayloadCodec {
+  private static final String ENCODED_FAILURE_MESSAGE = "Encoded failure";
+  private static final String STACK_TRACE_KEY = "stack_trace";
+  private static final String MESSAGE_KEY = "message";
+
+  private static final Type HASH_MAP_STRING_STRING_TYPE =
+      new TypeToken<HashMap<String, String>>() {}.getType();
+
   private final DataConverter dataConverter;
   private final PayloadCodec codec;
+  private final boolean encodeDefaultAttributes;
 
   /**
    * When serializing to Payloads:
@@ -72,8 +82,37 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
    *     are applied first to last to reverse the effect
    */
   public CodecDataConverter(DataConverter dataConverter, Collection<PayloadCodec> codecs) {
+    this(dataConverter, codecs, false);
+  }
+
+  /**
+   * When serializing to Payloads:
+   *
+   * <ul>
+   *   <li>{@code dataConverter} is applied first, following by the chain of {@code codecs}.
+   *   <li>{@code codecs} are applied last to first meaning the earlier encoders wrap the later ones
+   * </ul>
+   *
+   * When deserializing from Payloads:
+   *
+   * <ul>
+   *   <li>{@code codecs} are applied first to last to reverse the effect following by the {@code
+   *       dataConverter}
+   *   <li>{@code dataConverter} is applied last
+   * </ul>
+   *
+   * @param dataConverter to delegate data conversion to
+   * @param codecs to delegate bytes encoding/decoding to. When encoding, the codecs are applied
+   *     last to first meaning the earlier encoders wrap the later ones. When decoding, the decoders
+   *     are applied first to last to reverse the effect
+   */
+  public CodecDataConverter(
+      DataConverter dataConverter,
+      Collection<PayloadCodec> codecs,
+      boolean encodeDefaultAttributes) {
     this.dataConverter = dataConverter;
     this.codec = new ChainCodec(codecs);
+    this.encodeDefaultAttributes = encodeDefaultAttributes;
   }
 
   @Override
@@ -106,63 +145,68 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
       int index, Optional<Payloads> content, Class<T> valueType, Type valueGenericType)
       throws DataConverterException {
     if (content.isPresent()) {
-      content = Optional.of(decode(content.get()));
+      content = Optional.of(decodePayloads(content.get()));
     }
     return dataConverter.fromPayloads(index, content, valueType, valueGenericType);
   }
 
   @Override
-  public Failure exceptionToFailure(Throwable e) {
-    return this.encodeFailure(dataConverter.exceptionToFailure(e));
+  @Nonnull
+  public Failure exceptionToFailure(@Nonnull Throwable e) {
+    Preconditions.checkNotNull(e, "e");
+    return this.encodeFailure(dataConverter.exceptionToFailure(e).toBuilder()).build();
   }
 
-  private Failure encodeFailure(Failure decodedFailure) {
-    Builder encodedFailure = decodedFailure.toBuilder();
-    if (decodedFailure.hasCause()) {
-      encodedFailure.setCause(encodeFailure(decodedFailure.getCause()));
+  private Failure.Builder encodeFailure(Failure.Builder failure) {
+    if (failure.hasCause()) {
+      failure.setCause(encodeFailure(failure.getCause().toBuilder()));
     }
-    if (decodedFailure.hasEncodedAttributes()) {
-      encodedFailure.setEncodedAttributes(encode(decodedFailure.getEncodedAttributes()));
+    if (this.encodeDefaultAttributes) {
+      Map<String, String> encodedAttributes = new HashMap<>();
+      encodedAttributes.put(STACK_TRACE_KEY, failure.getStackTrace());
+      encodedAttributes.put(MESSAGE_KEY, failure.getMessage());
+      Payload encodedAttributesPayload =
+          encodePayload(DefaultDataConverter.STANDARD_INSTANCE.toPayload(encodedAttributes).get());
+      failure
+          .setEncodedAttributes(encodedAttributesPayload)
+          .setMessage(ENCODED_FAILURE_MESSAGE)
+          .setStackTrace("");
     }
-    switch (decodedFailure.getFailureInfoCase()) {
+    switch (failure.getFailureInfoCase()) {
       case APPLICATION_FAILURE_INFO:
         {
-          ApplicationFailureInfo decodedInfo = decodedFailure.getApplicationFailureInfo();
-          ApplicationFailureInfo.Builder encodedInfo = decodedInfo.toBuilder();
-          if (decodedInfo.hasDetails()) {
-            encodedInfo.setDetails(encode(decodedInfo.getDetails()));
+          ApplicationFailureInfo.Builder info = failure.getApplicationFailureInfo().toBuilder();
+          if (info.hasDetails()) {
+            info.setDetails(encodePayloads(info.getDetails()));
           }
-          encodedFailure.setApplicationFailureInfo(encodedInfo);
+          failure.setApplicationFailureInfo(info);
         }
         break;
       case TIMEOUT_FAILURE_INFO:
         {
-          TimeoutFailureInfo decodedInfo = decodedFailure.getTimeoutFailureInfo();
-          TimeoutFailureInfo.Builder encodedInfo = decodedInfo.toBuilder();
-          if (decodedInfo.hasLastHeartbeatDetails()) {
-            encodedInfo.setLastHeartbeatDetails(encode(decodedInfo.getLastHeartbeatDetails()));
+          TimeoutFailureInfo.Builder info = failure.getTimeoutFailureInfo().toBuilder();
+          if (info.hasLastHeartbeatDetails()) {
+            info.setLastHeartbeatDetails(encodePayloads(info.getLastHeartbeatDetails()));
           }
-          encodedFailure.setTimeoutFailureInfo(encodedInfo);
+          failure.setTimeoutFailureInfo(info);
         }
         break;
       case CANCELED_FAILURE_INFO:
         {
-          CanceledFailureInfo decodedInfo = decodedFailure.getCanceledFailureInfo();
-          CanceledFailureInfo.Builder encodedInfo = decodedInfo.toBuilder();
-          if (decodedInfo.hasDetails()) {
-            encodedInfo.setDetails(encode(decodedInfo.getDetails()));
+          CanceledFailureInfo.Builder info = failure.getCanceledFailureInfo().toBuilder();
+          if (info.hasDetails()) {
+            info.setDetails(encodePayloads(info.getDetails()));
           }
-          encodedFailure.setCanceledFailureInfo(encodedInfo);
+          failure.setCanceledFailureInfo(info);
         }
         break;
       case RESET_WORKFLOW_FAILURE_INFO:
         {
-          ResetWorkflowFailureInfo decodedInfo = decodedFailure.getResetWorkflowFailureInfo();
-          ResetWorkflowFailureInfo.Builder encodedInfo = decodedInfo.toBuilder();
-          if (decodedInfo.hasLastHeartbeatDetails()) {
-            encodedInfo.setLastHeartbeatDetails(encode(decodedInfo.getLastHeartbeatDetails()));
+          ResetWorkflowFailureInfo.Builder info = failure.getResetWorkflowFailureInfo().toBuilder();
+          if (info.hasLastHeartbeatDetails()) {
+            info.setLastHeartbeatDetails(encodePayloads(info.getLastHeartbeatDetails()));
           }
-          encodedFailure.setResetWorkflowFailureInfo(encodedInfo);
+          failure.setResetWorkflowFailureInfo(info);
         }
         break;
       default:
@@ -170,61 +214,65 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
           // Other type of failure info don't have anything to encode
         }
     }
-    return encodedFailure.build();
+    return failure;
   }
 
   @Override
-  public RuntimeException failureToException(Failure failure) {
-    return dataConverter.failureToException(this.decodeFailure(failure));
+  @Nonnull
+  public RuntimeException failureToException(@Nonnull Failure failure) {
+    Preconditions.checkNotNull(failure, "failure");
+    return dataConverter.failureToException(this.decodeFailure(failure.toBuilder()).build());
   }
 
-  private Failure decodeFailure(Failure encodedFailure) {
-    Builder decodedFailure = encodedFailure.toBuilder();
-    if (encodedFailure.hasCause()) {
-      decodedFailure.setCause(decodeFailure(encodedFailure.getCause()));
+  private Failure.Builder decodeFailure(Failure.Builder failure) {
+    if (failure.hasCause()) {
+      failure.setCause(decodeFailure(failure.getCause().toBuilder()));
     }
-    if (encodedFailure.hasEncodedAttributes()) {
-      decodedFailure.setEncodedAttributes(decode(encodedFailure.getEncodedAttributes()));
+    if (failure.hasEncodedAttributes()) {
+      Payload encodedAttributesPayload = decodePayload(failure.getEncodedAttributes());
+      Map<String, String> encodedAttributes =
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+              encodedAttributesPayload, HashMap.class, HASH_MAP_STRING_STRING_TYPE);
+      failure
+          .setStackTrace(encodedAttributes.get(STACK_TRACE_KEY))
+          .setMessage(encodedAttributes.get(MESSAGE_KEY))
+          .clearEncodedAttributes();
     }
-    switch (encodedFailure.getFailureInfoCase()) {
+    switch (failure.getFailureInfoCase()) {
       case APPLICATION_FAILURE_INFO:
         {
-          ApplicationFailureInfo encodedInfo = encodedFailure.getApplicationFailureInfo();
-          ApplicationFailureInfo.Builder decodedInfo = encodedInfo.toBuilder();
-          if (encodedInfo.hasDetails()) {
-            decodedInfo.setDetails(decode(encodedInfo.getDetails()));
+          ApplicationFailureInfo.Builder info = failure.getApplicationFailureInfo().toBuilder();
+          if (info.hasDetails()) {
+            info.setDetails(decodePayloads(info.getDetails()));
           }
-          decodedFailure.setApplicationFailureInfo(decodedInfo);
+          failure.setApplicationFailureInfo(info);
         }
         break;
       case TIMEOUT_FAILURE_INFO:
         {
-          TimeoutFailureInfo encodedInfo = encodedFailure.getTimeoutFailureInfo();
-          TimeoutFailureInfo.Builder decodedInfo = encodedInfo.toBuilder();
-          if (encodedInfo.hasLastHeartbeatDetails()) {
-            decodedInfo.setLastHeartbeatDetails(decode(encodedInfo.getLastHeartbeatDetails()));
+          TimeoutFailureInfo.Builder info = failure.getTimeoutFailureInfo().toBuilder();
+          if (info.hasLastHeartbeatDetails()) {
+            info.setLastHeartbeatDetails(decodePayloads(info.getLastHeartbeatDetails()));
           }
-          decodedFailure.setTimeoutFailureInfo(decodedInfo);
+          failure.setTimeoutFailureInfo(info);
         }
         break;
       case CANCELED_FAILURE_INFO:
         {
-          CanceledFailureInfo encodedInfo = encodedFailure.getCanceledFailureInfo();
-          CanceledFailureInfo.Builder decodedInfo = encodedInfo.toBuilder();
-          if (encodedInfo.hasDetails()) {
-            decodedInfo.setDetails(decode(encodedInfo.getDetails()));
+          CanceledFailureInfo.Builder info = failure.getCanceledFailureInfo().toBuilder();
+          if (info.hasDetails()) {
+            info.setDetails(decodePayloads(info.getDetails()));
           }
-          decodedFailure.setCanceledFailureInfo(decodedInfo);
+          failure.setCanceledFailureInfo(info);
         }
         break;
       case RESET_WORKFLOW_FAILURE_INFO:
         {
-          ResetWorkflowFailureInfo encodedInfo = encodedFailure.getResetWorkflowFailureInfo();
-          ResetWorkflowFailureInfo.Builder decodedInfo = encodedInfo.toBuilder();
-          if (encodedInfo.hasLastHeartbeatDetails()) {
-            decodedInfo.setLastHeartbeatDetails(decode(encodedInfo.getLastHeartbeatDetails()));
+          ResetWorkflowFailureInfo.Builder info = failure.getResetWorkflowFailureInfo().toBuilder();
+          if (info.hasLastHeartbeatDetails()) {
+            info.setLastHeartbeatDetails(decodePayloads(info.getLastHeartbeatDetails()));
           }
-          decodedFailure.setResetWorkflowFailureInfo(decodedInfo);
+          failure.setResetWorkflowFailureInfo(info);
         }
         break;
       default:
@@ -232,7 +280,7 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
           // Other type of failure info don't have anything to decode
         }
     }
-    return decodedFailure.build();
+    return failure;
   }
 
   @Nonnull
@@ -241,11 +289,11 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     return codec.encode(payloads);
   }
 
-  private Payload encode(Payload payload) {
+  private Payload encodePayload(Payload payload) {
     return codec.encode(Collections.singletonList(payload)).get(0);
   }
 
-  private Payloads encode(Payloads decodedPayloads) {
+  private Payloads encodePayloads(Payloads decodedPayloads) {
     List<Payload> encodedPayloads = codec.encode(decodedPayloads.getPayloadsList());
     return Payloads.newBuilder().addAllPayloads(encodedPayloads).build();
   }
@@ -256,11 +304,11 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     return codec.decode(payloads);
   }
 
-  private Payload decode(Payload payload) {
+  private Payload decodePayload(Payload payload) {
     return codec.decode(Collections.singletonList(payload)).get(0);
   }
 
-  private Payloads decode(Payloads encodedPayloads) {
+  private Payloads decodePayloads(Payloads encodedPayloads) {
     List<Payload> decodedPayloads = codec.decode(encodedPayloads.getPayloadsList());
     return Payloads.newBuilder().addAllPayloads(decodedPayloads).build();
   }
