@@ -48,7 +48,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +59,7 @@ public class FailureConverterTest {
   private static final String TASK_QUEUE = "test-workflow";
   private TestWorkflowEnvironment testEnvironment;
 
-  //   public @Rule Timeout timeout = Timeout.seconds(10);
+  public @Rule Timeout timeout = Timeout.seconds(10);
 
   private CodecDataConverter dataConverter;
 
