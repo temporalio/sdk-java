@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -85,12 +86,20 @@ public interface WorkflowClientCallsInterceptor {
     private final Object[] arguments;
     private final WorkflowOptions options;
 
+    /**
+     * @param workflowId id of the workflow to be started
+     * @param workflowType workflow type name
+     * @param header internal Temporal header that is used to pass context between different
+     *     abstractions and actors
+     * @param arguments input arguments for the workflow
+     * @param options workflow options
+     */
     public WorkflowStartInput(
-        String workflowId,
-        String workflowType,
-        Header header,
-        Object[] arguments,
-        WorkflowOptions options) {
+        @Nonnull String workflowId,
+        @Nonnull String workflowType,
+        @Nonnull Header header,
+        @Nonnull Object[] arguments,
+        @Nonnull WorkflowOptions options) {
       this.workflowId = workflowId;
       this.workflowType = workflowType;
       this.header = header;
@@ -120,12 +129,13 @@ public interface WorkflowClientCallsInterceptor {
   }
 
   final class WorkflowStartOutput {
-    private final WorkflowExecution workflowExecution;
+    private final @Nonnull WorkflowExecution workflowExecution;
 
-    public WorkflowStartOutput(WorkflowExecution workflowExecution) {
+    public WorkflowStartOutput(@Nonnull WorkflowExecution workflowExecution) {
       this.workflowExecution = workflowExecution;
     }
 
+    @Nonnull
     public WorkflowExecution getWorkflowExecution() {
       return workflowExecution;
     }

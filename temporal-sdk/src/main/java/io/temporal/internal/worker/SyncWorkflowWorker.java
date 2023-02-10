@@ -30,6 +30,7 @@ import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.worker.WorkflowTaskDispatchHandle;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -37,6 +38,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +81,6 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
-
     this.dataConverter = singleWorkerOptions.getDataConverter();
 
     factory =
@@ -230,5 +231,10 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     return String.format(
         "SyncWorkflowWorker{namespace=%s, taskQueue=%s, identity=%s}",
         namespace, taskQueue, identity);
+  }
+
+  @Nullable
+  public WorkflowTaskDispatchHandle reserveWorkflowExecutor() {
+    return workflowWorker.reserveWorkflowExecutor();
   }
 }

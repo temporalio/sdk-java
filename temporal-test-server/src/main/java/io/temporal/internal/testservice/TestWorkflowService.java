@@ -198,7 +198,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Duration backoffInterval = getBackoffInterval(request.getCronSchedule(), store.currentTime());
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionImpl(
-              request, backoffInterval, Optional.empty(), OptionalLong.empty(), Optional.empty());
+              request, backoffInterval, Optional.empty(), OptionalLong.empty(), null);
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -211,7 +211,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Duration backoffStartInterval,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
-      Optional<SignalWorkflowExecutionRequest> signalWithStartSignal) {
+      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal) {
     String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
     String namespace = requireNotNull("Namespace", startRequest.getNamespace());
     WorkflowId workflowId = new WorkflowId(namespace, requestWorkflowId);
@@ -301,7 +301,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<Failure> lastFailure,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
-      Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
+      @Nullable SignalWorkflowExecutionRequest signalWithStartSignal,
       WorkflowId workflowId) {
     String namespace = startRequest.getNamespace();
     TestWorkflowMutableState mutableState =
@@ -324,8 +324,28 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     ExecutionId executionId = new ExecutionId(namespace, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
     executions.put(executionId, mutableState);
-    mutableState.startWorkflow(continuedExecutionRunId.isPresent(), signalWithStartSignal);
-    return StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId()).build();
+
+    PollWorkflowTaskQueueRequest eagerWorkflowTaskPollRequest =
+        startRequest.getRequestEagerExecution()
+            ? PollWorkflowTaskQueueRequest.newBuilder()
+                .setIdentity(startRequest.getIdentity())
+                .setNamespace(startRequest.getNamespace())
+                .setTaskQueue(startRequest.getTaskQueue())
+                .build()
+            : null;
+
+    @Nullable
+    PollWorkflowTaskQueueResponse eagerWorkflowTask =
+        mutableState.startWorkflow(
+            continuedExecutionRunId.isPresent(),
+            signalWithStartSignal,
+            eagerWorkflowTaskPollRequest);
+    StartWorkflowExecutionResponse.Builder response =
+        StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId());
+    if (eagerWorkflowTask != null) {
+      response.setEagerWorkflowTask(eagerWorkflowTask);
+    }
+    return response.build();
   }
 
   @Override
@@ -794,7 +814,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               Duration.ZERO,
               Optional.empty(),
               OptionalLong.empty(),
-              Optional.of(signalRequest));
+              signalRequest);
       responseObserver.onNext(
           SignalWithStartWorkflowExecutionResponse.newBuilder()
               .setRunId(startResult.getRunId())
@@ -888,7 +908,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               lastFail,
               parent,
               parentChildInitiatedEventId,
-              Optional.empty(),
+              null,
               continuedExecutionId.getWorkflowId());
       return response.getRunId();
     } finally {

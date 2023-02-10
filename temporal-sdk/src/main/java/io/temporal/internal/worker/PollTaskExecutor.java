@@ -20,6 +20,7 @@
 
 package io.temporal.internal.worker;
 
+import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.worker.MetricsType;
@@ -92,7 +93,8 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   }
 
   @Override
-  public void process(T task) {
+  public void process(@Nonnull T task) {
+    Preconditions.checkNotNull(task, "task");
     taskExecutor.execute(
         () -> {
           availableTaskSlots.decrementAndGet();

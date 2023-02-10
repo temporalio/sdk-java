@@ -88,13 +88,13 @@ public class ListWorkflowExecutionsTest {
     // Temporal Visibility has latency and is not transactional with the Server API call
     Thread.sleep(4_000);
 
-    WorkflowClientInternal workflowClientInternal =
-        new WorkflowClientInternal(
+    WorkflowClientInternalImpl workflowClientInternalImpl =
+        new WorkflowClientInternalImpl(
             testWorkflowRule.getWorkflowServiceStubs(),
             testWorkflowRule.getWorkflowClient().getOptions());
 
     List<WorkflowExecutionMetadata> executions =
-        workflowClientInternal.listExecutions(QUERY, 5).collect(Collectors.toList());
+        workflowClientInternalImpl.listExecutions(QUERY, 5).collect(Collectors.toList());
     assertEquals(
         "Should return the original amount of the workflows", EXECUTIONS_COUNT, executions.size());
     Set<String> workflowIds =

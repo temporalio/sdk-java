@@ -41,6 +41,7 @@ import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.worker.*;
@@ -121,6 +122,17 @@ public class SDKTestWorkflowRule implements TestRule {
       testWorkflowRuleBuilder = TestWorkflowRule.newBuilder();
     }
 
+    public Builder setWorkflowServiceStubsOptions(
+        WorkflowServiceStubsOptions workflowServiceStubsOptions) {
+      testWorkflowRuleBuilder.setWorkflowServiceStubsOptions(workflowServiceStubsOptions);
+      return this;
+    }
+
+    public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
+      testWorkflowRuleBuilder.setWorkflowClientOptions(workflowClientOptions);
+      return this;
+    }
+
     public Builder setWorkerOptions(WorkerOptions options) {
       testWorkflowRuleBuilder.setWorkerOptions(options);
       return this;
@@ -136,11 +148,6 @@ public class SDKTestWorkflowRule implements TestRule {
               : options;
       testWorkflowRuleBuilder.setWorkerFactoryOptions(options);
       workerFactoryOptionsAreSet = true;
-      return this;
-    }
-
-    public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
-      testWorkflowRuleBuilder.setWorkflowClientOptions(workflowClientOptions);
       return this;
     }
 
