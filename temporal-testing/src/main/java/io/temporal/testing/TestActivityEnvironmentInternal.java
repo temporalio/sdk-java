@@ -39,11 +39,11 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
@@ -477,22 +477,18 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         ActivityTaskHandler.Result response,
         Class<T> resultClass,
         Type resultType) {
+      DataConverter dataConverter =
+          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         Optional<Payloads> result =
             taskCompleted.hasResult() ? Optional.of(taskCompleted.getResult()) : Optional.empty();
-        return testEnvironmentOptions
-            .getWorkflowClientOptions()
-            .getDataConverter()
-            .fromPayloads(0, result, resultClass, resultType);
+        return dataConverter.fromPayloads(0, result, resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();
         if (taskFailed != null) {
-          Exception cause =
-              FailureConverter.failureToException(
-                  taskFailed.getFailure(),
-                  testEnvironmentOptions.getWorkflowClientOptions().getDataConverter());
+          Exception cause = dataConverter.failureToException(taskFailed.getFailure());
           throw new ActivityFailure(
               taskFailed.getFailure().getMessage(),
               0,
@@ -511,7 +507,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                     taskCanceled.hasDetails()
                         ? Optional.of(taskCanceled.getDetails())
                         : Optional.empty(),
-                    testEnvironmentOptions.getWorkflowClientOptions().getDataConverter()),
+                    dataConverter),
                 null);
           }
         }

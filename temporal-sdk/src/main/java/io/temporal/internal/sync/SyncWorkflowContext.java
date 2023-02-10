@@ -289,9 +289,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       if (failure != null) {
         runner.executeInWorkflowThread(
             "activity failure callback",
-            () ->
-                result.completeExceptionally(
-                    FailureConverter.failureToException(failure, getDataConverter())));
+            () -> result.completeExceptionally(getDataConverter().failureToException(failure)));
       } else {
         runner.executeInWorkflowThread(
             "activity completion callback", () -> result.complete(output));
@@ -355,8 +353,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               } else {
                 // final failure, report back
                 RuntimeException temporalFailure =
-                    FailureConverter.failureToException(
-                        laException.getFailure(), getDataConverter());
+                    getDataConverter().failureToException(laException.getFailure());
                 result.completeExceptionally(temporalFailure);
               }
             } else {
@@ -653,9 +650,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       return new IllegalArgumentException("Unexpected exception type: ", failure);
     }
     ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
-    Throwable cause =
-        FailureConverter.failureToException(
-            taskFailed.getOriginalCauseFailure(), getDataConverter());
+    Throwable cause = getDataConverter().failureToException(taskFailed.getOriginalCauseFailure());
     ChildWorkflowFailure exception = taskFailed.getException();
     return new ChildWorkflowFailure(
         exception.getInitiatedEventId(),
@@ -844,7 +839,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                     "child workflow failure callback",
                     () ->
                         result.completeExceptionally(
-                            FailureConverter.failureToException(failure, getDataConverter())));
+                            getDataConverter().failureToException(failure)));
               } else {
                 runner.executeInWorkflowThread(
                     "child workflow completion callback", () -> result.complete(output));
@@ -1006,7 +1001,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public Failure mapExceptionToFailure(Throwable failure) {
-    return FailureConverter.exceptionToFailure(failure, dataConverter);
+    return getDataConverter().exceptionToFailure(failure);
   }
 
   @Nullable

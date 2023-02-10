@@ -98,7 +98,7 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
-import io.temporal.failure.FailureConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ServerFailure;
 import io.temporal.internal.common.ProtoEnumNameUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -594,7 +594,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setCause(failedCause)
             .setIdentity(request.getIdentity());
     if (eventAttributesFailure != null) {
-      failedRequestBuilder.setFailure(FailureConverter.exceptionToFailure(eventAttributesFailure));
+      failedRequestBuilder.setFailure(
+          DefaultDataConverter.STANDARD_INSTANCE.exceptionToFailure(eventAttributesFailure));
     }
 
     processFailWorkflowTask(

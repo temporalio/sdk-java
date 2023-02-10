@@ -34,7 +34,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.activity.ActivityTaskExecutors.ActivityTaskExecutor;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -183,7 +182,7 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
     } else {
       ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
-    Failure failure = FailureConverter.exceptionToFailure(exception, dataConverter);
+    Failure failure = dataConverter.exceptionToFailure(exception);
     RespondActivityTaskFailedRequest.Builder result =
         RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
     return new ActivityTaskHandler.Result(

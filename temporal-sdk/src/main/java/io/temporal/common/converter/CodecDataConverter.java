@@ -23,6 +23,12 @@ package io.temporal.common.converter;
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.CanceledFailureInfo;
+import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.failure.v1.Failure.Builder;
+import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
+import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.payload.codec.ChainCodec;
 import io.temporal.payload.codec.PayloadCodec;
 import java.lang.reflect.Type;
@@ -100,10 +106,133 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
       int index, Optional<Payloads> content, Class<T> valueType, Type valueGenericType)
       throws DataConverterException {
     if (content.isPresent()) {
-      List<Payload> decodedPayloads = codec.decode(content.get().getPayloadsList());
-      content = Optional.of(Payloads.newBuilder().addAllPayloads(decodedPayloads).build());
+      content = Optional.of(decode(content.get()));
     }
     return dataConverter.fromPayloads(index, content, valueType, valueGenericType);
+  }
+
+  @Override
+  public Failure exceptionToFailure(Throwable e) {
+    return this.encodeFailure(dataConverter.exceptionToFailure(e));
+  }
+
+  private Failure encodeFailure(Failure decodedFailure) {
+    Builder encodedFailure = decodedFailure.toBuilder();
+    if (decodedFailure.hasCause()) {
+      encodedFailure.setCause(encodeFailure(decodedFailure.getCause()));
+    }
+    if (decodedFailure.hasEncodedAttributes()) {
+      encodedFailure.setEncodedAttributes(encode(decodedFailure.getEncodedAttributes()));
+    }
+    switch (decodedFailure.getFailureInfoCase()) {
+      case APPLICATION_FAILURE_INFO:
+        {
+          ApplicationFailureInfo decodedInfo = decodedFailure.getApplicationFailureInfo();
+          ApplicationFailureInfo.Builder encodedInfo = decodedInfo.toBuilder();
+          if (decodedInfo.hasDetails()) {
+            encodedInfo.setDetails(encode(decodedInfo.getDetails()));
+          }
+          encodedFailure.setApplicationFailureInfo(encodedInfo);
+        }
+        break;
+      case TIMEOUT_FAILURE_INFO:
+        {
+          TimeoutFailureInfo decodedInfo = decodedFailure.getTimeoutFailureInfo();
+          TimeoutFailureInfo.Builder encodedInfo = decodedInfo.toBuilder();
+          if (decodedInfo.hasLastHeartbeatDetails()) {
+            encodedInfo.setLastHeartbeatDetails(encode(decodedInfo.getLastHeartbeatDetails()));
+          }
+          encodedFailure.setTimeoutFailureInfo(encodedInfo);
+        }
+        break;
+      case CANCELED_FAILURE_INFO:
+        {
+          CanceledFailureInfo decodedInfo = decodedFailure.getCanceledFailureInfo();
+          CanceledFailureInfo.Builder encodedInfo = decodedInfo.toBuilder();
+          if (decodedInfo.hasDetails()) {
+            encodedInfo.setDetails(encode(decodedInfo.getDetails()));
+          }
+          encodedFailure.setCanceledFailureInfo(encodedInfo);
+        }
+        break;
+      case RESET_WORKFLOW_FAILURE_INFO:
+        {
+          ResetWorkflowFailureInfo decodedInfo = decodedFailure.getResetWorkflowFailureInfo();
+          ResetWorkflowFailureInfo.Builder encodedInfo = decodedInfo.toBuilder();
+          if (decodedInfo.hasLastHeartbeatDetails()) {
+            encodedInfo.setLastHeartbeatDetails(encode(decodedInfo.getLastHeartbeatDetails()));
+          }
+          encodedFailure.setResetWorkflowFailureInfo(encodedInfo);
+        }
+        break;
+      default:
+        {
+          // Other type of failure info don't have anything to encode
+        }
+    }
+    return encodedFailure.build();
+  }
+
+  @Override
+  public RuntimeException failureToException(Failure failure) {
+    return dataConverter.failureToException(this.decodeFailure(failure));
+  }
+
+  private Failure decodeFailure(Failure encodedFailure) {
+    Builder decodedFailure = encodedFailure.toBuilder();
+    if (encodedFailure.hasCause()) {
+      decodedFailure.setCause(decodeFailure(encodedFailure.getCause()));
+    }
+    if (encodedFailure.hasEncodedAttributes()) {
+      decodedFailure.setEncodedAttributes(decode(encodedFailure.getEncodedAttributes()));
+    }
+    switch (encodedFailure.getFailureInfoCase()) {
+      case APPLICATION_FAILURE_INFO:
+        {
+          ApplicationFailureInfo encodedInfo = encodedFailure.getApplicationFailureInfo();
+          ApplicationFailureInfo.Builder decodedInfo = encodedInfo.toBuilder();
+          if (encodedInfo.hasDetails()) {
+            decodedInfo.setDetails(decode(encodedInfo.getDetails()));
+          }
+          decodedFailure.setApplicationFailureInfo(decodedInfo);
+        }
+        break;
+      case TIMEOUT_FAILURE_INFO:
+        {
+          TimeoutFailureInfo encodedInfo = encodedFailure.getTimeoutFailureInfo();
+          TimeoutFailureInfo.Builder decodedInfo = encodedInfo.toBuilder();
+          if (encodedInfo.hasLastHeartbeatDetails()) {
+            decodedInfo.setLastHeartbeatDetails(decode(encodedInfo.getLastHeartbeatDetails()));
+          }
+          decodedFailure.setTimeoutFailureInfo(decodedInfo);
+        }
+        break;
+      case CANCELED_FAILURE_INFO:
+        {
+          CanceledFailureInfo encodedInfo = encodedFailure.getCanceledFailureInfo();
+          CanceledFailureInfo.Builder decodedInfo = encodedInfo.toBuilder();
+          if (encodedInfo.hasDetails()) {
+            decodedInfo.setDetails(decode(encodedInfo.getDetails()));
+          }
+          decodedFailure.setCanceledFailureInfo(decodedInfo);
+        }
+        break;
+      case RESET_WORKFLOW_FAILURE_INFO:
+        {
+          ResetWorkflowFailureInfo encodedInfo = encodedFailure.getResetWorkflowFailureInfo();
+          ResetWorkflowFailureInfo.Builder decodedInfo = encodedInfo.toBuilder();
+          if (encodedInfo.hasLastHeartbeatDetails()) {
+            decodedInfo.setLastHeartbeatDetails(decode(encodedInfo.getLastHeartbeatDetails()));
+          }
+          decodedFailure.setResetWorkflowFailureInfo(decodedInfo);
+        }
+        break;
+      default:
+        {
+          // Other type of failure info don't have anything to decode
+        }
+    }
+    return decodedFailure.build();
   }
 
   @Nonnull
@@ -112,9 +241,27 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     return codec.encode(payloads);
   }
 
+  private Payload encode(Payload payload) {
+    return codec.encode(Collections.singletonList(payload)).get(0);
+  }
+
+  private Payloads encode(Payloads decodedPayloads) {
+    List<Payload> encodedPayloads = codec.encode(decodedPayloads.getPayloadsList());
+    return Payloads.newBuilder().addAllPayloads(encodedPayloads).build();
+  }
+
   @Nonnull
   @Override
   public List<Payload> decode(@Nonnull List<Payload> payloads) {
     return codec.decode(payloads);
+  }
+
+  private Payload decode(Payload payload) {
+    return codec.decode(Collections.singletonList(payload)).get(0);
+  }
+
+  private Payloads decode(Payloads encodedPayloads) {
+    List<Payload> decodedPayloads = codec.decode(encodedPayloads.getPayloadsList());
+    return Payloads.newBuilder().addAllPayloads(decodedPayloads).build();
   }
 }

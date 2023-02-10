@@ -36,7 +36,6 @@ import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -164,7 +163,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     if (taskToken != null) {
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
-              .setFailure(FailureConverter.exceptionToFailure(exception, dataConverter))
+              .setFailure(dataConverter.exceptionToFailure(exception))
               .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
@@ -190,7 +189,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       RespondActivityTaskFailedByIdRequest request =
           RespondActivityTaskFailedByIdRequest.newBuilder()
-              .setFailure(FailureConverter.exceptionToFailure(exception, dataConverter))
+              .setFailure(dataConverter.exceptionToFailure(exception))
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId())

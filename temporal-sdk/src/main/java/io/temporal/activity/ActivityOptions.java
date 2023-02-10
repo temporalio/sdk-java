@@ -86,7 +86,7 @@ public final class ActivityOptions {
      * <p>ScheduleToCloseTimeout limits the total time of an Activity's execution including retries
      * (use {@link #setStartToCloseTimeout(Duration)} to limit the time of a single attempt).
      *
-     * <p>Either this option or {@link #setStartToCloseTimeout(Duration) is required.
+     * <p>Either this option or {@link #setStartToCloseTimeout(Duration)} is required.
      *
      * <p>Defaults to unlimited, which is chosen if set to null.
      */

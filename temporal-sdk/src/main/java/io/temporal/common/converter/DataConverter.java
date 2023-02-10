@@ -23,6 +23,7 @@ package io.temporal.common.converter;
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.payload.codec.PayloadCodec;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -107,6 +108,24 @@ public interface DataConverter {
   <T> T fromPayloads(
       int index, Optional<Payloads> content, Class<T> valueType, Type valueGenericType)
       throws DataConverterException;
+
+  /**
+   * Instantiate an appropriate Java Exception from a serialized Failure object. The default
+   * implementation delegates the conversion process to an instance of {@link
+   * io.temporal.failure.FailureConverter}, using this data converter for payload decoding.
+   *
+   * @param failure Failure protobuf object to deserialize into an exception
+   */
+  RuntimeException failureToException(Failure failure);
+
+  /**
+   * Serialize an existing Java Exception into a Failure object. The default implementation
+   * delegates the conversion process to an instance of {@link
+   * io.temporal.failure.FailureConverter}, using this data converter for payload encoding.
+   *
+   * @param e A Java Exception object to serialize into a Failure protobuf object
+   */
+  Failure exceptionToFailure(Throwable e);
 
   static Object[] arrayFromPayloads(
       DataConverter converter,

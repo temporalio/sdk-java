@@ -38,7 +38,6 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.worker.*;
@@ -274,7 +273,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       throw (Exception) e;
     }
 
-    Failure failure = FailureConverter.exceptionToFailure(e);
+    Failure failure = options.getDataConverter().exceptionToFailure(e);
     RespondWorkflowTaskFailedRequest.Builder failedRequest =
         RespondWorkflowTaskFailedRequest.newBuilder()
             .setTaskToken(workflowTask.getTaskToken())

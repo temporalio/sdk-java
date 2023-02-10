@@ -23,8 +23,12 @@ package io.temporal.common.converter;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Defaults;
+import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.failure.v1.Failure;
+import io.temporal.failure.DefaultFailureConverter;
+import io.temporal.failure.FailureConverter;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -72,6 +76,8 @@ public class DefaultDataConverter implements DataConverter {
 
   private final List<PayloadConverter> converters = new ArrayList<>();
 
+  private FailureConverter failureConverter;
+
   /**
    * @deprecated use {@link GlobalDataConverter#register(DataConverter)}
    */
@@ -82,6 +88,10 @@ public class DefaultDataConverter implements DataConverter {
   /**
    * Creates a new instance of {@code DefaultDataConverter} populated with the default list of
    * payload converters.
+   *
+   * <p>The newly created instance will use the default failure converter, configured to not encode
+   * message and stack trace. Call {@code withFailureConverterOverride} on the instance to set a
+   * different failure converter.
    */
   public static DefaultDataConverter newDefaultInstance() {
     return new DefaultDataConverter(STANDARD_PAYLOAD_CONVERTERS);
@@ -91,9 +101,14 @@ public class DefaultDataConverter implements DataConverter {
    * Creates instance from ordered array of converters. When converting an object to payload the
    * array of converters is iterated from the beginning until one of the converters successfully
    * converts the value.
+   *
+   * <p>The newly created instance will use the default failure converter, configured to not encode
+   * message and stack trace. Call {@code withFailureConverterOverride} on the instance to set a
+   * different failure converter.
    */
   public DefaultDataConverter(PayloadConverter... converters) {
     Collections.addAll(this.converters, converters);
+    this.failureConverter = new DefaultFailureConverter();
     updateConverterMap();
   }
 
@@ -116,6 +131,14 @@ public class DefaultDataConverter implements DataConverter {
 
     updateConverterMap();
 
+    return this;
+  }
+
+  /** Modifies this {@code DefaultDataConverter} by overriding its {@link FailureConverter}. */
+  public DefaultDataConverter withFailureConverterOverride(
+      FailureConverter overrideFailureConverter) {
+    Preconditions.checkNotNull(overrideFailureConverter, "overrideFailureConverter");
+    this.failureConverter = overrideFailureConverter;
     return this;
   }
 
@@ -181,6 +204,16 @@ public class DefaultDataConverter implements DataConverter {
       return Defaults.defaultValue(parameterType);
     }
     return fromPayload(content.get().getPayloads(index), parameterType, genericParameterType);
+  }
+
+  @Override
+  public RuntimeException failureToException(Failure failure) {
+    return failureConverter.failureToException(failure, this);
+  }
+
+  @Override
+  public Failure exceptionToFailure(Throwable e) {
+    return failureConverter.exceptionToFailure(e, this);
   }
 
   private void updateConverterMap() {

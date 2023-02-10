@@ -20,7 +20,7 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.failure.FailureConverter.JAVA_SDK;
+import static io.temporal.failure.DefaultFailureConverter.JAVA_SDK;
 
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.Command;
