@@ -32,7 +32,8 @@ import javax.annotation.Nonnull;
  * relying on the {@link DefaultFailureConverter}, in order to maintain cross-language Failure
  * serialization compatibility.
  *
- * <p>To _encrypt_ the content of failures, see {@link io.temporal.common.converter.CodecDataConverter} instead.
+ * <p>To _encrypt_ the content of failures, see {@link
+ * io.temporal.common.converter.CodecDataConverter} instead.
  */
 public interface FailureConverter {
 
