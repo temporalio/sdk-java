@@ -76,6 +76,9 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
    *   <li>{@code dataConverter} is applied last
    * </ul>
    *
+   * See {@link #CodecDataConverter(DataConverter, Collection, boolean)} to enable encryption of
+   * Failure's default attributes.
+   *
    * @param dataConverter to delegate data conversion to
    * @param codecs to delegate bytes encoding/decoding to. When encoding, the codecs are applied
    *     last to first meaning the earlier encoders wrap the later ones. When decoding, the decoders
@@ -101,10 +104,17 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
    *   <li>{@code dataConverter} is applied last
    * </ul>
    *
+   * Setting {@code encodeDefaultAttributes} to true enables codec encoding of Failure's default
+   * attributes. This can be used in conjunction with an encrypting codec to enable encryption of
+   * failures message and stack traces. Note that failure's details are always codec-encoded,
+   * without regard to {@code encodeDefaultAttributes}.
+   *
    * @param dataConverter to delegate data conversion to
    * @param codecs to delegate bytes encoding/decoding to. When encoding, the codecs are applied
    *     last to first meaning the earlier encoders wrap the later ones. When decoding, the decoders
    *     are applied first to last to reverse the effect
+   * @param encodeDefaultAttributes enable encoding of Failure's default attributes (message and
+   *     stack trace)
    */
   public CodecDataConverter(
       DataConverter dataConverter,

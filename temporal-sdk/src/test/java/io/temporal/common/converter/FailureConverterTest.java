@@ -55,12 +55,14 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 public class FailureConverterTest {
   private static final String TASK_QUEUE = "test-workflow";
 
-  //  public @Rule Timeout timeout = Timeout.seconds(10);
+  public @Rule Timeout timeout = Timeout.seconds(10);
 
   private CodecDataConverter dataConverter;
 
@@ -109,13 +111,8 @@ public class FailureConverterTest {
       assertTrue(failure.getCause().hasEncodedAttributes());
 
       // Assert encoded_attributes were actually encoded
-      assertTrue(failure.getEncodedAttributes().getData().startsWith(PrefixPayloadCodec.PREFIX));
-      assertTrue(
-          failure
-              .getCause()
-              .getEncodedAttributes()
-              .getData()
-              .startsWith(PrefixPayloadCodec.PREFIX));
+      assertTrue(isEncoded(failure.getEncodedAttributes()));
+      assertTrue(isEncoded(failure.getCause().getEncodedAttributes()));
     }
   }
 
@@ -154,9 +151,9 @@ public class FailureConverterTest {
     // Assert details were actually encoded
     List<Payload> encodedDetailsPayloads =
         failure.getApplicationFailureInfo().getDetails().getPayloadsList();
-    assertTrue(encodedDetailsPayloads.get(0).getData().startsWith(PrefixPayloadCodec.PREFIX));
-    assertTrue(encodedDetailsPayloads.get(1).getData().startsWith(PrefixPayloadCodec.PREFIX));
-    assertTrue(encodedDetailsPayloads.get(2).getData().startsWith(PrefixPayloadCodec.PREFIX));
+    assertTrue(isEncoded(encodedDetailsPayloads.get(0)));
+    assertTrue(isEncoded(encodedDetailsPayloads.get(1)));
+    assertTrue(isEncoded(encodedDetailsPayloads.get(2)));
 
     // Assert details can be decoded
     Values decodedDetailsPayloads = ((ApplicationFailure) decodedException).getDetails();
