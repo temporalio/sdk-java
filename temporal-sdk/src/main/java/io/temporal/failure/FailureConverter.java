@@ -24,6 +24,16 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.converter.DataConverter;
 import javax.annotation.Nonnull;
 
+/**
+ * A {@code FailureConverter} is responsible for converting from proto {@link Failure} instances to
+ * Java {@link Exception}, and back.
+ *
+ * <p>Most users should _never_ need to implement a failure converter. We strongly recommended
+ * relying on the {@link DefaultFailureConverter}, in order to maintain cross-language Failure
+ * serialization compatibility.
+ *
+ * <p>To _encrypt_ the content of failures, see {@link io.temporal.common.converter.CodecDataConverter} instead.
+ */
 public interface FailureConverter {
 
   /**

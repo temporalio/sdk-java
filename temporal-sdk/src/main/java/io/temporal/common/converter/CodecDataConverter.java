@@ -165,8 +165,7 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
       Map<String, String> encodedAttributes = new HashMap<>();
       encodedAttributes.put(STACK_TRACE_KEY, failure.getStackTrace());
       encodedAttributes.put(MESSAGE_KEY, failure.getMessage());
-      Payload encodedAttributesPayload =
-          encodePayload(DefaultDataConverter.STANDARD_INSTANCE.toPayload(encodedAttributes).get());
+      Payload encodedAttributesPayload = toPayload(Optional.of(encodedAttributes)).get();
       failure
           .setEncodedAttributes(encodedAttributesPayload)
           .setMessage(ENCODED_FAILURE_MESSAGE)
@@ -229,10 +228,8 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
       failure.setCause(decodeFailure(failure.getCause().toBuilder()));
     }
     if (failure.hasEncodedAttributes()) {
-      Payload encodedAttributesPayload = decodePayload(failure.getEncodedAttributes());
       Map<String, String> encodedAttributes =
-          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-              encodedAttributesPayload, HashMap.class, HASH_MAP_STRING_STRING_TYPE);
+          fromPayload(failure.getEncodedAttributes(), HashMap.class, HASH_MAP_STRING_STRING_TYPE);
       failure
           .setStackTrace(encodedAttributes.get(STACK_TRACE_KEY))
           .setMessage(encodedAttributes.get(MESSAGE_KEY))
@@ -289,10 +286,6 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     return codec.encode(payloads);
   }
 
-  private Payload encodePayload(Payload payload) {
-    return codec.encode(Collections.singletonList(payload)).get(0);
-  }
-
   private Payloads encodePayloads(Payloads decodedPayloads) {
     List<Payload> encodedPayloads = codec.encode(decodedPayloads.getPayloadsList());
     return Payloads.newBuilder().addAllPayloads(encodedPayloads).build();
@@ -302,10 +295,6 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   @Override
   public List<Payload> decode(@Nonnull List<Payload> payloads) {
     return codec.decode(payloads);
-  }
-
-  private Payload decodePayload(Payload payload) {
-    return codec.decode(Collections.singletonList(payload)).get(0);
   }
 
   private Payloads decodePayloads(Payloads encodedPayloads) {

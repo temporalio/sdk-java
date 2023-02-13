@@ -48,11 +48,15 @@ import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A {@link FailureConverter} that implements the default cross-language-compatible conversion
+ * algorithm.
+ */
 public final class DefaultFailureConverter implements FailureConverter {
 
   private static final Logger log = LoggerFactory.getLogger(DefaultFailureConverter.class);
 
-  public static final String JAVA_SDK = "JavaSDK";
+  private static final String JAVA_SDK = "JavaSDK";
 
   /**
    * Stop emitting stack trace after this line. Makes serialized stack traces more readable and

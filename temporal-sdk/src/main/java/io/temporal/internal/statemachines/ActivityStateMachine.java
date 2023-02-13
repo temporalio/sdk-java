@@ -20,8 +20,6 @@
 
 package io.temporal.internal.statemachines;
 
-import static io.temporal.failure.DefaultFailureConverter.JAVA_SDK;
-
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
@@ -49,6 +47,8 @@ final class ActivityStateMachine
   static final String ACTIVITY_TIMED_OUT_MESSAGE = "Activity task timed out";
 
   static final String ACTIVITY_CANCELED_MESSAGE = "Activity canceled";
+
+  private static final String JAVA_SDK = "JavaSDK";
 
   private final String activityId;
   private final ActivityType activityType;

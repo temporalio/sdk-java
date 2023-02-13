@@ -39,7 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 
 /**
- * DataConverter that delegates conversion to type specific PayloadConverter instance.
+ * A {@link DataConverter} that delegates payload conversion to type specific {@link
+ * PayloadConverter} instances, and delegates failure conversions to a {@link FailureConverter}.
  *
  * @author fateev
  */
