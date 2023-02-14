@@ -28,18 +28,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Helper class that is used instead of null for non initialized worker. This eliminates needs for
  * null checks when calling into it.
  */
-class NoopSuspendableWorker implements SuspendableWorker {
+class NoopWorker implements SuspendableWorker {
 
   private final AtomicBoolean shutdown = new AtomicBoolean();
 
   @Override
-  public boolean isShutdown() {
-    return shutdown.get();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return shutdown.get();
+  public boolean start() {
+    throw new IllegalStateException("Non startable");
   }
 
   @Override
@@ -52,16 +47,6 @@ class NoopSuspendableWorker implements SuspendableWorker {
   public void awaitTermination(long timeout, TimeUnit unit) {}
 
   @Override
-  public void start() {
-    throw new IllegalStateException("Non startable");
-  }
-
-  @Override
-  public boolean isStarted() {
-    return false;
-  }
-
-  @Override
   public void suspendPolling() {}
 
   @Override
@@ -70,5 +55,20 @@ class NoopSuspendableWorker implements SuspendableWorker {
   @Override
   public boolean isSuspended() {
     return true;
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return shutdown.get();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return shutdown.get();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    return WorkerLifecycleState.NOT_STARTED;
   }
 }

@@ -51,7 +51,7 @@ import org.slf4j.MDC;
 final class ActivityWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
-  private SuspendableWorker poller = new NoopSuspendableWorker();
+  private SuspendableWorker poller = new NoopWorker();
   private PollTaskExecutor<ActivityTask> pollTaskExecutor;
 
   private final ActivityTaskHandler handler;
@@ -90,7 +90,7 @@ final class ActivityWorker implements SuspendableWorker {
   }
 
   @Override
-  public void start() {
+  public boolean start() {
     if (handler.isAnyTypeSupported()) {
       this.pollTaskExecutor =
           new PollTaskExecutor<>(
@@ -118,22 +118,10 @@ final class ActivityWorker implements SuspendableWorker {
               workerMetricsScope);
       poller.start();
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
+      return true;
+    } else {
+      return false;
     }
-  }
-
-  @Override
-  public boolean isStarted() {
-    return poller.isStarted();
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return poller.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return poller.isTerminated();
   }
 
   @Override
@@ -157,8 +145,23 @@ final class ActivityWorker implements SuspendableWorker {
   }
 
   @Override
+  public boolean isShutdown() {
+    return poller.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return poller.isTerminated();
+  }
+
+  @Override
   public boolean isSuspended() {
     return poller.isSuspended();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    return poller.getLifecycleState();
   }
 
   public EagerActivityDispatcher getEagerActivityDispatcher() {
@@ -379,7 +382,7 @@ final class ActivityWorker implements SuspendableWorker {
     @Override
     public boolean tryReserveActivitySlot(
         ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
-      return ActivityWorker.this.isStarted()
+      return WorkerLifecycleState.ACTIVE.equals(ActivityWorker.this.getLifecycleState())
           && Objects.equals(
               commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)
           && ActivityWorker.this.pollSemaphore.tryAcquire();

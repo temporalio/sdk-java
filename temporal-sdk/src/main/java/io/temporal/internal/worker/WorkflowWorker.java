@@ -64,9 +64,7 @@ final class WorkflowWorker implements SuspendableWorker {
   private final GrpcRetryer grpcRetryer;
   private final EagerActivityDispatcher eagerActivityDispatcher;
 
-  @Nonnull private SuspendableWorker poller = new NoopSuspendableWorker();
-
-  private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
+  @Nonnull private SuspendableWorker poller = new NoopWorker();
 
   public WorkflowWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -94,9 +92,9 @@ final class WorkflowWorker implements SuspendableWorker {
   }
 
   @Override
-  public void start() {
+  public boolean start() {
     if (handler.isAnyTypeSupported()) {
-      pollTaskExecutor =
+      PollTaskExecutor<WorkflowTask> pollTaskExecutor =
           new PollTaskExecutor<>(
               namespace,
               taskQueue,
@@ -131,22 +129,11 @@ final class WorkflowWorker implements SuspendableWorker {
       poller.start();
 
       workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
+
+      return true;
+    } else {
+      return false;
     }
-  }
-
-  @Override
-  public boolean isStarted() {
-    return poller.isStarted();
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return poller.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return poller.isTerminated();
   }
 
   @Override
@@ -172,6 +159,21 @@ final class WorkflowWorker implements SuspendableWorker {
   @Override
   public boolean isSuspended() {
     return poller.isSuspended();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return poller.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return poller.isTerminated();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    return poller.getLifecycleState();
   }
 
   private PollerOptions getPollerOptions(SingleWorkerOptions options) {
