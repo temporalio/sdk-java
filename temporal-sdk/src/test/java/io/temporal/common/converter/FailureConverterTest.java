@@ -20,6 +20,7 @@
 
 package io.temporal.common.converter;
 
+import static io.temporal.internal.common.WorkflowExecutionUtils.*;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -29,7 +30,9 @@ import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -174,25 +177,21 @@ public class FailureConverterTest {
 
     try {
       workflow.execute("input1");
-      fail("unreacheable");
+      fail("unreachable");
     } catch (WorkflowException e) {
       // Assert the exception can be correctly decoded
       assertEquals(
           "message='TestWorkflow1-input1', type='test', nonRetryable=false",
           e.getCause().getMessage());
 
-      List<HistoryEvent> history =
+      History history =
           client
               .fetchHistory(e.getExecution().getWorkflowId(), e.getExecution().getRunId())
-              .getHistory()
-              .getEventsList();
+              .getHistory();
 
       // Assert that exception is indeed encoded in the WorkflowExecutionFailedEvent
       HistoryEvent wfeFailedEvent =
-          history.stream()
-              .filter((x) -> x.hasWorkflowExecutionFailedEventAttributes())
-              .findFirst()
-              .get();
+          getEventOfType(history, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED);
       assertTrue(
           isEncoded(
               wfeFailedEvent
@@ -215,24 +214,20 @@ public class FailureConverterTest {
 
     try {
       workflow.execute("input1");
-      fail("unreacheable");
+      fail("unreachable");
     } catch (WorkflowException e) {
       // Assert the exception can be correctly decoded
       assertEquals(
           "Execute-input1", ((TemporalFailure) e.getCause().getCause()).getOriginalMessage());
 
-      List<HistoryEvent> history =
+      History history =
           client
               .fetchHistory(e.getExecution().getWorkflowId(), e.getExecution().getRunId())
-              .getHistory()
-              .getEventsList();
+              .getHistory();
 
       // Assert that exception is indeed encoded in the ActivityTaskFailedEvent
       HistoryEvent actTaskFailedEvent =
-          history.stream()
-              .filter((x) -> x.hasActivityTaskFailedEventAttributes())
-              .findFirst()
-              .get();
+          getEventOfType(history, EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED);
       assertTrue(
           isEncoded(
               actTaskFailedEvent
@@ -242,10 +237,7 @@ public class FailureConverterTest {
 
       // Assert that activity's exception is still encoded in the WorkflowExecutionFailedEvent
       HistoryEvent wfeFailedEvent =
-          history.stream()
-              .filter((x) -> x.hasWorkflowExecutionFailedEventAttributes())
-              .findFirst()
-              .get();
+          getEventOfType(history, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED);
       assertTrue(
           isEncoded(
               wfeFailedEvent
@@ -305,7 +297,6 @@ public class FailureConverterTest {
   }
 
   private static class FailingActivityImpl implements TestActivities.TestActivity1 {
-
     @Override
     public String execute(String input) {
       throw new IllegalThreadStateException(
@@ -314,7 +305,6 @@ public class FailureConverterTest {
   }
 
   public static class FailingActivityWorkflow implements TestWorkflow1 {
-
     private final TestActivities.TestActivity1 activity =
         Workflow.newActivityStub(
             TestActivities.TestActivity1.class,
