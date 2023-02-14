@@ -20,8 +20,8 @@
 
 package io.temporal.common.converter;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.reflect.TypeToken;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
@@ -29,14 +29,13 @@ import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.ChainCodec;
 import io.temporal.payload.codec.PayloadCodec;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 
@@ -50,15 +49,10 @@ import javax.annotation.Nonnull;
  */
 public class CodecDataConverter implements DataConverter, PayloadCodec {
   private static final String ENCODED_FAILURE_MESSAGE = "Encoded failure";
-  private static final String STACK_TRACE_KEY = "stack_trace";
-  private static final String MESSAGE_KEY = "message";
-
-  private static final Type HASH_MAP_STRING_STRING_TYPE =
-      new TypeToken<HashMap<String, String>>() {}.getType();
 
   private final DataConverter dataConverter;
   private final PayloadCodec codec;
-  private final boolean encodeDefaultAttributes;
+  private final boolean encodeFailureAttributes;
 
   /**
    * When serializing to Payloads:
@@ -77,7 +71,7 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
    * </ul>
    *
    * See {@link #CodecDataConverter(DataConverter, Collection, boolean)} to enable encryption of
-   * Failure's default attributes.
+   * Failure attributes.
    *
    * @param dataConverter to delegate data conversion to
    * @param codecs to delegate bytes encoding/decoding to. When encoding, the codecs are applied
@@ -104,25 +98,24 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
    *   <li>{@code dataConverter} is applied last
    * </ul>
    *
-   * Setting {@code encodeDefaultAttributes} to true enables codec encoding of Failure's default
-   * attributes. This can be used in conjunction with an encrypting codec to enable encryption of
-   * failures message and stack traces. Note that failure's details are always codec-encoded,
-   * without regard to {@code encodeDefaultAttributes}.
+   * Setting {@code encodeFailureAttributes} to true enables codec encoding of Failure attributes.
+   * This can be used in conjunction with an encrypting codec to enable encryption of failures
+   * message and stack traces. Note that failure's details are always codec-encoded, without regard
+   * to {@code encodeFailureAttributes}.
    *
    * @param dataConverter to delegate data conversion to
    * @param codecs to delegate bytes encoding/decoding to. When encoding, the codecs are applied
    *     last to first meaning the earlier encoders wrap the later ones. When decoding, the decoders
    *     are applied first to last to reverse the effect
-   * @param encodeDefaultAttributes enable encoding of Failure's default attributes (message and
-   *     stack trace)
+   * @param encodeFailureAttributes enable encoding of Failure attributes (message and stack trace)
    */
   public CodecDataConverter(
       DataConverter dataConverter,
       Collection<PayloadCodec> codecs,
-      boolean encodeDefaultAttributes) {
+      boolean encodeFailureAttributes) {
     this.dataConverter = dataConverter;
     this.codec = new ChainCodec(codecs);
-    this.encodeDefaultAttributes = encodeDefaultAttributes;
+    this.encodeFailureAttributes = encodeFailureAttributes;
   }
 
   @Override
@@ -162,19 +155,19 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
 
   @Override
   @Nonnull
-  public Failure exceptionToFailure(@Nonnull Throwable e) {
-    Preconditions.checkNotNull(e, "e");
-    return this.encodeFailure(dataConverter.exceptionToFailure(e).toBuilder()).build();
+  public Failure exceptionToFailure(@Nonnull Throwable throwable) {
+    Preconditions.checkNotNull(throwable, "throwable");
+    return this.encodeFailure(dataConverter.exceptionToFailure(throwable).toBuilder()).build();
   }
 
   private Failure.Builder encodeFailure(Failure.Builder failure) {
     if (failure.hasCause()) {
       failure.setCause(encodeFailure(failure.getCause().toBuilder()));
     }
-    if (this.encodeDefaultAttributes) {
-      Map<String, String> encodedAttributes = new HashMap<>();
-      encodedAttributes.put(STACK_TRACE_KEY, failure.getStackTrace());
-      encodedAttributes.put(MESSAGE_KEY, failure.getMessage());
+    if (this.encodeFailureAttributes) {
+      EncodedAttributes encodedAttributes = new EncodedAttributes();
+      encodedAttributes.setStackTrace(failure.getStackTrace());
+      encodedAttributes.setMessage(failure.getMessage());
       Payload encodedAttributesPayload = toPayload(Optional.of(encodedAttributes)).get();
       failure
           .setEncodedAttributes(encodedAttributesPayload)
@@ -228,7 +221,7 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
 
   @Override
   @Nonnull
-  public RuntimeException failureToException(@Nonnull Failure failure) {
+  public TemporalFailure failureToException(@Nonnull Failure failure) {
     Preconditions.checkNotNull(failure, "failure");
     return dataConverter.failureToException(this.decodeFailure(failure.toBuilder()).build());
   }
@@ -238,11 +231,12 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
       failure.setCause(decodeFailure(failure.getCause().toBuilder()));
     }
     if (failure.hasEncodedAttributes()) {
-      Map<String, String> encodedAttributes =
-          fromPayload(failure.getEncodedAttributes(), HashMap.class, HASH_MAP_STRING_STRING_TYPE);
+      EncodedAttributes encodedAttributes =
+          fromPayload(
+              failure.getEncodedAttributes(), EncodedAttributes.class, EncodedAttributes.class);
       failure
-          .setStackTrace(encodedAttributes.get(STACK_TRACE_KEY))
-          .setMessage(encodedAttributes.get(MESSAGE_KEY))
+          .setStackTrace(encodedAttributes.getStackTrace())
+          .setMessage(encodedAttributes.getMessage())
           .clearEncodedAttributes();
     }
     switch (failure.getFailureInfoCase()) {
@@ -310,5 +304,29 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   private Payloads decodePayloads(Payloads encodedPayloads) {
     List<Payload> decodedPayloads = codec.decode(encodedPayloads.getPayloadsList());
     return Payloads.newBuilder().addAllPayloads(decodedPayloads).build();
+  }
+
+  static class EncodedAttributes {
+    private String message;
+
+    private String stackTrace;
+
+    public String getMessage() {
+      return message;
+    }
+
+    public void setMessage(String message) {
+      this.message = message;
+    }
+
+    @JsonProperty("stack_trace")
+    public String getStackTrace() {
+      return stackTrace;
+    }
+
+    @JsonProperty("stack_trace")
+    public void setStackTrace(String stackTrace) {
+      this.stackTrace = stackTrace;
+    }
   }
 }

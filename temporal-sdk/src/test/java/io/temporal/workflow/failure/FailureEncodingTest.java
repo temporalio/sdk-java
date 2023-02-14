@@ -18,28 +18,25 @@
  * limitations under the License.
  */
 
-package io.temporal.common.converter;
+package io.temporal.workflow.failure;
 
-import static io.temporal.internal.common.WorkflowExecutionUtils.*;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static io.temporal.internal.common.WorkflowExecutionUtils.getEventOfType;
+import static org.junit.Assert.*;
 
 import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.EventType;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.converter.CodecDataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ActivityFailure;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.testing.WorkflowTestingTest;
 import io.temporal.internal.testing.WorkflowTestingTest.FailingWorkflowImpl;
@@ -62,19 +59,32 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-public class FailureConverterTest {
+/**
+ * Tests verifying that protobuf Failures are correctly codec-encoded and decoded.
+ *
+ * <p>More specifically:
+ *
+ * <ul>
+ *   <li>If PayloadDataConverter was initialized with {@code encodeFailureAttributes = true}, then a
+ *       failure's message and stack trace should be moved to the `encoded_attributes`, and the
+ *       `encoded_attributes` should be processed through the registered codecs.
+ *   <li>A workflow must still be able to read attributes of a failure that was thrown from an
+ *       activity.
+ *   <li>It is acceptable for Failure generated internally by the SDK be to not be codec-encoded if
+ *       that Failure carries no sensible data and no stack trace.
+ * </ul>
+ */
+public class FailureEncodingTest {
   private static final String TASK_QUEUE = "test-workflow";
 
   public @Rule Timeout timeout = Timeout.seconds(10);
-
-  private CodecDataConverter dataConverter;
 
   private TestWorkflowEnvironment testEnvironment;
 
   @Before
   public void setUp() {
     PrefixPayloadCodec prefixPayloadCodec = new PrefixPayloadCodec();
-    this.dataConverter =
+    CodecDataConverter dataConverter =
         new CodecDataConverter(
             DefaultDataConverter.newDefaultInstance(),
             Collections.singletonList(prefixPayloadCodec),
@@ -92,77 +102,6 @@ public class FailureConverterTest {
   @After
   public void tearDown() {
     testEnvironment.close();
-  }
-
-  @Test
-  public void testMessageAndStackTraceAreCorrectlyEncoded() {
-    try {
-      ApplicationFailure causeException =
-          ApplicationFailure.newFailure("CauseException", "CauseExceptionType");
-      throw ApplicationFailure.newFailureWithCause("Message", "Type", causeException);
-    } catch (ApplicationFailure originalException) {
-      Failure failure = dataConverter.exceptionToFailure(originalException);
-
-      // Assert the failure's message and stack trace were correctly moved to encoded attributes
-      assertEquals("Encoded failure", failure.getMessage());
-      assertEquals("", failure.getStackTrace());
-      assertTrue(failure.hasEncodedAttributes());
-
-      // Assert this was also done on the cause
-      assertEquals("Encoded failure", failure.getCause().getMessage());
-      assertEquals("", failure.getCause().getStackTrace());
-      assertTrue(failure.getCause().hasEncodedAttributes());
-
-      // Assert encoded_attributes were actually encoded
-      assertTrue(isEncoded(failure.getEncodedAttributes()));
-      assertTrue(isEncoded(failure.getCause().getEncodedAttributes()));
-    }
-  }
-
-  @Test
-  public void testMessageAndStackTraceAreCorrectlyDecoded() {
-    try {
-      ApplicationFailure causeException =
-          ApplicationFailure.newFailure("CauseException", "CauseExceptionType");
-      throw ApplicationFailure.newFailureWithCause("Message", "Type", causeException);
-    } catch (ApplicationFailure originalException) {
-      Failure failure = dataConverter.exceptionToFailure(originalException);
-      Exception decodedException = dataConverter.failureToException(failure);
-
-      assertEquals("Message", ((TemporalFailure) decodedException).getOriginalMessage());
-      assertEquals(
-          "CauseException", ((TemporalFailure) decodedException.getCause()).getOriginalMessage());
-
-      assertEquals(
-          originalException.getStackTrace()[0].toString(),
-          decodedException.getStackTrace()[0].toString());
-      assertEquals(
-          originalException.getCause().getStackTrace()[0].toString(),
-          decodedException.getCause().getStackTrace()[0].toString());
-    }
-  }
-
-  @Test
-  public void testDetailsAreEncoded() {
-    Object[] details = new Object[] {"test", 123, new int[] {1, 2, 3}};
-
-    ApplicationFailure originalException =
-        ApplicationFailure.newFailure("Message", "Type", details);
-    Failure failure = dataConverter.exceptionToFailure(originalException);
-    Exception decodedException = dataConverter.failureToException(failure);
-
-    // Assert details were actually encoded
-    List<Payload> encodedDetailsPayloads =
-        failure.getApplicationFailureInfo().getDetails().getPayloadsList();
-    assertTrue(isEncoded(encodedDetailsPayloads.get(0)));
-    assertTrue(isEncoded(encodedDetailsPayloads.get(1)));
-    assertTrue(isEncoded(encodedDetailsPayloads.get(2)));
-
-    // Assert details can be decoded
-    Values decodedDetailsPayloads = ((ApplicationFailure) decodedException).getDetails();
-    assertEquals("test", decodedDetailsPayloads.get(0, String.class, String.class));
-    assertEquals((Integer) 123, decodedDetailsPayloads.get(1, Integer.class, Integer.class));
-    assertArrayEquals(new int[] {1, 2, 3}, decodedDetailsPayloads.get(2, int[].class, int[].class));
   }
 
   @Test

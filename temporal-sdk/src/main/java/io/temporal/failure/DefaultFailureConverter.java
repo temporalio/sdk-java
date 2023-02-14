@@ -68,21 +68,18 @@ public final class DefaultFailureConverter implements FailureConverter {
           "io.temporal.internal.sync.POJOWorkflowTaskHandler$POJOWorkflowImplementation.execute");
 
   /** Used to parse a stack trace line. */
-  private static final String TRACE_ELEMENT_REGEXP =
-      "((?<className>.*)\\.(?<methodName>.*))\\(((?<fileName>.*?)(:(?<lineNumber>\\d+))?)\\)";
-
-  private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
+  private static final Pattern TRACE_ELEMENT_PATTERN =
+      Pattern.compile(
+          "((?<className>.*)\\.(?<methodName>.*))\\(((?<fileName>.*?)(:(?<lineNumber>\\d+))?)\\)");
 
   @Override
   @Nonnull
-  public RuntimeException failureToException(
+  public TemporalFailure failureToException(
       @Nonnull Failure failure, @Nonnull DataConverter dataConverter) {
     Preconditions.checkNotNull(failure, "failure");
     Preconditions.checkNotNull(dataConverter, "dataConverter");
-    RuntimeException result = failureToExceptionImpl(failure, dataConverter);
-    if (result instanceof TemporalFailure) {
-      ((TemporalFailure) result).setFailure(failure);
-    }
+    TemporalFailure result = failureToExceptionImpl(failure, dataConverter);
+    result.setFailure(failure);
     if (failure.getSource().equals(JAVA_SDK) && !failure.getStackTrace().isEmpty()) {
       StackTraceElement[] stackTrace = parseStackTrace(failure.getStackTrace());
       result.setStackTrace(stackTrace);
@@ -90,8 +87,8 @@ public final class DefaultFailureConverter implements FailureConverter {
     return result;
   }
 
-  private RuntimeException failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
-    RuntimeException cause =
+  private TemporalFailure failureToExceptionImpl(Failure failure, DataConverter dataConverter) {
+    TemporalFailure cause =
         failure.hasCause() ? failureToException(failure.getCause(), dataConverter) : null;
     switch (failure.getFailureInfoCase()) {
       case APPLICATION_FAILURE_INFO:
@@ -184,42 +181,43 @@ public final class DefaultFailureConverter implements FailureConverter {
 
   @Override
   @Nonnull
-  public Failure exceptionToFailure(@Nonnull Throwable e, @Nonnull DataConverter dataConverter) {
+  public Failure exceptionToFailure(
+      @Nonnull Throwable throwable, @Nonnull DataConverter dataConverter) {
     Preconditions.checkNotNull(dataConverter, "dataConverter");
-    Preconditions.checkNotNull(e, "e");
-    Throwable ex = e;
+    Preconditions.checkNotNull(throwable, "throwable");
+    Throwable ex = throwable;
     while (ex != null) {
       if (ex instanceof TemporalFailure) {
         ((TemporalFailure) ex).setDataConverter(dataConverter);
       }
       ex = ex.getCause();
     }
-    return this.exceptionToFailure(e);
+    return this.exceptionToFailure(throwable);
   }
 
   @Nonnull
-  private Failure exceptionToFailure(Throwable e) {
-    if (e instanceof CheckedExceptionWrapper) {
-      return exceptionToFailure(e.getCause());
+  private Failure exceptionToFailure(Throwable throwable) {
+    if (throwable instanceof CheckedExceptionWrapper) {
+      return exceptionToFailure(throwable.getCause());
     }
     String message;
-    if (e instanceof TemporalFailure) {
-      TemporalFailure tf = (TemporalFailure) e;
+    if (throwable instanceof TemporalFailure) {
+      TemporalFailure tf = (TemporalFailure) throwable;
       if (tf.getFailure().isPresent()) {
         return tf.getFailure().get();
       }
       message = tf.getOriginalMessage();
     } else {
-      message = e.getMessage() == null ? "" : e.getMessage();
+      message = throwable.getMessage() == null ? "" : throwable.getMessage();
     }
-    String stackTrace = serializeStackTrace(e);
+    String stackTrace = serializeStackTrace(throwable);
     Failure.Builder failure = Failure.newBuilder().setSource(JAVA_SDK);
     failure.setMessage(message).setStackTrace(stackTrace);
-    if (e.getCause() != null) {
-      failure.setCause(exceptionToFailure(e.getCause()));
+    if (throwable.getCause() != null) {
+      failure.setCause(exceptionToFailure(throwable.getCause()));
     }
-    if (e instanceof ApplicationFailure) {
-      ApplicationFailure ae = (ApplicationFailure) e;
+    if (throwable instanceof ApplicationFailure) {
+      ApplicationFailure ae = (ApplicationFailure) throwable;
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
@@ -229,8 +227,8 @@ public final class DefaultFailureConverter implements FailureConverter {
         info.setDetails(details.get());
       }
       failure.setApplicationFailureInfo(info);
-    } else if (e instanceof TimeoutFailure) {
-      TimeoutFailure te = (TimeoutFailure) e;
+    } else if (throwable instanceof TimeoutFailure) {
+      TimeoutFailure te = (TimeoutFailure) throwable;
       TimeoutFailureInfo.Builder info =
           TimeoutFailureInfo.newBuilder().setTimeoutType(te.getTimeoutType());
       Optional<Payloads> details = ((EncodedValues) te.getLastHeartbeatDetails()).toPayloads();
@@ -238,23 +236,23 @@ public final class DefaultFailureConverter implements FailureConverter {
         info.setLastHeartbeatDetails(details.get());
       }
       failure.setTimeoutFailureInfo(info);
-    } else if (e instanceof CanceledFailure) {
-      CanceledFailure ce = (CanceledFailure) e;
+    } else if (throwable instanceof CanceledFailure) {
+      CanceledFailure ce = (CanceledFailure) throwable;
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
       Optional<Payloads> details = ((EncodedValues) ce.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
       }
       failure.setCanceledFailureInfo(info);
-    } else if (e instanceof TerminatedFailure) {
-      TerminatedFailure te = (TerminatedFailure) e;
+    } else if (throwable instanceof TerminatedFailure) {
+      TerminatedFailure te = (TerminatedFailure) throwable;
       failure.setTerminatedFailureInfo(TerminatedFailureInfo.getDefaultInstance());
-    } else if (e instanceof ServerFailure) {
-      ServerFailure se = (ServerFailure) e;
+    } else if (throwable instanceof ServerFailure) {
+      ServerFailure se = (ServerFailure) throwable;
       failure.setServerFailureInfo(
           ServerFailureInfo.newBuilder().setNonRetryable(se.isNonRetryable()));
-    } else if (e instanceof ActivityFailure) {
-      ActivityFailure ae = (ActivityFailure) e;
+    } else if (throwable instanceof ActivityFailure) {
+      ActivityFailure ae = (ActivityFailure) throwable;
       ActivityFailureInfo.Builder info =
           ActivityFailureInfo.newBuilder()
               .setActivityId(ae.getActivityId() == null ? "" : ae.getActivityId())
@@ -264,8 +262,8 @@ public final class DefaultFailureConverter implements FailureConverter {
               .setScheduledEventId(ae.getScheduledEventId())
               .setStartedEventId(ae.getStartedEventId());
       failure.setActivityFailureInfo(info);
-    } else if (e instanceof ChildWorkflowFailure) {
-      ChildWorkflowFailure ce = (ChildWorkflowFailure) e;
+    } else if (throwable instanceof ChildWorkflowFailure) {
+      ChildWorkflowFailure ce = (ChildWorkflowFailure) throwable;
       ChildWorkflowExecutionFailureInfo.Builder info =
           ChildWorkflowExecutionFailureInfo.newBuilder()
               .setInitiatedEventId(ce.getInitiatedEventId())
@@ -275,13 +273,13 @@ public final class DefaultFailureConverter implements FailureConverter {
               .setWorkflowType(WorkflowType.newBuilder().setName(ce.getWorkflowType()))
               .setWorkflowExecution(ce.getExecution());
       failure.setChildWorkflowExecutionFailureInfo(info);
-    } else if (e instanceof ActivityCanceledException) {
+    } else if (throwable instanceof ActivityCanceledException) {
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
       failure.setCanceledFailureInfo(info);
     } else {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()
-              .setType(e.getClass().getName())
+              .setType(throwable.getClass().getName())
               .setNonRetryable(false);
       failure.setApplicationFailureInfo(info);
     }

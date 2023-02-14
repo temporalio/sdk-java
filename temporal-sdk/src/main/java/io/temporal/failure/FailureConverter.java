@@ -47,18 +47,18 @@ public interface FailureConverter {
    * @throws NullPointerException if either failure or dataConverter is null
    */
   @Nonnull
-  RuntimeException failureToException(
+  TemporalFailure failureToException(
       @Nonnull Failure failure, @Nonnull DataConverter dataConverter);
 
   /**
    * Serialize an existing Java Exception into a Failure object.
    *
-   * @param e A Java Exception object to serialize into a Failure protobuf object
+   * @param throwable A Java Exception object to serialize into a Failure protobuf object
    * @param dataConverter to be used to convert {@code Failure#encodedAttributes} and {@code
    *     Failure#failure_info#details} (if present).
    * @return serialized exception
    * @throws NullPointerException if either e or dataConverter is null
    */
   @Nonnull
-  Failure exceptionToFailure(@Nonnull Throwable e, @Nonnull DataConverter dataConverter);
+  Failure exceptionToFailure(@Nonnull Throwable throwable, @Nonnull DataConverter dataConverter);
 }

@@ -29,6 +29,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TemporalFailure;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -210,16 +211,16 @@ public class DefaultDataConverter implements DataConverter {
 
   @Override
   @Nonnull
-  public RuntimeException failureToException(@Nonnull Failure failure) {
+  public TemporalFailure failureToException(@Nonnull Failure failure) {
     Preconditions.checkNotNull(failure, "failure");
     return failureConverter.failureToException(failure, this);
   }
 
   @Override
   @Nonnull
-  public Failure exceptionToFailure(@Nonnull Throwable e) {
-    Preconditions.checkNotNull(e, "failure");
-    return failureConverter.exceptionToFailure(e, this);
+  public Failure exceptionToFailure(@Nonnull Throwable throwable) {
+    Preconditions.checkNotNull(throwable, "throwable");
+    return failureConverter.exceptionToFailure(throwable, this);
   }
 
   private void updateConverterMap() {

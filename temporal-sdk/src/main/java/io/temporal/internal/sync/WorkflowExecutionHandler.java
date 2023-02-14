@@ -147,7 +147,7 @@ class WorkflowExecutionHandler {
       }
     }
 
-    throw new WorkflowExecutionException(context.getDataConverter().exceptionToFailure(exception));
+    throw new WorkflowExecutionException(context.mapExceptionToFailure(exception));
   }
 
   /**
