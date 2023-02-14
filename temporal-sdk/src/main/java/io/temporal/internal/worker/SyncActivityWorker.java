@@ -90,23 +90,8 @@ public class SyncActivityWorker implements SuspendableWorker {
   }
 
   @Override
-  public void start() {
-    worker.start();
-  }
-
-  @Override
-  public boolean isStarted() {
-    return worker.isStarted();
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return worker.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return worker.isTerminated() && heartbeatExecutor.isTerminated();
+  public boolean start() {
+    return worker.start();
   }
 
   @Override
@@ -143,6 +128,29 @@ public class SyncActivityWorker implements SuspendableWorker {
   @Override
   public boolean isSuspended() {
     return worker.isSuspended();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return worker.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return worker.isTerminated() && heartbeatExecutor.isTerminated();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    WorkerLifecycleState lifecycleState = worker.getLifecycleState();
+    if (WorkerLifecycleState.TERMINATED.equals(lifecycleState)) {
+      // return TERMINATED only if both worker and heartbeatExecutor are terminated
+      return heartbeatExecutor.isTerminated()
+          ? WorkerLifecycleState.TERMINATED
+          : WorkerLifecycleState.SHUTDOWN;
+    } else {
+      return lifecycleState;
+    }
   }
 
   public EagerActivityDispatcher getEagerActivityDispatcher() {

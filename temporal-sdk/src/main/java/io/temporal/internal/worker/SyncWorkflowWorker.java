@@ -154,27 +154,13 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   }
 
   @Override
-  public void start() {
-    workflowWorker.start();
+  public boolean start() {
+    boolean started = workflowWorker.start();
     // It doesn't start if no types are registered with it.
-    if (workflowWorker.isStarted()) {
+    if (started) {
       laWorker.start();
     }
-  }
-
-  @Override
-  public boolean isStarted() {
-    return workflowWorker.isStarted() && (laWorker.isStarted() || !laWorker.isAnyTypeSupported());
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return workflowWorker.isShutdown() || laWorker.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return workflowWorker.isTerminated() && laWorker.isTerminated();
+    return started;
   }
 
   @Override
@@ -205,11 +191,6 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     workflowWorker.resumePolling();
   }
 
-  @Override
-  public boolean isSuspended() {
-    return workflowWorker.isSuspended();
-  }
-
   @SuppressWarnings("deprecation")
   public <R> R queryWorkflowExecution(
       io.temporal.internal.common.WorkflowExecutionHistory history,
@@ -222,6 +203,26 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     Optional<Payloads> result =
         queryReplayHelper.queryWorkflowExecution(history, queryType, serializedArgs);
     return dataConverter.fromPayloads(0, result, resultClass, resultType);
+  }
+
+  @Override
+  public boolean isSuspended() {
+    return workflowWorker.isSuspended();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return workflowWorker.isShutdown() || laWorker.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return workflowWorker.isTerminated() && laWorker.isTerminated();
+  }
+
+  @Override
+  public WorkerLifecycleState getLifecycleState() {
+    return null;
   }
 
   @Override
