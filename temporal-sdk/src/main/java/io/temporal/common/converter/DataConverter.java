@@ -23,10 +23,13 @@ package io.temporal.common.converter;
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.failure.v1.Failure;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 /**
  * Used by the framework to serialize/deserialize method parameters that need to be sent over the
@@ -107,6 +110,28 @@ public interface DataConverter {
   <T> T fromPayloads(
       int index, Optional<Payloads> content, Class<T> valueType, Type valueGenericType)
       throws DataConverterException;
+
+  /**
+   * Instantiate an appropriate Java Exception from a serialized Failure object. The default
+   * implementation delegates the conversion process to an instance of {@link
+   * io.temporal.failure.FailureConverter}, using this data converter for payload decoding.
+   *
+   * @param failure Failure protobuf object to deserialize into an exception
+   * @throws NullPointerException if failure is null
+   */
+  @Nonnull
+  TemporalFailure failureToException(@Nonnull Failure failure);
+
+  /**
+   * Serialize an existing Throwable object into a Failure object. The default implementation
+   * delegates the conversion process to an instance of {@link
+   * io.temporal.failure.FailureConverter}, using this data converter for payload encoding.
+   *
+   * @param throwable a Throwable object to serialize into a Failure protobuf object
+   * @throws NullPointerException if throwable is null
+   */
+  @Nonnull
+  Failure exceptionToFailure(@Nonnull Throwable throwable);
 
   static Object[] arrayFromPayloads(
       DataConverter converter,

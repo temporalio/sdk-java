@@ -26,7 +26,7 @@ import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.common.interceptors.Header;
-import io.temporal.failure.FailureConverter;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.worker.WorkflowExecutionException;
@@ -147,8 +147,7 @@ class WorkflowExecutionHandler {
       }
     }
 
-    throw new WorkflowExecutionException(
-        FailureConverter.exceptionToFailure(exception, context.getDataConverter()));
+    throw new WorkflowExecutionException(context.mapExceptionToFailure(exception));
   }
 
   /**
@@ -156,6 +155,16 @@ class WorkflowExecutionHandler {
    *     cancellation exception in the chain
    */
   private boolean requestedCancellation(boolean cancelRequested, Throwable exception) {
-    return cancelRequested && FailureConverter.isCanceledCause(exception);
+    return cancelRequested && isCanceledCause(exception);
+  }
+
+  private static boolean isCanceledCause(Throwable exception) {
+    while (exception != null) {
+      if (exception instanceof CanceledFailure) {
+        return true;
+      }
+      exception = exception.getCause();
+    }
+    return false;
   }
 }

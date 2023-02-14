@@ -38,7 +38,6 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.ActivityOptionUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
@@ -613,6 +612,6 @@ public final class WorkflowInternal {
     return Optional.ofNullable(getRootWorkflowContext().getReplayContext().getPreviousRunFailure())
         // Temporal Failure Values are additional user payload and serialized using user data
         // converter
-        .map(f -> FailureConverter.failureToException(f, getDataConverter()));
+        .map(f -> getDataConverter().failureToException(f));
   }
 }
