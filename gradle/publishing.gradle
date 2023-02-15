@@ -16,7 +16,6 @@ subprojects {
         publications {
             mavenJava(MavenPublication) {
                 afterEvaluate {
-                    if (tasks.findByName("shadowJar") != null) artifact shadowJar
                     from components.java
                 }
             }

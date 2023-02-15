@@ -61,9 +61,6 @@ configurations.shadow {
     transitive = false
 }
 
-// we are not interested in a regular jar from this build
-project.tasks.named("jar")configure { enabled = false}
-
 shadowJar {
     configurations = [project.configurations.shadow]
 
@@ -74,3 +71,5 @@ shadowJar {
     mergeServiceFiles()
     archiveClassifier.set("")
 }
+
+shadowJar.shouldRunAfter(jar)
