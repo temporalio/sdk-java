@@ -22,7 +22,7 @@ package io.temporal.spring.boot.autoconfigure.template;
 
 import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
-import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
+import io.temporal.internal.common.ShadingHelpers;
 import io.temporal.serviceclient.SimpleSslContextBuilder;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
@@ -34,7 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.support.BeanDefinitionValidationException;
 import org.springframework.util.ResourceUtils;
@@ -110,8 +109,6 @@ public class ServiceStubOptionsTemplate {
       pkcs = certChainFile != null || certChain != null ? 8 : 12;
     }
 
-    SimpleSslContextBuilder sslBuilder;
-    SslContext sslContext;
     if (pkcs == 8) {
       if (certChainFile == null && certChain == null) {
         throw new BeanDefinitionValidationException(
@@ -129,8 +126,10 @@ public class ServiceStubOptionsTemplate {
               keyFile != null
                   ? Files.newInputStream(ResourceUtils.getFile(keyFile).toPath())
                   : new ByteArrayInputStream(key.getBytes(StandardCharsets.UTF_8)); ) {
-        sslBuilder = SimpleSslContextBuilder.forPKCS8(certInputStream, keyInputStream);
-        sslContext = applyMTLSPropertiesAndBuildSslContext(mtlsProperties, sslBuilder);
+        SimpleSslContextBuilder sslBuilder =
+            SimpleSslContextBuilder.forPKCS8(certInputStream, keyInputStream);
+        applyMTLSProperties(mtlsProperties, sslBuilder);
+        ShadingHelpers.buildSslContextAndPublishIntoStubOptions(sslBuilder, stubsOptionsBuilder);
       } catch (IOException e) {
         throw new BeanCreationException("Failure reading PKCS8 mTLS key or cert chain file", e);
       }
@@ -145,18 +144,16 @@ public class ServiceStubOptionsTemplate {
       }
       try (InputStream keyInputStream =
           Files.newInputStream(ResourceUtils.getFile(keyFile).toPath())) {
-        sslBuilder = SimpleSslContextBuilder.forPKCS12(keyInputStream);
-        sslContext = applyMTLSPropertiesAndBuildSslContext(mtlsProperties, sslBuilder);
-
+        SimpleSslContextBuilder sslBuilder = SimpleSslContextBuilder.forPKCS12(keyInputStream);
+        applyMTLSProperties(mtlsProperties, sslBuilder);
+        ShadingHelpers.buildSslContextAndPublishIntoStubOptions(sslBuilder, stubsOptionsBuilder);
       } catch (IOException e) {
         throw new BeanCreationException("Failure reading PKCS12 mTLS cert key file", e);
       }
     }
-
-    stubsOptionsBuilder.setSslContext(sslContext);
   }
 
-  private SslContext applyMTLSPropertiesAndBuildSslContext(
+  private void applyMTLSProperties(
       ConnectionProperties.MTLSProperties mtlsProperties, SimpleSslContextBuilder sslBuilder) {
     if (mtlsProperties.getKeyPassword() != null) {
       sslBuilder.setKeyPassword(mtlsProperties.getKeyPassword());
@@ -164,12 +161,6 @@ public class ServiceStubOptionsTemplate {
 
     if (Boolean.TRUE.equals(mtlsProperties.getInsecureTrustManager())) {
       sslBuilder.setUseInsecureTrustManager(true);
-    }
-
-    try {
-      return sslBuilder.build();
-    } catch (SSLException e) {
-      throw new BeanCreationException("Failure building SSLContext", e);
     }
   }
 }

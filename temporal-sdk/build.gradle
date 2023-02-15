@@ -9,11 +9,7 @@ dependencies {
     api "com.google.code.gson:gson:$gsonVersion"
     api "io.micrometer:micrometer-core"
 
-    implementation ("com.google.guava:guava:$guavaVersion") {
-        exclude group: 'com.google.code.findbugs'
-        exclude group: 'com.google.errorprone'
-        exclude group: 'com.google.j2objc'
-    }
+    implementation "com.google.guava:guava:$guavaVersion"
     api "com.fasterxml.jackson.core:jackson-databind"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"

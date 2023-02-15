@@ -7,21 +7,19 @@ apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 description = '''Temporal Workflow Java SDK'''
 
 dependencies {
-    api(platform("io.grpc:grpc-bom:$grpcVersion"))
+    api platform("io.grpc:grpc-bom:$grpcVersion")
 
-    api "io.grpc:grpc-api" //Classes like io.grpc.Metadata are used as a part of our API
+    api ("io.grpc:grpc-api") //Classes like io.grpc.Metadata are used as a part of our API
     api "io.grpc:grpc-stub" //Part of WorkflowServiceStubs API
     api "io.grpc:grpc-netty-shaded" //Part of WorkflowServiceStubs API, specifically SslContext
     api "io.grpc:grpc-services" //Standard gRPC HealthCheck Response class
     api "com.google.protobuf:protobuf-java-util:$protoVersion" //proto request and response objects are a part of this module's API
     if (JavaVersion.current().isJava9Compatible()) {
         //needed for the generated grpc stubs and is not a part of JDK since java 9
-        implementation "javax.annotation:javax.annotation-api:$annotationApiVersion"
+        compileOnly "javax.annotation:javax.annotation-api:$annotationApiVersion"
     }
 
-    api "com.uber.m3:tally-core:$tallyVersion"
-
-    implementation "io.grpc:grpc-core"
+    api ("com.uber.m3:tally-core:$tallyVersion")
 
     api "org.slf4j:slf4j-api:$slf4jVersion"
 
@@ -43,10 +41,8 @@ task updateSubmodules(type: Exec) {
     commandLine 'git', 'submodule', 'update'
 }
 
-//TODO(maxim): For some reason the following doesn't exclude proto files from the lib jar.
-// But it should according to https://github.com/google/protobuf-gradle-plugin/issues/390
 jar {
-    exclude '**.proto'
+    exclude '**/*.proto'
     includeEmptyDirs false
 }
 
