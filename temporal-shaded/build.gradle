@@ -1,0 +1,76 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+}
+
+description = '''Temporal Java SDK and Testing Framework with gRPC, Protobuf 3 and Guava shaded'''
+
+ext {
+    perfmarkVersion = '0.26.0'
+}
+
+dependencies {
+    // serviceclient + sdk
+    api(platform("com.fasterxml.jackson:jackson-bom:$jacksonVersion"))
+    api(platform("io.micrometer:micrometer-bom:$micrometerVersion"))
+    api ("com.uber.m3:tally-core:$tallyVersion")
+    api "org.slf4j:slf4j-api:$slf4jVersion"
+    api "com.google.code.gson:gson:$gsonVersion"
+    api "io.micrometer:micrometer-core"
+    api "com.fasterxml.jackson.core:jackson-databind"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"
+
+    //test server
+    implementation "com.cronutils:cron-utils:${cronUtilsVersion}"
+
+    // grpc wants perfmark and we don't want to shade it
+    implementation "io.perfmark:perfmark-api:$perfmarkVersion"
+
+    // we have to flat the dependency tree here and disable inclusion of transitive dependencies
+    // below to have a fine control over what is included. The main reason is we don't want to explicitly filter out
+    // all deps of our temporal modules on all depths except some
+    // See https://github.com/johnrengelman/shadow/issues/31#issuecomment-32473844
+
+    // temporal
+    shadow project(':temporal-serviceclient')
+    shadow project(':temporal-test-server')
+    shadow project(':temporal-sdk')
+    shadow project(':temporal-testing')
+
+    // protobuf
+    shadow "com.google.protobuf:protobuf-java:$protoVersion"
+    shadow "com.google.protobuf:protobuf-java-util:$protoVersion"
+
+    // guava
+    shadow "com.google.guava:failureaccess:1.0.1"
+    shadow "com.google.guava:guava:$guavaVersion"
+
+    // grpc
+    shadow "io.grpc:grpc-protobuf-lite:$grpcVersion"
+    shadow "io.grpc:grpc-protobuf:$grpcVersion"
+    shadow "io.grpc:grpc-api:$grpcVersion"
+    shadow "io.grpc:grpc-core:$grpcVersion"
+    shadow "io.grpc:grpc-context:$grpcVersion"
+    shadow "io.grpc:grpc-stub:$grpcVersion"
+    shadow "io.grpc:grpc-netty-shaded:$grpcVersion"
+    shadow "io.grpc:grpc-services:$grpcVersion"
+}
+
+// to have a fine grain control, we spell out what we include
+configurations.shadow {
+    transitive = false
+}
+
+// we are not interested in a regular jar from this build
+project.tasks.named("jar")configure { enabled = false}
+
+shadowJar {
+    configurations = [project.configurations.shadow]
+
+    relocate 'gogoproto', 'io.temporal.shaded.gogoproto' //protobuf
+    relocate 'com.google', 'io.temporal.shaded.com.google' //protobuf and guava
+    relocate 'io.grpc', 'io.temporal.shaded.io.grpc'
+
+    mergeServiceFiles()
+    archiveClassifier.set("")
+}

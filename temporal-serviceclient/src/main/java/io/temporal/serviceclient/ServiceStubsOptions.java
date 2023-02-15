@@ -34,7 +34,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-class ServiceStubsOptions {
+public class ServiceStubsOptions {
   public static final String DEFAULT_LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
   /** Default RPC timeout used for all non-long-poll and non-query calls. */
@@ -321,7 +321,7 @@ class ServiceStubsOptions {
     return metricsScope;
   }
 
-  static class Builder<T extends Builder<T>> {
+  public static class Builder<T extends Builder<T>> {
     private ManagedChannel channel;
     private SslContext sslContext;
     private boolean enableHttps;

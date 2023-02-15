@@ -1,7 +1,5 @@
 subprojects {
-    configurations.all {
-        //comes through grpc-api:guava
-        exclude group: 'org.checkerframework', module: 'checker-qual'
-        exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
+    configurations.implementation {
+        // add global exclusions here if needed
     }
 }

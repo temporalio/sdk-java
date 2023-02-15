@@ -5,7 +5,9 @@ dependencies {
     // for gradle, but it is needed for maven and maven pom. Looks like Maven doesn't transitively propagate BOMs.
     // https://github.com/temporalio/sdk-java/issues/1479
     api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+    implementation "org.springframework.boot:spring-boot-starter"
 
     api project(':temporal-spring-boot-autoconfigure-alpha')
-    implementation "org.springframework.boot:spring-boot-starter"
+    api project(':temporal-sdk')
+    api project(':temporal-testing')
 }

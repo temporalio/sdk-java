@@ -18,7 +18,8 @@ tasks.withType(KotlinCompile).all {
 dependencies {
     implementation(platform("com.fasterxml.jackson:jackson-bom:$jacksonVersion"))
 
-    api project(':temporal-sdk')
+    // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
+    compileOnly project(':temporal-sdk')
 
     implementation "org.jetbrains.kotlin:kotlin-reflect"
 

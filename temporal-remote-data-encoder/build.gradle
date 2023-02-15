@@ -6,8 +6,9 @@ ext {
 }
 
 dependencies {
-    api project(':temporal-serviceclient')
-    api project(':temporal-sdk')
+    // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
+    compileOnly project(':temporal-serviceclient')
+    compileOnly project(':temporal-sdk')
 
     compileOnly "javax.servlet:javax.servlet-api:${servletVersion}"
     compileOnly "com.squareup.okhttp3:okhttp:${okhttpVersion}"
