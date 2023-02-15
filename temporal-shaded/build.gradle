@@ -14,7 +14,7 @@ dependencies {
     api(platform("io.micrometer:micrometer-bom:$micrometerVersion"))
     api ("com.uber.m3:tally-core:$tallyVersion")
     api "org.slf4j:slf4j-api:$slf4jVersion"
-    api "com.google.code.gson:gson:$gsonVersion"
+    api "com.google.code.gson:gson:$gsonVersion" //also needed for protobuf
     api "io.micrometer:micrometer-core"
     api "com.fasterxml.jackson.core:jackson-databind"
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
@@ -65,7 +65,9 @@ shadowJar {
     configurations = [project.configurations.shadow]
 
     relocate 'gogoproto', 'io.temporal.shaded.gogoproto' //protobuf
-    relocate 'com.google', 'io.temporal.shaded.com.google' //protobuf and guava
+    relocate 'com.google.protobuf', 'io.temporal.shaded.com.google.protobuf'
+    relocate 'com.google.common', 'io.temporal.shaded.com.google.common' // guava
+    relocate 'com.google.thirdparty', 'io.temporal.shaded.com.google.thirdparty' // guava
     relocate 'io.grpc', 'io.temporal.shaded.io.grpc'
 
     mergeServiceFiles()
