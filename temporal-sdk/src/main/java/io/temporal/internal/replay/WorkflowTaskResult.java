@@ -37,6 +37,7 @@ public final class WorkflowTaskResult {
     private boolean finalCommand;
     private Map<String, WorkflowQueryResult> queryResults;
     private boolean forceWorkflowTask;
+    private int nonfirstLocalActivityAttempts;
 
     public Builder setCommands(List<Command> commands) {
       this.commands = commands;
@@ -58,12 +59,18 @@ public final class WorkflowTaskResult {
       return this;
     }
 
+    public Builder setNonfirstLocalActivityAttempts(int nonfirstLocalActivityAttempts) {
+      this.nonfirstLocalActivityAttempts = nonfirstLocalActivityAttempts;
+      return this;
+    }
+
     public WorkflowTaskResult build() {
       return new WorkflowTaskResult(
           commands == null ? Collections.emptyList() : commands,
           queryResults == null ? Collections.emptyMap() : queryResults,
           finalCommand,
-          forceWorkflowTask);
+          forceWorkflowTask,
+          nonfirstLocalActivityAttempts);
     }
   }
 
@@ -71,13 +78,16 @@ public final class WorkflowTaskResult {
   private final boolean finalCommand;
   private final Map<String, WorkflowQueryResult> queryResults;
   private final boolean forceWorkflowTask;
+  private final int nonfirstLocalActivityAttempts;
 
   private WorkflowTaskResult(
       List<Command> commands,
       Map<String, WorkflowQueryResult> queryResults,
       boolean finalCommand,
-      boolean forceWorkflowTask) {
+      boolean forceWorkflowTask,
+      int nonfirstLocalActivityAttempts) {
     this.commands = commands;
+    this.nonfirstLocalActivityAttempts = nonfirstLocalActivityAttempts;
     if (forceWorkflowTask && finalCommand) {
       throw new IllegalArgumentException("both forceWorkflowTask and finalCommand are true");
     }
@@ -101,5 +111,9 @@ public final class WorkflowTaskResult {
 
   public boolean isForceWorkflowTask() {
     return forceWorkflowTask;
+  }
+
+  public int getNonfirstLocalActivityAttempts() {
+    return nonfirstLocalActivityAttempts;
   }
 }

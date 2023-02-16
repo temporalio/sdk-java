@@ -68,7 +68,8 @@ protobuf {
         }
     }
     generateProtoTasks {
-        all().each { task -> task.dependsOn updateSubmodules }
+        // TODO: Undo this once in master
+//        all().each { task -> task.dependsOn updateSubmodules }
         all()*.plugins {
             grpc {
                 outputSubDir = 'java'

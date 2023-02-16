@@ -28,6 +28,7 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -49,6 +50,7 @@ public class ExecuteLocalActivityParameters {
   private final @Nonnull Duration localRetryThreshold;
   private final boolean doNotIncludeArgumentsIntoMarker;
   private final @Nullable Duration scheduleToStartTimeout;
+  private final @Nonnull AtomicInteger attemptsDuringThisWFT;
 
   public ExecuteLocalActivityParameters(
       @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
@@ -56,13 +58,15 @@ public class ExecuteLocalActivityParameters {
       long originalScheduledTimestamp,
       @Nullable Failure previousLocalExecutionFailure,
       boolean doNotIncludeArgumentsIntoMarker,
-      @Nonnull Duration localRetryThreshold) {
+      @Nonnull Duration localRetryThreshold,
+      @Nonnull AtomicInteger attemptsDuringThisWFT) {
     this.activityTaskBuilder = Objects.requireNonNull(activityTaskBuilder, "activityTaskBuilder");
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.originalScheduledTimestamp = originalScheduledTimestamp;
     this.previousLocalExecutionFailure = previousLocalExecutionFailure;
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
     this.localRetryThreshold = localRetryThreshold;
+    this.attemptsDuringThisWFT = attemptsDuringThisWFT;
   }
 
   public String getActivityId() {
@@ -120,5 +124,10 @@ public class ExecuteLocalActivityParameters {
   @Nullable
   public Duration getScheduleToStartTimeout() {
     return scheduleToStartTimeout;
+  }
+
+  @Nonnull
+  public AtomicInteger getAttemptsDuringThisWFT() {
+    return attemptsDuringThisWFT;
   }
 }

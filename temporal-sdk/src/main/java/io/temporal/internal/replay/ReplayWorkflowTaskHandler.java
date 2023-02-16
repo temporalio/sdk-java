@@ -28,6 +28,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.FailWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.MeteringMetadata;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.CommandType;
@@ -129,6 +130,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         WorkflowTaskResult wftResult =
             workflowRunTaskHandler.handleWorkflowTask(workflowTask, historyIterator);
         finalCommand = wftResult.isFinalCommand();
+        log.warn("WFT completing, {}", wftResult.getNonfirstLocalActivityAttempts());
         result =
             createCompletedWFTRequest(
                 workflowTask.getWorkflowType().getName(), workflowTask, wftResult);
@@ -210,6 +212,11 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
             .addAllCommands(result.getCommands())
             .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewWorkflowTask(result.isForceWorkflowTask())
+            .setMeteringMetadata(
+                MeteringMetadata.newBuilder()
+                    .setNonfirstLocalActivityExecutionAttempts(
+                        result.getNonfirstLocalActivityAttempts())
+                    .build())
             .setReturnNewWorkflowTask(result.isForceWorkflowTask());
 
     if (stickyTaskQueueName != null

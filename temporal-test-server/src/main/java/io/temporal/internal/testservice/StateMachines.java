@@ -1364,6 +1364,7 @@ class StateMachines {
         WorkflowTaskCompletedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
             .setBinaryChecksum(request.getBinaryChecksum())
+            .setMeteringMetadata(request.getMeteringMetadata())
             .setScheduledEventId(data.scheduledEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()

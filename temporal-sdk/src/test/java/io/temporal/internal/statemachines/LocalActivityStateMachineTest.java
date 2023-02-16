@@ -41,6 +41,7 @@ import io.temporal.internal.worker.LocalActivityResult;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -97,7 +98,8 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 true,
-                null);
+                null,
+                new AtomicInteger(0));
         ExecuteLocalActivityParameters parameters2 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
@@ -107,7 +109,8 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 false,
-                null);
+                null,
+                new AtomicInteger(0));
         ExecuteLocalActivityParameters parameters3 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
@@ -117,7 +120,8 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 true,
-                null);
+                null,
+                new AtomicInteger(0));
 
         builder
             .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
@@ -298,7 +302,8 @@ public class LocalActivityStateMachineTest {
                 System.currentTimeMillis(),
                 null,
                 false,
-                null);
+                null,
+                new AtomicInteger(0));
         builder
             .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))

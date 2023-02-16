@@ -39,6 +39,7 @@ import javax.annotation.Nullable;
 class LocalActivityExecutionContext {
   private final @Nonnull ExecuteLocalActivityParameters executionParams;
   private final @Nonnull AtomicInteger currentAttempt;
+  private final @Nonnull AtomicInteger attemptsDuringThisWFT;
   private final @Nonnull AtomicReference<Failure> lastAttemptFailure = new AtomicReference<>();
   private final @Nullable Deadline scheduleToCloseDeadline;
   private @Nullable ScheduledFuture<?> scheduleToCloseFuture;
@@ -54,6 +55,7 @@ class LocalActivityExecutionContext {
         Objects.requireNonNull(resultCallback, "resultCallback")::apply);
     this.scheduleToCloseDeadline = scheduleToCloseDeadline;
     this.currentAttempt = new AtomicInteger(executionParams.getInitialAttempt());
+    this.attemptsDuringThisWFT = executionParams.getAttemptsDuringThisWFT();
     Failure previousExecutionFailure = executionParams.getPreviousLocalExecutionFailure();
     if (previousExecutionFailure != null) {
       if (previousExecutionFailure.hasTimeoutFailureInfo() && previousExecutionFailure.hasCause()) {
@@ -159,5 +161,10 @@ class LocalActivityExecutionContext {
 
   public boolean isCompleted() {
     return executionResult.isDone();
+  }
+
+  @Nonnull
+  public AtomicInteger getAttemptsDuringThisWFT() {
+    return attemptsDuringThisWFT;
   }
 }
