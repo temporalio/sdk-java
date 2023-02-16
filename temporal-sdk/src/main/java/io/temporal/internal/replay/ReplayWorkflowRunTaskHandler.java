@@ -284,9 +284,6 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
     }
   }
 
-  /**
-   * @Override public void markWFTClosed() { }
-   */
   private void processLocalActivityRequests(Deadline wftHeartbeatDeadline)
       throws InterruptedException, Throwable {
 
