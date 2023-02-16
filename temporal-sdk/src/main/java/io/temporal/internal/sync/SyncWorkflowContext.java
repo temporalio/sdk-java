@@ -74,7 +74,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
@@ -498,8 +497,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         originalScheduledTime,
         previousExecutionFailure,
         options.isDoNotIncludeArgumentsIntoMarker(),
-        localRetryThreshold,
-        new AtomicInteger(0));
+        localRetryThreshold);
   }
 
   @Override

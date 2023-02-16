@@ -130,7 +130,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         WorkflowTaskResult wftResult =
             workflowRunTaskHandler.handleWorkflowTask(workflowTask, historyIterator);
         finalCommand = wftResult.isFinalCommand();
-        log.warn("WFT completing, {}", wftResult.getNonfirstLocalActivityAttempts());
         result =
             createCompletedWFTRequest(
                 workflowTask.getWorkflowType().getName(), workflowTask, wftResult);

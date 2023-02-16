@@ -53,7 +53,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -157,8 +156,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
                       System.currentTimeMillis(),
                       null,
                       false,
-                      null,
-                      new AtomicInteger(0)),
+                      null),
                   (r, e) -> {});
               return false;
             })

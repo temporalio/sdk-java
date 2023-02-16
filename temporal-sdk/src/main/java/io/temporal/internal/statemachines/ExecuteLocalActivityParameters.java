@@ -25,10 +25,10 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -50,7 +50,7 @@ public class ExecuteLocalActivityParameters {
   private final @Nonnull Duration localRetryThreshold;
   private final boolean doNotIncludeArgumentsIntoMarker;
   private final @Nullable Duration scheduleToStartTimeout;
-  private final @Nonnull AtomicInteger attemptsDuringThisWFT;
+  private @Nullable Functions.Proc onNewAttemptCallback;
 
   public ExecuteLocalActivityParameters(
       @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
@@ -58,15 +58,14 @@ public class ExecuteLocalActivityParameters {
       long originalScheduledTimestamp,
       @Nullable Failure previousLocalExecutionFailure,
       boolean doNotIncludeArgumentsIntoMarker,
-      @Nonnull Duration localRetryThreshold,
-      @Nonnull AtomicInteger attemptsDuringThisWFT) {
+      @Nonnull Duration localRetryThreshold) {
     this.activityTaskBuilder = Objects.requireNonNull(activityTaskBuilder, "activityTaskBuilder");
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.originalScheduledTimestamp = originalScheduledTimestamp;
     this.previousLocalExecutionFailure = previousLocalExecutionFailure;
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
     this.localRetryThreshold = localRetryThreshold;
-    this.attemptsDuringThisWFT = attemptsDuringThisWFT;
+    this.onNewAttemptCallback = null;
   }
 
   public String getActivityId() {
@@ -127,7 +126,14 @@ public class ExecuteLocalActivityParameters {
   }
 
   @Nonnull
-  public AtomicInteger getAttemptsDuringThisWFT() {
-    return attemptsDuringThisWFT;
+  public Functions.Proc getOnNewAttemptCallback() {
+    if (onNewAttemptCallback == null) {
+      return () -> {};
+    }
+    return onNewAttemptCallback;
+  }
+
+  public void setOnNewAttemptCallback(@Nonnull Functions.Proc onNewAttemptCallback) {
+    this.onNewAttemptCallback = onNewAttemptCallback;
   }
 }
