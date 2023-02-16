@@ -40,6 +40,8 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
+import static org.junit.Assume.assumeFalse;
+
 public class LongLocalActivityFailsWhileHeartbeatingMeteringTest {
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
@@ -60,6 +62,9 @@ public class LongLocalActivityFailsWhileHeartbeatingMeteringTest {
    */
   @Test
   public void testLongLocalActivityFailsWhileHeartbeatingMetering() {
+    // Needs server release which propagates metering metadata to event
+    assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
+
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofMinutes(5))
