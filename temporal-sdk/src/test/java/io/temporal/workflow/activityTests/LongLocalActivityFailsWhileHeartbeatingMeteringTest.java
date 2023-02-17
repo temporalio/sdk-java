@@ -20,6 +20,8 @@
 
 package io.temporal.workflow.activityTests;
 
+import static org.junit.Assume.assumeFalse;
+
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -39,8 +41,6 @@ import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-
-import static org.junit.Assume.assumeFalse;
 
 public class LongLocalActivityFailsWhileHeartbeatingMeteringTest {
 
