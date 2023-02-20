@@ -41,7 +41,7 @@ ext {
     protoVersion = '3.21.12' // [3.12.0,) 3.12 is brought by min gRPC 1.38
     annotationApiVersion = '1.3.2'
     guavaVersion = '31.1-jre' // [10.0,)
-    tallyVersion = '0.12.0' // [0.4.0,)
+    tallyVersion = '0.13.0' // [0.4.0,)
 
     gsonVersion = '2.10.1' // [2.0,)
 
