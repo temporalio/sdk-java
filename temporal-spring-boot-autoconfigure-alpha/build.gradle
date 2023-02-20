@@ -1,7 +1,7 @@
 description = '''Spring Boot AutoConfigure for Temporal Java SDK'''
 
 ext {
-    otelVersion = '1.23.0'
+    otelVersion = '1.23.1'
     otShimVersion = "${otelVersion}-alpha"
 }
 
