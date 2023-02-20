@@ -11,15 +11,16 @@ Java SDK:
 - [Javadoc API reference](https://www.javadoc.io/doc/io.temporal/temporal-sdk/latest/index.html)
 - [Sample applications](https://github.com/temporalio/samples-java#samples-directory)
 
-Temporal in general:
+Temporal:
 
 - [Temporal docs](https://docs.temporal.io/)
 - [Install Temporal Server](https://docs.temporal.io/docs/server/quick-install)
 - [Temporal CLI](https://docs.temporal.io/docs/devtools/tctl/)
 
-## Requirements
+## Supported Java runtimes
 
 - Java 1.8+
+- [GraalVM native-image](docs/AOT-native-image.md)
 
 ## Build configuration
 
@@ -36,19 +37,6 @@ Add *temporal-sdk* as a dependency to your *pom.xml*:
 or to *build.gradle*:
 
     compile group: 'io.temporal', name: 'temporal-sdk', version: 'N.N.N'
-
-## macOS Users
-
-Due to issues with default hostname resolution
-(see [this StackOverflow question](https://stackoverflow.com/questions/33289695/inetaddress-getlocalhost-slow-to-run-30-seconds) for more details),
-macOS Users may see gRPC `DEADLINE_EXCEEDED` errors and other slowdowns when running the SDK.
-
-To solve the problem add the following entries to your `/etc/hosts` file (where my-macbook is your hostname):
-
-```conf
-127.0.0.1   my-macbook
-::1         my-macbook
-```
 
 ## Contributing
 

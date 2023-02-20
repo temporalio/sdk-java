@@ -8,7 +8,6 @@ buildscript {
 plugins {
     id 'application'
     id 'com.palantir.graal' version "${graalVersion}"
-    id 'com.palantir.docker' version '0.34.0'
     id 'com.google.protobuf' version '0.9.2'
 }
 
@@ -96,7 +95,7 @@ graal {
   outputName "temporal-test-server"
   mainClass application.getMainClass().get()
   javaVersion '17'
-  graalVersion '22.3.0'
+  graalVersion '22.3.1'
 
   // Don't fallback to running a JVM
   option "--no-fallback"
@@ -110,11 +109,6 @@ graal {
   option isLinux()
     ? "-H:+StaticExecutableWithDynamicLibC"
     : "-H:-StaticExecutable"
-}
-
-docker {
-  name "temporalio/temporal-test-server:${version}"
-  files tasks.nativeImage.outputs
 }
 
 def isLinux() {
