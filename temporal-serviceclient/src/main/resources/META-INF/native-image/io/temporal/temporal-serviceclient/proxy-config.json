@@ -1,0 +1,5 @@
+[
+  {
+    "interfaces":["io.temporal.client.WorkflowClient"]
+  }
+]

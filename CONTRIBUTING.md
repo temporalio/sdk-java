@@ -8,8 +8,8 @@ before we can merge in any of your changes
 
 ## Development Environment
 
-* Java 11
-* Docker
+* Java 11+
+* Docker to run Temporal Server
 
 ## Build
 
