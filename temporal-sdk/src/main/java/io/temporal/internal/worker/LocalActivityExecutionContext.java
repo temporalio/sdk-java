@@ -160,4 +160,8 @@ class LocalActivityExecutionContext {
   public boolean isCompleted() {
     return executionResult.isDone();
   }
+
+  public void newAttempt() {
+    executionParams.getOnNewAttemptCallback().apply();
+  }
 }
