@@ -106,7 +106,6 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               TimeUnit.MILLISECONDS);
     }
 
-    executionContext.newAttempt();
     activityTask.setCurrentAttemptScheduledTime(ProtobufTimeUtils.getCurrentProtoTime());
     LocalActivityAttemptTask task =
         new LocalActivityAttemptTask(
