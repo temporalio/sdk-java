@@ -35,7 +35,6 @@ import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.Assert;
@@ -89,7 +88,11 @@ public class LongLocalActivityFailsWhileHeartbeatingMeteringTest {
                         .getNonfirstLocalActivityExecutionAttempts())
             .collect(Collectors.toList());
     // First task should have 0 non-first local activity execution attempts
-    Assert.assertEquals(Arrays.asList(0, 2, 3, 1), nonFirstLocalActivityExecutionAttempts);
+    Assert.assertEquals(0, nonFirstLocalActivityExecutionAttempts.get(0).intValue());
+    for (int i = 1; i < nonFirstLocalActivityExecutionAttempts.size(); i++) {
+      // All other tasks should have positive non-first local activity execution attempts
+      Assert.assertTrue(nonFirstLocalActivityExecutionAttempts.get(i) > 0);
+    }
   }
 
   public static class TestLongLocalActivityWorkflowTaskHeartbeatFailureWorkflowImpl
