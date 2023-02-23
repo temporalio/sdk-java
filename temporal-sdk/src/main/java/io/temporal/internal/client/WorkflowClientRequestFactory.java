@@ -53,6 +53,7 @@ final class WorkflowClientRequestFactory {
   }
 
   // If you add anything new here, keep newSignalWithStartWorkflowExecutionRequest in sync
+  @SuppressWarnings("deprecation")
   @Nonnull
   StartWorkflowExecutionRequest.Builder newStartWorkflowExecutionRequest(
       WorkflowClientCallsInterceptor.WorkflowStartInput input) {
@@ -100,7 +101,14 @@ final class WorkflowClientRequestFactory {
     }
 
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {
+      if (options.getTypedSearchAttributes() != null) {
+        throw new IllegalArgumentException(
+            "Cannot have search attributes and typed search attributes");
+      }
       request.setSearchAttributes(SearchAttributesUtil.encode(options.getSearchAttributes()));
+    } else if (options.getTypedSearchAttributes() != null) {
+      request.setSearchAttributes(
+          SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
     }
 
     Header grpcHeader =

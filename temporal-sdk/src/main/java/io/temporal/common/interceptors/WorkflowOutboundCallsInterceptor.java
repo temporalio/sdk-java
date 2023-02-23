@@ -24,6 +24,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.Experimental;
+import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.workflow.*;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
@@ -505,6 +506,8 @@ public interface WorkflowOutboundCallsInterceptor {
   UUID randomUUID();
 
   void upsertSearchAttributes(Map<String, ?> searchAttributes);
+
+  void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates);
 
   /**
    * Intercepts creation of a workflow child thread.

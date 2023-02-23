@@ -17,7 +17,7 @@
 `limitations under the License.
 
 ` PlantUML <plantuml.com> State Diagram.
-` Generated from src/main/java/io/temporal/internal/statemachines/ActivityStateMachine.java
+` Generated from src\main\java\io\temporal\internal\statemachines\ActivityStateMachine.java
 ` by io.temporal.internal.statemachines.CommandsGeneratePlantUMLStateDiagrams.
 
 

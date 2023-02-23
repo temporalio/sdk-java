@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.interceptors.*;
 import io.temporal.internal.sync.WorkflowMethodThreadNameStrategy;
 import io.temporal.workflow.Functions;
@@ -351,6 +352,14 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
         trace.add("upsertSearchAttributes");
       }
       next.upsertSearchAttributes(searchAttributes);
+    }
+
+    @Override
+    public void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("upsertTypedSearchAttributes");
+      }
+      next.upsertTypedSearchAttributes(searchAttributeUpdates);
     }
 
     @Override

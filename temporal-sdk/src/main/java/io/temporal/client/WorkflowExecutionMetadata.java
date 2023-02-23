@@ -25,6 +25,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -96,9 +97,19 @@ public class WorkflowExecutionMetadata {
     return info.hasParentExecution() ? info.getParentExecution() : null;
   }
 
+  /**
+   * @deprecated use {@link #getTypedSearchAttributes} instead.
+   */
+  @Deprecated
   @Nonnull
   public Map<String, List<?>> getSearchAttributes() {
     return Collections.unmodifiableMap(SearchAttributesUtil.decode(info.getSearchAttributes()));
+  }
+
+  /** Get search attributes as a typed set. */
+  @Nonnull
+  public SearchAttributes getTypedSearchAttributes() {
+    return SearchAttributesUtil.decodeTyped(info.getSearchAttributes());
   }
 
   @Nullable

@@ -28,6 +28,7 @@ import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SearchAttributes;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -83,6 +84,8 @@ public final class ChildWorkflowOptions {
 
     private Map<String, Object> searchAttributes;
 
+    private SearchAttributes typedSearchAttributes;
+
     private List<ContextPropagator> contextPropagators;
 
     private ChildWorkflowCancellationType cancellationType;
@@ -105,6 +108,7 @@ public final class ChildWorkflowOptions {
       this.parentClosePolicy = options.getParentClosePolicy();
       this.memo = options.getMemo();
       this.searchAttributes = options.getSearchAttributes();
+      this.typedSearchAttributes = options.getTypedSearchAttributes();
       this.contextPropagators = options.getContextPropagators();
       this.cancellationType = options.getCancellationType();
     }
@@ -256,9 +260,32 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
-    /** Specifies additional indexed information in result of list workflow. */
+    /**
+     * Specifies additional indexed information in result of list workflow.
+     *
+     * @deprecated use {@link #setTypedSearchAttributes} instead.
+     */
+    @Deprecated
     public Builder setSearchAttributes(Map<String, Object> searchAttributes) {
+      if (searchAttributes != null
+          && !searchAttributes.isEmpty()
+          && this.typedSearchAttributes != null) {
+        throw new IllegalArgumentException(
+            "Cannot have search attributes and typed search attributes");
+      }
       this.searchAttributes = searchAttributes;
+      return this;
+    }
+
+    /** Specifies additional indexed information in result of list workflow. */
+    public Builder setTypedSearchAttributes(SearchAttributes typedSearchAttributes) {
+      if (typedSearchAttributes != null
+          && searchAttributes != null
+          && !searchAttributes.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Cannot have typed search attributes and search attributes");
+      }
+      this.typedSearchAttributes = typedSearchAttributes;
       return this;
     }
 
@@ -302,6 +329,7 @@ public final class ChildWorkflowOptions {
           parentClosePolicy,
           memo,
           searchAttributes,
+          typedSearchAttributes,
           contextPropagators,
           cancellationType);
     }
@@ -320,6 +348,7 @@ public final class ChildWorkflowOptions {
           parentClosePolicy,
           memo,
           searchAttributes,
+          typedSearchAttributes,
           contextPropagators,
           cancellationType == null
               ? ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED
@@ -351,6 +380,8 @@ public final class ChildWorkflowOptions {
 
   private final Map<String, Object> searchAttributes;
 
+  private final SearchAttributes typedSearchAttributes;
+
   private final List<ContextPropagator> contextPropagators;
 
   private final ChildWorkflowCancellationType cancellationType;
@@ -368,6 +399,7 @@ public final class ChildWorkflowOptions {
       ParentClosePolicy parentClosePolicy,
       Map<String, Object> memo,
       Map<String, Object> searchAttributes,
+      SearchAttributes typedSearchAttributes,
       List<ContextPropagator> contextPropagators,
       ChildWorkflowCancellationType cancellationType) {
     this.namespace = namespace;
@@ -382,6 +414,7 @@ public final class ChildWorkflowOptions {
     this.parentClosePolicy = parentClosePolicy;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
+    this.typedSearchAttributes = typedSearchAttributes;
     this.contextPropagators = contextPropagators;
     this.cancellationType = cancellationType;
   }
@@ -430,8 +463,16 @@ public final class ChildWorkflowOptions {
     return memo;
   }
 
+  /**
+   * @deprecated use {@link #getTypedSearchAttributes} instead.
+   */
+  @Deprecated
   public Map<String, Object> getSearchAttributes() {
     return searchAttributes;
+  }
+
+  public SearchAttributes getTypedSearchAttributes() {
+    return typedSearchAttributes;
   }
 
   public List<ContextPropagator> getContextPropagators() {
@@ -463,6 +504,7 @@ public final class ChildWorkflowOptions {
         && parentClosePolicy == that.parentClosePolicy
         && Objects.equal(memo, that.memo)
         && Objects.equal(searchAttributes, that.searchAttributes)
+        && Objects.equal(typedSearchAttributes, that.typedSearchAttributes)
         && Objects.equal(contextPropagators, that.contextPropagators)
         && cancellationType == that.cancellationType;
   }
@@ -482,6 +524,7 @@ public final class ChildWorkflowOptions {
         parentClosePolicy,
         memo,
         searchAttributes,
+        typedSearchAttributes,
         contextPropagators,
         cancellationType);
   }
@@ -517,6 +560,8 @@ public final class ChildWorkflowOptions {
         + memo
         + ", searchAttributes="
         + searchAttributes
+        + ", typedSearchAttributes="
+        + typedSearchAttributes
         + ", contextPropagators="
         + contextPropagators
         + ", cancellationType="

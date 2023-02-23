@@ -112,7 +112,9 @@ public interface WorkflowInfo {
    * attributes.
    *
    * @return raw Search Attributes Protobuf entity, null if empty
+   * @deprecated use {@link Workflow#getTypedSearchAttributes()} instead.
    */
+  @Deprecated
   @Nullable
   SearchAttributes getSearchAttributes();
 

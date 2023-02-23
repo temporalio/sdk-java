@@ -39,6 +39,7 @@ import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
@@ -459,6 +460,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public void upsertSearchAttributes(Map<String, ?> searchAttributes) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates) {
       throw new UnsupportedOperationException("not implemented");
     }
 

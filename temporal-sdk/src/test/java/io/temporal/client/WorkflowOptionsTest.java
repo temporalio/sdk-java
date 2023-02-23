@@ -21,9 +21,7 @@
 package io.temporal.client;
 
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
-import io.temporal.common.CronSchedule;
-import io.temporal.common.MethodRetry;
-import io.temporal.common.RetryOptions;
+import io.temporal.common.*;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
@@ -50,7 +48,7 @@ public class WorkflowOptionsTest {
             .setWorkflowIdReusePolicy(
                 WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .setMemo(getTestMemo())
-            .setSearchAttributes(getTestSearchAttributes())
+            .setTypedSearchAttributes(getTestSearchAttributes())
             .build();
     Assert.assertEquals(o, WorkflowOptions.merge(null, null, o));
   }
@@ -86,7 +84,7 @@ public class WorkflowOptionsTest {
             .build();
 
     Map<String, Object> memo = getTestMemo();
-    Map<String, Object> searchAttributes = getTestSearchAttributes();
+    SearchAttributes searchAttributes = getTestSearchAttributes();
 
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
@@ -99,7 +97,7 @@ public class WorkflowOptionsTest {
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
             .setMemo(memo)
-            .setSearchAttributes(searchAttributes)
+            .setTypedSearchAttributes(searchAttributes)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
     MethodRetry r = method.getAnnotation(MethodRetry.class);
@@ -108,7 +106,7 @@ public class WorkflowOptionsTest {
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
     Assert.assertEquals(memo, merged.getMemo());
-    Assert.assertEquals(searchAttributes, merged.getSearchAttributes());
+    Assert.assertEquals(searchAttributes, merged.getTypedSearchAttributes());
   }
 
   @Test
@@ -123,7 +121,7 @@ public class WorkflowOptionsTest {
             .build();
 
     Map<String, Object> memo = getTestMemo();
-    Map<String, Object> searchAttributes = getTestSearchAttributes();
+    SearchAttributes searchAttributes = getTestSearchAttributes();
     ChildWorkflowOptions o =
         ChildWorkflowOptions.newBuilder()
             .setTaskQueue("foo")
@@ -135,7 +133,7 @@ public class WorkflowOptionsTest {
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
             .setMemo(memo)
-            .setSearchAttributes(searchAttributes)
+            .setTypedSearchAttributes(searchAttributes)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("defaultWorkflowOptions");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
@@ -149,7 +147,7 @@ public class WorkflowOptionsTest {
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
     Assert.assertEquals(memo, merged.getMemo());
-    Assert.assertEquals(searchAttributes, merged.getSearchAttributes());
+    Assert.assertEquals(searchAttributes, merged.getTypedSearchAttributes());
   }
 
   private Map<String, Object> getTestMemo() {
@@ -159,13 +157,13 @@ public class WorkflowOptionsTest {
     return memo;
   }
 
-  private Map<String, Object> getTestSearchAttributes() {
-    Map<String, Object> searchAttr = new HashMap<>();
-    searchAttr.put("CustomKeywordField", "testKey");
-    searchAttr.put("CustomIntField", 1);
-    searchAttr.put("CustomDoubleField", 1.23);
-    searchAttr.put("CustomBoolField", false);
-    searchAttr.put("CustomDatetimeField", OffsetDateTime.now());
-    return searchAttr;
+  private SearchAttributes getTestSearchAttributes() {
+    return SearchAttributes.newBuilder()
+        .set(SearchAttributeKey.forKeyword("CustomKeywordField"), "testKey")
+        .set(SearchAttributeKey.forLong("CustomIntField"), 1L)
+        .set(SearchAttributeKey.forDouble("CustomDoubleField"), 1.23)
+        .set(SearchAttributeKey.forBoolean("CustomBoolField"), false)
+        .set(SearchAttributeKey.forOffsetDateTime("CustomDatetimeField"), OffsetDateTime.now())
+        .build();
   }
 }

@@ -46,6 +46,7 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SearchAttributeUpdate;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.Header;
@@ -518,6 +519,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return new ChildWorkflowOutput<>(result, execution);
   }
 
+  @SuppressWarnings("deprecation")
   private Promise<Optional<Payloads>> executeChildWorkflow(
       String workflowId,
       String name,
@@ -565,7 +567,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     Map<String, Object> searchAttributes = options.getSearchAttributes();
     if (searchAttributes != null && !searchAttributes.isEmpty()) {
+      if (options.getTypedSearchAttributes() != null) {
+        throw new IllegalArgumentException(
+            "Cannot have typed search attributes and search attributes");
+      }
       attributes.setSearchAttributes(SearchAttributesUtil.encode(searchAttributes));
+    } else if (options.getTypedSearchAttributes() != null) {
+      attributes.setSearchAttributes(
+          SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
     }
 
     List<ContextPropagator> propagators = options.getContextPropagators();
@@ -869,6 +878,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     WorkflowThread.await(reason, unblockCondition);
   }
 
+  @SuppressWarnings("deprecation")
   @Override
   public void continueAsNew(ContinueAsNewInput input) {
     ContinueAsNewWorkflowExecutionCommandAttributes.Builder attributes =
@@ -892,8 +902,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()));
       }
       Map<String, Object> searchAttributes = options.getSearchAttributes();
-      if (searchAttributes != null) {
+      if (searchAttributes != null && !searchAttributes.isEmpty()) {
+        if (options.getTypedSearchAttributes() != null) {
+          throw new IllegalArgumentException(
+              "Cannot have typed search attributes and search attributes");
+        }
         attributes.setSearchAttributes(SearchAttributesUtil.encode(searchAttributes));
+      } else if (options.getTypedSearchAttributes() != null) {
+        attributes.setSearchAttributes(
+            SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
       }
       Map<String, Object> memo = options.getMemo();
       if (memo != null) {
@@ -944,6 +961,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Preconditions.checkArgument(searchAttributes != null, "null search attributes");
     Preconditions.checkArgument(!searchAttributes.isEmpty(), "empty search attributes");
     SearchAttributes attr = SearchAttributesUtil.encode(searchAttributes);
+    replayContext.upsertSearchAttributes(attr);
+  }
+
+  @Override
+  public void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    SearchAttributes attr = SearchAttributesUtil.encodeTypedUpdates(searchAttributeUpdates);
     replayContext.upsertSearchAttributes(attr);
   }
 

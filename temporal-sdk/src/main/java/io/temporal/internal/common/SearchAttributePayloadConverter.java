@@ -26,7 +26,8 @@ import com.google.common.reflect.TypeToken;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.IndexedValueType;
-import io.temporal.common.SearchAttribute;
+import io.temporal.common.SearchAttributeKey;
+import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
 import java.lang.reflect.Type;
@@ -45,6 +46,84 @@ final class SearchAttributePayloadConverter {
 
   public static final SearchAttributePayloadConverter INSTANCE =
       new SearchAttributePayloadConverter();
+
+  public Payload encodeTyped(SearchAttributeKey<?> key, @Nullable Object value) {
+    // We can encode as-is because we know it's strictly typed to expected key value. We
+    // accept a null value because updates for unset can be null.
+    return DefaultDataConverter.STANDARD_INSTANCE.toPayload(value).get().toBuilder()
+        .putMetadata(
+            METADATA_TYPE_KEY,
+            ByteString.copyFromUtf8(indexValueTypeToEncodedValue(key.getValueType())))
+        .build();
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public void decodeTyped(SearchAttributes.Builder builder, String name, @Nonnull Payload payload) {
+    // Get key type
+    SearchAttributeKey key;
+    IndexedValueType indexType = getIndexType(payload.getMetadataMap().get(METADATA_TYPE_KEY));
+    switch (indexType) {
+      case INDEXED_VALUE_TYPE_TEXT:
+        key = SearchAttributeKey.forText(name);
+        break;
+      case INDEXED_VALUE_TYPE_KEYWORD:
+        key = SearchAttributeKey.forKeyword(name);
+        break;
+      case INDEXED_VALUE_TYPE_INT:
+        key = SearchAttributeKey.forLong(name);
+        break;
+      case INDEXED_VALUE_TYPE_DOUBLE:
+        key = SearchAttributeKey.forDouble(name);
+        break;
+      case INDEXED_VALUE_TYPE_BOOL:
+        key = SearchAttributeKey.forBoolean(name);
+        break;
+      case INDEXED_VALUE_TYPE_DATETIME:
+        key = SearchAttributeKey.forOffsetDateTime(name);
+        break;
+      case INDEXED_VALUE_TYPE_KEYWORD_LIST:
+        key = SearchAttributeKey.forKeywordList(name);
+        break;
+      default:
+        log.warn(
+            "[BUG] Unrecognized indexed value type {} on search attribute key {}", indexType, name);
+        return;
+    }
+
+    // Attempt conversion to key type or if not keyword list, single-value list and extract out
+    try {
+      Object value =
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+              payload, key.getValueClass(), key.getValueReflectType());
+      // Test server can have null value, which means unset so we ignore
+      if (value != null) {
+        builder.set(key, value);
+      }
+    } catch (Exception e) {
+      Exception exception = e;
+      // Since it couldn't be converted using the regular type, try to convert as a single-item list
+      // for non-keyword-list
+      if (indexType != IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD_LIST) {
+        try {
+          List items =
+              DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+                  payload, List.class, createListType(key.getValueClass()));
+          // If it's a single-item list, we're ok and can return, but if it's not, replace outer
+          // exception with better exception explaining situation
+          if (items.size() == 1) {
+            builder.set(key, items.get(0));
+            return;
+          }
+          exception =
+              new IllegalArgumentException("Unexpected list of " + items.size() + " length");
+        } catch (Exception eIgnore) {
+          // Just ignore the error and fall through to throw after if
+        }
+      }
+      throw new IllegalArgumentException(
+          "Search attribute " + name + " can't be deserialized", exception);
+    }
+  }
 
   /**
    * Convert Search Attribute object into payload with metadata. Ideally, we don't want to send the
@@ -98,6 +177,7 @@ final class SearchAttributePayloadConverter {
         .build();
   }
 
+  @SuppressWarnings("deprecation")
   @Nonnull
   public List<?> decode(@Nonnull Payload payload) {
     ByteString dataType = payload.getMetadataMap().get(METADATA_TYPE_KEY);
@@ -105,7 +185,7 @@ final class SearchAttributePayloadConverter {
     IndexedValueType indexType = getIndexType(dataType);
     if (isIndexTypeUndefined(indexType)) {
       if (isUnset(payload)) {
-        return SearchAttribute.UNSET_VALUE;
+        return io.temporal.common.SearchAttribute.UNSET_VALUE;
       } else {
         log.warn("Absent or unexpected search attribute type metadata in a payload: {}", payload);
         return Collections.singletonList(payload);

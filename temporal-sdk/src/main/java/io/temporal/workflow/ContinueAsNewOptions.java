@@ -20,6 +20,7 @@
 
 package io.temporal.workflow;
 
+import io.temporal.common.SearchAttributes;
 import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
 import java.util.List;
@@ -57,6 +58,7 @@ public final class ContinueAsNewOptions {
     private Duration workflowTaskTimeout;
     private Map<String, Object> memo;
     private Map<String, Object> searchAttributes;
+    private SearchAttributes typedSearchAttributes;
     private List<ContextPropagator> contextPropagators;
 
     private Builder() {}
@@ -70,6 +72,7 @@ public final class ContinueAsNewOptions {
       this.workflowTaskTimeout = options.workflowTaskTimeout;
       this.memo = options.getMemo();
       this.searchAttributes = options.getSearchAttributes();
+      this.typedSearchAttributes = options.getTypedSearchAttributes();
       this.contextPropagators = options.getContextPropagators();
     }
 
@@ -93,8 +96,29 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
+    /**
+     * @deprecated use {@link #setTypedSearchAttributes} instead.
+     */
+    @Deprecated
     public Builder setSearchAttributes(Map<String, Object> searchAttributes) {
+      if (searchAttributes != null
+          && !searchAttributes.isEmpty()
+          && this.typedSearchAttributes != null) {
+        throw new IllegalArgumentException(
+            "Cannot have search attributes and typed search attributes");
+      }
       this.searchAttributes = searchAttributes;
+      return this;
+    }
+
+    public Builder setTypedSearchAttributes(SearchAttributes typedSearchAttributes) {
+      if (typedSearchAttributes != null
+          && searchAttributes != null
+          && !searchAttributes.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Cannot have typed search attributes and search attributes");
+      }
+      this.typedSearchAttributes = typedSearchAttributes;
       return this;
     }
 
@@ -110,6 +134,7 @@ public final class ContinueAsNewOptions {
           workflowTaskTimeout,
           memo,
           searchAttributes,
+          typedSearchAttributes,
           contextPropagators);
     }
   }
@@ -119,6 +144,7 @@ public final class ContinueAsNewOptions {
   private final @Nullable Duration workflowTaskTimeout;
   private final @Nullable Map<String, Object> memo;
   private final @Nullable Map<String, Object> searchAttributes;
+  private final @Nullable SearchAttributes typedSearchAttributes;
   private final @Nullable List<ContextPropagator> contextPropagators;
 
   public ContinueAsNewOptions(
@@ -127,12 +153,14 @@ public final class ContinueAsNewOptions {
       @Nullable Duration workflowTaskTimeout,
       @Nullable Map<String, Object> memo,
       @Nullable Map<String, Object> searchAttributes,
+      @Nullable SearchAttributes typedSearchAttributes,
       @Nullable List<ContextPropagator> contextPropagators) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
     this.workflowTaskTimeout = workflowTaskTimeout;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
+    this.typedSearchAttributes = typedSearchAttributes;
     this.contextPropagators = contextPropagators;
   }
 
@@ -152,8 +180,16 @@ public final class ContinueAsNewOptions {
     return memo;
   }
 
+  /**
+   * @deprecated use {@link #getSearchAttributes} instead.
+   */
+  @Deprecated
   public @Nullable Map<String, Object> getSearchAttributes() {
     return searchAttributes;
+  }
+
+  public @Nullable SearchAttributes getTypedSearchAttributes() {
+    return typedSearchAttributes;
   }
 
   public @Nullable List<ContextPropagator> getContextPropagators() {

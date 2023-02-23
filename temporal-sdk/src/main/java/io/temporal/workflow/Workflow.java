@@ -25,6 +25,8 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SearchAttributeUpdate;
+import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
@@ -1016,14 +1018,15 @@ public final class Workflow {
   }
 
   /**
-   * Use {@link #getSearchAttributeValues(String)} to access safe version of this method that always
-   * returns a collection of values.
+   * Get a single search attribute.
    *
    * @param name search attribute name
    * @return deserialized search attribute value
    * @throws IllegalStateException if the search attribute value is a collection of multiple (&gt;
    *     1) elements
+   * @deprecated use {@link #getTypedSearchAttributes} instead.
    */
+  @Deprecated
   @Nullable
   public static <T> T getSearchAttribute(String name) {
     return WorkflowInternal.getSearchAttribute(name);
@@ -1038,7 +1041,9 @@ public final class Workflow {
    *
    * @param name search attribute name
    * @return immutable list of deserialized search attribute values
+   * @deprecated use {@link #getTypedSearchAttributes} instead.
    */
+  @Deprecated
   @Nullable
   public static <T> List<T> getSearchAttributeValues(String name) {
     return WorkflowInternal.getSearchAttributeValues(name);
@@ -1049,10 +1054,23 @@ public final class Workflow {
    * workflow use {@link #upsertSearchAttributes(Map)}.
    *
    * @return immutable map of search attribute names to deserialized values.
+   * @deprecated use {@link #getTypedSearchAttributes} instead.
    */
+  @Deprecated
   @Nonnull
   public static Map<String, List<?>> getSearchAttributes() {
     return WorkflowInternal.getSearchAttributes();
+  }
+
+  /**
+   * Get immutable set of search attributes. To modify search attributes associated with this
+   * workflow use {@link #upsertTypedSearchAttributes}.
+   *
+   * @return immutable set of search attributes.
+   */
+  @Nonnull
+  public static SearchAttributes getTypedSearchAttributes() {
+    return WorkflowInternal.getTypedSearchAttributes();
   }
 
   /**
@@ -1099,10 +1117,27 @@ public final class Workflow {
    * </pre></code>
    *
    * @param searchAttributes map of String to Object value that can be used to search in list APIs
+   * @deprecated use {@link #upsertTypedSearchAttributes} instead.
    */
   // WorkflowOptions#setSearchAttributes docs needs to be kept in sync with this method
+  @Deprecated
   public static void upsertSearchAttributes(Map<String, ?> searchAttributes) {
     WorkflowInternal.upsertSearchAttributes(searchAttributes);
+  }
+
+  /**
+   * Updates Workflow Search Attributes by applying {@code searchAttributeUpdates} to the existing
+   * Search Attributes set attached to the workflow. Search Attributes are additional indexed
+   * information attributed to workflow and used for search and visibility.
+   *
+   * <p>The search attributes can be used in query of List/Scan/Count workflow APIs. The key and its
+   * value type must be registered on Temporal server side.
+   *
+   * @param searchAttributeUpdates set of updates to apply to search attributes.
+   */
+  public static void upsertTypedSearchAttributes(
+      SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    WorkflowInternal.upsertTypedSearchAttributes(searchAttributeUpdates);
   }
 
   /**
