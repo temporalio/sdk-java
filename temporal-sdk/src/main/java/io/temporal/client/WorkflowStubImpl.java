@@ -145,7 +145,7 @@ class WorkflowStubImpl implements WorkflowStub {
                   signalName,
                   signalArgs));
       workflowExecution = workflowStartOutput.getWorkflowStartOutput().getWorkflowExecution();
-      execution.set(workflowExecution);
+      populateExecutionAfterStart(workflowExecution);
       return workflowExecution;
     } catch (StatusRuntimeException e) {
       throw wrapStartException(workflowId, workflowType.orElse(null), e);
