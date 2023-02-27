@@ -1,3 +1,3 @@
-# Primary owners
+# https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners#codeowners-syntax
 
-* @mfateev @Sushisource @Spikhalskiy @cretz @bergundy @mmcshane
+* @temporalio/sdk
