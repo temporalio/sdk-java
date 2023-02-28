@@ -62,6 +62,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
+  private static final Logger log =
+      LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
+
   public static final ImmutableSet<String> WORKFLOW_HANDLER_STACKTRACE_CUTOFF =
       ImmutableSet.<String>builder()
           // POJO
@@ -71,13 +74,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
           // Dynamic
           .add(
               ReflectionUtils.getMethodNameForStackTraceCutoff(
-                  DynamicSyncWorkflowDefinition.RootWorkflowInboundCallsInterceptor.class,
-                  "execute",
-                  WorkflowInboundCallsInterceptor.WorkflowInput.class))
+                  DynamicSyncWorkflowDefinition.class, "execute", Header.class, Optional.class))
           .build();
-
-  private static final Logger log =
-      LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private final WorkerInterceptor[] workerInterceptors;
 
   private final DataConverter dataConverter;

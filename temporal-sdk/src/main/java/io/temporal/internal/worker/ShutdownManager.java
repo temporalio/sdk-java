@@ -68,6 +68,15 @@ public class ShutdownManager implements Closeable {
     return untimedWait(executorToShutdown, executorName);
   }
 
+  public CompletableFuture<Void> waitForSemaphorePermitsReleaseUntimed(
+      Semaphore semaphore, int initialSemaphorePermits, String semaphoreName) {
+    CompletableFuture<Void> future = new CompletableFuture<>();
+    scheduledExecutorService.submit(
+        new SemaphoreReportingDelayShutdown(
+            semaphore, initialSemaphorePermits, semaphoreName, future));
+    return future;
+  }
+
   /**
    * Wait for {@code executorToShutdown} to terminate. Only completes the returned CompletableFuture
    * when the executor is terminated.
@@ -76,7 +85,7 @@ public class ShutdownManager implements Closeable {
       ExecutorService executorToShutdown, String executorName) {
     CompletableFuture<Void> future = new CompletableFuture<>();
     scheduledExecutorService.submit(
-        new ReportingDelayShutdown(executorToShutdown, executorName, future));
+        new ExecutorReportingDelayShutdown(executorToShutdown, executorName, future));
     return future;
   }
 
@@ -91,7 +100,7 @@ public class ShutdownManager implements Closeable {
 
     CompletableFuture<Void> future = new CompletableFuture<>();
     scheduledExecutorService.submit(
-        new LimitedWaitShutdown(executorToShutdown, attempts, executorName, future));
+        new ExecutorLimitedWaitShutdown(executorToShutdown, attempts, executorName, future));
     return future;
   }
 
@@ -100,36 +109,26 @@ public class ShutdownManager implements Closeable {
     scheduledExecutorService.shutdownNow();
   }
 
-  private class LimitedWaitShutdown implements Runnable {
-    private final ExecutorService executorToShutdown;
+  private abstract class LimitedWaitShutdown implements Runnable {
     private final CompletableFuture<Void> promise;
     private final int maxAttempts;
-    private final String executorName;
     private int attempt;
 
-    public LimitedWaitShutdown(
-        ExecutorService executorToShutdown,
-        int maxAttempts,
-        String executorName,
-        CompletableFuture<Void> promise) {
-      this.executorToShutdown = executorToShutdown;
+    public LimitedWaitShutdown(int maxAttempts, CompletableFuture<Void> promise) {
       this.promise = promise;
       this.maxAttempts = maxAttempts;
-      this.executorName = executorName;
     }
 
     @Override
     public void run() {
-      if (executorToShutdown.isTerminated()) {
+      if (isTerminated()) {
+        onSuccessfulTermination();
         promise.complete(null);
         return;
       }
       attempt++;
       if (attempt > maxAttempts) {
-        log.warn(
-            "Wait for a graceful shutdown of {} timed out, fallback to shutdownNow()",
-            executorName);
-        executorToShutdown.shutdownNow();
+        onAttemptExhaustion();
         // we don't want to complicate shutdown with dealing of exceptions and errors of all sorts,
         // so just log and complete the promise
         promise.complete(null);
@@ -137,30 +136,63 @@ public class ShutdownManager implements Closeable {
       }
       scheduledExecutorService.schedule(this, CHECK_PERIOD_MS, TimeUnit.MILLISECONDS);
     }
+
+    abstract boolean isTerminated();
+
+    abstract void onAttemptExhaustion();
+
+    abstract void onSuccessfulTermination();
   }
 
-  private class ReportingDelayShutdown implements Runnable {
-    private static final int BLOCKED_REPORTING_THRESHOLD = 60;
-    private static final int BLOCKED_REPORTING_PERIOD = 20;
-
+  private class ExecutorLimitedWaitShutdown extends LimitedWaitShutdown {
     private final ExecutorService executorToShutdown;
-    private final CompletableFuture<Void> promise;
     private final String executorName;
-    private int attempt;
 
-    public ReportingDelayShutdown(
-        ExecutorService executorToShutdown, String executorName, CompletableFuture<Void> promise) {
+    public ExecutorLimitedWaitShutdown(
+        ExecutorService executorToShutdown,
+        int maxAttempts,
+        String executorName,
+        CompletableFuture<Void> promise) {
+      super(maxAttempts, promise);
       this.executorToShutdown = executorToShutdown;
-      this.promise = promise;
       this.executorName = executorName;
     }
 
     @Override
+    boolean isTerminated() {
+      return executorToShutdown.isTerminated();
+    }
+
+    @Override
+    void onAttemptExhaustion() {
+      log.warn(
+          "Wait for a graceful shutdown of {} timed out, fallback to shutdownNow()", executorName);
+      executorToShutdown.shutdownNow();
+    }
+
+    @Override
+    void onSuccessfulTermination() {}
+  }
+
+  private abstract class ReportingDelayShutdown implements Runnable {
+    // measures in attempts count, not in ms
+    private static final int BLOCKED_REPORTING_THRESHOLD = 60;
+    private static final int BLOCKED_REPORTING_PERIOD = 20;
+
+    private final CompletableFuture<Void> promise;
+    private int attempt;
+
+    public ReportingDelayShutdown(CompletableFuture<Void> promise) {
+      this.promise = promise;
+    }
+
+    @Override
     public void run() {
-      if (executorToShutdown.isTerminated()) {
+      if (isTerminated()) {
         if (attempt > BLOCKED_REPORTING_THRESHOLD) {
-          // log warn only if we already logged a shutdown being delayed
-          log.warn("{} successfully terminated", executorName);
+          onSlowSuccessfulTermination();
+        } else {
+          onSuccessfulTermination();
         }
         promise.complete(null);
         return;
@@ -170,12 +202,86 @@ public class ShutdownManager implements Closeable {
       if (attempt >= BLOCKED_REPORTING_THRESHOLD) {
         // and repeat every BLOCKED_REPORTING_PERIOD attempts
         if (((float) (attempt - BLOCKED_REPORTING_THRESHOLD) % BLOCKED_REPORTING_PERIOD) < 0.001) {
-          log.warn(
-              "Graceful shutdown of {} is blocked by one of the long currently processing tasks",
-              executorName);
+          onSlowTermination();
         }
       }
       scheduledExecutorService.schedule(this, CHECK_PERIOD_MS, TimeUnit.MILLISECONDS);
+    }
+
+    abstract boolean isTerminated();
+
+    abstract void onSlowTermination();
+
+    abstract void onSuccessfulTermination();
+
+    /** Called only if {@link #onSlowTermination()} was called before */
+    abstract void onSlowSuccessfulTermination();
+  }
+
+  private class ExecutorReportingDelayShutdown extends ReportingDelayShutdown {
+    private final ExecutorService executorToShutdown;
+    private final String executorName;
+
+    public ExecutorReportingDelayShutdown(
+        ExecutorService executorToShutdown, String executorName, CompletableFuture<Void> promise) {
+      super(promise);
+      this.executorToShutdown = executorToShutdown;
+      this.executorName = executorName;
+    }
+
+    @Override
+    boolean isTerminated() {
+      return executorToShutdown.isTerminated();
+    }
+
+    @Override
+    void onSlowTermination() {
+      log.warn(
+          "Graceful shutdown of {} is blocked by one of the long currently processing tasks",
+          executorName);
+    }
+
+    @Override
+    void onSuccessfulTermination() {}
+
+    @Override
+    void onSlowSuccessfulTermination() {
+      log.warn("{} successfully terminated", executorName);
+    }
+  }
+
+  private class SemaphoreReportingDelayShutdown extends ReportingDelayShutdown {
+    private final Semaphore semaphore;
+    private final int initialSemaphorePermits;
+    private final String semaphoreName;
+
+    public SemaphoreReportingDelayShutdown(
+        Semaphore semaphore,
+        int initialSemaphorePermits,
+        String semaphoreName,
+        CompletableFuture<Void> promise) {
+      super(promise);
+      this.semaphore = semaphore;
+      this.initialSemaphorePermits = initialSemaphorePermits;
+      this.semaphoreName = semaphoreName;
+    }
+
+    @Override
+    boolean isTerminated() {
+      return semaphore.availablePermits() == initialSemaphorePermits;
+    }
+
+    @Override
+    void onSlowTermination() {
+      log.warn("Wait for release of slots of {} takes a long time", semaphoreName);
+    }
+
+    @Override
+    void onSuccessfulTermination() {}
+
+    @Override
+    void onSlowSuccessfulTermination() {
+      log.warn("All slots of {} were successfully released", semaphoreName);
     }
   }
 
@@ -187,7 +293,7 @@ public class ShutdownManager implements Closeable {
         timeoutMillis,
         () -> {
           try {
-            s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
+            boolean ignored = s.awaitTermination(timeoutMillis, TimeUnit.MILLISECONDS);
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
           }
