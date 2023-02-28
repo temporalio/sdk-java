@@ -27,28 +27,67 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.worker.WorkflowTaskDispatchHandle;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor {
+  private static final Logger log = LoggerFactory.getLogger(RootWorkflowClientInvoker.class);
+
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions clientOptions;
+  private final EagerWorkflowTaskDispatcher eagerWorkflowTaskDispatcher;
   private final WorkflowClientRequestFactory requestsHelper;
 
   public RootWorkflowClientInvoker(
-      GenericWorkflowClient genericClient, WorkflowClientOptions clientOptions) {
+      GenericWorkflowClient genericClient,
+      WorkflowClientOptions clientOptions,
+      WorkerFactoryRegistry workerFactoryRegistry) {
     this.genericClient = genericClient;
     this.clientOptions = clientOptions;
+    this.eagerWorkflowTaskDispatcher = new EagerWorkflowTaskDispatcher(workerFactoryRegistry);
     this.requestsHelper = new WorkflowClientRequestFactory(clientOptions);
   }
 
   @Override
   public WorkflowStartOutput start(WorkflowStartInput input) {
-    StartWorkflowExecutionRequest request =
-        requestsHelper.newStartWorkflowExecutionRequest(input).build();
-    return new WorkflowStartOutput(genericClient.start(request));
+    try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
+      StartWorkflowExecutionRequest.Builder request =
+          requestsHelper.newStartWorkflowExecutionRequest(input);
+      boolean requestEagerExecution = eagerDispatchHandle != null;
+      request.setRequestEagerExecution(requestEagerExecution);
+      StartWorkflowExecutionResponse response = genericClient.start(request.build());
+      WorkflowExecution execution =
+          WorkflowExecution.newBuilder()
+              .setRunId(response.getRunId())
+              .setWorkflowId(request.getWorkflowId())
+              .build();
+      @Nullable
+      PollWorkflowTaskQueueResponse eagerWorkflowTask =
+          requestEagerExecution && response.hasEagerWorkflowTask()
+              ? response.getEagerWorkflowTask()
+              : null;
+      if (eagerWorkflowTask != null) {
+        try {
+          eagerDispatchHandle.dispatch(eagerWorkflowTask);
+        } catch (Exception e) {
+          // Any exception here is not expected, and it's a bug.
+          // But we don't allow any exception from the dispatching to disrupt the control flow here,
+          // the Client needs to get the execution back to matter what.
+          // Inability to dispatch a WFT creates a latency issue, but it's not a failure of the
+          // start itself
+          log.error(
+              "[BUG] Eager Workflow Task was received from the Server, but failed to be dispatched on the local worker",
+              e);
+        }
+      }
+      return new WorkflowStartOutput(execution);
+    }
   }
 
   @Override
@@ -78,8 +117,15 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .newSignalWithStartWorkflowExecutionRequest(
                 startRequest, input.getSignalName(), signalInput.orElse(null))
             .build();
-    return new WorkflowSignalWithStartOutput(
-        new WorkflowStartOutput(genericClient.signalWithStart(request)));
+    SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setRunId(response.getRunId())
+            .setWorkflowId(request.getWorkflowId())
+            .build();
+    // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.
+    //  We should wire it when it's implemented server-side.
+    return new WorkflowSignalWithStartOutput(new WorkflowStartOutput(execution));
   }
 
   @Override
@@ -174,5 +220,22 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private <R> R convertResultPayloads(
       Optional<Payloads> resultValue, Class<R> resultClass, Type resultType) {
     return clientOptions.getDataConverter().fromPayloads(0, resultValue, resultClass, resultType);
+  }
+
+  /**
+   * @return a handle to dispatch the eager workflow task. {@code null} if an eager execution is
+   *     disabled through {@link io.temporal.client.WorkflowOptions} or the worker
+   *     <ul>
+   *       <li>is activity only worker
+   *       <li>not started, shutdown or paused
+   *       <li>doesn't have an executor slot available
+   *     </ul>
+   */
+  @Nullable
+  private WorkflowTaskDispatchHandle obtainDispatchHandle(WorkflowStartInput input) {
+    if (input.getOptions().isDisableEagerExecution()) {
+      return null;
+    }
+    return eagerWorkflowTaskDispatcher.tryGetLocalDispatchHandler(input);
   }
 }

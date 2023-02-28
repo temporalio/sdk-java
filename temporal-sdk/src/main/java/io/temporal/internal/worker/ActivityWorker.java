@@ -64,7 +64,7 @@ final class ActivityWorker implements SuspendableWorker {
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
-  private final Semaphore pollSemaphore;
+  private final Semaphore executorSlotsSemaphore;
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -86,7 +86,7 @@ final class ActivityWorker implements SuspendableWorker {
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null);
-    this.pollSemaphore = new Semaphore(options.getTaskExecutorThreadPoolSize());
+    this.executorSlotsSemaphore = new Semaphore(options.getTaskExecutorThreadPoolSize());
   }
 
   @Override
@@ -111,7 +111,7 @@ final class ActivityWorker implements SuspendableWorker {
                   taskQueue,
                   options.getIdentity(),
                   taskQueueActivitiesPerSecond,
-                  pollSemaphore,
+                  executorSlotsSemaphore,
                   workerMetricsScope),
               this.pollTaskExecutor,
               pollerOptions,
@@ -385,18 +385,18 @@ final class ActivityWorker implements SuspendableWorker {
       return WorkerLifecycleState.ACTIVE.equals(ActivityWorker.this.getLifecycleState())
           && Objects.equals(
               commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)
-          && ActivityWorker.this.pollSemaphore.tryAcquire();
+          && ActivityWorker.this.executorSlotsSemaphore.tryAcquire();
     }
 
     @Override
     public void releaseActivitySlotReservations(int slotCounts) {
-      ActivityWorker.this.pollSemaphore.release(slotCounts);
+      ActivityWorker.this.executorSlotsSemaphore.release(slotCounts);
     }
 
     @Override
     public void dispatchActivity(PollActivityTaskQueueResponse activity) {
       ActivityWorker.this.pollTaskExecutor.process(
-          new ActivityTask(activity, ActivityWorker.this.pollSemaphore::release));
+          new ActivityTask(activity, ActivityWorker.this.executorSlotsSemaphore::release));
     }
   }
 }

@@ -27,7 +27,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.grpc.Deadline;
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
@@ -60,27 +59,20 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public WorkflowExecution start(StartWorkflowExecutionRequest request) {
+  public StartWorkflowExecutionResponse start(StartWorkflowExecutionRequest request) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.WORKFLOW_TYPE, request.getWorkflowType().getName())
             .put(MetricsTag.TASK_QUEUE, request.getTaskQueue().getName())
             .build();
     Scope scope = metricsScope.tagged(tags);
-    StartWorkflowExecutionResponse result;
-    result =
-        grpcRetryer.retryWithResult(
-            () ->
-                service
-                    .blockingStub()
-                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
-                    .startWorkflowExecution(request),
-            grpcRetryerOptions);
-
-    return WorkflowExecution.newBuilder()
-        .setRunId(result.getRunId())
-        .setWorkflowId(request.getWorkflowId())
-        .build();
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                .startWorkflowExecution(request),
+        grpcRetryerOptions);
   }
 
   @Override
@@ -100,7 +92,8 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public WorkflowExecution signalWithStart(SignalWithStartWorkflowExecutionRequest request) {
+  public SignalWithStartWorkflowExecutionResponse signalWithStart(
+      SignalWithStartWorkflowExecutionRequest request) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.WORKFLOW_TYPE, request.getWorkflowType().getName())
@@ -109,19 +102,13 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
             .build();
     Scope scope = metricsScope.tagged(tags);
 
-    SignalWithStartWorkflowExecutionResponse result;
-    result =
-        grpcRetryer.retryWithResult(
-            () ->
-                service
-                    .blockingStub()
-                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
-                    .signalWithStartWorkflowExecution(request),
-            grpcRetryerOptions);
-    return WorkflowExecution.newBuilder()
-        .setRunId(result.getRunId())
-        .setWorkflowId(request.getWorkflowId())
-        .build();
+    return grpcRetryer.retryWithResult(
+        () ->
+            service
+                .blockingStub()
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
+                .signalWithStartWorkflowExecution(request),
+        grpcRetryerOptions);
   }
 
   @Override

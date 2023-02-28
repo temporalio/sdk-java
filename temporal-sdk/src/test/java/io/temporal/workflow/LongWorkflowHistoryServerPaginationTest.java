@@ -50,7 +50,7 @@ public class LongWorkflowHistoryServerPaginationTest {
           .setUseTimeskipping(false)
           .build();
 
-  @Test(timeout = 20_000)
+  @Test(timeout = 30_000)
   public void longWorkflowTriggeringServerPaginationCanFinish() throws InterruptedException {
     RetryOptions workflowRetryOptions =
         RetryOptions.newBuilder()

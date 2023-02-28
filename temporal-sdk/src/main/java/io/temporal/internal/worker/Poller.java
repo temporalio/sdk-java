@@ -135,8 +135,7 @@ final class Poller<T> implements SuspendableWorker {
         // we don't lose any progress doing that
         .shutdownExecutorNow(pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1))
         // TODO Poller shouldn't shutdown taskExecutor, because it gets it already created
-        // externally.
-        //  Creator of taskExecutor should be responsible for it's shutdown
+        //  externally. Creator of taskExecutor should be responsible for it's shutdown.
         .thenCompose(ignore -> taskExecutor.shutdown(shutdownManager, interruptTasks))
         .exceptionally(
             e -> {

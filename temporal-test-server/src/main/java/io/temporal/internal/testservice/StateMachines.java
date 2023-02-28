@@ -113,6 +113,7 @@ import io.temporal.api.history.v1.WorkflowTaskStartedEventAttributes;
 import io.temporal.api.history.v1.WorkflowTaskTimedOutEventAttributes;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
@@ -797,7 +798,7 @@ class StateMachines {
                     java.time.Duration.ZERO,
                     Optional.of(ctx.getWorkflowMutableState()),
                     OptionalLong.of(data.initiatedEventId),
-                    Optional.empty());
+                    null);
               } catch (StatusRuntimeException e) {
                 if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {
                   StartChildWorkflowExecutionFailedEventAttributes failRequest =
@@ -1123,10 +1124,11 @@ class StateMachines {
       RequestContext ctx, WorkflowTaskData data, Object notUsedRequest, long notUsed) {
     StartWorkflowExecutionRequest request = data.startRequest;
     long scheduledEventId;
+    TaskQueue taskQueue = request.getTaskQueue();
     WorkflowTaskScheduledEventAttributes a =
         WorkflowTaskScheduledEventAttributes.newBuilder()
             .setStartToCloseTimeout(request.getWorkflowTaskTimeout())
-            .setTaskQueue(request.getTaskQueue())
+            .setTaskQueue(taskQueue)
             .setAttempt(++data.attempt)
             .build();
     HistoryEvent event =
@@ -1141,9 +1143,10 @@ class StateMachines {
     workflowTaskResponse.setWorkflowType(request.getWorkflowType());
     workflowTaskResponse.setAttempt(data.attempt);
     workflowTaskResponse.setScheduledTime(ctx.currentTime());
-    TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), request.getTaskQueue().getName());
+    workflowTaskResponse.setWorkflowExecutionTaskQueue(taskQueue);
+    TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), taskQueue.getName());
     WorkflowTask workflowTask = new WorkflowTask(taskQueueId, workflowTaskResponse);
-    ctx.setWorkflowTask(workflowTask);
+    ctx.setWorkflowTaskForMatching(workflowTask);
     ctx.onCommit(
         (historySize) -> {
           data.scheduledEventId = scheduledEventId;
@@ -1189,7 +1192,7 @@ class StateMachines {
     workflowTaskResponse.setAttempt(++data.attempt);
     TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), taskQueue);
     WorkflowTask workflowTask = new WorkflowTask(taskQueueId, workflowTaskResponse);
-    ctx.setWorkflowTask(workflowTask);
+    ctx.setWorkflowTaskForMatching(workflowTask);
     ctx.onCommit(
         (historySize) -> {
           if (data.lastSuccessfulStartedEventId > 0) {

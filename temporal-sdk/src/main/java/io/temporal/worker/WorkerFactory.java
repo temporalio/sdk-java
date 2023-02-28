@@ -27,6 +27,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.internal.worker.WorkflowExecutorCache;
@@ -216,6 +217,7 @@ public final class WorkerFactory {
     }
 
     state = State.Started;
+    ((WorkflowClientInternal) workflowClient.getInternal()).registerWorkerFactory(this);
   }
 
   /** Was {@link #start()} called. */
@@ -285,6 +287,7 @@ public final class WorkerFactory {
 
   private void shutdownInternal(boolean interruptUserTasks) {
     state = State.Shutdown;
+    ((WorkflowClientInternal) workflowClient.getInternal()).deregisterWorkerFactory(this);
     ShutdownManager shutdownManager = new ShutdownManager();
     CompletableFuture.allOf(
             workers.values().stream()
