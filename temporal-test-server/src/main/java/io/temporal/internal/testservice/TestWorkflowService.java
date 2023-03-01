@@ -24,12 +24,14 @@ import static io.temporal.internal.testservice.CronUtils.getBackoffInterval;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.RetryPolicy;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -218,15 +220,35 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     TestWorkflowMutableState existing;
     lock.lock();
     try {
+      String newRunId = UUID.randomUUID().toString();
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
         WorkflowIdReusePolicy policy = startRequest.getWorkflowIdReusePolicy();
+
         if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
+            && policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING) {
+          existing.terminateWorkflowExecution(
+              TerminateWorkflowExecutionRequest.newBuilder()
+                  .setNamespace(startRequest.getNamespace())
+                  .setWorkflowExecution(existing.getExecutionId().getExecution())
+                  .setReason("TerminateIfRunning WorkflowIdReusePolicy Policy")
+                  .setIdentity("history-service")
+                  .setDetails(
+                      Payloads.newBuilder()
+                          .addPayloads(
+                              Payload.newBuilder()
+                                  .setData(
+                                      ByteString.copyFromUtf8(
+                                          String.format("terminated by new runID: %s", newRunId)))
+                                  .build())
+                          .build())
+                  .build());
+        } else if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
             || policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
           return throwDuplicatedWorkflow(startRequest, existing);
-        }
-        if (policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+        } else if (policy
+                == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
             && (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED
                 || status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW)) {
           return throwDuplicatedWorkflow(startRequest, existing);
@@ -244,12 +266,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       } else {
         retryState = Optional.empty();
       }
-      String runId = UUID.randomUUID().toString();
       return startWorkflowExecutionNoRunningCheckLocked(
           startRequest,
-          runId,
-          // it's the first execution in the continue-as-new chain, so firstExecutionRunId = runId
-          runId,
+          newRunId,
+          // it's the first execution in the continue-as-new chain, so firstExecutionRunId =
+          // newRunId
+          newRunId,
           Optional.empty(),
           retryState,
           backoffStartInterval,
