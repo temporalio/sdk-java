@@ -263,7 +263,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       lock.unlock();
       // Close was requested while running
       if (closeRequested) {
-        close();
+        close(true);
       }
     }
   }
@@ -285,13 +285,17 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     executeInWorkflowThread("cancel workflow callback", () -> rootWorkflowThread.cancel(reason));
   }
 
+  @Override
+  public void close() {
+    close(false);
+  }
+
   /**
    * Destroys all controlled workflow threads by throwing {@link DestroyWorkflowThreadError} from
    * {@link WorkflowThreadContext#yield(String, Supplier)} when the threads are blocking on the
    * temporal-sdk code.
    */
-  @Override
-  public void close() {
+  private void close(boolean fromWorkflowThread) {
     lock.lock();
     if (closeFuture.isDone()) {
       lock.unlock();
@@ -308,9 +312,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         || closeStarted) {
 
       lock.unlock();
-      // We will not perform the closure in this call and should just wait on the future when
-      // another thread responsible for it will close.
-      closeFuture.join();
+      // If called from the workflow thread, we don't want to block this call, otherwise we
+      // will cause a deadlock. The thread performing the closure waits for all workflow threads
+      // to complete first.
+      if (!fromWorkflowThread) {
+        // We will not perform the closure in this call and should just wait on the future when
+        // another thread responsible for it will close.
+        closeFuture.join();
+      }
       return;
     }
 
