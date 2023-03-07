@@ -67,6 +67,11 @@ protobuf {
         }
     }
     generateProtoTasks {
+        all()*.builtins {
+            java {
+                option 'annotate_code'
+            }
+        }
         all()*.plugins {
             grpc {
                 outputSubDir = 'java'

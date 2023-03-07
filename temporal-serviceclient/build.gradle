@@ -69,6 +69,11 @@ protobuf {
     }
     generateProtoTasks {
         all().each { task -> task.dependsOn updateSubmodules }
+        all()*.builtins {
+            java {
+                option 'annotate_code'
+            }
+        }
         all()*.plugins {
             grpc {
                 outputSubDir = 'java'
