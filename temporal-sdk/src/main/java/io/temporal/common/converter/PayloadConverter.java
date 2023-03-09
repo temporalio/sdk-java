@@ -22,7 +22,7 @@ package io.temporal.common.converter;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
-import io.temporal.payload.SerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import javax.annotation.Nonnull;

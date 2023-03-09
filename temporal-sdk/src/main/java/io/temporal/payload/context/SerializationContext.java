@@ -18,6 +18,6 @@
  * limitations under the License.
  */
 
-package io.temporal.payload;
+package io.temporal.payload.context;
 
 public interface SerializationContext {}

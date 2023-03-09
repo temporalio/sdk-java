@@ -20,8 +20,8 @@
 
 package io.temporal.common.converter;
 
-import io.temporal.payload.SerializationContext;
 import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.SerializationContext;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 

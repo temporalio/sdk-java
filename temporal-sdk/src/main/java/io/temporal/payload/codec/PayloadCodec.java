@@ -21,7 +21,7 @@
 package io.temporal.payload.codec;
 
 import io.temporal.api.common.v1.Payload;
-import io.temporal.payload.SerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import java.util.List;
 import javax.annotation.Nonnull;
 

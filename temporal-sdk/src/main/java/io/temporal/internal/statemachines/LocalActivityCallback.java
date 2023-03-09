@@ -38,7 +38,6 @@ public interface LocalActivityCallback
 
   class LocalActivityFailedException extends RuntimeException {
     private final @Nonnull Failure failure;
-    private final long originalScheduledTimestamp;
     private final int lastAttempt;
     /**
      * If this is not null, code that processes this exception will schedule a workflow timer to
@@ -52,7 +51,6 @@ public interface LocalActivityCallback
         int lastAttempt,
         @Nullable Duration backoff) {
       this.failure = failure;
-      this.originalScheduledTimestamp = originalScheduledTimestamp;
       this.lastAttempt = lastAttempt;
       this.backoff = backoff;
     }
@@ -60,10 +58,6 @@ public interface LocalActivityCallback
     @Nonnull
     public Failure getFailure() {
       return failure;
-    }
-
-    public long getOriginalScheduledTimestamp() {
-      return originalScheduledTimestamp;
     }
 
     public int getLastAttempt() {

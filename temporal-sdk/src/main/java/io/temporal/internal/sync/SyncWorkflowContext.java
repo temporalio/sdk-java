@@ -60,6 +60,7 @@ import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.*;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -233,26 +234,43 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
-    Optional<Payloads> args = dataConverter.toPayloads(input.getArgs());
+    ActivitySerializationContext serializationContext =
+        new ActivitySerializationContext(
+            replayContext.getWorkflowId(),
+            replayContext.getWorkflowType().getName(),
+            replayContext.getTaskQueue(),
+            input.getActivityName(),
+            input.getOptions().getTaskQueue());
+    DataConverter dataConverterWithActivityContext =
+        dataConverter.withContext(serializationContext);
+    Optional<Payloads> args = dataConverterWithActivityContext.toPayloads(input.getArgs());
+
     ActivityOutput<Optional<Payloads>> output =
         executeActivityOnce(input.getActivityName(), input.getOptions(), input.getHeader(), args);
 
-    Promise<Optional<Payloads>> binaryResult = output.getResult();
-    if (input.getResultType() == Void.TYPE) {
-      return new ActivityOutput<>(output.getActivityId(), binaryResult.thenApply((r) -> null));
-    }
     return new ActivityOutput<>(
         output.getActivityId(),
-        binaryResult.thenApply(
-            (r) ->
-                dataConverter.fromPayloads(0, r, input.getResultClass(), input.getResultType())));
+        output
+            .getResult()
+            .handle(
+                (r, f) -> {
+                  if (f == null) {
+                    return input.getResultType() != Void.TYPE
+                        ? dataConverterWithActivityContext.fromPayloads(
+                            0, r, input.getResultClass(), input.getResultType())
+                        : null;
+                  } else {
+                    throw dataConverterWithActivityContext.failureToException(
+                        ((FailureWrapperException) f).getFailure());
+                  }
+                }));
   }
 
   private ActivityOutput<Optional<Payloads>> executeActivityOnce(
-      String name, ActivityOptions options, Header header, Optional<Payloads> input) {
-    ActivityCallback callback = new ActivityCallback();
+      String activityTypeName, ActivityOptions options, Header header, Optional<Payloads> input) {
     ExecuteActivityParameters params =
-        constructExecuteActivityParameters(name, options, header, input);
+        constructExecuteActivityParameters(activityTypeName, options, header, input);
+    ActivityCallback callback = new ActivityCallback();
     ReplayWorkflowContext.ScheduleActivityTaskOutput activityOutput =
         replayContext.scheduleActivityTask(params, callback::invoke);
     CancellationScope.current()
@@ -289,7 +307,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       if (failure != null) {
         runner.executeInWorkflowThread(
             "activity failure callback",
-            () -> result.completeExceptionally(dataConverter.failureToException(failure)));
+            () -> result.completeExceptionally(new FailureWrapperException(failure)));
       } else {
         runner.executeInWorkflowThread(
             "activity completion callback", () -> result.complete(output));
@@ -314,21 +332,65 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
+    ActivitySerializationContext serializationContext =
+        new ActivitySerializationContext(
+            replayContext.getWorkflowId(),
+            replayContext.getWorkflowType().getName(),
+            replayContext.getTaskQueue(),
+            input.getActivityName(),
+            null);
+    DataConverter dataConverterWithActivityContext =
+        dataConverter.withContext(serializationContext);
+    Optional<Payloads> payloads = dataConverterWithActivityContext.toPayloads(input.getArgs());
+
     long originalScheduledTime = System.currentTimeMillis();
-    CompletablePromise<R> result = WorkflowInternal.newCompletablePromise();
-    executeLocalActivityOverLocalRetryThreshold(input, originalScheduledTime, 1, null, result);
+    CompletablePromise<Optional<Payloads>> serializedResult =
+        WorkflowInternal.newCompletablePromise();
+    executeLocalActivityOverLocalRetryThreshold(
+        input.getActivityName(),
+        input.getOptions(),
+        input.getHeader(),
+        payloads,
+        originalScheduledTime,
+        1,
+        null,
+        serializedResult);
+
+    Promise<R> result =
+        serializedResult.handle(
+            (r, f) -> {
+              if (f == null) {
+                return input.getResultClass() != Void.TYPE
+                    ? dataConverterWithActivityContext.fromPayloads(
+                        0, r, input.getResultClass(), input.getResultType())
+                    : null;
+              } else {
+                throw dataConverterWithActivityContext.failureToException(
+                    ((LocalActivityCallback.LocalActivityFailedException) f).getFailure());
+              }
+            });
+
     return new LocalActivityOutput<>(result);
   }
 
-  public <R> void executeLocalActivityOverLocalRetryThreshold(
-      LocalActivityInput<R> input,
+  public void executeLocalActivityOverLocalRetryThreshold(
+      String activityTypeName,
+      LocalActivityOptions options,
+      Header header,
+      Optional<Payloads> input,
       long originalScheduledTime,
       int attempt,
       @Nullable Failure previousExecutionFailure,
-      CompletablePromise<R> result) {
-    Promise<R> localExecutionResult =
+      CompletablePromise<Optional<Payloads>> result) {
+    CompletablePromise<Optional<Payloads>> localExecutionResult =
         executeLocalActivityLocally(
-            input, originalScheduledTime, attempt, previousExecutionFailure);
+            activityTypeName,
+            options,
+            header,
+            input,
+            originalScheduledTime,
+            attempt,
+            previousExecutionFailure);
 
     localExecutionResult.handle(
         (r, e) -> {
@@ -338,11 +400,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             if ((e instanceof LocalActivityCallback.LocalActivityFailedException)) {
               LocalActivityCallback.LocalActivityFailedException laException =
                   (LocalActivityCallback.LocalActivityFailedException) e;
-              if (laException.getBackoff() != null) {
-                WorkflowInternal.newTimer(laException.getBackoff())
+              @Nullable Duration backoff = laException.getBackoff();
+              if (backoff != null) {
+                WorkflowInternal.newTimer(backoff)
                     .thenApply(
                         unused -> {
                           executeLocalActivityOverLocalRetryThreshold(
+                              activityTypeName,
+                              options,
+                              header,
                               input,
                               originalScheduledTime,
                               laException.getLastAttempt() + 1,
@@ -352,16 +418,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                         });
               } else {
                 // final failure, report back
-                RuntimeException temporalFailure =
-                    dataConverter.failureToException(laException.getFailure());
-                result.completeExceptionally(temporalFailure);
+                result.completeExceptionally(laException);
               }
             } else {
               // Only LocalActivityFailedException is expected
               String exceptionMessage =
                   String.format(
                       "[BUG] Local Activity State Machine callback for activityType %s returned unexpected exception",
-                      input.getActivityName());
+                      activityTypeName);
               log.warn(exceptionMessage, e);
               replayContext.failWorkflowTask(new IllegalStateException(exceptionMessage, e));
             }
@@ -370,20 +434,22 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         });
   }
 
-  private <T> Promise<T> executeLocalActivityLocally(
-      LocalActivityInput<T> input,
+  private CompletablePromise<Optional<Payloads>> executeLocalActivityLocally(
+      String activityTypeName,
+      LocalActivityOptions options,
+      Header header,
+      Optional<Payloads> input,
       long originalScheduledTime,
       int attempt,
       @Nullable Failure previousExecutionFailure) {
-    Optional<Payloads> payloads = dataConverter.toPayloads(input.getArgs());
 
     LocalActivityCallbackImpl callback = new LocalActivityCallbackImpl();
     ExecuteLocalActivityParameters params =
         constructExecuteLocalActivityParameters(
-            input.getActivityName(),
-            input.getOptions(),
-            input.getHeader(),
-            payloads,
+            activityTypeName,
+            options,
+            header,
+            input,
             attempt,
             originalScheduledTime,
             previousExecutionFailure);
@@ -395,13 +461,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               cancellationCallback.apply();
               return null;
             });
-    Promise<Optional<Payloads>> binaryResult = callback.result;
-
-    if (input.getResultClass() == Void.TYPE) {
-      return binaryResult.thenApply((r) -> null);
-    }
-    return binaryResult.thenApply(
-        (r) -> dataConverter.fromPayloads(0, r, input.getResultClass(), input.getResultType()));
+    return callback.result;
   }
 
   private ExecuteActivityParameters constructExecuteActivityParameters(
@@ -1025,5 +1085,18 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     }
 
     return contextData;
+  }
+
+  /** Simple wrapper over a failure just to allow completing the CompletablePromise as a failure */
+  private class FailureWrapperException extends RuntimeException {
+    private final Failure failure;
+
+    public FailureWrapperException(Failure failure) {
+      this.failure = failure;
+    }
+
+    public Failure getFailure() {
+      return failure;
+    }
   }
 }

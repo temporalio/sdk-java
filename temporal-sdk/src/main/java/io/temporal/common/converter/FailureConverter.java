@@ -23,7 +23,7 @@ package io.temporal.common.converter;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.payload.SerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import javax.annotation.Nonnull;
 
 /**
