@@ -22,8 +22,10 @@ package io.temporal.common.converter;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.payload.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 /**
  * Used by the framework to serialize/deserialize method parameters that need to be sent over the
@@ -67,4 +69,8 @@ public interface PayloadConverter {
    */
   <T> T fromData(Payload content, Class<T> valueType, Type valueGenericType)
       throws DataConverterException;
+
+  default PayloadConverter withContext(@Nonnull SerializationContext context) {
+    return this;
+  }
 }

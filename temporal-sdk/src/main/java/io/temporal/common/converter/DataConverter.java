@@ -25,6 +25,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.payload.SerializationContext;
 import io.temporal.payload.codec.PayloadCodec;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -113,8 +114,8 @@ public interface DataConverter {
 
   /**
    * Instantiate an appropriate Java Exception from a serialized Failure object. The default
-   * implementation delegates the conversion process to an instance of {@link
-   * io.temporal.failure.FailureConverter}, using this data converter for payload decoding.
+   * implementation delegates the conversion process to an instance of {@link FailureConverter},
+   * using this data converter for payload decoding.
    *
    * @param failure Failure protobuf object to deserialize into an exception
    * @throws NullPointerException if failure is null
@@ -124,8 +125,8 @@ public interface DataConverter {
 
   /**
    * Serialize an existing Throwable object into a Failure object. The default implementation
-   * delegates the conversion process to an instance of {@link
-   * io.temporal.failure.FailureConverter}, using this data converter for payload encoding.
+   * delegates the conversion process to an instance of {@link FailureConverter}, using this data
+   * converter for payload encoding.
    *
    * @param throwable a Throwable object to serialize into a Failure protobuf object
    * @throws NullPointerException if throwable is null
@@ -170,5 +171,10 @@ public interface DataConverter {
       }
     }
     return result;
+  }
+
+  @Nonnull
+  default DataConverter withContext(@Nonnull SerializationContext context) {
+    return this;
   }
 }

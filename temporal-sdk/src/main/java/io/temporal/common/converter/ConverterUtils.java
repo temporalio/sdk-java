@@ -18,26 +18,21 @@
  * limitations under the License.
  */
 
-package io.temporal.payload.codec;
+package io.temporal.common.converter;
 
-import io.temporal.api.common.v1.Payload;
 import io.temporal.payload.SerializationContext;
-import java.util.List;
+import io.temporal.payload.codec.PayloadCodec;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-/**
- * Codec that encodes or decodes the given payloads. {@link PayloadCodec} implementation may be used
- * in {@link io.temporal.common.converter.CodecDataConverter} or server side in a Remote Data
- * Encoder implementation.
- */
-public interface PayloadCodec {
-  @Nonnull
-  List<Payload> encode(@Nonnull List<Payload> payloads);
+class ConverterUtils {
+  static DataConverter withContext(
+      @Nonnull DataConverter converter, @Nullable SerializationContext context) {
+    return context != null ? converter.withContext(context) : converter;
+  }
 
-  @Nonnull
-  List<Payload> decode(@Nonnull List<Payload> payloads);
-
-  default PayloadCodec withContext(SerializationContext context) {
-    return this;
+  static PayloadCodec withContext(
+      @Nonnull PayloadCodec codec, @Nullable SerializationContext context) {
+    return context != null ? codec.withContext(context) : codec;
   }
 }

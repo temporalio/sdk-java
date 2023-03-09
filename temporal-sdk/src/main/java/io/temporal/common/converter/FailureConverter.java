@@ -18,10 +18,12 @@
  * limitations under the License.
  */
 
-package io.temporal.failure;
+package io.temporal.common.converter;
 
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.DefaultFailureConverter;
+import io.temporal.failure.TemporalFailure;
+import io.temporal.payload.SerializationContext;
 import javax.annotation.Nonnull;
 
 /**
@@ -61,4 +63,8 @@ public interface FailureConverter {
    */
   @Nonnull
   Failure exceptionToFailure(@Nonnull Throwable throwable, @Nonnull DataConverter dataConverter);
+
+  default @Nonnull FailureConverter withContext(@Nonnull SerializationContext context) {
+    return this;
+  }
 }
