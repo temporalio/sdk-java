@@ -24,6 +24,7 @@ import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.common.Experimental;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
@@ -173,6 +174,7 @@ public interface DataConverter {
     return result;
   }
 
+  @Experimental
   @Nonnull
   default DataConverter withContext(@Nonnull SerializationContext context) {
     return this;

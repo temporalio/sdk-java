@@ -38,7 +38,6 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.*;
@@ -55,16 +54,19 @@ final class WorkflowClientRequestFactory {
   // If you add anything new here, keep newSignalWithStartWorkflowExecutionRequest in sync
   @Nonnull
   StartWorkflowExecutionRequest.Builder newStartWorkflowExecutionRequest(
-      WorkflowClientCallsInterceptor.WorkflowStartInput input) {
-    WorkflowOptions options = input.getOptions();
+      @Nonnull String workflowId,
+      @Nonnull String workflowTypeName,
+      @Nonnull io.temporal.common.interceptors.Header header,
+      @Nonnull WorkflowOptions options,
+      @Nullable Payloads inputArgs) {
 
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setRequestId(generateUniqueId())
             .setIdentity(clientOptions.getIdentity())
-            .setWorkflowId(input.getWorkflowId())
-            .setWorkflowType(WorkflowType.newBuilder().setName(input.getWorkflowType()))
+            .setWorkflowId(workflowId)
+            .setWorkflowType(WorkflowType.newBuilder().setName(workflowTypeName))
             .setWorkflowRunTimeout(
                 ProtobufTimeUtils.toProtoDuration(options.getWorkflowRunTimeout()))
             .setWorkflowExecutionTimeout(
@@ -72,9 +74,10 @@ final class WorkflowClientRequestFactory {
             .setWorkflowTaskTimeout(
                 ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
 
-    Optional<Payloads> inputArgs =
-        clientOptions.getDataConverter().toPayloads(input.getArguments());
-    inputArgs.ifPresent(request::setInput);
+    if (inputArgs != null) {
+      request.setInput(inputArgs);
+    }
+
     if (options.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     }
@@ -104,8 +107,7 @@ final class WorkflowClientRequestFactory {
     }
 
     Header grpcHeader =
-        toHeaderGrpc(
-            input.getHeader(), extractContextsAndConvertToBytes(options.getContextPropagators()));
+        toHeaderGrpc(header, extractContextsAndConvertToBytes(options.getContextPropagators()));
     request.setHeader(grpcHeader);
 
     return request;

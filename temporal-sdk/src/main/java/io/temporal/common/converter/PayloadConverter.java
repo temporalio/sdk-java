@@ -22,6 +22,7 @@ package io.temporal.common.converter;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.common.Experimental;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -70,6 +71,8 @@ public interface PayloadConverter {
   <T> T fromData(Payload content, Class<T> valueType, Type valueGenericType)
       throws DataConverterException;
 
+  @Experimental
+  @Nonnull
   default PayloadConverter withContext(@Nonnull SerializationContext context) {
     return this;
   }

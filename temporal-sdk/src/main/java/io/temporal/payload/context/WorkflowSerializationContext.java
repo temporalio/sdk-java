@@ -18,29 +18,33 @@
  * limitations under the License.
  */
 
-package io.temporal.payload.codec;
+package io.temporal.payload.context;
 
-import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
-import io.temporal.payload.context.SerializationContext;
-import java.util.List;
 import javax.annotation.Nonnull;
 
-/**
- * Codec that encodes or decodes the given payloads. {@link PayloadCodec} implementation may be used
- * in {@link io.temporal.common.converter.CodecDataConverter} or server side in a Remote Data
- * Encoder implementation.
- */
-public interface PayloadCodec {
-  @Nonnull
-  List<Payload> encode(@Nonnull List<Payload> payloads);
+@Experimental
+public class WorkflowSerializationContext implements SerializationContext {
+  private final @Nonnull String namespace;
+  private final @Nonnull String workflowId;
+  // We can't currently reliably and consistency provide workflowType to the DataConverter.
+  // 1. Signals and queries don't know workflowType when they are sent.
+  // 2. WorkflowStub#getResult call is not aware of the workflowType, workflowType is an optional
+  // parameter for a workflow stub that is not used to start a workflow.
+  //    private final @Nullable String workflowTypeName;
+
+  public WorkflowSerializationContext(@Nonnull String namespace, @Nonnull String workflowId) {
+    this.namespace = namespace;
+    this.workflowId = workflowId;
+  }
 
   @Nonnull
-  List<Payload> decode(@Nonnull List<Payload> payloads);
+  public String getNamespace() {
+    return namespace;
+  }
 
-  @Experimental
   @Nonnull
-  default PayloadCodec withContext(@Nonnull SerializationContext context) {
-    return this;
+  public String getWorkflowId() {
+    return workflowId;
   }
 }

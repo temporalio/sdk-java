@@ -73,7 +73,8 @@ public class ChainCodec implements PayloadCodec {
   }
 
   @Override
-  public PayloadCodec withContext(SerializationContext context) {
+  @Nonnull
+  public PayloadCodec withContext(@Nonnull SerializationContext context) {
     return new ChainCodec(codecs, context);
   }
 }

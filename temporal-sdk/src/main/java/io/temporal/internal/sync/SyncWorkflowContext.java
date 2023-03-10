@@ -242,7 +242,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             replayContext.getWorkflowType().getName(),
             input.getActivityName(),
             // input.getOptions().getTaskQueue() may be not specified, workflow task queue is used
-            // in this case
+            // by the Server in this case
             MoreObjects.firstNonNull(
                 input.getOptions().getTaskQueue(), replayContext.getTaskQueue()),
             false);
