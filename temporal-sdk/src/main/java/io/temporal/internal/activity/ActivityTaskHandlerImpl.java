@@ -48,6 +48,7 @@ import javax.annotation.Nullable;
 public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
   private final DataConverter dataConverter;
   private final String namespace;
+  private final String taskQueue;
   private final ActivityExecutionContextFactory executionContextFactory;
   // <ActivityType, Implementation>
   private final Map<String, ActivityTaskExecutor> activities =
@@ -58,11 +59,13 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
 
   public ActivityTaskHandlerImpl(
       @Nonnull String namespace,
+      @Nonnull String taskQueue,
       @Nonnull DataConverter dataConverter,
       @Nonnull ActivityExecutionContextFactory executionContextFactory,
       @Nonnull WorkerInterceptor[] interceptors,
       @Nullable List<ContextPropagator> contextPropagators) {
     this.namespace = Objects.requireNonNull(namespace);
+    this.taskQueue = Objects.requireNonNull(taskQueue);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.executionContextFactory = Objects.requireNonNull(executionContextFactory);
     this.interceptors = Objects.requireNonNull(interceptors);
@@ -91,7 +94,11 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
     String activityType = pollResponse.getActivityType().getName();
     ActivityInfoInternal activityInfo =
         new ActivityInfoImpl(
-            pollResponse, this.namespace, localActivity, activityTask.getCompletionCallback());
+            pollResponse,
+            this.namespace,
+            this.taskQueue,
+            localActivity,
+            activityTask.getCompletionCallback());
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity != null) {
       return activity.execute(activityInfo, metricsScope);

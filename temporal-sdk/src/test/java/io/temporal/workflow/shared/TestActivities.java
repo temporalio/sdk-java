@@ -368,7 +368,7 @@ public class TestActivities {
     @Override
     public void throwIO() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      assertEquals(SDKTestWorkflowRule.NAMESPACE, info.getWorkflowNamespace());
+      assertEquals(SDKTestWorkflowRule.NAMESPACE, info.getNamespace());
       assertNotNull(info.getWorkflowId());
       assertNotNull(info.getRunId());
       assertFalse(info.getWorkflowId().isEmpty());

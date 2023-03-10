@@ -24,6 +24,7 @@ import static io.temporal.internal.activity.ActivityTaskHandlerImpl.mapToActivit
 
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
@@ -37,6 +38,7 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityO
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -56,7 +58,7 @@ final class ActivityTaskExecutors {
   }
 
   abstract static class BaseActivityTaskExecutor implements ActivityTaskExecutor {
-    protected final DataConverter dataConverter;
+    private final DataConverter dataConverter;
     private final List<ContextPropagator> contextPropagators;
     private final WorkerInterceptor[] interceptors;
     private final ActivityExecutionContextFactory executionContextFactory;
@@ -75,7 +77,17 @@ final class ActivityTaskExecutors {
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
       ActivityExecutionContext context = executionContextFactory.createContext(info, metricsScope);
-      Optional<Payloads> input = info.getInput();
+      ActivityInfo activityInfo = context.getInfo();
+      ActivitySerializationContext serializationContext =
+          new ActivitySerializationContext(
+              activityInfo.getNamespace(),
+              activityInfo.getWorkflowId(),
+              activityInfo.getWorkflowType(),
+              activityInfo.getActivityType(),
+              activityInfo.getActivityTaskQueue(),
+              activityInfo.isLocal());
+      DataConverter dataConverterWithActivityContext =
+          dataConverter.withContext(serializationContext);
 
       try {
         info.getHeader()
@@ -87,7 +99,7 @@ final class ActivityTaskExecutors {
         }
         inboundCallsInterceptor.init(context);
 
-        Object[] args = provideArgs(input);
+        Object[] args = provideArgs(info.getInput(), dataConverterWithActivityContext);
         Header header =
             new Header(
                 info.getHeader().orElse(io.temporal.api.common.v1.Header.getDefaultInstance()));
@@ -99,7 +111,7 @@ final class ActivityTaskExecutors {
               info.getActivityId(), null, null, null, context.isUseLocalManualCompletion());
         }
 
-        return this.constructSuccessfulResultValue(info, result);
+        return this.constructSuccessfulResultValue(info, result, dataConverterWithActivityContext);
       } catch (Throwable e) {
         Throwable ex = CheckedExceptionWrapper.unwrap(e);
         boolean local = info.isLocal();
@@ -120,23 +132,30 @@ final class ActivityTaskExecutors {
               ex);
         }
 
-        return mapToActivityFailure(ex, info.getActivityId(), metricsScope, local, dataConverter);
+        return mapToActivityFailure(
+            ex, info.getActivityId(), metricsScope, local, dataConverterWithActivityContext);
       }
     }
 
     abstract ActivityInboundCallsInterceptor createRootInboundInterceptor();
 
-    abstract Object[] provideArgs(Optional<Payloads> input);
+    abstract Object[] provideArgs(
+        Optional<Payloads> input, DataConverter dataConverterWithActivityContext);
 
     protected abstract ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info, ActivityOutput result);
+        ActivityInfoInternal info,
+        ActivityOutput result,
+        DataConverter dataConverterWithActivityContext);
 
     ActivityTaskHandler.Result constructResultValue(
-        ActivityInfoInternal info, @Nullable ActivityOutput result) {
+        ActivityInfoInternal info,
+        @Nullable ActivityOutput result,
+        DataConverter dataConverterWithActivityContext) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder();
       if (result != null) {
-        Optional<Payloads> serialized = dataConverter.toPayloads(result.getResult());
+        Optional<Payloads> serialized =
+            dataConverterWithActivityContext.toPayloads(result.getResult());
         serialized.ifPresent(request::setResult);
       }
       return new ActivityTaskHandler.Result(
@@ -180,18 +199,24 @@ final class ActivityTaskExecutors {
     }
 
     @Override
-    Object[] provideArgs(Optional<Payloads> input) {
+    Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
       return DataConverter.arrayFromPayloads(
-          dataConverter, input, method.getParameterTypes(), method.getGenericParameterTypes());
+          dataConverterWithActivityContext,
+          input,
+          method.getParameterTypes(),
+          method.getGenericParameterTypes());
     }
 
     @Override
     protected ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info, ActivityOutput result) {
+        ActivityInfoInternal info,
+        ActivityOutput result,
+        DataConverter dataConverterWithActivityContext) {
       return constructResultValue(
           info,
           // if the expected result of the method is null, we don't publish result at all
-          method.getReturnType() != Void.TYPE ? result : null);
+          method.getReturnType() != Void.TYPE ? result : null,
+          dataConverterWithActivityContext);
     }
   }
 
@@ -215,15 +240,17 @@ final class ActivityTaskExecutors {
     }
 
     @Override
-    Object[] provideArgs(Optional<Payloads> input) {
-      EncodedValues encodedValues = new EncodedValues(input, dataConverter);
+    Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
+      EncodedValues encodedValues = new EncodedValues(input, dataConverterWithActivityContext);
       return new Object[] {encodedValues};
     }
 
     @Override
     protected ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info, ActivityOutput result) {
-      return constructResultValue(info, result);
+        ActivityInfoInternal info,
+        ActivityOutput result,
+        DataConverter dataConverterWithActivityContext) {
+      return constructResultValue(info, result, dataConverterWithActivityContext);
     }
   }
 }

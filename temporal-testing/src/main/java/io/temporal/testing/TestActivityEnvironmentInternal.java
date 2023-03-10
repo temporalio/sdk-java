@@ -131,6 +131,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
+            "test-activity-env-task-queue",
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             activityExecutionContextFactory,
             testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors(),

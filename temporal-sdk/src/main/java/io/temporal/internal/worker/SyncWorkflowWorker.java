@@ -95,6 +95,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     laTaskHandler =
         new ActivityTaskHandlerImpl(
             namespace,
+            taskQueue,
             localActivityOptions.getDataConverter(),
             laActivityExecutionContextFactory,
             localActivityOptions.getWorkerInterceptors(),

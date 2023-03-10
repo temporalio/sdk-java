@@ -24,6 +24,7 @@ import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
@@ -236,11 +237,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
     ActivitySerializationContext serializationContext =
         new ActivitySerializationContext(
+            replayContext.getNamespace(),
             replayContext.getWorkflowId(),
             replayContext.getWorkflowType().getName(),
-            replayContext.getTaskQueue(),
             input.getActivityName(),
-            input.getOptions().getTaskQueue());
+            // input.getOptions().getTaskQueue() may be not specified, workflow task queue is used
+            // in this case
+            MoreObjects.firstNonNull(
+                input.getOptions().getTaskQueue(), replayContext.getTaskQueue()),
+            false);
     DataConverter dataConverterWithActivityContext =
         dataConverter.withContext(serializationContext);
     Optional<Payloads> args = dataConverterWithActivityContext.toPayloads(input.getArgs());
@@ -334,11 +339,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
     ActivitySerializationContext serializationContext =
         new ActivitySerializationContext(
+            replayContext.getNamespace(),
             replayContext.getWorkflowId(),
             replayContext.getWorkflowType().getName(),
-            replayContext.getTaskQueue(),
             input.getActivityName(),
-            null);
+            replayContext.getTaskQueue(),
+            true);
     DataConverter dataConverterWithActivityContext =
         dataConverter.withContext(serializationContext);
     Optional<Payloads> payloads = dataConverterWithActivityContext.toPayloads(input.getArgs());
@@ -1088,7 +1094,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   /** Simple wrapper over a failure just to allow completing the CompletablePromise as a failure */
-  private class FailureWrapperException extends RuntimeException {
+  private static class FailureWrapperException extends RuntimeException {
     private final Failure failure;
 
     public FailureWrapperException(Failure failure) {

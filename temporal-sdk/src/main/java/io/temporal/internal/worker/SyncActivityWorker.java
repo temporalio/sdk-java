@@ -76,6 +76,7 @@ public class SyncActivityWorker implements SuspendableWorker {
     this.taskHandler =
         new ActivityTaskHandlerImpl(
             namespace,
+            taskQueue,
             options.getDataConverter(),
             activityExecutionContextFactory,
             options.getWorkerInterceptors(),

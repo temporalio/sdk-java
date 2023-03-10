@@ -20,4 +20,7 @@
 
 package io.temporal.payload.context;
 
+import io.temporal.common.Experimental;
+
+@Experimental
 public interface SerializationContext {}

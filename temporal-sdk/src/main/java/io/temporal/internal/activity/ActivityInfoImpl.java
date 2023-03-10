@@ -33,18 +33,21 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 
 final class ActivityInfoImpl implements ActivityInfoInternal {
+  private final String namespace;
+  private final String activityTaskQueue;
   private final PollActivityTaskQueueResponseOrBuilder response;
-  private final String activityNamespace;
   private final boolean local;
   private final Functions.Proc completionHandle;
 
   ActivityInfoImpl(
       PollActivityTaskQueueResponseOrBuilder response,
-      String activityNamespace,
+      @Nonnull String namespace,
+      @Nonnull String activityTaskQueue,
       boolean local,
       Functions.Proc completionHandle) {
     this.response = Objects.requireNonNull(response);
-    this.activityNamespace = Objects.requireNonNull(activityNamespace);
+    this.namespace = Objects.requireNonNull(namespace);
+    this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
     this.local = local;
     this.completionHandle = completionHandle;
   }
@@ -115,13 +118,25 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   }
 
   @Override
+  @Deprecated
   public String getWorkflowNamespace() {
-    return response.getWorkflowNamespace();
+    return getNamespace();
   }
 
   @Override
+  @Deprecated
   public String getActivityNamespace() {
-    return activityNamespace;
+    return getNamespace();
+  }
+
+  @Override
+  public String getNamespace() {
+    return namespace;
+  }
+
+  @Override
+  public String getActivityTaskQueue() {
+    return activityTaskQueue;
   }
 
   @Override
@@ -180,10 +195,8 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
         + getHeartbeatDetails()
         + ", workflowType="
         + getWorkflowType()
-        + ", workflowNamespace="
-        + getWorkflowNamespace()
-        + ", activityNamespace='"
-        + getActivityNamespace()
+        + ", namespace="
+        + getNamespace()
         + ", attempt="
         + getAttempt()
         + ", isLocal="

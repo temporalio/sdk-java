@@ -20,27 +20,37 @@
 
 package io.temporal.payload.context;
 
+import io.temporal.common.Experimental;
+import java.util.Objects;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
+@Experimental
 public class ActivitySerializationContext implements SerializationContext {
+  private final @Nonnull String namespace;
   private final @Nonnull String workflowId;
   private final @Nonnull String workflowTypeName;
-  private final @Nonnull String workflowTaskQueue;
   private final @Nonnull String activityTypeName;
-  private final @Nullable String activityTaskQueue;
+  private final @Nonnull String activityTaskQueue;
+  private final boolean local;
 
   public ActivitySerializationContext(
+      @Nonnull String namespace,
       @Nonnull String workflowId,
       @Nonnull String workflowType,
-      @Nonnull String workflowTaskQueue,
       @Nonnull String activityTypeName,
-      @Nullable String activityTaskQueue) {
-    this.workflowId = workflowId;
-    this.workflowTypeName = workflowType;
-    this.workflowTaskQueue = workflowTaskQueue;
-    this.activityTypeName = activityTypeName;
-    this.activityTaskQueue = activityTaskQueue;
+      @Nonnull String activityTaskQueue,
+      boolean local) {
+    this.namespace = Objects.requireNonNull(namespace);
+    this.workflowId = Objects.requireNonNull(workflowId);
+    this.workflowTypeName = Objects.requireNonNull(workflowType);
+    this.activityTypeName = Objects.requireNonNull(activityTypeName);
+    this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
+    this.local = local;
+  }
+
+  @Nonnull
+  public String getNamespace() {
+    return namespace;
   }
 
   @Nonnull
@@ -54,17 +64,16 @@ public class ActivitySerializationContext implements SerializationContext {
   }
 
   @Nonnull
-  public String getWorkflowTaskQueue() {
-    return workflowTaskQueue;
-  }
-
-  @Nonnull
   public String getActivityTypeName() {
     return activityTypeName;
   }
 
-  @Nullable
+  @Nonnull
   public String getActivityTaskQueue() {
     return activityTaskQueue;
+  }
+
+  public boolean isLocal() {
+    return local;
   }
 }
