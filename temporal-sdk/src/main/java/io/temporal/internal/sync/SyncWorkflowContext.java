@@ -913,14 +913,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public SignalExternalOutput signalExternalWorkflow(SignalExternalInput input) {
-    SignalExternalWorkflowExecutionCommandAttributes.Builder attributes =
-        SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
-    attributes.setSignalName(input.getSignalName());
-    attributes.setExecution(input.getExecution());
+    WorkflowExecution childExecution = input.getExecution();
     DataConverter dataConverterWithChildWorkflowContext =
         dataConverter.withContext(
             new WorkflowSerializationContext(
-                replayContext.getNamespace(), input.getExecution().getWorkflowId()));
+                replayContext.getNamespace(), childExecution.getWorkflowId()));
+    SignalExternalWorkflowExecutionCommandAttributes.Builder attributes =
+        SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
+    attributes.setSignalName(input.getSignalName());
+    attributes.setExecution(childExecution);
     Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
     CompletablePromise<Void> result = Workflow.newPromise();
@@ -968,6 +969,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public void continueAsNew(ContinueAsNewInput input) {
+    DataConverter dataConverterWithWorkflowContext =
+        dataConverter.withContext(
+            new WorkflowSerializationContext(
+                replayContext.getNamespace(), replayContext.getWorkflowId()));
+
     ContinueAsNewWorkflowExecutionCommandAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder();
     String workflowType = input.getWorkflowType();
@@ -984,8 +990,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         attributes.setWorkflowTaskTimeout(
             ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
       }
-
-      if (!options.getTaskQueue().isEmpty()) {
+      if (options.getTaskQueue() != null && !options.getTaskQueue().isEmpty()) {
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()));
       }
       Map<String, Object> searchAttributes = options.getSearchAttributes();
@@ -994,7 +999,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       }
       Map<String, Object> memo = options.getMemo();
       if (memo != null) {
-        attributes.setMemo(Memo.newBuilder().putAllFields(intoPayloadMap(dataConverter, memo)));
+        attributes.setMemo(
+            Memo.newBuilder().putAllFields(intoPayloadMap(dataConverterWithWorkflowContext, memo)));
       }
     }
 
@@ -1006,7 +1012,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         toHeaderGrpc(input.getHeader(), extractContextsAndConvertToBytes(propagators));
     attributes.setHeader(grpcHeader);
 
-    Optional<Payloads> payloads = dataConverter.toPayloads(input.getArgs());
+    Optional<Payloads> payloads = dataConverterWithWorkflowContext.toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
 
     replayContext.continueAsNewOnCompletion(attributes.build());
@@ -1094,6 +1100,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public Failure mapExceptionToFailure(Throwable failure) {
+    // TODO converter context
     return dataConverter.exceptionToFailure(failure);
   }
 
