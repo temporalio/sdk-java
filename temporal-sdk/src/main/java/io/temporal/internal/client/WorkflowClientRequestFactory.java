@@ -20,7 +20,6 @@
 
 package io.temporal.internal.client;
 
-import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.SerializerUtils.toRetryPolicy;
 
@@ -58,8 +57,8 @@ final class WorkflowClientRequestFactory {
       @Nonnull String workflowTypeName,
       @Nonnull io.temporal.common.interceptors.Header header,
       @Nonnull WorkflowOptions options,
-      @Nullable Payloads inputArgs) {
-
+      @Nullable Payloads inputArgs,
+      @Nullable Memo memo) {
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
@@ -96,10 +95,8 @@ final class WorkflowClientRequestFactory {
       request.setCronSchedule(options.getCronSchedule());
     }
 
-    if (options.getMemo() != null) {
-      request.setMemo(
-          Memo.newBuilder()
-              .putAllFields(intoPayloadMap(clientOptions.getDataConverter(), options.getMemo())));
+    if (memo != null) {
+      request.setMemo(memo);
     }
 
     if (options.getSearchAttributes() != null && !options.getSearchAttributes().isEmpty()) {

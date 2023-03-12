@@ -20,6 +20,8 @@
 
 package io.temporal.internal.client;
 
+import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
+
 import io.temporal.api.common.v1.*;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.query.v1.WorkflowQuery;
@@ -66,13 +68,24 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                     clientOptions.getNamespace(), input.getWorkflowId()));
     Optional<Payloads> inputArgs =
         dataConverterWithWorkflowContext.toPayloads(input.getArguments());
+
+    @Nullable
+    Memo memo =
+        (input.getOptions().getMemo() != null)
+            ? Memo.newBuilder()
+                .putAllFields(
+                    intoPayloadMap(clientOptions.getDataConverter(), input.getOptions().getMemo()))
+                .build()
+            : null;
+
     StartWorkflowExecutionRequest.Builder request =
         requestsHelper.newStartWorkflowExecutionRequest(
             input.getWorkflowId(),
             input.getWorkflowType(),
             input.getHeader(),
             input.getOptions(),
-            inputArgs.orElse(null));
+            inputArgs.orElse(null),
+            memo);
     try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
       boolean requestEagerExecution = eagerDispatchHandle != null;
       request.setRequestEagerExecution(requestEagerExecution);
@@ -139,13 +152,26 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                     clientOptions.getNamespace(), workflowStartInput.getWorkflowId()));
     Optional<Payloads> workflowInput =
         dataConverterWithWorkflowContext.toPayloads(workflowStartInput.getArguments());
+
+    @Nullable
+    Memo memo =
+        (workflowStartInput.getOptions().getMemo() != null)
+            ? Memo.newBuilder()
+                .putAllFields(
+                    intoPayloadMap(
+                        clientOptions.getDataConverter(),
+                        workflowStartInput.getOptions().getMemo()))
+                .build()
+            : null;
+
     StartWorkflowExecutionRequestOrBuilder startRequest =
         requestsHelper.newStartWorkflowExecutionRequest(
             workflowStartInput.getWorkflowId(),
             workflowStartInput.getWorkflowType(),
             workflowStartInput.getHeader(),
             workflowStartInput.getOptions(),
-            workflowInput.orElse(null));
+            workflowInput.orElse(null),
+            memo);
 
     Optional<Payloads> signalInput =
         dataConverterWithWorkflowContext.toPayloads(input.getSignalArguments());

@@ -62,6 +62,7 @@ import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.*;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -570,37 +571,92 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
-    Optional<Payloads> payloads = dataConverter.toPayloads(input.getArgs());
-    CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
-    Promise<Optional<Payloads>> output =
-        executeChildWorkflow(
+    if (CancellationScope.current().isCancelRequested()) {
+      CanceledFailure canceledFailure = new CanceledFailure("execute called from a canceled scope");
+      return new ChildWorkflowOutput<>(
+          Workflow.newFailedPromise(canceledFailure), Workflow.newFailedPromise(canceledFailure));
+    }
+
+    CompletablePromise<WorkflowExecution> executionPromise = Workflow.newPromise();
+    CompletablePromise<Optional<Payloads>> resultPromise = Workflow.newPromise();
+
+    DataConverter dataConverterWithChildWorkflowContext =
+        dataConverter.withContext(
+            new WorkflowSerializationContext(replayContext.getNamespace(), input.getWorkflowId()));
+    Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
+
+    @Nullable
+    Memo memo =
+        (input.getOptions().getMemo() != null)
+            ? Memo.newBuilder()
+                .putAllFields(intoPayloadMap(dataConverter, input.getOptions().getMemo()))
+                .build()
+            : null;
+
+    StartChildWorkflowExecutionParameters parameters =
+        createChildWorkflowParameters(
             input.getWorkflowId(),
             input.getWorkflowType(),
             input.getOptions(),
             input.getHeader(),
             payloads,
-            execution);
+            memo);
+
+    Functions.Proc1<Exception> cancellationCallback =
+        replayContext.startChildWorkflow(
+            parameters,
+            (execution, failure) -> {
+              if (failure != null) {
+                runner.executeInWorkflowThread(
+                    "child workflow start failed callback",
+                    () ->
+                        executionPromise.completeExceptionally(
+                            mapChildWorkflowException(
+                                failure, dataConverterWithChildWorkflowContext)));
+              } else {
+                runner.executeInWorkflowThread(
+                    "child workflow started callback", () -> executionPromise.complete(execution));
+              }
+            },
+            (result, failure) -> {
+              if (failure != null) {
+                runner.executeInWorkflowThread(
+                    "child workflow failure callback",
+                    () ->
+                        resultPromise.completeExceptionally(
+                            mapChildWorkflowException(
+                                failure, dataConverterWithChildWorkflowContext)));
+              } else {
+                runner.executeInWorkflowThread(
+                    "child workflow completion callback", () -> resultPromise.complete(result));
+              }
+            });
+    AtomicBoolean callbackCalled = new AtomicBoolean();
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (reason) -> {
+              if (!callbackCalled.getAndSet(true)) {
+                cancellationCallback.apply(new CanceledFailure(reason));
+              }
+              return null;
+            });
+
     Promise<R> result =
-        output.thenApply(
-            (b) -> dataConverter.fromPayloads(0, b, input.getResultClass(), input.getResultType()));
-    return new ChildWorkflowOutput<>(result, execution);
+        resultPromise.thenApply(
+            (b) ->
+                dataConverterWithChildWorkflowContext.fromPayloads(
+                    0, b, input.getResultClass(), input.getResultType()));
+    return new ChildWorkflowOutput<>(result, executionPromise);
   }
 
-  private Promise<Optional<Payloads>> executeChildWorkflow(
+  private StartChildWorkflowExecutionParameters createChildWorkflowParameters(
       String workflowId,
       String name,
       ChildWorkflowOptions options,
       Header header,
       Optional<Payloads> input,
-      CompletablePromise<WorkflowExecution> startResult) {
-    CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
-    if (CancellationScope.current().isCancelRequested()) {
-      CanceledFailure CanceledFailure = new CanceledFailure("execute called from a canceled scope");
-      startResult.completeExceptionally(CanceledFailure);
-      result.completeExceptionally(CanceledFailure);
-      return result;
-    }
-
+      @Nullable Memo memo) {
     final StartChildWorkflowExecutionCommandAttributes.Builder attributes =
         StartChildWorkflowExecutionCommandAttributes.newBuilder()
             .setWorkflowType(WorkflowType.newBuilder().setName(name).build());
@@ -626,9 +682,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     }
     attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
 
-    Map<String, Object> memo = options.getMemo();
     if (memo != null) {
-      attributes.setMemo(Memo.newBuilder().putAllFields(intoPayloadMap(dataConverter, memo)));
+      attributes.setMemo(memo);
     }
 
     Map<String, Object> searchAttributes = options.getSearchAttributes();
@@ -648,46 +703,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);
     }
-    StartChildWorkflowExecutionParameters parameters =
-        new StartChildWorkflowExecutionParameters(attributes, options.getCancellationType());
-
-    Functions.Proc1<Exception> cancellationCallback =
-        replayContext.startChildWorkflow(
-            parameters,
-            (execution, failure) -> {
-              if (failure != null) {
-                runner.executeInWorkflowThread(
-                    "child workflow start failed callback",
-                    () -> startResult.completeExceptionally(mapChildWorkflowException(failure)));
-              } else {
-                runner.executeInWorkflowThread(
-                    "child workflow started callback", () -> startResult.complete(execution));
-              }
-            },
-            (output, failure) -> {
-              if (failure != null) {
-                runner.executeInWorkflowThread(
-                    "child workflow failure callback",
-                    () -> result.completeExceptionally(mapChildWorkflowException(failure)));
-              } else {
-                runner.executeInWorkflowThread(
-                    "child workflow completion callback", () -> result.complete(output));
-              }
-            });
-    AtomicBoolean callbackCalled = new AtomicBoolean();
-    CancellationScope.current()
-        .getCancellationRequest()
-        .thenApply(
-            (reason) -> {
-              if (!callbackCalled.getAndSet(true)) {
-                cancellationCallback.apply(new CanceledFailure(reason));
-              }
-              return null;
-            });
-    return result;
+    return new StartChildWorkflowExecutionParameters(attributes, options.getCancellationType());
   }
 
-  private Header extractContextsAndConvertToBytes(List<ContextPropagator> contextPropagators) {
+  private static Header extractContextsAndConvertToBytes(
+      List<ContextPropagator> contextPropagators) {
     if (contextPropagators == null) {
       return null;
     }
@@ -698,12 +718,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return new Header(result);
   }
 
-  private RuntimeException mapChildWorkflowException(Exception failure) {
+  private static RuntimeException mapChildWorkflowException(
+      Exception failure, DataConverter dataConverterWithChildWorkflowContext) {
     if (failure == null) {
       return null;
     }
     if (failure instanceof TemporalFailure) {
-      ((TemporalFailure) failure).setDataConverter(dataConverter);
+      ((TemporalFailure) failure).setDataConverter(dataConverterWithChildWorkflowContext);
     }
     if (failure instanceof CanceledFailure) {
       return (CanceledFailure) failure;
@@ -718,7 +739,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       return new IllegalArgumentException("Unexpected exception type: ", failure);
     }
     ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
-    Throwable cause = dataConverter.failureToException(taskFailed.getOriginalCauseFailure());
+    Throwable cause =
+        dataConverterWithChildWorkflowContext.failureToException(
+            taskFailed.getOriginalCauseFailure());
     ChildWorkflowFailure exception = taskFailed.getException();
     return new ChildWorkflowFailure(
         exception.getInitiatedEventId(),
@@ -894,7 +917,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
     attributes.setSignalName(input.getSignalName());
     attributes.setExecution(input.getExecution());
-    Optional<Payloads> payloads = dataConverter.toPayloads(input.getArgs());
+    DataConverter dataConverterWithChildWorkflowContext =
+        dataConverter.withContext(
+            new WorkflowSerializationContext(
+                replayContext.getNamespace(), input.getExecution().getWorkflowId()));
+    Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
     CompletablePromise<Void> result = Workflow.newPromise();
     Functions.Proc1<Exception> cancellationCallback =
@@ -904,7 +931,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               if (failure != null) {
                 runner.executeInWorkflowThread(
                     "child workflow failure callback",
-                    () -> result.completeExceptionally(dataConverter.failureToException(failure)));
+                    () ->
+                        result.completeExceptionally(
+                            dataConverterWithChildWorkflowContext.failureToException(failure)));
               } else {
                 runner.executeInWorkflowThread(
                     "child workflow completion callback", () -> result.complete(output));
