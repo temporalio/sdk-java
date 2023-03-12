@@ -114,13 +114,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
 
   public SyncWorkflowContext(
+      SignalDispatcher signalDispatcher,
+      QueryDispatcher queryDispatcher,
       @Nullable WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = dataConverter;
     this.contextPropagators = contextPropagators;
-    this.signalDispatcher = new SignalDispatcher(dataConverter);
-    this.queryDispatcher = new QueryDispatcher(dataConverter);
+    this.signalDispatcher = signalDispatcher;
+    this.queryDispatcher = queryDispatcher;
     if (workflowImplementationOptions != null) {
       this.defaultActivityOptions = workflowImplementationOptions.getDefaultActivityOptions();
       this.activityOptionsMap = new HashMap<>(workflowImplementationOptions.getActivityOptions());

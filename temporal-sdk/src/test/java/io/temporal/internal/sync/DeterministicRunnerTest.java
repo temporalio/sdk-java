@@ -34,7 +34,6 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.Signal;
 import io.temporal.internal.replay.*;
@@ -668,7 +667,7 @@ public class DeterministicRunnerTest {
     when(replayWorkflowContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
     SyncWorkflowContext syncWorkflowContext =
-        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+        DummySyncWorkflowContext.newDummySyncWorkflowContext();
     syncWorkflowContext.setReplayContext(replayWorkflowContext);
 
     DeterministicRunnerImpl d =
@@ -696,8 +695,7 @@ public class DeterministicRunnerTest {
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(1, cache.size());
 
-    syncWorkflowContext =
-        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+    syncWorkflowContext = DummySyncWorkflowContext.newDummySyncWorkflowContext();
     syncWorkflowContext.setReplayContext(replayWorkflowContext);
 
     DeterministicRunnerImpl d2 =

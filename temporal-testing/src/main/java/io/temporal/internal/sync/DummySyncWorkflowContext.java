@@ -46,7 +46,12 @@ import javax.annotation.Nullable;
 public class DummySyncWorkflowContext {
   public static SyncWorkflowContext newDummySyncWorkflowContext() {
     SyncWorkflowContext context =
-        new SyncWorkflowContext(null, DefaultDataConverter.STANDARD_INSTANCE, null);
+        new SyncWorkflowContext(
+            new SignalDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
+            new QueryDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
+            null,
+            DefaultDataConverter.STANDARD_INSTANCE,
+            null);
     context.setReplayContext(new DummyReplayWorkflowContext());
     context.initHeadOutboundCallsInterceptor(context);
     context.initHeadInboundCallsInterceptor(

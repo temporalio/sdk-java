@@ -111,7 +111,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     ReplayWorkflow mockWorkflow = mock(ReplayWorkflow.class);
     ReplayWorkflowFactory mockFactory = mock(ReplayWorkflowFactory.class);
 
-    when(mockFactory.getWorkflow(any())).thenReturn(mockWorkflow);
+    when(mockFactory.getWorkflow(any(), any())).thenReturn(mockWorkflow);
     when(mockWorkflow.eventLoop()).thenReturn(true);
     when(mockWorkflow.getOutput()).thenReturn(Optional.empty());
     return mockFactory;

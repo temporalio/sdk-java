@@ -64,6 +64,8 @@ class SyncWorkflow implements ReplayWorkflow {
 
   public SyncWorkflow(
       SyncWorkflowDefinition workflow,
+      SignalDispatcher signalDispatcher,
+      QueryDispatcher queryDispatcher,
       @Nullable WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       WorkflowThreadExecutor workflowThreadExecutor,
@@ -79,7 +81,12 @@ class SyncWorkflow implements ReplayWorkflow {
     this.cache = cache;
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.workflowContext =
-        new SyncWorkflowContext(workflowImplementationOptions, dataConverter, contextPropagators);
+        new SyncWorkflowContext(
+            signalDispatcher,
+            queryDispatcher,
+            workflowImplementationOptions,
+            dataConverter,
+            contextPropagators);
   }
 
   @Override

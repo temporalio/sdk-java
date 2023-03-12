@@ -24,7 +24,7 @@ services:
       - 9042
 
   temporal:
-    image: temporaliotest/auto-setup:latest
+    image: temporaliotest/auto-setup:sha-07e194f
     ports:
       - "7233:7233"
       - "7234:7234"

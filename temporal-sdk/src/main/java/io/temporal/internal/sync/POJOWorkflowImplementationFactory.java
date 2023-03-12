@@ -24,6 +24,7 @@ import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
@@ -40,6 +41,7 @@ import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.DynamicWorkflow;
@@ -53,11 +55,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
-
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private final WorkerInterceptor[] workerInterceptors;
@@ -67,26 +69,28 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private final long defaultDeadlockDetectionTimeout;
 
   /** Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance. */
-  private final Map<String, Functions.Func<SyncWorkflowDefinition>> workflowDefinitions =
+  private final Map<String, Functions.Func1<WorkflowExecution, SyncWorkflowDefinition>>
+      workflowDefinitions = Collections.synchronizedMap(new HashMap<>());
+  /** Factories providing instances of workflow classes. */
+  private final Map<Class<?>, Functions.Func<?>> workflowInstanceFactories =
       Collections.synchronizedMap(new HashMap<>());
+  /** If present then it is called for any unknown workflow type. */
+  private Functions.Func<? extends DynamicWorkflow> dynamicWorkflowImplementationFactory;
 
   private final Map<String, WorkflowImplementationOptions> implementationOptions =
       Collections.synchronizedMap(new HashMap<>());
 
-  private final Map<Class<?>, Functions.Func<?>> workflowImplementationFactories =
-      Collections.synchronizedMap(new HashMap<>());
-
-  /** If present then it is called for any unknown workflow type. */
-  private Functions.Func<? extends DynamicWorkflow> dynamicWorkflowImplementationFactory;
-
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final WorkflowExecutorCache cache;
+
+  private final String namespace;
 
   public POJOWorkflowImplementationFactory(
       SingleWorkerOptions singleWorkerOptions,
       WorkflowThreadExecutor workflowThreadExecutor,
       WorkerInterceptor[] workerInterceptors,
-      WorkflowExecutorCache cache) {
+      WorkflowExecutorCache cache,
+      @Nonnull String namespace) {
     Objects.requireNonNull(singleWorkerOptions);
     this.dataConverter = singleWorkerOptions.getDataConverter();
     this.workflowThreadExecutor = Objects.requireNonNull(workflowThreadExecutor);
@@ -94,6 +98,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     this.cache = cache;
     this.contextPropagators = singleWorkerOptions.getContextPropagators();
     this.defaultDeadlockDetectionTimeout = singleWorkerOptions.getDefaultDeadlockDetectionTimeout();
+    this.namespace = namespace;
   }
 
   public void registerWorkflowImplementationTypes(
@@ -119,7 +124,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       dynamicWorkflowImplementationFactory = (Func<? extends DynamicWorkflow>) factory;
       return;
     }
-    workflowImplementationFactories.put(clazz, factory);
+    workflowInstanceFactories.put(clazz, factory);
     POJOWorkflowInterfaceMetadata workflowMetadata =
         POJOWorkflowInterfaceMetadata.newInstance(clazz);
     if (!workflowMetadata.getWorkflowMethod().isPresent()) {
@@ -138,9 +143,12 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
           }
           workflowDefinitions.put(
               typeName,
-              () ->
+              (execution) ->
                   new POJOWorkflowImplementation(
-                      clazz, methodMetadata.getName(), methodMetadata.getWorkflowMethod()));
+                      clazz,
+                      methodMetadata.getWorkflowMethod(),
+                      dataConverter.withContext(
+                          new WorkflowSerializationContext(namespace, execution.getWorkflowId()))));
           implementationOptions.put(typeName, options);
           break;
         case SIGNAL:
@@ -184,8 +192,13 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     for (POJOWorkflowMethodMetadata workflowMethod : workflowMethods) {
       String workflowName = workflowMethod.getName();
       Method method = workflowMethod.getWorkflowMethod();
-      Functions.Func<SyncWorkflowDefinition> definition =
-          () -> new POJOWorkflowImplementation(workflowImplementationClass, workflowName, method);
+      Functions.Func1<WorkflowExecution, SyncWorkflowDefinition> definition =
+          (execution) ->
+              new POJOWorkflowImplementation(
+                  workflowImplementationClass,
+                  method,
+                  dataConverter.withContext(
+                      new WorkflowSerializationContext(namespace, execution.getWorkflowId())));
 
       if (workflowDefinitions.containsKey(workflowName)) {
         throw new IllegalStateException(
@@ -196,8 +209,9 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     }
   }
 
-  private SyncWorkflowDefinition getWorkflowDefinition(WorkflowType workflowType) {
-    Functions.Func<SyncWorkflowDefinition> factory =
+  private SyncWorkflowDefinition getWorkflowDefinition(
+      WorkflowType workflowType, WorkflowExecution workflowExecution) {
+    Functions.Func1<WorkflowExecution, SyncWorkflowDefinition> factory =
         workflowDefinitions.get(workflowType.getName());
     if (factory == null) {
       if (dynamicWorkflowImplementationFactory != null) {
@@ -212,19 +226,25 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
               + workflowDefinitions.keySet());
     }
     try {
-      return factory.apply();
+      return factory.apply(workflowExecution);
     } catch (Exception e) {
       throw new Error(e);
     }
   }
 
   @Override
-  public ReplayWorkflow getWorkflow(WorkflowType workflowType) {
-    SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
+  public ReplayWorkflow getWorkflow(
+      WorkflowType workflowType, WorkflowExecution workflowExecution) {
+    SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType, workflowExecution);
     WorkflowImplementationOptions workflowImplementationOptions =
         implementationOptions.get(workflowType.getName());
+    DataConverter dataConverterWithWorkflowContext =
+        dataConverter.withContext(
+            new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId()));
     return new SyncWorkflow(
         workflow,
+        new SignalDispatcher(dataConverterWithWorkflowContext),
+        new QueryDispatcher(dataConverterWithWorkflowContext),
         workflowImplementationOptions,
         dataConverter,
         workflowThreadExecutor,
@@ -239,17 +259,19 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   }
 
   private class POJOWorkflowImplementation implements SyncWorkflowDefinition {
-
-    private final String workflowName;
-    private final Method workflowMethod;
     private final Class<?> workflowImplementationClass;
+    private final Method workflowMethod;
     private WorkflowInboundCallsInterceptor workflowInvoker;
+    // don't pass it down to other classes, it's a "cached" instance for internal usage only
+    private final DataConverter dataConverterWithWorkflowContext;
 
     public POJOWorkflowImplementation(
-        Class<?> workflowImplementationClass, String workflowName, Method workflowMethod) {
-      this.workflowName = workflowName;
-      this.workflowMethod = workflowMethod;
+        Class<?> workflowImplementationClass,
+        Method workflowMethod,
+        DataConverter dataConverterWithWorkflowContext) {
       this.workflowImplementationClass = workflowImplementationClass;
+      this.workflowMethod = workflowMethod;
+      this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
     }
 
     @Override
@@ -266,9 +288,10 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
     @Override
     public Optional<Payloads> execute(Header header, Optional<Payloads> input)
         throws CanceledFailure, WorkflowExecutionException {
+
       Object[] args =
           DataConverter.arrayFromPayloads(
-              dataConverter,
+              dataConverterWithWorkflowContext,
               input,
               workflowMethod.getParameterTypes(),
               workflowMethod.getGenericParameterTypes());
@@ -278,7 +301,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       if (workflowMethod.getReturnType() == Void.TYPE) {
         return Optional.empty();
       }
-      return dataConverter.toPayloads(result.getResult());
+      return dataConverterWithWorkflowContext.toPayloads(result.getResult());
     }
 
     private class RootWorkflowInboundCallsInterceptor
@@ -310,7 +333,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       }
 
       protected void newInstance() {
-        Func<?> factory = workflowImplementationFactories.get(workflowImplementationClass);
+        Func<?> factory = workflowInstanceFactories.get(workflowImplementationClass);
         if (factory != null) {
           workflow = factory.apply();
         } else {

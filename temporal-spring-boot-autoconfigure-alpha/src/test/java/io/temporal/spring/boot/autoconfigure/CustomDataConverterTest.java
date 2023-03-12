@@ -76,7 +76,9 @@ public class CustomDataConverterTest {
   public static class Configuration {
     @Bean
     public DataConverter spyDataConverter() {
-      return spy(DefaultDataConverter.newDefaultInstance());
+      DataConverter result = spy(DefaultDataConverter.newDefaultInstance());
+      when(result.withContext(any())).thenReturn(result);
+      return result;
     }
   }
 }
