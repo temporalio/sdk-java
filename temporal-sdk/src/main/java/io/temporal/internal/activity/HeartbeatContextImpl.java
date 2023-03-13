@@ -30,6 +30,7 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.ActivityClientHelper;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -57,6 +58,8 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private final ScheduledExecutorService heartbeatExecutor;
   private final long heartbeatIntervalMillis;
   private final DataConverter dataConverter;
+  private final DataConverter dataConverterWithActivityContext;
+
   private final Scope metricsScope;
   private final Optional<Payloads> prevAttemptHeartbeatDetails;
 
@@ -81,6 +84,15 @@ class HeartbeatContextImpl implements HeartbeatContext {
     this.service = service;
     this.metricsScope = metricsScope;
     this.dataConverter = dataConverter;
+    this.dataConverterWithActivityContext =
+        dataConverter.withContext(
+            new ActivitySerializationContext(
+                namespace,
+                info.getWorkflowId(),
+                info.getWorkflowType(),
+                info.getActivityType(),
+                info.getActivityTaskQueue(),
+                info.isLocal()));
     this.namespace = namespace;
     this.info = info;
     this.identity = identity;
@@ -130,7 +142,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
         return Optional.ofNullable((V) this.lastDetails);
       } else {
         return Optional.ofNullable(
-            dataConverter.fromPayloads(
+            dataConverterWithActivityContext.fromPayloads(
                 0, prevAttemptHeartbeatDetails, detailsClass, detailsGenericType));
       }
     } finally {
@@ -187,9 +199,8 @@ class HeartbeatContextImpl implements HeartbeatContext {
               namespace,
               identity,
               info.getTaskToken(),
-              dataConverter,
-              metricsScope,
-              details);
+              dataConverterWithActivityContext.toPayloads(details),
+              metricsScope);
       if (status.getCancelRequested()) {
         lastException = new ActivityCanceledException(info);
       } else {

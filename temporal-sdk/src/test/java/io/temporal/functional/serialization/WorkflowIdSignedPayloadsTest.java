@@ -23,9 +23,7 @@ package io.temporal.functional.serialization;
 import static org.junit.Assert.*;
 
 import com.google.protobuf.ByteString;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.CodecDataConverter;
@@ -45,12 +43,20 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 
+/**
+ * This test emulates a scenario when users may be using WorkflowId in their encoding to sign every
+ * payload to be used for a specific workflow only to prevent a "payload replay" (had nothing to do
+ * with Temporal Replay) attack. For this scenario it's important that every entity during its
+ * serialization and deserialization gets the same SerializationContext, otherwise such signing will
+ * explode on decoding.
+ */
 public class WorkflowIdSignedPayloadsTest {
   private final ActivityImpl activitiesImpl = new ActivityImpl();
 
@@ -86,22 +92,56 @@ public class WorkflowIdSignedPayloadsTest {
     @Override
     public String execute(String input) {
       assertEquals("input", input);
+
+      if (!Activity.getExecutionContext().getInfo().isLocal()) {
+        Activity.getExecutionContext().heartbeat("heartbeat");
+        Optional<String> lastHeartbeat =
+            Activity.getExecutionContext().getHeartbeatDetails(String.class);
+        assertTrue(lastHeartbeat.isPresent());
+        assertEquals("heartbeat", lastHeartbeat.get());
+      }
+
       return "result";
     }
   }
 
   public static class SimpleWorkflowWithAnActivity implements TestWorkflows.TestWorkflow1 {
 
-    private final SimpleActivity activities =
+    private final SimpleActivity activity =
         Workflow.newActivityStub(
             SimpleActivity.class,
             ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(1)).build());
 
+    private final SimpleActivity activityLocal =
+        Workflow.newLocalActivityStub(
+            SimpleActivity.class,
+            LocalActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(1))
+                .build());
+
     @Override
     public String execute(String input) {
       assertEquals("input", input);
-      String result = activities.execute(input);
+      // Side Effect
+      String sideEffectResult = Workflow.sideEffect(String.class, () -> "sideEffect");
+      assertEquals("sideEffect", sideEffectResult);
+      // Activity
+      String result = activity.execute(input);
       assertEquals("result", result);
+      // Local Activity
+      result = activityLocal.execute(input);
+      assertEquals("result", result);
+      // Child Workflow
+      if (!Workflow.getInfo().getParentWorkflowId().isPresent()) {
+        TestWorkflows.TestWorkflow1 child =
+            Workflow.newChildWorkflowStub(TestWorkflows.TestWorkflow1.class);
+        result = child.execute(input);
+        assertEquals("result", result);
+      }
+      // continueAsNew
+      if (!Workflow.getInfo().getContinuedExecutionRunId().isPresent()) {
+        Workflow.continueAsNew(input);
+      }
       return result;
     }
   }
@@ -140,6 +180,8 @@ public class WorkflowIdSignedPayloadsTest {
 
     private Payload encodePayload(final Payload originalPayload) {
       String workflowId = null;
+      assertNotNull(
+          "everything in this test should go through contextualized codecs", serializationContext);
       if (serializationContext != null) {
         if (serializationContext instanceof WorkflowSerializationContext) {
           workflowId = ((WorkflowSerializationContext) serializationContext).getWorkflowId();

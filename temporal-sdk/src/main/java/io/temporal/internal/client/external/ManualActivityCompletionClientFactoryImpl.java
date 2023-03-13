@@ -25,9 +25,11 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 class ManualActivityCompletionClientFactoryImpl implements ManualActivityCompletionClientFactory {
   private final WorkflowServiceStubs service;
@@ -47,19 +49,57 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
   }
 
   @Override
-  public ManualActivityCompletionClient getClient(@Nonnull byte[] taskToken, Scope metricsScope) {
-    Preconditions.checkArgument(
-        taskToken != null && taskToken.length > 0, "null or empty task token");
-    return new ManualActivityCompletionClientImpl(
-        service, namespace, identity, taskToken, dataConverter, metricsScope);
+  public ManualActivityCompletionClient getClient(
+      @Nonnull byte[] taskToken, @Nonnull Scope metricsScope) {
+    return getClient(taskToken, metricsScope, null);
   }
 
   @Override
   public ManualActivityCompletionClient getClient(
-      @Nonnull WorkflowExecution execution, @Nonnull String activityId, Scope metricsScope) {
-    Preconditions.checkArgument(execution != null, "null execution");
-    Preconditions.checkArgument(activityId != null, "null activityId");
+      @Nonnull byte[] taskToken,
+      @Nonnull Scope metricsScope,
+      @Nullable ActivitySerializationContext activitySerializationContext) {
+    Preconditions.checkNotNull(metricsScope, "metricsScope");
+    Preconditions.checkNotNull(taskToken, "taskToken");
+    Preconditions.checkArgument(taskToken.length > 0, "empty taskToken");
     return new ManualActivityCompletionClientImpl(
-        service, namespace, identity, execution, activityId, dataConverter, metricsScope);
+        service,
+        namespace,
+        identity,
+        dataConverter,
+        metricsScope,
+        taskToken,
+        null,
+        null,
+        activitySerializationContext);
+  }
+
+  @Override
+  public ManualActivityCompletionClient getClient(
+      @Nonnull WorkflowExecution execution,
+      @Nonnull String activityId,
+      @Nonnull Scope metricsScope) {
+    return getClient(execution, activityId, metricsScope, null);
+  }
+
+  @Override
+  public ManualActivityCompletionClient getClient(
+      @Nonnull WorkflowExecution execution,
+      @Nonnull String activityId,
+      @Nonnull Scope metricsScope,
+      @Nullable ActivitySerializationContext activitySerializationContext) {
+    Preconditions.checkNotNull(metricsScope, "metricsScope");
+    Preconditions.checkNotNull(execution, "execution");
+    Preconditions.checkNotNull(activityId, "activityId");
+    return new ManualActivityCompletionClientImpl(
+        service,
+        namespace,
+        identity,
+        dataConverter,
+        metricsScope,
+        null,
+        execution,
+        activityId,
+        activitySerializationContext);
   }
 }

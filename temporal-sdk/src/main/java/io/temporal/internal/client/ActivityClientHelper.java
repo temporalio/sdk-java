@@ -32,11 +32,9 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Optional;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Contains methods that could but didn't become a part of the main {@link
@@ -51,15 +49,13 @@ public final class ActivityClientHelper {
       String namespace,
       String identity,
       byte[] taskToken,
-      DataConverter dataConverter,
-      Scope metricsScope,
-      Object details) {
+      Optional<Payloads> payloads,
+      Scope metricsScope) {
     RecordActivityTaskHeartbeatRequest.Builder request =
         RecordActivityTaskHeartbeatRequest.newBuilder()
             .setTaskToken(ByteString.copyFrom(taskToken))
             .setNamespace(namespace)
             .setIdentity(identity);
-    Optional<Payloads> payloads = dataConverter.toPayloads(details);
     payloads.ifPresent(request::setDetails);
     return service
         .blockingStub()
@@ -73,9 +69,8 @@ public final class ActivityClientHelper {
       String identity,
       WorkflowExecution execution,
       @Nonnull String activityId,
-      DataConverter dataConverter,
-      Scope metricsScope,
-      @Nullable Object details) {
+      Optional<Payloads> payloads,
+      Scope metricsScope) {
     Preconditions.checkNotNull(activityId, "Either activity id or task token are required");
     RecordActivityTaskHeartbeatByIdRequest.Builder request =
         RecordActivityTaskHeartbeatByIdRequest.newBuilder()
@@ -84,7 +79,7 @@ public final class ActivityClientHelper {
             .setActivityId(activityId)
             .setNamespace(namespace)
             .setIdentity(identity);
-    dataConverter.toPayloads(details).ifPresent(request::setDetails);
+    payloads.ifPresent(request::setDetails);
     return service
         .blockingStub()
         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)

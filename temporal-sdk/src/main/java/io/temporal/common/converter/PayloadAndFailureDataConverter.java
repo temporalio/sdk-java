@@ -36,7 +36,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 class PayloadAndFailureDataConverter implements DataConverter {
-  // TODO we should make these fields final and make this DataConverter immutable immutable
+  // TODO we should make these fields final and make this DataConverter immutable
   //  For that we need to deprecate currently mutating methods like
   //  DefaultDataConverter#withPayloadConverterOverrides and
   // DefaultDataConverter#withFailureConverter

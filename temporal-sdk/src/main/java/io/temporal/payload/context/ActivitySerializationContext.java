@@ -20,6 +20,7 @@
 
 package io.temporal.payload.context;
 
+import io.temporal.activity.ActivityInfo;
 import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -28,8 +29,8 @@ import javax.annotation.Nonnull;
 public class ActivitySerializationContext implements SerializationContext {
   private final @Nonnull String namespace;
   private final @Nonnull String workflowId;
-  private final @Nonnull String workflowTypeName;
-  private final @Nonnull String activityTypeName;
+  private final @Nonnull String workflowType;
+  private final @Nonnull String activityType;
   private final @Nonnull String activityTaskQueue;
   private final boolean local;
 
@@ -37,15 +38,25 @@ public class ActivitySerializationContext implements SerializationContext {
       @Nonnull String namespace,
       @Nonnull String workflowId,
       @Nonnull String workflowType,
-      @Nonnull String activityTypeName,
+      @Nonnull String activityType,
       @Nonnull String activityTaskQueue,
       boolean local) {
     this.namespace = Objects.requireNonNull(namespace);
     this.workflowId = Objects.requireNonNull(workflowId);
-    this.workflowTypeName = Objects.requireNonNull(workflowType);
-    this.activityTypeName = Objects.requireNonNull(activityTypeName);
+    this.workflowType = Objects.requireNonNull(workflowType);
+    this.activityType = Objects.requireNonNull(activityType);
     this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
     this.local = local;
+  }
+
+  public ActivitySerializationContext(ActivityInfo info) {
+    this(
+        info.getNamespace(),
+        info.getWorkflowId(),
+        info.getWorkflowType(),
+        info.getActivityType(),
+        info.getActivityTaskQueue(),
+        info.isLocal());
   }
 
   @Nonnull
@@ -59,13 +70,13 @@ public class ActivitySerializationContext implements SerializationContext {
   }
 
   @Nonnull
-  public String getWorkflowTypeName() {
-    return workflowTypeName;
+  public String getWorkflowType() {
+    return workflowType;
   }
 
   @Nonnull
-  public String getActivityTypeName() {
-    return activityTypeName;
+  public String getActivityType() {
+    return activityType;
   }
 
   @Nonnull
