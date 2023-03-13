@@ -47,6 +47,8 @@ public class DummySyncWorkflowContext {
   public static SyncWorkflowContext newDummySyncWorkflowContext() {
     SyncWorkflowContext context =
         new SyncWorkflowContext(
+            "dummy",
+            WorkflowExecution.newBuilder().setWorkflowId("dummy").setRunId("dummy").build(),
             new SignalDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
             new QueryDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
             null,

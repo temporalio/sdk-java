@@ -21,6 +21,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -63,6 +64,8 @@ class SyncWorkflow implements ReplayWorkflow {
   private DeterministicRunner runner;
 
   public SyncWorkflow(
+      String namespace,
+      WorkflowExecution workflowExecution,
       SyncWorkflowDefinition workflow,
       SignalDispatcher signalDispatcher,
       QueryDispatcher queryDispatcher,
@@ -82,6 +85,8 @@ class SyncWorkflow implements ReplayWorkflow {
     this.defaultDeadlockDetectionTimeout = defaultDeadlockDetectionTimeout;
     this.workflowContext =
         new SyncWorkflowContext(
+            namespace,
+            workflowExecution,
             signalDispatcher,
             queryDispatcher,
             workflowImplementationOptions,

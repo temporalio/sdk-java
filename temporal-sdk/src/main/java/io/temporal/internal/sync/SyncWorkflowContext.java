@@ -96,8 +96,12 @@ import org.slf4j.LoggerFactory;
 final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCallsInterceptor {
   private static final Logger log = LoggerFactory.getLogger(SyncWorkflowContext.class);
 
+  private final String namespace;
+  private final WorkflowExecution workflowExecution;
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final DataConverter dataConverter;
+  // to be used in this class, should not be passed down. Pass the original #dataConverter instead
+  private final DataConverter dataConverterWithCurrentWorkflowContext;
   private final List<ContextPropagator> contextPropagators;
   private final SignalDispatcher signalDispatcher;
   private final QueryDispatcher queryDispatcher;
@@ -115,12 +119,19 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private Map<String, LocalActivityOptions> localActivityOptionsMap;
 
   public SyncWorkflowContext(
+      @Nonnull String namespace,
+      @Nonnull WorkflowExecution workflowExecution,
       SignalDispatcher signalDispatcher,
       QueryDispatcher queryDispatcher,
       @Nullable WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       List<ContextPropagator> contextPropagators) {
+    this.namespace = namespace;
+    this.workflowExecution = workflowExecution;
     this.dataConverter = dataConverter;
+    this.dataConverterWithCurrentWorkflowContext =
+        dataConverter.withContext(
+            new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId()));
     this.contextPropagators = contextPropagators;
     this.signalDispatcher = signalDispatcher;
     this.queryDispatcher = queryDispatcher;
@@ -589,7 +600,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Memo memo =
         (input.getOptions().getMemo() != null)
             ? Memo.newBuilder()
-                .putAllFields(intoPayloadMap(dataConverter, input.getOptions().getMemo()))
+                .putAllFields(
+                    intoPayloadMap(
+                        dataConverterWithChildWorkflowContext, input.getOptions().getMemo()))
                 .build()
             : null;
 
@@ -786,12 +799,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       replayContext.sideEffect(
           () -> {
             R r = func.apply();
-            return dataConverter.toPayloads(r);
+            return dataConverterWithCurrentWorkflowContext.toPayloads(r);
           },
           (p) ->
               runner.executeInWorkflowThread(
                   "side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
-      return dataConverter.fromPayloads(0, result.get(), resultClass, resultType);
+      return dataConverterWithCurrentWorkflowContext.fromPayloads(
+          0, result.get(), resultClass, resultType);
     } catch (Exception e) {
       // SideEffect cannot throw normal exception as it can lead to non-deterministic behavior. So
       // fail the workflow task by throwing an Error.
@@ -820,12 +834,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         (storedBinary) -> {
           Optional<R> stored =
               storedBinary.map(
-                  (b) -> dataConverter.fromPayloads(0, Optional.of(b), resultClass, resultType));
+                  (b) ->
+                      dataConverterWithCurrentWorkflowContext.fromPayloads(
+                          0, Optional.of(b), resultClass, resultType));
           R funcResult =
               Objects.requireNonNull(func.apply(), "mutableSideEffect function " + "returned null");
           if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
             unserializedResult.set(funcResult);
-            return dataConverter.toPayloads(funcResult);
+            return dataConverterWithCurrentWorkflowContext.toPayloads(funcResult);
           }
           return Optional.empty(); // returned only when value doesn't need to be updated
         },
@@ -841,7 +857,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     if (unserialized != null) {
       return unserialized;
     }
-    return dataConverter.fromPayloads(0, result.get(), resultClass, resultType);
+    return dataConverterWithCurrentWorkflowContext.fromPayloads(
+        0, result.get(), resultClass, resultType);
   }
 
   @Override
@@ -969,11 +986,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public void continueAsNew(ContinueAsNewInput input) {
-    DataConverter dataConverterWithWorkflowContext =
-        dataConverter.withContext(
-            new WorkflowSerializationContext(
-                replayContext.getNamespace(), replayContext.getWorkflowId()));
-
     ContinueAsNewWorkflowExecutionCommandAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder();
     String workflowType = input.getWorkflowType();
@@ -1000,7 +1012,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       Map<String, Object> memo = options.getMemo();
       if (memo != null) {
         attributes.setMemo(
-            Memo.newBuilder().putAllFields(intoPayloadMap(dataConverterWithWorkflowContext, memo)));
+            Memo.newBuilder()
+                .putAllFields(intoPayloadMap(dataConverterWithCurrentWorkflowContext, memo)));
       }
     }
 
@@ -1012,7 +1025,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         toHeaderGrpc(input.getHeader(), extractContextsAndConvertToBytes(propagators));
     attributes.setHeader(grpcHeader);
 
-    Optional<Payloads> payloads = dataConverterWithWorkflowContext.toPayloads(input.getArgs());
+    Optional<Payloads> payloads =
+        dataConverterWithCurrentWorkflowContext.toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
 
     replayContext.continueAsNewOnCompletion(attributes.build());
@@ -1099,15 +1113,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   @Override
-  public Failure mapExceptionToFailure(Throwable failure) {
-    // TODO converter context
-    return dataConverter.exceptionToFailure(failure);
+  public Failure mapWorkflowExceptionToFailure(Throwable failure) {
+    return dataConverterWithCurrentWorkflowContext.exceptionToFailure(failure);
   }
 
   @Nullable
   @Override
   public <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
-    return dataConverter.fromPayloads(
+    return dataConverterWithCurrentWorkflowContext.fromPayloads(
         0, Optional.ofNullable(replayContext.getLastCompletionResult()), resultClass, resultType);
   }
 

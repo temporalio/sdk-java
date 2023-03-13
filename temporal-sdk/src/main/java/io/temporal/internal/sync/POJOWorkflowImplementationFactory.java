@@ -242,6 +242,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         dataConverter.withContext(
             new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId()));
     return new SyncWorkflow(
+        namespace,
+        workflowExecution,
         workflow,
         new SignalDispatcher(dataConverterWithWorkflowContext),
         new QueryDispatcher(dataConverterWithWorkflowContext),
