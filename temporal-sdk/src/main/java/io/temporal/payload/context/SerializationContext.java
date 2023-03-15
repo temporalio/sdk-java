@@ -33,8 +33,9 @@ import io.temporal.payload.codec.PayloadCodec;
  * user object, and it's corresponded Payload will always be handled by the serialization and data
  * conversion process with the same exact context.
  *
- * <p>{@link SerializationContext} is defined by the lowest actor in the call tree that the
- * serializing / deserializing object or {@link Payload} belongs to. For example:
+ * <p>{@link SerializationContext} scope is defined by a Serialization Target. Serialization Target
+ * is the lowest actor in the call tree that the serializing / deserializing object or {@link
+ * Payload} belongs to. For example:
  *
  * <ul>
  *   <li>Workflow Input and Output parameters will always get {@link WorkflowSerializationContext}

@@ -33,8 +33,8 @@ import io.temporal.common.converter.EncodingKeys;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.HasWorkflowSerializationContext;
 import io.temporal.payload.context.SerializationContext;
-import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -58,7 +58,9 @@ import org.junit.Test;
  * explode on decoding.
  */
 public class WorkflowIdSignedPayloadsTest {
-  private final ActivityImpl activitiesImpl = new ActivityImpl();
+  private final SimpleActivity heartbeatingActivity = new HeartbeatingIfNotLocalActivityImpl();
+  private final ManualCompletionActivity manualCompletionActivity =
+      new ManualCompletionActivityImpl();
 
   private static final DataConverter codecDataConverter =
       new CodecDataConverter(
@@ -71,7 +73,7 @@ public class WorkflowIdSignedPayloadsTest {
           .setWorkflowTypes(SimpleWorkflowWithAnActivity.class)
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setDataConverter(codecDataConverter).build())
-          .setActivityImplementations(activitiesImpl)
+          .setActivityImplementations(heartbeatingActivity, manualCompletionActivity)
           .build();
 
   @Test
@@ -83,12 +85,17 @@ public class WorkflowIdSignedPayloadsTest {
 
   @ActivityInterface
   public interface SimpleActivity {
-    @ActivityMethod
+    @ActivityMethod(name = "simple")
     String execute(String input);
   }
 
-  public static class ActivityImpl implements SimpleActivity {
+  @ActivityInterface
+  public interface ManualCompletionActivity {
+    @ActivityMethod(name = "manualCompletion")
+    String execute(String input);
+  }
 
+  public static class HeartbeatingIfNotLocalActivityImpl implements SimpleActivity {
     @Override
     public String execute(String input) {
       assertEquals("input", input);
@@ -102,6 +109,17 @@ public class WorkflowIdSignedPayloadsTest {
       }
 
       return "result";
+    }
+  }
+
+  public static class ManualCompletionActivityImpl implements ManualCompletionActivity {
+    @Override
+    public String execute(String input) {
+      assertEquals("input", input);
+      ManualActivityCompletionClient manualActivityCompletionClient =
+          Activity.getExecutionContext().useLocalManualCompletion();
+      manualActivityCompletionClient.complete("result");
+      return null;
     }
   }
 
@@ -119,6 +137,11 @@ public class WorkflowIdSignedPayloadsTest {
                 .setStartToCloseTimeout(Duration.ofSeconds(1))
                 .build());
 
+    private final ManualCompletionActivity manualCompletionActivity =
+        Workflow.newActivityStub(
+            ManualCompletionActivity.class,
+            ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(1)).build());
+
     @Override
     public String execute(String input) {
       assertEquals("input", input);
@@ -130,6 +153,9 @@ public class WorkflowIdSignedPayloadsTest {
       assertEquals("result", result);
       // Local Activity
       result = activityLocal.execute(input);
+      assertEquals("result", result);
+      // Activity uses ManualCompletionClient to complete
+      result = manualCompletionActivity.execute(input);
       assertEquals("result", result);
       // Child Workflow
       if (!Workflow.getInfo().getParentWorkflowId().isPresent()) {
@@ -179,26 +205,21 @@ public class WorkflowIdSignedPayloadsTest {
     }
 
     private Payload encodePayload(final Payload originalPayload) {
-      String workflowId = null;
+      String activityType = null;
+
       assertNotNull(
           "everything in this test should go through contextualized codecs", serializationContext);
-      if (serializationContext != null) {
-        if (serializationContext instanceof WorkflowSerializationContext) {
-          workflowId = ((WorkflowSerializationContext) serializationContext).getWorkflowId();
-        } else if (serializationContext instanceof ActivitySerializationContext) {
-          workflowId = ((ActivitySerializationContext) serializationContext).getWorkflowId();
-        }
+      String workflowId = ((HasWorkflowSerializationContext) serializationContext).getWorkflowId();
+      if (serializationContext instanceof ActivitySerializationContext) {
+        activityType = ((ActivitySerializationContext) serializationContext).getActivityType();
       }
-      if (workflowId == null) {
-        return originalPayload;
-      }
+      String signature = activityType != null ? workflowId + activityType : workflowId;
+      byte[] signatureBytes = signature.getBytes();
 
       byte[] decodedBytes = originalPayload.toByteArray();
-      byte[] workflowIdBytes = workflowId.getBytes();
-      byte[] encodedBytes = new byte[decodedBytes.length + workflowIdBytes.length];
+      byte[] encodedBytes = new byte[decodedBytes.length + signatureBytes.length];
       System.arraycopy(decodedBytes, 0, encodedBytes, 0, decodedBytes.length);
-      System.arraycopy(
-          workflowIdBytes, 0, encodedBytes, decodedBytes.length, workflowIdBytes.length);
+      System.arraycopy(signatureBytes, 0, encodedBytes, decodedBytes.length, signatureBytes.length);
 
       return Payload.newBuilder()
           .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, METADATA_ENCODING)
@@ -209,31 +230,34 @@ public class WorkflowIdSignedPayloadsTest {
     private Payload decodePayload(final Payload originalPayload) {
       if (METADATA_ENCODING.equals(
           originalPayload.getMetadataOrDefault(EncodingKeys.METADATA_ENCODING_KEY, null))) {
-        String workflowId = null;
-        if (serializationContext != null) {
-          if (serializationContext instanceof WorkflowSerializationContext) {
-            workflowId = ((WorkflowSerializationContext) serializationContext).getWorkflowId();
-          } else if (serializationContext instanceof ActivitySerializationContext) {
-            workflowId = ((ActivitySerializationContext) serializationContext).getWorkflowId();
-          }
-        }
-        assertNotNull(
-            "Data Converter during encoding got a context, but decoder wasn't created with a context",
-            workflowId);
-        byte[] workflowIdBytesToCompare = workflowId.getBytes();
+        String activityType = null;
 
-        byte[] workflowIdBytes = new byte[workflowIdBytesToCompare.length];
+        assertNotNull(
+            "everything in this test should go through contextualized codecs",
+            serializationContext);
+        String workflowId =
+            ((HasWorkflowSerializationContext) serializationContext).getWorkflowId();
+
+        if (serializationContext instanceof ActivitySerializationContext) {
+          workflowId = ((ActivitySerializationContext) serializationContext).getWorkflowId();
+          activityType = ((ActivitySerializationContext) serializationContext).getActivityType();
+        }
+
+        String expectedSignature = activityType != null ? workflowId + activityType : workflowId;
+        byte[] expectedSignatureBytes = expectedSignature.getBytes();
+
+        byte[] actualSignatureBytes = new byte[expectedSignatureBytes.length];
         byte[] encodedBytes = originalPayload.getData().toByteArray();
         System.arraycopy(
             encodedBytes,
-            encodedBytes.length - workflowIdBytes.length,
-            workflowIdBytes,
+            encodedBytes.length - actualSignatureBytes.length,
+            actualSignatureBytes,
             0,
-            workflowIdBytes.length);
-        assertArrayEquals(workflowIdBytesToCompare, workflowIdBytes);
+            actualSignatureBytes.length);
+        assertArrayEquals(expectedSignatureBytes, actualSignatureBytes);
 
         byte[] bytesToDecode =
-            Arrays.copyOfRange(encodedBytes, 0, encodedBytes.length - workflowIdBytes.length);
+            Arrays.copyOfRange(encodedBytes, 0, encodedBytes.length - actualSignatureBytes.length);
 
         try {
           return Payload.parseFrom(bytesToDecode);

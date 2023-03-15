@@ -26,7 +26,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 @Experimental
-public class ActivitySerializationContext implements SerializationContext {
+public class ActivitySerializationContext implements HasWorkflowSerializationContext {
   private final @Nonnull String namespace;
   private final @Nonnull String workflowId;
   private final @Nonnull String workflowType;
@@ -59,11 +59,13 @@ public class ActivitySerializationContext implements SerializationContext {
         info.isLocal());
   }
 
+  @Override
   @Nonnull
   public String getNamespace() {
     return namespace;
   }
 
+  @Override
   @Nonnull
   public String getWorkflowId() {
     return workflowId;
