@@ -21,7 +21,14 @@
 package io.temporal.client;
 
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.common.Experimental;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.PayloadConverter;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import java.util.Optional;
+import javax.annotation.Nonnull;
 
 /**
  * Used to complete asynchronously activities that called {@link
@@ -55,4 +62,19 @@ public interface ActivityCompletionClient {
    */
   <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException;
+
+  /**
+   * Supply this context if correct serialization of activity heartbeats, results or other payloads
+   * requires {@link DataConverter}, {@link PayloadConverter} or {@link PayloadCodec} to be aware of
+   * {@link ActivitySerializationContext}.
+   *
+   * @param context provides information to the data converter about the abstraction the data
+   *     belongs to
+   * @return an instance of DataConverter that may use the provided {@code context} for
+   *     serialization
+   * @see SerializationContext
+   */
+  @Experimental
+  @Nonnull
+  ActivityCompletionClient withContext(@Nonnull ActivitySerializationContext context);
 }

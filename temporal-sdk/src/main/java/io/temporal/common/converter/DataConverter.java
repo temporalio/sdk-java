@@ -20,12 +20,15 @@
 
 package io.temporal.common.converter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Defaults;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.common.Experimental;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Optional;
@@ -113,8 +116,8 @@ public interface DataConverter {
 
   /**
    * Instantiate an appropriate Java Exception from a serialized Failure object. The default
-   * implementation delegates the conversion process to an instance of {@link
-   * io.temporal.failure.FailureConverter}, using this data converter for payload decoding.
+   * implementation delegates the conversion process to an instance of {@link FailureConverter},
+   * using this data converter for payload decoding.
    *
    * @param failure Failure protobuf object to deserialize into an exception
    * @throws NullPointerException if failure is null
@@ -124,8 +127,8 @@ public interface DataConverter {
 
   /**
    * Serialize an existing Throwable object into a Failure object. The default implementation
-   * delegates the conversion process to an instance of {@link
-   * io.temporal.failure.FailureConverter}, using this data converter for payload encoding.
+   * delegates the conversion process to an instance of {@link FailureConverter}, using this data
+   * converter for payload encoding.
    *
    * @param throwable a Throwable object to serialize into a Failure protobuf object
    * @throws NullPointerException if throwable is null
@@ -170,5 +173,28 @@ public interface DataConverter {
       }
     }
     return result;
+  }
+
+  /**
+   * A correct implementation of this interface should have a fully functional "contextless"
+   * implementation. Temporal SDK will call this method when a knowledge of the context exists, but
+   * {@link DataConverter} can be used directly by user code and sometimes SDK itself without any
+   * context.
+   *
+   * <p>Note: this method is expected to be cheap and fast. Temporal SDK doesn't always cache the
+   * instances and may be calling this method very often. Users are responsible to make sure that
+   * this method doesn't recreate expensive objects like Jackson's {@link ObjectMapper} on every
+   * call.
+   *
+   * @param context provides information to the data converter about the abstraction the data
+   *     belongs to
+   * @return an instance of DataConverter that may use the provided {@code context} for
+   *     serialization
+   * @see SerializationContext
+   */
+  @Experimental
+  @Nonnull
+  default DataConverter withContext(@Nonnull SerializationContext context) {
+    return this;
   }
 }

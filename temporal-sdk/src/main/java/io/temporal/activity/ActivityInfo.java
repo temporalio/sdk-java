@@ -97,14 +97,32 @@ public interface ActivityInfo {
   String getWorkflowType();
 
   /**
-   * @return the Namespace of Workflow Execution that executed the Activity.
+   * Note: At some moment Temporal had built-in support for scheduling activities on a different
+   * namespace than the original workflow. Currently, Workflows can schedule activities only on the
+   * same namespace, hence no need for different {@code getWorkflowNamespace()} and {@link
+   * #getActivityNamespace()} methods.
+   *
+   * @return the Namespace of Workflow Execution that scheduled the Activity.
+   * @deprecated use {@link #getNamespace()}
    */
+  @Deprecated
   String getWorkflowNamespace();
 
   /**
-   * @return the Namespace of the Activity Execution.
+   * Note: At some moment Temporal had built-in support for scheduling activities on a different
+   * namespace than the original workflow. Currently, Workflows can schedule activities only on the
+   * same namespace, hence no need for different {@link #getWorkflowNamespace()} and {@code
+   * getActivityNamespace()} methods.
+   *
+   * @return the Namespace of this Activity Execution.
+   * @deprecated use {@link #getNamespace()}
    */
+  @Deprecated
   String getActivityNamespace();
+
+  String getNamespace();
+
+  String getActivityTaskQueue();
 
   /**
    * Gets the current Activity Execution attempt count. Attempt counts start at 1 and increment on

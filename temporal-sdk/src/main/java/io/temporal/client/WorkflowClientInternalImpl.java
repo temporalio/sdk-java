@@ -234,7 +234,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     ActivityCompletionClient result =
         WorkflowThreadMarker.protectFromWorkflowThread(
             new ActivityCompletionClientImpl(
-                manualActivityCompletionClientFactory, () -> {}, metricsScope),
+                manualActivityCompletionClientFactory, () -> {}, metricsScope, null),
             ActivityCompletionClient.class);
     for (WorkflowClientInterceptor i : interceptors) {
       result = i.newActivityCompletionClient(result);

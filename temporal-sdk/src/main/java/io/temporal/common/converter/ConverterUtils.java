@@ -18,15 +18,21 @@
  * limitations under the License.
  */
 
-package io.temporal.common;
+package io.temporal.common.converter;
 
-import java.lang.annotation.*;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.SerializationContext;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-/**
- * Annotation that specifies that an element is experimental, has unstable API or may change without
- * notice. This annotation is inherited.
- */
-@Inherited
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.FIELD, ElementType.TYPE, ElementType.METHOD})
-public @interface Experimental {}
+class ConverterUtils {
+  static DataConverter withContext(
+      @Nonnull DataConverter converter, @Nullable SerializationContext context) {
+    return context != null ? converter.withContext(context) : converter;
+  }
+
+  static PayloadCodec withContext(
+      @Nonnull PayloadCodec codec, @Nullable SerializationContext context) {
+    return context != null ? codec.withContext(context) : codec;
+  }
+}

@@ -68,15 +68,15 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private final ActivityTaskHandlerImpl laTaskHandler;
 
   public SyncWorkflowWorker(
-      WorkflowServiceStubs service,
-      String namespace,
-      String taskQueue,
-      SingleWorkerOptions singleWorkerOptions,
-      SingleWorkerOptions localActivityOptions,
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull SingleWorkerOptions singleWorkerOptions,
+      @Nonnull SingleWorkerOptions localActivityOptions,
       @Nonnull WorkflowRunLockManager runLocks,
       @Nonnull WorkflowExecutorCache cache,
       String stickyTaskQueueName,
-      WorkflowThreadExecutor workflowThreadExecutor,
+      @Nonnull WorkflowThreadExecutor workflowThreadExecutor,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher) {
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
@@ -88,13 +88,15 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             singleWorkerOptions,
             Objects.requireNonNull(workflowThreadExecutor),
             singleWorkerOptions.getWorkerInterceptors(),
-            cache);
+            cache,
+            namespace);
 
     ActivityExecutionContextFactory laActivityExecutionContextFactory =
         new LocalActivityExecutionContextFactoryImpl();
     laTaskHandler =
         new ActivityTaskHandlerImpl(
             namespace,
+            taskQueue,
             localActivityOptions.getDataConverter(),
             laActivityExecutionContextFactory,
             localActivityOptions.getWorkerInterceptors(),

@@ -350,6 +350,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private WorkflowRunTaskHandler createStatefulHandler(
       PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
+    WorkflowExecution workflowExecution = workflowTask.getWorkflowExecution();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();
     // Sticky workflow task with partial history.
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
@@ -367,7 +368,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           .setHistory(getHistoryResponse.getHistory())
           .setNextPageToken(getHistoryResponse.getNextPageToken());
     }
-    ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
+    ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType, workflowExecution);
     return new ReplayWorkflowRunTaskHandler(
         namespace, workflow, workflowTask, options, metricsScope, localActivityDispatcher);
   }

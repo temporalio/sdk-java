@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-package io.temporal.workflow.serialization;
+package io.temporal.functional.serialization;
 
 import static org.junit.Assert.*;
 

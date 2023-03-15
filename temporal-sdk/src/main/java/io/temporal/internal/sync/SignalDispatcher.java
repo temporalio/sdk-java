@@ -39,46 +39,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class SignalDispatcher {
-
-  private static class SignalData {
-    private final String signalName;
-    private final Optional<Payloads> payload;
-    private final long eventId;
-
-    private SignalData(String signalName, Optional<Payloads> payload, long eventId) {
-      this.signalName = Objects.requireNonNull(signalName);
-      this.payload = Objects.requireNonNull(payload);
-      this.eventId = eventId;
-    }
-
-    public String getSignalName() {
-      return signalName;
-    }
-
-    public Optional<Payloads> getPayload() {
-      return payload;
-    }
-
-    public long getEventId() {
-      return eventId;
-    }
-  }
-
   private static final Logger log = LoggerFactory.getLogger(SignalDispatcher.class);
 
-  private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
-  private final DataConverter converter;
-
+  private final DataConverter dataConverterWithWorkflowContext;
   private final Map<String, WorkflowOutboundCallsInterceptor.SignalRegistrationRequest>
       signalCallbacks = new HashMap<>();
 
+  private WorkflowInboundCallsInterceptor inboundCallsInterceptor;
   private DynamicSignalHandler dynamicSignalHandler;
 
   /** Buffers signals which don't have a registered listener. */
   private final Queue<SignalData> signalBuffer = new ArrayDeque<>();
 
-  public SignalDispatcher(DataConverter converter) {
-    this.converter = converter;
+  public SignalDispatcher(DataConverter dataConverterWithWorkflowContext) {
+    this.dataConverterWithWorkflowContext = dataConverterWithWorkflowContext;
   }
 
   public void setInboundCallsInterceptor(WorkflowInboundCallsInterceptor inboundCallsInterceptor) {
@@ -111,12 +85,15 @@ class SignalDispatcher {
         signalBuffer.add(new SignalData(signalName, input, eventId));
         return;
       }
-      args = new Object[] {new EncodedValues(input, converter)};
+      args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
     } else {
       try {
         args =
             DataConverter.arrayFromPayloads(
-                converter, input, handler.getArgTypes(), handler.getGenericArgTypes());
+                dataConverterWithWorkflowContext,
+                input,
+                handler.getArgTypes(),
+                handler.getGenericArgTypes());
       } catch (DataConverterException e) {
         logSerializationException(signalName, eventId, e);
         return;
@@ -145,7 +122,8 @@ class SignalDispatcher {
     dynamicSignalHandler = input.getHandler();
     for (SignalData signalData : signalBuffer) {
       dynamicSignalHandler.handle(
-          signalData.getSignalName(), new EncodedValues(signalData.getPayload(), converter));
+          signalData.getSignalName(),
+          new EncodedValues(signalData.getPayload(), dataConverterWithWorkflowContext));
     }
   }
 
@@ -159,5 +137,29 @@ class SignalDispatcher {
             + ". Dropping it.",
         exception);
     Workflow.getMetricsScope().counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
+  }
+
+  private static class SignalData {
+    private final String signalName;
+    private final Optional<Payloads> payload;
+    private final long eventId;
+
+    private SignalData(String signalName, Optional<Payloads> payload, long eventId) {
+      this.signalName = Objects.requireNonNull(signalName);
+      this.payload = Objects.requireNonNull(payload);
+      this.eventId = eventId;
+    }
+
+    public String getSignalName() {
+      return signalName;
+    }
+
+    public Optional<Payloads> getPayload() {
+      return payload;
+    }
+
+    public long getEventId() {
+      return eventId;
+    }
   }
 }

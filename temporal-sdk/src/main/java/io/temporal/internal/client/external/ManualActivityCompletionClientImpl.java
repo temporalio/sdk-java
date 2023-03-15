@@ -39,6 +39,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.retryer.GrpcRetryer;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Optional;
@@ -54,7 +55,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   private final WorkflowServiceStubs service;
   private final WorkflowExecution execution;
-  private final DataConverter dataConverter;
+  private final DataConverter dataConverterWithActivityExecutionContext;
   private final String namespace;
   private final String identity;
   private final String activityId;
@@ -64,55 +65,41 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
 
   ManualActivityCompletionClientImpl(
-      WorkflowServiceStubs service,
-      String namespace,
-      String identity,
-      byte[] taskToken,
-      DataConverter dataConverter,
-      Scope metricsScope) {
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String identity,
+      @Nonnull DataConverter dataConverter,
+      @Nonnull Scope metricsScope,
+      @Nullable byte[] taskToken,
+      @Nullable WorkflowExecution execution,
+      @Nullable String activityId,
+      @Nullable ActivitySerializationContext context) {
     this.service = service;
-    this.execution = null;
-    this.dataConverter = dataConverter;
+    this.dataConverterWithActivityExecutionContext =
+        context != null ? dataConverter.withContext(context) : dataConverter;
     this.namespace = namespace;
     this.identity = identity;
-    this.activityId = null;
     this.metricsScope = metricsScope;
-    this.taskToken = taskToken;
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.replyGrpcRetryerOptions =
         new GrpcRetryer.GrpcRetryerOptions(
             RpcRetryOptions.newBuilder()
                 .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
             null);
-  }
 
-  ManualActivityCompletionClientImpl(
-      WorkflowServiceStubs service,
-      String namespace,
-      String identity,
-      WorkflowExecution execution,
-      String activityId,
-      DataConverter dataConverter,
-      Scope metricsScope) {
-    this.service = service;
-    this.taskToken = null;
-    this.namespace = namespace;
-    this.identity = identity;
+    Preconditions.checkArgument(
+        taskToken != null && execution == null && activityId == null
+            || taskToken == null && execution != null && activityId != null,
+        "One of taskToken or (execution, activityId) must be specified");
+
+    this.taskToken = taskToken;
     this.execution = execution;
     this.activityId = activityId;
-    this.dataConverter = dataConverter;
-    this.metricsScope = metricsScope;
-    this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
-    this.replyGrpcRetryerOptions =
-        new GrpcRetryer.GrpcRetryerOptions(
-            RpcRetryOptions.newBuilder()
-                .buildWithDefaultsFrom(service.getOptions().getRpcRetryOptions()),
-            null);
   }
 
   @Override
   public void complete(@Nullable Object result) {
-    Optional<Payloads> payloads = dataConverter.toPayloads(result);
+    Optional<Payloads> payloads = dataConverterWithActivityExecutionContext.toPayloads(result);
     if (taskToken != null) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder()
@@ -163,7 +150,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     if (taskToken != null) {
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
-              .setFailure(dataConverter.exceptionToFailure(exception))
+              .setFailure(dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
               .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
@@ -189,7 +176,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       RespondActivityTaskFailedByIdRequest request =
           RespondActivityTaskFailedByIdRequest.newBuilder()
-              .setFailure(dataConverter.exceptionToFailure(exception))
+              .setFailure(dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId())
@@ -215,7 +202,12 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       if (taskToken != null) {
         RecordActivityTaskHeartbeatResponse status =
             ActivityClientHelper.sendHeartbeatRequest(
-                service, namespace, identity, taskToken, dataConverter, metricsScope, details);
+                service,
+                namespace,
+                identity,
+                taskToken,
+                dataConverterWithActivityExecutionContext.toPayloads(details),
+                metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         }
@@ -227,9 +219,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 identity,
                 execution,
                 activityId,
-                dataConverter,
-                metricsScope,
-                details);
+                dataConverterWithActivityExecutionContext.toPayloads(details),
+                metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         }
@@ -241,7 +232,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void reportCancellation(@Nullable Object details) {
-    Optional<Payloads> convertedDetails = dataConverter.toPayloads(details);
+    Optional<Payloads> convertedDetails =
+        dataConverterWithActivityExecutionContext.toPayloads(details);
     if (taskToken != null) {
       RespondActivityTaskCanceledRequest.Builder request =
           RespondActivityTaskCanceledRequest.newBuilder()

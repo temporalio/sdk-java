@@ -170,7 +170,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
     WorkflowContext context = mock(WorkflowContext.class);
     when(context.getWorkflowImplementationOptions())
         .thenReturn(WorkflowImplementationOptions.getDefaultInstance());
-    when(context.mapExceptionToFailure(any(Exception.class)))
+    when(context.mapWorkflowExceptionToFailure(any(Exception.class)))
         .then(invocation -> dataConverter.exceptionToFailure(invocation.getArgument(0)));
     when(workflowMock.getWorkflowContext()).thenReturn(context);
 
