@@ -79,7 +79,7 @@ public class ActivityTimeoutTest {
   public @Rule Timeout timeout = Timeout.seconds(15);
 
   /**
-   * An activity reaches startToClose timeout once, max retries are set to 1.
+   * An activity reaches startToClose timeout once, max retries are set to 1. o
    *
    * <p>The expected structure is <br>
    * {@link ActivityFailure}({@link RetryState#RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED}) -> <br>
