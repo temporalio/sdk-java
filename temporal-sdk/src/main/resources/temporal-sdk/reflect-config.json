@@ -36,7 +36,7 @@
   "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.Header", "java.util.Optional"] }]
 },
 {
-  "name":"io.temporal.internal.sync.DynamicSyncWorkflowDefinition$RootWorkflowInboundCallsInterceptor",
-  "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.WorkflowInboundCallsInterceptor$WorkflowInput"] }]
+  "name":"io.temporal.internal.sync.DynamicSyncWorkflowDefinition",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.Header", "java.util.Optional"] }]
 }
 ]
