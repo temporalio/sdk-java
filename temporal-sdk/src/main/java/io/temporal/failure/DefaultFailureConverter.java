@@ -39,6 +39,8 @@ import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.FailureConverter;
+import io.temporal.internal.activity.ActivityTaskHandlerImpl;
+import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -61,12 +63,13 @@ public final class DefaultFailureConverter implements FailureConverter {
 
   /**
    * Stop emitting stack trace after this line. Makes serialized stack traces more readable and
-   * compact as it omits most of framework level code.
+   * compact as it omits most of framework-level code.
    */
   private static final ImmutableSet<String> CUTOFF_METHOD_NAMES =
-      ImmutableSet.of(
-          "io.temporal.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute",
-          "io.temporal.internal.sync.POJOWorkflowTaskHandler$POJOWorkflowImplementation.execute");
+      ImmutableSet.<String>builder()
+          .addAll(ActivityTaskHandlerImpl.ACTIVITY_HANDLER_STACKTRACE_CUTOFF)
+          .addAll(POJOWorkflowImplementationFactory.WORKFLOW_HANDLER_STACKTRACE_CUTOFF)
+          .build();
 
   /** Used to parse a stack trace line. */
   private static final Pattern TRACE_ELEMENT_PATTERN =

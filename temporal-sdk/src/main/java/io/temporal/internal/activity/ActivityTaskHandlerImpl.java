@@ -21,6 +21,7 @@
 package io.temporal.internal.activity;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.DynamicActivity;
@@ -35,6 +36,7 @@ import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOActivityMethodMetadata;
 import io.temporal.internal.activity.ActivityTaskExecutors.ActivityTaskExecutor;
+import io.temporal.internal.common.env.ReflectionUtils;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.serviceclient.MetricsTag;
@@ -46,6 +48,24 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
+  public static final ImmutableSet<String> ACTIVITY_HANDLER_STACKTRACE_CUTOFF =
+      ImmutableSet.<String>builder()
+          // POJO
+          .add(
+              ReflectionUtils.getMethodNameForStackTraceCutoff(
+                  ActivityTaskExecutors.POJOActivityImplementation.class,
+                  "execute",
+                  ActivityInfoInternal.class,
+                  Scope.class))
+          // Dynamic
+          .add(
+              ReflectionUtils.getMethodNameForStackTraceCutoff(
+                  ActivityTaskExecutors.DynamicActivityImplementation.class,
+                  "execute",
+                  ActivityInfoInternal.class,
+                  Scope.class))
+          .build();
+
   private final DataConverter dataConverter;
   private final String namespace;
   private final String taskQueue;

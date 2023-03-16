@@ -22,5 +22,21 @@
 {
   "name":"com.fasterxml.jackson.datatype.jsr310.JavaTimeModule",
   "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"io.temporal.internal.activity.ActivityTaskExecutors$DynamicActivityImplementation",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.internal.activity.ActivityInfoInternal", "com.uber.m3.tally.Scope"] }]
+},
+{
+  "name":"io.temporal.internal.activity.ActivityTaskExecutors$POJOActivityImplementation",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.internal.activity.ActivityInfoInternal", "com.uber.m3.tally.Scope"] }]
+},
+{
+  "name":"io.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.Header", "java.util.Optional"] }]
+},
+{
+  "name":"io.temporal.internal.sync.DynamicSyncWorkflowDefinition$RootWorkflowInboundCallsInterceptor",
+  "methods":[{"name":"execute","parameterTypes":["io.temporal.common.interceptors.WorkflowInboundCallsInterceptor$WorkflowInput"] }]
 }
 ]
