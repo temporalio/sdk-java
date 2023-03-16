@@ -545,8 +545,16 @@ public final class WorkflowStateMachines {
         ActivityStateMachine.newInstance(
             attributes,
             (p, f) -> {
-              callback.apply(p, f);
-              if (f != null && f.hasCause() && f.getCause().hasCanceledFailureInfo()) {
+              Failure failure = f != null ? f.getFailure() : null;
+              callback.apply(p, failure);
+
+              if (f != null
+                  && !f.isFromEvent()
+                  && failure.hasCause()
+                  && failure.getCause().hasCanceledFailureInfo()) {
+                // If !f.isFromEvent(), we want to unblock the event loop as the promise got filled
+                // and the workflow may make progress. If f.isFromEvent(), we need to delay event
+                // loop triggering until WorkflowTaskStarted.
                 eventLoop();
               }
             },
