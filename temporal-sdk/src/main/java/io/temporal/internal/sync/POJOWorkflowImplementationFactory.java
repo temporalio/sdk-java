@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
@@ -36,6 +37,7 @@ import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.common.env.ReflectionUtils;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.worker.SingleWorkerOptions;
@@ -60,6 +62,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
+  public static final ImmutableSet<String> WORKFLOW_HANDLER_STACKTRACE_CUTOFF =
+      ImmutableSet.<String>builder()
+          // POJO
+          .add(
+              ReflectionUtils.getMethodNameForStackTraceCutoff(
+                  POJOWorkflowImplementation.class, "execute", Header.class, Optional.class))
+          // Dynamic
+          .add(
+              ReflectionUtils.getMethodNameForStackTraceCutoff(
+                  DynamicSyncWorkflowDefinition.RootWorkflowInboundCallsInterceptor.class,
+                  "execute",
+                  WorkflowInboundCallsInterceptor.WorkflowInput.class))
+          .build();
+
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private final WorkerInterceptor[] workerInterceptors;

@@ -68,8 +68,7 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
     return dataConverter.toPayloads(result.getResult());
   }
 
-  private class RootWorkflowInboundCallsInterceptor
-      extends BaseRootWorkflowInboundCallsInterceptor {
+  class RootWorkflowInboundCallsInterceptor extends BaseRootWorkflowInboundCallsInterceptor {
     private DynamicWorkflow workflow;
 
     public RootWorkflowInboundCallsInterceptor(SyncWorkflowContext workflowContext) {
