@@ -1,0 +1,32 @@
+# Highlights
+
+- Ability for users to encode/encrypt Failures. See CodecDataConverter#encodeFailureAttributes
+- GraalVM descriptors for core modules. See https://github.com/temporalio/sdk-java/blob/ee86c34002c6d92dd5ec1227ad1b9ddc5e20c5a9/docs/AOT-native-image.md
+- New temporal-shaded module that shades grpc, protobuf, guava. See https://github.com/temporalio/sdk-java/blob/ee86c34002c6d92dd5ec1227ad1b9ddc5e20c5a9/temporal-shaded/README.md
+- Eager Workflow Task Dispatch. Requires Temporal Server 1.20+
+- Fixes for some overly verbose exception traces in the history
+- Experimental SerializationContext support in PayloadConverter and PayloadCodec
+
+# Changeset
+
+2023-02-06 - 23734dcd - Update dependencies and protos (#1625)
+2023-02-06 - 4696302b - Add an integration test that covers critical history pagination code (#1638)
+2023-02-07 - d5c7f420 - Use ByteString.EMPTY instead of ByteString.empty() (#1643)
+2023-02-14 - 593cfadf - Rework Workers States, fix Eager Activity dispatch worker state check (#1654)
+2023-02-14 - 7f2679c4 - Implement FailureConverter API (#1645)
+2023-02-15 - 316e3da4 - New temporal-shaded module that shades grpc, protobuf, guava (#1656)
+2023-02-15 - ba838feb - Don't relocate com.google.gson during shadowing (#1658)
+2023-02-15 - d059dd6a - Fix temporal-shaded packaging type (#1657)
+2023-02-21 - 7c534738 - Provide GraalVM descriptors for temporal-sdk, add docs for users using native-image (#1660)
+2023-02-21 - e88a923e - Implement nonfirst attempt LA metering changes (#1659)
+2023-02-23 - 3a118def - Fix WorkflowStub#getExecution returning null after signalWithStart (#1670)
+2023-02-23 - ec34da20 - Fix overly sensitive count checks in la metering test (#1673)
+2023-02-27 - 5f5ecabe - Eager Workflow Task Dispatch (#1674)
+2023-02-27 - 68a10cfd - Update CODEOWNERS to sdk team (#1675)
+2023-02-28 - db81b4d5 - Support terminate-if-running reuse policy in test server (#1683)
+2023-03-07 - 7521f859 - Fix rare deadlock when event loop is triggered after a main thread threw an exception (#1690)
+2023-03-15 - 6156036f - Fix premature triggering of eventLoop in case of activity cancellation (#1691)
+2023-03-15 - ee86c340 - Provide SerializationContext for PayloadConverter and PayloadCodec (#1695)
+2023-03-15 - f37c9995 - Fix stacktrace cutoff methods initialization (#1699)
+2023-03-16 - 4a5aa97c - Wait for worker slots to be fully released in the graceful worker shutdown (#1679)
+2023-03-16 - d9bd2c1e - Cleanup for release v1.19.0 (#1701)
