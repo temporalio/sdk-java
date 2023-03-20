@@ -43,7 +43,7 @@ ext {
     // We can't move pass 3.22.0 because 3.22.2 deprecates some methods used by generated code produced by
     // the old protoc we keep for compatibility of our generated code with old protobuf-java versions.
     // Which leads to build failure because of -Werror.
-    protoVersion = '3.22.0'
+    protoVersion = '3.22.2'
     annotationApiVersion = '1.3.2'
     guavaVersion = '31.1-jre' // [10.0,)
     tallyVersion = '0.13.0' // [0.4.0,)
