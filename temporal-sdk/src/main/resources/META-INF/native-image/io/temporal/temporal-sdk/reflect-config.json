@@ -24,11 +24,7 @@
   "methods":[{"name":"<init>","parameterTypes":[] }]
 },
 {
-  "name":"io.temporal.internal.activity.ActivityTaskExecutors$DynamicActivityImplementation",
-  "methods":[{"name":"execute","parameterTypes":["io.temporal.internal.activity.ActivityInfoInternal", "com.uber.m3.tally.Scope"] }]
-},
-{
-  "name":"io.temporal.internal.activity.ActivityTaskExecutors$POJOActivityImplementation",
+  "name":"io.temporal.internal.activity.ActivityTaskExecutors$BaseActivityTaskExecutor",
   "methods":[{"name":"execute","parameterTypes":["io.temporal.internal.activity.ActivityInfoInternal", "com.uber.m3.tally.Scope"] }]
 },
 {
