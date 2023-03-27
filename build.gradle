@@ -52,7 +52,7 @@ ext {
 
     jsonPathVersion = '2.7.0' // compileOnly
 
-    cronUtilsVersion = '9.2.0' // for test server only
+    cronUtilsVersion = '9.2.1' // for test server only
 
     // Spring Boot 3 requires Java 17, java-sdk builds against 2.x version because we support Java 8.
     // We do test compatibility with Spring Boot 3 in integration tests.
