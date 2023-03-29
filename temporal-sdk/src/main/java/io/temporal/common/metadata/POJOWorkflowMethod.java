@@ -23,6 +23,7 @@ package io.temporal.common.metadata;
 import com.google.common.base.Strings;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
+import io.temporal.workflow.UpdateMethod;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 import java.util.Objects;
@@ -39,6 +40,8 @@ final class POJOWorkflowMethod {
     WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
     SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+    UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
+
     int count = 0;
     WorkflowMethodType type = null;
     String name = null;
@@ -64,6 +67,11 @@ final class POJOWorkflowMethod {
       }
       count++;
       name = queryMethod.name();
+    }
+    if (updateMethod != null) {
+      type = WorkflowMethodType.UPDATE;
+      count++;
+      name = updateMethod.name();
     }
     if (count == 0) {
       type = WorkflowMethodType.NONE;

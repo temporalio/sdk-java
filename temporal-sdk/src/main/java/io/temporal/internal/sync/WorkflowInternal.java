@@ -50,11 +50,15 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.DynamicQueryHandler;
 import io.temporal.workflow.DynamicSignalHandler;
+import io.temporal.workflow.DynamicUpdateHandler;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
+import io.temporal.workflow.Functions.Proc1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.QueryMethod;
+import io.temporal.workflow.UpdateMethod;
+import io.temporal.workflow.Validator;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import io.temporal.workflow.WorkflowMethod;
@@ -71,6 +75,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.lang.reflect.ParameterizedType; 
+
 
 /**
  * Never reference directly. It is public only because Java doesn't have internal package support.
@@ -141,7 +147,7 @@ public final class WorkflowInternal {
   /**
    * Register query or queries implementation object. There is no need to register top level
    * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
-   * QueryMethod} are registered.
+   * QueryMethod} are registered. TODO(quinn) LIES!
    */
   public static void registerListener(Object implementation) {
     if (implementation instanceof DynamicSignalHandler) {
@@ -156,6 +162,13 @@ public final class WorkflowInternal {
           .registerDynamicQueryHandler(
               new WorkflowOutboundCallsInterceptor.RegisterDynamicQueryHandlerInput(
                   (DynamicQueryHandler) implementation));
+      return;
+    }
+    if (implementation instanceof DynamicUpdateHandler) {
+      getWorkflowOutboundInterceptor()
+          .registerDynamicUpdateHandler(
+              new WorkflowOutboundCallsInterceptor.RegisterDynamicUpdateHandlerInput(
+                  (DynamicUpdateHandler) implementation));
       return;
     }
     Class<?> cls = implementation.getClass();
@@ -197,6 +210,41 @@ public final class WorkflowInternal {
           .registerSignalHandlers(
               new WorkflowOutboundCallsInterceptor.RegisterSignalHandlersInput(requests));
     }
+    List<WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest> updateRequests = new ArrayList<>();
+    for (POJOWorkflowMethodMetadata methodMetadata : workflowMetadata.getUpdateMethods()) {
+      Method method = methodMetadata.getWorkflowMethod();
+      UpdateMethod updateMethod = method.getAnnotation(UpdateMethod.class);
+
+      updateRequests.add(
+          new WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest(
+              methodMetadata.getName(),
+              method.getParameterTypes(),
+              method.getGenericParameterTypes(),
+              (args) -> {
+                try {
+                  Validator<?> validator = updateMethod.validator().getDeclaredConstructor().newInstance();
+                  // TODO(quinn) cast implementation to <?> don't think this is possible
+                  validator.apply(implementation, args);
+                } catch (Throwable e) {
+                  throw CheckedExceptionWrapper.wrap(e);
+                }
+              },
+              (args) -> {
+                try {
+                  return method.invoke(implementation, args);
+                } catch (Throwable e) {
+                  throw CheckedExceptionWrapper.wrap(e);
+                } 
+              }
+        )
+      );
+    }
+    if (!updateRequests.isEmpty()) {
+      getWorkflowOutboundInterceptor()
+          .registerUpdateHandlers(
+              new WorkflowOutboundCallsInterceptor.RegisterUpdateHandlersInput(updateRequests));
+    }
+
   }
 
   /** Should be used to get current time instead of {@link System#currentTimeMillis()} */

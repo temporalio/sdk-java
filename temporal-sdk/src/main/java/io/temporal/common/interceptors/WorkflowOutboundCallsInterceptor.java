@@ -407,6 +407,59 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
+  final class UpdateRegistrationRequest {
+    private final Functions.Func1<Object[], Object> executeCallback;
+    private final Functions.Proc1<Object[]> validateCallback;
+    private final String updateName;
+    private final Class<?>[] argTypes;
+    private final Type[] genericArgTypes;
+
+    public UpdateRegistrationRequest(
+        String updateName,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Proc1<Object[]> validateCallback,
+        Functions.Func1<Object[], Object> executeCallback) {
+      this.updateName = updateName;
+      this.argTypes = argTypes;
+      this.genericArgTypes = genericArgTypes;
+      this.validateCallback = validateCallback;
+      this.executeCallback = executeCallback;
+    }
+
+    public String getUpdateName() {
+      return updateName;
+    }
+
+    public Functions.Proc1<Object[]> getValidateCallback() {
+      return validateCallback;
+    }
+
+    public Functions.Func1<Object[], Object> getExecuteCallback() {
+      return executeCallback;
+    }
+
+    public Class<?>[] getArgTypes() {
+      return null;
+    }
+
+    public Type[] getGenericArgTypes() {
+        return null;
+    }
+  }
+
+  final class RegisterUpdateHandlersInput {
+    private final List<UpdateRegistrationRequest> requests;
+
+    public RegisterUpdateHandlersInput(List<UpdateRegistrationRequest> requests) {
+      this.requests = requests;
+    }
+
+    public List<UpdateRegistrationRequest> getRequests() {
+      return requests;
+    }
+  }
+
   final class RegisterQueryInput {
     private final String queryType;
     private final Class<?>[] argTypes;
@@ -465,6 +518,18 @@ public interface WorkflowOutboundCallsInterceptor {
     }
   }
 
+  final class RegisterDynamicUpdateHandlerInput {
+    private final DynamicUpdateHandler handler;
+
+    public RegisterDynamicUpdateHandlerInput(DynamicUpdateHandler handler) {
+      this.handler = handler;
+    }
+
+    public DynamicUpdateHandler getHandler() {
+      return handler;
+    }
+  }
+
   <R> ActivityOutput<R> executeActivity(ActivityInput<R> input);
 
   <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input);
@@ -498,9 +563,14 @@ public interface WorkflowOutboundCallsInterceptor {
 
   void registerSignalHandlers(RegisterSignalHandlersInput input);
 
+  void registerUpdateHandlers(RegisterUpdateHandlersInput input);
+
   void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput handler);
 
   void registerDynamicQueryHandler(RegisterDynamicQueryHandlerInput input);
+
+  void registerDynamicUpdateHandler(RegisterDynamicUpdateHandlerInput input);
+
 
   UUID randomUUID();
 

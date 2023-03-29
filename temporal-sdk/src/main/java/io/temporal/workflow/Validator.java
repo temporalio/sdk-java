@@ -1,9 +1,5 @@
 /*
- * Copyright (C) 2022 Temporal Technologies, Inc. All Rights Reserved.
- *
- * Copyright (C) 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * Modifications copyright (C) 2017 Uber Technologies, Inc.
+ * Copyright (C) 2023 Temporal Technologies, Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this material except in compliance with the License.
@@ -18,12 +14,18 @@
  * limitations under the License.
  */
 
-package io.temporal.common.metadata;
+/**
+ * Validator are used during update to decided weather to accept or reject an update workflow
+ * execution.
+ */
+@FunctionalInterface
+public interface Validator<W> {
+    
+    void apply(W workflowObject, Object[] args);
 
-public enum WorkflowMethodType {
-  NONE,
-  WORKFLOW,
-  SIGNAL,
-  QUERY,
-  UPDATE
+    public class None implements Validator<Object> {
+        @Override
+        public void apply(Object workflowObject, Object[] args) {
+        }
+    }
 }

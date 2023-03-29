@@ -66,6 +66,7 @@ public final class POJOWorkflowImplMetadata {
   private final List<POJOWorkflowMethodMetadata> workflowMethods;
   private final List<POJOWorkflowMethodMetadata> signalMethods;
   private final List<POJOWorkflowMethodMetadata> queryMethods;
+  private final List<POJOWorkflowMethodMetadata> updateMethods;
 
   /**
    * Create POJOWorkflowImplMetadata for a workflow implementation class. The object must implement
@@ -97,6 +98,7 @@ public final class POJOWorkflowImplMetadata {
     Map<String, POJOWorkflowMethodMetadata> workflowMethods = new HashMap<>();
     Map<String, POJOWorkflowMethodMetadata> queryMethods = new HashMap<>();
     Map<String, POJOWorkflowMethodMetadata> signalMethods = new HashMap<>();
+    Map<String, POJOWorkflowMethodMetadata> updateMethods = new HashMap<>();
     Map<EqualsByNameType, POJOWorkflowMethodMetadata> byNameType = new HashMap<>();
 
     // Getting all the top level interfaces instead of the direct ones that Class.getInterfaces()
@@ -136,6 +138,9 @@ public final class POJOWorkflowImplMetadata {
           case QUERY:
             queryMethods.put(methodMetadata.getName(), methodMetadata);
             break;
+          case UPDATE:
+            updateMethods.put(methodMetadata.getName(), methodMetadata);
+            break;
         }
       }
     }
@@ -148,6 +153,8 @@ public final class POJOWorkflowImplMetadata {
     this.workflowMethods = ImmutableList.copyOf(workflowMethods.values());
     this.signalMethods = ImmutableList.copyOf(signalMethods.values());
     this.queryMethods = ImmutableList.copyOf(queryMethods.values());
+    this.updateMethods = ImmutableList.copyOf(updateMethods.values());
+
   }
 
   /** List of workflow interfaces an object implements. */
@@ -168,5 +175,10 @@ public final class POJOWorkflowImplMetadata {
   /** List of query methods an object implements across all the workflow interfaces. */
   public List<POJOWorkflowMethodMetadata> getQueryMethods() {
     return queryMethods;
+  }
+
+  /** List of update methods an object implements across all the workflow interfaces. */
+  public List<POJOWorkflowMethodMetadata> getUpdateMethods() {
+    return updateMethods;
   }
 }
