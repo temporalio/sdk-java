@@ -27,7 +27,6 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -43,7 +42,6 @@ public class ExceptionInSignalTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestSignalExceptionWorkflowImpl.class)
-          .setActivityImplementations(new TestActivitiesImpl())
           .setTestTimeoutSeconds(20)
           .build();
 

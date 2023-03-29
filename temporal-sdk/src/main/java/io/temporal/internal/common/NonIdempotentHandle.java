@@ -18,15 +18,15 @@
  * limitations under the License.
  */
 
-package io.temporal.client.functional.common;
+package io.temporal.internal.common;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
-
-public class TestWorkflows {
-  @WorkflowInterface
-  public interface PrimitiveWorkflow {
-    @WorkflowMethod
-    void execute();
-  }
+/**
+ * This interface signifies that the implementation of {@link #close()} method may and likely is not
+ * idempotent, which is in agreement with {@link AutoCloseable#close()} contract. It also narrows
+ * {@link AutoCloseable#close()} contract to not throw any checked exceptions, making it more
+ * convenient to use in try-with-resources blocks.
+ */
+public interface NonIdempotentHandle extends AutoCloseable {
+  @Override
+  void close();
 }

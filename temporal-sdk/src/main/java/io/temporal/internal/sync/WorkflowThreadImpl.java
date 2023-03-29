@@ -23,6 +23,7 @@ package io.temporal.internal.sync;
 import com.google.common.base.Preconditions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -121,7 +122,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         threadContext.setUnhandledException(e);
       } finally {
         DeterministicRunnerImpl.setCurrentThreadInternal(null);
-        threadContext.setStatus(Status.DONE);
+        threadContext.makeDone();
         thread.setName(originalName);
         MDC.clear();
       }
@@ -299,6 +300,11 @@ class WorkflowThreadImpl implements WorkflowThread {
       start();
     }
     return context.runUntilBlocked(deadlockDetectionTimeoutMs);
+  }
+
+  @Override
+  public NonIdempotentHandle lockDeadlockDetector() {
+    return context.lockDeadlockDetector();
   }
 
   @Override
