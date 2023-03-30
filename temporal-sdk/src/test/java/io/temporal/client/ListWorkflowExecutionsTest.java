@@ -35,7 +35,7 @@ public class ListWorkflowExecutionsTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestWorkflows.DoNothingWorkflow.class)
+          .setWorkflowTypes(TestWorkflows.DoNothingNoArgsWorkflow.class)
           .build();
 
   @Test

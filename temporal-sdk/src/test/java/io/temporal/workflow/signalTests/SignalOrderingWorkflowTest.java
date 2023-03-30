@@ -29,7 +29,6 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,10 +41,7 @@ public class SignalOrderingWorkflowTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(SignalOrderingWorkflowImpl.class)
-          .setActivityImplementations(new TestActivitiesImpl())
-          .build();
+      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(SignalOrderingWorkflowImpl.class).build();
 
   @Test
   public void testSignalOrderingWorkflow() {
