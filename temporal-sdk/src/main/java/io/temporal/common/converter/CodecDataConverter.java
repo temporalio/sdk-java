@@ -176,6 +176,17 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   }
 
   @Override
+  public Object[] fromPayloads(
+      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
+      throws DataConverterException {
+    if (content.isPresent()) {
+      content = Optional.of(decodePayloads(content.get()));
+    }
+    return ConverterUtils.withContext(dataConverter, serializationContext)
+        .fromPayloads(content, parameterTypes, genericParameterTypes);
+  }
+
+  @Override
   @Nonnull
   public Failure exceptionToFailure(@Nonnull Throwable throwable) {
     Preconditions.checkNotNull(throwable, "throwable");

@@ -80,11 +80,8 @@ class QueryDispatcher {
       args = new Object[] {new EncodedValues(input, dataConverterWithWorkflowContext)};
     } else {
       args =
-          DataConverter.arrayFromPayloads(
-              dataConverterWithWorkflowContext,
-              input,
-              handler.getArgTypes(),
-              handler.getGenericArgTypes());
+          dataConverterWithWorkflowContext.fromPayloads(
+              input, handler.getArgTypes(), handler.getGenericArgTypes());
     }
     Object result =
         inboundCallsInterceptor

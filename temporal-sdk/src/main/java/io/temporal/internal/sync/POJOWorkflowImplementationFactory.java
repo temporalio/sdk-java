@@ -306,11 +306,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         throws CanceledFailure, WorkflowExecutionException {
 
       Object[] args =
-          DataConverter.arrayFromPayloads(
-              dataConverterWithWorkflowContext,
-              input,
-              workflowMethod.getParameterTypes(),
-              workflowMethod.getGenericParameterTypes());
+          dataConverterWithWorkflowContext.fromPayloads(
+              input, workflowMethod.getParameterTypes(), workflowMethod.getGenericParameterTypes());
       Preconditions.checkNotNull(workflowInvoker, "initialize not called");
       WorkflowInboundCallsInterceptor.WorkflowOutput result =
           workflowInvoker.execute(new WorkflowInboundCallsInterceptor.WorkflowInput(header, args));
