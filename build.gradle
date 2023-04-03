@@ -50,7 +50,7 @@ ext {
 
     gsonVersion = '2.10.1' // [2.0,)
 
-    jsonPathVersion = '2.7.0' // compileOnly
+    jsonPathVersion = '2.8.0' // compileOnly
 
     cronUtilsVersion = '9.2.1' // for test server only
 
